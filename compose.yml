@@ -12,7 +12,7 @@ services:
       SERVICES: s3,sqs,sns,firehose
       LOCALSTACK_HOST: 127.0.0.1
     volumes:
-      - '${TMPDIR:-/tmp}/localstack:/var/lib/localstack'
+      - ./localstack:/var/lib/localstack
       - ./compose/start-localstack.sh:/etc/localstack/init/ready.d/start-localstack.sh
     healthcheck:
       test: ['CMD', 'curl', 'localhost:4566']
@@ -26,6 +26,20 @@ services:
     image: redis:7.2.3-alpine3.18
     ports:
       - '6379:6379'
+    restart: always
+    networks:
+      - cdp-tenant
+
+  postgres:
+    image: postgres:16-alpine
+    ports:
+      - '5432:5432'
+    environment:
+      POSTGRES_USER: dev
+      POSTGRES_PASSWORD: dev
+      POSTGRES_DB: bng_metric_backend
+    volumes:
+      - pgdata:/var/lib/postgresql/data
     restart: always
     networks:
       - cdp-tenant
@@ -55,30 +69,33 @@ services:
   #   networks:
   #     - cdp-tenant
 
-  bng-metric-backend:
-    build:
-      context: .
-      target: development
-    ports:
-      - '3001:3001'
-    links:
-      - 'localstack:localstack'
-    depends_on:
-      localstack:
-        condition: service_healthy
-    env_file:
-      - 'compose/aws.env'
-    environment:
-      PORT: 3001
-      NODE_ENV: development
-      LOCALSTACK_ENDPOINT: http://localstack:4566
-    networks:
-      - cdp-tenant
-    volumes:
-      - ./src:/home/node/src
-      - ./package.json:/home/node/package.json
+  # bng-metric-backend:
+  #   build:
+  #     context: .
+  #     target: development
+  #   ports:
+  #     - '3001:3001'
+  #   links:
+  #     - 'localstack:localstack'
+  #   depends_on:
+  #     localstack:
+  #       condition: service_healthy
+  #   env_file:
+  #     - 'compose/aws.env'
+  #   environment:
+  #     PORT: 3001
+  #     NODE_ENV: development
+  #     LOCALSTACK_ENDPOINT: http://localstack:4566
+  #   networks:
+  #     - cdp-tenant
+  #   volumes:
+  #     - ./src:/home/node/src
+  #     - ./package.json:/home/node/package.json
 
 ################################################################################
+
+volumes:
+  pgdata:
 
 networks:
   cdp-tenant:

@@ -5,6 +5,7 @@ convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
+const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
 
 const config = convict({
   serviceVersion: {
@@ -25,6 +26,44 @@ const config = convict({
     format: 'port',
     default: 3001,
     env: 'PORT'
+  },
+  postgres: {
+    host: {
+      doc: 'Host for postgres',
+      format: String,
+      default: postgresHost,
+      env: 'DB_HOST'
+    },
+    port: {
+      doc: 'Port for postgres',
+      format: 'port',
+      default: 5432,
+      env: 'DB_PORT'
+    },
+    database: {
+      doc: 'Database name for postgres',
+      format: String,
+      default: 'bng_metric_backend',
+      env: 'DB_DATABASE'
+    },
+    user: {
+      doc: 'User for postgres',
+      format: String,
+      default: 'dev',
+      env: 'DB_USER'
+    },
+    iamAuthentication: {
+      doc: 'Enable IAM authentication for postgres',
+      format: Boolean,
+      default: isProduction,
+      env: 'DB_IAM_AUTHENTICATION'
+    },
+    localPassword: {
+      doc: 'Password for local development. Used when iamAuthentication is not enabled',
+      format: String,
+      default: 'dev',
+      env: 'DB_LOCAL_PASSWORD'
+    }
   },
   serviceName: {
     doc: 'Api Service Name',
