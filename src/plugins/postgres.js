@@ -9,14 +9,21 @@ function createPasswordProvider(options) {
   if (options.iamAuthentication) {
     return async () => {
       logger.info('Requesting new IAM RDS token')
-      const signer = new Signer({
-        region: options.region,
-        hostname: options.host,
-        port: options.port,
-        username: options.user,
-        credentials: fromNodeProviderChain()
-      })
-      return await signer.getAuthToken()
+      try {
+        const signer = new Signer({
+          region: options.region,
+          hostname: options.host,
+          port: options.port,
+          username: options.user,
+          credentials: fromNodeProviderChain()
+        })
+        const token = await signer.getAuthToken()
+        logger.info('IAM RDS token obtained successfully')
+        return token
+      } catch (error) {
+        logger.error(`Failed to obtain IAM RDS token: ${error.message}`)
+        throw error
+      }
     }
   }
 
@@ -27,8 +34,10 @@ const postgres = {
   plugin: {
     name: 'postgres',
     version: '1.0.0',
-    register: function (server, options) {
-      server.logger.info('Setting up Postgres')
+    register: async function (server, options) {
+      server.logger.info(
+        `Setting up Postgres pool for ${options.host}:${options.port}/${options.database}`
+      )
 
       const passwordProvider = createPasswordProvider(options)
       const pool = new Pool({
@@ -37,7 +46,10 @@ const postgres = {
         user: options.user,
         password: passwordProvider,
         database: options.database,
+        connectionTimeoutMillis: 10000,
+        idleTimeoutMillis: 30000,
         maxLifetimeSeconds: 60 * 10,
+        max: 10,
         ...(options.iamAuthentication &&
           server.secureContext && {
             ssl: {
@@ -47,7 +59,28 @@ const postgres = {
           })
       })
 
-      server.logger.info(`Postgres connected to database '${options.database}'`)
+      pool.on('error', (error) => {
+        logger.error(`Postgres pool error: ${error.message}`)
+      })
+
+      pool.on('connect', () => {
+        logger.info('Postgres pool created new connection')
+      })
+
+      // Verify connectivity at startup rather than failing on first request
+      try {
+        const client = await pool.connect()
+        const result = await client.query('SELECT 1 AS ok')
+        client.release()
+        server.logger.info(
+          `Postgres connected to database '${options.database}' (verified: ${result.rows[0].ok === 1})`
+        )
+      } catch (error) {
+        server.logger.error(
+          `Postgres failed to connect to '${options.database}': ${error.message}`
+        )
+        throw error
+      }
 
       server.decorate('server', 'pg', pool)
       server.decorate('request', 'pg', pool)
