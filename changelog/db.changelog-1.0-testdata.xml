@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="seed-test-data" author="bng-team" context="dev or test" runOnChange="true">
+        <comment>Seed sample BNG projects for development and testing</comment>
+
+        <delete schemaName="bng" tableName="projects">
+            <where>user_id IN ('test-user-001', 'test-user-002')</where>
+        </delete>
+
+        <insert schemaName="bng" tableName="projects">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="project" value='{"name": "Greenfield Meadow Restoration", "site": {"name": "Greenfield Meadow", "grid_ref": "TQ 123 456"}, "units": {"habitat": 10.5, "hedgerow": 2.3, "watercourse": 0.8}}'/>
+            <column name="user_id" value="test-user-001"/>
+            <column name="bng_project_version" valueNumeric="1"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+
+        <insert schemaName="bng" tableName="projects">
+            <column name="id" valueComputed="gen_random_uuid()"/>
+            <column name="project" value='{"name": "Oakwood Farm BNG Assessment", "site": {"name": "Oakwood Farm", "grid_ref": "SP 987 654"}, "units": {"habitat": 25.0, "hedgerow": 8.1}}'/>
+            <column name="user_id" value="test-user-002"/>
+            <column name="bng_project_version" valueNumeric="2"/>
+            <column name="created_at" valueComputed="now()"/>
+        </insert>
+    </changeSet>
+
+</databaseChangeLog>

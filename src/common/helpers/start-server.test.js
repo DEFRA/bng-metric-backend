@@ -1,5 +1,15 @@
 import hapi from '@hapi/hapi'
 
+vi.mock('../../plugins/postgres.js', () => ({
+  postgres: {
+    plugin: {
+      name: 'postgres',
+      version: '1.0.0',
+      register: vi.fn()
+    }
+  }
+}))
+
 describe('#startServer', () => {
   let createServerSpy
   let hapiServerSpy

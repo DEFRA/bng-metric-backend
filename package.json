@@ -8,6 +8,8 @@
     "node": ">=24"
   },
   "scripts": {
+    "db:update": "scripts/liquibase.sh update",
+    "db:validate": "scripts/liquibase.sh validate",
     "dev": "NODE_ENV=development npm run server:watch",
     "dev:debug": "NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",
@@ -20,6 +22,7 @@
     "security-audit": "npm audit --audit-level=high",
     "server:debug": "nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
     "server:watch": "nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",
+    "server:watch:9230": "nodemon --inspect=0.0.0.0:9230 --ext js,json --legacy-watch ./src",
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
     "start": "NODE_ENV=production node --use-strict .",
     "test": "TZ=UTC vitest run --coverage",
