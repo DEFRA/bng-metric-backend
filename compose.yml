@@ -31,7 +31,7 @@ services:
       - cdp-tenant
 
   postgres:
-    image: postgres:16-alpine
+    image: postgis/postgis:16-3.5
     ports:
       - '5432:5432'
     environment:
