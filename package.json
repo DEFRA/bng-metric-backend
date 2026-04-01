@@ -43,6 +43,7 @@
     "aws4": "1.13.2",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
+    "drizzle-orm": "0.45.2",
     "global-agent": "3.0.0",
     "hapi-pino": "13.0.0",
     "hapi-pulse": "3.0.1",

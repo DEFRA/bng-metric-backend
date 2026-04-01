@@ -2,6 +2,7 @@ import Pool from 'pg-pool'
 import { Signer } from '@aws-sdk/rds-signer'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 import { createLogger } from '../common/helpers/logging/logger.js'
+import { createDrizzle } from '../db/index.js'
 
 const logger = createLogger()
 
@@ -82,8 +83,12 @@ const postgres = {
         throw error
       }
 
+      const db = createDrizzle(pool)
+
       server.decorate('server', 'pg', pool)
       server.decorate('request', 'pg', pool)
+      server.decorate('server', 'drizzle', db)
+      server.decorate('request', 'drizzle', db)
     }
   }
 }
