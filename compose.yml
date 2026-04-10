@@ -44,6 +44,22 @@ services:
     networks:
       - cdp-tenant
 
+  cdp-defra-id-stub:
+    image: defradigital/cdp-defra-id-stub:${CDP_DEFRA_ID_STUB_VERSION:-latest}
+    ports:
+      - '3200:3200'
+    links:
+      - 'redis:redis'
+    depends_on:
+      redis:
+        condition: service_started
+    environment:
+      PORT: 3200
+      NODE_ENV: development
+      REDIS_HOST: redis
+    networks:
+      - cdp-tenant
+
   ################################################################################
 
   # frontend:
