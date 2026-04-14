@@ -1,5 +1,6 @@
 import Boom from '@hapi/boom'
 import { eq } from 'drizzle-orm'
+import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 
 const getProjects = {
@@ -29,4 +30,26 @@ const getProject = {
   }
 }
 
-export { getProjects, getProject }
+const createProject = {
+  method: 'POST',
+  path: '/projects/new',
+  options: {
+    validate: {
+      payload: Joi.object({
+        id: Joi.string().uuid().required(),
+        project: Joi.object().required(),
+        userId: Joi.string().required()
+      }).rename('user_id', 'userId', { ignoreUndefined: true })
+    }
+  },
+  handler: async (request, _h) => {
+    const { id, project, userId } = request.payload
+    const [row] = await request.drizzle
+      .insert(projects)
+      .values({ id, project, userId })
+      .returning()
+    return row
+  }
+}
+
+export { getProjects, getProject, createProject }
