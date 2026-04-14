@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="3" author="bng-team">
+        <comment>Add updated_at column to projects table</comment>
+            <addColumn schemaName="bng" tableName="projects">
+            <column name="updated_at" type="timestamptz" defaultValueComputed="now()"/>
+        </addColumn>
+    </changeSet>
+
+    <changeSet id="4" author="bng-team">
+        <comment>Add trigger and function for updating the updated_at column in the projects table</comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.update_updated_at_column()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                NEW.updated_at = CURRENT_TIMESTAMP;
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER set_updated_at
+            BEFORE UPDATE ON bng.projects
+            FOR EACH ROW
+            EXECUTE FUNCTION bng.update_updated_at_column();
+        </sql>
+    </changeSet>
+</databaseChangeLog>
