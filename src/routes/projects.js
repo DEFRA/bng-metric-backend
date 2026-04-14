@@ -1,3 +1,5 @@
+import { randomUUID } from 'crypto'
+
 import Boom from '@hapi/boom'
 import { eq } from 'drizzle-orm'
 import Joi from 'joi'
@@ -36,14 +38,14 @@ const createProject = {
   options: {
     validate: {
       payload: Joi.object({
-        id: Joi.string().uuid().required(),
         project: Joi.object().required(),
         userId: Joi.string().required()
       }).rename('user_id', 'userId', { ignoreUndefined: true })
     }
   },
   handler: async (request, _h) => {
-    const { id, project, userId } = request.payload
+    const { project, userId } = request.payload
+    const id = randomUUID()
     const [row] = await request.drizzle
       .insert(projects)
       .values({ id, project, userId })

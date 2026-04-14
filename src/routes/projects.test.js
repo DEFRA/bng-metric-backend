@@ -1,4 +1,4 @@
-import { getProjects, getProject } from './projects.js'
+import { getProjects, getProject, createProject } from './projects.js'
 
 const mockProjects = [
   {
@@ -60,6 +60,103 @@ describe('#getProjects', () => {
     const result = await getProjects.handler(request, {})
 
     expect(result).toEqual([])
+  })
+})
+
+describe('#createProject', () => {
+  function createMockDrizzleInsert(row) {
+    return {
+      insert: vi.fn().mockReturnValue({
+        values: vi.fn().mockReturnValue({
+          returning: vi.fn().mockResolvedValue([row])
+        })
+      })
+    }
+  }
+
+  const newProject = {
+    id: 'generated-uuid',
+    project: { name: 'New Wetland Project' },
+    userId: 'test-user-003',
+    bngProjectVersion: 1,
+    createdAt: new Date('2024-03-01')
+  }
+
+  test('Should insert and return the created project', async () => {
+    const drizzle = createMockDrizzleInsert(newProject)
+    const request = {
+      drizzle,
+      payload: {
+        project: { name: 'New Wetland Project' },
+        userId: 'test-user-003'
+      }
+    }
+
+    const result = await createProject.handler(request, {})
+
+    expect(drizzle.insert).toHaveBeenCalled()
+    expect(result).toEqual(newProject)
+  })
+
+  test('Should generate an id and pass userId and project to drizzle', async () => {
+    const drizzle = createMockDrizzleInsert(newProject)
+    const payload = {
+      project: { name: 'New Wetland Project' },
+      userId: 'test-user-003'
+    }
+    const request = { drizzle, payload }
+
+    await createProject.handler(request, {})
+
+    const valuesSpy = drizzle.insert().values
+    const insertedValues = valuesSpy.mock.calls[0][0]
+    expect(insertedValues.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
+    expect(insertedValues.project).toEqual(payload.project)
+    expect(insertedValues.userId).toBe(payload.userId)
+  })
+})
+
+describe('#createProject validation', () => {
+  const schema = createProject.options.validate.payload
+
+  test('Should pass with valid payload using userId', async () => {
+    const { error } = schema.validate({
+      project: { name: 'Test Project' },
+      userId: 'test-user-001'
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should pass with valid payload using user_id (renamed to userId)', async () => {
+    const { error, value } = schema.validate({
+      project: { name: 'Test Project' },
+      user_id: 'test-user-001'
+    })
+    expect(error).toBeUndefined()
+    expect(value.userId).toBe('test-user-001')
+  })
+
+  test('Should fail when project is missing', async () => {
+    const { error } = schema.validate({ userId: 'test-user-001' })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"project" is required')
+  })
+
+  test('Should fail when user_id and userId are both missing', async () => {
+    const { error } = schema.validate({ project: { name: 'Test Project' } })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"userId" is required')
+  })
+
+  test('Should fail when project is not an object', async () => {
+    const { error } = schema.validate({
+      project: 'not-an-object',
+      userId: 'test-user-001'
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"project" must be of type object')
   })
 })
 
