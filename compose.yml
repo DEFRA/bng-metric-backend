@@ -92,6 +92,46 @@ services:
   #     - ./src:/home/node/src
   #     - ./package.json:/home/node/package.json
 
+  caddy:
+    image: caddy:2-alpine
+    ports:
+      - '4001:4001'
+    volumes:
+      - ./compose/Caddyfile:/etc/caddy/Caddyfile:ro
+    extra_hosts:
+      - 'host.docker.internal:host-gateway'
+    depends_on:
+      - cdp-uploader
+    networks:
+      - cdp-tenant
+
+  cdp-uploader:
+    image: defradigital/cdp-uploader:${CDP_UPLOADER_VERSION:-latest}
+    ports:
+      - '7337:7337'
+    links:
+      - 'localstack:localstack'
+      - 'redis:redis'
+    depends_on:
+      localstack:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    env_file:
+      - 'compose/aws.env'
+    environment:
+      PORT: 7337
+      NODE_ENV: development
+      REDIS_HOST: redis
+      USE_SINGLE_INSTANCE_CACHE: true
+      MOCK_VIRUS_SCAN_ENABLED: true
+      MOCK_VIRUS_RESULT_DELAY: 3
+      SQS_ENDPOINT: http://localstack:4566
+      S3_ENDPOINT: http://localstack:4566
+      CONSUMER_BUCKETS: baseline-files
+    networks:
+      - cdp-tenant
+
 ################################################################################
 
 volumes:
