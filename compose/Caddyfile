@@ -1,3 +1,4 @@
+# Local dev only — in CDP cloud the platform proxy handles routing to cdp-uploader
 :4001 {
     # Route upload requests to cdp-uploader
     handle /upload-and-scan/* {
