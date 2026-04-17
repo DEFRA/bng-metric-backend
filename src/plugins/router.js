@@ -3,6 +3,7 @@ import { dbInfo } from '../routes/db-info.js'
 import { getProjects, getProject, createProject } from '../routes/projects.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
+import { getUserProjects } from '../routes/users.js'
 
 const router = {
   plugin: {
@@ -16,7 +17,8 @@ const router = {
         createProject,
         initiateUpload,
         uploadStatus,
-        validateBaseline
+        validateBaseline,
+        getUserProjects
       ])
     }
   }
