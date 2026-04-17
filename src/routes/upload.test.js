@@ -35,6 +35,32 @@ describe('POST /upload/initiate', () => {
       uploadUrl: '/upload-and-scan/f6b667d8-998f-4f55-8a20-204c0c289147'
     })
   })
+
+  it('should respond with 500 when the upload service returns an error', async () => {
+    vi.mocked(initiateUploadService).mockResolvedValue({
+      error: 'Unable to initiate upload'
+    })
+
+    const request = {
+      payload: {
+        redirect: '/projects/abc/upload-received',
+        s3Bucket: 'baseline-files'
+      }
+    }
+
+    const mockH = {
+      response: vi.fn().mockReturnThis(),
+      code: vi.fn().mockReturnThis()
+    }
+    mockH.response = vi.fn().mockReturnValue(mockH)
+
+    await initiateUpload.handler(request, mockH)
+
+    expect(mockH.response).toHaveBeenCalledWith({
+      error: 'Unable to initiate upload'
+    })
+    expect(mockH.code).toHaveBeenCalledWith(500)
+  })
 })
 
 describe('GET /upload/{uploadId}/status', () => {

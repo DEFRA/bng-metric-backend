@@ -29,6 +29,11 @@ const initiateUpload = {
     logger.info(
       `upload/initiate - result: ${JSON.stringify({ uploadId: result.uploadId, uploadUrl: result.uploadUrl, error: result.error })}`
     )
+
+    if (result.error) {
+      return h.response({ error: result.error }).code(500)
+    }
+
     return h.response(result)
   }
 }
