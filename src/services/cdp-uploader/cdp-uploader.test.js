@@ -118,18 +118,50 @@ describe('getUploadStatus', () => {
     delete process.env.ENVIRONMENT
   })
 
-  it('should return uploadStatus from the response', async () => {
+  it('should return uploadStatus and numberOfRejectedFiles from the response', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
-      payload: { uploadStatus: 'ready' }
+      payload: {
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 0,
+        files: []
+      }
     })
 
     const result = await getUploadStatus('abc-123')
 
-    expect(result).toEqual({ uploadStatus: 'ready' })
+    expect(result).toEqual({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 0,
+      errorMessage: null
+    })
     expect(Wreck.get).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
       { json: true }
     )
+  })
+
+  it('should return errorMessage from rejected file', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        files: [
+          {
+            fileStatus: 'rejected',
+            hasError: true,
+            errorMessage: 'The selected file contains a virus'
+          }
+        ]
+      }
+    })
+
+    const result = await getUploadStatus('abc-123')
+
+    expect(result).toEqual({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 1,
+      errorMessage: 'The selected file contains a virus'
+    })
   })
 
   it('should return unknown when uploadStatus is missing', async () => {
@@ -139,7 +171,11 @@ describe('getUploadStatus', () => {
 
     const result = await getUploadStatus('abc-123')
 
-    expect(result).toEqual({ uploadStatus: 'unknown' })
+    expect(result).toEqual({
+      uploadStatus: 'unknown',
+      numberOfRejectedFiles: 0,
+      errorMessage: null
+    })
   })
 
   it('should return error status when Wreck.get throws', async () => {

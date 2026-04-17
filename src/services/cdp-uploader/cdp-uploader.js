@@ -93,8 +93,13 @@ export async function getUploadStatus(uploadId) {
   try {
     const { payload } = await Wreck.get(url, { json: true })
 
+    const files = payload.files ?? []
+    const rejectedFile = files.find((f) => f.fileStatus === 'rejected')
+
     return {
-      uploadStatus: payload.uploadStatus ?? 'unknown'
+      uploadStatus: payload.uploadStatus ?? 'unknown',
+      numberOfRejectedFiles: payload.numberOfRejectedFiles ?? 0,
+      errorMessage: rejectedFile?.errorMessage ?? null
     }
   } catch (error) {
     const statusCode = error?.output?.statusCode
