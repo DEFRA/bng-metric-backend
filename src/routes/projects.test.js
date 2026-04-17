@@ -98,7 +98,7 @@ describe('#createProject', () => {
     expect(result).toEqual(newProject)
   })
 
-  test('Should generate an id and pass userId and project to drizzle', async () => {
+  test('Should pass only project and userId to drizzle', async () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const payload = {
       project: { name: 'New Wetland Project' },
@@ -110,11 +110,10 @@ describe('#createProject', () => {
 
     const valuesSpy = drizzle.insert().values
     const insertedValues = valuesSpy.mock.calls[0][0]
-    expect(insertedValues.id).toMatch(
-      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-    )
-    expect(insertedValues.project).toEqual(payload.project)
-    expect(insertedValues.userId).toBe(payload.userId)
+    expect(insertedValues).toEqual({
+      project: payload.project,
+      userId: payload.userId
+    })
   })
 })
 

@@ -1,5 +1,3 @@
-import { randomUUID } from 'crypto'
-
 import Boom from '@hapi/boom'
 import { eq } from 'drizzle-orm'
 import Joi from 'joi'
@@ -45,10 +43,9 @@ const createProject = {
   },
   handler: async (request, _h) => {
     const { project, userId } = request.payload
-    const id = randomUUID()
     const [row] = await request.drizzle
       .insert(projects)
-      .values({ id, project, userId })
+      .values({ project, userId })
       .returning()
     return row
   }
