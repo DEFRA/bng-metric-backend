@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="6" author="bng-team">
+        <comment>Backfill updated_at from created_at for any rows where updated_at is null</comment>
+        <sql>
+            UPDATE bng.projects SET updated_at = created_at WHERE updated_at IS NULL;
+        </sql>
+    </changeSet>
+
+    <changeSet id="7" author="bng-team">
+        <comment>Add NOT NULL constraint to updated_at column</comment>
+        <addNotNullConstraint
+            schemaName="bng"
+            tableName="projects"
+            columnName="updated_at"
+            columnDataType="timestamptz"/>
+    </changeSet>
+
+</databaseChangeLog>
