@@ -233,7 +233,10 @@ describe('#updateProject', () => {
     const request = {
       drizzle,
       params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' },
-      payload: { name: 'Renamed Project' }
+      payload: {
+        project: { name: 'Renamed Project' },
+        userId: 'test-user-001'
+      }
     }
 
     const result = await updateProject.handler(request, {})
@@ -252,7 +255,10 @@ describe('#updateProject', () => {
     const request = {
       drizzle,
       params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' },
-      payload: { name: 'Renamed Project' }
+      payload: {
+        project: { name: 'Renamed Project' },
+        userId: 'test-user-001'
+      }
     }
 
     await expect(updateProject.handler(request, {})).rejects.toThrow(
@@ -266,20 +272,29 @@ describe('#updateProject validation', () => {
   const paramsSchema = updateProject.options.validate.params
 
   test('Should pass with a valid name', async () => {
-    const { error } = payloadSchema.validate({ name: 'Renamed Project' })
+    const { error } = payloadSchema.validate({
+      project: { name: 'Renamed Project' },
+      userId: 'test-user-001'
+    })
     expect(error).toBeUndefined()
   })
 
   test('Should fail when name is missing', async () => {
-    const { error } = payloadSchema.validate({})
+    const { error } = payloadSchema.validate({
+      project: {},
+      userId: 'test-user-001'
+    })
     expect(error).toBeDefined()
-    expect(error.message).toContain('"name" is required')
+    expect(error.message).toContain('"project.name" is required')
   })
 
   test('Should fail when name is empty', async () => {
-    const { error } = payloadSchema.validate({ name: '' })
+    const { error } = payloadSchema.validate({
+      project: { name: '' },
+      userId: 'test-user-001'
+    })
     expect(error).toBeDefined()
-    expect(error.message).toContain('"name" is not allowed to be empty')
+    expect(error.message).toContain('"project.name" is not allowed to be empty')
   })
 
   test('Should require an id param', async () => {
