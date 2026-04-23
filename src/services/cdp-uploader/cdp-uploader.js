@@ -12,14 +12,24 @@ const logger = createLogger()
 export function getCdpUploaderUrl() {
   const explicitUrl = config.get('cdpUploader.url')
   if (explicitUrl) {
+    logger.info(
+      `getCdpUploaderUrl - using explicit CDP_UPLOADER_URL: ${explicitUrl}`
+    )
     return explicitUrl
   }
 
   const environment = process.env.ENVIRONMENT
   if (environment && environment !== 'local') {
-    return `https://cdp-uploader.${environment}.cdp-int.defra.cloud`
+    const derived = `https://cdp-uploader.${environment}.cdp-int.defra.cloud`
+    logger.info(
+      `getCdpUploaderUrl - derived from ENVIRONMENT=${environment}: ${derived}`
+    )
+    return derived
   }
 
+  logger.info(
+    `getCdpUploaderUrl - using local fallback, ENVIRONMENT=${environment ?? 'unset'}`
+  )
   // Local development fallback
   return 'http://localhost:7337'
 }
