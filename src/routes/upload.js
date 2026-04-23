@@ -23,7 +23,7 @@ const initiateUpload = {
   },
   handler: async (request, h) => {
     logger.info(
-      `upload/initiate - received redirect: ${request.payload.redirect}`
+      `upload/initiate handler reached - redirect: ${request.payload.redirect}, s3Bucket: ${request.payload.s3Bucket}, s3Path: ${request.payload.s3Path}`
     )
     const result = await initiateUploadService(request.payload)
     logger.info(
