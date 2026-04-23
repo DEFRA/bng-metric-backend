@@ -1,8 +1,13 @@
-import { getProjects, getProject, createProject } from './projects.js'
+import {
+  getProjects,
+  getProject,
+  createProject,
+  updateProject
+} from './projects.js'
 
 const mockProjects = [
   {
-    id: 'aaa-bbb-ccc',
+    id: '3f1e45b4-2e81-4c70-8a70-083ad958c913',
     project: {
       name: 'Greenfield Meadow Restoration',
       site: { name: 'Greenfield Meadow', grid_ref: 'TQ 123 456' },
@@ -13,7 +18,7 @@ const mockProjects = [
     createdAt: new Date('2024-01-01')
   },
   {
-    id: 'ddd-eee-fff',
+    id: '52116043-fb84-4144-8bf0-92890a4fe7a6',
     project: {
       name: 'Oakwood Farm BNG Assessment',
       site: { name: 'Oakwood Farm', grid_ref: 'SP 987 654' },
@@ -75,7 +80,7 @@ describe('#createProject', () => {
   }
 
   const newProject = {
-    id: 'generated-uuid',
+    id: '3d0f7b2e-4c52-4e0e-a20a-708dfc9b42d1',
     project: { name: 'New Wetland Project' },
     userId: 'test-user-003',
     bngProjectVersion: 1,
@@ -164,7 +169,7 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([mockProjects[0]])
     const request = {
       drizzle,
-      params: { id: 'aaa-bbb-ccc' }
+      params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' }
     }
 
     const result = await getProject.handler(request, {})
@@ -178,11 +183,135 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([])
     const request = {
       drizzle,
-      params: { id: 'nonexistent-id' }
+      params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' }
     }
 
     await expect(getProject.handler(request, {})).rejects.toThrow(
-      'Project nonexistent-id not found'
+      'Project a7dc53f2-05d2-4d75-9186-7e5cf52864bd not found'
     )
+  })
+})
+
+describe('#getProject validation', () => {
+  const paramsSchema = getProject.options.validate.params
+
+  test('Should pass with a UUID id param', async () => {
+    const { error } = paramsSchema.validate({
+      id: '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should fail when id param is not a UUID', async () => {
+    const { error } = paramsSchema.validate({ id: 'not-a-uuid' })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"id" must be a valid GUID')
+  })
+})
+
+describe('#updateProject', () => {
+  function createMockDrizzleUpdate(rows) {
+    const returning = vi.fn().mockResolvedValue(rows)
+    const where = vi.fn().mockReturnValue({ returning })
+    const set = vi.fn().mockReturnValue({ where })
+
+    return {
+      update: vi.fn().mockReturnValue({ set }),
+      _chain: { set, where, returning }
+    }
+  }
+
+  test('Should be a PATCH route', async () => {
+    expect(updateProject.method).toBe('PATCH')
+    expect(updateProject.path).toBe('/projects/{id}')
+  })
+
+  test('Should update project name and return the updated project', async () => {
+    const updatedProject = {
+      ...mockProjects[0],
+      project: {
+        ...mockProjects[0].project,
+        name: 'Renamed Project'
+      }
+    }
+    const drizzle = createMockDrizzleUpdate([updatedProject])
+    const request = {
+      drizzle,
+      params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' },
+      payload: {
+        project: { name: 'Renamed Project' }
+      }
+    }
+
+    const result = await updateProject.handler(request, {})
+
+    expect(drizzle.update).toHaveBeenCalled()
+    expect(drizzle._chain.set).toHaveBeenCalledWith({
+      project: expect.anything()
+    })
+    expect(drizzle._chain.where).toHaveBeenCalled()
+    expect(result).toEqual(updatedProject)
+  })
+
+  test('Should throw 404 when project to update is not found', async () => {
+    const drizzle = createMockDrizzleUpdate([])
+    const request = {
+      drizzle,
+      params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' },
+      payload: {
+        project: { name: 'Renamed Project' }
+      }
+    }
+
+    await expect(updateProject.handler(request, {})).rejects.toThrow(
+      'Project a7dc53f2-05d2-4d75-9186-7e5cf52864bd not found'
+    )
+  })
+})
+
+describe('#updateProject validation', () => {
+  const payloadSchema = updateProject.options.validate.payload
+  const paramsSchema = updateProject.options.validate.params
+
+  test('Should pass with a valid name', async () => {
+    const { error } = payloadSchema.validate({
+      project: { name: 'Renamed Project' }
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should fail when name is missing', async () => {
+    const { error } = payloadSchema.validate({
+      project: {}
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"project.name" is required')
+  })
+
+  test('Should fail when name is empty', async () => {
+    const { error } = payloadSchema.validate({
+      project: { name: '' }
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"project.name" is not allowed to be empty')
+  })
+
+  test('Should require an id param', async () => {
+    const { error } = paramsSchema.validate({})
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"id" is required')
+  })
+
+  test('Should pass with a UUID id param', async () => {
+    const { error } = paramsSchema.validate({
+      id: '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should fail when id param is not a UUID', async () => {
+    const { error } = paramsSchema.validate({ id: 'not-a-uuid' })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"id" must be a valid GUID')
   })
 })
