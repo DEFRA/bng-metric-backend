@@ -90,7 +90,7 @@ const updateProject = {
             true
           )
         `,
-        updatedAt: new Date()
+        updatedAt: sql`now()`
       })
       .where(eq(projects.id, id))
       .returning()

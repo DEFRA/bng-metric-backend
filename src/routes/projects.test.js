@@ -244,7 +244,7 @@ describe('#updateProject', () => {
     expect(drizzle.update).toHaveBeenCalled()
     expect(drizzle._chain.set).toHaveBeenCalledWith({
       project: expect.anything(),
-      updatedAt: expect.any(Date)
+      updatedAt: expect.anything()
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual(updatedProject)
