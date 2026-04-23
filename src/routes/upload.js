@@ -1,3 +1,4 @@
+import Boom from '@hapi/boom'
 import Joi from 'joi'
 
 import {
@@ -21,20 +22,33 @@ const initiateUpload = {
       })
     }
   },
-  handler: async (request, h) => {
-    logger.info(
-      `upload/initiate handler reached - redirect: ${request.payload.redirect}, s3Bucket: ${request.payload.s3Bucket}, s3Path: ${request.payload.s3Path}`
-    )
-    const result = await initiateUploadService(request.payload)
-    logger.info(
-      `upload/initiate - result: ${JSON.stringify({ uploadId: result.uploadId, uploadUrl: result.uploadUrl, error: result.error })}`
-    )
+  handler: async (request, _h) => {
+    const { redirect, s3Bucket, s3Path } = request.payload
 
-    if (result.error) {
-      return h.response({ error: result.error }).code(500)
+    try {
+      logger.info(
+        `upload/initiate handler reached - redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}`
+      )
+      const result = await initiateUploadService(request.payload)
+      logger.info(
+        `upload/initiate - result: ${JSON.stringify({ uploadId: result.uploadId, uploadUrl: result.uploadUrl, error: result.error })}`
+      )
+
+      if (result.error) {
+        throw Boom.badGateway(result.error)
+      }
+
+      return result
+    } catch (error) {
+      if (Boom.isBoom(error)) {
+        throw error
+      }
+      logger.error(
+        error,
+        `upload/initiate unhandled error - redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}`
+      )
+      throw Boom.internal('Failed to initiate upload')
     }
-
-    return h.response(result)
   }
 }
 
