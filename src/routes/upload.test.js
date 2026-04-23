@@ -23,20 +23,16 @@ describe('POST /upload/initiate', () => {
       }
     }
 
-    const mockH = {
-      response: vi.fn().mockReturnThis()
-    }
-
-    await initiateUpload.handler(request, mockH)
+    const result = await initiateUpload.handler(request, {})
 
     expect(initiateUploadService).toHaveBeenCalledWith(request.payload)
-    expect(mockH.response).toHaveBeenCalledWith({
+    expect(result).toEqual({
       uploadId: 'f6b667d8-998f-4f55-8a20-204c0c289147',
       uploadUrl: '/upload-and-scan/f6b667d8-998f-4f55-8a20-204c0c289147'
     })
   })
 
-  it('should respond with 500 when the upload service returns an error', async () => {
+  it('should throw a Boom badGateway when the upload service returns an error', async () => {
     vi.mocked(initiateUploadService).mockResolvedValue({
       error: 'Unable to initiate upload'
     })
@@ -48,18 +44,26 @@ describe('POST /upload/initiate', () => {
       }
     }
 
-    const mockH = {
-      response: vi.fn().mockReturnThis(),
-      code: vi.fn().mockReturnThis()
+    await expect(initiateUpload.handler(request, {})).rejects.toThrow(
+      'Unable to initiate upload'
+    )
+  })
+
+  it('should throw a Boom internal error for unexpected failures', async () => {
+    vi.mocked(initiateUploadService).mockRejectedValue(
+      new Error('Network timeout')
+    )
+
+    const request = {
+      payload: {
+        redirect: '/projects/abc/upload-received',
+        s3Bucket: 'baseline-files'
+      }
     }
-    mockH.response = vi.fn().mockReturnValue(mockH)
 
-    await initiateUpload.handler(request, mockH)
-
-    expect(mockH.response).toHaveBeenCalledWith({
-      error: 'Unable to initiate upload'
-    })
-    expect(mockH.code).toHaveBeenCalledWith(500)
+    await expect(initiateUpload.handler(request, {})).rejects.toThrow(
+      'Failed to initiate upload'
+    )
   })
 })
 
