@@ -221,6 +221,11 @@ describe('#updateProject', () => {
     }
   }
 
+  test('Should be a PATCH route', async () => {
+    expect(updateProject.method).toBe('PATCH')
+    expect(updateProject.path).toBe('/projects/{id}')
+  })
+
   test('Should update project name and return the updated project', async () => {
     const updatedProject = {
       ...mockProjects[0],
@@ -234,8 +239,7 @@ describe('#updateProject', () => {
       drizzle,
       params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' },
       payload: {
-        project: { name: 'Renamed Project' },
-        userId: 'test-user-001'
+        project: { name: 'Renamed Project' }
       }
     }
 
@@ -243,8 +247,7 @@ describe('#updateProject', () => {
 
     expect(drizzle.update).toHaveBeenCalled()
     expect(drizzle._chain.set).toHaveBeenCalledWith({
-      project: expect.anything(),
-      updatedAt: expect.anything()
+      project: expect.anything()
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual(updatedProject)
@@ -256,8 +259,7 @@ describe('#updateProject', () => {
       drizzle,
       params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' },
       payload: {
-        project: { name: 'Renamed Project' },
-        userId: 'test-user-001'
+        project: { name: 'Renamed Project' }
       }
     }
 
@@ -273,16 +275,14 @@ describe('#updateProject validation', () => {
 
   test('Should pass with a valid name', async () => {
     const { error } = payloadSchema.validate({
-      project: { name: 'Renamed Project' },
-      userId: 'test-user-001'
+      project: { name: 'Renamed Project' }
     })
     expect(error).toBeUndefined()
   })
 
   test('Should fail when name is missing', async () => {
     const { error } = payloadSchema.validate({
-      project: {},
-      userId: 'test-user-001'
+      project: {}
     })
     expect(error).toBeDefined()
     expect(error.message).toContain('"project.name" is required')
@@ -290,8 +290,7 @@ describe('#updateProject validation', () => {
 
   test('Should fail when name is empty', async () => {
     const { error } = payloadSchema.validate({
-      project: { name: '' },
-      userId: 'test-user-001'
+      project: { name: '' }
     })
     expect(error).toBeDefined()
     expect(error.message).toContain('"project.name" is not allowed to be empty')

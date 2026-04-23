@@ -59,7 +59,7 @@ const createProject = {
 }
 
 const updateProject = {
-  method: 'PUT',
+  method: 'PATCH',
   path: '/projects/{id}',
   options: {
     validate: {
@@ -69,8 +69,7 @@ const updateProject = {
       payload: Joi.object({
         project: Joi.object({
           name: Joi.string().trim().min(1).required()
-        }).required(),
-        userId: Joi.string().required()
+        }).required()
       })
     }
   },
@@ -89,8 +88,7 @@ const updateProject = {
             to_jsonb(${name}::text),
             true
           )
-        `,
-        updatedAt: sql`now()`
+        `
       })
       .where(eq(projects.id, id))
       .returning()
