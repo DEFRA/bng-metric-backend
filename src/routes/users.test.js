@@ -51,9 +51,10 @@ function createMockDrizzle(rows) {
   }
 }
 
-function makeRequest(userId, query = {}) {
+function makeRequest(userId, query = {}, app = {}) {
   return {
     drizzle: createMockDrizzle(mockUserProjects),
+    app,
     params: { userId },
     query: { sort: 'updated_at', order: 'desc', ...query }
   }
@@ -75,6 +76,7 @@ describe('#getUserProjects', () => {
     drizzle._chain.orderBy.mockResolvedValue([])
     const request = {
       drizzle,
+      app: {},
       params: { userId: UNKNOWN_USER_ID },
       query: { sort: 'updated_at', order: 'desc' }
     }
@@ -82,6 +84,16 @@ describe('#getUserProjects', () => {
     const result = await getUserProjects.handler(request, {})
 
     expect(result).toEqual([])
+  })
+
+  test('Should throw 403 when path userId does not match userContext.userId', async () => {
+    const request = makeRequest(TEST_USER_ID, undefined, {
+      userContext: { userId: UNKNOWN_USER_ID }
+    })
+
+    await expect(getUserProjects.handler(request, {})).rejects.toThrow(
+      'Forbidden'
+    )
   })
 
   test('Should filter projects by the correct userId', async () => {

@@ -8,6 +8,18 @@ describe('#config', () => {
     expect(config.get('postgres.iamAuthentication')).toBe(false)
   })
 
+  test('Should expose userContext defaults', async () => {
+    const { config } = await import('./config.js')
+
+    expect(config.get('userContext.rootSecret')).toBe(
+      'local-dev-only-root-secret-change-me-per-environment'
+    )
+    expect(config.get('userContext.rotationPeriodSeconds')).toBe(3600)
+    expect(config.get('userContext.tokenTtlSeconds')).toBe(60)
+    expect(config.get('userContext.clockSkewEpochs')).toBe(1)
+    expect(config.get('userContext.enforce')).toBe(false)
+  })
+
   test('Should default to production settings when NODE_ENV is production', async () => {
     vi.stubEnv('NODE_ENV', 'production')
 

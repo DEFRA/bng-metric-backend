@@ -45,7 +45,7 @@ function createMockDrizzle(rows) {
 describe('#getProjects', () => {
   test('Should return all projects', async () => {
     const drizzle = createMockDrizzle(mockProjects)
-    const request = { drizzle }
+    const request = { drizzle, app: {} }
 
     const result = await getProjects.handler(request, {})
 
@@ -55,11 +55,24 @@ describe('#getProjects', () => {
 
   test('Should return empty array when no projects exist', async () => {
     const drizzle = createMockDrizzle([])
-    const request = { drizzle }
+    const request = { drizzle, app: {} }
 
     const result = await getProjects.handler(request, {})
 
     expect(result).toEqual([])
+  })
+
+  test('Should scope to userContext.userId when present', async () => {
+    const drizzle = createMockDrizzle([mockProjects[0]])
+    const request = {
+      drizzle,
+      app: { userContext: { userId: 'test-user-001' } }
+    }
+
+    const result = await getProjects.handler(request, {})
+
+    expect(drizzle._chain.where).toHaveBeenCalled()
+    expect(result).toEqual([mockProjects[0]])
   })
 })
 
@@ -86,6 +99,7 @@ describe('#createProject', () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const request = {
       drizzle,
+      app: {},
       payload: {
         project: { name: 'New Wetland Project' },
         userId: 'test-user-003'
@@ -104,7 +118,7 @@ describe('#createProject', () => {
       project: { name: 'New Wetland Project' },
       userId: 'test-user-003'
     }
-    const request = { drizzle, payload }
+    const request = { drizzle, app: {}, payload }
 
     await createProject.handler(request, {})
 
@@ -114,6 +128,22 @@ describe('#createProject', () => {
       project: payload.project,
       userId: payload.userId
     })
+  })
+
+  test('Should reject when userContext.userId mismatches payload userId', async () => {
+    const drizzle = createMockDrizzleInsert(newProject)
+    const request = {
+      drizzle,
+      app: { userContext: { userId: 'other-user' } },
+      payload: {
+        project: { name: 'New Wetland Project' },
+        userId: 'test-user-003'
+      }
+    }
+
+    await expect(createProject.handler(request, {})).rejects.toThrow(
+      'Forbidden'
+    )
   })
 })
 
@@ -164,6 +194,7 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([mockProjects[0]])
     const request = {
       drizzle,
+      app: {},
       params: { id: 'aaa-bbb-ccc' }
     }
 
@@ -178,11 +209,23 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([])
     const request = {
       drizzle,
+      app: {},
       params: { id: 'nonexistent-id' }
     }
 
     await expect(getProject.handler(request, {})).rejects.toThrow(
       'Project nonexistent-id not found'
     )
+  })
+
+  test('Should throw 403 when project owner does not match userContext', async () => {
+    const drizzle = createMockDrizzle([mockProjects[0]])
+    const request = {
+      drizzle,
+      app: { userContext: { userId: 'someone-else' } },
+      params: { id: 'aaa-bbb-ccc' }
+    }
+
+    await expect(getProject.handler(request, {})).rejects.toThrow('Forbidden')
   })
 })

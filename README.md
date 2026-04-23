@@ -103,6 +103,10 @@ If you are having issues with formatting of line breaks on Windows update your g
 git config --global core.autocrlf false
 ```
 
+## Security
+
+- [User-context authentication](docs/user-context-auth.md) — verifies the signed `x-user-context` header on every FE→BE call.
+
 ## API endpoints
 
 | Endpoint             | Description                    |

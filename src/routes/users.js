@@ -1,3 +1,4 @@
+import Boom from '@hapi/boom'
 import { asc, desc, eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
@@ -29,6 +30,11 @@ const getUserProjects = {
   handler: async (request, _h) => {
     const { userId } = request.params
     const { sort, order } = request.query
+
+    const ctx = request.app.userContext
+    if (ctx && ctx.userId !== userId) {
+      throw Boom.forbidden()
+    }
 
     const rows = await request.drizzle
       .select()

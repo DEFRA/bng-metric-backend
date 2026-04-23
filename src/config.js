@@ -147,6 +147,39 @@ const config = convict({
       default: 'baseline-files',
       env: 'CDP_UPLOADER_BUCKET'
     }
+  },
+  userContext: {
+    rootSecret: {
+      doc: 'Root secret (base64 or any high-entropy string) for deriving per-epoch HMAC signing keys used to authenticate FE→BE calls. MUST be overridden per environment.',
+      format: String,
+      default: 'local-dev-only-root-secret-change-me-per-environment',
+      env: 'USER_CONTEXT_ROOT_SECRET',
+      sensitive: true
+    },
+    rotationPeriodSeconds: {
+      doc: 'How often the derived signing key rotates. Both services must agree.',
+      format: Number,
+      default: 3600,
+      env: 'USER_CONTEXT_ROTATION_PERIOD_SECONDS'
+    },
+    tokenTtlSeconds: {
+      doc: 'Maximum lifetime of an individual signed header.',
+      format: Number,
+      default: 60,
+      env: 'USER_CONTEXT_TOKEN_TTL_SECONDS'
+    },
+    clockSkewEpochs: {
+      doc: 'Neighbouring epochs to accept on verify, for clock skew and boundary crossings.',
+      format: Number,
+      default: 1,
+      env: 'USER_CONTEXT_CLOCK_SKEW_EPOCHS'
+    },
+    enforce: {
+      doc: 'When true, missing or invalid x-user-context tokens are rejected with 401. When false, the plugin only logs verification attempts (rollout safety).',
+      format: Boolean,
+      default: false,
+      env: 'USER_CONTEXT_ENFORCE'
+    }
   }
 })
 
