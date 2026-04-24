@@ -3,6 +3,90 @@ import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 
+/**
+ * @openapi
+ * /projects:
+ *   get:
+ *     tags:
+ *       - Projects
+ *     summary: List all projects
+ *     responses:
+ *       200:
+ *         description: Returns an array of projects
+ *
+ * /projects/{id}:
+ *   get:
+ *     tags:
+ *       - Projects
+ *     summary: Get a project by ID
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Returns the project
+ *       404:
+ *         description: Project not found
+ *   patch:
+ *     tags:
+ *       - Projects
+ *     summary: Update a project name
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - project
+ *             properties:
+ *               project:
+ *                 type: object
+ *                 required:
+ *                   - name
+ *                 properties:
+ *                   name:
+ *                     type: string
+ *     responses:
+ *       200:
+ *         description: Returns the updated project
+ *       404:
+ *         description: Project not found
+ *
+ * /projects/new:
+ *   post:
+ *     tags:
+ *       - Projects
+ *     summary: Create a new project
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - project
+ *               - userId
+ *             properties:
+ *               project:
+ *                 type: object
+ *               userId:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Returns the created project
+ */
 const getProjects = {
   method: 'GET',
   path: '/projects',

@@ -9,6 +9,53 @@ import { createLogger } from '../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+/**
+ * @openapi
+ * /upload/initiate:
+ *   post:
+ *     tags:
+ *       - Upload
+ *     summary: Initiate a file upload
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - redirect
+ *               - s3Bucket
+ *             properties:
+ *               redirect:
+ *                 type: string
+ *               s3Bucket:
+ *                 type: string
+ *               s3Path:
+ *                 type: string
+ *               metadata:
+ *                 type: object
+ *     responses:
+ *       200:
+ *         description: Returns upload ID and URL
+ *       502:
+ *         description: Upstream upload service error
+ *
+ * /upload/{uploadId}/status:
+ *   get:
+ *     tags:
+ *       - Upload
+ *     summary: Get upload status
+ *     parameters:
+ *       - in: path
+ *         name: uploadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Returns the upload status
+ */
 const initiateUpload = {
   method: 'POST',
   path: '/upload/initiate',

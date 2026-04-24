@@ -10,6 +10,36 @@ const sortColumns = {
   name: sql`${projects.project}->>'name'`
 }
 
+/**
+ * @openapi
+ * /users/{userId}/projects:
+ *   get:
+ *     tags:
+ *       - Users
+ *     summary: List projects for a user
+ *     parameters:
+ *       - in: path
+ *         name: userId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: query
+ *         name: sort
+ *         schema:
+ *           type: string
+ *           enum: [created_at, updated_at, name]
+ *           default: updated_at
+ *       - in: query
+ *         name: order
+ *         schema:
+ *           type: string
+ *           enum: [asc, desc]
+ *           default: desc
+ *     responses:
+ *       200:
+ *         description: Returns an array of projects belonging to the user
+ */
 const getUserProjects = {
   method: 'GET',
   path: '/users/{userId}/projects',

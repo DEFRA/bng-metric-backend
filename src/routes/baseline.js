@@ -1,5 +1,30 @@
 import Joi from 'joi'
 
+/**
+ * @openapi
+ * /baseline/validate/{uploadId}:
+ *   post:
+ *     tags:
+ *       - Baseline
+ *     summary: Validate a baseline GeoPackage upload
+ *     parameters:
+ *       - in: path
+ *         name: uploadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Returns validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 valid:
+ *                   type: boolean
+ */
 const validateBaseline = {
   method: 'POST',
   path: '/baseline/validate/{uploadId}',
