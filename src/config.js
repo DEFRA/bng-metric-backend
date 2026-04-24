@@ -133,6 +133,12 @@ const config = convict({
       env: 'TRACING_HEADER'
     }
   },
+  useSwagger: {
+    doc: 'Enable Swagger API documentation at /docs',
+    format: Boolean,
+    default: false,
+    env: 'USE_SWAGGER'
+  },
   cdpUploader: {
     url: {
       doc: 'Endpoint for the CDP Uploader service. Auto-derived from ENVIRONMENT if not set.',
