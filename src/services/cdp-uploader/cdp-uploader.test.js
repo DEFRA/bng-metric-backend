@@ -10,8 +10,15 @@ vi.mock('@hapi/wreck', () => ({
   }
 }))
 
-const { getCdpUploaderUrl, initiateUpload, getUploadStatus } =
-  await import('./cdp-uploader.js')
+const {
+  getCdpUploaderUrl,
+  initiateUpload,
+  getUploadStatus,
+  getUploadedFileS3Location,
+  waitForUploadReady,
+  UploadFailedError,
+  UploadTimeoutError
+} = await import('./cdp-uploader.js')
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -124,7 +131,13 @@ describe('getUploadStatus', () => {
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 0,
-        files: []
+        form: {
+          file: {
+            fileStatus: 'complete',
+            s3Bucket: 'baseline-files',
+            s3Key: 'baseline/file.gpkg'
+          }
+        }
       }
     })
 
@@ -141,18 +154,17 @@ describe('getUploadStatus', () => {
     )
   })
 
-  it('should return errorMessage from rejected file', async () => {
+  it('should return errorMessage from a rejected file', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 1,
-        files: [
-          {
+        form: {
+          file: {
             fileStatus: 'rejected',
-            hasError: true,
             errorMessage: 'The selected file contains a virus'
           }
-        ]
+        }
       }
     })
 
@@ -163,6 +175,34 @@ describe('getUploadStatus', () => {
       numberOfRejectedFiles: 1,
       errorMessage: 'The selected file contains a virus'
     })
+  })
+
+  it('should return null errorMessage when file is rejected but has no errorMessage', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 1,
+        form: { file: { fileStatus: 'rejected' } }
+      }
+    })
+
+    const result = await getUploadStatus('abc-123')
+
+    expect(result.errorMessage).toBeNull()
+  })
+
+  it('should return null errorMessage when file is not rejected', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 0,
+        form: { file: { fileStatus: 'complete' } }
+      }
+    })
+
+    const result = await getUploadStatus('abc-123')
+
+    expect(result.errorMessage).toBeNull()
   })
 
   it('should return unknown when uploadStatus is missing', async () => {
@@ -188,5 +228,147 @@ describe('getUploadStatus', () => {
       uploadStatus: 'error',
       error: 'Unable to check upload status'
     })
+  })
+})
+
+describe('getUploadedFileS3Location', () => {
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  it('should return bucket and key from form.file', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        form: {
+          file: { s3Bucket: 'baseline-files', s3Key: 'baseline/file.gpkg' }
+        }
+      }
+    })
+
+    const result = await getUploadedFileS3Location('abc-123')
+
+    expect(result).toEqual({
+      bucket: 'baseline-files',
+      key: 'baseline/file.gpkg'
+    })
+  })
+
+  it('should throw when form.file is absent', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { uploadStatus: 'ready' }
+    })
+
+    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+      'No file found for uploadId: abc-123'
+    )
+  })
+
+  it('should throw when s3Key is missing', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { form: { file: { s3Bucket: 'baseline-files' } } }
+    })
+
+    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+      'S3 location missing'
+    )
+  })
+
+  it('should throw when s3Bucket is missing', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { form: { file: { s3Key: 'baseline/file.gpkg' } } }
+    })
+
+    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+      'S3 location missing'
+    )
+  })
+})
+
+describe('waitForUploadReady', () => {
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
+  })
+
+  const readyPayload = {
+    uploadStatus: 'ready',
+    numberOfRejectedFiles: 0,
+    form: {
+      file: { s3Bucket: 'baseline-files', s3Key: 'baseline/file.gpkg' }
+    }
+  }
+
+  const pendingPayload = {
+    uploadStatus: 'pending',
+    numberOfRejectedFiles: 0
+  }
+
+  it('should return S3 location immediately when status is already ready', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyPayload })
+
+    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+
+    expect(result).toEqual({
+      bucket: 'baseline-files',
+      key: 'baseline/file.gpkg'
+    })
+  })
+
+  it('should poll until the status becomes ready', async () => {
+    vi.mocked(Wreck.get)
+      .mockResolvedValueOnce({ payload: pendingPayload })
+      .mockResolvedValueOnce({ payload: pendingPayload })
+      .mockResolvedValue({ payload: readyPayload })
+
+    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+
+    expect(result).toEqual({
+      bucket: 'baseline-files',
+      key: 'baseline/file.gpkg'
+    })
+    // 2 pending status polls + 1 ready status poll + 1 S3 location fetch
+    expect(Wreck.get).toHaveBeenCalledTimes(4)
+  })
+
+  it('should throw UploadFailedError when uploadStatus is "rejected"', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 1 }
+    })
+
+    await expect(
+      waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+    ).rejects.toThrow(UploadFailedError)
+  })
+
+  it('should retry rather than fail immediately when CDP Uploader returns a connection error', async () => {
+    vi.mocked(Wreck.get)
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockRejectedValueOnce(new Error('ECONNREFUSED'))
+      .mockResolvedValue({ payload: readyPayload })
+
+    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+
+    expect(result).toEqual({
+      bucket: 'baseline-files',
+      key: 'baseline/file.gpkg'
+    })
+  })
+
+  it('should throw UploadTimeoutError when the deadline is exceeded', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingPayload })
+
+    await expect(
+      waitForUploadReady('abc-123', { timeoutMs: 0, pollIntervalMs: 0 })
+    ).rejects.toThrow(UploadTimeoutError)
+  })
+
+  it('should throw UploadTimeoutError with a descriptive message', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingPayload })
+
+    await expect(
+      waitForUploadReady('abc-123', { timeoutMs: 0, pollIntervalMs: 0 })
+    ).rejects.toThrow(/did not reach 'ready' status/)
   })
 })
