@@ -83,6 +83,11 @@ function validateGpkg(buffer) {
   try {
     db = new Database(buffer)
   } catch (err) {
+    // better-sqlite3 does not throw in the constructor for most invalid buffers
+    // (it defers the error to the first operation). This catch covers the cases
+    // where it does throw (e.g. null/undefined input), which cannot be reliably
+    // reproduced in tests without depending on internal better-sqlite3 behaviour.
+    /* v8 ignore next 3 */
     logger.info(
       `validateGpkg: failed to open as SQLite database: ${err.message}`
     )
@@ -142,23 +147,43 @@ function validateGpkg(buffer) {
           "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'red line boundary' AND data_type = 'features'"
         )
         .get()
-      const { column_name: geomColumn } = db
+      const geomRow = db
         .prepare(
           "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'red line boundary'"
         )
         .get()
-      const polygonCount = db
-        .prepare(
-          `SELECT "${geomColumn}" AS geom FROM "${rlbTableName}" WHERE "${geomColumn}" IS NOT NULL`
-        )
-        .all()
-        .filter((row) => POLYGON_WKB_TYPES.has(getWkbType(row.geom))).length
-      if (polygonCount === 0) {
-        errors.push('Zero red line boundaries in GeoPackage (expecting one)')
-      } else if (polygonCount > 1) {
+      if (!geomRow) {
         errors.push(
-          'Too many red line boundaries in GeoPackage (expecting one)'
+          'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
         )
+      } else {
+        const rows = db
+          .prepare(
+            `SELECT "${geomRow.column_name}" AS geom FROM "${rlbTableName}" WHERE "${geomRow.column_name}" IS NOT NULL`
+          )
+          .all()
+        const unreadableCount = rows.filter(
+          (row) => getWkbType(row.geom) === null
+        ).length
+        if (unreadableCount > 0) {
+          logger.warn(
+            `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Red Line Boundary (table: ${rlbTableName})`
+          )
+          errors.push('Red Line Boundary contains unreadable geometry')
+        } else {
+          const polygonCount = rows.filter((row) =>
+            POLYGON_WKB_TYPES.has(getWkbType(row.geom))
+          ).length
+          if (polygonCount === 0) {
+            errors.push(
+              'Zero red line boundaries in GeoPackage (expecting one)'
+            )
+          } else if (polygonCount > 1) {
+            errors.push(
+              'Too many red line boundaries in GeoPackage (expecting one)'
+            )
+          }
+        }
       }
     }
 

@@ -39,6 +39,8 @@ const logger = createLogger()
  *                   type: array
  *                   items:
  *                     type: string
+ *       400:
+ *         description: uploadId is missing or not a valid UUID
  *       502:
  *         description: Upload failed or rejected, or S3 connection error
  *       504:
