@@ -12,6 +12,15 @@ on:
       - ready_for_review
 
 jobs:
+  integration-tests:
+    name: Integration Tests
+    uses: DEFRA/bng-metric-harness/.github/workflows/integration-tests.yml@main
+    with:
+      caller: backend
+      calling-branch: ${{ github.head_ref }}
+      pr-body: ${{ github.event.pull_request.body || '' }}
+    secrets: inherit
+
   pr-validator:
     name: Run Pull Request Checks
     runs-on: ubuntu-latest
