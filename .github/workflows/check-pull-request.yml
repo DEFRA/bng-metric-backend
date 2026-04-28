@@ -12,6 +12,37 @@ on:
       - ready_for_review
 
 jobs:
+  parse-depends-on:
+    name: Resolve branch dependencies
+    runs-on: ubuntu-latest
+    outputs:
+      frontend-branch: ${{ steps.resolve.outputs.frontend-branch }}
+      harness-branch: ${{ steps.resolve.outputs.harness-branch }}
+    steps:
+      - name: Resolve branches from PR body
+        id: resolve
+        env:
+          PR_BODY: ${{ github.event.pull_request.body || '' }}
+        run: |
+          frontend_dep=$(echo "$PR_BODY" | grep -oP '(?<=Depends-On: DEFRA/bng-metric-frontend#)\S+' | head -1)
+          harness_dep=$(echo "$PR_BODY" | grep -oP '(?<=Depends-On: DEFRA/bng-metric-harness#)\S+' | head -1)
+
+          echo "frontend-branch=${frontend_dep:-main}" >> "$GITHUB_OUTPUT"
+          echo "harness-branch=${harness_dep:-main}" >> "$GITHUB_OUTPUT"
+
+          echo "Resolved frontend branch: ${frontend_dep:-main}"
+          echo "Resolved harness branch: ${harness_dep:-main}"
+
+  integration-tests:
+    name: Integration Tests
+    needs: parse-depends-on
+    uses: DEFRA/bng-metric-harness/.github/workflows/integration-tests.yml@${{ needs.parse-depends-on.outputs.harness-branch }}
+    with:
+      frontend-branch: ${{ needs.parse-depends-on.outputs.frontend-branch }}
+      backend-branch: ${{ github.head_ref }}
+      harness-branch: ${{ needs.parse-depends-on.outputs.harness-branch }}
+    secrets: inherit
+
   pr-validator:
     name: Run Pull Request Checks
     runs-on: ubuntu-latest
