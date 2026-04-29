@@ -1,0 +1,82 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="8" author="bng-team">
+        <comment>Create audit_log table to record every insert/update to bng.projects</comment>
+        <createTable schemaName="bng" tableName="audit_log">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="project_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project" type="jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="user_id" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bng_project_version" type="integer">
+                <constraints nullable="false"/>
+            </column>
+            <column name="operation" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="audited_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="9" author="bng-team">
+        <comment>Index audit_log by project_id for efficient history lookups</comment>
+        <createIndex schemaName="bng" tableName="audit_log" indexName="idx_audit_log_project_id">
+            <column name="project_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="10" author="bng-team">
+        <comment>
+            Trigger function and trigger that write a row into bng.audit_log
+            for every insert or update on bng.projects, capturing the new project
+            state, the user that owns the row, and an audit timestamp.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.write_projects_audit_log()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                INSERT INTO bng.audit_log (
+                    project_id,
+                    project,
+                    user_id,
+                    bng_project_version,
+                    operation,
+                    audited_at
+                ) VALUES (
+                    NEW.id,
+                    NEW.project,
+                    NEW.user_id,
+                    NEW.bng_project_version,
+                    TG_OP,
+                    CURRENT_TIMESTAMP
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER write_audit_log
+            AFTER INSERT OR UPDATE ON bng.projects
+            FOR EACH ROW
+            EXECUTE FUNCTION bng.write_projects_audit_log();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS write_audit_log ON bng.projects;
+            DROP FUNCTION IF EXISTS bng.write_projects_audit_log();
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>
