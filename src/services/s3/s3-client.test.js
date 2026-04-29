@@ -1,3 +1,5 @@
+import { vi, describe, it, expect, beforeEach } from 'vitest'
+
 vi.mock('@aws-sdk/client-s3', () => ({
   S3Client: vi.fn()
 }))
@@ -47,6 +49,7 @@ describe('createS3Client', () => {
     })
 
     it('uses aws.endpointUrl when set', () => {
+      // NOSONAR: LocalStack uses HTTP intentionally in local dev
       mockConfig({
         cdpEnvironment: 'local',
         'aws.endpointUrl': 'http://custom-localstack:4566'
@@ -55,6 +58,7 @@ describe('createS3Client', () => {
       createS3Client()
 
       expect(S3Client).toHaveBeenCalledWith(
+        // NOSONAR: LocalStack uses HTTP intentionally in local dev
         expect.objectContaining({ endpoint: 'http://custom-localstack:4566' })
       )
     })

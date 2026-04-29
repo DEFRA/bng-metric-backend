@@ -1,3 +1,5 @@
+import { vi, describe, it, expect } from 'vitest'
+
 vi.mock('./s3-client.js')
 
 const {
@@ -17,7 +19,9 @@ const KEY = 'baseline/file.gpkg'
 function makeBody(chunks) {
   return {
     [Symbol.asyncIterator]: async function* () {
-      for (const chunk of chunks) yield chunk
+      for (const chunk of chunks) {
+        yield chunk
+      }
     }
   }
 }
@@ -27,6 +31,21 @@ function namedError(name, message = name) {
   const err = new Error(message)
   err.name = name
   return err
+}
+
+async function* failWithTimeout() {
+  yield Buffer.from('partial')
+  throw namedError('TimeoutError')
+}
+
+async function* failWithAbort() {
+  yield Buffer.from('partial')
+  throw namedError('AbortError')
+}
+
+async function* failWithError() {
+  yield Buffer.from('partial')
+  throw new Error('socket hang up')
 }
 
 function mockSendWith(result) {
@@ -123,19 +142,12 @@ describe('downloadFile', () => {
 
   describe('when the body stream throws a timeout', () => {
     it('throws S3TimeoutError for a TimeoutError during streaming', async () => {
-      async function* failWithTimeout() {
-        yield Buffer.from('partial')
-        throw namedError('TimeoutError')
-      }
       mockSendWith({ Body: { [Symbol.asyncIterator]: failWithTimeout } })
 
       await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
     })
 
     it('throws S3TimeoutError for an AbortError during streaming', async () => {
-      async function* failWithAbort() {
-        throw namedError('AbortError')
-      }
       mockSendWith({ Body: { [Symbol.asyncIterator]: failWithAbort } })
 
       await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
@@ -144,18 +156,12 @@ describe('downloadFile', () => {
 
   describe('when the body stream throws a connection error', () => {
     it('throws S3ConnectionError for a generic stream error', async () => {
-      async function* failWithError() {
-        throw new Error('socket hang up')
-      }
       mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
       await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
     })
 
     it('includes the original message in the S3ConnectionError', async () => {
-      async function* failWithError() {
-        throw new Error('socket hang up')
-      }
       mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
       await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/socket hang up/)
