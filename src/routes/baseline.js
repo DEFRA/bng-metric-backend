@@ -1,4 +1,19 @@
+import Boom from '@hapi/boom'
 import Joi from 'joi'
+
+import {
+  waitForUploadReady,
+  UploadTimeoutError
+} from '../services/cdp-uploader/cdp-uploader.js'
+import {
+  downloadFile,
+  S3FileTooLargeError,
+  S3TimeoutError
+} from '../services/s3/download-file.js'
+import { validateGpkg } from '../services/gpkg/validate-gpkg.js'
+import { createLogger } from '../common/helpers/logging/logger.js'
+
+const logger = createLogger()
 
 /**
  * @openapi
@@ -24,6 +39,18 @@ import Joi from 'joi'
  *               properties:
  *                 valid:
  *                   type: boolean
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: string
+ *       400:
+ *         description: uploadId is missing or not a valid UUID
+ *       413:
+ *         description: File exceeds the maximum allowed size (100 MB)
+ *       502:
+ *         description: Upload failed or rejected, or S3 connection error
+ *       504:
+ *         description: Upload did not reach ready state in time, or S3 download timed out
  */
 const validateBaseline = {
   method: 'POST',
@@ -35,14 +62,53 @@ const validateBaseline = {
       })
     }
   },
-  handler: async (_request, h) => {
-    // const { uploadId } = _request.params
+  handler: async (request, h) => {
+    const { uploadId } = request.params
 
-    // TODO: BMD-361 — download .gpkg file from S3 via cdp-uploader,
-    // validate it is a valid GeoPackage (SQLite with gpkg_contents table,
-    // required layers: red line boundary, baseline habitat parcels),
-    // and return validation errors if invalid.
-    return h.response({ valid: true })
+    let bucket
+    let key
+    try {
+      const location = await waitForUploadReady(uploadId)
+      bucket = location.bucket
+      key = location.key
+    } catch (err) {
+      if (err instanceof UploadTimeoutError) {
+        logger.error(
+          `validateBaseline: upload did not become ready for uploadId ${uploadId}: ${err.message}`
+        )
+        throw Boom.gatewayTimeout('Upload did not complete in time')
+      }
+      logger.error(
+        `validateBaseline: upload failed for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.badGateway('Upload failed or was rejected')
+    }
+
+    let buffer
+    try {
+      buffer = await downloadFile(bucket, key)
+    } catch (err) {
+      if (err instanceof S3FileTooLargeError) {
+        logger.error(
+          `validateBaseline: S3 object too large for uploadId ${uploadId}: ${err.message}`
+        )
+        throw Boom.entityTooLarge('File exceeds the maximum allowed size')
+      }
+      if (err instanceof S3TimeoutError) {
+        logger.error(
+          `validateBaseline: S3 download timed out for uploadId ${uploadId}: ${err.message}`
+        )
+        throw Boom.gatewayTimeout('Timed out downloading file from storage')
+      }
+      logger.error(
+        `validateBaseline: S3 download failed for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.badGateway('Unable to download file from storage')
+    }
+
+    const result = validateGpkg(buffer)
+
+    return h.response(result)
   }
 }
 
