@@ -5,7 +5,9 @@ convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
+const isDevelopment = process.env.NODE_ENV === 'development'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
+const localStack = 'http://localhost:4566'
 
 const config = convict({
   serviceVersion: {
@@ -152,6 +154,29 @@ const config = convict({
       format: String,
       default: 'baseline-files',
       env: 'CDP_UPLOADER_BUCKET'
+    }
+  },
+  aws: {
+    region: {
+      doc: 'AWS region',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
+    }
+  },
+  s3: {
+    endpoint: {
+      doc: 'S3 endpoint URL (for LocalStack in development)',
+      format: String,
+      nullable: true,
+      default: isDevelopment ? localStack : null,
+      env: 'S3_ENDPOINT'
+    },
+    forcePathStyle: {
+      doc: 'Use path-style addressing for S3 (required for LocalStack)',
+      format: Boolean,
+      default: isDevelopment,
+      env: 'S3_FORCE_PATH_STYLE'
     }
   }
 })

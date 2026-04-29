@@ -105,11 +105,14 @@ export async function getUploadStatus(uploadId) {
 
     const files = payload.files ?? []
     const rejectedFile = files.find((f) => f.fileStatus === 'rejected')
+    const completeFile = files.find((f) => f.fileStatus === 'complete')
 
     return {
       uploadStatus: payload.uploadStatus ?? 'unknown',
       numberOfRejectedFiles: payload.numberOfRejectedFiles ?? 0,
-      errorMessage: rejectedFile?.errorMessage ?? null
+      errorMessage: rejectedFile?.errorMessage ?? null,
+      s3Bucket: completeFile?.s3Bucket ?? null,
+      s3Key: completeFile?.s3Key ?? null
     }
   } catch (error) {
     const statusCode = error?.output?.statusCode

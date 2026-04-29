@@ -113,11 +113,13 @@ describe('initiateUpload', () => {
   })
 })
 
-describe('getUploadStatus', () => {
-  beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
-    delete process.env.ENVIRONMENT
-  })
+function stubLocalUploaderUrl() {
+  vi.spyOn(config, 'get').mockReturnValue(null)
+  delete process.env.ENVIRONMENT
+}
+
+describe('getUploadStatus — successful responses', () => {
+  beforeEach(stubLocalUploaderUrl)
 
   it('should return uploadStatus and numberOfRejectedFiles from the response', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
@@ -133,12 +135,40 @@ describe('getUploadStatus', () => {
     expect(result).toEqual({
       uploadStatus: 'ready',
       numberOfRejectedFiles: 0,
-      errorMessage: null
+      errorMessage: null,
+      s3Bucket: null,
+      s3Key: null
     })
     expect(Wreck.get).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
       { json: true }
     )
+  })
+
+  it('should return s3 location from a complete file', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        numberOfRejectedFiles: 0,
+        files: [
+          {
+            fileStatus: 'complete',
+            s3Bucket: 'baseline-files',
+            s3Key: 'baseline/abc.gpkg'
+          }
+        ]
+      }
+    })
+
+    const result = await getUploadStatus('abc-123')
+
+    expect(result).toEqual({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 0,
+      errorMessage: null,
+      s3Bucket: 'baseline-files',
+      s3Key: 'baseline/abc.gpkg'
+    })
   })
 
   it('should return errorMessage from rejected file', async () => {
@@ -161,9 +191,15 @@ describe('getUploadStatus', () => {
     expect(result).toEqual({
       uploadStatus: 'ready',
       numberOfRejectedFiles: 1,
-      errorMessage: 'The selected file contains a virus'
+      errorMessage: 'The selected file contains a virus',
+      s3Bucket: null,
+      s3Key: null
     })
   })
+})
+
+describe('getUploadStatus — fallbacks and failures', () => {
+  beforeEach(stubLocalUploaderUrl)
 
   it('should return unknown when uploadStatus is missing', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
@@ -175,7 +211,9 @@ describe('getUploadStatus', () => {
     expect(result).toEqual({
       uploadStatus: 'unknown',
       numberOfRejectedFiles: 0,
-      errorMessage: null
+      errorMessage: null,
+      s3Bucket: null,
+      s3Key: null
     })
   })
 

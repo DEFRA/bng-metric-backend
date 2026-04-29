@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "target": "esnext",
+    "checkJs": false,
+    "allowJs": true,
+    "types": ["node", "vitest/globals"]
+  },
+  "include": ["src/**/*", "scripts/**/*", "*.js", "*.cjs"]
+}

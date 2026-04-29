@@ -1,4 +1,19 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import Joi from 'joi'
+
+import { getUploadStatus } from '../services/cdp-uploader/cdp-uploader.js'
+import { downloadObject } from '../services/s3/s3.js'
+import { validateBaselineFile } from '../validation/baseline/index.js'
+import { createLogger } from '../common/helpers/logging/logger.js'
+import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+
+// MERGE NOTE (PR #16): swap getUploadStatus/downloadObject for the PR's
+// waitForUploadReady/downloadFile, and run validateGpkg as a gate first.
+
+const logger = createLogger()
 
 /**
  * @openapi
@@ -24,6 +39,17 @@ import Joi from 'joi'
  *               properties:
  *                 valid:
  *                   type: boolean
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       code: { type: string }
+ *                       ac: { type: string }
+ *                       message: { type: string }
+ *                       offendingFeatures:
+ *                         type: array
+ *                         items: { type: object }
  */
 const validateBaseline = {
   method: 'POST',
@@ -35,14 +61,73 @@ const validateBaseline = {
       })
     }
   },
-  handler: async (_request, h) => {
-    // const { uploadId } = _request.params
+  handler: async (request, h) => {
+    const { uploadId } = request.params
 
-    // TODO: BMD-361 — download .gpkg file from S3 via cdp-uploader,
-    // validate it is a valid GeoPackage (SQLite with gpkg_contents table,
-    // required layers: red line boundary, baseline habitat parcels),
-    // and return validation errors if invalid.
-    return h.response({ valid: true })
+    const status = await getUploadStatus(uploadId)
+    if (status.uploadStatus !== 'ready') {
+      logger.warn(
+        `validateBaseline - uploadId ${uploadId} is not ready (status: ${status.uploadStatus})`
+      )
+      return h
+        .response({
+          valid: false,
+          errors: [
+            {
+              code: 'UPLOAD_NOT_READY',
+              message: `Upload is not ready (status: ${status.uploadStatus})`
+            }
+          ]
+        })
+        .code(HTTP_STATUS.CONFLICT)
+    }
+
+    if (!status.s3Bucket || !status.s3Key) {
+      logger.error(
+        `validateBaseline - missing S3 location for uploadId ${uploadId}`
+      )
+      return h
+        .response({
+          valid: false,
+          errors: [
+            {
+              code: 'UPLOAD_LOCATION_MISSING',
+              message: 'Uploaded file location is unknown'
+            }
+          ]
+        })
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    }
+
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
+    const localPath = path.join(tmpDir, 'baseline.gpkg')
+
+    try {
+      await downloadObject({
+        bucket: status.s3Bucket,
+        key: status.s3Key,
+        destination: localPath
+      })
+      const result = validateBaselineFile(localPath)
+      return h.response(result)
+    } catch (error) {
+      logger.error(
+        `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
+      )
+      return h
+        .response({
+          valid: false,
+          errors: [
+            {
+              code: 'VALIDATION_FAILED',
+              message: 'Unable to validate baseline file'
+            }
+          ]
+        })
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
   }
 }
 
