@@ -156,6 +156,10 @@ function validateGpkg(buffer) {
         errors.push(
           'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
         )
+      } else if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(geomRow.column_name)) {
+        errors.push(
+          'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+        )
       } else {
         const rows = db
           .prepare(
