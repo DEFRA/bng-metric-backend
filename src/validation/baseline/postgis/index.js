@@ -32,6 +32,10 @@ const OVERLAP_TOLERANCE_SQ_M = 0.5
 const AREA_SUM_TOLERANCE_SQ_M = 0.5
 const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
 
+// Fallback when an upstream feature carries no nativeSrid. WGS84 is what the
+// GeoJSON spec assumes, so it's the right default for unmarked geometries.
+const DEFAULT_SRID = 4326
+
 // Order matches the Turf-engine sequence so error output is stable across
 // engines.
 const ERROR_ORDER = [
@@ -288,7 +292,7 @@ function buildArrays(layers) {
       idxs.push(index)
       props.push(JSON.stringify(feature.properties ?? {}))
       geoms.push(JSON.stringify(geom))
-      srids.push(feature.nativeSrid ?? 4326)
+      srids.push(feature.nativeSrid ?? DEFAULT_SRID)
     })
   }
   return { layerNames, idxs, props, geoms, srids }

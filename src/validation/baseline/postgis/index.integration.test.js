@@ -7,13 +7,26 @@ import { validateBaselineLayersPostgis } from './index.js'
 // extension installed. Skips itself when PG is unreachable so CI without a
 // database doesn't fail.
 
+const DEFAULT_PG_PORT = 5432
+const PG_CONNECT_TIMEOUT_MS = 1500
+const BNG_SRID = 27700
+
+// EPSG:27700 metres around central London. The numbers themselves don't
+// matter — they just need to be inside England-ish space and far from the
+// origin. Building rings from these constants keeps each polygon literal
+// composed of named values rather than bare coordinates.
+const X0 = 530_000
+const Y0 = 180_000
+const EDGE = 100
+const HALF = EDGE / 2
+
 const PG_CONFIG = {
   host: process.env.DB_HOST ?? 'localhost',
-  port: Number(process.env.DB_PORT ?? 5432),
+  port: Number(process.env.DB_PORT ?? DEFAULT_PG_PORT),
   user: process.env.DB_USER ?? 'dev',
   password: process.env.DB_LOCAL_PASSWORD ?? 'dev',
   database: process.env.DB_DATABASE ?? 'bng_metric_backend',
-  connectionTimeoutMillis: 1500
+  connectionTimeoutMillis: PG_CONNECT_TIMEOUT_MS
 }
 
 const pool = new pg.Pool(PG_CONFIG)
@@ -40,33 +53,40 @@ function poly(ring, props = {}) {
     properties: props,
     geometry: { type: 'Polygon', coordinates: [ring] },
     nativeGeometry: { type: 'Polygon', coordinates: [ring] },
-    nativeSrid: 27700
+    nativeSrid: BNG_SRID
   }
 }
 
-// EPSG:27700 metres around central London.
 const SQUARE = [
-  [530000, 180000],
-  [530100, 180000],
-  [530100, 180100],
-  [530000, 180100],
-  [530000, 180000]
+  [X0, Y0],
+  [X0 + EDGE, Y0],
+  [X0 + EDGE, Y0 + EDGE],
+  [X0, Y0 + EDGE],
+  [X0, Y0]
 ]
 
 const SQUARE_OFFSET = [
-  [530050, 180050],
-  [530150, 180050],
-  [530150, 180150],
-  [530050, 180150],
-  [530050, 180050]
+  [X0 + HALF, Y0 + HALF],
+  [X0 + HALF + EDGE, Y0 + HALF],
+  [X0 + HALF + EDGE, Y0 + HALF + EDGE],
+  [X0 + HALF, Y0 + HALF + EDGE],
+  [X0 + HALF, Y0 + HALF]
 ]
 
 const SELF_INTERSECTING = [
-  [530000, 180000],
-  [530100, 180100],
-  [530100, 180000],
-  [530000, 180100],
-  [530000, 180000]
+  [X0, Y0],
+  [X0 + EDGE, Y0 + EDGE],
+  [X0 + EDGE, Y0],
+  [X0, Y0 + EDGE],
+  [X0, Y0]
+]
+
+const BIG = [
+  [X0 - EDGE, Y0 - EDGE],
+  [X0 + 2 * EDGE, Y0 - EDGE],
+  [X0 + 2 * EDGE, Y0 + 2 * EDGE],
+  [X0 - EDGE, Y0 + 2 * EDGE],
+  [X0 - EDGE, Y0 - EDGE]
 ]
 
 describe.skipIf(!pgAvailable)(
@@ -106,15 +126,8 @@ describe.skipIf(!pgAvailable)(
     })
 
     it('detects parcel overlaps', async () => {
-      const big = [
-        [529900, 179900],
-        [530200, 179900],
-        [530200, 180200],
-        [529900, 180200],
-        [529900, 179900]
-      ]
       const layers = {
-        redline: [poly(big)],
+        redline: [poly(BIG)],
         areas: [poly(SQUARE), poly(SQUARE_OFFSET)],
         hedgerows: [],
         watercourses: [],
