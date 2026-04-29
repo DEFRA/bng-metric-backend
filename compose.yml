@@ -80,7 +80,7 @@ services:
   #     PORT: 3000
   #     NODE_ENV: development
   #     REDIS_HOST: redis
-  #     LOCALSTACK_ENDPOINT: http://localstack:4566
+  #     S3_ENDPOINT: http://localstack:4566
   #     USE_SINGLE_INSTANCE_CACHE: true
   #   networks:
   #     - cdp-tenant
@@ -101,7 +101,7 @@ services:
   #   environment:
   #     PORT: 3001
   #     NODE_ENV: development
-  #     LOCALSTACK_ENDPOINT: http://localstack:4566
+  #     S3_ENDPOINT: http://localstack:4566
   #   networks:
   #     - cdp-tenant
   #   volumes:
