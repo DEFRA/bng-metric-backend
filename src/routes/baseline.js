@@ -5,7 +5,11 @@ import {
   waitForUploadReady,
   UploadTimeoutError
 } from '../services/cdp-uploader/cdp-uploader.js'
-import { downloadFile, S3TimeoutError } from '../services/s3/download-file.js'
+import {
+  downloadFile,
+  S3FileTooLargeError,
+  S3TimeoutError
+} from '../services/s3/download-file.js'
 import { validateGpkg } from '../services/gpkg/validate-gpkg.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 
@@ -41,6 +45,8 @@ const logger = createLogger()
  *                     type: string
  *       400:
  *         description: uploadId is missing or not a valid UUID
+ *       413:
+ *         description: File exceeds the maximum allowed size (100 MB)
  *       502:
  *         description: Upload failed or rejected, or S3 connection error
  *       504:
@@ -59,9 +65,12 @@ const validateBaseline = {
   handler: async (request, h) => {
     const { uploadId } = request.params
 
-    let bucket, key
+    let bucket
+    let key
     try {
-      ;({ bucket, key } = await waitForUploadReady(uploadId))
+      const result = await waitForUploadReady(uploadId)
+      bucket = result.bucket
+      key = result.key
     } catch (err) {
       if (err instanceof UploadTimeoutError) {
         logger.error(
@@ -79,6 +88,12 @@ const validateBaseline = {
     try {
       buffer = await downloadFile(bucket, key)
     } catch (err) {
+      if (err instanceof S3FileTooLargeError) {
+        logger.error(
+          `validateBaseline: S3 object too large for uploadId ${uploadId}: ${err.message}`
+        )
+        throw Boom.entityTooLarge('File exceeds the maximum allowed size')
+      }
       if (err instanceof S3TimeoutError) {
         logger.error(
           `validateBaseline: S3 download timed out for uploadId ${uploadId}: ${err.message}`

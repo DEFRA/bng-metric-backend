@@ -269,6 +269,42 @@ describe('validateGpkg', () => {
     })
   })
 
+  describe('when the Red Line Boundary geometry column name is invalid', () => {
+    it('returns a descriptive error for a column name that fails the identifier check', () => {
+      const db = new Database(':memory:')
+      db.pragma(`application_id = ${GP10_APP_ID}`)
+      db.exec(`
+        CREATE TABLE gpkg_spatial_ref_sys (srs_id INTEGER NOT NULL PRIMARY KEY, srs_name TEXT NOT NULL, organization TEXT NOT NULL, organization_coordsys_id INTEGER NOT NULL, definition TEXT NOT NULL, description TEXT);
+        CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '', last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), min_x REAL, min_y REAL, max_x REAL, max_y REAL, srs_id INTEGER);
+        CREATE TABLE gpkg_geometry_columns (table_name TEXT NOT NULL, column_name TEXT NOT NULL, geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL, z TINYINT NOT NULL, m TINYINT NOT NULL, CONSTRAINT pk_geom_cols PRIMARY KEY (table_name, column_name));
+        CREATE TABLE "Red Line Boundary" (id INTEGER PRIMARY KEY, geom BLOB);
+        CREATE TABLE "Habitats" (id INTEGER PRIMARY KEY, geom BLOB);
+      `)
+      db.prepare(
+        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Red Line Boundary', 'features', 'Red Line Boundary')`
+      ).run()
+      db.prepare(
+        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Habitats', 'features', 'Habitats')`
+      ).run()
+      db.prepare(
+        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Red Line Boundary', 'geom"; DROP TABLE "Red Line Boundary"; --', 'GEOMETRY', 4326, 0, 0)`
+      ).run()
+      db.prepare(
+        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Habitats', 'geom', 'GEOMETRY', 4326, 0, 0)`
+      ).run()
+      const buffer = Buffer.from(db.serialize())
+      db.close()
+
+      const result = validateGpkg(buffer)
+
+      expect(result.valid).toBe(false)
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0]).toBe(
+        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+      )
+    })
+  })
+
   describe('when the Red Line Boundary layer has an incorrect polygon count', () => {
     it('returns an error when there are no polygon features', () => {
       const result = validateGpkg(
