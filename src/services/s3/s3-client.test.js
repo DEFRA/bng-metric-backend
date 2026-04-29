@@ -41,24 +41,22 @@ describe('createS3Client in local environment', () => {
 
     expect(S3Client).toHaveBeenCalledWith(
       expect.objectContaining({
-        endpoint: 'http://localhost:4566',
+        endpoint: 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP intentionally in local dev
         forcePathStyle: true
       })
     )
   })
 
   it('uses aws.endpointUrl when set', () => {
-    // NOSONAR: LocalStack uses HTTP intentionally in local dev
     mockConfig({
       cdpEnvironment: 'local',
-      'aws.endpointUrl': 'http://custom-localstack:4566'
+      'aws.endpointUrl': 'http://custom-localstack:4566' // NOSONAR: LocalStack uses HTTP intentionally in local dev
     })
 
     createS3Client()
 
     expect(S3Client).toHaveBeenCalledWith(
-      // NOSONAR: LocalStack uses HTTP intentionally in local dev
-      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' })
+      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' }) // NOSONAR: LocalStack uses HTTP intentionally in local dev
     )
   })
 
