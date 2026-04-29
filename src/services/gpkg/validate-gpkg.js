@@ -25,7 +25,6 @@ const REQUIRED_SYSTEM_TABLES = [
 /**
  * Feature layer names that must be present in gpkg_contents.
  * Matched against the `table_name` column (case-insensitive).
- * TODO: BMD-361 — confirm exact table names with domain team.
  */
 const REQUIRED_LAYERS = ['Red Line Boundary', 'Habitats']
 
@@ -57,12 +56,18 @@ const GPKG_ENVELOPE_SIZES = [0, 32, 48, 48, 64]
  * @returns {number|null}
  */
 function getWkbType(blob) {
-  if (!blob || blob.length < 8) return null
+  if (!blob || blob.length < 8) {
+    return null
+  }
   const envelopeIndicator = (blob[3] >> 1) & 0x07
   const envelopeSize = GPKG_ENVELOPE_SIZES[envelopeIndicator]
-  if (envelopeSize === undefined) return null
+  if (envelopeSize === undefined) {
+    return null
+  }
   const wkbOffset = 8 + envelopeSize
-  if (blob.length < wkbOffset + 5) return null
+  if (blob.length < wkbOffset + 5) {
+    return null
+  }
   const littleEndian = blob[wkbOffset] === 1
   return littleEndian
     ? blob.readUInt32LE(wkbOffset + 1)
@@ -115,80 +120,18 @@ function validateGpkg(buffer) {
     }
 
     // 2. Required system tables
-    const existingTables = getTableNames(db)
-    for (const table of REQUIRED_SYSTEM_TABLES) {
-      if (!existingTables.has(table)) {
-        errors.push(`Missing required GeoPackage system table: ${table}`)
-      }
-    }
+    checkSystemTables(db, errors)
     if (errors.length > 0) {
       return { valid: false, errors }
     }
 
     // 3. Required feature layers in gpkg_contents
-    const contentTables = new Set(
-      db
-        .prepare(
-          "SELECT lower(table_name) AS table_name FROM gpkg_contents WHERE data_type = 'features'"
-        )
-        .all()
-        .map((row) => row.table_name)
-    )
-    for (const layer of REQUIRED_LAYERS) {
-      if (!contentTables.has(layer.toLowerCase())) {
-        errors.push(`Missing required feature layer in GeoPackage: ${layer}`)
-      }
-    }
+    const contentTables = getFeatureLayerNames(db)
+    checkRequiredLayers(contentTables, errors)
 
     // 4. Red Line Boundary must contain exactly one polygon feature
     if (contentTables.has('red line boundary')) {
-      const { table_name: rlbTableName } = db
-        .prepare(
-          "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'red line boundary' AND data_type = 'features'"
-        )
-        .get()
-      const geomRow = db
-        .prepare(
-          "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'red line boundary'"
-        )
-        .get()
-      if (!geomRow) {
-        errors.push(
-          'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
-        )
-      } else if (!/^[A-Za-z_][A-Za-z0-9_]*$/.test(geomRow.column_name)) {
-        errors.push(
-          'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
-        )
-      } else {
-        const rows = db
-          .prepare(
-            `SELECT "${geomRow.column_name}" AS geom FROM "${rlbTableName}" WHERE "${geomRow.column_name}" IS NOT NULL`
-          )
-          .all()
-        const unreadableCount = rows.filter(
-          (row) => getWkbType(row.geom) === null
-        ).length
-        if (unreadableCount > 0) {
-          logger.warn(
-            `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Red Line Boundary (table: ${rlbTableName})`
-          )
-          errors.push('Red Line Boundary contains unreadable geometry')
-        } else {
-          const polygonCount = rows.filter((row) =>
-            POLYGON_WKB_TYPES.has(getWkbType(row.geom))
-          ).length
-          if (polygonCount === 0) {
-            errors.push(
-              'Zero red line boundaries in GeoPackage (expecting one)'
-            )
-          } else if (polygonCount > 1) {
-            errors.push(
-              'Too many red line boundaries in GeoPackage (expecting one)'
-            )
-          }
-        }
-      }
+      validateRedLineBoundary(db, errors)
     }
 
     const valid = errors.length === 0
@@ -198,6 +141,113 @@ function validateGpkg(buffer) {
     return { valid, errors }
   } finally {
     db.close()
+  }
+}
+
+/**
+ * Checks that all required GeoPackage system tables are present.
+ * Pushes an error for each missing table.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ */
+function checkSystemTables(db, errors) {
+  const existingTables = getTableNames(db)
+  for (const table of REQUIRED_SYSTEM_TABLES) {
+    if (!existingTables.has(table)) {
+      errors.push(`Missing required GeoPackage system table: ${table}`)
+    }
+  }
+}
+
+/**
+ * Returns lower-cased names of all feature layers registered in gpkg_contents.
+ * @param {import('better-sqlite3').Database} db
+ * @returns {Set<string>}
+ */
+function getFeatureLayerNames(db) {
+  return new Set(
+    db
+      .prepare(
+        "SELECT lower(table_name) AS table_name FROM gpkg_contents WHERE data_type = 'features'"
+      )
+      .all()
+      .map((row) => row.table_name)
+  )
+}
+
+/**
+ * Checks that all required feature layers are present in gpkg_contents.
+ * Pushes an error for each missing layer.
+ * @param {Set<string>} contentTables - Lower-cased layer names
+ * @param {string[]} errors
+ */
+function checkRequiredLayers(contentTables, errors) {
+  for (const layer of REQUIRED_LAYERS) {
+    if (!contentTables.has(layer.toLowerCase())) {
+      errors.push(`Missing required feature layer in GeoPackage: ${layer}`)
+    }
+  }
+}
+
+/**
+ * Validates that the Red Line Boundary layer contains exactly one polygon feature.
+ * Pushes an error if the geometry column is missing, invalid, unreadable, or the
+ * polygon count is not exactly one.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ */
+function validateRedLineBoundary(db, errors) {
+  const { table_name: rlbTableName } = db
+    .prepare(
+      "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'red line boundary' AND data_type = 'features'"
+    )
+    .get()
+  const geomRow = db
+    .prepare(
+      "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'red line boundary'"
+    )
+    .get()
+
+  if (!geomRow) {
+    errors.push(
+      'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
+    )
+    return
+  }
+  if (!/^[A-Za-z_]\w*$/.test(geomRow.column_name)) {
+    errors.push(
+      'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+    )
+    return
+  }
+
+  const col = geomRow.column_name
+  const rows = db
+    .prepare(
+      `SELECT "${col}" AS geom FROM "${rlbTableName}" WHERE "${col}" IS NOT NULL`
+    )
+    .all()
+
+  const unreadableCount = rows.filter(
+    (row) => getWkbType(row.geom) === null
+  ).length
+  if (unreadableCount > 0) {
+    logger.warn(
+      `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Red Line Boundary (table: ${rlbTableName})`
+    )
+    errors.push('Red Line Boundary contains unreadable geometry')
+    return
+  }
+
+  const polygonCount = rows.filter((row) =>
+    POLYGON_WKB_TYPES.has(getWkbType(row.geom))
+  ).length
+  if (polygonCount === 0) {
+    errors.push('Zero red line boundaries in GeoPackage (expecting one)')
+  } else if (polygonCount > 1) {
+    errors.push('Too many red line boundaries in GeoPackage (expecting one)')
+  } else {
+    // exactly one polygon — valid
   }
 }
 

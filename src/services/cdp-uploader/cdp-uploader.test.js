@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
 import Wreck from '@hapi/wreck'
 
 import { config } from '../../config.js'
@@ -19,6 +19,9 @@ const {
   UploadFailedError,
   UploadTimeoutError
 } = await import('./cdp-uploader.js')
+
+const S3_BUCKET = 'baseline-files'
+const S3_KEY = 'baseline/file.gpkg'
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -68,7 +71,7 @@ describe('initiateUpload', () => {
 
     const result = await initiateUpload({
       redirect: '/projects/1/upload-received',
-      s3Bucket: 'baseline-files',
+      s3Bucket: S3_BUCKET,
       s3Path: 'baseline/'
     })
 
@@ -82,7 +85,7 @@ describe('initiateUpload', () => {
       expect.objectContaining({
         payload: JSON.stringify({
           redirect: '/projects/1/upload-received',
-          s3Bucket: 'baseline-files',
+          s3Bucket: S3_BUCKET,
           s3Path: 'baseline/',
           metadata: undefined
         }),
@@ -102,7 +105,7 @@ describe('initiateUpload', () => {
 
     const result = await initiateUpload({
       redirect: '/projects/1/upload-received',
-      s3Bucket: 'baseline-files'
+      s3Bucket: S3_BUCKET
     })
 
     expect(result.uploadUrl).toBe('/upload/abc-123')
@@ -113,7 +116,7 @@ describe('initiateUpload', () => {
 
     const result = await initiateUpload({
       redirect: '/projects/1/upload-received',
-      s3Bucket: 'baseline-files'
+      s3Bucket: S3_BUCKET
     })
 
     expect(result).toEqual({ error: 'Unable to initiate upload' })
@@ -134,8 +137,8 @@ describe('getUploadStatus', () => {
         form: {
           file: {
             fileStatus: 'complete',
-            s3Bucket: 'baseline-files',
-            s3Key: 'baseline/file.gpkg'
+            s3Bucket: S3_BUCKET,
+            s3Key: S3_KEY
           }
         }
       }
@@ -242,7 +245,7 @@ describe('getUploadedFileS3Location', () => {
       payload: {
         uploadStatus: 'ready',
         form: {
-          file: { s3Bucket: 'baseline-files', s3Key: 'baseline/file.gpkg' }
+          file: { s3Bucket: S3_BUCKET, s3Key: S3_KEY }
         }
       }
     })
@@ -250,8 +253,8 @@ describe('getUploadedFileS3Location', () => {
     const result = await getUploadedFileS3Location('abc-123')
 
     expect(result).toEqual({
-      bucket: 'baseline-files',
-      key: 'baseline/file.gpkg'
+      bucket: S3_BUCKET,
+      key: S3_KEY
     })
   })
 
@@ -267,7 +270,7 @@ describe('getUploadedFileS3Location', () => {
 
   it('should throw when s3Key is missing', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
-      payload: { form: { file: { s3Bucket: 'baseline-files' } } }
+      payload: { form: { file: { s3Bucket: S3_BUCKET } } }
     })
 
     await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
@@ -277,7 +280,7 @@ describe('getUploadedFileS3Location', () => {
 
   it('should throw when s3Bucket is missing', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
-      payload: { form: { file: { s3Key: 'baseline/file.gpkg' } } }
+      payload: { form: { file: { s3Key: S3_KEY } } }
     })
 
     await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
@@ -296,7 +299,7 @@ describe('waitForUploadReady', () => {
     uploadStatus: 'ready',
     numberOfRejectedFiles: 0,
     form: {
-      file: { s3Bucket: 'baseline-files', s3Key: 'baseline/file.gpkg' }
+      file: { s3Bucket: S3_BUCKET, s3Key: S3_KEY }
     }
   }
 
@@ -311,8 +314,8 @@ describe('waitForUploadReady', () => {
     const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
 
     expect(result).toEqual({
-      bucket: 'baseline-files',
-      key: 'baseline/file.gpkg'
+      bucket: S3_BUCKET,
+      key: S3_KEY
     })
   })
 
@@ -325,8 +328,8 @@ describe('waitForUploadReady', () => {
     const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
 
     expect(result).toEqual({
-      bucket: 'baseline-files',
-      key: 'baseline/file.gpkg'
+      bucket: S3_BUCKET,
+      key: S3_KEY
     })
     // 2 pending status polls + 1 ready status poll + 1 S3 location fetch
     expect(Wreck.get).toHaveBeenCalledTimes(4)
@@ -351,8 +354,8 @@ describe('waitForUploadReady', () => {
     const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
 
     expect(result).toEqual({
-      bucket: 'baseline-files',
-      key: 'baseline/file.gpkg'
+      bucket: S3_BUCKET,
+      key: S3_KEY
     })
   })
 

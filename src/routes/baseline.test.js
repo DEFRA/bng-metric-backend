@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
@@ -37,6 +37,7 @@ const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
+const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const mockH = { response: vi.fn().mockReturnThis() }
 
@@ -146,7 +147,7 @@ describe('validateBaseline route', () => {
     })
 
     describe('when waitForUploadReady throws an UploadFailedError', () => {
-      it('throws a 502 Bad Gateway', async () => {
+      it(THROWS_502, async () => {
         vi.mocked(waitForUploadReady).mockRejectedValue(
           new UploadFailedError('rejected')
         )
@@ -162,7 +163,7 @@ describe('validateBaseline route', () => {
     })
 
     describe('when waitForUploadReady throws an unexpected error', () => {
-      it('throws a 502 Bad Gateway', async () => {
+      it(THROWS_502, async () => {
         vi.mocked(waitForUploadReady).mockRejectedValue(new Error('unexpected'))
 
         const err = await validateBaseline
@@ -174,7 +175,9 @@ describe('validateBaseline route', () => {
       })
 
       it('does not attempt to download the file', async () => {
-        vi.mocked(waitForUploadReady).mockRejectedValue(new Error())
+        vi.mocked(waitForUploadReady).mockRejectedValue(
+          new Error('Upload not ready')
+        )
 
         await validateBaseline.handler(request, mockH).catch(() => {})
 
@@ -215,7 +218,7 @@ describe('validateBaseline route', () => {
     })
 
     describe('when downloadFile throws an S3ConnectionError', () => {
-      it('throws a 502 Bad Gateway', async () => {
+      it(THROWS_502, async () => {
         vi.mocked(downloadFile).mockRejectedValue(
           new S3ConnectionError('connection refused')
         )
@@ -231,7 +234,7 @@ describe('validateBaseline route', () => {
     })
 
     describe('when downloadFile throws an unexpected error', () => {
-      it('throws a 502 Bad Gateway', async () => {
+      it(THROWS_502, async () => {
         vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
 
         const err = await validateBaseline
