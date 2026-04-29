@@ -1,3 +1,4 @@
+import { describe, test, expect, vi, beforeAll, afterAll } from 'vitest'
 import hapi from '@hapi/hapi'
 
 vi.mock('../../plugins/postgres.js', () => ({

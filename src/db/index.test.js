@@ -1,4 +1,4 @@
-import { vi } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 import { createDrizzle } from './index.js'
 
 vi.mock('drizzle-orm/node-postgres', () => ({

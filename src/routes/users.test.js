@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest'
 import { asc, desc, eq, sql } from 'drizzle-orm'
 import { getUserProjects } from './users.js'
 import { projects } from '../db/schema/index.js'

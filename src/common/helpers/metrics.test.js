@@ -1,3 +1,4 @@
+import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { StorageResolution, Unit } from 'aws-embedded-metrics'
 
 import { config } from '../../config.js'

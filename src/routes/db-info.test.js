@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest'
 import { dbInfo } from './db-info.js'
 
 describe('#dbInfo', () => {

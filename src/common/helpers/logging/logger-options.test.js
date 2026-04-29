@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest'
 import { getTraceId } from '@defra/hapi-tracing'
 
 import { loggerOptions } from './logger-options.js'

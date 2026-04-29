@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest'
 import { customType } from 'drizzle-orm/pg-core'
 
 vi.mock('drizzle-orm/pg-core', () => ({
