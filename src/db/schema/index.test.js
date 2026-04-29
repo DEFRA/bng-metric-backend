@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest'
 import { projects, geometry } from './index.js'
 
 describe('db/schema barrel export', () => {

@@ -1,3 +1,4 @@
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import Wreck from '@hapi/wreck'
 
 import { config } from '../../config.js'

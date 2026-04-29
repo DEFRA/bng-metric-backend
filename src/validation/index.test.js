@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest'
 import { projectSchema, siteSchema, unitsSchema } from './index.js'
 
 describe('validation barrel export', () => {

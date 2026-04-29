@@ -1,3 +1,5 @@
+import { describe, test, expect, vi } from 'vitest'
+
 describe('#config', () => {
   test('Should default to non-production settings', async () => {
     const { config } = await import('./config.js')

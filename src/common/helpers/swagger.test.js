@@ -1,3 +1,5 @@
+import { describe, test, expect, vi, beforeEach } from 'vitest'
+
 const mockSpec = vi.hoisted(() => ({
   openapi: '3.0.0',
   info: { title: 'BNG Metric Backend API' }

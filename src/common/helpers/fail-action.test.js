@@ -1,3 +1,4 @@
+import { describe, test, expect } from 'vitest'
 import { failAction } from './fail-action.js'
 
 describe('#fail-action', () => {

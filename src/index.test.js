@@ -1,3 +1,4 @@
+import { describe, test, expect, vi } from 'vitest'
 import process from 'node:process'
 
 vi.mock('./common/helpers/start-server.js', () => ({

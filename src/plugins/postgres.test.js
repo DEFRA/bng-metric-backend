@@ -1,3 +1,4 @@
+import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { postgres } from './postgres.js'
 
 vi.mock('../common/helpers/logging/logger.js', () => ({

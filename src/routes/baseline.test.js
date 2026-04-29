@@ -1,3 +1,5 @@
+import { describe, it, expect, vi } from 'vitest'
+
 const { validateBaseline } = await import('./baseline.js')
 
 describe('POST /baseline/validate/{uploadId}', () => {
