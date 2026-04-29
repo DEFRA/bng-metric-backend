@@ -1,15 +1,4 @@
 import { readBaselineGeoPackage } from './geopackage.js'
-import { redlineInEngland } from './checks/redline-in-england.js'
-import { redlineArea } from './checks/redline-area.js'
-import { habitatsPresent } from './checks/habitats-present.js'
-import {
-  redlineSelfIntersection,
-  areaParcelsSelfIntersection
-} from './checks/self-intersection.js'
-import { parcelOverlaps } from './checks/parcel-overlaps.js'
-import { slivers } from './checks/slivers.js'
-import { withinRedline } from './checks/within-redline.js'
-import { areaSum } from './checks/area-sum.js'
 import { validateBaselineLayersPostgis } from './postgis/index.js'
 
 // MERGE NOTE (PR #16): the geometry checks below assume validateGpkg already
@@ -19,54 +8,23 @@ import { validateBaselineLayersPostgis } from './postgis/index.js'
  * Run every geometry check against an open baseline GeoPackage file.
  *
  * @param {string} filePath
- * @param {{ engine?: 'turf' | 'postgis', pool?: import('pg').Pool }} [options]
+ * @param {import('pg').Pool} pool
  * @returns {Promise<{ valid: boolean, errors: object[] }>}
  */
-export async function validateBaselineFile(filePath, options = {}) {
+export async function validateBaselineFile(filePath, pool) {
   const layers = readBaselineGeoPackage(filePath)
-  return validateBaselineLayers(layers, options)
+  return validateBaselineLayers(layers, pool)
 }
 
 /**
  * Same as validateBaselineFile, but takes already-parsed layers.
  *
  * @param {object} layers Output of readBaselineGeoPackage
- * @param {{ engine?: 'turf' | 'postgis', pool?: import('pg').Pool }} [options]
+ * @param {import('pg').Pool} pool
  */
-export async function validateBaselineLayers(layers, options = {}) {
-  const { engine = 'turf', pool } = options
-
-  if (engine === 'postgis') {
-    if (!pool) {
-      throw new Error('postgis engine requires a pg pool')
-    }
-    return validateBaselineLayersPostgis(pool, layers)
+export async function validateBaselineLayers(layers, pool) {
+  if (!pool) {
+    throw new Error('validateBaselineLayers requires a pg pool')
   }
-
-  return validateLayersTurf(layers)
-}
-
-function validateLayersTurf(layers) {
-  const errors = []
-  const push = (err) => {
-    if (err) {
-      errors.push(err)
-    }
-  }
-
-  push(redlineInEngland(layers.redline))
-  push(redlineArea(layers.redline))
-  push(habitatsPresent(layers.areas))
-  push(redlineSelfIntersection(layers.redline))
-  push(areaParcelsSelfIntersection(layers.areas))
-  push(parcelOverlaps(layers.areas))
-  push(slivers(layers.redline, layers.areas))
-  push(withinRedline('areas', layers.areas, layers.redline))
-  push(withinRedline('hedgerows', layers.hedgerows, layers.redline))
-  push(withinRedline('watercourses', layers.watercourses, layers.redline))
-  push(withinRedline('iggis', layers.iggis, layers.redline))
-  push(withinRedline('trees', layers.trees, layers.redline))
-  push(areaSum(layers.redline, layers.areas))
-
-  return { valid: errors.length === 0, errors }
+  return validateBaselineLayersPostgis(pool, layers)
 }

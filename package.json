@@ -42,7 +42,6 @@
     "@hapi/hapi": "21.4.4",
     "@hapi/inert": "7.1.0",
     "@hapi/wreck": "18.1.0",
-    "@turf/turf": "7.3.5",
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "better-sqlite3": "12.9.0",

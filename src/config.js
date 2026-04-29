@@ -164,14 +164,6 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
-  baselineValidation: {
-    engine: {
-      doc: 'Spatial engine for baseline GeoPackage validation. "turf" runs entirely in Node; "postgis" loads features into a staging table and runs checks via PostGIS spatial functions.',
-      format: ['turf', 'postgis'],
-      default: 'turf',
-      env: 'BASELINE_VALIDATION_ENGINE'
-    }
-  },
   s3: {
     endpoint: {
       doc: 'S3 endpoint URL (for LocalStack in development)',
