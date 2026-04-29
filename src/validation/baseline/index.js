@@ -10,28 +10,44 @@ import { parcelOverlaps } from './checks/parcel-overlaps.js'
 import { slivers } from './checks/slivers.js'
 import { withinRedline } from './checks/within-redline.js'
 import { areaSum } from './checks/area-sum.js'
+import { validateBaselineLayersPostgis } from './postgis/index.js'
 
 // MERGE NOTE (PR #16): the geometry checks below assume validateGpkg already
 // ran and passed — caller must run that format gate first.
 
 /**
  * Run every geometry check against an open baseline GeoPackage file.
- * Returns `{ valid, errors }`.
  *
  * @param {string} filePath
+ * @param {{ engine?: 'turf' | 'postgis', pool?: import('pg').Pool }} [options]
+ * @returns {Promise<{ valid: boolean, errors: object[] }>}
  */
-export function validateBaselineFile(filePath) {
+export async function validateBaselineFile(filePath, options = {}) {
   const layers = readBaselineGeoPackage(filePath)
-  return validateBaselineLayers(layers)
+  return validateBaselineLayers(layers, options)
 }
 
 /**
- * Same as validateBaselineFile, but takes already-parsed layers. Useful for
- * tests where building a real .gpkg fixture is heavyweight.
+ * Same as validateBaselineFile, but takes already-parsed layers.
+ *
+ * @param {object} layers Output of readBaselineGeoPackage
+ * @param {{ engine?: 'turf' | 'postgis', pool?: import('pg').Pool }} [options]
  */
-export function validateBaselineLayers(layers) {
-  const errors = []
+export async function validateBaselineLayers(layers, options = {}) {
+  const { engine = 'turf', pool } = options
 
+  if (engine === 'postgis') {
+    if (!pool) {
+      throw new Error('postgis engine requires a pg pool')
+    }
+    return validateBaselineLayersPostgis(pool, layers)
+  }
+
+  return validateLayersTurf(layers)
+}
+
+function validateLayersTurf(layers) {
+  const errors = []
   const push = (err) => {
     if (err) {
       errors.push(err)

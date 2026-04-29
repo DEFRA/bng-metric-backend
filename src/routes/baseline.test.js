@@ -65,7 +65,10 @@ describe('POST /baseline/validate/{uploadId}', () => {
       s3Key: S3_KEY
     })
     vi.mocked(downloadObject).mockResolvedValue()
-    vi.mocked(validateBaselineFile).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(validateBaselineFile).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
 
     const h = makeH()
     await validateBaseline.handler({ params: { uploadId: UPLOAD_ID } }, h)

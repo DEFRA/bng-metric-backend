@@ -9,6 +9,7 @@ import { downloadObject } from '../services/s3/s3.js'
 import { validateBaselineFile } from '../validation/baseline/index.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import { config } from '../config.js'
 
 // MERGE NOTE (PR #16): swap getUploadStatus/downloadObject for the PR's
 // waitForUploadReady/downloadFile, and run validateGpkg as a gate first.
@@ -108,7 +109,11 @@ const validateBaseline = {
         key: status.s3Key,
         destination: localPath
       })
-      const result = validateBaselineFile(localPath)
+      const engine = config.get('baselineValidation.engine')
+      const result = await validateBaselineFile(localPath, {
+        engine,
+        pool: engine === 'postgis' ? request.pg : undefined
+      })
       return h.response(result)
     } catch (error) {
       logger.error(

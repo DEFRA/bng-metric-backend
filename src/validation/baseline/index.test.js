@@ -28,7 +28,7 @@ const redlineRing = [
 ]
 
 describe('validateBaselineLayers', () => {
-  it('returns valid for a clean baseline', () => {
+  it('returns valid for a clean baseline', async () => {
     const layers = {
       redline: [poly(redlineRing)],
       areas: [poly(redlineRing)],
@@ -37,12 +37,12 @@ describe('validateBaselineLayers', () => {
       iggis: [],
       trees: []
     }
-    const result = validateBaselineLayers(layers)
+    const result = await validateBaselineLayers(layers)
     expect(result.valid).toBe(true)
     expect(result.errors).toEqual([])
   })
 
-  it('aggregates a NO_HABITAT_AREAS error when no habitats are present', () => {
+  it('aggregates a NO_HABITAT_AREAS error when no habitats are present', async () => {
     const layers = {
       redline: [poly(redlineRing)],
       areas: [],
@@ -51,7 +51,7 @@ describe('validateBaselineLayers', () => {
       iggis: [],
       trees: []
     }
-    const result = validateBaselineLayers(layers)
+    const result = await validateBaselineLayers(layers)
     expect(result.valid).toBe(false)
     const codes = result.errors.map((e) => e.code)
     expect(codes).toContain('NO_HABITAT_AREAS')
