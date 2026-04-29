@@ -153,6 +153,33 @@ const config = convict({
       default: 'baseline-files',
       env: 'CDP_UPLOADER_BUCKET'
     }
+  },
+  aws: {
+    region: {
+      doc: 'AWS region',
+      format: String,
+      default: 'eu-west-2',
+      env: 'AWS_REGION'
+    },
+    endpointUrl: {
+      doc: 'Override AWS endpoint URL (e.g. for localstack in local development)',
+      format: String,
+      default: null,
+      nullable: true,
+      env: 'AWS_ENDPOINT_URL'
+    },
+    accessKeyId: {
+      doc: 'AWS access key ID (used in local development only)',
+      format: String,
+      default: 'test',
+      env: 'AWS_ACCESS_KEY_ID'
+    },
+    secretAccessKey: {
+      doc: 'AWS secret access key (used in local development only)',
+      format: String,
+      default: 'test',
+      env: 'AWS_SECRET_ACCESS_KEY'
+    }
   }
 })
 

@@ -17,15 +17,15 @@ function createS3Client() {
   const isLocal = environment === 'local'
 
   if (isLocal) {
-    const endpoint = process.env.AWS_ENDPOINT_URL ?? 'http://localhost:4566'
+    const endpoint = config.get('aws.endpointUrl') ?? 'http://localhost:4566'
     logger.info(`S3 client using local endpoint: ${endpoint}`)
     return new S3Client({
-      region: process.env.AWS_REGION ?? 'eu-west-2',
+      region: config.get('aws.region'),
       endpoint,
       forcePathStyle: true,
       credentials: {
-        accessKeyId: process.env.AWS_ACCESS_KEY_ID ?? 'test',
-        secretAccessKey: process.env.AWS_SECRET_ACCESS_KEY ?? 'test'
+        accessKeyId: config.get('aws.accessKeyId'),
+        secretAccessKey: config.get('aws.secretAccessKey')
       }
     })
   }
@@ -34,7 +34,7 @@ function createS3Client() {
     `S3 client using provider chain credentials for environment: ${environment}`
   )
   return new S3Client({
-    region: process.env.AWS_REGION ?? 'eu-west-2',
+    region: config.get('aws.region'),
     credentials: fromNodeProviderChain()
   })
 }

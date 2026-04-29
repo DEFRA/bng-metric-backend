@@ -1,7 +1,13 @@
 vi.mock('./s3-client.js')
 
-const { downloadFile, S3TimeoutError, S3ConnectionError, DEFAULT_TIMEOUT_MS } =
-  await import('./download-file.js')
+const {
+  downloadFile,
+  S3FileTooLargeError,
+  S3TimeoutError,
+  S3ConnectionError,
+  DEFAULT_TIMEOUT_MS,
+  MAX_FILE_SIZE_BYTES
+} = await import('./download-file.js')
 const { createS3Client } = await import('./s3-client.js')
 
 const BUCKET = 'baseline-files'
@@ -38,6 +44,12 @@ function mockSendRejecting(error) {
 describe('DEFAULT_TIMEOUT_MS', () => {
   it('is 30 seconds', () => {
     expect(DEFAULT_TIMEOUT_MS).toBe(30_000)
+  })
+})
+
+describe('MAX_FILE_SIZE_BYTES', () => {
+  it('is 100 MB', () => {
+    expect(MAX_FILE_SIZE_BYTES).toBe(100 * 1024 * 1024)
   })
 })
 
@@ -147,6 +159,45 @@ describe('downloadFile', () => {
       mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
       await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/socket hang up/)
+    })
+  })
+
+  describe('when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
+    it('throws S3FileTooLargeError when Content-Length exceeds the limit', async () => {
+      mockSendWith({
+        Body: makeBody([]),
+        ContentLength: MAX_FILE_SIZE_BYTES + 1
+      })
+
+      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+        S3FileTooLargeError
+      )
+    })
+
+    it('includes bucket, key and sizes in the error message', async () => {
+      mockSendWith({
+        Body: makeBody([]),
+        ContentLength: MAX_FILE_SIZE_BYTES + 1
+      })
+
+      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+        new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
+      )
+    })
+
+    it('does not throw when Content-Length equals MAX_FILE_SIZE_BYTES', async () => {
+      mockSendWith({
+        Body: makeBody([Buffer.alloc(1)]),
+        ContentLength: MAX_FILE_SIZE_BYTES
+      })
+
+      await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
+    })
+
+    it('does not throw when Content-Length is absent', async () => {
+      mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
+
+      await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
     })
   })
 

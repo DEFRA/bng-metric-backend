@@ -28,7 +28,7 @@ vi.mock('../services/s3/download-file.js', async (importOriginal) => {
 
 const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
-const { downloadFile, S3TimeoutError, S3ConnectionError } =
+const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg } = await import('../services/gpkg/validate-gpkg.js')
 const { validateBaseline } = await import('./baseline.js')
@@ -179,6 +179,22 @@ describe('validateBaseline route', () => {
         await validateBaseline.handler(request, mockH).catch(() => {})
 
         expect(downloadFile).not.toHaveBeenCalled()
+      })
+    })
+
+    describe('when downloadFile throws an S3FileTooLargeError', () => {
+      it('throws a 413 Entity Too Large', async () => {
+        vi.mocked(downloadFile).mockRejectedValue(
+          new S3FileTooLargeError('too big')
+        )
+
+        const err = await validateBaseline
+          .handler(request, mockH)
+          .catch((e) => e)
+
+        expect(err.isBoom).toBe(true)
+        expect(err.output.statusCode).toBe(413)
+        expect(err.message).toBe('File exceeds the maximum allowed size')
       })
     })
 
