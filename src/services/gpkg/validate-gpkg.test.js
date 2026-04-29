@@ -1,3 +1,4 @@
+import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
 
 const { validateGpkg } = await import('./validate-gpkg.js')
@@ -5,6 +6,15 @@ const { validateGpkg } = await import('./validate-gpkg.js')
 // GeoPackage application IDs
 const GP10_APP_ID = 0x47503130 // 1196437808 — GeoPackage 1.0
 const GPKG_APP_ID = 0x47504b47 // 1196444487 — GeoPackage 1.2.1+
+
+// Required layer names
+const LAYER_RLB = 'Red Line Boundary'
+const LAYER_HABITATS = 'Habitats'
+const ALL_LAYERS = [LAYER_RLB, LAYER_HABITATS]
+
+const missingLayerError = (name) =>
+  `Missing required feature layer in GeoPackage: ${name}`
+const ERR_ZERO_RLB = 'Zero red line boundaries in GeoPackage (expecting one)'
 
 /**
  * Build a minimal GeoPackageBinary blob wrapping a WKB geometry.
@@ -23,6 +33,15 @@ const makeLineString = () => makeGpkgBlob(2) // WKB type 2 = LineString
 const makePoint = () => makeGpkgBlob(1) // WKB type 1 = Point
 const makeCorruptBlob = () => Buffer.from([0x47, 0x50]) // too short to parse
 
+// Envelope indicator 5 is out of range (GPKG_ENVELOPE_SIZES only covers 0–4)
+const makeInvalidEnvelopeBlob = () =>
+  Buffer.from([0x47, 0x50, 0x00, 0x0a, 0x00, 0x00, 0x00, 0x00])
+
+// Envelope indicator 1 signals a 32-byte envelope, but the blob ends at byte 8,
+// leaving no room for the WKB payload (needs at least 45 bytes total)
+const makeTruncatedEnvelopeBlob = () =>
+  Buffer.from([0x47, 0x50, 0x00, 0x02, 0x00, 0x00, 0x00, 0x00])
+
 /**
  * Build a SQLite database in-memory, optionally configure it as a
  * GeoPackage, then serialize it to a Buffer for use with validateGpkg.
@@ -35,13 +54,18 @@ const makeCorruptBlob = () => Buffer.from([0x47, 0x50]) // too short to parse
  * @param {Record<string, Buffer[]>} [opts.layerFeatures={}]
  *   Map of layer name to array of geometry blobs to insert.
  *   Defaults to one polygon per layer when not specified.
+ * @param {string|null} [opts.rlbGeomColumnName]
+ *   Override the geometry column name registered for Red Line Boundary in
+ *   gpkg_geometry_columns. Set to null to omit the row entirely.
+ *   Defaults to 'geom' (same as all other feature layers).
  */
 function buildBuffer({
   appId = 0,
   systemTables = false,
   featureLayers = [],
   nonFeatureLayers = [],
-  layerFeatures = {}
+  layerFeatures = {},
+  rlbGeomColumnName = 'geom'
 } = {}) {
   const db = new Database(':memory:')
   db.pragma(`application_id = ${appId}`)
@@ -86,10 +110,17 @@ function buildBuffer({
         `INSERT INTO gpkg_contents (table_name, data_type, identifier)
          VALUES (?, 'features', ?)`
       ).run(layer, layer)
-      db.prepare(
-        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m)
-         VALUES (?, 'geom', 'GEOMETRY', 4326, 0, 0)`
-      ).run(layer)
+      const colName =
+        layer.toLowerCase() === 'red line boundary' &&
+        rlbGeomColumnName !== 'geom'
+          ? rlbGeomColumnName
+          : 'geom'
+      if (colName !== null) {
+        db.prepare(
+          `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m)
+           VALUES (?, ?, 'GEOMETRY', 4326, 0, 0)`
+        ).run(layer, colName)
+      }
       const geoms = layerFeatures[layer] ?? [makePolygon()]
       for (let i = 0; i < geoms.length; i++) {
         db.prepare(`INSERT INTO "${layer}" (id, geom) VALUES (?, ?)`).run(
@@ -191,17 +222,13 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          nonFeatureLayers: ['Red Line Boundary', 'Habitats']
+          nonFeatureLayers: ALL_LAYERS
         })
       )
 
       expect(result.valid).toBe(false)
-      expect(result.errors).toContain(
-        'Missing required feature layer in GeoPackage: Red Line Boundary'
-      )
-      expect(result.errors).toContain(
-        'Missing required feature layer in GeoPackage: Habitats'
-      )
+      expect(result.errors).toContain(missingLayerError(LAYER_RLB))
+      expect(result.errors).toContain(missingLayerError(LAYER_HABITATS))
     })
 
     it('returns an error for each missing layer when none are present', () => {
@@ -210,12 +237,8 @@ describe('validateGpkg', () => {
       )
 
       expect(result.valid).toBe(false)
-      expect(result.errors).toContain(
-        'Missing required feature layer in GeoPackage: Red Line Boundary'
-      )
-      expect(result.errors).toContain(
-        'Missing required feature layer in GeoPackage: Habitats'
-      )
+      expect(result.errors).toContain(missingLayerError(LAYER_RLB))
+      expect(result.errors).toContain(missingLayerError(LAYER_HABITATS))
     })
 
     it('returns an error only for the missing layer when one is present', () => {
@@ -223,43 +246,26 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary']
+          featureLayers: [LAYER_RLB]
         })
       )
 
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(1)
-      expect(result.errors[0]).toBe(
-        'Missing required feature layer in GeoPackage: Habitats'
-      )
+      expect(result.errors[0]).toBe(missingLayerError(LAYER_HABITATS))
     })
   })
 
   describe('when the Red Line Boundary layer has no registered geometry column', () => {
     it('returns a descriptive error rather than crashing', () => {
-      const db = new Database(':memory:')
-      db.pragma(`application_id = ${GP10_APP_ID}`)
-      db.exec(`
-        CREATE TABLE gpkg_spatial_ref_sys (srs_id INTEGER NOT NULL PRIMARY KEY, srs_name TEXT NOT NULL, organization TEXT NOT NULL, organization_coordsys_id INTEGER NOT NULL, definition TEXT NOT NULL, description TEXT);
-        CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '', last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), min_x REAL, min_y REAL, max_x REAL, max_y REAL, srs_id INTEGER);
-        CREATE TABLE gpkg_geometry_columns (table_name TEXT NOT NULL, column_name TEXT NOT NULL, geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL, z TINYINT NOT NULL, m TINYINT NOT NULL, CONSTRAINT pk_geom_cols PRIMARY KEY (table_name, column_name));
-        CREATE TABLE "Red Line Boundary" (id INTEGER PRIMARY KEY, geom BLOB);
-        CREATE TABLE "Habitats" (id INTEGER PRIMARY KEY, geom BLOB);
-      `)
-      db.prepare(
-        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Red Line Boundary', 'features', 'Red Line Boundary')`
-      ).run()
-      db.prepare(
-        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Habitats', 'features', 'Habitats')`
-      ).run()
-      // gpkg_geometry_columns intentionally has no row for Red Line Boundary
-      db.prepare(
-        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Habitats', 'geom', 'GEOMETRY', 4326, 0, 0)`
-      ).run()
-      const buffer = Buffer.from(db.serialize())
-      db.close()
-
-      const result = validateGpkg(buffer)
+      const result = validateGpkg(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: ALL_LAYERS,
+          rlbGeomColumnName: null
+        })
+      )
 
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(1)
@@ -271,31 +277,14 @@ describe('validateGpkg', () => {
 
   describe('when the Red Line Boundary geometry column name is invalid', () => {
     it('returns a descriptive error for a column name that fails the identifier check', () => {
-      const db = new Database(':memory:')
-      db.pragma(`application_id = ${GP10_APP_ID}`)
-      db.exec(`
-        CREATE TABLE gpkg_spatial_ref_sys (srs_id INTEGER NOT NULL PRIMARY KEY, srs_name TEXT NOT NULL, organization TEXT NOT NULL, organization_coordsys_id INTEGER NOT NULL, definition TEXT NOT NULL, description TEXT);
-        CREATE TABLE gpkg_contents (table_name TEXT NOT NULL PRIMARY KEY, data_type TEXT NOT NULL, identifier TEXT UNIQUE, description TEXT DEFAULT '', last_change DATETIME NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%fZ','now')), min_x REAL, min_y REAL, max_x REAL, max_y REAL, srs_id INTEGER);
-        CREATE TABLE gpkg_geometry_columns (table_name TEXT NOT NULL, column_name TEXT NOT NULL, geometry_type_name TEXT NOT NULL, srs_id INTEGER NOT NULL, z TINYINT NOT NULL, m TINYINT NOT NULL, CONSTRAINT pk_geom_cols PRIMARY KEY (table_name, column_name));
-        CREATE TABLE "Red Line Boundary" (id INTEGER PRIMARY KEY, geom BLOB);
-        CREATE TABLE "Habitats" (id INTEGER PRIMARY KEY, geom BLOB);
-      `)
-      db.prepare(
-        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Red Line Boundary', 'features', 'Red Line Boundary')`
-      ).run()
-      db.prepare(
-        `INSERT INTO gpkg_contents (table_name, data_type, identifier) VALUES ('Habitats', 'features', 'Habitats')`
-      ).run()
-      db.prepare(
-        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Red Line Boundary', 'geom"; DROP TABLE "Red Line Boundary"; --', 'GEOMETRY', 4326, 0, 0)`
-      ).run()
-      db.prepare(
-        `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Habitats', 'geom', 'GEOMETRY', 4326, 0, 0)`
-      ).run()
-      const buffer = Buffer.from(db.serialize())
-      db.close()
-
-      const result = validateGpkg(buffer)
+      const result = validateGpkg(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: ALL_LAYERS,
+          rlbGeomColumnName: 'geom"; DROP TABLE "Red Line Boundary"; --'
+        })
+      )
 
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(1)
@@ -311,16 +300,14 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
-          layerFeatures: { 'Red Line Boundary': [] }
+          featureLayers: ALL_LAYERS,
+          layerFeatures: { [LAYER_RLB]: [] }
         })
       )
 
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(1)
-      expect(result.errors[0]).toBe(
-        'Zero red line boundaries in GeoPackage (expecting one)'
-      )
+      expect(result.errors[0]).toBe(ERR_ZERO_RLB)
     })
 
     it('returns an error when the only features are non-polygon geometries', () => {
@@ -328,18 +315,16 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
+          featureLayers: ALL_LAYERS,
           layerFeatures: {
-            'Red Line Boundary': [makeLineString(), makePoint()]
+            [LAYER_RLB]: [makeLineString(), makePoint()]
           }
         })
       )
 
       expect(result.valid).toBe(false)
       expect(result.errors).toHaveLength(1)
-      expect(result.errors[0]).toBe(
-        'Zero red line boundaries in GeoPackage (expecting one)'
-      )
+      expect(result.errors[0]).toBe(ERR_ZERO_RLB)
     })
 
     it('returns an error when there are multiple polygon features', () => {
@@ -347,9 +332,9 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
+          featureLayers: ALL_LAYERS,
           layerFeatures: {
-            'Red Line Boundary': [makePolygon(), makePolygon()]
+            [LAYER_RLB]: [makePolygon(), makePolygon()]
           }
         })
       )
@@ -366,9 +351,9 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
+          featureLayers: ALL_LAYERS,
           layerFeatures: {
-            'Red Line Boundary': [makePolygon(), makeLineString()]
+            [LAYER_RLB]: [makePolygon(), makeLineString()]
           }
         })
       )
@@ -381,9 +366,9 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
+          featureLayers: ALL_LAYERS,
           layerFeatures: {
-            'Red Line Boundary': [makePolygon(), makeCorruptBlob()]
+            [LAYER_RLB]: [makePolygon(), makeCorruptBlob()]
           }
         })
       )
@@ -400,16 +385,50 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats'],
+          featureLayers: ALL_LAYERS,
           layerFeatures: {
-            'Red Line Boundary': [makeCorruptBlob()]
+            [LAYER_RLB]: [makeCorruptBlob()]
           }
         })
       )
 
-      expect(result.errors).not.toContain(
-        'Zero red line boundaries in GeoPackage (expecting one)'
+      expect(result.errors).not.toContain(ERR_ZERO_RLB)
+      expect(result.errors).toContain(
+        'Red Line Boundary contains unreadable geometry'
       )
+    })
+
+    it('treats a blob with an out-of-range envelope indicator as unreadable', () => {
+      const result = validateGpkg(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: ALL_LAYERS,
+          layerFeatures: {
+            [LAYER_RLB]: [makeInvalidEnvelopeBlob()]
+          }
+        })
+      )
+
+      expect(result.valid).toBe(false)
+      expect(result.errors).toContain(
+        'Red Line Boundary contains unreadable geometry'
+      )
+    })
+
+    it('treats a blob too short for its declared envelope as unreadable', () => {
+      const result = validateGpkg(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: ALL_LAYERS,
+          layerFeatures: {
+            [LAYER_RLB]: [makeTruncatedEnvelopeBlob()]
+          }
+        })
+      )
+
+      expect(result.valid).toBe(false)
       expect(result.errors).toContain(
         'Red Line Boundary contains unreadable geometry'
       )
@@ -422,7 +441,7 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GP10_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats']
+          featureLayers: ALL_LAYERS
         })
       )
 
@@ -434,7 +453,7 @@ describe('validateGpkg', () => {
         buildBuffer({
           appId: GPKG_APP_ID,
           systemTables: true,
-          featureLayers: ['Red Line Boundary', 'Habitats']
+          featureLayers: ALL_LAYERS
         })
       )
 
