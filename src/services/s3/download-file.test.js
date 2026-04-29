@@ -60,9 +60,11 @@ function mockSendRejecting(error) {
   return send
 }
 
+const THIRTY_SECONDS_MS = 30_000
+
 describe('DEFAULT_TIMEOUT_MS', () => {
   it('is 30 seconds', () => {
-    expect(DEFAULT_TIMEOUT_MS).toBe(30_000)
+    expect(DEFAULT_TIMEOUT_MS).toBe(THIRTY_SECONDS_MS)
   })
 })
 
@@ -72,148 +74,144 @@ describe('MAX_FILE_SIZE_BYTES', () => {
   })
 })
 
-describe('downloadFile', () => {
-  describe('successful download', () => {
-    it('concatenates body chunks and returns a Buffer', async () => {
-      const chunk1 = Buffer.from('hello ')
-      const chunk2 = Buffer.from('world')
-      mockSendWith({ Body: makeBody([chunk1, chunk2]) })
+describe('downloadFile successful download', () => {
+  it('concatenates body chunks and returns a Buffer', async () => {
+    const chunk1 = Buffer.from('hello ')
+    const chunk2 = Buffer.from('world')
+    mockSendWith({ Body: makeBody([chunk1, chunk2]) })
 
-      const result = await downloadFile(BUCKET, KEY)
+    const result = await downloadFile(BUCKET, KEY)
 
-      expect(result).toBeInstanceOf(Buffer)
-      expect(result.toString()).toBe('hello world')
-    })
-
-    it('returns an empty Buffer when the body has no chunks', async () => {
-      mockSendWith({ Body: makeBody([]) })
-
-      const result = await downloadFile(BUCKET, KEY)
-
-      expect(result).toBeInstanceOf(Buffer)
-      expect(result.byteLength).toBe(0)
-    })
-
-    it('passes the abortSignal through to client.send', async () => {
-      const send = mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
-
-      await downloadFile(BUCKET, KEY)
-
-      const [, options] = send.mock.calls[0]
-      expect(options).toHaveProperty('abortSignal')
-    })
+    expect(result).toBeInstanceOf(Buffer)
+    expect(result.toString()).toBe('hello world')
   })
 
-  describe('when client.send throws a timeout', () => {
-    it('throws S3TimeoutError for a TimeoutError', async () => {
-      mockSendRejecting(namedError('TimeoutError'))
+  it('returns an empty Buffer when the body has no chunks', async () => {
+    mockSendWith({ Body: makeBody([]) })
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
-    })
+    const result = await downloadFile(BUCKET, KEY)
 
-    it('throws S3TimeoutError for an AbortError', async () => {
-      mockSendRejecting(namedError('AbortError'))
-
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
-    })
-
-    it('includes bucket and key in the S3TimeoutError message', async () => {
-      mockSendRejecting(namedError('TimeoutError'))
-
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
-        new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
-      )
-    })
+    expect(result).toBeInstanceOf(Buffer)
+    expect(result.byteLength).toBe(0)
   })
 
-  describe('when client.send throws a connection error', () => {
-    it('throws S3ConnectionError for a generic error', async () => {
-      mockSendRejecting(new Error('ECONNREFUSED'))
+  it('passes the abortSignal through to client.send', async () => {
+    const send = mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
-    })
+    await downloadFile(BUCKET, KEY)
 
-    it('includes the original message in the S3ConnectionError', async () => {
-      mockSendRejecting(new Error('NoSuchKey'))
+    const [, options] = send.mock.calls[0]
+    expect(options).toHaveProperty('abortSignal')
+  })
+})
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/NoSuchKey/)
-    })
+describe('downloadFile when client.send throws a timeout', () => {
+  it('throws S3TimeoutError for a TimeoutError', async () => {
+    mockSendRejecting(namedError('TimeoutError'))
+
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
   })
 
-  describe('when the body stream throws a timeout', () => {
-    it('throws S3TimeoutError for a TimeoutError during streaming', async () => {
-      mockSendWith({ Body: { [Symbol.asyncIterator]: failWithTimeout } })
+  it('throws S3TimeoutError for an AbortError', async () => {
+    mockSendRejecting(namedError('AbortError'))
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
-    })
-
-    it('throws S3TimeoutError for an AbortError during streaming', async () => {
-      mockSendWith({ Body: { [Symbol.asyncIterator]: failWithAbort } })
-
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
-    })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
   })
 
-  describe('when the body stream throws a connection error', () => {
-    it('throws S3ConnectionError for a generic stream error', async () => {
-      mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
+  it('includes bucket and key in the S3TimeoutError message', async () => {
+    mockSendRejecting(namedError('TimeoutError'))
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
-    })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+      new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
+    )
+  })
+})
 
-    it('includes the original message in the S3ConnectionError', async () => {
-      mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
+describe('downloadFile when client.send throws a connection error', () => {
+  it('throws S3ConnectionError for a generic error', async () => {
+    mockSendRejecting(new Error('ECONNREFUSED'))
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/socket hang up/)
-    })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
   })
 
-  describe('when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
-    it('throws S3FileTooLargeError when Content-Length exceeds the limit', async () => {
-      mockSendWith({
-        Body: makeBody([]),
-        ContentLength: MAX_FILE_SIZE_BYTES + 1
-      })
+  it('includes the original message in the S3ConnectionError', async () => {
+    mockSendRejecting(new Error('NoSuchKey'))
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
-        S3FileTooLargeError
-      )
-    })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/NoSuchKey/)
+  })
+})
 
-    it('includes bucket, key and sizes in the error message', async () => {
-      mockSendWith({
-        Body: makeBody([]),
-        ContentLength: MAX_FILE_SIZE_BYTES + 1
-      })
+describe('downloadFile when the body stream throws a timeout', () => {
+  it('throws S3TimeoutError for a TimeoutError during streaming', async () => {
+    mockSendWith({ Body: { [Symbol.asyncIterator]: failWithTimeout } })
 
-      await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
-        new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
-      )
-    })
-
-    it('does not throw when Content-Length equals MAX_FILE_SIZE_BYTES', async () => {
-      mockSendWith({
-        Body: makeBody([Buffer.alloc(1)]),
-        ContentLength: MAX_FILE_SIZE_BYTES
-      })
-
-      await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
-    })
-
-    it('does not throw when Content-Length is absent', async () => {
-      mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
-
-      await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
-    })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
   })
 
-  describe('custom timeoutMs option', () => {
-    it('accepts a custom timeout and still succeeds', async () => {
-      mockSendWith({ Body: makeBody([Buffer.from('data')]) })
+  it('throws S3TimeoutError for an AbortError during streaming', async () => {
+    mockSendWith({ Body: { [Symbol.asyncIterator]: failWithAbort } })
 
-      const result = await downloadFile(BUCKET, KEY, { timeoutMs: 5_000 })
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
+  })
+})
 
-      expect(result.toString()).toBe('data')
+describe('downloadFile when the body stream throws a connection error', () => {
+  it('throws S3ConnectionError for a generic stream error', async () => {
+    mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
+
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
+  })
+
+  it('includes the original message in the S3ConnectionError', async () => {
+    mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
+
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/socket hang up/)
+  })
+})
+
+describe('downloadFile when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
+  it('throws S3FileTooLargeError when Content-Length exceeds the limit', async () => {
+    mockSendWith({
+      Body: makeBody([]),
+      ContentLength: MAX_FILE_SIZE_BYTES + 1
     })
+
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3FileTooLargeError)
+  })
+
+  it('includes bucket, key and sizes in the error message', async () => {
+    mockSendWith({
+      Body: makeBody([]),
+      ContentLength: MAX_FILE_SIZE_BYTES + 1
+    })
+
+    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+      new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
+    )
+  })
+
+  it('does not throw when Content-Length equals MAX_FILE_SIZE_BYTES', async () => {
+    mockSendWith({
+      Body: makeBody([Buffer.alloc(1)]),
+      ContentLength: MAX_FILE_SIZE_BYTES
+    })
+
+    await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
+  })
+
+  it('does not throw when Content-Length is absent', async () => {
+    mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
+
+    await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
+  })
+})
+
+describe('downloadFile custom timeoutMs option', () => {
+  it('accepts a custom timeout and still succeeds', async () => {
+    mockSendWith({ Body: makeBody([Buffer.from('data')]) })
+
+    const result = await downloadFile(BUCKET, KEY, { timeoutMs: 5_000 })
+
+    expect(result.toString()).toBe('data')
   })
 })

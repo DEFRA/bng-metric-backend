@@ -68,9 +68,9 @@ const validateBaseline = {
     let bucket
     let key
     try {
-      const result = await waitForUploadReady(uploadId)
-      bucket = result.bucket
-      key = result.key
+      const location = await waitForUploadReady(uploadId)
+      bucket = location.bucket
+      key = location.key
     } catch (err) {
       if (err instanceof UploadTimeoutError) {
         logger.error(

@@ -8,10 +8,9 @@ const logger = createLogger()
  * GeoPackage Application IDs as per the OGC GeoPackage spec.
  * GP10 covers v1.0; GPKG covers v1.2.1+.
  */
-const GPKG_APPLICATION_IDS = new Set([
-  0x47503130, // 'GP10' — GeoPackage 1.0
-  0x47504b47 // 'GPKG' — GeoPackage 1.2.1+
-])
+const GPKG_APP_ID_GP10 = 0x47503130 // 'GP10' — GeoPackage 1.0
+const GPKG_APP_ID_GPKG = 0x47504b47 // 'GPKG' — GeoPackage 1.2.1+
+const GPKG_APPLICATION_IDS = new Set([GPKG_APP_ID_GP10, GPKG_APP_ID_GPKG])
 
 /**
  * System tables that every valid GeoPackage must contain.
@@ -32,22 +31,48 @@ const REQUIRED_LAYERS = ['Red Line Boundary', 'Habitats']
  * WKB type codes for Polygon and MultiPolygon, including Z/M/ZM variants.
  * https://www.geopackage.org/spec/#geometry_types
  */
+const WKB_POLYGON = 3
+const WKB_MULTI_POLYGON = 6
+const WKB_POLYGON_Z = 1003
+const WKB_MULTI_POLYGON_Z = 1006
+const WKB_POLYGON_M = 2003
+const WKB_MULTI_POLYGON_M = 2006
+const WKB_POLYGON_ZM = 3003
+const WKB_MULTI_POLYGON_ZM = 3006
 const POLYGON_WKB_TYPES = new Set([
-  3,
-  6, // Polygon, MultiPolygon
-  1003,
-  1006, // PolygonZ, MultiPolygonZ
-  2003,
-  2006, // PolygonM, MultiPolygonM
-  3003,
-  3006 // PolygonZM, MultiPolygonZM
+  WKB_POLYGON,
+  WKB_MULTI_POLYGON,
+  WKB_POLYGON_Z,
+  WKB_MULTI_POLYGON_Z,
+  WKB_POLYGON_M,
+  WKB_MULTI_POLYGON_M,
+  WKB_POLYGON_ZM,
+  WKB_MULTI_POLYGON_ZM
 ])
+
+/**
+ * GeoPackageBinary header layout.
+ * https://www.geopackage.org/spec/#gpb_format
+ */
+const GPKG_HEADER_BYTES = 8 // fixed header size (magic + version + flags + srs_id)
+const GPKG_FLAGS_BYTE_INDEX = 3 // byte within header that carries the flags field
+const GPKG_ENVELOPE_INDICATOR_MASK = 0x07
+const WKB_MIN_BYTES = 5 // 1-byte endian marker + 4-byte geometry type code
 
 /**
  * Number of envelope bytes for each GeoPackageBinary envelope indicator value.
  * https://www.geopackage.org/spec/#gpb_format
  */
-const GPKG_ENVELOPE_SIZES = [0, 32, 48, 48, 64]
+const GPKG_ENVELOPE_XY_BYTES = 32
+const GPKG_ENVELOPE_XYZ_BYTES = 48 // also used for XYM (indicator values 2 and 3)
+const GPKG_ENVELOPE_XYZM_BYTES = 64
+const GPKG_ENVELOPE_SIZES = [
+  0,
+  GPKG_ENVELOPE_XY_BYTES,
+  GPKG_ENVELOPE_XYZ_BYTES,
+  GPKG_ENVELOPE_XYZ_BYTES,
+  GPKG_ENVELOPE_XYZM_BYTES
+]
 
 /**
  * Extract the WKB geometry type code from a GeoPackageBinary blob.
@@ -56,16 +81,17 @@ const GPKG_ENVELOPE_SIZES = [0, 32, 48, 48, 64]
  * @returns {number|null}
  */
 function getWkbType(blob) {
-  if (!blob || blob.length < 8) {
+  if (!blob || blob.length < GPKG_HEADER_BYTES) {
     return null
   }
-  const envelopeIndicator = (blob[3] >> 1) & 0x07
+  const envelopeIndicator =
+    (blob[GPKG_FLAGS_BYTE_INDEX] >> 1) & GPKG_ENVELOPE_INDICATOR_MASK
   const envelopeSize = GPKG_ENVELOPE_SIZES[envelopeIndicator]
   if (envelopeSize === undefined) {
     return null
   }
-  const wkbOffset = 8 + envelopeSize
-  if (blob.length < wkbOffset + 5) {
+  const wkbOffset = GPKG_HEADER_BYTES + envelopeSize
+  if (blob.length < wkbOffset + WKB_MIN_BYTES) {
     return null
   }
   const littleEndian = blob[wkbOffset] === 1

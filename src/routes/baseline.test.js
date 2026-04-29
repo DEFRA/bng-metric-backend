@@ -2,13 +2,13 @@ import { vi, describe, it, expect, beforeEach } from 'vitest'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
-  UploadFailedError: class UploadFailedError extends Error {
+  UploadFailedError: class MockUploadFailedError extends Error {
     constructor(message) {
       super(message)
       this.name = 'UploadFailedError'
     }
   },
-  UploadTimeoutError: class UploadTimeoutError extends Error {
+  UploadTimeoutError: class MockUploadTimeoutError extends Error {
     constructor(message) {
       super(message)
       this.name = 'UploadTimeoutError'
@@ -39,211 +39,216 @@ const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
+const HTTP_502 = 502
+const HTTP_504 = 504
+const HTTP_413 = 413
+
 const mockH = { response: vi.fn().mockReturnThis() }
 
-describe('validateBaseline route', () => {
-  describe('route configuration', () => {
-    it('is a POST route', () => {
-      expect(validateBaseline.method).toBe('POST')
-    })
+describe('validateBaseline route configuration', () => {
+  it('is a POST route', () => {
+    expect(validateBaseline.method).toBe('POST')
+  })
 
-    it('has the correct path', () => {
-      expect(validateBaseline.path).toBe('/baseline/validate/{uploadId}')
+  it('has the correct path', () => {
+    expect(validateBaseline.path).toBe('/baseline/validate/{uploadId}')
+  })
+})
+
+describe('validateBaseline Joi param validation', () => {
+  const schema = validateBaseline.options.validate.params
+
+  it('accepts a valid UUID uploadId', () => {
+    const { error } = schema.validate({ uploadId: UPLOAD_ID })
+    expect(error).toBeUndefined()
+  })
+
+  it('rejects a non-UUID uploadId', () => {
+    const { error } = schema.validate({ uploadId: 'not-a-uuid' })
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"uploadId" must be a valid GUID/)
+  })
+
+  it('rejects a missing uploadId', () => {
+    const { error } = schema.validate({})
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"uploadId" is required/)
+  })
+})
+
+describe('validateBaseline handler happy paths', () => {
+  const request = { params: { uploadId: UPLOAD_ID } }
+
+  beforeEach(() => {
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY
+    })
+    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  })
+
+  it('waits for the upload to be ready using the uploadId', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+
+    await validateBaseline.handler(request, mockH)
+
+    expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
+  })
+
+  it('downloads the file using the resolved bucket and key', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+
+    await validateBaseline.handler(request, mockH)
+
+    expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
+  })
+
+  it('validates the downloaded buffer', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+
+    await validateBaseline.handler(request, mockH)
+
+    expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
+  })
+
+  it('returns the validation result when valid', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+
+    await validateBaseline.handler(request, mockH)
+
+    expect(mockH.response).toHaveBeenCalledWith({ valid: true, errors: [] })
+  })
+
+  it('returns the validation result when invalid', async () => {
+    const validationResult = {
+      valid: false,
+      errors: [
+        'Missing required feature layer in GeoPackage: Red Line Boundary'
+      ]
+    }
+    vi.mocked(validateGpkg).mockReturnValue(validationResult)
+
+    await validateBaseline.handler(request, mockH)
+
+    expect(mockH.response).toHaveBeenCalledWith(validationResult)
+  })
+})
+
+describe('validateBaseline handler upload error handling', () => {
+  const request = { params: { uploadId: UPLOAD_ID } }
+
+  beforeEach(() => {
+    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  })
+
+  describe('when waitForUploadReady throws an UploadTimeoutError', () => {
+    it('throws a 504 Gateway Timeout', async () => {
+      vi.mocked(waitForUploadReady).mockRejectedValue(
+        new UploadTimeoutError('timed out')
+      )
+
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_504)
+      expect(err.message).toBe('Upload did not complete in time')
     })
   })
 
-  describe('Joi param validation', () => {
-    const schema = validateBaseline.options.validate.params
+  describe('when waitForUploadReady throws an UploadFailedError', () => {
+    it(THROWS_502, async () => {
+      vi.mocked(waitForUploadReady).mockRejectedValue(
+        new UploadFailedError('rejected')
+      )
 
-    it('accepts a valid UUID uploadId', () => {
-      const { error } = schema.validate({ uploadId: UPLOAD_ID })
-      expect(error).toBeUndefined()
-    })
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
 
-    it('rejects a non-UUID uploadId', () => {
-      const { error } = schema.validate({ uploadId: 'not-a-uuid' })
-      expect(error).toBeDefined()
-      expect(error.message).toMatch(/"uploadId" must be a valid GUID/)
-    })
-
-    it('rejects a missing uploadId', () => {
-      const { error } = schema.validate({})
-      expect(error).toBeDefined()
-      expect(error.message).toMatch(/"uploadId" is required/)
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_502)
+      expect(err.message).toBe('Upload failed or was rejected')
     })
   })
 
-  describe('handler', () => {
-    const request = { params: { uploadId: UPLOAD_ID } }
+  describe('when waitForUploadReady throws an unexpected error', () => {
+    it(THROWS_502, async () => {
+      vi.mocked(waitForUploadReady).mockRejectedValue(new Error('unexpected'))
 
-    beforeEach(() => {
-      vi.mocked(waitForUploadReady).mockResolvedValue({
-        bucket: MOCK_BUCKET,
-        key: MOCK_KEY
-      })
-      vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_502)
     })
 
-    it('waits for the upload to be ready using the uploadId', async () => {
-      vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    it('does not attempt to download the file', async () => {
+      vi.mocked(waitForUploadReady).mockRejectedValue(
+        new Error('Upload not ready')
+      )
 
-      await validateBaseline.handler(request, mockH)
+      await validateBaseline.handler(request, mockH).catch(() => {})
 
-      expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
+      expect(downloadFile).not.toHaveBeenCalled()
     })
+  })
+})
 
-    it('downloads the file using the resolved bucket and key', async () => {
-      vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+describe('validateBaseline handler download error handling', () => {
+  const request = { params: { uploadId: UPLOAD_ID } }
 
-      await validateBaseline.handler(request, mockH)
-
-      expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
+  beforeEach(() => {
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY
     })
+  })
 
-    it('validates the downloaded buffer', async () => {
-      vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  describe('when downloadFile throws an S3FileTooLargeError', () => {
+    it('throws a 413 Entity Too Large', async () => {
+      vi.mocked(downloadFile).mockRejectedValue(
+        new S3FileTooLargeError('too big')
+      )
 
-      await validateBaseline.handler(request, mockH)
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
 
-      expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_413)
+      expect(err.message).toBe('File exceeds the maximum allowed size')
     })
+  })
 
-    it('returns the validation result when valid', async () => {
-      vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  describe('when downloadFile throws an S3TimeoutError', () => {
+    it('throws a 504 Gateway Timeout', async () => {
+      vi.mocked(downloadFile).mockRejectedValue(new S3TimeoutError('timed out'))
 
-      await validateBaseline.handler(request, mockH)
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
 
-      expect(mockH.response).toHaveBeenCalledWith({ valid: true, errors: [] })
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_504)
+      expect(err.message).toBe('Timed out downloading file from storage')
     })
+  })
 
-    it('returns the validation result when invalid', async () => {
-      const validationResult = {
-        valid: false,
-        errors: [
-          'Missing required feature layer in GeoPackage: Red Line Boundary'
-        ]
-      }
-      vi.mocked(validateGpkg).mockReturnValue(validationResult)
+  describe('when downloadFile throws an S3ConnectionError', () => {
+    it(THROWS_502, async () => {
+      vi.mocked(downloadFile).mockRejectedValue(
+        new S3ConnectionError('connection refused')
+      )
 
-      await validateBaseline.handler(request, mockH)
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
 
-      expect(mockH.response).toHaveBeenCalledWith(validationResult)
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_502)
+      expect(err.message).toBe('Unable to download file from storage')
     })
+  })
 
-    describe('when waitForUploadReady throws an UploadTimeoutError', () => {
-      it('throws a 504 Gateway Timeout', async () => {
-        vi.mocked(waitForUploadReady).mockRejectedValue(
-          new UploadTimeoutError('timed out')
-        )
+  describe('when downloadFile throws an unexpected error', () => {
+    it(THROWS_502, async () => {
+      vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
 
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
+      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
 
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(504)
-        expect(err.message).toBe('Upload did not complete in time')
-      })
-    })
-
-    describe('when waitForUploadReady throws an UploadFailedError', () => {
-      it(THROWS_502, async () => {
-        vi.mocked(waitForUploadReady).mockRejectedValue(
-          new UploadFailedError('rejected')
-        )
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(502)
-        expect(err.message).toBe('Upload failed or was rejected')
-      })
-    })
-
-    describe('when waitForUploadReady throws an unexpected error', () => {
-      it(THROWS_502, async () => {
-        vi.mocked(waitForUploadReady).mockRejectedValue(new Error('unexpected'))
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(502)
-      })
-
-      it('does not attempt to download the file', async () => {
-        vi.mocked(waitForUploadReady).mockRejectedValue(
-          new Error('Upload not ready')
-        )
-
-        await validateBaseline.handler(request, mockH).catch(() => {})
-
-        expect(downloadFile).not.toHaveBeenCalled()
-      })
-    })
-
-    describe('when downloadFile throws an S3FileTooLargeError', () => {
-      it('throws a 413 Entity Too Large', async () => {
-        vi.mocked(downloadFile).mockRejectedValue(
-          new S3FileTooLargeError('too big')
-        )
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(413)
-        expect(err.message).toBe('File exceeds the maximum allowed size')
-      })
-    })
-
-    describe('when downloadFile throws an S3TimeoutError', () => {
-      it('throws a 504 Gateway Timeout', async () => {
-        vi.mocked(downloadFile).mockRejectedValue(
-          new S3TimeoutError('timed out')
-        )
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(504)
-        expect(err.message).toBe('Timed out downloading file from storage')
-      })
-    })
-
-    describe('when downloadFile throws an S3ConnectionError', () => {
-      it(THROWS_502, async () => {
-        vi.mocked(downloadFile).mockRejectedValue(
-          new S3ConnectionError('connection refused')
-        )
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(502)
-        expect(err.message).toBe('Unable to download file from storage')
-      })
-    })
-
-    describe('when downloadFile throws an unexpected error', () => {
-      it(THROWS_502, async () => {
-        vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
-
-        const err = await validateBaseline
-          .handler(request, mockH)
-          .catch((e) => e)
-
-        expect(err.isBoom).toBe(true)
-        expect(err.output.statusCode).toBe(502)
-      })
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_502)
     })
   })
 })

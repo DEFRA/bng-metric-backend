@@ -123,7 +123,7 @@ describe('initiateUpload', () => {
   })
 })
 
-describe('getUploadStatus', () => {
+describe('getUploadStatus response fields', () => {
   beforeEach(() => {
     vi.spyOn(config, 'get').mockReturnValue(null)
     delete process.env.ENVIRONMENT
@@ -206,6 +206,13 @@ describe('getUploadStatus', () => {
     const result = await getUploadStatus('abc-123')
 
     expect(result.errorMessage).toBeNull()
+  })
+})
+
+describe('getUploadStatus edge cases', () => {
+  beforeEach(() => {
+    vi.spyOn(config, 'get').mockReturnValue(null)
+    delete process.env.ENVIRONMENT
   })
 
   it('should return unknown when uploadStatus is missing', async () => {
