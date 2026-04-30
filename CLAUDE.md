@@ -27,9 +27,16 @@ node scripts/reflect-schema.js
 npm test
 ```
 
-After local verification, push and open a PR — the **Check DB Schema** workflow re-runs migrations from scratch on a clean Postgres. Once merged, run **Publish DB Schema** from `main` and apply the published version through the CDP Portal (dev → test → ext-test → prod).
+After local verification, push and open a PR — the `backend-integration-tests` job in **Check Pull Request** re-runs migrations from scratch against a clean Postgres service container before running the integration suite, so a broken changeset surfaces there. Once merged, run **Publish DB Schema** from `main` and apply the published version through the CDP Portal (dev → test → ext-test → prod).
 
 For the full end-to-end procedure, including changeset examples, JSONB handling, and the CDP Portal promotion steps, see [`docs/DATABASE_CHANGES.md`](docs/DATABASE_CHANGES.md). The reflection step is documented in [`docs/SCHEMA_REFLECTION.md`](docs/SCHEMA_REFLECTION.md).
+
+## Tests
+
+Two suites:
+
+- **Unit** (`src/**/*.test.js`, `npm test`) — Drizzle is mocked. No external services. CI-default.
+- **Integration** (`integration-tests/**/*.test.js`, `npm run test:integration`) — boots Hapi in-process via `server.inject` against a real Postgres, asserts side-effects (rows, triggers) with a raw `pg.Client`. Requires `docker compose up -d` locally; runs in CI via the `backend-integration-tests` job in `check-pull-request.yml`. See [`docs/integration-tests.md`](docs/integration-tests.md) for full details and the pattern for adding scenarios.
 
 ## Code style
 

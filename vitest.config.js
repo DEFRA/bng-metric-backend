@@ -6,6 +6,7 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
+    include: ['src/**/*.test.js'],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
