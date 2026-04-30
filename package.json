@@ -15,7 +15,7 @@
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
-    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test",
+    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test && npm run test:integration",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
     "postinstall": "npm run setup:husky",
@@ -26,7 +26,8 @@
     "setup:husky": "node -e \"try { (await import('husky')).default() } catch (e) { if (e.code !== 'ERR_MODULE_NOT_FOUND') throw e }\" --input-type module",
     "start": "NODE_ENV=production node --use-strict .",
     "test": "TZ=UTC vitest run --coverage",
-    "test:watch": "TZ=UTC vitest"
+    "test:watch": "TZ=UTC vitest",
+    "test:integration": "TZ=UTC vitest run --config vitest.integration.config.js"
   },
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",

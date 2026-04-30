@@ -65,6 +65,12 @@ To test the application run:
 npm run test
 ```
 
+For integration tests that exercise the real Hapi server against a running Postgres (boot via `docker compose up -d` first), see [`docs/integration-tests.md`](docs/integration-tests.md):
+
+```bash
+npm run test:integration
+```
+
 ### Production
 
 To mimic the application running in `production` mode locally run:
