@@ -37,9 +37,7 @@ const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg } = await import('../services/gpkg/validate-gpkg.js')
-const { validateBaselineFile } = await import(
-  '../validation/baseline/index.js'
-)
+const { validateBaselineFile } = await import('../validation/baseline/index.js')
 const { validateBaseline } = await import('./baseline.js')
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
