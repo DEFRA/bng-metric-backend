@@ -48,6 +48,7 @@
     "better-sqlite3": "12.9.0",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
+    "dotenv": "17.4.2",
     "drizzle-orm": "0.45.2",
     "global-agent": "3.0.0",
     "hapi-pino": "13.0.0",
