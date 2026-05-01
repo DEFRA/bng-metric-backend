@@ -21,6 +21,83 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 const logger = createLogger()
 
+async function resolveUploadLocation(uploadId) {
+  try {
+    return await waitForUploadReady(uploadId)
+  } catch (err) {
+    if (err instanceof UploadTimeoutError) {
+      logger.error(
+        `validateBaseline: upload did not become ready for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.gatewayTimeout('Upload did not complete in time')
+    }
+    logger.error(
+      `validateBaseline: upload failed for uploadId ${uploadId}: ${err.message}`
+    )
+    throw Boom.badGateway('Upload failed or was rejected')
+  }
+}
+
+async function fetchBaselineBuffer(bucket, key, uploadId) {
+  try {
+    return await downloadFile(bucket, key)
+  } catch (err) {
+    if (err instanceof S3FileTooLargeError) {
+      logger.error(
+        `validateBaseline: S3 object too large for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.entityTooLarge('File exceeds the maximum allowed size')
+    }
+    if (err instanceof S3TimeoutError) {
+      logger.error(
+        `validateBaseline: S3 download timed out for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.gatewayTimeout('Timed out downloading file from storage')
+    }
+    logger.error(
+      `validateBaseline: S3 download failed for uploadId ${uploadId}: ${err.message}`
+    )
+    throw Boom.badGateway('Unable to download file from storage')
+  }
+}
+
+async function runFullValidation(buffer, pgPool, uploadId, h) {
+  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
+  const localPath = path.join(tmpDir, 'baseline.gpkg')
+
+  try {
+    await fs.writeFile(localPath, buffer)
+    const result = await validateBaselineFile(localPath, pgPool)
+    if (result.valid) {
+      logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+    } else {
+      logger.info(
+        `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
+          .map((e) => `${e.code}: ${e.message}`)
+          .join(' | ')}`
+      )
+    }
+    return h.response(result)
+  } catch (error) {
+    logger.error(
+      `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
+    )
+    return h
+      .response({
+        valid: false,
+        errors: [
+          {
+            code: 'VALIDATION_FAILED',
+            message: 'Unable to validate baseline file'
+          }
+        ]
+      })
+      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  } finally {
+    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+  }
+}
+
 /**
  * @openapi
  * /baseline/validate/{uploadId}:
@@ -78,46 +155,8 @@ const validateBaseline = {
   handler: async (request, h) => {
     const { uploadId } = request.params
 
-    let bucket
-    let key
-    try {
-      const location = await waitForUploadReady(uploadId)
-      bucket = location.bucket
-      key = location.key
-    } catch (err) {
-      if (err instanceof UploadTimeoutError) {
-        logger.error(
-          `validateBaseline: upload did not become ready for uploadId ${uploadId}: ${err.message}`
-        )
-        throw Boom.gatewayTimeout('Upload did not complete in time')
-      }
-      logger.error(
-        `validateBaseline: upload failed for uploadId ${uploadId}: ${err.message}`
-      )
-      throw Boom.badGateway('Upload failed or was rejected')
-    }
-
-    let buffer
-    try {
-      buffer = await downloadFile(bucket, key)
-    } catch (err) {
-      if (err instanceof S3FileTooLargeError) {
-        logger.error(
-          `validateBaseline: S3 object too large for uploadId ${uploadId}: ${err.message}`
-        )
-        throw Boom.entityTooLarge('File exceeds the maximum allowed size')
-      }
-      if (err instanceof S3TimeoutError) {
-        logger.error(
-          `validateBaseline: S3 download timed out for uploadId ${uploadId}: ${err.message}`
-        )
-        throw Boom.gatewayTimeout('Timed out downloading file from storage')
-      }
-      logger.error(
-        `validateBaseline: S3 download failed for uploadId ${uploadId}: ${err.message}`
-      )
-      throw Boom.badGateway('Unable to download file from storage')
-    }
+    const { bucket, key } = await resolveUploadLocation(uploadId)
+    const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
 
     const gateResult = validateGpkg(buffer)
     if (!gateResult.valid) {
@@ -127,40 +166,7 @@ const validateBaseline = {
       return h.response(gateResult)
     }
 
-    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
-    const localPath = path.join(tmpDir, 'baseline.gpkg')
-
-    try {
-      await fs.writeFile(localPath, buffer)
-      const result = await validateBaselineFile(localPath, request.pg)
-      if (result.valid) {
-        logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
-      } else {
-        logger.info(
-          `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
-            .map((e) => `${e.code}: ${e.message}`)
-            .join(' | ')}`
-        )
-      }
-      return h.response(result)
-    } catch (error) {
-      logger.error(
-        `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
-      )
-      return h
-        .response({
-          valid: false,
-          errors: [
-            {
-              code: 'VALIDATION_FAILED',
-              message: 'Unable to validate baseline file'
-            }
-          ]
-        })
-        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    } finally {
-      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
-    }
+    return runFullValidation(buffer, request.pg, uploadId, h)
   }
 }
 
