@@ -8,14 +8,12 @@ const { S3Client } = await import('@aws-sdk/client-s3')
 const { config } = await import('../../config.js')
 const { createS3Client } = await import('./s3-client.js')
 
-/**
- * Mocks config.get for keys used by createS3Client.
- * `aws.region` mirrors convict (env AWS_REGION at process start); null uses the eu-west-2 fallback in code.
- */
+/** Keys read by {@link createS3Client} */
 function mockConfig(overrides = {}) {
   const values = {
-    cdpEnvironment: 'local',
-    'aws.region': null,
+    'aws.region': 'eu-west-2',
+    's3.endpoint': null,
+    's3.forcePathStyle': false,
     ...overrides
   }
   vi.mocked(config.get).mockImplementation((key) => values[key] ?? null)
@@ -23,62 +21,32 @@ function mockConfig(overrides = {}) {
 
 beforeEach(() => {
   vi.spyOn(config, 'get')
+  vi.mocked(S3Client).mockClear()
 })
 
-describe('createS3Client in local environment', () => {
-  const savedEndpoint = process.env.AWS_ENDPOINT_URL
-  const savedAccessKeyId = process.env.AWS_ACCESS_KEY_ID
-  const savedSecretAccessKey = process.env.AWS_SECRET_ACCESS_KEY
-
-  beforeEach(() => {
-    mockConfig({ cdpEnvironment: 'local' })
-    delete process.env.AWS_ENDPOINT_URL
-    delete process.env.AWS_ACCESS_KEY_ID
-    delete process.env.AWS_SECRET_ACCESS_KEY
-  })
-
-  afterEach(() => {
-    if (savedEndpoint === undefined) {
-      delete process.env.AWS_ENDPOINT_URL
-    } else {
-      process.env.AWS_ENDPOINT_URL = savedEndpoint
-    }
-    if (savedAccessKeyId === undefined) {
-      delete process.env.AWS_ACCESS_KEY_ID
-    } else {
-      process.env.AWS_ACCESS_KEY_ID = savedAccessKeyId
-    }
-    if (savedSecretAccessKey === undefined) {
-      delete process.env.AWS_SECRET_ACCESS_KEY
-    } else {
-      process.env.AWS_SECRET_ACCESS_KEY = savedSecretAccessKey
-    }
-  })
-
-  it('creates an S3Client pointing at the default localstack endpoint when AWS_ENDPOINT_URL is unset', () => {
-    createS3Client()
-
-    expect(S3Client).toHaveBeenCalledWith(
-      expect.objectContaining({
-        region: 'eu-west-2',
-        endpoint: 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP intentionally in local dev
-        forcePathStyle: true
-      })
-    )
-  })
-
-  it('uses AWS_ENDPOINT_URL from the environment when set', () => {
-    process.env.AWS_ENDPOINT_URL = 'http://custom-localstack:4566' // NOSONAR: LocalStack uses HTTP intentionally in local dev
+describe('createS3Client', () => {
+  it('adds endpoint and path-style when s3.endpoint is set (LocalStack / dev)', () => {
+    mockConfig({
+      'aws.region': 'eu-west-2',
+      's3.endpoint': 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP in local dev
+      's3.forcePathStyle': true
+    })
 
     createS3Client()
 
-    expect(S3Client).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' }) // NOSONAR: LocalStack uses HTTP intentionally in local dev
-    )
+    expect(S3Client).toHaveBeenCalledWith({
+      region: 'eu-west-2',
+      endpoint: 'http://localhost:4566',
+      forcePathStyle: true
+    })
   })
 
   it('uses aws.region from config when set', () => {
-    mockConfig({ cdpEnvironment: 'local', 'aws.region': 'us-east-1' })
+    mockConfig({
+      'aws.region': 'us-east-1',
+      's3.endpoint': 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP in local dev
+      's3.forcePathStyle': true
+    })
 
     createS3Client()
 
@@ -87,63 +55,39 @@ describe('createS3Client in local environment', () => {
     )
   })
 
-  it('uses LocalStack dummy credentials when AWS_ACCESS_KEY_ID is unset', () => {
-    createS3Client()
-
-    expect(S3Client).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credentials: {
-          accessKeyId: 'test',
-          secretAccessKey: 'test'
-        }
-      })
-    )
-  })
-
-  it('uses AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY from the environment when set', () => {
-    process.env.AWS_ACCESS_KEY_ID = 'my-key'
-    process.env.AWS_SECRET_ACCESS_KEY = 'my-secret'
+  it('uses a custom s3.endpoint from config', () => {
+    mockConfig({
+      's3.endpoint': 'http://custom-localstack:4566', // NOSONAR: LocalStack uses HTTP in local dev
+      's3.forcePathStyle': true
+    })
 
     createS3Client()
 
     expect(S3Client).toHaveBeenCalledWith(
-      expect.objectContaining({
-        credentials: {
-          accessKeyId: 'my-key',
-          secretAccessKey: 'my-secret'
-        }
-      })
+      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' })
     )
   })
-})
 
-describe('createS3Client in a non-local environment', () => {
-  beforeEach(() => {
-    mockConfig({ cdpEnvironment: 'dev' })
-  })
+  it('omits endpoint and forcePathStyle when s3.endpoint is unset (e.g. CDP)', () => {
+    mockConfig({
+      'aws.region': 'eu-west-2',
+      's3.endpoint': null,
+      's3.forcePathStyle': false
+    })
 
-  it('passes region eu-west-2 from config when aws.region is unset', () => {
     createS3Client()
 
     expect(S3Client).toHaveBeenCalledWith({ region: 'eu-west-2' })
   })
 
-  it('uses aws.region from config when set', () => {
-    mockConfig({ cdpEnvironment: 'dev', 'aws.region': 'eu-west-1' })
+  it('does not pass explicit credentials (SDK default provider chain)', () => {
+    mockConfig({
+      's3.endpoint': 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP in local dev
+      's3.forcePathStyle': true
+    })
 
     createS3Client()
 
-    expect(S3Client).toHaveBeenCalledWith({ region: 'eu-west-1' })
-  })
-
-  it('does not set a localstack endpoint or forcePathStyle', () => {
-    createS3Client()
-
-    expect(S3Client).not.toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: expect.anything() })
-    )
-    expect(S3Client).not.toHaveBeenCalledWith(
-      expect.objectContaining({ forcePathStyle: true })
-    )
+    expect(S3Client.mock.calls[0][0]).not.toHaveProperty('credentials')
   })
 })

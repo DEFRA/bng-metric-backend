@@ -1,11 +1,19 @@
 import convict from 'convict'
 import convictFormatWithValidator from 'convict-format-with-validator'
+import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
+
+const localStack = 'http://localhost:4566'
+
+const isDevelopment = process.env.NODE_ENV === 'development'
+if (isDevelopment) {
+  configDotenv()
+}
 
 const config = convict({
   serviceVersion: {
@@ -63,6 +71,21 @@ const config = convict({
       format: String,
       default: 'dev',
       env: 'DB_LOCAL_PASSWORD'
+    }
+  },
+  s3: {
+    endpoint: {
+      doc: 'S3 endpoint URL (for localstack in development)',
+      format: String,
+      nullable: true,
+      default: isDevelopment ? localStack : null,
+      env: 'S3_ENDPOINT'
+    },
+    forcePathStyle: {
+      doc: 'Use path-style addressing for S3 (required for localstack)',
+      format: Boolean,
+      default: isDevelopment,
+      env: 'S3_FORCE_PATH_STYLE'
     }
   },
   serviceName: {
