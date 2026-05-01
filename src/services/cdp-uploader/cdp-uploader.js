@@ -47,8 +47,15 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/initiate`
 
+  // cdp-uploader joins s3Path + '/' + uploadId + '/' + fileId, so any trailing
+  // slash on s3Path produces a double slash in the resulting s3Key.
+  let normalisedS3Path = s3Path
+  while (normalisedS3Path?.endsWith('/')) {
+    normalisedS3Path = normalisedS3Path.slice(0, -1)
+  }
+
   logger.info(
-    `Initiating upload - url: ${url}, redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}`
+    `Initiating upload - url: ${url}, redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${normalisedS3Path}`
   )
 
   try {
@@ -56,7 +63,7 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
       payload: JSON.stringify({
         redirect,
         s3Bucket,
-        s3Path,
+        s3Path: normalisedS3Path,
         metadata
       }),
       headers: {

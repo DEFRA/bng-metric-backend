@@ -6,8 +6,8 @@ convict.addFormats(convictFormatWithValidator)
 
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
+const isDevelopment = process.env.NODE_ENV === 'development'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
-
 const localStack = 'http://localhost:4566'
 
 const isDevelopment = process.env.NODE_ENV === 'development'

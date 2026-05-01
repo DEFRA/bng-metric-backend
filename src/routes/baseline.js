@@ -1,3 +1,7 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 
@@ -11,7 +15,9 @@ import {
   S3TimeoutError
 } from '../services/s3/download-file.js'
 import { validateGpkg } from '../services/gpkg/validate-gpkg.js'
+import { validateBaselineFile } from '../validation/baseline/index.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
+import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 const logger = createLogger()
 
@@ -42,7 +48,14 @@ const logger = createLogger()
  *                 errors:
  *                   type: array
  *                   items:
- *                     type: string
+ *                     type: object
+ *                     properties:
+ *                       code: { type: string }
+ *                       ac: { type: string }
+ *                       message: { type: string }
+ *                       offendingFeatures:
+ *                         type: array
+ *                         items: { type: object }
  *       400:
  *         description: uploadId is missing or not a valid UUID
  *       413:
@@ -106,9 +119,48 @@ const validateBaseline = {
       throw Boom.badGateway('Unable to download file from storage')
     }
 
-    const result = validateGpkg(buffer)
+    const gateResult = validateGpkg(buffer)
+    if (!gateResult.valid) {
+      logger.info(
+        `validateBaseline - rejected at gpkg gate uploadId ${uploadId}`
+      )
+      return h.response(gateResult)
+    }
 
-    return h.response(result)
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
+    const localPath = path.join(tmpDir, 'baseline.gpkg')
+
+    try {
+      await fs.writeFile(localPath, buffer)
+      const result = await validateBaselineFile(localPath, request.pg)
+      if (result.valid) {
+        logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+      } else {
+        logger.info(
+          `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
+            .map((e) => `${e.code}: ${e.message}`)
+            .join(' | ')}`
+        )
+      }
+      return h.response(result)
+    } catch (error) {
+      logger.error(
+        `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
+      )
+      return h
+        .response({
+          valid: false,
+          errors: [
+            {
+              code: 'VALIDATION_FAILED',
+              message: 'Unable to validate baseline file'
+            }
+          ]
+        })
+        .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
   }
 }
 
