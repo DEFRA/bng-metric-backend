@@ -36,7 +36,7 @@ describe('createS3Client', () => {
 
     expect(S3Client).toHaveBeenCalledWith({
       region: 'eu-west-2',
-      endpoint: 'http://localhost:4566',
+      endpoint: 'http://localhost:4566', // NOSONAR: LocalStack uses HTTP in local dev
       forcePathStyle: true
     })
   })
@@ -64,7 +64,7 @@ describe('createS3Client', () => {
     createS3Client()
 
     expect(S3Client).toHaveBeenCalledWith(
-      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' })
+      expect.objectContaining({ endpoint: 'http://custom-localstack:4566' }) // NOSONAR: LocalStack uses HTTP in local dev
     )
   })
 
