@@ -100,65 +100,61 @@ c_redline_invalid AS (
   WHERE NOT ST_IsValid(geom)
   LIMIT 1
 ),
--- Invalid habitat parcel geometry (one row per offending feature).
+-- Each remaining CTE just signals presence/absence of an issue (LIMIT 1
+-- where possible) rather than carrying per-feature data, so the response
+-- size stays bounded regardless of file size.
 c_areas_invalid AS (
-  SELECT idx, props,
-         (ST_IsValidDetail(geom)).reason AS reason,
-         ST_AsText((ST_IsValidDetail(geom)).location) AS location_wkt
-  FROM areas WHERE NOT ST_IsValid(geom)
-),
--- Pair-wise overlaps between habitat parcels. We keep both sides so each
--- offending parcel reports itself in c_overlap_offending below.
-c_overlap_pairs AS (
-  SELECT a.idx AS a_idx, a.props AS a_props,
-         b.idx AS b_idx, b.props AS b_props,
-         ST_Area(ST_Intersection(ST_MakeValid(a.geom), ST_MakeValid(b.geom), $11)) AS overlap_area
-  FROM areas a JOIN areas b
-    ON a.idx < b.idx AND ST_Intersects(a.geom, b.geom)
+  SELECT 1 AS hit FROM areas WHERE NOT ST_IsValid(geom) LIMIT 1
 ),
 c_overlap_offending AS (
-  SELECT DISTINCT idx, props FROM (
-    SELECT a_idx AS idx, a_props AS props FROM c_overlap_pairs WHERE overlap_area > $8
-    UNION
-    SELECT b_idx AS idx, b_props AS props FROM c_overlap_pairs WHERE overlap_area > $8
-  ) o
+  SELECT 1 AS hit
+  FROM areas a JOIN areas b
+    ON a.idx < b.idx AND ST_Intersects(a.geom, b.geom)
+  WHERE ST_Area(ST_Intersection(ST_MakeValid(a.geom), ST_MakeValid(b.geom), $11)) > $8
+  LIMIT 1
 ),
 -- Slivers: gaps inside the redline not covered by any habitat parcel,
 -- discarding the trivially small (GEOS noise on shared edges) and the trivially
 -- large (legitimately uncovered land — that's a different check).
 c_slivers AS (
-  SELECT row_number() OVER (ORDER BY ST_Area(g)) - 1 AS id, ST_Area(g) AS area
+  SELECT 1 AS hit
   FROM (
     SELECT (ST_Dump(ST_Difference(r.geom, p.geom, $11))).geom AS g
     FROM redline_union r CROSS JOIN parcels_union p
     WHERE r.geom IS NOT NULL AND p.geom IS NOT NULL
   ) leftover
   WHERE ST_Area(g) > 0 AND ST_Area(g) < $7
+  LIMIT 1
 ),
 -- Habitat parcels that fall (partially) outside the redline. Compares an area
 -- difference rather than ST_Within so parcels sharing boundary edges with the
 -- redline aren't false-flagged by GEOS robustness wobbles on shared vertices.
 c_areas_outside AS (
-  SELECT f.idx, f.props FROM areas f CROSS JOIN redline_union r
+  SELECT 1 AS hit FROM areas f CROSS JOIN redline_union r
   WHERE r.geom IS NOT NULL
     AND ST_Area(ST_Difference(ST_MakeValid(f.geom), r.geom, $11)) > $12
+  LIMIT 1
 ),
 -- Linear / point habitat layers: simple containment is sufficient.
 c_hedgerows_outside AS (
-  SELECT f.idx, f.props FROM hedgerows f CROSS JOIN redline_union r
+  SELECT 1 AS hit FROM hedgerows f CROSS JOIN redline_union r
   WHERE r.geom IS NOT NULL AND NOT ST_Within(f.geom, r.geom)
+  LIMIT 1
 ),
 c_watercourses_outside AS (
-  SELECT f.idx, f.props FROM watercourses f CROSS JOIN redline_union r
+  SELECT 1 AS hit FROM watercourses f CROSS JOIN redline_union r
   WHERE r.geom IS NOT NULL AND NOT ST_Within(f.geom, r.geom)
+  LIMIT 1
 ),
 c_iggis_outside AS (
-  SELECT f.idx, f.props FROM iggis f CROSS JOIN redline_union r
+  SELECT 1 AS hit FROM iggis f CROSS JOIN redline_union r
   WHERE r.geom IS NOT NULL AND NOT ST_Within(f.geom, r.geom)
+  LIMIT 1
 ),
 c_trees_outside AS (
-  SELECT f.idx, f.props FROM trees f CROSS JOIN redline_union r
+  SELECT 1 AS hit FROM trees f CROSS JOIN redline_union r
   WHERE r.geom IS NOT NULL AND NOT ST_Within(f.geom, r.geom)
+  LIMIT 1
 )
 
 -- ---------------------------------------------------------------------------
@@ -181,48 +177,29 @@ SELECT 'REDLINE_INVALID_GEOMETRY',
        jsonb_build_object('reason', reason, 'location_wkt', location_wkt)
 FROM c_redline_invalid
 UNION ALL
-SELECT 'AREA_PARCELS_INVALID_GEOMETRY',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object(
-           'idx', idx, 'props', props,
-           'reason', reason, 'location_wkt', location_wkt
-         ) ORDER BY idx))
-FROM c_areas_invalid HAVING count(*) > 0
+SELECT 'AREA_PARCELS_INVALID_GEOMETRY', '{}'::jsonb
+FROM c_areas_invalid
 UNION ALL
-SELECT 'PARCEL_OVERLAPS',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_overlap_offending HAVING count(*) > 0
+SELECT 'PARCEL_OVERLAPS', '{}'::jsonb
+FROM c_overlap_offending
 UNION ALL
-SELECT 'SLIVERS_INSIDE_REDLINE',
-       jsonb_build_object('slivers',
-         jsonb_agg(jsonb_build_object('id', id, 'area', area) ORDER BY area))
-FROM c_slivers HAVING count(*) > 0
+SELECT 'SLIVERS_INSIDE_REDLINE', '{}'::jsonb
+FROM c_slivers
 UNION ALL
-SELECT 'AREA_PARCELS_OUTSIDE_REDLINE',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_areas_outside HAVING count(*) > 0
+SELECT 'AREA_PARCELS_OUTSIDE_REDLINE', '{}'::jsonb
+FROM c_areas_outside
 UNION ALL
-SELECT 'HEDGEROWS_OUTSIDE_REDLINE',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_hedgerows_outside HAVING count(*) > 0
+SELECT 'HEDGEROWS_OUTSIDE_REDLINE', '{}'::jsonb
+FROM c_hedgerows_outside
 UNION ALL
-SELECT 'WATERCOURSES_OUTSIDE_REDLINE',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_watercourses_outside HAVING count(*) > 0
+SELECT 'WATERCOURSES_OUTSIDE_REDLINE', '{}'::jsonb
+FROM c_watercourses_outside
 UNION ALL
-SELECT 'IGGIS_OUTSIDE_REDLINE',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_iggis_outside HAVING count(*) > 0
+SELECT 'IGGIS_OUTSIDE_REDLINE', '{}'::jsonb
+FROM c_iggis_outside
 UNION ALL
-SELECT 'TREES_OUTSIDE_REDLINE',
-       jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
-FROM c_trees_outside HAVING count(*) > 0
+SELECT 'TREES_OUTSIDE_REDLINE', '{}'::jsonb
+FROM c_trees_outside
 UNION ALL
 SELECT 'AREA_SUM_MISMATCH',
        jsonb_build_object('redline_total', rt.total, 'habitats_total', ht.total)

@@ -136,9 +136,6 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *                     properties:
  *                       code: { type: string }
  *                       message: { type: string }
- *                       offendingFeatures:
- *                         type: array
- *                         items: { type: object }
  *       400:
  *         description: uploadId is missing or not a valid UUID
  *       413:

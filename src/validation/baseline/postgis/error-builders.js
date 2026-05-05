@@ -1,9 +1,4 @@
-import { ERROR_CODES, featureRef, makeError } from '../errors.js'
-
-const offendingFromPayload = (payload) =>
-  (payload?.offending ?? []).map((o) =>
-    featureRef({ properties: o.props ?? {} }, o.idx)
-  )
+import { ERROR_CODES, makeError } from '../errors.js'
 
 function redlineInvalidGeometryMessage(payload) {
   if (!payload?.reason) {
@@ -36,60 +31,45 @@ export const ERROR_BUILDERS = {
       ERROR_CODES.REDLINE_INVALID_GEOMETRY,
       redlineInvalidGeometryMessage(p)
     ),
-  [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: (p) =>
+  [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: () =>
     makeError(
       ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY,
-      'One or more area habitat polygons have invalid geometry',
-      (p?.offending ?? []).map((o) => ({
-        ...featureRef({ properties: o.props ?? {} }, o.idx),
-        reason: o.reason ?? null,
-        location: o.location_wkt ?? null
-      }))
+      'One or more area habitat polygons have invalid geometry'
     ),
-  [ERROR_CODES.PARCEL_OVERLAPS]: (p) =>
+  [ERROR_CODES.PARCEL_OVERLAPS]: () =>
     makeError(
       ERROR_CODES.PARCEL_OVERLAPS,
-      'One or more area habitat parcels overlap with other parcels',
-      offendingFromPayload(p)
+      'One or more area habitat parcels overlap with other parcels'
     ),
-  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.SLIVERS_INSIDE_REDLINE,
-      'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon',
-      (p?.slivers ?? []).map((s) => ({
-        id: Number(s.id),
-        area: Number(Number(s.area).toFixed(4))
-      }))
+      'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon'
     ),
-  [ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE,
-      'One or more area habitat polygons are not entirely within the redline boundary',
-      offendingFromPayload(p)
+      'One or more area habitat polygons are not entirely within the redline boundary'
     ),
-  [ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE,
-      'One or more hedgerow habitats are not entirely within the redline boundary',
-      offendingFromPayload(p)
+      'One or more hedgerow habitats are not entirely within the redline boundary'
     ),
-  [ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE,
-      'One or more watercourse habitats are not entirely within the redline boundary',
-      offendingFromPayload(p)
+      'One or more watercourse habitats are not entirely within the redline boundary'
     ),
-  [ERROR_CODES.IGGIS_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.IGGIS_OUTSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.IGGIS_OUTSIDE_REDLINE,
-      'One or more IGGIs are not entirely within the redline boundary',
-      offendingFromPayload(p)
+      'One or more IGGIs are not entirely within the redline boundary'
     ),
-  [ERROR_CODES.TREES_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.TREES_OUTSIDE_REDLINE]: () =>
     makeError(
       ERROR_CODES.TREES_OUTSIDE_REDLINE,
-      'One or more trees are not entirely within the redline boundary',
-      offendingFromPayload(p)
+      'One or more trees are not entirely within the redline boundary'
     ),
   [ERROR_CODES.AREA_SUM_MISMATCH]: (p) =>
     makeError(

@@ -15,18 +15,15 @@ const ALL_LAYERS = [LAYER_RLB, LAYER_HABITATS]
 
 const missingLayerError = (name) => ({
   code: ERROR_CODES.GPKG_MISSING_LAYER,
-  message: `Missing required feature layer in GeoPackage: ${name}`,
-  offendingFeatures: []
+  message: `Missing required feature layer in GeoPackage: ${name}`
 })
 const ERR_ZERO_RLB = {
   code: ERROR_CODES.GPKG_RLB_NO_POLYGON,
-  message: 'Zero red line boundaries in GeoPackage (expecting one)',
-  offendingFeatures: []
+  message: 'Zero red line boundaries in GeoPackage (expecting one)'
 }
 const ERR_UNREADABLE_RLB = {
   code: ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY,
-  message: 'Red Line Boundary contains unreadable geometry',
-  offendingFeatures: []
+  message: 'Red Line Boundary contains unreadable geometry'
 }
 
 // GeoPackageBinary magic bytes ('G', 'P')
@@ -205,8 +202,7 @@ describe('validateGpkg when the buffer is not a SQLite database', () => {
       errors: [
         {
           code: ERROR_CODES.GPKG_INVALID_FILE,
-          message: 'File is not a valid GeoPackage',
-          offendingFeatures: []
+          message: 'File is not a valid GeoPackage'
         }
       ]
     })
@@ -275,9 +271,7 @@ describe('validateGpkg when required system tables are missing', () => {
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]).toEqual({
       code: ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE,
-      message:
-        'Missing required GeoPackage system table: gpkg_geometry_columns',
-      offendingFeatures: []
+      message: 'Missing required GeoPackage system table: gpkg_geometry_columns'
     })
   })
 })
@@ -338,8 +332,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
     expect(result.errors[0]).toEqual({
       code: ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
       message:
-        'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns',
-      offendingFeatures: []
+        'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
     })
   })
 
@@ -358,8 +351,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
     expect(result.errors[0]).toEqual({
       code: ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
       message:
-        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns',
-      offendingFeatures: []
+        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
     })
   })
 })
@@ -413,8 +405,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
     expect(result.errors).toHaveLength(1)
     expect(result.errors[0]).toEqual({
       code: ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS,
-      message: 'Too many red line boundaries in GeoPackage (expecting one)',
-      offendingFeatures: []
+      message: 'Too many red line boundaries in GeoPackage (expecting one)'
     })
   })
 

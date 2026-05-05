@@ -24,18 +24,6 @@ export const ERROR_CODES = Object.freeze({
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH'
 })
 
-export function makeError(code, message, offendingFeatures = []) {
-  return { code, message, offendingFeatures }
-}
-
-/**
- * Build a stable identifier for a feature so the dropout page can list which
- * polygons failed. Prefers `fid`, then a `name`-like property, else falls
- * back to the array index.
- */
-export function featureRef(feature, index) {
-  const props = feature.properties ?? {}
-  const id = props.fid ?? props.id ?? props.OBJECTID ?? index
-  const name = props.name ?? props.Name ?? props.NAME ?? null
-  return name ? { id, name } : { id }
+export function makeError(code, message) {
+  return { code, message }
 }
