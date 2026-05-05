@@ -5,6 +5,17 @@ const offendingFromPayload = (payload) =>
     featureRef({ properties: o.props ?? {} }, o.idx)
   )
 
+function redlineInvalidGeometryMessage(payload) {
+  const base = 'Redline boundary geometry is invalid'
+  if (!payload?.reason) {
+    return base
+  }
+  if (!payload.location_wkt) {
+    return base + ': ' + payload.reason
+  }
+  return base + ': ' + payload.reason + ' at ' + payload.location_wkt
+}
+
 export const ERROR_BUILDERS = {
   [ERROR_CODES.REDLINE_OUTSIDE_ENGLAND]: () =>
     makeError(
@@ -24,9 +35,7 @@ export const ERROR_BUILDERS = {
   [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: (p) =>
     makeError(
       ERROR_CODES.REDLINE_INVALID_GEOMETRY,
-      p?.reason
-        ? `Redline boundary geometry is invalid: ${p.reason}${p.location_wkt ? ` at ${p.location_wkt}` : ''}`
-        : 'Redline boundary geometry is invalid'
+      redlineInvalidGeometryMessage(p)
     ),
   [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: (p) =>
     makeError(

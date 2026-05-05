@@ -1,5 +1,6 @@
 import Database from 'better-sqlite3'
 
+import { ERROR_CODES, makeError } from '../../validation/baseline/errors.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
@@ -100,12 +101,17 @@ function getWkbType(blob) {
     : blob.readUInt32BE(wkbOffset + 1)
 }
 
+const INVALID_FILE_ERROR = makeError(
+  ERROR_CODES.GPKG_INVALID_FILE,
+  'File is not a valid GeoPackage'
+)
+
 /**
  * Validate that a Buffer contains a valid BNG baseline GeoPackage.
  * Checks are layered — each stage only runs if the previous one passes.
  *
  * @param {Buffer} buffer - Raw file bytes
- * @returns {{ valid: boolean, errors: string[] }}
+ * @returns {{ valid: boolean, errors: object[] }}
  */
 function validateGpkg(buffer) {
   const errors = []
@@ -122,7 +128,7 @@ function validateGpkg(buffer) {
     logger.info(
       `validateGpkg: failed to open as SQLite database: ${err.message}`
     )
-    return { valid: false, errors: ['File is not a valid GeoPackage'] }
+    return { valid: false, errors: [INVALID_FILE_ERROR] }
   }
 
   try {
@@ -136,11 +142,14 @@ function validateGpkg(buffer) {
       // No reliable way to craft such a buffer in tests without depending on
       // internal better-sqlite3 behaviour, so this branch is excluded.
       /* v8 ignore next 2 */
-      return { valid: false, errors: ['File is not a valid GeoPackage'] }
+      return { valid: false, errors: [INVALID_FILE_ERROR] }
     }
     if (!GPKG_APPLICATION_IDS.has(appId)) {
       errors.push(
-        `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
+        makeError(
+          ERROR_CODES.GPKG_NOT_A_GEOPACKAGE,
+          `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
+        )
       )
       return { valid: false, errors }
     }
@@ -180,7 +189,12 @@ function checkSystemTables(db, errors) {
   const existingTables = getTableNames(db)
   for (const table of REQUIRED_SYSTEM_TABLES) {
     if (!existingTables.has(table)) {
-      errors.push(`Missing required GeoPackage system table: ${table}`)
+      errors.push(
+        makeError(
+          ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE,
+          `Missing required GeoPackage system table: ${table}`
+        )
+      )
     }
   }
 }
@@ -210,7 +224,12 @@ function getFeatureLayerNames(db) {
 function checkRequiredLayers(contentTables, errors) {
   for (const layer of REQUIRED_LAYERS) {
     if (!contentTables.has(layer.toLowerCase())) {
-      errors.push(`Missing required feature layer in GeoPackage: ${layer}`)
+      errors.push(
+        makeError(
+          ERROR_CODES.GPKG_MISSING_LAYER,
+          `Missing required feature layer in GeoPackage: ${layer}`
+        )
+      )
     }
   }
 }
@@ -236,13 +255,19 @@ function validateRedLineBoundary(db, errors) {
 
   if (!geomRow) {
     errors.push(
-      'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
+      makeError(
+        ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
+        'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
+      )
     )
     return
   }
   if (!/^[A-Za-z_]\w*$/.test(geomRow.column_name)) {
     errors.push(
-      'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+      makeError(
+        ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
+        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+      )
     )
     return
   }
@@ -261,7 +286,12 @@ function validateRedLineBoundary(db, errors) {
     logger.warn(
       `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Red Line Boundary (table: ${rlbTableName})`
     )
-    errors.push('Red Line Boundary contains unreadable geometry')
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY,
+        'Red Line Boundary contains unreadable geometry'
+      )
+    )
     return
   }
 
@@ -269,11 +299,19 @@ function validateRedLineBoundary(db, errors) {
     POLYGON_WKB_TYPES.has(getWkbType(row.geom))
   ).length
   if (polygonCount === 0) {
-    errors.push('Zero red line boundaries in GeoPackage (expecting one)')
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_RLB_NO_POLYGON,
+        'Zero red line boundaries in GeoPackage (expecting one)'
+      )
+    )
   } else if (polygonCount > 1) {
-    errors.push('Too many red line boundaries in GeoPackage (expecting one)')
-  } else {
-    // exactly one polygon — valid
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS,
+        'Too many red line boundaries in GeoPackage (expecting one)'
+      )
+    )
   }
 }
 

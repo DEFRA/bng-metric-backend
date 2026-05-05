@@ -97,25 +97,14 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
 }
 
 /**
- * Statuses explicitly returned by CDP Uploader that mean the upload has
- * permanently failed. Note: a connection/network error from getUploadStatus
- * also sets uploadStatus to 'error' but also sets an `error` field — those
- * are transient and should be retried, not treated as terminal.
- */
-const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
-
-/**
  * Poll the CDP Uploader until the upload reaches 'ready' status, then return
- * the S3 location of the uploaded file.
- *
- * Connection errors to the CDP Uploader are treated as transient and retried
- * until the timeout. Only an explicit upload failure status ('rejected') is
- * treated as a permanent failure.
+ * the S3 location of the uploaded file. Non-ready statuses (including a
+ * 'rejected' upload) and connection errors are all retried until the timeout
+ * — the route layer turns any failure into a generic 502.
  *
  * @param {string} uploadId
  * @param {{ timeoutMs?: number, pollIntervalMs?: number }} [options]
  * @returns {Promise<{bucket: string, key: string}>}
- * @throws {UploadFailedError} When CDP Uploader explicitly reports the upload failed
  * @throws {UploadTimeoutError} When the upload does not become ready within timeoutMs
  */
 export async function waitForUploadReady(
@@ -127,8 +116,7 @@ export async function waitForUploadReady(
 
   while (Date.now() < deadline) {
     attempt++
-    const statusResult = await getUploadStatus(uploadId)
-    const { uploadStatus } = statusResult
+    const { uploadStatus } = await getUploadStatus(uploadId)
 
     logger.info(
       `waitForUploadReady - uploadId: ${uploadId}, attempt: ${attempt}, status: ${uploadStatus}`
@@ -138,27 +126,12 @@ export async function waitForUploadReady(
       return getUploadedFileS3Location(uploadId)
     }
 
-    // statusResult.error means getUploadStatus caught a network/connection error
-    // talking to CDP Uploader — treat as transient and keep retrying.
-    if (!statusResult.error && TERMINAL_FAILURE_STATUSES.has(uploadStatus)) {
-      throw new UploadFailedError(
-        `Upload ${uploadId} failed with status: ${uploadStatus}`
-      )
-    }
-
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
   }
 
   throw new UploadTimeoutError(
     `Upload ${uploadId} did not reach 'ready' status within ${timeoutMs}ms`
   )
-}
-
-export class UploadFailedError extends Error {
-  constructor(message) {
-    super(message)
-    this.name = 'UploadFailedError'
-  }
 }
 
 export class UploadTimeoutError extends Error {

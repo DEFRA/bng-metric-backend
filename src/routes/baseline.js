@@ -136,6 +136,8 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *         description: uploadId is missing or not a valid UUID
  *       413:
  *         description: File exceeds the maximum allowed size (100 MB)
+ *       500:
+ *         description: Validation pipeline raised an unexpected error
  *       502:
  *         description: Upload failed or rejected, or S3 connection error
  *       504:

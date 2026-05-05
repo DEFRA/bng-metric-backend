@@ -4,12 +4,6 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
-  UploadFailedError: class MockUploadFailedError extends Error {
-    constructor(message) {
-      super(message)
-      this.name = 'UploadFailedError'
-    }
-  },
   UploadTimeoutError: class MockUploadTimeoutError extends Error {
     constructor(message) {
       super(message)
@@ -32,7 +26,7 @@ vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   return { ...actual, downloadFile: vi.fn() }
 })
 
-const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
+const { waitForUploadReady, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
@@ -143,7 +137,12 @@ describe('validateBaseline handler happy paths', () => {
   it('returns the baseline validation result when invalid', async () => {
     const result = {
       valid: false,
-      errors: [{ code: 'SELF_INTERSECTING', message: 'self intersecting' }]
+      errors: [
+        {
+          code: 'REDLINE_INVALID_GEOMETRY',
+          message: 'Redline boundary geometry is invalid'
+        }
+      ]
     }
     vi.mocked(validateBaselineFile).mockResolvedValue(result)
 
@@ -194,20 +193,6 @@ describe('validateBaseline handler upload error handling', () => {
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_504)
       expect(err.message).toBe('Upload did not complete in time')
-    })
-  })
-
-  describe('when waitForUploadReady throws an UploadFailedError', () => {
-    it(THROWS_502, async () => {
-      vi.mocked(waitForUploadReady).mockRejectedValue(
-        new UploadFailedError('rejected')
-      )
-
-      const err = await validateBaseline.handler(request, h).catch((e) => e)
-
-      expect(err.isBoom).toBe(true)
-      expect(err.output.statusCode).toBe(HTTP_502)
-      expect(err.message).toBe('Upload failed or was rejected')
     })
   })
 
