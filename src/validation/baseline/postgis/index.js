@@ -283,11 +283,8 @@ function buildArrays(layers) {
   for (const layerName of LAYER_NAMES) {
     const features = layers[layerName] ?? []
     features.forEach((feature, index) => {
-      // We use feature.nativeGeometry rather than feature.geometry because the
-      // native form is raw/unprocessed in its source SRID, and PostGIS reprojects
-      // it to 27700 in-query. feature.geometry has already been reprojected to
-      // WGS84 by proj4 at read time, so feeding that in would run the (heavy)
-      // CRS conversion twice.
+      // Geometry stays in its native SRID until PostGIS reprojects it
+      // in-query (ST_Transform on line 53).
       const geom = feature.nativeGeometry
       if (!geom) {
         return

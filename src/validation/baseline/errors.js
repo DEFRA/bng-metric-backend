@@ -1,4 +1,4 @@
-export const ERROR_CODES = {
+export const ERROR_CODES = Object.freeze({
   GPKG_INVALID_FILE: 'GPKG_INVALID_FILE',
   GPKG_NOT_A_GEOPACKAGE: 'GPKG_NOT_A_GEOPACKAGE',
   GPKG_MISSING_SYSTEM_TABLE: 'GPKG_MISSING_SYSTEM_TABLE',
@@ -22,7 +22,7 @@ export const ERROR_CODES = {
   IGGIS_OUTSIDE_REDLINE: 'IGGIS_OUTSIDE_REDLINE',
   TREES_OUTSIDE_REDLINE: 'TREES_OUTSIDE_REDLINE',
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH'
-}
+})
 
 export function makeError(code, message, offendingFeatures = []) {
   return { code, message, offendingFeatures }
