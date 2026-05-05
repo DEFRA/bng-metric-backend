@@ -273,9 +273,12 @@ function validateRedLineBoundary(db, errors) {
   }
 
   const col = geomRow.column_name
+  // Double any " in the table name so a crafted gpkg_contents.table_name
+  // can't break out of the identifier quoting. col is already regex-validated above.
+  const safeTable = rlbTableName.replaceAll('"', '""')
   const rows = db
     .prepare(
-      `SELECT "${col}" AS geom FROM "${rlbTableName}" WHERE "${col}" IS NOT NULL`
+      `SELECT "${col}" AS geom FROM "${safeTable}" WHERE "${col}" IS NOT NULL`
     )
     .all()
 
@@ -312,6 +315,8 @@ function validateRedLineBoundary(db, errors) {
         'Too many red line boundaries in GeoPackage (expecting one)'
       )
     )
+  } else {
+    // exactly one polygon — valid
   }
 }
 

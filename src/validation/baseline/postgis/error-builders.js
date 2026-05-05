@@ -6,14 +6,13 @@ const offendingFromPayload = (payload) =>
   )
 
 function redlineInvalidGeometryMessage(payload) {
-  const base = 'Redline boundary geometry is invalid'
   if (!payload?.reason) {
-    return base
+    return 'Redline boundary geometry is invalid'
   }
   if (!payload.location_wkt) {
-    return base + ': ' + payload.reason
+    return `Redline boundary geometry is invalid: ${payload.reason}`
   }
-  return base + ': ' + payload.reason + ' at ' + payload.location_wkt
+  return `Redline boundary geometry is invalid: ${payload.reason} at ${payload.location_wkt}`
 }
 
 export const ERROR_BUILDERS = {
