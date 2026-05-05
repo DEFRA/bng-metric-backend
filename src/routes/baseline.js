@@ -128,7 +128,6 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *                     type: object
  *                     properties:
  *                       code: { type: string }
- *                       ac: { type: string }
  *                       message: { type: string }
  *                       offendingFeatures:
  *                         type: array
