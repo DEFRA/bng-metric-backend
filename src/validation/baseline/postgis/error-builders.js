@@ -21,16 +21,22 @@ export const ERROR_BUILDERS = {
       ERROR_CODES.NO_HABITAT_AREAS,
       'Baseline file contains no area habitat polygons'
     ),
-  [ERROR_CODES.REDLINE_SELF_INTERSECTING]: () =>
+  [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: (p) =>
     makeError(
-      ERROR_CODES.REDLINE_SELF_INTERSECTING,
-      'Redline boundary is self-intersecting'
+      ERROR_CODES.REDLINE_INVALID_GEOMETRY,
+      p?.reason
+        ? `Redline boundary geometry is invalid: ${p.reason}${p.location_wkt ? ` at ${p.location_wkt}` : ''}`
+        : 'Redline boundary geometry is invalid'
     ),
-  [ERROR_CODES.AREA_PARCELS_SELF_INTERSECTING]: (p) =>
+  [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: (p) =>
     makeError(
-      ERROR_CODES.AREA_PARCELS_SELF_INTERSECTING,
-      'One or more area habitat polygons are self-intersecting',
-      offendingFromPayload(p)
+      ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY,
+      'One or more area habitat polygons have invalid geometry',
+      (p?.offending ?? []).map((o) => ({
+        ...featureRef({ properties: o.props ?? {} }, o.idx),
+        reason: o.reason ?? null,
+        location: o.location_wkt ?? null
+      }))
     ),
   [ERROR_CODES.PARCEL_OVERLAPS]: (p) =>
     makeError(

@@ -89,13 +89,23 @@ c_redline_outside_england AS (
   WHERE NOT ST_Within(f.geom, e.geom)
   LIMIT 1
 ),
--- Self-intersecting redline.
+-- Invalid redline geometry. ST_IsValid catches self-intersection, ring
+-- orientation problems, duplicate rings, hole-outside-shell, etc.;
+-- ST_IsValidDetail surfaces the specific reason + location so the error
+-- message can name what's wrong.
 c_redline_invalid AS (
-  SELECT 1 AS hit FROM redline WHERE NOT ST_IsValid(geom) LIMIT 1
+  SELECT (ST_IsValidDetail(geom)).reason AS reason,
+         ST_AsText((ST_IsValidDetail(geom)).location) AS location_wkt
+  FROM redline
+  WHERE NOT ST_IsValid(geom)
+  LIMIT 1
 ),
--- Self-intersecting habitat parcels (one row per offending feature).
+-- Invalid habitat parcel geometry (one row per offending feature).
 c_areas_invalid AS (
-  SELECT idx, props FROM areas WHERE NOT ST_IsValid(geom)
+  SELECT idx, props,
+         (ST_IsValidDetail(geom)).reason AS reason,
+         ST_AsText((ST_IsValidDetail(geom)).location) AS location_wkt
+  FROM areas WHERE NOT ST_IsValid(geom)
 ),
 -- Pair-wise overlaps between habitat parcels. We keep both sides so each
 -- offending parcel reports itself in c_overlap_offending below.
@@ -167,12 +177,16 @@ UNION ALL
 SELECT 'NO_HABITAT_AREAS', '{}'::jsonb
 FROM c_habitats_total WHERE n = 0
 UNION ALL
-SELECT 'REDLINE_SELF_INTERSECTING', '{}'::jsonb
+SELECT 'REDLINE_INVALID_GEOMETRY',
+       jsonb_build_object('reason', reason, 'location_wkt', location_wkt)
 FROM c_redline_invalid
 UNION ALL
-SELECT 'AREA_PARCELS_SELF_INTERSECTING',
+SELECT 'AREA_PARCELS_INVALID_GEOMETRY',
        jsonb_build_object('offending',
-         jsonb_agg(jsonb_build_object('idx', idx, 'props', props) ORDER BY idx))
+         jsonb_agg(jsonb_build_object(
+           'idx', idx, 'props', props,
+           'reason', reason, 'location_wkt', location_wkt
+         ) ORDER BY idx))
 FROM c_areas_invalid HAVING count(*) > 0
 UNION ALL
 SELECT 'PARCEL_OVERLAPS',
@@ -242,18 +256,14 @@ const PARCEL_OUTSIDE_TOLERANCE_SQ_M = 0.5
 // turn shared-edge tilings into spurious zero-area slivers.
 const OVERLAY_GRID_SIZE_M = 0.001
 
-// Fallback when an upstream feature carries no nativeSrid. WGS84 is what the
-// GeoJSON spec assumes, so it's the right default for unmarked geometries.
-const DEFAULT_SRID = 4326
-
 // Order matches the Turf-engine sequence so error output is stable across
 // engines.
 const ERROR_ORDER = [
   ERROR_CODES.REDLINE_OUTSIDE_ENGLAND,
   ERROR_CODES.REDLINE_AREA_TOO_LARGE,
   ERROR_CODES.NO_HABITAT_AREAS,
-  ERROR_CODES.REDLINE_SELF_INTERSECTING,
-  ERROR_CODES.AREA_PARCELS_SELF_INTERSECTING,
+  ERROR_CODES.REDLINE_INVALID_GEOMETRY,
+  ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY,
   ERROR_CODES.PARCEL_OVERLAPS,
   ERROR_CODES.SLIVERS_OUTSIDE_REDLINE,
   ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE,
@@ -273,7 +283,12 @@ function buildArrays(layers) {
   for (const layerName of LAYER_NAMES) {
     const features = layers[layerName] ?? []
     features.forEach((feature, index) => {
-      const geom = feature.nativeGeometry ?? feature.geometry
+      // We use feature.nativeGeometry rather than feature.geometry because the
+      // native form is raw/unprocessed in its source SRID, and PostGIS reprojects
+      // it to 27700 in-query. feature.geometry has already been reprojected to
+      // WGS84 by proj4 at read time, so feeding that in would run the (heavy)
+      // CRS conversion twice.
+      const geom = feature.nativeGeometry
       if (!geom) {
         return
       }
@@ -281,7 +296,7 @@ function buildArrays(layers) {
       idxs.push(index)
       props.push(JSON.stringify(feature.properties ?? {}))
       geoms.push(JSON.stringify(geom))
-      srids.push(feature.nativeSrid ?? DEFAULT_SRID)
+      srids.push(feature.nativeSrid)
     })
   }
   return { layerNames, idxs, props, geoms, srids }

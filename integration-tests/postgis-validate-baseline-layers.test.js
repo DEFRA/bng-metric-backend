@@ -75,8 +75,8 @@ describe('validateBaselineLayersPostgis (integration)', () => {
     }
     const result = await validateBaselineLayersPostgis(pool, layers)
     const codes = result.errors.map((e) => e.code)
-    expect(codes).not.toContain('REDLINE_SELF_INTERSECTING')
-    expect(codes).not.toContain('AREA_PARCELS_SELF_INTERSECTING')
+    expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
+    expect(codes).not.toContain('AREA_PARCELS_INVALID_GEOMETRY')
     expect(codes).not.toContain('PARCEL_OVERLAPS')
     expect(codes).not.toContain('SLIVERS_OUTSIDE_REDLINE')
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
@@ -94,7 +94,7 @@ describe('validateBaselineLayersPostgis (integration)', () => {
     }
     const result = await validateBaselineLayersPostgis(pool, layers)
     const codes = result.errors.map((e) => e.code)
-    expect(codes).toContain('REDLINE_SELF_INTERSECTING')
+    expect(codes).toContain('REDLINE_INVALID_GEOMETRY')
   })
 
   it('detects parcel overlaps', async () => {
