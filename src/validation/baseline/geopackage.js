@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3'
 import wkx from 'wkx'
-import proj4 from 'proj4'
 
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
@@ -8,12 +7,6 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 // term, collapse both readers into a single SQLite open pass.
 
 const logger = createLogger()
-
-// British National Grid — not in proj4's default set.
-proj4.defs(
-  'EPSG:27700',
-  '+proj=tmerc +lat_0=49 +lon_0=-2 +k=0.9996012717 +x_0=400000 +y_0=-100000 +ellps=airy +towgs84=446.448,-125.157,542.06,0.15,0.247,0.842,-20.489 +units=m +no_defs +type=crs'
-)
 
 const EPSG_WGS84 = 4326
 const EPSG_BNG = 27700
@@ -83,49 +76,6 @@ function decodeGpkgBlob(blob) {
 }
 
 /**
- * Reproject a single coordinate pair (mutating helper avoided).
- */
-function reprojectCoord(coord, transformer) {
-  const [x, y] = transformer.forward([coord[0], coord[1]])
-  return coord.length > 2 ? [x, y, coord[2]] : [x, y]
-}
-
-/**
- * Walk a GeoJSON geometry's coordinates and apply a transform.
- * Returns a new geometry object; the input is not mutated.
- */
-function reprojectGeometry(geom, transformer) {
-  const map = (coords, level) => {
-    if (level === 0) {
-      return reprojectCoord(coords, transformer)
-    }
-    return coords.map((c) => map(c, level - 1))
-  }
-  const depthByType = {
-    Point: 0,
-    LineString: 1,
-    Polygon: 2,
-    MultiPoint: 1,
-    MultiLineString: 2,
-    MultiPolygon: 3
-  }
-  if (geom.type === 'GeometryCollection') {
-    return {
-      type: 'GeometryCollection',
-      geometries: geom.geometries.map((g) => reprojectGeometry(g, transformer))
-    }
-  }
-  const depth = depthByType[geom.type]
-  if (depth === undefined) {
-    throw new Error(`Unsupported geometry type: ${geom.type}`)
-  }
-  return {
-    type: geom.type,
-    coordinates: map(geom.coordinates, depth)
-  }
-}
-
-/**
  * Match a logical layer name (e.g. 'redline') to a real table name in the
  * GeoPackage, using the alias list. Case-insensitive.
  */
@@ -143,7 +93,7 @@ function resolveTableName(logicalName, availableTables) {
 
 /**
  * Read all features from a single GeoPackage feature table, returning them as
- * GeoJSON Features in WGS84 (EPSG:4326) plus the original native SRID.
+ * GeoJSON Features in their native SRID (PostGIS reprojects to 27700 in-query).
  */
 function readLayer(db, tableName) {
   const geomColumnRow = db
@@ -183,14 +133,6 @@ function readLayer(db, tableName) {
       )
     }
 
-    const geometry =
-      featureSrid === EPSG_WGS84
-        ? decoded.geometry
-        : reprojectGeometry(
-            decoded.geometry,
-            proj4(`EPSG:${featureSrid}`, `EPSG:${EPSG_WGS84}`)
-          )
-
     const properties = {}
     for (const col of propColumns) {
       properties[col] = row[col]
@@ -199,9 +141,6 @@ function readLayer(db, tableName) {
     features.push({
       type: 'Feature',
       properties,
-      geometry,
-      // Preserve native geometry too, so area maths can run in projected
-      // metres without a round-trip through WGS84.
       nativeGeometry: decoded.geometry,
       nativeSrid: featureSrid
     })
@@ -211,8 +150,8 @@ function readLayer(db, tableName) {
 
 /**
  * Open a GeoPackage and return all layers we know about as GeoJSON Features
- * (in WGS84). Each feature also carries its native (un-reprojected) geometry
- * and SRID for area calculations.
+ * carrying their native geometry and SRID. PostGIS reprojects to 27700
+ * in-query for area / containment checks.
  *
  * @param {string} filePath
  * @returns {{
