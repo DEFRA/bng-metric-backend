@@ -4,6 +4,12 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
+  UploadFailedError: class MockUploadFailedError extends Error {
+    constructor(message) {
+      super(message)
+      this.name = 'UploadFailedError'
+    }
+  },
   UploadTimeoutError: class MockUploadTimeoutError extends Error {
     constructor(message) {
       super(message)
@@ -26,7 +32,7 @@ vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   return { ...actual, downloadFile: vi.fn() }
 })
 
-const { waitForUploadReady, UploadTimeoutError } =
+const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
@@ -40,6 +46,7 @@ const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
+const HTTP_422 = 422
 const HTTP_502 = 502
 const HTTP_504 = 504
 const HTTP_413 = 413
@@ -193,6 +200,20 @@ describe('validateBaseline handler upload error handling', () => {
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_504)
       expect(err.message).toBe('Upload did not complete in time')
+    })
+  })
+
+  describe('when waitForUploadReady throws an UploadFailedError', () => {
+    it('throws a 422 Unprocessable Entity', async () => {
+      vi.mocked(waitForUploadReady).mockRejectedValue(
+        new UploadFailedError('rejected')
+      )
+
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
+
+      expect(err.isBoom).toBe(true)
+      expect(err.output.statusCode).toBe(HTTP_422)
+      expect(err.message).toBe('Upload was rejected')
     })
   })
 

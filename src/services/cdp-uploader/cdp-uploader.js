@@ -97,14 +97,25 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
 }
 
 /**
+ * Statuses CDP Uploader returns when the upload has permanently failed.
+ * A connection / network error from getUploadStatus also produces an 'error'
+ * uploadStatus but additionally sets a `error` field — those are transient
+ * and should be retried, so we check that field separately below.
+ */
+const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
+
+/**
  * Poll the CDP Uploader until the upload reaches 'ready' status, then return
- * the S3 location of the uploaded file. Non-ready statuses (including a
- * 'rejected' upload) and connection errors are all retried until the timeout
- * — the route layer turns any failure into a generic 502.
+ * the S3 location of the uploaded file.
+ *
+ * Connection errors are treated as transient and retried until the timeout.
+ * An explicit terminal status (e.g. 'rejected') fails fast — there's no
+ * point waiting 30 s for an answer CDP has already given us.
  *
  * @param {string} uploadId
  * @param {{ timeoutMs?: number, pollIntervalMs?: number }} [options]
  * @returns {Promise<{bucket: string, key: string}>}
+ * @throws {UploadFailedError} When CDP Uploader reports the upload was rejected
  * @throws {UploadTimeoutError} When the upload does not become ready within timeoutMs
  */
 export async function waitForUploadReady(
@@ -116,7 +127,8 @@ export async function waitForUploadReady(
 
   while (Date.now() < deadline) {
     attempt++
-    const { uploadStatus } = await getUploadStatus(uploadId)
+    const statusResult = await getUploadStatus(uploadId)
+    const { uploadStatus } = statusResult
 
     logger.info(
       `waitForUploadReady - uploadId: ${uploadId}, attempt: ${attempt}, status: ${uploadStatus}`
@@ -126,12 +138,28 @@ export async function waitForUploadReady(
       return getUploadedFileS3Location(uploadId)
     }
 
+    // statusResult.error means getUploadStatus hit a connection problem —
+    // transient, keep retrying. An explicit terminal status with no error
+    // field is a permanent rejection, fail immediately.
+    if (!statusResult.error && TERMINAL_FAILURE_STATUSES.has(uploadStatus)) {
+      throw new UploadFailedError(
+        `Upload ${uploadId} was rejected by CDP Uploader`
+      )
+    }
+
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
   }
 
   throw new UploadTimeoutError(
     `Upload ${uploadId} did not reach 'ready' status within ${timeoutMs}ms`
   )
+}
+
+export class UploadFailedError extends Error {
+  constructor(message) {
+    super(message)
+    this.name = 'UploadFailedError'
+  }
 }
 
 export class UploadTimeoutError extends Error {

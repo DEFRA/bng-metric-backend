@@ -16,6 +16,7 @@ const {
   getUploadStatus,
   getUploadedFileS3Location,
   waitForUploadReady,
+  UploadFailedError,
   UploadTimeoutError
 } = await import('./cdp-uploader.js')
 
@@ -349,14 +350,14 @@ describe('waitForUploadReady', () => {
     expect(Wreck.get).toHaveBeenCalledTimes(4)
   })
 
-  it('should keep polling and eventually time out when uploadStatus stays "rejected"', async () => {
+  it('should throw UploadFailedError when uploadStatus is "rejected"', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
       payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 1 }
     })
 
     await expect(
-      waitForUploadReady('abc-123', { timeoutMs: 0, pollIntervalMs: 0 })
-    ).rejects.toThrow(UploadTimeoutError)
+      waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+    ).rejects.toThrow(UploadFailedError)
   })
 
   it('should retry rather than fail immediately when CDP Uploader returns a connection error', async () => {

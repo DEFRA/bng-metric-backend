@@ -7,6 +7,7 @@ import Joi from 'joi'
 
 import {
   waitForUploadReady,
+  UploadFailedError,
   UploadTimeoutError
 } from '../services/cdp-uploader/cdp-uploader.js'
 import {
@@ -31,10 +32,16 @@ async function resolveUploadLocation(uploadId) {
       )
       throw Boom.gatewayTimeout('Upload did not complete in time')
     }
+    if (err instanceof UploadFailedError) {
+      logger.error(
+        `validateBaseline: upload was rejected for uploadId ${uploadId}: ${err.message}`
+      )
+      throw Boom.badData('Upload was rejected')
+    }
     logger.error(
       `validateBaseline: upload failed for uploadId ${uploadId}: ${err.message}`
     )
-    throw Boom.badGateway('Upload failed or was rejected')
+    throw Boom.badGateway('Unable to verify upload status')
   }
 }
 
@@ -136,10 +143,12 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *         description: uploadId is missing or not a valid UUID
  *       413:
  *         description: File exceeds the maximum allowed size (100 MB)
+ *       422:
+ *         description: Upload was rejected by CDP Uploader
  *       500:
  *         description: Validation pipeline raised an unexpected error
  *       502:
- *         description: Upload failed or rejected, or S3 connection error
+ *         description: Upload status could not be verified, or S3 connection error
  *       504:
  *         description: Upload did not reach ready state in time, or S3 download timed out
  */
