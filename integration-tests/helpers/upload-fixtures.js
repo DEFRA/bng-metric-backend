@@ -1,4 +1,4 @@
-import fs from 'node:fs'
+import fs from 'node:fs/promises'
 import path from 'node:path'
 import {
   S3Client,
@@ -9,16 +9,19 @@ import {
 const FIXTURES_DIR = path.resolve(
   process.env.FIXTURES_DIR ?? 'integration-tests/fixtures'
 )
-const CDP_UPLOADER_URL = process.env.CDP_UPLOADER_URL ?? 'http://localhost:7337'
+export const CDP_UPLOADER_URL =
+  process.env.CDP_UPLOADER_URL ?? 'http://localhost:7337'
 const S3_ENDPOINT = process.env.S3_ENDPOINT ?? 'http://localhost:4566'
 const POLL_INTERVAL_MS = 500
+const HTTP_BAD_REQUEST = 400
+const HEALTH_CHECK_TIMEOUT_MS = 2000
 
 function fixturePath(name) {
   return path.join(FIXTURES_DIR, name)
 }
 
 async function uploadViaCdpUploader({ uploadUrl, filePath, contentType }) {
-  const fileBytes = fs.readFileSync(filePath)
+  const fileBytes = await fs.readFile(filePath)
   const fileName = path.basename(filePath)
   const fullUrl = uploadUrl.startsWith('http')
     ? uploadUrl
@@ -40,7 +43,7 @@ async function uploadViaCdpUploader({ uploadUrl, filePath, contentType }) {
   })
 
   // cdp-uploader returns a 302 redirect to the configured `redirect` URL on success
-  if (response.status >= 400) {
+  if (response.status >= HTTP_BAD_REQUEST) {
     const body = await response.text().catch(() => '')
     throw new Error(
       `Upload to cdp-uploader failed: ${response.status} ${response.statusText} ${body}`
@@ -98,7 +101,7 @@ async function assertS3ObjectExists(bucket, key) {
 async function assertCdpUploaderReachable() {
   try {
     const res = await fetch(`${CDP_UPLOADER_URL}/health`, {
-      signal: AbortSignal.timeout(2000)
+      signal: AbortSignal.timeout(HEALTH_CHECK_TIMEOUT_MS)
     })
     if (!res.ok) {
       throw new Error(`status ${res.status}`)
