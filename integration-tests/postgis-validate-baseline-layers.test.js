@@ -105,17 +105,22 @@ const HUGE = [
   [X0, Y0]
 ]
 
+// Side length (in metres) of the triangular corner cut from NOTCHED_SQUARE.
+// 0.8 m × 0.8 m / 2 = 0.32 sq m, which sits inside the (0, 1) sliver range
+// and below the 0.5 sq m AREA_SUM_MISMATCH tolerance.
+const NOTCH_SIDE_M = 0.8
+
 // SQUARE with a small triangular corner cut off (~0.32 sq m). When used as
 // the only habitat against the SQUARE redline, the gap shows up as a sliver
 // (area in the (0, SLIVER_THRESHOLD_SQ_M) range) without tripping
-// AREA_SUM_MISMATCH (0.32 < 0.5 tolerance).
+// AREA_SUM_MISMATCH.
 const NOTCHED_SQUARE = [
-  [X0 + 0.8, Y0],
+  [X0 + NOTCH_SIDE_M, Y0],
   [X0 + EDGE, Y0],
   [X0 + EDGE, Y0 + EDGE],
   [X0, Y0 + EDGE],
-  [X0, Y0 + 0.8],
-  [X0 + 0.8, Y0]
+  [X0, Y0 + NOTCH_SIDE_M],
+  [X0 + NOTCH_SIDE_M, Y0]
 ]
 
 // HALF the area of SQUARE, fully inside it. Triggers AREA_SUM_MISMATCH
@@ -137,18 +142,28 @@ const LINE_SPANNING = [
 ]
 const POINT_OUTSIDE = [X0 - EDGE, Y0 - EDGE]
 
-describe('validateBaselineLayersPostgis (integration)', () => {
+function makeLayers(overrides = {}) {
+  return {
+    redline: [],
+    areas: [],
+    hedgerows: [],
+    watercourses: [],
+    iggis: [],
+    trees: [],
+    ...overrides
+  }
+}
+
+async function runAndGetCodes(layers) {
+  const result = await validateBaselineLayersPostgis(pool, layers)
+  return result.errors.map((e) => e.code)
+}
+
+describe('validateBaselineLayersPostgis — happy path', () => {
   it('returns no topology errors for redline == single habitat', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
+    )
     expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
     expect(codes).not.toContain('AREA_PARCELS_INVALID_GEOMETRY')
     expect(codes).not.toContain('PARCEL_OVERLAPS')
@@ -156,186 +171,125 @@ describe('validateBaselineLayersPostgis (integration)', () => {
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
     expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
+})
 
+describe('validateBaselineLayersPostgis — redline-level errors', () => {
   it('detects self-intersecting redline', async () => {
-    const layers = {
-      redline: [poly(SELF_INTERSECTING)],
-      areas: [poly(SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SELF_INTERSECTING)],
+        areas: [poly(SQUARE)]
+      })
+    )
     expect(codes).toContain('REDLINE_INVALID_GEOMETRY')
   })
 
-  it('detects parcel overlaps', async () => {
-    const layers = {
-      redline: [poly(BIG)],
-      areas: [poly(SQUARE), poly(SQUARE_OFFSET)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
-    expect(codes).toContain('PARCEL_OVERLAPS')
-  })
-
-  it('detects no-habitat layers', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
-    expect(codes).toContain('NO_HABITAT_AREAS')
-  })
-
   it('detects redline outside England', async () => {
-    const layers = {
-      redline: [poly(OUTSIDE_ENGLAND)],
-      areas: [poly(OUTSIDE_ENGLAND)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(OUTSIDE_ENGLAND)],
+        areas: [poly(OUTSIDE_ENGLAND)]
+      })
+    )
     expect(codes).toContain('REDLINE_OUTSIDE_ENGLAND')
   })
 
   it('detects redline area exceeding the 100 sq km cap', async () => {
-    const layers = {
-      redline: [poly(HUGE)],
-      areas: [poly(HUGE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ redline: [poly(HUGE)], areas: [poly(HUGE)] })
+    )
     expect(codes).toContain('REDLINE_AREA_TOO_LARGE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
+  it('detects parcel overlaps', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(BIG)],
+        areas: [poly(SQUARE), poly(SQUARE_OFFSET)]
+      })
+    )
+    expect(codes).toContain('PARCEL_OVERLAPS')
+  })
+
+  it('detects no-habitat layers', async () => {
+    const codes = await runAndGetCodes(makeLayers({ redline: [poly(SQUARE)] }))
+    expect(codes).toContain('NO_HABITAT_AREAS')
   })
 
   it('detects invalid area habitat geometry', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SELF_INTERSECTING)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(SELF_INTERSECTING)]
+      })
+    )
     expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
   })
 
-  it('detects slivers between habitat and redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(NOTCHED_SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+  it('detects slivers inside the redline', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(NOTCHED_SQUARE)]
+      })
+    )
     expect(codes).toContain('SLIVERS_INSIDE_REDLINE')
   })
 
   it('detects area parcels outside the redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE_OFFSET)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(SQUARE_OFFSET)]
+      })
+    )
     expect(codes).toContain('AREA_PARCELS_OUTSIDE_REDLINE')
   })
 
+  it('detects area sum mismatch', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(HALF_SQUARE)]
+      })
+    )
+    expect(codes).toContain('AREA_SUM_MISMATCH')
+  })
+})
+
+describe('validateBaselineLayersPostgis — non-area layers outside redline', () => {
+  const baseValidLayers = {
+    redline: [poly(SQUARE)],
+    areas: [poly(SQUARE)]
+  }
+
   it('detects hedgerows outside the redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE)],
-      hedgerows: [line(LINE_SPANNING)],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, hedgerows: [line(LINE_SPANNING)] })
+    )
     expect(codes).toContain('HEDGEROWS_OUTSIDE_REDLINE')
   })
 
   it('detects watercourses outside the redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE)],
-      hedgerows: [],
-      watercourses: [line(LINE_SPANNING)],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, watercourses: [line(LINE_SPANNING)] })
+    )
     expect(codes).toContain('WATERCOURSES_OUTSIDE_REDLINE')
   })
 
   it('detects IGGIs outside the redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [poly(SQUARE_OFFSET)],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, iggis: [poly(SQUARE_OFFSET)] })
+    )
     expect(codes).toContain('IGGIS_OUTSIDE_REDLINE')
   })
 
   it('detects trees outside the redline', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: [point(POINT_OUTSIDE)]
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, trees: [point(POINT_OUTSIDE)] })
+    )
     expect(codes).toContain('TREES_OUTSIDE_REDLINE')
-  })
-
-  it('detects area sum mismatch', async () => {
-    const layers = {
-      redline: [poly(SQUARE)],
-      areas: [poly(HALF_SQUARE)],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: []
-    }
-    const result = await validateBaselineLayersPostgis(pool, layers)
-    const codes = result.errors.map((e) => e.code)
-    expect(codes).toContain('AREA_SUM_MISMATCH')
   })
 })
