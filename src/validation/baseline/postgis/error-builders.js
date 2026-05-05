@@ -52,10 +52,10 @@ export const ERROR_BUILDERS = {
       'One or more area habitat parcels overlap with other parcels',
       offendingFromPayload(p)
     ),
-  [ERROR_CODES.SLIVERS_OUTSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: (p) =>
     makeError(
-      ERROR_CODES.SLIVERS_OUTSIDE_REDLINE,
-      'Baseline file contains slivers between area habitat polygons and the redline boundary',
+      ERROR_CODES.SLIVERS_INSIDE_REDLINE,
+      'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon',
       (p?.slivers ?? []).map((s) => ({
         id: Number(s.id),
         area: Number(Number(s.area).toFixed(4))

@@ -152,7 +152,7 @@ describe('validateBaselineLayersPostgis (integration)', () => {
     expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
     expect(codes).not.toContain('AREA_PARCELS_INVALID_GEOMETRY')
     expect(codes).not.toContain('PARCEL_OVERLAPS')
-    expect(codes).not.toContain('SLIVERS_OUTSIDE_REDLINE')
+    expect(codes).not.toContain('SLIVERS_INSIDE_REDLINE')
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
     expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
@@ -252,7 +252,7 @@ describe('validateBaselineLayersPostgis (integration)', () => {
     }
     const result = await validateBaselineLayersPostgis(pool, layers)
     const codes = result.errors.map((e) => e.code)
-    expect(codes).toContain('SLIVERS_OUTSIDE_REDLINE')
+    expect(codes).toContain('SLIVERS_INSIDE_REDLINE')
   })
 
   it('detects area parcels outside the redline', async () => {
