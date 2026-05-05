@@ -7,146 +7,145 @@ import { truncateTestData } from './helpers/db-cleanup.js'
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_NOT_FOUND = 404
+const PROJECTS_NEW_URL = '/projects/new'
 
-describe('Projects routes', () => {
-  let server
-  let dbClient
-  const userId = `it-${randomUUID()}`
+let server
+let dbClient
+const userId = `it-${randomUUID()}`
 
-  beforeAll(async () => {
-    server = await startServer()
-    dbClient = await connect()
-    await truncateTestData(dbClient)
+beforeAll(async () => {
+  server = await startServer()
+  dbClient = await connect()
+  await truncateTestData(dbClient)
+})
+
+afterEach(async () => {
+  await truncateTestData(dbClient)
+})
+
+afterAll(async () => {
+  await dbClient.end()
+  await stopServer(server)
+})
+
+async function createProject(name) {
+  const res = await server.inject({
+    method: 'POST',
+    url: PROJECTS_NEW_URL,
+    payload: { project: { name }, userId }
+  })
+  expect(res.statusCode).toBe(HTTP_OK)
+  return res.result
+}
+
+describe('POST /projects/new', () => {
+  it('creates a project with a generated UUID', async () => {
+    const created = await createProject('New Project')
+    expect(created.id).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
+    expect(created.project.name).toBe('New Project')
+    expect(created.userId).toBe(userId)
   })
 
-  afterEach(async () => {
-    await truncateTestData(dbClient)
-  })
-
-  afterAll(async () => {
-    await dbClient.end()
-    await stopServer(server)
-  })
-
-  async function createProject(name) {
+  it('returns 400 when userId is missing', async () => {
     const res = await server.inject({
       method: 'POST',
-      url: '/projects/new',
-      payload: { project: { name }, userId }
+      url: PROJECTS_NEW_URL,
+      payload: { project: { name: 'No User' } }
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+
+  it('returns 400 when project is missing', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: PROJECTS_NEW_URL,
+      payload: { userId }
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+})
+
+describe('GET /projects', () => {
+  it('returns all projects', async () => {
+    await createProject('First')
+    await createProject('Second')
+
+    const res = await server.inject({ method: 'GET', url: '/projects' })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toHaveLength(2)
+    const names = res.result.map((p) => p.project.name).sort()
+    expect(names).toEqual(['First', 'Second'])
+  })
+})
+
+describe('GET /projects/{id}', () => {
+  it('returns a project by id', async () => {
+    const created = await createProject('Findable')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}`
     })
     expect(res.statusCode).toBe(HTTP_OK)
-    return res.result
-  }
-
-  describe('POST /projects/new', () => {
-    it('creates a project with a generated UUID', async () => {
-      const created = await createProject('New Project')
-      expect(created.id).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
-      )
-      expect(created.project.name).toBe('New Project')
-      expect(created.userId).toBe(userId)
-    })
-
-    it('returns 400 when userId is missing', async () => {
-      const res = await server.inject({
-        method: 'POST',
-        url: '/projects/new',
-        payload: { project: { name: 'No User' } }
-      })
-      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
-    })
-
-    it('returns 400 when project is missing', async () => {
-      const res = await server.inject({
-        method: 'POST',
-        url: '/projects/new',
-        payload: { userId }
-      })
-      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
-    })
+    expect(res.result.id).toBe(created.id)
+    expect(res.result.project.name).toBe('Findable')
   })
 
-  describe('GET /projects', () => {
-    it('returns all projects', async () => {
-      await createProject('First')
-      await createProject('Second')
-
-      const res = await server.inject({ method: 'GET', url: '/projects' })
-      expect(res.statusCode).toBe(HTTP_OK)
-      expect(res.result).toHaveLength(2)
-      const names = res.result.map((p) => p.project.name).sort()
-      expect(names).toEqual(['First', 'Second'])
+  it('returns 404 for an unknown UUID', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${randomUUID()}`
     })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
 
-  describe('GET /projects/{id}', () => {
-    it('returns a project by id', async () => {
-      const created = await createProject('Findable')
-      const res = await server.inject({
-        method: 'GET',
-        url: `/projects/${created.id}`
-      })
-      expect(res.statusCode).toBe(HTTP_OK)
-      expect(res.result.id).toBe(created.id)
-      expect(res.result.project.name).toBe('Findable')
+  it('returns 400 for a non-UUID id', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/projects/not-a-uuid'
     })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+})
 
-    it('returns 404 for an unknown UUID', async () => {
-      const res = await server.inject({
-        method: 'GET',
-        url: `/projects/${randomUUID()}`
-      })
-      expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+describe('PATCH /projects/{id}', () => {
+  it('updates the project name', async () => {
+    const created = await createProject('Original')
+    const res = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${created.id}`,
+      payload: { project: { name: 'Renamed' } }
     })
-
-    it('returns 400 for a non-UUID id', async () => {
-      const res = await server.inject({
-        method: 'GET',
-        url: '/projects/not-a-uuid'
-      })
-      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
-    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.project.name).toBe('Renamed')
   })
 
-  describe('PATCH /projects/{id}', () => {
-    it('updates the project name', async () => {
-      const created = await createProject('Original')
-      const res = await server.inject({
-        method: 'PATCH',
-        url: `/projects/${created.id}`,
-        payload: { project: { name: 'Renamed' } }
-      })
-      expect(res.statusCode).toBe(HTTP_OK)
-      expect(res.result.project.name).toBe('Renamed')
+  it('returns 404 for an unknown UUID', async () => {
+    const res = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${randomUUID()}`,
+      payload: { project: { name: 'Renamed' } }
     })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
 
-    it('returns 404 for an unknown UUID', async () => {
-      const res = await server.inject({
-        method: 'PATCH',
-        url: `/projects/${randomUUID()}`,
-        payload: { project: { name: 'Renamed' } }
-      })
-      expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  it('returns 400 when name is empty', async () => {
+    const created = await createProject('Original')
+    const res = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${created.id}`,
+      payload: { project: { name: '' } }
     })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
 
-    it('returns 400 when name is empty', async () => {
-      const created = await createProject('Original')
-      const res = await server.inject({
-        method: 'PATCH',
-        url: `/projects/${created.id}`,
-        payload: { project: { name: '' } }
-      })
-      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  it('returns 400 for a non-UUID id', async () => {
+    const res = await server.inject({
+      method: 'PATCH',
+      url: '/projects/not-a-uuid',
+      payload: { project: { name: 'X' } }
     })
-
-    it('returns 400 for a non-UUID id', async () => {
-      const res = await server.inject({
-        method: 'PATCH',
-        url: '/projects/not-a-uuid',
-        payload: { project: { name: 'X' } }
-      })
-      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
-    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
 })

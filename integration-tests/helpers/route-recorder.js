@@ -23,7 +23,9 @@ const routeRecorder = {
 
 function recordHit(key) {
   const existing = readExisting()
-  if (existing.has(key)) return
+  if (existing.has(key)) {
+    return
+  }
   existing.add(key)
   fs.mkdirSync(path.dirname(HITS_FILE), { recursive: true })
   fs.writeFileSync(

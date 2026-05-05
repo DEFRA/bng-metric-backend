@@ -81,6 +81,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.valid).toBe(false)
-    expect(res.result.errors.some((e) => /red line bound/i.test(e))).toBe(true)
+    expect(
+      res.result.errors.some((e) => /red line bound/i.test(e.message))
+    ).toBe(true)
   })
 })
