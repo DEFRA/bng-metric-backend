@@ -147,6 +147,14 @@ const POINT_OUTSIDE = [X0 - EDGE, Y0 - EDGE]
 // OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) and PARCEL_OUTSIDE_TOLERANCE_SQ_M
 // (0.5 sq m) thresholds defined in postgis/index.js.
 
+// Offset under OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) — feature should pass.
+const ESCAPE_UNDER_TOLERANCE_M = 0.05
+// Offset over OUTSIDE_BOUNDARY_TOLERANCE_M — feature should fail.
+const ESCAPE_OVER_TOLERANCE_M = 0.5
+// Side length of the 1 m × 1 m IGGI square — escape area = 1 sq m, over the
+// 0.5 sq m PARCEL_OUTSIDE_TOLERANCE_SQ_M threshold.
+const IGGI_ESCAPE_SIDE_M = 1
+
 // Hedgerow inside SQUARE whose endpoint lies exactly on the east edge.
 const HEDGE_ENDPOINT_ON_BOUNDARY = [
   [X0 + HALF, Y0 + HALF],
@@ -155,28 +163,51 @@ const HEDGE_ENDPOINT_ON_BOUNDARY = [
 // 5 cm past the east edge — under the 10 cm tolerance.
 const HEDGE_ESCAPE_5CM = [
   [X0 + HALF, Y0 + HALF],
-  [X0 + EDGE + 0.05, Y0 + HALF]
+  [X0 + EDGE + ESCAPE_UNDER_TOLERANCE_M, Y0 + HALF]
 ]
 // 50 cm past the east edge — over the 10 cm tolerance.
 const HEDGE_ESCAPE_50CM = [
   [X0 + HALF, Y0 + HALF],
-  [X0 + EDGE + 0.5, Y0 + HALF]
+  [X0 + EDGE + ESCAPE_OVER_TOLERANCE_M, Y0 + HALF]
 ]
 
 // Tree exactly on the east edge of SQUARE.
 const TREE_ON_BOUNDARY = [X0 + EDGE, Y0 + HALF]
 // Tree 50 cm outside the east edge.
-const TREE_50CM_OUTSIDE = [X0 + EDGE + 0.5, Y0 + HALF]
+const TREE_50CM_OUTSIDE = [X0 + EDGE + ESCAPE_OVER_TOLERANCE_M, Y0 + HALF]
 
 // IGGI sitting wholly outside the east edge: 1 m × 1 m = 1 sq m escape, over
 // the 0.5 sq m tolerance.
 const IGGI_ESCAPE_1_SQM = [
   [X0 + EDGE, Y0 + HALF],
-  [X0 + EDGE + 1, Y0 + HALF],
-  [X0 + EDGE + 1, Y0 + HALF + 1],
-  [X0 + EDGE, Y0 + HALF + 1],
+  [X0 + EDGE + IGGI_ESCAPE_SIDE_M, Y0 + HALF],
+  [X0 + EDGE + IGGI_ESCAPE_SIDE_M, Y0 + HALF + IGGI_ESCAPE_SIDE_M],
+  [X0 + EDGE, Y0 + HALF + IGGI_ESCAPE_SIDE_M],
   [X0 + EDGE, Y0 + HALF]
 ]
+
+const WGS84_SRID = 4326
+
+// Small square in WGS84 lat/lon over central London — well inside the England
+// reference polygon. Used to exercise the in-query ST_Transform(... 27700)
+// reprojection path; the BNG-only fixtures above never hit it.
+const WGS84_SQUARE = [
+  [-0.105, 51.515],
+  [-0.104, 51.515],
+  [-0.104, 51.516],
+  [-0.105, 51.516],
+  [-0.105, 51.515]
+]
+
+function polyAtSrid(ring, srid) {
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'Polygon', coordinates: [ring] },
+    nativeGeometry: { type: 'Polygon', coordinates: [ring] },
+    nativeSrid: srid
+  }
+}
 
 function makeLayers(overrides = {}) {
   return {
@@ -218,6 +249,13 @@ describe('validateBaselineLayersPostgis — redline-level errors', () => {
       })
     )
     expect(codes).toContain('REDLINE_INVALID_GEOMETRY')
+  })
+
+  it('detects an empty redline layer as NO_REDLINE', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ redline: [], areas: [poly(SQUARE)] })
+    )
+    expect(codes).toContain('NO_REDLINE')
   })
 
   it('detects redline outside England', async () => {
@@ -396,5 +434,23 @@ describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () =>
       makeLayers({ ...baseValidLayers, iggis: [poly(IGGI_ESCAPE_1_SQM)] })
     )
     expect(codes).toContain('IGGIS_OUTSIDE_REDLINE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — coordinate-system handling', () => {
+  it('reprojects EPSG:4326 input to BNG without spuriously flagging it', async () => {
+    // Identical WGS84 redline + habitat parcel — round-trip through the
+    // in-query ST_Transform should leave them aligned, so no topology errors.
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [polyAtSrid(WGS84_SQUARE, WGS84_SRID)],
+        areas: [polyAtSrid(WGS84_SQUARE, WGS84_SRID)]
+      })
+    )
+    expect(codes).not.toContain('REDLINE_OUTSIDE_ENGLAND')
+    expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
+    expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
+    expect(codes).not.toContain('SLIVERS_INSIDE_REDLINE')
+    expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
 })

@@ -223,7 +223,10 @@ c_trees_outside AS (
 -- checks emit nothing at all.
 -- ---------------------------------------------------------------------------
 
-SELECT 'REDLINE_OUTSIDE_ENGLAND' AS code, '{}'::jsonb AS payload
+SELECT 'NO_REDLINE' AS code, '{}'::jsonb AS payload
+FROM c_redline_total WHERE n = 0
+UNION ALL
+SELECT 'REDLINE_OUTSIDE_ENGLAND', '{}'::jsonb
 FROM c_redline_outside_england
 UNION ALL
 SELECT 'REDLINE_AREA_TOO_LARGE', jsonb_build_object('total', total)
@@ -278,6 +281,7 @@ const LAYER_NAMES = [
 // Order matches the Turf-engine sequence so error output is stable across
 // engines.
 const ERROR_ORDER = [
+  ERROR_CODES.NO_REDLINE,
   ERROR_CODES.REDLINE_OUTSIDE_ENGLAND,
   ERROR_CODES.REDLINE_AREA_TOO_LARGE,
   ERROR_CODES.NO_HABITAT_AREAS,

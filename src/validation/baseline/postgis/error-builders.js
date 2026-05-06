@@ -11,6 +11,11 @@ function redlineInvalidGeometryMessage(payload) {
 }
 
 export const ERROR_BUILDERS = {
+  [ERROR_CODES.NO_REDLINE]: () =>
+    makeError(
+      ERROR_CODES.NO_REDLINE,
+      'Baseline file contains no redline boundary polygon'
+    ),
   [ERROR_CODES.REDLINE_OUTSIDE_ENGLAND]: () =>
     makeError(
       ERROR_CODES.REDLINE_OUTSIDE_ENGLAND,
