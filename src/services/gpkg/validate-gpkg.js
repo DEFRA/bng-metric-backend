@@ -240,159 +240,138 @@ function checkRequiredLayers(contentTables, errors) {
 }
 
 /**
- * Validates that the Red Line Boundary layer contains exactly one polygon feature.
- * Pushes an error if the geometry column is missing, invalid, unreadable, or the
- * polygon count is not exactly one.
+ * Reads a feature layer's geometry blobs and counts polygons among them.
+ * Pushes a fatal error and returns null if the geometry column is missing,
+ * invalid, or the layer contains unreadable geometry.
+ *
  * @param {import('better-sqlite3').Database} db
- * @param {string[]} errors
+ * @param {object[]} errors
+ * @param {object} layer
+ * @param {string} layer.name      - Display name used in error messages and logs
+ * @param {string} layer.lookupKey - Lower-cased name used in SQL filters
+ * @param {{ noGeometryColumn: string, invalidGeometryColumnName: string, unreadableGeometry: string }} layer.codes
+ * @returns {{ polygonCount: number } | null}
  */
-function validateRedLineBoundary(db, errors) {
-  const { table_name: rlbTableName } = db
+function readLayerPolygonCount(db, errors, layer) {
+  const { table_name: tableName } = db
     .prepare(
-      "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'red line boundary' AND data_type = 'features'"
+      "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = ? AND data_type = 'features'"
     )
-    .get()
+    .get(layer.lookupKey)
   const geomRow = db
     .prepare(
-      "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'red line boundary'"
+      'SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = ?'
     )
-    .get()
+    .get(layer.lookupKey)
 
   if (!geomRow) {
     errors.push(
       makeError(
-        ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
-        'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
+        layer.codes.noGeometryColumn,
+        `${layer.name} layer has no registered geometry column in gpkg_geometry_columns`
       )
     )
-    return
+    return null
   }
   if (!/^[A-Za-z_]\w*$/.test(geomRow.column_name)) {
     errors.push(
       makeError(
-        ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
-        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+        layer.codes.invalidGeometryColumnName,
+        `${layer.name} geometry column has an invalid name in gpkg_geometry_columns`
       )
     )
-    return
+    return null
   }
 
   const col = geomRow.column_name
   // Double any " in the table name so a crafted gpkg_contents.table_name
   // can't break out of the identifier quoting. col is already regex-validated above.
-  const safeTable = rlbTableName.replaceAll('"', '""')
-  const rows = db
+  const safeTable = tableName.replaceAll('"', '""')
+  const wkbTypes = db
     .prepare(
       `SELECT "${col}" AS geom FROM "${safeTable}" WHERE "${col}" IS NOT NULL`
     )
     .all()
+    .map((row) => getWkbType(row.geom))
 
-  const unreadableCount = rows.filter(
-    (row) => getWkbType(row.geom) === null
-  ).length
+  const unreadableCount = wkbTypes.filter((t) => t === null).length
   if (unreadableCount > 0) {
     logger.warn(
-      `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Red Line Boundary (table: ${rlbTableName})`
+      `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in ${layer.name} (table: ${tableName})`
     )
     errors.push(
       makeError(
-        ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY,
-        'Red Line Boundary contains unreadable geometry'
+        layer.codes.unreadableGeometry,
+        `${layer.name} contains unreadable geometry`
       )
     )
+    return null
+  }
+
+  return {
+    polygonCount: wkbTypes.filter((t) => POLYGON_WKB_TYPES.has(t)).length
+  }
+}
+
+/**
+ * Validates that the Red Line Boundary layer contains exactly one polygon feature.
+ * @param {import('better-sqlite3').Database} db
+ * @param {object[]} errors
+ */
+function validateRedLineBoundary(db, errors) {
+  const result = readLayerPolygonCount(db, errors, {
+    name: 'Red Line Boundary',
+    lookupKey: 'red line boundary',
+    codes: {
+      noGeometryColumn: ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
+      invalidGeometryColumnName:
+        ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
+      unreadableGeometry: ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY
+    }
+  })
+  if (!result) {
     return
   }
 
-  const polygonCount = rows.filter((row) =>
-    POLYGON_WKB_TYPES.has(getWkbType(row.geom))
-  ).length
-  if (polygonCount === 0) {
+  if (result.polygonCount === 0) {
     errors.push(
       makeError(
         ERROR_CODES.GPKG_RLB_NO_POLYGON,
         'Zero red line boundaries in GeoPackage (expecting one)'
       )
     )
-  } else if (polygonCount > 1) {
+  } else if (result.polygonCount > 1) {
     errors.push(
       makeError(
         ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS,
         'Too many red line boundaries in GeoPackage (expecting one)'
       )
     )
-  } else {
-    // exactly one polygon — valid
   }
 }
 
 /**
  * Validates that the Habitats layer contains at least one area (polygon)
- * habitat parcel. Pushes an error if the geometry column is missing, invalid,
- * unreadable, or the polygon count is zero.
+ * habitat parcel.
  * @param {import('better-sqlite3').Database} db
- * @param {string[]} errors
+ * @param {object[]} errors
  */
 function validateHabitats(db, errors) {
-  const { table_name: habitatsTableName } = db
-    .prepare(
-      "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'habitats' AND data_type = 'features'"
-    )
-    .get()
-  const geomRow = db
-    .prepare(
-      "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'habitats'"
-    )
-    .get()
-
-  if (!geomRow) {
-    errors.push(
-      makeError(
-        ERROR_CODES.GPKG_HABITATS_NO_GEOMETRY_COLUMN,
-        'Habitats layer has no registered geometry column in gpkg_geometry_columns'
-      )
-    )
-    return
-  }
-  if (!/^[A-Za-z_]\w*$/.test(geomRow.column_name)) {
-    errors.push(
-      makeError(
+  const result = readLayerPolygonCount(db, errors, {
+    name: 'Habitats',
+    lookupKey: 'habitats',
+    codes: {
+      noGeometryColumn: ERROR_CODES.GPKG_HABITATS_NO_GEOMETRY_COLUMN,
+      invalidGeometryColumnName:
         ERROR_CODES.GPKG_HABITATS_INVALID_GEOMETRY_COLUMN_NAME,
-        'Habitats geometry column has an invalid name in gpkg_geometry_columns'
-      )
-    )
+      unreadableGeometry: ERROR_CODES.GPKG_HABITATS_UNREADABLE_GEOMETRY
+    }
+  })
+  if (!result) {
     return
   }
 
-  const col = geomRow.column_name
-  // Double any " in the table name so a crafted gpkg_contents.table_name
-  // can't break out of the identifier quoting. col is already regex-validated above.
-  const safeTable = habitatsTableName.replaceAll('"', '""')
-  const rows = db
-    .prepare(
-      `SELECT "${col}" AS geom FROM "${safeTable}" WHERE "${col}" IS NOT NULL`
-    )
-    .all()
-
-  const unreadableCount = rows.filter(
-    (row) => getWkbType(row.geom) === null
-  ).length
-  if (unreadableCount > 0) {
-    logger.warn(
-      `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Habitats (table: ${habitatsTableName})`
-    )
-    errors.push(
-      makeError(
-        ERROR_CODES.GPKG_HABITATS_UNREADABLE_GEOMETRY,
-        'Habitats contains unreadable geometry'
-      )
-    )
-    return
-  }
-
-  const polygonCount = rows.filter((row) =>
-    POLYGON_WKB_TYPES.has(getWkbType(row.geom))
-  ).length
-  if (polygonCount === 0) {
+  if (result.polygonCount === 0) {
     errors.push(
       makeError(
         ERROR_CODES.NO_HABITAT_AREAS,
