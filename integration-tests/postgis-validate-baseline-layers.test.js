@@ -142,6 +142,79 @@ const LINE_SPANNING = [
 ]
 const POINT_OUTSIDE = [X0 - EDGE, Y0 - EDGE]
 
+// Tolerance-boundary fixtures: each one sits a known distance / area off the
+// SQUARE redline so the test can assert behaviour either side of the
+// OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) and PARCEL_OUTSIDE_TOLERANCE_SQ_M
+// (0.5 sq m) thresholds defined in postgis/index.js.
+
+// Offset under OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) — feature should pass.
+const ESCAPE_UNDER_TOLERANCE_M = 0.05
+// Offset over OUTSIDE_BOUNDARY_TOLERANCE_M — feature should fail.
+const ESCAPE_OVER_TOLERANCE_M = 0.5
+// Side length of the 1 m × 1 m IGGI square — escape area = 1 sq m, over the
+// 0.5 sq m PARCEL_OUTSIDE_TOLERANCE_SQ_M threshold.
+const IGGI_ESCAPE_SIDE_M = 1
+
+// Hedgerow inside SQUARE whose endpoint lies exactly on the east edge.
+const HEDGE_ENDPOINT_ON_BOUNDARY = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE, Y0 + HALF]
+]
+// 5 cm past the east edge — under the 10 cm tolerance.
+const HEDGE_ESCAPE_5CM = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE + ESCAPE_UNDER_TOLERANCE_M, Y0 + HALF]
+]
+// 50 cm past the east edge — over the 10 cm tolerance.
+const HEDGE_ESCAPE_50CM = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE + ESCAPE_OVER_TOLERANCE_M, Y0 + HALF]
+]
+
+// Tree exactly on the east edge of SQUARE.
+const TREE_ON_BOUNDARY = [X0 + EDGE, Y0 + HALF]
+// Tree 50 cm outside the east edge.
+const TREE_50CM_OUTSIDE = [X0 + EDGE + ESCAPE_OVER_TOLERANCE_M, Y0 + HALF]
+
+// IGGI sitting wholly outside the east edge: 1 m × 1 m = 1 sq m escape, over
+// the 0.5 sq m tolerance.
+const IGGI_ESCAPE_1_SQM = [
+  [X0 + EDGE, Y0 + HALF],
+  [X0 + EDGE + IGGI_ESCAPE_SIDE_M, Y0 + HALF],
+  [X0 + EDGE + IGGI_ESCAPE_SIDE_M, Y0 + HALF + IGGI_ESCAPE_SIDE_M],
+  [X0 + EDGE, Y0 + HALF + IGGI_ESCAPE_SIDE_M],
+  [X0 + EDGE, Y0 + HALF]
+]
+
+const WGS84_SRID = 4326
+
+// Origin of the WGS84 test square — central London, well inside the England
+// reference polygon. Lon/lat in degrees (note: GeoJSON puts lon first).
+const LONDON_LON = -0.105
+const LONDON_LAT = 51.515
+const LONDON_EDGE_DEG = 0.001
+
+// Small square in WGS84 lat/lon. Used to exercise the in-query
+// ST_Transform(... 27700) reprojection path; the BNG-only fixtures above
+// never hit it.
+const WGS84_SQUARE = [
+  [LONDON_LON, LONDON_LAT],
+  [LONDON_LON + LONDON_EDGE_DEG, LONDON_LAT],
+  [LONDON_LON + LONDON_EDGE_DEG, LONDON_LAT + LONDON_EDGE_DEG],
+  [LONDON_LON, LONDON_LAT + LONDON_EDGE_DEG],
+  [LONDON_LON, LONDON_LAT]
+]
+
+function polyAtSrid(ring, srid) {
+  return {
+    type: 'Feature',
+    properties: {},
+    geometry: { type: 'Polygon', coordinates: [ring] },
+    nativeGeometry: { type: 'Polygon', coordinates: [ring] },
+    nativeSrid: srid
+  }
+}
+
 function makeLayers(overrides = {}) {
   return {
     redline: [],
@@ -182,6 +255,13 @@ describe('validateBaselineLayersPostgis — redline-level errors', () => {
       })
     )
     expect(codes).toContain('REDLINE_INVALID_GEOMETRY')
+  })
+
+  it('detects an empty redline layer as NO_REDLINE', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ redline: [], areas: [poly(SQUARE)] })
+    )
+    expect(codes).toContain('NO_REDLINE')
   })
 
   it('detects redline outside England', async () => {
@@ -291,5 +371,92 @@ describe('validateBaselineLayersPostgis — non-area layers outside redline', ()
       makeLayers({ ...baseValidLayers, trees: [point(POINT_OUTSIDE)] })
     )
     expect(codes).toContain('TREES_OUTSIDE_REDLINE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () => {
+  const baseValidLayers = {
+    redline: [poly(SQUARE)],
+    areas: [poly(SQUARE)]
+  }
+
+  it('passes a hedgerow whose endpoint lies exactly on the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        ...baseValidLayers,
+        hedgerows: [line(HEDGE_ENDPOINT_ON_BOUNDARY)]
+      })
+    )
+    expect(codes).not.toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('passes a hedgerow escaping the redline by 5 cm (under 10 cm tolerance)', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, hedgerows: [line(HEDGE_ESCAPE_5CM)] })
+    )
+    expect(codes).not.toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('flags a hedgerow escaping the redline by 50 cm', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, hedgerows: [line(HEDGE_ESCAPE_50CM)] })
+    )
+    expect(codes).toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('flags a watercourse escaping the redline by 50 cm', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        ...baseValidLayers,
+        watercourses: [line(HEDGE_ESCAPE_50CM)]
+      })
+    )
+    expect(codes).toContain('WATERCOURSES_OUTSIDE_REDLINE')
+  })
+
+  it('passes a tree placed exactly on the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, trees: [point(TREE_ON_BOUNDARY)] })
+    )
+    expect(codes).not.toContain('TREES_OUTSIDE_REDLINE')
+  })
+
+  it('flags a tree 50 cm outside the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, trees: [point(TREE_50CM_OUTSIDE)] })
+    )
+    expect(codes).toContain('TREES_OUTSIDE_REDLINE')
+  })
+
+  it('passes an IGGI sharing an edge with the redline (HALF_SQUARE inside SQUARE)', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, iggis: [poly(HALF_SQUARE)] })
+    )
+    expect(codes).not.toContain('IGGIS_OUTSIDE_REDLINE')
+  })
+
+  it('flags an IGGI escaping the redline by 1 sq m', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, iggis: [poly(IGGI_ESCAPE_1_SQM)] })
+    )
+    expect(codes).toContain('IGGIS_OUTSIDE_REDLINE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — coordinate-system handling', () => {
+  it('reprojects EPSG:4326 input to BNG without spuriously flagging it', async () => {
+    // Identical WGS84 redline + habitat parcel — round-trip through the
+    // in-query ST_Transform should leave them aligned, so no topology errors.
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [polyAtSrid(WGS84_SQUARE, WGS84_SRID)],
+        areas: [polyAtSrid(WGS84_SQUARE, WGS84_SRID)]
+      })
+    )
+    expect(codes).not.toContain('REDLINE_OUTSIDE_ENGLAND')
+    expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
+    expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
+    expect(codes).not.toContain('SLIVERS_INSIDE_REDLINE')
+    expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
 })
