@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
 
 const { validateGpkg } = await import('./validate-gpkg.js')
+const { ERROR_CODES } = await import('../../validation/baseline/errors.js')
 
 // GeoPackage application IDs
 const GP10_APP_ID = 0x47503130 // 1196437808 — GeoPackage 1.0
@@ -12,10 +13,18 @@ const LAYER_RLB = 'Red Line Boundary'
 const LAYER_HABITATS = 'Habitats'
 const ALL_LAYERS = [LAYER_RLB, LAYER_HABITATS]
 
-const missingLayerError = (name) =>
-  `Missing required feature layer in GeoPackage: ${name}`
-const ERR_ZERO_RLB = 'Zero red line boundaries in GeoPackage (expecting one)'
-const ERR_UNREADABLE_RLB = 'Red Line Boundary contains unreadable geometry'
+const missingLayerError = (name) => ({
+  code: ERROR_CODES.GPKG_MISSING_LAYER,
+  message: `Missing required feature layer in GeoPackage: ${name}`
+})
+const ERR_ZERO_RLB = {
+  code: ERROR_CODES.GPKG_RLB_NO_POLYGON,
+  message: 'Zero red line boundaries in GeoPackage (expecting one)'
+}
+const ERR_UNREADABLE_RLB = {
+  code: ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY,
+  message: 'Red Line Boundary contains unreadable geometry'
+}
 
 // GeoPackageBinary magic bytes ('G', 'P')
 const GPKG_MAGIC_BYTE_G = 0x47
@@ -190,7 +199,12 @@ describe('validateGpkg when the buffer is not a SQLite database', () => {
 
     expect(result).toEqual({
       valid: false,
-      errors: ['File is not a valid GeoPackage']
+      errors: [
+        {
+          code: ERROR_CODES.GPKG_INVALID_FILE,
+          message: 'File is not a valid GeoPackage'
+        }
+      ]
     })
   })
 })
@@ -201,7 +215,8 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toMatch(
+    expect(result.errors[0].code).toBe(ERROR_CODES.GPKG_NOT_A_GEOPACKAGE)
+    expect(result.errors[0].message).toMatch(
       /application_id 0x0 is not a recognised GeoPackage identifier/
     )
   })
@@ -210,7 +225,8 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
     const result = validateGpkg(buildBuffer({ appId: 12345 }))
 
     expect(result.valid).toBe(false)
-    expect(result.errors[0]).toMatch(
+    expect(result.errors[0].code).toBe(ERROR_CODES.GPKG_NOT_A_GEOPACKAGE)
+    expect(result.errors[0].message).toMatch(
       /application_id.*is not a recognised GeoPackage identifier/
     )
   })
@@ -221,15 +237,19 @@ describe('validateGpkg when required system tables are missing', () => {
     const result = validateGpkg(buildBuffer({ appId: GP10_APP_ID }))
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain(
+    const messages = result.errors.map((e) => e.message)
+    expect(messages).toContain(
       'Missing required GeoPackage system table: gpkg_contents'
     )
-    expect(result.errors).toContain(
+    expect(messages).toContain(
       'Missing required GeoPackage system table: gpkg_geometry_columns'
     )
-    expect(result.errors).toContain(
+    expect(messages).toContain(
       'Missing required GeoPackage system table: gpkg_spatial_ref_sys'
     )
+    for (const err of result.errors) {
+      expect(err.code).toBe(ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE)
+    }
   })
 
   it('reports only the missing table when two of three system tables are present', () => {
@@ -249,9 +269,10 @@ describe('validateGpkg when required system tables are missing', () => {
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(
-      'Missing required GeoPackage system table: gpkg_geometry_columns'
-    )
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE,
+      message: 'Missing required GeoPackage system table: gpkg_geometry_columns'
+    })
   })
 })
 
@@ -266,8 +287,8 @@ describe('validateGpkg when required feature layers are missing', () => {
     )
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain(missingLayerError(LAYER_RLB))
-    expect(result.errors).toContain(missingLayerError(LAYER_HABITATS))
+    expect(result.errors).toContainEqual(missingLayerError(LAYER_RLB))
+    expect(result.errors).toContainEqual(missingLayerError(LAYER_HABITATS))
   })
 
   it('returns an error for each missing layer when none are present', () => {
@@ -276,8 +297,8 @@ describe('validateGpkg when required feature layers are missing', () => {
     )
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain(missingLayerError(LAYER_RLB))
-    expect(result.errors).toContain(missingLayerError(LAYER_HABITATS))
+    expect(result.errors).toContainEqual(missingLayerError(LAYER_RLB))
+    expect(result.errors).toContainEqual(missingLayerError(LAYER_HABITATS))
   })
 
   it('returns an error only for the missing layer when one is present', () => {
@@ -291,7 +312,7 @@ describe('validateGpkg when required feature layers are missing', () => {
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(missingLayerError(LAYER_HABITATS))
+    expect(result.errors[0]).toEqual(missingLayerError(LAYER_HABITATS))
   })
 })
 
@@ -308,9 +329,11 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(
-      'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
-    )
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
+      message:
+        'Red Line Boundary layer has no registered geometry column in gpkg_geometry_columns'
+    })
   })
 
   it('returns a descriptive error for a column name that fails the identifier check', () => {
@@ -325,9 +348,11 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(
-      'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
-    )
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
+      message:
+        'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+    })
   })
 })
 
@@ -344,7 +369,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(ERR_ZERO_RLB)
+    expect(result.errors[0]).toEqual(ERR_ZERO_RLB)
   })
 
   it('returns an error when the only features are non-polygon geometries', () => {
@@ -361,7 +386,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(ERR_ZERO_RLB)
+    expect(result.errors[0]).toEqual(ERR_ZERO_RLB)
   })
 
   it('returns an error when there are multiple polygon features', () => {
@@ -378,9 +403,10 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(
-      'Too many red line boundaries in GeoPackage (expecting one)'
-    )
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS,
+      message: 'Too many red line boundaries in GeoPackage (expecting one)'
+    })
   })
 
   it('does not count non-polygon rows towards the polygon total', () => {
@@ -414,7 +440,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0]).toBe(ERR_UNREADABLE_RLB)
+    expect(result.errors[0]).toEqual(ERR_UNREADABLE_RLB)
   })
 
   it('does not also report a polygon count error when geometry is unreadable', () => {
@@ -429,8 +455,8 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
       })
     )
 
-    expect(result.errors).not.toContain(ERR_ZERO_RLB)
-    expect(result.errors).toContain(ERR_UNREADABLE_RLB)
+    expect(result.errors).not.toContainEqual(ERR_ZERO_RLB)
+    expect(result.errors).toContainEqual(ERR_UNREADABLE_RLB)
   })
 
   it('treats a blob with an out-of-range envelope indicator as unreadable', () => {
@@ -446,7 +472,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
     )
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain(ERR_UNREADABLE_RLB)
+    expect(result.errors).toContainEqual(ERR_UNREADABLE_RLB)
   })
 
   it('treats a blob too short for its declared envelope as unreadable', () => {
@@ -462,7 +488,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
     )
 
     expect(result.valid).toBe(false)
-    expect(result.errors).toContain(ERR_UNREADABLE_RLB)
+    expect(result.errors).toContainEqual(ERR_UNREADABLE_RLB)
   })
 })
 

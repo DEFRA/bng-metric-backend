@@ -47,8 +47,15 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/initiate`
 
+  // cdp-uploader joins s3Path + '/' + uploadId + '/' + fileId, so any trailing
+  // slash on s3Path produces a double slash in the resulting s3Key.
+  let normalisedS3Path = s3Path
+  while (normalisedS3Path?.endsWith('/')) {
+    normalisedS3Path = normalisedS3Path.slice(0, -1)
+  }
+
   logger.info(
-    `Initiating upload - url: ${url}, redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${s3Path}`
+    `Initiating upload - url: ${url}, redirect: ${redirect}, s3Bucket: ${s3Bucket}, s3Path: ${normalisedS3Path}`
   )
 
   try {
@@ -56,7 +63,7 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
       payload: JSON.stringify({
         redirect,
         s3Bucket,
-        s3Path,
+        s3Path: normalisedS3Path,
         metadata
       }),
       headers: {
@@ -90,10 +97,10 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
 }
 
 /**
- * Statuses explicitly returned by CDP Uploader that mean the upload has
- * permanently failed. Note: a connection/network error from getUploadStatus
- * also sets uploadStatus to 'error' but also sets an `error` field — those
- * are transient and should be retried, not treated as terminal.
+ * Statuses CDP Uploader returns when the upload has permanently failed.
+ * A connection / network error from getUploadStatus also produces an 'error'
+ * uploadStatus but additionally sets a `error` field — those are transient
+ * and should be retried, so we check that field separately below.
  */
 const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
 
@@ -101,14 +108,14 @@ const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
  * Poll the CDP Uploader until the upload reaches 'ready' status, then return
  * the S3 location of the uploaded file.
  *
- * Connection errors to the CDP Uploader are treated as transient and retried
- * until the timeout. Only an explicit upload failure status ('rejected') is
- * treated as a permanent failure.
+ * Connection errors are treated as transient and retried until the timeout.
+ * An explicit terminal status (e.g. 'rejected') fails fast — there's no
+ * point waiting 30 s for an answer CDP has already given us.
  *
  * @param {string} uploadId
  * @param {{ timeoutMs?: number, pollIntervalMs?: number }} [options]
  * @returns {Promise<{bucket: string, key: string}>}
- * @throws {UploadFailedError} When CDP Uploader explicitly reports the upload failed
+ * @throws {UploadFailedError} When CDP Uploader reports the upload was rejected
  * @throws {UploadTimeoutError} When the upload does not become ready within timeoutMs
  */
 export async function waitForUploadReady(
@@ -131,11 +138,12 @@ export async function waitForUploadReady(
       return getUploadedFileS3Location(uploadId)
     }
 
-    // statusResult.error means getUploadStatus caught a network/connection error
-    // talking to CDP Uploader — treat as transient and keep retrying.
+    // statusResult.error means getUploadStatus hit a connection problem —
+    // transient, keep retrying. An explicit terminal status with no error
+    // field is a permanent rejection, fail immediately.
     if (!statusResult.error && TERMINAL_FAILURE_STATUSES.has(uploadStatus)) {
       throw new UploadFailedError(
-        `Upload ${uploadId} failed with status: ${uploadStatus}`
+        `Upload ${uploadId} was rejected by CDP Uploader`
       )
     }
 

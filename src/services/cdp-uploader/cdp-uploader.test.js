@@ -83,10 +83,12 @@ describe('initiateUpload', () => {
     expect(Wreck.post).toHaveBeenCalledWith(
       'http://localhost:7337/initiate',
       expect.objectContaining({
+        // Trailing slash on s3Path is stripped to avoid producing s3Keys
+        // with a double slash after cdp-uploader concatenates segments.
         payload: JSON.stringify({
           redirect: '/projects/1/upload-received',
           s3Bucket: S3_BUCKET,
-          s3Path: 'baseline/',
+          s3Path: 'baseline',
           metadata: undefined
         }),
         headers: { 'Content-Type': 'application/json' },
@@ -123,11 +125,13 @@ describe('initiateUpload', () => {
   })
 })
 
-describe('getUploadStatus response fields', () => {
-  beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
-    delete process.env.ENVIRONMENT
-  })
+function stubLocalUploaderUrl() {
+  vi.spyOn(config, 'get').mockReturnValue(null)
+  delete process.env.ENVIRONMENT
+}
+
+describe('getUploadStatus — successful responses', () => {
+  beforeEach(stubLocalUploaderUrl)
 
   it('should return uploadStatus and numberOfRejectedFiles from the response', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
@@ -179,6 +183,10 @@ describe('getUploadStatus response fields', () => {
       errorMessage: 'The selected file contains a virus'
     })
   })
+})
+
+describe('getUploadStatus — fallbacks and failures', () => {
+  beforeEach(stubLocalUploaderUrl)
 
   it('should return null errorMessage when file is rejected but has no errorMessage', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({

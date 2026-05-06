@@ -1,4 +1,6 @@
-import { vi, describe, it, expect, beforeEach } from 'vitest'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
@@ -20,6 +22,10 @@ vi.mock('../services/gpkg/validate-gpkg.js', () => ({
   validateGpkg: vi.fn()
 }))
 
+vi.mock('../validation/baseline/index.js', () => ({
+  validateBaselineFile: vi.fn()
+}))
+
 // Preserve real error classes so instanceof checks in the handler work correctly
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
@@ -31,6 +37,7 @@ const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg } = await import('../services/gpkg/validate-gpkg.js')
+const { validateBaselineFile } = await import('../validation/baseline/index.js')
 const { validateBaseline } = await import('./baseline.js')
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
@@ -39,11 +46,17 @@ const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
+const HTTP_422 = 422
 const HTTP_502 = 502
 const HTTP_504 = 504
 const HTTP_413 = 413
 
-const mockH = { response: vi.fn().mockReturnThis() }
+function makeH() {
+  return {
+    response: vi.fn().mockReturnThis(),
+    code: vi.fn().mockReturnThis()
+  }
+}
 
 describe('validateBaseline route configuration', () => {
   it('is a POST route', () => {
@@ -78,67 +91,102 @@ describe('validateBaseline Joi param validation', () => {
 
 describe('validateBaseline handler happy paths', () => {
   const request = { params: { uploadId: UPLOAD_ID } }
+  let h
 
   beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
     vi.mocked(waitForUploadReady).mockResolvedValue({
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(validateBaselineFile).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
   })
 
   it('waits for the upload to be ready using the uploadId', async () => {
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-
-    await validateBaseline.handler(request, mockH)
+    await validateBaseline.handler(request, h)
 
     expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
   })
 
   it('downloads the file using the resolved bucket and key', async () => {
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-
-    await validateBaseline.handler(request, mockH)
+    await validateBaseline.handler(request, h)
 
     expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
   })
 
-  it('validates the downloaded buffer', async () => {
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-
-    await validateBaseline.handler(request, mockH)
+  it('runs the gpkg gate against the downloaded buffer', async () => {
+    await validateBaseline.handler(request, h)
 
     expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
   })
 
-  it('returns the validation result when valid', async () => {
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  it('runs full baseline validation when the gate passes', async () => {
+    await validateBaseline.handler(request, h)
 
-    await validateBaseline.handler(request, mockH)
-
-    expect(mockH.response).toHaveBeenCalledWith({ valid: true, errors: [] })
+    expect(validateBaselineFile).toHaveBeenCalled()
   })
 
-  it('returns the validation result when invalid', async () => {
-    const validationResult = {
+  it('returns the baseline validation result when valid', async () => {
+    const result = { valid: true, errors: [] }
+    vi.mocked(validateBaselineFile).mockResolvedValue(result)
+
+    await validateBaseline.handler(request, h)
+
+    expect(h.response).toHaveBeenCalledWith(result)
+  })
+
+  it('returns the baseline validation result when invalid', async () => {
+    const result = {
+      valid: false,
+      errors: [
+        {
+          code: 'REDLINE_INVALID_GEOMETRY',
+          message: 'Redline boundary geometry is invalid'
+        }
+      ]
+    }
+    vi.mocked(validateBaselineFile).mockResolvedValue(result)
+
+    await validateBaseline.handler(request, h)
+
+    expect(h.response).toHaveBeenCalledWith(result)
+  })
+
+  it('returns the gate result and skips full validation when the gate fails', async () => {
+    const gateResult = {
       valid: false,
       errors: [
         'Missing required feature layer in GeoPackage: Red Line Boundary'
       ]
     }
-    vi.mocked(validateGpkg).mockReturnValue(validationResult)
+    vi.mocked(validateGpkg).mockReturnValue(gateResult)
 
-    await validateBaseline.handler(request, mockH)
+    await validateBaseline.handler(request, h)
 
-    expect(mockH.response).toHaveBeenCalledWith(validationResult)
+    expect(h.response).toHaveBeenCalledWith(gateResult)
+    expect(validateBaselineFile).not.toHaveBeenCalled()
   })
 })
 
 describe('validateBaseline handler upload error handling', () => {
   const request = { params: { uploadId: UPLOAD_ID } }
+  let h
 
   beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(validateBaselineFile).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
   })
 
   describe('when waitForUploadReady throws an UploadTimeoutError', () => {
@@ -147,7 +195,7 @@ describe('validateBaseline handler upload error handling', () => {
         new UploadTimeoutError('timed out')
       )
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_504)
@@ -156,16 +204,16 @@ describe('validateBaseline handler upload error handling', () => {
   })
 
   describe('when waitForUploadReady throws an UploadFailedError', () => {
-    it(THROWS_502, async () => {
+    it('throws a 422 Unprocessable Entity', async () => {
       vi.mocked(waitForUploadReady).mockRejectedValue(
         new UploadFailedError('rejected')
       )
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
-      expect(err.output.statusCode).toBe(HTTP_502)
-      expect(err.message).toBe('Upload failed or was rejected')
+      expect(err.output.statusCode).toBe(HTTP_422)
+      expect(err.message).toBe('Upload was rejected')
     })
   })
 
@@ -173,7 +221,7 @@ describe('validateBaseline handler upload error handling', () => {
     it(THROWS_502, async () => {
       vi.mocked(waitForUploadReady).mockRejectedValue(new Error('unexpected'))
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_502)
@@ -184,7 +232,7 @@ describe('validateBaseline handler upload error handling', () => {
         new Error('Upload not ready')
       )
 
-      await validateBaseline.handler(request, mockH).catch(() => {})
+      await validateBaseline.handler(request, h).catch(() => {})
 
       expect(downloadFile).not.toHaveBeenCalled()
     })
@@ -193,11 +241,19 @@ describe('validateBaseline handler upload error handling', () => {
 
 describe('validateBaseline handler download error handling', () => {
   const request = { params: { uploadId: UPLOAD_ID } }
+  let h
 
   beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
     vi.mocked(waitForUploadReady).mockResolvedValue({
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
+    })
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(validateBaselineFile).mockResolvedValue({
+      valid: true,
+      errors: []
     })
   })
 
@@ -207,7 +263,7 @@ describe('validateBaseline handler download error handling', () => {
         new S3FileTooLargeError('too big')
       )
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_413)
@@ -219,7 +275,7 @@ describe('validateBaseline handler download error handling', () => {
     it('throws a 504 Gateway Timeout', async () => {
       vi.mocked(downloadFile).mockRejectedValue(new S3TimeoutError('timed out'))
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_504)
@@ -233,7 +289,7 @@ describe('validateBaseline handler download error handling', () => {
         new S3ConnectionError('connection refused')
       )
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_502)
@@ -245,10 +301,40 @@ describe('validateBaseline handler download error handling', () => {
     it(THROWS_502, async () => {
       vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
 
-      const err = await validateBaseline.handler(request, mockH).catch((e) => e)
+      const err = await validateBaseline.handler(request, h).catch((e) => e)
 
       expect(err.isBoom).toBe(true)
       expect(err.output.statusCode).toBe(HTTP_502)
     })
+  })
+})
+
+describe('validateBaseline handler full validation error handling', () => {
+  const request = { params: { uploadId: UPLOAD_ID } }
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY
+    })
+    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  })
+
+  it('returns 500 when validateBaselineFile throws', async () => {
+    vi.mocked(validateBaselineFile).mockRejectedValue(new Error('boom'))
+
+    await validateBaseline.handler(request, h)
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [expect.objectContaining({ code: 'VALIDATION_FAILED' })]
+      })
+    )
   })
 })

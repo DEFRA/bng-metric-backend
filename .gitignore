@@ -1,6 +1,7 @@
 .DS_Store
 .npm/
-.vscode
+.vscode/*
+!.vscode/extensions.json
 .idea
 .server
 node_modules
