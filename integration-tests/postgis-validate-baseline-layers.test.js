@@ -188,15 +188,21 @@ const IGGI_ESCAPE_1_SQM = [
 
 const WGS84_SRID = 4326
 
-// Small square in WGS84 lat/lon over central London — well inside the England
-// reference polygon. Used to exercise the in-query ST_Transform(... 27700)
-// reprojection path; the BNG-only fixtures above never hit it.
+// Origin of the WGS84 test square — central London, well inside the England
+// reference polygon. Lon/lat in degrees (note: GeoJSON puts lon first).
+const LONDON_LON = -0.105
+const LONDON_LAT = 51.515
+const LONDON_EDGE_DEG = 0.001
+
+// Small square in WGS84 lat/lon. Used to exercise the in-query
+// ST_Transform(... 27700) reprojection path; the BNG-only fixtures above
+// never hit it.
 const WGS84_SQUARE = [
-  [-0.105, 51.515],
-  [-0.104, 51.515],
-  [-0.104, 51.516],
-  [-0.105, 51.516],
-  [-0.105, 51.515]
+  [LONDON_LON, LONDON_LAT],
+  [LONDON_LON + LONDON_EDGE_DEG, LONDON_LAT],
+  [LONDON_LON + LONDON_EDGE_DEG, LONDON_LAT + LONDON_EDGE_DEG],
+  [LONDON_LON, LONDON_LAT + LONDON_EDGE_DEG],
+  [LONDON_LON, LONDON_LAT]
 ]
 
 function polyAtSrid(ring, srid) {
