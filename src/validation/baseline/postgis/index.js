@@ -19,6 +19,40 @@ const englandGeoJson = JSON.parse(
 )
 const ENGLAND_GEOMETRY_JSON = JSON.stringify(englandGeoJson.geometry)
 
+// Tolerance / threshold constants — interpolated into CHECK_QUERY at module
+// load time (they're static JS values, not user input, so direct string
+// interpolation is safe and makes the SQL self-documenting).
+
+const SLIVER_THRESHOLD_SQ_M = 1
+const OVERLAP_TOLERANCE_SQ_M = 0.5
+const AREA_SUM_TOLERANCE_SQ_M = 0.5
+const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
+
+// Tolerance for the "parcel falls outside the redline" check. We compare the
+// area of the difference rather than relying on a Boolean predicate so that
+// parcels sharing boundary edges with the redline (the normal case) aren't
+// false-positive-flagged by GEOS robustness wobbles on shared vertices.
+const PARCEL_OUTSIDE_TOLERANCE_SQ_M = 0.5
+
+// gridSize for PostGIS overlay ops (ST_Difference / ST_Intersection). With a
+// fixed-precision grid GEOS computes overlays in deterministic integer
+// arithmetic, eliminating the floating-point ghost components that otherwise
+// turn shared-edge tilings into spurious zero-area slivers.
+const OVERLAY_GRID_SIZE_M = 0.001
+
+// Tolerance for boundary-grazing linear and point features. For lines: the
+// total length lying outside the redline must exceed this before the feature
+// is flagged. For points: the perpendicular distance to the redline must
+// exceed this. Same numeric value because both serve the same purpose —
+// allowing features that QGIS has snapped to the redline edge.
+const OUTSIDE_BOUNDARY_TOLERANCE_M = 0.1
+
+// Tolerance for "redline outside England". The reference England polygon's
+// coastline isn't perfectly aligned with any digitised redline, so a strict
+// ST_Within trips on sub-mm numerical noise; same area-difference pattern as
+// the habitat-parcel-outside-redline check.
+const REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M = 0.5
+
 // Baseline geometry validation, run as a single PostGIS statement. Features
 // are passed in as parallel arrays of GeoJSON strings ($1..$5), parsed and
 // reprojected to EPSG:27700 inside the query, used for every spatial check,
@@ -31,14 +65,10 @@ const ENGLAND_GEOMETRY_JSON = JSON.stringify(englandGeoJson.geometry)
 //   $4  text[]   feature geometry as GeoJSON strings
 //   $5  int[]    native SRID per feature (geometry reprojected to 27700)
 //   $6  text     England reference polygon as GeoJSON (EPSG:4326)
-//   $7  numeric  SLIVER_THRESHOLD_SQ_M           — slivers smaller than this are ignored as GEOS noise
-//   $8  numeric  OVERLAP_TOLERANCE_SQ_M          — parcel-pair intersections smaller than this aren't overlaps
-//   $9  numeric  AREA_SUM_TOLERANCE_SQ_M         — habitat-sum vs. redline-area mismatch tolerance
-//   $10 numeric  MAX_REDLINE_AREA_SQ_M           — hard cap on redline area (100 sq km)
-//   $11 numeric  OVERLAY_GRID_SIZE_M             — fixed-precision grid for ST_Difference / ST_Intersection
-//   $12 numeric  PARCEL_OUTSIDE_TOLERANCE_SQ_M   — area-difference tolerance for "parcel outside redline"
-//   $13 numeric  OUTSIDE_BOUNDARY_TOLERANCE_M    — tolerance for boundary-grazing linear/point features (length-of-difference for lines, perpendicular distance for points)
-//   $14 numeric  REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M — area-difference tolerance for "redline outside England"
+//
+// All numeric tolerances are interpolated as JS template values directly
+// into the query (see the constants above) so each check reads as
+// `> PARCEL_OUTSIDE_TOLERANCE_SQ_M` rather than `> $12`.
 //
 // Output: one row per triggered error code, with `code` (text) and `payload`
 // (jsonb). The NodeJS side maps each row through ERROR_BUILDERS and orders them
@@ -92,7 +122,7 @@ c_habitats_total AS (
 c_redline_outside_england AS (
   SELECT 1 AS hit
   FROM redline feat, england engl
-  WHERE ST_Area(ST_Difference(ST_MakeValid(feat.geom), engl.geom, $11)) > $14
+  WHERE ST_Area(ST_Difference(ST_MakeValid(feat.geom), engl.geom, ${OVERLAY_GRID_SIZE_M})) > ${REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M}
   LIMIT 1
 ),
 -- Invalid redline geometry. ST_IsValid catches self-intersection, ring
@@ -116,7 +146,7 @@ c_overlap_offending AS (
   SELECT 1 AS hit
   FROM areas prc1 JOIN areas prc2
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
-  WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), $11)) > $8
+  WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
   LIMIT 1
 ),
 -- Slivers: gaps inside the redline not covered by any habitat parcel,
@@ -125,11 +155,11 @@ c_overlap_offending AS (
 c_slivers AS (
   SELECT 1 AS hit
   FROM (
-    SELECT (ST_Dump(ST_Difference(redl.geom, parc.geom, $11))).geom AS g
+    SELECT (ST_Dump(ST_Difference(redl.geom, parc.geom, ${OVERLAY_GRID_SIZE_M}))).geom AS g
     FROM redline_union redl CROSS JOIN parcels_union parc
     WHERE redl.geom IS NOT NULL AND parc.geom IS NOT NULL
   ) leftover
-  WHERE ST_Area(g) > 0 AND ST_Area(g) < $7
+  WHERE ST_Area(g) > 0 AND ST_Area(g) < ${SLIVER_THRESHOLD_SQ_M}
   LIMIT 1
 ),
 -- Habitat parcels that fall (partially) outside the redline.
@@ -140,7 +170,7 @@ c_slivers AS (
 c_areas_outside AS (
   SELECT 1 AS hit FROM areas feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
-    AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, $11)) > $12
+    AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
   LIMIT 1
 ),
 -- Linear habitat layers (hedgerows, watercourses) that fall outside the redline.
@@ -155,23 +185,23 @@ c_areas_outside AS (
 c_hedgerows_outside AS (
   SELECT 1 AS hit FROM hedgerows feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
-    AND ST_Length(ST_Difference(feat.geom, redl.geom, $11)) > $13
+    AND ST_Length(ST_Difference(feat.geom, redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${OUTSIDE_BOUNDARY_TOLERANCE_M}
   LIMIT 1
 ),
 c_watercourses_outside AS (
   SELECT 1 AS hit FROM watercourses feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
-    AND ST_Length(ST_Difference(feat.geom, redl.geom, $11)) > $13
+    AND ST_Length(ST_Difference(feat.geom, redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${OUTSIDE_BOUNDARY_TOLERANCE_M}
   LIMIT 1
 ),
 -- IGGIs (polygons in current uploads): same shape as c_areas_outside.
 -- In plain English: subtract the redline from each IGGI; flag if the area of
 -- whatever's left exceeds the tolerance. Reuses PARCEL_OUTSIDE_TOLERANCE_SQ_M
--- ($12) because both are area features sharing edges with the redline.
+-- because both are area features sharing edges with the redline.
 c_iggis_outside AS (
   SELECT 1 AS hit FROM iggis feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
-    AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, $11)) > $12
+    AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
   LIMIT 1
 ),
 -- Trees are points.
@@ -182,7 +212,7 @@ c_iggis_outside AS (
 -- a point has no interior to intersect the polygon's interior.)
 c_trees_outside AS (
   SELECT 1 AS hit FROM trees feat CROSS JOIN redline_union redl
-  WHERE redl.geom IS NOT NULL AND NOT ST_DWithin(feat.geom, redl.geom, $13)
+  WHERE redl.geom IS NOT NULL AND NOT ST_DWithin(feat.geom, redl.geom, ${OUTSIDE_BOUNDARY_TOLERANCE_M})
   LIMIT 1
 )
 
@@ -197,7 +227,7 @@ SELECT 'REDLINE_OUTSIDE_ENGLAND' AS code, '{}'::jsonb AS payload
 FROM c_redline_outside_england
 UNION ALL
 SELECT 'REDLINE_AREA_TOO_LARGE', jsonb_build_object('total', total)
-FROM c_redline_total WHERE total > $10
+FROM c_redline_total WHERE total > ${MAX_REDLINE_AREA_SQ_M}
 UNION ALL
 SELECT 'NO_HABITAT_AREAS', '{}'::jsonb
 FROM c_habitats_total WHERE n = 0
@@ -233,7 +263,7 @@ UNION ALL
 SELECT 'AREA_SUM_MISMATCH',
        jsonb_build_object('redline_total', rtot.total, 'habitats_total', htot.total)
 FROM c_redline_total rtot CROSS JOIN c_habitats_total htot
-WHERE rtot.n > 0 AND htot.n > 0 AND abs(rtot.total - htot.total) > $9
+WHERE rtot.n > 0 AND htot.n > 0 AND abs(rtot.total - htot.total) > ${AREA_SUM_TOLERANCE_SQ_M}
 `
 
 const LAYER_NAMES = [
@@ -244,36 +274,6 @@ const LAYER_NAMES = [
   'iggis',
   'trees'
 ]
-
-const SLIVER_THRESHOLD_SQ_M = 1
-const OVERLAP_TOLERANCE_SQ_M = 0.5
-const AREA_SUM_TOLERANCE_SQ_M = 0.5
-const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
-
-// Tolerance for the "parcel falls outside the redline" check. We compare the
-// area of the difference rather than relying on a Boolean predicate so that
-// parcels sharing boundary edges with the redline (the normal case) aren't
-// false-positive-flagged by GEOS robustness wobbles on shared vertices.
-const PARCEL_OUTSIDE_TOLERANCE_SQ_M = 0.5
-
-// gridSize for PostGIS overlay ops (ST_Difference / ST_Intersection). With a
-// fixed-precision grid GEOS computes overlays in deterministic integer
-// arithmetic, eliminating the floating-point ghost components that otherwise
-// turn shared-edge tilings into spurious zero-area slivers.
-const OVERLAY_GRID_SIZE_M = 0.001
-
-// Tolerance for boundary-grazing linear and point features. For lines: the
-// total length lying outside the redline must exceed this before the feature
-// is flagged. For points: the perpendicular distance to the redline must
-// exceed this. Same numeric value because both serve the same purpose —
-// allowing features that QGIS has snapped to the redline edge.
-const OUTSIDE_BOUNDARY_TOLERANCE_M = 0.1
-
-// Tolerance for "redline outside England". The reference England polygon's
-// coastline isn't perfectly aligned with any digitised redline, so a strict
-// ST_Within trips on sub-mm numerical noise; same area-difference pattern as
-// the habitat-parcel-outside-redline check.
-const REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M = 0.5
 
 // Order matches the Turf-engine sequence so error output is stable across
 // engines.
@@ -335,15 +335,7 @@ export async function validateBaselineLayersPostgis(pool, layers) {
     props,
     geoms,
     srids,
-    ENGLAND_GEOMETRY_JSON,
-    SLIVER_THRESHOLD_SQ_M,
-    OVERLAP_TOLERANCE_SQ_M,
-    AREA_SUM_TOLERANCE_SQ_M,
-    MAX_REDLINE_AREA_SQ_M,
-    OVERLAY_GRID_SIZE_M,
-    PARCEL_OUTSIDE_TOLERANCE_SQ_M,
-    OUTSIDE_BOUNDARY_TOLERANCE_M,
-    REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M
+    ENGLAND_GEOMETRY_JSON
   ])
 
   const byCode = new Map()

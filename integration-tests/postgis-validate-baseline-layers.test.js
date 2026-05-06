@@ -142,6 +142,42 @@ const LINE_SPANNING = [
 ]
 const POINT_OUTSIDE = [X0 - EDGE, Y0 - EDGE]
 
+// Tolerance-boundary fixtures: each one sits a known distance / area off the
+// SQUARE redline so the test can assert behaviour either side of the
+// OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) and PARCEL_OUTSIDE_TOLERANCE_SQ_M
+// (0.5 sq m) thresholds defined in postgis/index.js.
+
+// Hedgerow inside SQUARE whose endpoint lies exactly on the east edge.
+const HEDGE_ENDPOINT_ON_BOUNDARY = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE, Y0 + HALF]
+]
+// 5 cm past the east edge — under the 10 cm tolerance.
+const HEDGE_ESCAPE_5CM = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE + 0.05, Y0 + HALF]
+]
+// 50 cm past the east edge — over the 10 cm tolerance.
+const HEDGE_ESCAPE_50CM = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE + 0.5, Y0 + HALF]
+]
+
+// Tree exactly on the east edge of SQUARE.
+const TREE_ON_BOUNDARY = [X0 + EDGE, Y0 + HALF]
+// Tree 50 cm outside the east edge.
+const TREE_50CM_OUTSIDE = [X0 + EDGE + 0.5, Y0 + HALF]
+
+// IGGI sitting wholly outside the east edge: 1 m × 1 m = 1 sq m escape, over
+// the 0.5 sq m tolerance.
+const IGGI_ESCAPE_1_SQM = [
+  [X0 + EDGE, Y0 + HALF],
+  [X0 + EDGE + 1, Y0 + HALF],
+  [X0 + EDGE + 1, Y0 + HALF + 1],
+  [X0 + EDGE, Y0 + HALF + 1],
+  [X0 + EDGE, Y0 + HALF]
+]
+
 function makeLayers(overrides = {}) {
   return {
     redline: [],
@@ -291,5 +327,74 @@ describe('validateBaselineLayersPostgis — non-area layers outside redline', ()
       makeLayers({ ...baseValidLayers, trees: [point(POINT_OUTSIDE)] })
     )
     expect(codes).toContain('TREES_OUTSIDE_REDLINE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () => {
+  const baseValidLayers = {
+    redline: [poly(SQUARE)],
+    areas: [poly(SQUARE)]
+  }
+
+  it('passes a hedgerow whose endpoint lies exactly on the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        ...baseValidLayers,
+        hedgerows: [line(HEDGE_ENDPOINT_ON_BOUNDARY)]
+      })
+    )
+    expect(codes).not.toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('passes a hedgerow escaping the redline by 5 cm (under 10 cm tolerance)', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, hedgerows: [line(HEDGE_ESCAPE_5CM)] })
+    )
+    expect(codes).not.toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('flags a hedgerow escaping the redline by 50 cm', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, hedgerows: [line(HEDGE_ESCAPE_50CM)] })
+    )
+    expect(codes).toContain('HEDGEROWS_OUTSIDE_REDLINE')
+  })
+
+  it('flags a watercourse escaping the redline by 50 cm', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        ...baseValidLayers,
+        watercourses: [line(HEDGE_ESCAPE_50CM)]
+      })
+    )
+    expect(codes).toContain('WATERCOURSES_OUTSIDE_REDLINE')
+  })
+
+  it('passes a tree placed exactly on the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, trees: [point(TREE_ON_BOUNDARY)] })
+    )
+    expect(codes).not.toContain('TREES_OUTSIDE_REDLINE')
+  })
+
+  it('flags a tree 50 cm outside the redline edge', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, trees: [point(TREE_50CM_OUTSIDE)] })
+    )
+    expect(codes).toContain('TREES_OUTSIDE_REDLINE')
+  })
+
+  it('passes an IGGI sharing an edge with the redline (HALF_SQUARE inside SQUARE)', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, iggis: [poly(HALF_SQUARE)] })
+    )
+    expect(codes).not.toContain('IGGIS_OUTSIDE_REDLINE')
+  })
+
+  it('flags an IGGI escaping the redline by 1 sq m', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ ...baseValidLayers, iggis: [poly(IGGI_ESCAPE_1_SQM)] })
+    )
+    expect(codes).toContain('IGGIS_OUTSIDE_REDLINE')
   })
 })
