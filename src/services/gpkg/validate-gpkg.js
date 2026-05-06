@@ -169,6 +169,11 @@ function validateGpkg(buffer) {
       validateRedLineBoundary(db, errors)
     }
 
+    // 5. Habitats must contain at least one area (polygon) habitat parcel
+    if (contentTables.has('habitats')) {
+      validateHabitats(db, errors)
+    }
+
     const valid = errors.length === 0
     logger.info(
       `validateGpkg: valid=${valid}, errors=${JSON.stringify(errors)}`
@@ -317,6 +322,83 @@ function validateRedLineBoundary(db, errors) {
     )
   } else {
     // exactly one polygon — valid
+  }
+}
+
+/**
+ * Validates that the Habitats layer contains at least one area (polygon)
+ * habitat parcel. Pushes an error if the geometry column is missing, invalid,
+ * unreadable, or the polygon count is zero.
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ */
+function validateHabitats(db, errors) {
+  const { table_name: habitatsTableName } = db
+    .prepare(
+      "SELECT table_name FROM gpkg_contents WHERE lower(table_name) = 'habitats' AND data_type = 'features'"
+    )
+    .get()
+  const geomRow = db
+    .prepare(
+      "SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = 'habitats'"
+    )
+    .get()
+
+  if (!geomRow) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_HABITATS_NO_GEOMETRY_COLUMN,
+        'Habitats layer has no registered geometry column in gpkg_geometry_columns'
+      )
+    )
+    return
+  }
+  if (!/^[A-Za-z_]\w*$/.test(geomRow.column_name)) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_HABITATS_INVALID_GEOMETRY_COLUMN_NAME,
+        'Habitats geometry column has an invalid name in gpkg_geometry_columns'
+      )
+    )
+    return
+  }
+
+  const col = geomRow.column_name
+  // Double any " in the table name so a crafted gpkg_contents.table_name
+  // can't break out of the identifier quoting. col is already regex-validated above.
+  const safeTable = habitatsTableName.replaceAll('"', '""')
+  const rows = db
+    .prepare(
+      `SELECT "${col}" AS geom FROM "${safeTable}" WHERE "${col}" IS NOT NULL`
+    )
+    .all()
+
+  const unreadableCount = rows.filter(
+    (row) => getWkbType(row.geom) === null
+  ).length
+  if (unreadableCount > 0) {
+    logger.warn(
+      `validateGpkg: ${unreadableCount} unreadable geometry blob(s) in Habitats (table: ${habitatsTableName})`
+    )
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_HABITATS_UNREADABLE_GEOMETRY,
+        'Habitats contains unreadable geometry'
+      )
+    )
+    return
+  }
+
+  const polygonCount = rows.filter((row) =>
+    POLYGON_WKB_TYPES.has(getWkbType(row.geom))
+  ).length
+  if (polygonCount === 0) {
+    errors.push(
+      makeError(
+        ERROR_CODES.NO_HABITAT_AREAS,
+        'Zero area habitat parcels in GeoPackage (expecting at least one)'
+      )
+    )
   }
 }
 

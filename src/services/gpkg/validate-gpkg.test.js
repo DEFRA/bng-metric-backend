@@ -25,6 +25,14 @@ const ERR_UNREADABLE_RLB = {
   code: ERROR_CODES.GPKG_RLB_UNREADABLE_GEOMETRY,
   message: 'Red Line Boundary contains unreadable geometry'
 }
+const ERR_ZERO_HABITATS = {
+  code: ERROR_CODES.NO_HABITAT_AREAS,
+  message: 'Zero area habitat parcels in GeoPackage (expecting at least one)'
+}
+const ERR_UNREADABLE_HABITATS = {
+  code: ERROR_CODES.GPKG_HABITATS_UNREADABLE_GEOMETRY,
+  message: 'Habitats contains unreadable geometry'
+}
 
 // GeoPackageBinary magic bytes ('G', 'P')
 const GPKG_MAGIC_BYTE_G = 0x47
@@ -88,10 +96,10 @@ const makeTruncatedEnvelopeBlob = () =>
  * @param {Record<string, Buffer[]>} [opts.layerFeatures={}]
  *   Map of layer name to array of geometry blobs to insert.
  *   Defaults to one polygon per layer when not specified.
- * @param {string|null} [opts.rlbGeomColumnName]
- *   Override the geometry column name registered for Red Line Boundary in
- *   gpkg_geometry_columns. Set to null to omit the row entirely.
- *   Defaults to 'geom' (same as all other feature layers).
+ * @param {Record<string, string|null>} [opts.geomColumnNames={}]
+ *   Map of lower-cased layer name to the geometry column name registered in
+ *   gpkg_geometry_columns. Set the value to null to omit the row entirely.
+ *   Layers not in the map default to 'geom'.
  */
 function buildBuffer({
   appId = 0,
@@ -99,14 +107,14 @@ function buildBuffer({
   featureLayers = [],
   nonFeatureLayers = [],
   layerFeatures = {},
-  rlbGeomColumnName = 'geom'
+  geomColumnNames = {}
 } = {}) {
   const db = new Database(':memory:')
   db.pragma(`application_id = ${appId}`)
 
   if (systemTables) {
     createSystemTables(db)
-    insertFeatureLayers(db, featureLayers, layerFeatures, rlbGeomColumnName)
+    insertFeatureLayers(db, featureLayers, layerFeatures, geomColumnNames)
     insertNonFeatureLayers(db, nonFeatureLayers)
   }
 
@@ -154,7 +162,7 @@ function insertFeatureLayers(
   db,
   featureLayers,
   layerFeatures,
-  rlbGeomColumnName
+  geomColumnNames
 ) {
   for (const layer of featureLayers) {
     db.exec(`CREATE TABLE "${layer}" (id INTEGER PRIMARY KEY, geom BLOB)`)
@@ -162,11 +170,8 @@ function insertFeatureLayers(
       `INSERT INTO gpkg_contents (table_name, data_type, identifier)
        VALUES (?, 'features', ?)`
     ).run(layer, layer)
-    const colName =
-      layer.toLowerCase() === 'red line boundary' &&
-      rlbGeomColumnName !== 'geom'
-        ? rlbGeomColumnName
-        : 'geom'
+    const key = layer.toLowerCase()
+    const colName = key in geomColumnNames ? geomColumnNames[key] : 'geom'
     if (colName !== null) {
       db.prepare(
         `INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m)
@@ -323,7 +328,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
-        rlbGeomColumnName: null
+        geomColumnNames: { 'red line boundary': null }
       })
     )
 
@@ -342,7 +347,9 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
-        rlbGeomColumnName: 'geom"; DROP TABLE "Red Line Boundary"; --'
+        geomColumnNames: {
+          'red line boundary': 'geom"; DROP TABLE "Red Line Boundary"; --'
+        }
       })
     )
 
@@ -489,6 +496,163 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 
     expect(result.valid).toBe(false)
     expect(result.errors).toContainEqual(ERR_UNREADABLE_RLB)
+  })
+})
+
+describe('validateGpkg when the Habitats geometry column is missing or invalid', () => {
+  it('returns a descriptive error when there is no registered geometry column', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        geomColumnNames: { habitats: null }
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_HABITATS_NO_GEOMETRY_COLUMN,
+      message:
+        'Habitats layer has no registered geometry column in gpkg_geometry_columns'
+    })
+  })
+
+  it('returns a descriptive error for a column name that fails the identifier check', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        geomColumnNames: {
+          habitats: 'geom"; DROP TABLE "Habitats"; --'
+        }
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual({
+      code: ERROR_CODES.GPKG_HABITATS_INVALID_GEOMETRY_COLUMN_NAME,
+      message:
+        'Habitats geometry column has an invalid name in gpkg_geometry_columns'
+    })
+  })
+})
+
+describe('validateGpkg when the Habitats layer has zero area habitat parcels', () => {
+  it('returns an error when there are no features at all', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: { [LAYER_HABITATS]: [] }
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual(ERR_ZERO_HABITATS)
+  })
+
+  it('returns an error when the only features are non-polygon geometries', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: {
+          [LAYER_HABITATS]: [makeLineString(), makePoint()]
+        }
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual(ERR_ZERO_HABITATS)
+  })
+
+  it('is valid with multiple polygon features (unlike RLB)', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: {
+          [LAYER_HABITATS]: [makePolygon(), makePolygon(), makePolygon()]
+        }
+      })
+    )
+
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it('counts polygons even when mixed with non-polygon rows', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: {
+          [LAYER_HABITATS]: [makePolygon(), makeLineString()]
+        }
+      })
+    )
+
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+})
+
+describe('validateGpkg when the Habitats layer contains unreadable geometry', () => {
+  it('returns an error when any geometry blob is unreadable', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: {
+          [LAYER_HABITATS]: [makePolygon(), makeCorruptBlob()]
+        }
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual(ERR_UNREADABLE_HABITATS)
+  })
+
+  it('does not also report a zero-parcel error when geometry is unreadable', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS,
+        layerFeatures: {
+          [LAYER_HABITATS]: [makeCorruptBlob()]
+        }
+      })
+    )
+
+    expect(result.errors).not.toContainEqual(ERR_ZERO_HABITATS)
+    expect(result.errors).toContainEqual(ERR_UNREADABLE_HABITATS)
+  })
+})
+
+describe('validateGpkg when the Habitats layer is missing entirely', () => {
+  it('reports only the missing-layer error and does not also flag zero parcels', () => {
+    const result = validateGpkg(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: [LAYER_RLB]
+      })
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toContainEqual(missingLayerError(LAYER_HABITATS))
+    expect(result.errors).not.toContainEqual(ERR_ZERO_HABITATS)
   })
 })
 
