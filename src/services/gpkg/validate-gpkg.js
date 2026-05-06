@@ -347,6 +347,8 @@ function validateRedLineBoundary(db, errors) {
         'Too many red line boundaries in GeoPackage (expecting one)'
       )
     )
+  } else {
+    // exactly one polygon — valid
   }
 }
 
