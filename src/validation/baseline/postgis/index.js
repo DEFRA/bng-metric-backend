@@ -84,10 +84,11 @@ c_redline_total AS (
 c_habitats_total AS (
   SELECT COALESCE(SUM(ST_Area(geom)), 0) AS total, COUNT(*) AS n FROM areas
 ),
--- Redline must lie wholly within England. Compares an area-of-difference
--- against a tolerance rather than a strict ST_Within so coastline-adjacent
--- redlines aren't tripped by sub-millimetre numerical noise on the shared
--- coastline edge.
+-- Redline must lie wholly within England.
+-- In plain English: subtract England from the redline; whatever's left is the
+-- redline's escaping bit. Flag if its area exceeds the tolerance.
+-- (Area-of-difference rather than strict ST_Within so coastline-adjacent
+-- redlines aren't tripped by sub-millimetre numerical noise on the shared edge.)
 c_redline_outside_england AS (
   SELECT 1 AS hit
   FROM redline feat, england engl
@@ -131,21 +132,26 @@ c_slivers AS (
   WHERE ST_Area(g) > 0 AND ST_Area(g) < $7
   LIMIT 1
 ),
--- Habitat parcels that fall (partially) outside the redline. Compares an area
--- difference rather than ST_Within so parcels sharing boundary edges with the
--- redline aren't false-flagged by GEOS robustness wobbles on shared vertices.
+-- Habitat parcels that fall (partially) outside the redline.
+-- In plain English: subtract the redline from each parcel; whatever's left is
+-- the parcel's escaping bit. Flag if its area exceeds the tolerance.
+-- (Area-of-difference rather than strict ST_Within so parcels sharing boundary
+-- edges with the redline aren't false-flagged by GEOS robustness wobbles.)
 c_areas_outside AS (
   SELECT 1 AS hit FROM areas feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
     AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, $11)) > $12
   LIMIT 1
 ),
--- Linear habitat layers: compare a length-of-difference rather than ST_Within so
--- lines whose endpoints sit on the redline boundary aren't false-flagged by GEOS
--- robustness wobbles (a vertex one ULP — Unit in the Last Place, the smallest
--- representable float gap, ~6e-11 m at British National Grid / EPSG:27700
--- coordinate magnitudes — outside the edge gives ST_Within=false even though
--- the geometric distance is zero). Threshold via OUTSIDE_BOUNDARY_TOLERANCE_M.
+-- Linear habitat layers (hedgerows, watercourses) that fall outside the redline.
+-- In plain English: subtract the redline polygon from the feature line; whatever's
+-- left is the bit of the line that escapes. Flag if its length exceeds
+-- OUTSIDE_BOUNDARY_TOLERANCE_M.
+-- (Length-of-difference rather than strict ST_Within so lines whose endpoints sit
+-- on the redline boundary aren't false-flagged by GEOS robustness wobbles — a
+-- vertex one ULP (Unit in the Last Place, the smallest representable float gap,
+-- ~6e-11 m at British National Grid / EPSG:27700 magnitudes) outside the edge
+-- gives ST_Within=false even though the geometric distance is zero.)
 c_hedgerows_outside AS (
   SELECT 1 AS hit FROM hedgerows feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
@@ -158,19 +164,22 @@ c_watercourses_outside AS (
     AND ST_Length(ST_Difference(feat.geom, redl.geom, $11)) > $13
   LIMIT 1
 ),
--- IGGIs are polygons in current uploads, so they get the same area-difference
--- treatment as habitat parcels — reusing PARCEL_OUTSIDE_TOLERANCE_SQ_M ($12)
--- because both are area features sharing edges with the redline.
+-- IGGIs (polygons in current uploads): same shape as c_areas_outside.
+-- In plain English: subtract the redline from each IGGI; flag if the area of
+-- whatever's left exceeds the tolerance. Reuses PARCEL_OUTSIDE_TOLERANCE_SQ_M
+-- ($12) because both are area features sharing edges with the redline.
 c_iggis_outside AS (
   SELECT 1 AS hit FROM iggis feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
     AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, $11)) > $12
   LIMIT 1
 ),
--- Trees are points. ST_Within is FALSE for any point exactly on the redline
--- edge (a point has no interior to intersect the polygon's interior), so we
--- use ST_DWithin to allow points up to OUTSIDE_BOUNDARY_TOLERANCE_M from the
--- redline.
+-- Trees are points.
+-- In plain English: ST_DWithin(point, polygon, tol) is true if the point is
+-- inside, on the boundary, or within tol metres outside. Flag any tree
+-- where it's false.
+-- (ST_Within alone returns FALSE for any point exactly on the boundary —
+-- a point has no interior to intersect the polygon's interior.)
 c_trees_outside AS (
   SELECT 1 AS hit FROM trees feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL AND NOT ST_DWithin(feat.geom, redl.geom, $13)
