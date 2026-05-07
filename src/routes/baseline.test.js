@@ -26,6 +26,15 @@ vi.mock('../validation/baseline/index.js', () => ({
   validateBaselineFile: vi.fn()
 }))
 
+vi.mock('node:fs/promises', () => {
+  const fs = {
+    mkdtemp: vi.fn(),
+    writeFile: vi.fn().mockResolvedValue(undefined),
+    rm: vi.fn().mockResolvedValue(undefined)
+  }
+  return { default: fs, ...fs }
+})
+
 // Preserve real error classes so instanceof checks in the handler work correctly
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
@@ -38,6 +47,7 @@ const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg } = await import('../services/gpkg/validate-gpkg.js')
 const { validateBaselineFile } = await import('../validation/baseline/index.js')
+const fs = (await import('node:fs/promises')).default
 const { validateBaseline } = await import('./baseline.js')
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
@@ -89,6 +99,8 @@ describe('validateBaseline Joi param validation', () => {
   })
 })
 
+const MOCK_TMP_DIR = '/tmp/baseline-test'
+
 describe('validateBaseline handler happy paths', () => {
   const request = { params: { uploadId: UPLOAD_ID } }
   let h
@@ -106,6 +118,7 @@ describe('validateBaseline handler happy paths', () => {
       valid: true,
       errors: []
     })
+    vi.mocked(fs.mkdtemp).mockResolvedValue(MOCK_TMP_DIR)
   })
 
   it('waits for the upload to be ready using the uploadId', async () => {
@@ -120,10 +133,12 @@ describe('validateBaseline handler happy paths', () => {
     expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
   })
 
-  it('runs the gpkg gate against the downloaded buffer', async () => {
+  it('runs the gpkg gate against the staged file', async () => {
     await validateBaseline.handler(request, h)
 
-    expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
+    expect(validateGpkg).toHaveBeenCalledWith(
+      expect.stringMatching(/baseline\.gpkg$/)
+    )
   })
 
   it('runs full baseline validation when the gate passes', async () => {
@@ -322,6 +337,7 @@ describe('validateBaseline handler full validation error handling', () => {
     })
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(fs.mkdtemp).mockResolvedValue(MOCK_TMP_DIR)
   })
 
   it('returns 500 when validateBaselineFile throws', async () => {
@@ -336,5 +352,60 @@ describe('validateBaseline handler full validation error handling', () => {
         errors: [expect.objectContaining({ code: 'VALIDATION_FAILED' })]
       })
     )
+  })
+})
+
+describe('validateBaseline handler tmp file lifecycle', () => {
+  const request = { params: { uploadId: UPLOAD_ID } }
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY
+    })
+    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(validateBaselineFile).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
+    vi.mocked(fs.mkdtemp).mockResolvedValue(MOCK_TMP_DIR)
+  })
+
+  it('writes the downloaded buffer to a tmp file before running the gate', async () => {
+    await validateBaseline.handler(request, h)
+
+    expect(fs.writeFile).toHaveBeenCalledWith(
+      expect.stringMatching(/baseline\.gpkg$/),
+      MOCK_BUFFER
+    )
+    const writeOrder = vi.mocked(fs.writeFile).mock.invocationCallOrder[0]
+    const gateOrder = vi.mocked(validateGpkg).mock.invocationCallOrder[0]
+    expect(writeOrder).toBeLessThan(gateOrder)
+  })
+
+  it('removes the tmp dir after the gate fails', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: false, errors: [] })
+
+    await validateBaseline.handler(request, h)
+
+    expect(fs.rm).toHaveBeenCalledWith(MOCK_TMP_DIR, {
+      recursive: true,
+      force: true
+    })
+  })
+
+  it('removes the tmp dir when full validation throws', async () => {
+    vi.mocked(validateBaselineFile).mockRejectedValue(new Error('boom'))
+
+    await validateBaseline.handler(request, h)
+
+    expect(fs.rm).toHaveBeenCalledWith(MOCK_TMP_DIR, {
+      recursive: true,
+      force: true
+    })
   })
 })

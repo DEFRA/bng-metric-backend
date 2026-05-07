@@ -107,23 +107,23 @@ const INVALID_FILE_ERROR = makeError(
 )
 
 /**
- * Validate that a Buffer contains a valid BNG baseline GeoPackage.
+ * Validate that a file at `filePath` is a valid BNG baseline GeoPackage.
  * Checks are layered — each stage only runs if the previous one passes.
  *
- * @param {Buffer} buffer - Raw file bytes
+ * @param {string} filePath - Path to the GeoPackage file on disk
  * @returns {{ valid: boolean, errors: object[] }}
  */
-function validateGpkg(buffer) {
+function validateGpkg(filePath) {
   const errors = []
   let db
 
   try {
-    db = new Database(buffer)
+    db = new Database(filePath, { readonly: true, fileMustExist: true })
   } catch (err) {
-    // better-sqlite3 does not throw in the constructor for most invalid buffers
-    // (it defers the error to the first operation). This catch covers the cases
-    // where it does throw (e.g. null/undefined input), which cannot be reliably
-    // reproduced in tests without depending on internal better-sqlite3 behaviour.
+    // better-sqlite3 does not throw in the constructor for most non-SQLite
+    // files (it defers the error to the first operation). This catch covers
+    // the cases where it does throw, which cannot be reliably reproduced in
+    // tests without depending on internal better-sqlite3 behaviour.
     /* v8 ignore next 3 */
     logger.info(
       `validateGpkg: failed to open as SQLite database: ${err.message}`
@@ -137,9 +137,9 @@ function validateGpkg(buffer) {
     try {
       appId = db.pragma('application_id', { simple: true })
     } catch {
-      // better-sqlite3 opens some corrupt buffers without throwing in the
+      // better-sqlite3 opens some corrupt files without throwing in the
       // constructor, but throws here when it tries to read the file header.
-      // No reliable way to craft such a buffer in tests without depending on
+      // No reliable way to craft such a file in tests without depending on
       // internal better-sqlite3 behaviour, so this branch is excluded.
       /* v8 ignore next 2 */
       return { valid: false, errors: [INVALID_FILE_ERROR] }

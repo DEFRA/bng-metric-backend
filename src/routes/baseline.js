@@ -68,12 +68,8 @@ async function fetchBaselineBuffer(bucket, key, uploadId) {
   }
 }
 
-async function runFullValidation(buffer, pgPool, uploadId, h) {
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
-  const localPath = path.join(tmpDir, 'baseline.gpkg')
-
+async function runFullValidation(localPath, pgPool, uploadId, h) {
   try {
-    await fs.writeFile(localPath, buffer)
     const result = await validateBaselineFile(localPath, pgPool)
     if (result.valid) {
       logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
@@ -100,8 +96,6 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
         ]
       })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
   }
 }
 
@@ -165,15 +159,23 @@ const validateBaseline = {
     const { bucket, key } = await resolveUploadLocation(uploadId)
     const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
 
-    const gateResult = validateGpkg(buffer)
-    if (!gateResult.valid) {
-      logger.info(
-        `validateBaseline - rejected at gpkg gate uploadId ${uploadId}`
-      )
-      return h.response(gateResult)
-    }
+    const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
+    const localPath = path.join(tmpDir, 'baseline.gpkg')
+    try {
+      await fs.writeFile(localPath, buffer)
 
-    return runFullValidation(buffer, request.pg, uploadId, h)
+      const gateResult = validateGpkg(localPath)
+      if (!gateResult.valid) {
+        logger.info(
+          `validateBaseline - rejected at gpkg gate uploadId ${uploadId}`
+        )
+        return h.response(gateResult)
+      }
+
+      return await runFullValidation(localPath, request.pg, uploadId, h)
+    } finally {
+      await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+    }
   }
 }
 

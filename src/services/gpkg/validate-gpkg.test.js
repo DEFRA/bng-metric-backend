@@ -1,8 +1,29 @@
-import { describe, it, expect } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import os from 'node:os'
+import path from 'node:path'
+
+import { afterAll, beforeAll, describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
 
 const { validateGpkg } = await import('./validate-gpkg.js')
 const { ERROR_CODES } = await import('../../validation/baseline/errors.js')
+
+let tmpDir
+let fileCounter = 0
+
+beforeAll(() => {
+  tmpDir = mkdtempSync(path.join(os.tmpdir(), 'validate-gpkg-test-'))
+})
+
+afterAll(() => {
+  rmSync(tmpDir, { recursive: true, force: true })
+})
+
+function writeToTmp(buffer) {
+  const filePath = path.join(tmpDir, `gpkg-${fileCounter++}.gpkg`)
+  writeFileSync(filePath, buffer)
+  return filePath
+}
 
 // GeoPackage application IDs
 const GP10_APP_ID = 0x47503130 // 1196437808 — GeoPackage 1.0
@@ -78,7 +99,7 @@ const makeTruncatedEnvelopeBlob = () =>
 
 /**
  * Build a SQLite database in-memory, optionally configure it as a
- * GeoPackage, then serialize it to a Buffer for use with validateGpkg.
+ * GeoPackage, then serialize it to a Buffer.
  *
  * @param {object} [opts]
  * @param {number}   [opts.appId=0]
@@ -114,6 +135,8 @@ function buildBuffer({
   db.close()
   return buffer
 }
+
+const buildFile = (opts) => writeToTmp(buildBuffer(opts))
 
 function createSystemTables(db) {
   db.exec(`
@@ -193,9 +216,11 @@ function insertNonFeatureLayers(db, nonFeatureLayers) {
   }
 }
 
-describe('validateGpkg when the buffer is not a SQLite database', () => {
+describe('validateGpkg when the file is not a SQLite database', () => {
   it('returns invalid with a descriptive error', () => {
-    const result = validateGpkg(Buffer.from('this is not a database'))
+    const result = validateGpkg(
+      writeToTmp(Buffer.from('this is not a database'))
+    )
 
     expect(result).toEqual({
       valid: false,
@@ -211,7 +236,7 @@ describe('validateGpkg when the buffer is not a SQLite database', () => {
 
 describe('validateGpkg when the application_id is not a GeoPackage identifier', () => {
   it('returns invalid with a descriptive error for application_id 0', () => {
-    const result = validateGpkg(buildBuffer({ appId: 0 }))
+    const result = validateGpkg(buildFile({ appId: 0 }))
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
@@ -222,7 +247,7 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
   })
 
   it('returns invalid with a descriptive error for an arbitrary wrong id', () => {
-    const result = validateGpkg(buildBuffer({ appId: 12345 }))
+    const result = validateGpkg(buildFile({ appId: 12345 }))
 
     expect(result.valid).toBe(false)
     expect(result.errors[0].code).toBe(ERROR_CODES.GPKG_NOT_A_GEOPACKAGE)
@@ -234,7 +259,7 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
 
 describe('validateGpkg when required system tables are missing', () => {
   it('returns an error for each missing system table', () => {
-    const result = validateGpkg(buildBuffer({ appId: GP10_APP_ID }))
+    const result = validateGpkg(buildFile({ appId: GP10_APP_ID }))
 
     expect(result.valid).toBe(false)
     const messages = result.errors.map((e) => e.message)
@@ -265,7 +290,7 @@ describe('validateGpkg when required system tables are missing', () => {
     const buffer = Buffer.from(db.serialize())
     db.close()
 
-    const result = validateGpkg(buffer)
+    const result = validateGpkg(writeToTmp(buffer))
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
@@ -279,7 +304,7 @@ describe('validateGpkg when required system tables are missing', () => {
 describe('validateGpkg when required feature layers are missing', () => {
   it('does not count layers registered with a non-features data_type', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         nonFeatureLayers: ALL_LAYERS
@@ -293,7 +318,7 @@ describe('validateGpkg when required feature layers are missing', () => {
 
   it('returns an error for each missing layer when none are present', () => {
     const result = validateGpkg(
-      buildBuffer({ appId: GP10_APP_ID, systemTables: true })
+      buildFile({ appId: GP10_APP_ID, systemTables: true })
     )
 
     expect(result.valid).toBe(false)
@@ -303,7 +328,7 @@ describe('validateGpkg when required feature layers are missing', () => {
 
   it('returns an error only for the missing layer when one is present', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: [LAYER_RLB]
@@ -319,7 +344,7 @@ describe('validateGpkg when required feature layers are missing', () => {
 describe('validateGpkg when the Red Line Boundary geometry column is missing or invalid', () => {
   it('returns a descriptive error when there is no registered geometry column', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -338,7 +363,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
 
   it('returns a descriptive error for a column name that fails the identifier check', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -359,7 +384,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
 describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon count', () => {
   it('returns an error when there are no polygon features', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -374,7 +399,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
   it('returns an error when the only features are non-polygon geometries', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -391,7 +416,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
   it('returns an error when there are multiple polygon features', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -411,7 +436,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 
   it('does not count non-polygon rows towards the polygon total', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -428,7 +453,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
 describe('validateGpkg when the Red Line Boundary layer contains unreadable geometry', () => {
   it('returns an error when any geometry blob is unreadable', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -445,7 +470,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 
   it('does not also report a polygon count error when geometry is unreadable', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -461,7 +486,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 
   it('treats a blob with an out-of-range envelope indicator as unreadable', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -477,7 +502,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 
   it('treats a blob too short for its declared envelope as unreadable', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
@@ -495,7 +520,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
 describe('validateGpkg when the GeoPackage is fully valid', () => {
   it('returns valid with no errors for a GP10 (v1.0) GeoPackage', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS
@@ -507,7 +532,7 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
 
   it('returns valid with no errors for a GPKG (v1.2.1+) GeoPackage', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GPKG_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS
@@ -519,7 +544,7 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
 
   it('matches layer names case-insensitively', () => {
     const result = validateGpkg(
-      buildBuffer({
+      buildFile({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ['RED LINE BOUNDARY', 'HABITATS']

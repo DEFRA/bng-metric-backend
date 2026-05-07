@@ -1,9 +1,6 @@
 import { readBaselineGeoPackage } from './geopackage.js'
 import { validateBaselineLayersPostgis } from './postgis/index.js'
 
-// MERGE NOTE (PR #16): the geometry checks below assume validateGpkg already
-// ran and passed — caller must run that format gate first.
-
 /**
  * Run every geometry check against an open baseline GeoPackage file.
  *

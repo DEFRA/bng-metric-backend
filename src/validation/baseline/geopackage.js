@@ -3,9 +3,6 @@ import wkx from 'wkx'
 
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
-// MERGE NOTE (PR #16): runs after that PR's validateGpkg format gate. Long
-// term, collapse both readers into a single SQLite open pass.
-
 const logger = createLogger()
 
 const EPSG_WGS84 = 4326
