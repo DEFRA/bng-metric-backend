@@ -10,7 +10,8 @@
   "scripts": {
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
-    "dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
+    "predev": "node scripts/ensure-env.js",
+    "dev": "NODE_ENV=development USE_SWAGGER=true OIDC_USE_STUB=true npm run server:watch",
     "dev:debug": "NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
