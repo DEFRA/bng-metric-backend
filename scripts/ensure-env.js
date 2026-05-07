@@ -1,6 +1,11 @@
 // The purpose of this script is to ensure the .env file exists for local development.
 // If it does not exist it copies .env.template -> .env so that environment variables
 // are populated from the template file.
+//
+// This is wired up as the `predev` npm script in package.json. npm automatically
+// runs `pre<name>` before any `npm run <name>`, so `npm run dev` triggers this
+// script first and only proceeds to `dev` if it exits 0. No manual invocation
+// is needed.
 import { copyFileSync, existsSync } from 'node:fs'
 import { dirname, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
