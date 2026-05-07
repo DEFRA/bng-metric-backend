@@ -22,6 +22,8 @@ const {
 
 const S3_BUCKET = 'baseline-files'
 const S3_KEY = 'baseline/file.gpkg'
+const UPLOAD_ID = 'abc-123'
+const REDIRECT = '/projects/1/upload-received'
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -64,19 +66,19 @@ describe('initiateUpload', () => {
   it('should return uploadId and extract path from full uploadUrl', async () => {
     vi.mocked(Wreck.post).mockResolvedValue({
       payload: {
-        uploadId: 'abc-123',
+        uploadId: UPLOAD_ID,
         uploadUrl: 'http://localhost:7337/upload/abc-123'
       }
     })
 
     const result = await initiateUpload({
-      redirect: '/projects/1/upload-received',
+      redirect: REDIRECT,
       s3Bucket: S3_BUCKET,
       s3Path: 'baseline/'
     })
 
     expect(result).toEqual({
-      uploadId: 'abc-123',
+      uploadId: UPLOAD_ID,
       uploadUrl: '/upload/abc-123'
     })
 
@@ -86,10 +88,9 @@ describe('initiateUpload', () => {
         // Trailing slash on s3Path is stripped to avoid producing s3Keys
         // with a double slash after cdp-uploader concatenates segments.
         payload: JSON.stringify({
-          redirect: '/projects/1/upload-received',
+          redirect: REDIRECT,
           s3Bucket: S3_BUCKET,
-          s3Path: 'baseline',
-          metadata: undefined
+          s3Path: 'baseline'
         }),
         headers: { 'Content-Type': 'application/json' },
         json: true
@@ -100,13 +101,13 @@ describe('initiateUpload', () => {
   it('should return uploadUrl as-is when it is a relative path', async () => {
     vi.mocked(Wreck.post).mockResolvedValue({
       payload: {
-        uploadId: 'abc-123',
+        uploadId: UPLOAD_ID,
         uploadUrl: '/upload/abc-123'
       }
     })
 
     const result = await initiateUpload({
-      redirect: '/projects/1/upload-received',
+      redirect: REDIRECT,
       s3Bucket: S3_BUCKET
     })
 
@@ -117,7 +118,7 @@ describe('initiateUpload', () => {
     vi.mocked(Wreck.post).mockRejectedValue(new Error('Connection refused'))
 
     const result = await initiateUpload({
-      redirect: '/projects/1/upload-received',
+      redirect: REDIRECT,
       s3Bucket: S3_BUCKET
     })
 
@@ -148,7 +149,7 @@ describe('getUploadStatus — successful responses', () => {
       }
     })
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result).toEqual({
       uploadStatus: 'ready',
@@ -175,7 +176,7 @@ describe('getUploadStatus — successful responses', () => {
       }
     })
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result).toEqual({
       uploadStatus: 'ready',
@@ -197,7 +198,7 @@ describe('getUploadStatus — fallbacks and failures', () => {
       }
     })
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result.errorMessage).toBeNull()
   })
@@ -211,7 +212,7 @@ describe('getUploadStatus — fallbacks and failures', () => {
       }
     })
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result.errorMessage).toBeNull()
   })
@@ -228,7 +229,7 @@ describe('getUploadStatus edge cases', () => {
       payload: {}
     })
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result).toEqual({
       uploadStatus: 'unknown',
@@ -240,7 +241,7 @@ describe('getUploadStatus edge cases', () => {
   it('should return error status when Wreck.get throws', async () => {
     vi.mocked(Wreck.get).mockRejectedValue(new Error('Connection refused'))
 
-    const result = await getUploadStatus('abc-123')
+    const result = await getUploadStatus(UPLOAD_ID)
 
     expect(result).toEqual({
       uploadStatus: 'error',
@@ -265,7 +266,7 @@ describe('getUploadedFileS3Location', () => {
       }
     })
 
-    const result = await getUploadedFileS3Location('abc-123')
+    const result = await getUploadedFileS3Location(UPLOAD_ID)
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
@@ -278,7 +279,7 @@ describe('getUploadedFileS3Location', () => {
       payload: { uploadStatus: 'ready' }
     })
 
-    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+    await expect(getUploadedFileS3Location(UPLOAD_ID)).rejects.toThrow(
       'No file found for uploadId: abc-123'
     )
   })
@@ -288,7 +289,7 @@ describe('getUploadedFileS3Location', () => {
       payload: { form: { file: { s3Bucket: S3_BUCKET } } }
     })
 
-    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+    await expect(getUploadedFileS3Location(UPLOAD_ID)).rejects.toThrow(
       'S3 location missing'
     )
   })
@@ -298,7 +299,7 @@ describe('getUploadedFileS3Location', () => {
       payload: { form: { file: { s3Key: S3_KEY } } }
     })
 
-    await expect(getUploadedFileS3Location('abc-123')).rejects.toThrow(
+    await expect(getUploadedFileS3Location(UPLOAD_ID)).rejects.toThrow(
       'S3 location missing'
     )
   })
@@ -326,7 +327,7 @@ describe('waitForUploadReady', () => {
   it('should return S3 location immediately when status is already ready', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({ payload: readyPayload })
 
-    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+    const result = await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
@@ -340,7 +341,7 @@ describe('waitForUploadReady', () => {
       .mockResolvedValueOnce({ payload: pendingPayload })
       .mockResolvedValue({ payload: readyPayload })
 
-    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+    const result = await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
@@ -356,7 +357,7 @@ describe('waitForUploadReady', () => {
     })
 
     await expect(
-      waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+      waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
     ).rejects.toThrow(UploadFailedError)
   })
 
@@ -366,7 +367,7 @@ describe('waitForUploadReady', () => {
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockResolvedValue({ payload: readyPayload })
 
-    const result = await waitForUploadReady('abc-123', { pollIntervalMs: 0 })
+    const result = await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
@@ -378,7 +379,7 @@ describe('waitForUploadReady', () => {
     vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingPayload })
 
     await expect(
-      waitForUploadReady('abc-123', { timeoutMs: 0, pollIntervalMs: 0 })
+      waitForUploadReady(UPLOAD_ID, { timeoutMs: 0, pollIntervalMs: 0 })
     ).rejects.toThrow(UploadTimeoutError)
   })
 
@@ -386,7 +387,7 @@ describe('waitForUploadReady', () => {
     vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingPayload })
 
     await expect(
-      waitForUploadReady('abc-123', { timeoutMs: 0, pollIntervalMs: 0 })
+      waitForUploadReady(UPLOAD_ID, { timeoutMs: 0, pollIntervalMs: 0 })
     ).rejects.toThrow(/did not reach 'ready' status/)
   })
 })

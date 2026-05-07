@@ -17,6 +17,11 @@ jobs:
     runs-on: ubuntu-latest
     env:
       LIQUIBASE_VERSION: '5.0.1'
+      CDP_UPLOADER_IMAGE: 'defradigital/cdp-uploader:latest'
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_REGION: eu-west-2
+      AWS_DEFAULT_REGION: eu-west-2
     services:
       postgres:
         image: postgis/postgis:16-3.5
@@ -31,6 +36,24 @@ jobs:
           --health-interval=10s
           --health-timeout=5s
           --health-retries=5
+      redis:
+        image: redis:7.2.3-alpine3.18
+        ports:
+          - 6379:6379
+      localstack:
+        image: localstack/localstack:3.0.2
+        env:
+          SERVICES: s3,sqs,sns,firehose
+          DEBUG: '0'
+          LS_LOG: WARN
+          AWS_DEFAULT_REGION: eu-west-2
+        ports:
+          - 4566:4566
+        options: >-
+          --health-cmd="curl -fs http://localhost:4566/_localstack/health || exit 1"
+          --health-interval=5s
+          --health-timeout=5s
+          --health-retries=10
     steps:
       - name: Check out repository
         uses: actions/checkout@v5
@@ -72,7 +95,45 @@ jobs:
             --password=dev \
             update
 
-      - name: Run integration tests
+      - name: Seed LocalStack (buckets + SQS queues)
+        run: bash compose/start-localstack.sh
+
+      - name: Start cdp-uploader
+        # Run as a step (not service) because it needs LocalStack buckets + queues
+        # to exist first, which a service container cannot wait on. --network host
+        # lets it reach localstack and redis on the runner's localhost.
+        run: |
+          docker pull "${CDP_UPLOADER_IMAGE}"
+          docker run -d --name cdp-uploader --network host \
+            -e PORT=7337 \
+            -e NODE_ENV=development \
+            -e REDIS_HOST=localhost \
+            -e USE_SINGLE_INSTANCE_CACHE=true \
+            -e MOCK_VIRUS_SCAN_ENABLED=true \
+            -e MOCK_VIRUS_RESULT_DELAY=2 \
+            -e SQS_ENDPOINT=http://localhost:4566 \
+            -e S3_ENDPOINT=http://localhost:4566 \
+            -e CONSUMER_BUCKETS=baseline-files \
+            -e AWS_REGION=eu-west-2 \
+            -e AWS_DEFAULT_REGION=eu-west-2 \
+            -e AWS_ACCESS_KEY_ID=test \
+            -e AWS_SECRET_ACCESS_KEY=test \
+            "${CDP_UPLOADER_IMAGE}"
+
+      - name: Wait for cdp-uploader
+        run: |
+          for i in $(seq 1 60); do
+            if curl -fs http://127.0.0.1:7337/health >/dev/null 2>&1; then
+              echo "cdp-uploader ready after ${i}s"
+              exit 0
+            fi
+            sleep 1
+          done
+          echo "cdp-uploader did not become ready within 60s"
+          docker logs cdp-uploader || true
+          exit 1
+
+      - name: Run integration tests with coverage + route gate
         env:
           SKIP_MIGRATIONS: '1'
           DB_HOST: 127.0.0.1
@@ -80,7 +141,20 @@ jobs:
           DB_USER: dev
           DB_LOCAL_PASSWORD: dev
           DB_DATABASE: bng_metric_backend
-        run: npm run test:integration
+          CDP_UPLOADER_URL: http://127.0.0.1:7337
+          S3_ENDPOINT: http://127.0.0.1:4566
+        run: npm run test:integration:full
+
+      - name: Upload integration coverage report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: integration-coverage
+          path: coverage/
+
+      - name: cdp-uploader logs (on failure)
+        if: failure()
+        run: docker logs cdp-uploader || true
 
   pr-validator:
     name: Run Pull Request Checks

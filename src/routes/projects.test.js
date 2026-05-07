@@ -6,15 +6,22 @@ import {
   updateProject
 } from './projects.js'
 
+const PROJECT_1_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
+const USER_001 = 'test-user-001'
+const USER_003 = 'test-user-003'
+const NEW_PROJECT_NAME = 'New Wetland Project'
+const RENAMED_NAME = 'Renamed Project'
+
 const mockProjects = [
   {
-    id: '3f1e45b4-2e81-4c70-8a70-083ad958c913',
+    id: PROJECT_1_ID,
     project: {
       name: 'Greenfield Meadow Restoration',
       site: { name: 'Greenfield Meadow', grid_ref: 'TQ 123 456' },
       units: { habitat: 10.5, hedgerow: 2.3, watercourse: 0.8 }
     },
-    userId: 'test-user-001',
+    userId: USER_001,
     bngProjectVersion: 1,
     createdAt: new Date('2024-01-01')
   },
@@ -23,7 +30,7 @@ const mockProjects = [
     project: {
       name: 'Oakwood Farm BNG Assessment',
       site: { name: 'Oakwood Farm', grid_ref: 'SP 987 654' },
-      units: { habitat: 25.0, hedgerow: 8.1 }
+      units: { habitat: 25, hedgerow: 8.1 }
     },
     userId: 'test-user-002',
     bngProjectVersion: 2,
@@ -69,21 +76,21 @@ describe('#getProjects', () => {
   })
 })
 
-describe('#createProject', () => {
-  function createMockDrizzleInsert(row) {
-    return {
-      insert: vi.fn().mockReturnValue({
-        values: vi.fn().mockReturnValue({
-          returning: vi.fn().mockResolvedValue([row])
-        })
+function createMockDrizzleInsert(row) {
+  return {
+    insert: vi.fn().mockReturnValue({
+      values: vi.fn().mockReturnValue({
+        returning: vi.fn().mockResolvedValue([row])
       })
-    }
+    })
   }
+}
 
+describe('#createProject', () => {
   const newProject = {
     id: '3d0f7b2e-4c52-4e0e-a20a-708dfc9b42d1',
-    project: { name: 'New Wetland Project' },
-    userId: 'test-user-003',
+    project: { name: NEW_PROJECT_NAME },
+    userId: USER_003,
     bngProjectVersion: 1,
     createdAt: new Date('2024-03-01')
   }
@@ -93,8 +100,8 @@ describe('#createProject', () => {
     const request = {
       drizzle,
       payload: {
-        project: { name: 'New Wetland Project' },
-        userId: 'test-user-003'
+        project: { name: NEW_PROJECT_NAME },
+        userId: USER_003
       }
     }
 
@@ -107,8 +114,8 @@ describe('#createProject', () => {
   test('Should pass only project and userId to drizzle', async () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const payload = {
-      project: { name: 'New Wetland Project' },
-      userId: 'test-user-003'
+      project: { name: NEW_PROJECT_NAME },
+      userId: USER_003
     }
     const request = { drizzle, payload }
 
@@ -129,7 +136,7 @@ describe('#createProject validation', () => {
   test('Should pass with valid payload using userId', async () => {
     const { error } = schema.validate({
       project: { name: 'Test Project' },
-      userId: 'test-user-001'
+      userId: USER_001
     })
     expect(error).toBeUndefined()
   })
@@ -137,14 +144,14 @@ describe('#createProject validation', () => {
   test('Should pass with valid payload using user_id (renamed to userId)', async () => {
     const { error, value } = schema.validate({
       project: { name: 'Test Project' },
-      user_id: 'test-user-001'
+      user_id: USER_001
     })
     expect(error).toBeUndefined()
-    expect(value.userId).toBe('test-user-001')
+    expect(value.userId).toBe(USER_001)
   })
 
   test('Should fail when project is missing', async () => {
-    const { error } = schema.validate({ userId: 'test-user-001' })
+    const { error } = schema.validate({ userId: USER_001 })
     expect(error).toBeDefined()
     expect(error.message).toContain('"project" is required')
   })
@@ -158,7 +165,7 @@ describe('#createProject validation', () => {
   test('Should fail when project is not an object', async () => {
     const { error } = schema.validate({
       project: 'not-an-object',
-      userId: 'test-user-001'
+      userId: USER_001
     })
     expect(error).toBeDefined()
     expect(error.message).toContain('"project" must be of type object')
@@ -170,7 +177,7 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([mockProjects[0]])
     const request = {
       drizzle,
-      params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' }
+      params: { id: PROJECT_1_ID }
     }
 
     const result = await getProject.handler(request, {})
@@ -184,7 +191,7 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([])
     const request = {
       drizzle,
-      params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' }
+      params: { id: UNKNOWN_PROJECT_ID }
     }
 
     await expect(getProject.handler(request, {})).rejects.toThrow(
@@ -198,7 +205,7 @@ describe('#getProject validation', () => {
 
   test('Should pass with a UUID id param', async () => {
     const { error } = paramsSchema.validate({
-      id: '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+      id: PROJECT_1_ID
     })
     expect(error).toBeUndefined()
   })
@@ -210,18 +217,18 @@ describe('#getProject validation', () => {
   })
 })
 
-describe('#updateProject', () => {
-  function createMockDrizzleUpdate(rows) {
-    const returning = vi.fn().mockResolvedValue(rows)
-    const where = vi.fn().mockReturnValue({ returning })
-    const set = vi.fn().mockReturnValue({ where })
+function createMockDrizzleUpdate(rows) {
+  const returning = vi.fn().mockResolvedValue(rows)
+  const where = vi.fn().mockReturnValue({ returning })
+  const set = vi.fn().mockReturnValue({ where })
 
-    return {
-      update: vi.fn().mockReturnValue({ set }),
-      _chain: { set, where, returning }
-    }
+  return {
+    update: vi.fn().mockReturnValue({ set }),
+    _chain: { set, where, returning }
   }
+}
 
+describe('#updateProject', () => {
   test('Should be a PATCH route', async () => {
     expect(updateProject.method).toBe('PATCH')
     expect(updateProject.path).toBe('/projects/{id}')
@@ -232,15 +239,15 @@ describe('#updateProject', () => {
       ...mockProjects[0],
       project: {
         ...mockProjects[0].project,
-        name: 'Renamed Project'
+        name: RENAMED_NAME
       }
     }
     const drizzle = createMockDrizzleUpdate([updatedProject])
     const request = {
       drizzle,
-      params: { id: '3f1e45b4-2e81-4c70-8a70-083ad958c913' },
+      params: { id: PROJECT_1_ID },
       payload: {
-        project: { name: 'Renamed Project' }
+        project: { name: RENAMED_NAME }
       }
     }
 
@@ -258,9 +265,9 @@ describe('#updateProject', () => {
     const drizzle = createMockDrizzleUpdate([])
     const request = {
       drizzle,
-      params: { id: 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd' },
+      params: { id: UNKNOWN_PROJECT_ID },
       payload: {
-        project: { name: 'Renamed Project' }
+        project: { name: RENAMED_NAME }
       }
     }
 
@@ -276,7 +283,7 @@ describe('#updateProject validation', () => {
 
   test('Should pass with a valid name', async () => {
     const { error } = payloadSchema.validate({
-      project: { name: 'Renamed Project' }
+      project: { name: RENAMED_NAME }
     })
     expect(error).toBeUndefined()
   })
@@ -305,7 +312,7 @@ describe('#updateProject validation', () => {
 
   test('Should pass with a UUID id param', async () => {
     const { error } = paramsSchema.validate({
-      id: '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+      id: PROJECT_1_ID
     })
     expect(error).toBeUndefined()
   })

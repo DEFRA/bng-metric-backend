@@ -1,0 +1,12 @@
+[
+  "GET /health",
+  "GET /db-info",
+  "GET /projects",
+  "GET /projects/{id}",
+  "POST /projects/new",
+  "PATCH /projects/{id}",
+  "POST /upload/initiate",
+  "GET /upload/{uploadId}/status",
+  "POST /baseline/validate/{uploadId}",
+  "GET /users/{userId}/projects"
+]
