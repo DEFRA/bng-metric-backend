@@ -28,7 +28,8 @@ if (!existsSync(templatePath)) {
 const yellow = '\x1b[33m'
 const bold = '\x1b[1m'
 const reset = '\x1b[0m'
-const bar = '='.repeat(72)
+const BANNER_WIDTH = 72
+const bar = '='.repeat(BANNER_WIDTH)
 
 console.warn(`${yellow}${bold}`)
 console.warn(bar)
