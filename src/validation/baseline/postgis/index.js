@@ -169,7 +169,7 @@ c_redline_invalid AS (
 -- and feature_ref (Parcel Ref / Tree Ref / Baseline Parcel Ref — first
 -- non-null wins).
 
--- AC5: list every self-intersecting / invalid area habitat polygon.
+-- List every self-intersecting / invalid area habitat polygon.
 c_areas_invalid AS (
   SELECT idx,
          ${fidColumnSql()} AS fid,
@@ -178,7 +178,7 @@ c_areas_invalid AS (
   FROM areas
   WHERE NOT ST_IsValid(geom)
 ),
--- AC6: list every overlapping pair (idx_a < idx_b avoids duplicates).
+-- List every overlapping pair (idx_a < idx_b avoids duplicates).
 c_overlap_offending AS (
   SELECT prc1.idx AS idx_a,
          ${fidColumnSql('prc1.props')} AS fid_a,
@@ -190,13 +190,10 @@ c_overlap_offending AS (
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
   WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
 ),
--- AC7: gaps inside the redline not covered by any habitat parcel, discarding
+-- Gaps inside the redline not covered by any habitat parcel, discarding
 -- the trivially small (GEOS noise on shared edges) and the trivially large
 -- (legitimately uncovered land — that's a different check). Slivers carry
 -- geometry rather than a source feature.
--- TODO confirm AC7 wording: it says "list of slivers that are not entirely
--- within the redline boundary", but slivers are inside the redline by
--- definition. Implementation matches the existing/sensible interpretation.
 c_slivers AS (
   SELECT ST_Area(g) AS area_sqm,
          ST_AsText(g) AS location_wkt
@@ -207,12 +204,13 @@ c_slivers AS (
   ) leftover
   WHERE ST_Area(g) > 0 AND ST_Area(g) < ${SLIVER_THRESHOLD_SQ_M}
 ),
--- AC7 (second part): habitat parcel parts that fall outside the redline,
--- reported as the *escaping geometry* rather than as a list of parcels (AC8
--- already does the per-parcel view). Subtract the redline from the dissolved
--- parcels and dump the result into individual pieces; each piece bigger than
+-- Habitat parcel parts that fall outside the redline, reported as the
+-- *escaping geometry* rather than as a list of parcels (the per-parcel view
+-- below does that). Subtract the redline from the dissolved parcels and dump
+-- the result into individual pieces; each piece bigger than
 -- PARCEL_OUTSIDE_TOLERANCE_SQ_M is a sliver that shouldn't be there. Threshold
--- matches AC8 so boundary noise from shared edges is suppressed in both views.
+-- matches the per-parcel view so boundary noise from shared edges is suppressed
+-- in both.
 c_slivers_outside AS (
   SELECT ST_Area(g) AS area_sqm,
          ST_AsText(g) AS location_wkt
@@ -223,13 +221,13 @@ c_slivers_outside AS (
   ) leftover
   WHERE ST_Area(g) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
 ),
--- AC8: habitat parcels that fall (partially) outside the redline.
+-- Habitat parcels that fall (partially) outside the redline.
 -- In plain English: subtract the redline from each parcel; whatever's left is
 -- the parcel's escaping bit. Flag if its area exceeds the tolerance.
 -- (Area-of-difference rather than strict ST_Within so parcels sharing boundary
 -- edges with the redline aren't false-flagged by GEOS robustness wobbles.)
 -- Also exposes the escape geometry's area + WKT so the per-parcel report can
--- be merged with the per-piece view (AC7) into a single line in the UI.
+-- be merged with the per-piece sliver view into a single line in the UI.
 c_areas_outside AS (
   SELECT idx, fid, feature_ref,
          ST_Area(escape) AS escape_area_sqm,
@@ -244,7 +242,7 @@ c_areas_outside AS (
   ) sub
   WHERE ST_Area(escape) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
 ),
--- AC9 / AC10: linear habitat layers (hedgerows, watercourses) outside the redline.
+-- Linear habitat layers (hedgerows, watercourses) outside the redline.
 -- In plain English: subtract the redline polygon from the feature line; whatever's
 -- left is the bit of the line that escapes. Flag if its length exceeds
 -- OUTSIDE_BOUNDARY_TOLERANCE_M.
@@ -269,7 +267,7 @@ c_watercourses_outside AS (
   WHERE redl.geom IS NOT NULL
     AND ST_Length(ST_Difference(feat.geom, redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${OUTSIDE_BOUNDARY_TOLERANCE_M}
 ),
--- AC11: IGGIs (polygons in current uploads): same shape as c_areas_outside.
+-- IGGIs (polygons in current uploads): same shape as c_areas_outside.
 -- In plain English: subtract the redline from each IGGI; flag if the area of
 -- whatever's left exceeds the tolerance. Reuses PARCEL_OUTSIDE_TOLERANCE_SQ_M
 -- because both are area features sharing edges with the redline.
@@ -281,7 +279,7 @@ c_iggis_outside AS (
   WHERE redl.geom IS NOT NULL
     AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
 ),
--- AC12: trees are points.
+-- Trees are points.
 -- In plain English: ST_DWithin(point, polygon, tol) is true if the point is
 -- inside, on the boundary, or within tol metres outside. Flag any tree
 -- where it's false.
