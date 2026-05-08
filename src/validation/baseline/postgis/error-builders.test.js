@@ -85,7 +85,7 @@ describe('ERROR_BUILDERS — list errors: feature labelling and details', () => 
       sample
     })
     expect(err.message).toMatch(
-      new RegExp(`\\(and ${EXPECTED_REMAINDER} more\\)$`)
+      new RegExp(String.raw`\(and ${EXPECTED_REMAINDER} more\)$`)
     )
     expect(err.details.count).toBe(TOTAL_OVER_CAP)
     expect(err.details.sample).toHaveLength(SAMPLE_CAP)

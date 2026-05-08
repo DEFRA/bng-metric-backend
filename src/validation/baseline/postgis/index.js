@@ -75,6 +75,11 @@ function fidColumnSql(propsExpr = 'props') {
   return `${propsExpr}->>'fid'`
 }
 
+// Most layer-level CTEs alias the per-feature row as `feat`, so reading its
+// props goes through `feat.props`. Holding the expression in a constant keeps
+// the literal from being repeated across every CTE that selects identifiers.
+const FEAT_PROPS = 'feat.props'
+
 // Baseline geometry validation, run as a single PostGIS statement. Features
 // are passed in as parallel arrays of GeoJSON strings ($1..$5), parsed and
 // reprojected to EPSG:27700 inside the query, used for every spatial check,
@@ -231,8 +236,8 @@ c_areas_outside AS (
          ST_AsText(escape) AS escape_location_wkt
   FROM (
     SELECT feat.idx,
-           ${fidColumnSql('feat.props')} AS fid,
-           ${featureRefSql('feat.props')} AS feature_ref,
+           ${fidColumnSql(FEAT_PROPS)} AS fid,
+           ${featureRefSql(FEAT_PROPS)} AS feature_ref,
            ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M}) AS escape
     FROM areas feat CROSS JOIN redline_union redl
     WHERE redl.geom IS NOT NULL
@@ -250,16 +255,16 @@ c_areas_outside AS (
 -- gives ST_Within=false even though the geometric distance is zero.)
 c_hedgerows_outside AS (
   SELECT feat.idx,
-         ${fidColumnSql('feat.props')} AS fid,
-         ${featureRefSql('feat.props')} AS feature_ref
+         ${fidColumnSql(FEAT_PROPS)} AS fid,
+         ${featureRefSql(FEAT_PROPS)} AS feature_ref
   FROM hedgerows feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
     AND ST_Length(ST_Difference(feat.geom, redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${OUTSIDE_BOUNDARY_TOLERANCE_M}
 ),
 c_watercourses_outside AS (
   SELECT feat.idx,
-         ${fidColumnSql('feat.props')} AS fid,
-         ${featureRefSql('feat.props')} AS feature_ref
+         ${fidColumnSql(FEAT_PROPS)} AS fid,
+         ${featureRefSql(FEAT_PROPS)} AS feature_ref
   FROM watercourses feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
     AND ST_Length(ST_Difference(feat.geom, redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${OUTSIDE_BOUNDARY_TOLERANCE_M}
@@ -270,8 +275,8 @@ c_watercourses_outside AS (
 -- because both are area features sharing edges with the redline.
 c_iggis_outside AS (
   SELECT feat.idx,
-         ${fidColumnSql('feat.props')} AS fid,
-         ${featureRefSql('feat.props')} AS feature_ref
+         ${fidColumnSql(FEAT_PROPS)} AS fid,
+         ${featureRefSql(FEAT_PROPS)} AS feature_ref
   FROM iggis feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
     AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
@@ -284,8 +289,8 @@ c_iggis_outside AS (
 -- a point has no interior to intersect the polygon's interior.)
 c_trees_outside AS (
   SELECT feat.idx,
-         ${fidColumnSql('feat.props')} AS fid,
-         ${featureRefSql('feat.props')} AS feature_ref
+         ${fidColumnSql(FEAT_PROPS)} AS fid,
+         ${featureRefSql(FEAT_PROPS)} AS feature_ref
   FROM trees feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL AND NOT ST_DWithin(feat.geom, redl.geom, ${OUTSIDE_BOUNDARY_TOLERANCE_M})
 )
