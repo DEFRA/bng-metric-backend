@@ -232,6 +232,11 @@ async function runAndGetCodes(layers) {
   return result.errors.map((e) => e.code)
 }
 
+async function runAndGetError(layers, code) {
+  const result = await validateBaselineLayersPostgis(pool, layers)
+  return result.errors.find((e) => e.code === code)
+}
+
 describe('validateBaselineLayersPostgis — happy path', () => {
   it('returns no topology errors for redline == single habitat', async () => {
     const codes = await runAndGetCodes(
@@ -316,6 +321,34 @@ describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
       })
     )
     expect(codes).toContain('SLIVERS_INSIDE_REDLINE')
+  })
+
+  it('detects slivers outside the redline (habitat parts escaping)', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(BIG, { fid: '1', 'Parcel Ref': 'PR-X' })]
+      }),
+      'SLIVERS_OUTSIDE_REDLINE'
+    )
+    expect(err).toBeDefined()
+    expect(err.details.count).toBeGreaterThanOrEqual(1)
+    expect(err.details.sample[0]).toHaveProperty('area_sqm')
+    expect(err.details.sample[0]).toHaveProperty('location_wkt')
+    expect(err.details.sample[0].area_sqm).toBeGreaterThan(0.5)
+  })
+
+  it('does not flag SLIVERS_OUTSIDE_REDLINE when parcels share the redline edge', async () => {
+    // HALF_SQUARE sits inside SQUARE, sharing the south and west edges.
+    // GEOS robustness wobbles on shared edges should be suppressed by the
+    // PARCEL_OUTSIDE_TOLERANCE_SQ_M filter.
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(HALF_SQUARE)]
+      })
+    )
+    expect(codes).not.toContain('SLIVERS_OUTSIDE_REDLINE')
   })
 
   it('detects area parcels outside the redline', async () => {
@@ -440,6 +473,75 @@ describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () =>
       makeLayers({ ...baseValidLayers, iggis: [poly(IGGI_ESCAPE_1_SQM)] })
     )
     expect(codes).toContain('IGGIS_OUTSIDE_REDLINE')
+  })
+})
+
+describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
+  it('AREA_PARCELS_OUTSIDE_REDLINE carries count and sample with feature refs', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [
+          poly(SQUARE_OFFSET, { fid: '1', 'Parcel Ref': 'PR-A' }),
+          poly(SQUARE_OFFSET, { fid: '2', 'Parcel Ref': 'PR-B' })
+        ]
+      }),
+      'AREA_PARCELS_OUTSIDE_REDLINE'
+    )
+    expect(err).toBeDefined()
+    expect(err.details.count).toBe(2)
+    expect(err.details.sample).toHaveLength(2)
+    expect(err.details.sample[0].feature_ref).toBe('PR-A')
+    expect(err.details.sample[1].feature_ref).toBe('PR-B')
+    expect(err.message).toContain('Feature Ref PR-A')
+    expect(err.message).toContain('Feature Ref PR-B')
+  })
+
+  it('PARCEL_OVERLAPS carries pair-shaped sample rows', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(BIG)],
+        areas: [
+          poly(SQUARE, { fid: '1', 'Parcel Ref': 'PR-A' }),
+          poly(SQUARE_OFFSET, { fid: '2', 'Parcel Ref': 'PR-B' })
+        ]
+      }),
+      'PARCEL_OVERLAPS'
+    )
+    expect(err).toBeDefined()
+    expect(err.details.count).toBe(1)
+    expect(err.details.sample[0]).toMatchObject({
+      feature_ref_a: 'PR-A',
+      feature_ref_b: 'PR-B'
+    })
+    expect(err.message).toContain('Feature Ref PR-A ↔ Feature Ref PR-B')
+  })
+
+  it('SLIVERS_INSIDE_REDLINE carries area_sqm and location_wkt per sliver', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(NOTCHED_SQUARE)]
+      }),
+      'SLIVERS_INSIDE_REDLINE'
+    )
+    expect(err).toBeDefined()
+    expect(err.details.count).toBeGreaterThanOrEqual(1)
+    expect(err.details.sample[0]).toHaveProperty('area_sqm')
+    expect(err.details.sample[0]).toHaveProperty('location_wkt')
+  })
+
+  it('falls back to fid when feature_ref properties are absent', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(SQUARE_OFFSET, { fid: '7' })]
+      }),
+      'AREA_PARCELS_OUTSIDE_REDLINE'
+    )
+    expect(err.details.sample[0].feature_ref).toBeNull()
+    expect(err.details.sample[0].fid).toBe('7')
+    expect(err.message).toContain('fid 7')
   })
 })
 

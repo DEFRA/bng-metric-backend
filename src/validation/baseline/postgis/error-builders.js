@@ -1,5 +1,72 @@
 import { ERROR_CODES, makeError } from '../errors.js'
 
+// ---------------------------------------------------------------------------
+// Per-feature description helpers
+// ---------------------------------------------------------------------------
+
+/**
+ * Render a single offending feature (from `details.sample`) as a short label.
+ * Prefers Feature Ref (the layer's per-feature reference column — Parcel Ref,
+ * Tree Ref, or Baseline Parcel Ref, whichever is set), falls back to the fid,
+ * then to the layer-relative position.
+ *
+ * @param {{ idx?: number, fid?: string|null, feature_ref?: string|null }} sample
+ */
+function describeFeature(sample) {
+  if (sample?.feature_ref) {
+    return `Feature Ref ${sample.feature_ref}`
+  }
+  if (sample?.fid != null && sample.fid !== '') {
+    return `fid ${sample.fid}`
+  }
+  if (sample?.idx != null) {
+    return `feature #${sample.idx}`
+  }
+  return 'feature'
+}
+
+/**
+ * Render a "prefix: a, b, c (and N more)" message from a list-bearing
+ * payload. Returns `prefix` unchanged when there are no offenders (defensive
+ * — the SQL only emits a row when count > 0).
+ *
+ * @param {string} prefix
+ * @param {{ count?: number, sample?: object[] }} payload
+ * @param {(s: object) => string} [render]
+ */
+function formatList(prefix, payload, render = describeFeature) {
+  const count = Number(payload?.count ?? 0)
+  const sample = payload?.sample ?? []
+  if (count === 0) {
+    return prefix
+  }
+  const shown = sample.map(render).join(', ')
+  if (count > sample.length) {
+    return `${prefix}: ${shown} (and ${count - sample.length} more)`
+  }
+  return `${prefix}: ${shown}`
+}
+
+function describeOverlapPair(sample) {
+  const a = describeFeature({
+    idx: sample?.idx_a,
+    fid: sample?.fid_a,
+    feature_ref: sample?.feature_ref_a
+  })
+  const b = describeFeature({
+    idx: sample?.idx_b,
+    fid: sample?.fid_b,
+    feature_ref: sample?.feature_ref_b
+  })
+  return `${a} ↔ ${b}`
+}
+
+function describeSliver(sample) {
+  const area = Number(sample?.area_sqm ?? 0).toFixed(2)
+  const loc = sample?.location_wkt ?? 'unknown location'
+  return `~${area} sq m near ${loc}`
+}
+
 function redlineInvalidGeometryMessage(payload) {
   if (!payload?.reason) {
     return 'Redline boundary geometry is invalid'
@@ -9,6 +76,10 @@ function redlineInvalidGeometryMessage(payload) {
   }
   return `Redline boundary geometry is invalid: ${payload.reason} at ${payload.location_wkt}`
 }
+
+// ---------------------------------------------------------------------------
+// Builders
+// ---------------------------------------------------------------------------
 
 export const ERROR_BUILDERS = {
   [ERROR_CODES.NO_REDLINE]: () =>
@@ -36,45 +107,93 @@ export const ERROR_BUILDERS = {
       ERROR_CODES.REDLINE_INVALID_GEOMETRY,
       redlineInvalidGeometryMessage(p)
     ),
-  [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: () =>
+  [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: (p) =>
     makeError(
       ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY,
-      'One or more area habitat polygons have invalid geometry'
+      formatList(
+        'One or more area habitat polygons have invalid geometry',
+        p,
+        (s) => {
+          const base = describeFeature(s)
+          return s?.reason ? `${base} (${s.reason})` : base
+        }
+      ),
+      p
     ),
-  [ERROR_CODES.PARCEL_OVERLAPS]: () =>
+  [ERROR_CODES.PARCEL_OVERLAPS]: (p) =>
     makeError(
       ERROR_CODES.PARCEL_OVERLAPS,
-      'One or more area habitat parcels overlap with other parcels'
+      formatList(
+        'One or more area habitat parcels overlap with other parcels',
+        p,
+        describeOverlapPair
+      ),
+      p
     ),
-  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: () =>
+  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.SLIVERS_INSIDE_REDLINE,
-      'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon'
+      formatList(
+        'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon',
+        p,
+        describeSliver
+      ),
+      p
     ),
-  [ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]: () =>
+  [ERROR_CODES.SLIVERS_OUTSIDE_REDLINE]: (p) =>
+    makeError(
+      ERROR_CODES.SLIVERS_OUTSIDE_REDLINE,
+      formatList(
+        'Baseline file contains habitat parcel parts outside the redline boundary',
+        p,
+        describeSliver
+      ),
+      p
+    ),
+  [ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE,
-      'One or more area habitat polygons are not entirely within the redline boundary'
+      formatList(
+        'One or more area habitat polygons are not entirely within the redline boundary',
+        p
+      ),
+      p
     ),
-  [ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE]: () =>
+  [ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE,
-      'One or more hedgerow habitats are not entirely within the redline boundary'
+      formatList(
+        'One or more hedgerow habitats are not entirely within the redline boundary',
+        p
+      ),
+      p
     ),
-  [ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE]: () =>
+  [ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE,
-      'One or more watercourse habitats are not entirely within the redline boundary'
+      formatList(
+        'One or more watercourse habitats are not entirely within the redline boundary',
+        p
+      ),
+      p
     ),
-  [ERROR_CODES.IGGIS_OUTSIDE_REDLINE]: () =>
+  [ERROR_CODES.IGGIS_OUTSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.IGGIS_OUTSIDE_REDLINE,
-      'One or more IGGIs are not entirely within the redline boundary'
+      formatList(
+        'One or more IGGIs are not entirely within the redline boundary',
+        p
+      ),
+      p
     ),
-  [ERROR_CODES.TREES_OUTSIDE_REDLINE]: () =>
+  [ERROR_CODES.TREES_OUTSIDE_REDLINE]: (p) =>
     makeError(
       ERROR_CODES.TREES_OUTSIDE_REDLINE,
-      'One or more trees are not entirely within the redline boundary'
+      formatList(
+        'One or more trees are not entirely within the redline boundary',
+        p
+      ),
+      p
     ),
   [ERROR_CODES.AREA_SUM_MISMATCH]: (p) =>
     makeError(
