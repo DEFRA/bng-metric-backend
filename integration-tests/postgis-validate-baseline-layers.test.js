@@ -477,7 +477,7 @@ describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () =>
 })
 
 describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
-  it('AREA_PARCELS_OUTSIDE_REDLINE carries count and sample with feature refs', async () => {
+  it('AREA_PARCELS_OUTSIDE_REDLINE carries count, sample with feature refs, and per-parcel escape area + WKT', async () => {
     const err = await runAndGetError(
       makeLayers({
         redline: [poly(SQUARE)],
@@ -493,8 +493,12 @@ describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
     expect(err.details.sample).toHaveLength(2)
     expect(err.details.sample[0].feature_ref).toBe('PR-A')
     expect(err.details.sample[1].feature_ref).toBe('PR-B')
-    expect(err.message).toContain('Feature Ref PR-A')
-    expect(err.message).toContain('Feature Ref PR-B')
+    expect(err.details.sample[0].escape_area_sqm).toBeGreaterThan(0)
+    expect(err.details.sample[0].escape_location_wkt).toMatch(
+      /POLYGON|MULTIPOLYGON/
+    )
+    expect(err.message).toContain('Feature Ref PR-A — ~')
+    expect(err.message).toContain('Feature Ref PR-B — ~')
   })
 
   it('PARCEL_OVERLAPS carries pair-shaped sample rows', async () => {

@@ -67,6 +67,20 @@ function describeSliver(sample) {
   return `~${area} sq m near ${loc}`
 }
 
+/**
+ * Variant of describeFeature that also names the escape geometry's area + WKT
+ * so AC8's per-parcel report co-locates the parcel ref with where on the map
+ * it leaks the redline.
+ */
+function describeFeatureWithEscape(sample) {
+  const base = describeFeature(sample)
+  if (sample?.escape_area_sqm == null || sample?.escape_location_wkt == null) {
+    return base
+  }
+  const area = Number(sample.escape_area_sqm).toFixed(2)
+  return `${base} — ~${area} sq m near ${sample.escape_location_wkt}`
+}
+
 function redlineInvalidGeometryMessage(payload) {
   if (!payload?.reason) {
     return 'Redline boundary geometry is invalid'
@@ -155,7 +169,8 @@ export const ERROR_BUILDERS = {
       ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE,
       formatList(
         'One or more area habitat polygons are not entirely within the redline boundary',
-        p
+        p,
+        describeFeatureWithEscape
       ),
       p
     ),

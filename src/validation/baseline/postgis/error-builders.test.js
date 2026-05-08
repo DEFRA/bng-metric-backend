@@ -3,6 +3,13 @@ import { describe, it, expect } from 'vitest'
 import { ERROR_CODES } from '../errors.js'
 import { ERROR_BUILDERS } from './error-builders.js'
 
+// Sample-cap fixtures for the "(and N more)" assertion. Values match the
+// backend's ERROR_LIST_SAMPLE_CAP (50) and pick a total above the cap so the
+// tail message is exercised.
+const SAMPLE_CAP = 50
+const TOTAL_OVER_CAP = 73
+const EXPECTED_REMAINDER = TOTAL_OVER_CAP - SAMPLE_CAP
+
 describe('ERROR_BUILDERS — non-list errors', () => {
   it('NO_REDLINE returns code + message, no details', () => {
     const err = ERROR_BUILDERS[ERROR_CODES.NO_REDLINE]()
@@ -33,7 +40,7 @@ describe('ERROR_BUILDERS — non-list errors', () => {
   })
 })
 
-describe('ERROR_BUILDERS — list errors carry details', () => {
+describe('ERROR_BUILDERS — list errors: feature labelling and details', () => {
   it('AREA_PARCELS_OUTSIDE_REDLINE renders Feature Ref labels and surfaces details', () => {
     const payload = {
       count: 2,
@@ -68,18 +75,40 @@ describe('ERROR_BUILDERS — list errors carry details', () => {
   })
 
   it('appends "(and N more)" when count exceeds sample length', () => {
-    const sample = Array.from({ length: 50 }, (_, i) => ({
+    const sample = Array.from({ length: SAMPLE_CAP }, (_, i) => ({
       idx: i,
       fid: String(i + 1),
       feature_ref: `PR-${i + 1}`
     }))
     const err = ERROR_BUILDERS[ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]({
-      count: 73,
+      count: TOTAL_OVER_CAP,
       sample
     })
-    expect(err.message).toMatch(/\(and 23 more\)$/)
-    expect(err.details.count).toBe(73)
-    expect(err.details.sample).toHaveLength(50)
+    expect(err.message).toMatch(
+      new RegExp(`\\(and ${EXPECTED_REMAINDER} more\\)$`)
+    )
+    expect(err.details.count).toBe(TOTAL_OVER_CAP)
+    expect(err.details.sample).toHaveLength(SAMPLE_CAP)
+  })
+})
+
+describe('ERROR_BUILDERS — list errors: code-specific payload shapes', () => {
+  it('AREA_PARCELS_OUTSIDE_REDLINE includes escape area + WKT when present', () => {
+    const err = ERROR_BUILDERS[ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE]({
+      count: 1,
+      sample: [
+        {
+          idx: 0,
+          fid: '1',
+          feature_ref: 'PR-42',
+          escape_area_sqm: 1.5,
+          escape_location_wkt: 'POLYGON((0 0,1 0,1 1,0 1,0 0))'
+        }
+      ]
+    })
+    expect(err.message).toBe(
+      'One or more area habitat polygons are not entirely within the redline boundary: Feature Ref PR-42 — ~1.50 sq m near POLYGON((0 0,1 0,1 1,0 1,0 0))'
+    )
   })
 
   it("AREA_PARCELS_INVALID_GEOMETRY appends each row's reason in parentheses", () => {

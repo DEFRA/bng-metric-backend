@@ -68,6 +68,13 @@ function featureRefSql(propsExpr = 'props') {
   return `COALESCE(${propsExpr}->>'Parcel Ref', ${propsExpr}->>'Tree Ref', ${propsExpr}->>'Baseline Parcel Ref')`
 }
 
+// SQL fragment that extracts the SQLite primary key (fid) from the per-feature
+// props JSONB. Centralising the property name avoids repeating the literal in
+// every CTE that selects an identifier.
+function fidColumnSql(propsExpr = 'props') {
+  return `${propsExpr}->>'fid'`
+}
+
 // Baseline geometry validation, run as a single PostGIS statement. Features
 // are passed in as parallel arrays of GeoJSON strings ($1..$5), parsed and
 // reprojected to EPSG:27700 inside the query, used for every spatial check,
@@ -160,7 +167,7 @@ c_redline_invalid AS (
 -- AC5: list every self-intersecting / invalid area habitat polygon.
 c_areas_invalid AS (
   SELECT idx,
-         props->>'fid' AS fid,
+         ${fidColumnSql()} AS fid,
          ${featureRefSql()} AS feature_ref,
          (ST_IsValidDetail(geom)).reason AS reason
   FROM areas
@@ -169,10 +176,10 @@ c_areas_invalid AS (
 -- AC6: list every overlapping pair (idx_a < idx_b avoids duplicates).
 c_overlap_offending AS (
   SELECT prc1.idx AS idx_a,
-         prc1.props->>'fid' AS fid_a,
+         ${fidColumnSql('prc1.props')} AS fid_a,
          ${featureRefSql('prc1.props')} AS feature_ref_a,
          prc2.idx AS idx_b,
-         prc2.props->>'fid' AS fid_b,
+         ${fidColumnSql('prc2.props')} AS fid_b,
          ${featureRefSql('prc2.props')} AS feature_ref_b
   FROM areas prc1 JOIN areas prc2
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
@@ -216,13 +223,21 @@ c_slivers_outside AS (
 -- the parcel's escaping bit. Flag if its area exceeds the tolerance.
 -- (Area-of-difference rather than strict ST_Within so parcels sharing boundary
 -- edges with the redline aren't false-flagged by GEOS robustness wobbles.)
+-- Also exposes the escape geometry's area + WKT so the per-parcel report can
+-- be merged with the per-piece view (AC7) into a single line in the UI.
 c_areas_outside AS (
-  SELECT feat.idx,
-         feat.props->>'fid' AS fid,
-         ${featureRefSql('feat.props')} AS feature_ref
-  FROM areas feat CROSS JOIN redline_union redl
-  WHERE redl.geom IS NOT NULL
-    AND ST_Area(ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M})) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
+  SELECT idx, fid, feature_ref,
+         ST_Area(escape) AS escape_area_sqm,
+         ST_AsText(escape) AS escape_location_wkt
+  FROM (
+    SELECT feat.idx,
+           ${fidColumnSql('feat.props')} AS fid,
+           ${featureRefSql('feat.props')} AS feature_ref,
+           ST_Difference(ST_MakeValid(feat.geom), redl.geom, ${OVERLAY_GRID_SIZE_M}) AS escape
+    FROM areas feat CROSS JOIN redline_union redl
+    WHERE redl.geom IS NOT NULL
+  ) sub
+  WHERE ST_Area(escape) > ${PARCEL_OUTSIDE_TOLERANCE_SQ_M}
 ),
 -- AC9 / AC10: linear habitat layers (hedgerows, watercourses) outside the redline.
 -- In plain English: subtract the redline polygon from the feature line; whatever's
@@ -235,7 +250,7 @@ c_areas_outside AS (
 -- gives ST_Within=false even though the geometric distance is zero.)
 c_hedgerows_outside AS (
   SELECT feat.idx,
-         feat.props->>'fid' AS fid,
+         ${fidColumnSql('feat.props')} AS fid,
          ${featureRefSql('feat.props')} AS feature_ref
   FROM hedgerows feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
@@ -243,7 +258,7 @@ c_hedgerows_outside AS (
 ),
 c_watercourses_outside AS (
   SELECT feat.idx,
-         feat.props->>'fid' AS fid,
+         ${fidColumnSql('feat.props')} AS fid,
          ${featureRefSql('feat.props')} AS feature_ref
   FROM watercourses feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
@@ -255,7 +270,7 @@ c_watercourses_outside AS (
 -- because both are area features sharing edges with the redline.
 c_iggis_outside AS (
   SELECT feat.idx,
-         feat.props->>'fid' AS fid,
+         ${fidColumnSql('feat.props')} AS fid,
          ${featureRefSql('feat.props')} AS feature_ref
   FROM iggis feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL
@@ -269,7 +284,7 @@ c_iggis_outside AS (
 -- a point has no interior to intersect the polygon's interior.)
 c_trees_outside AS (
   SELECT feat.idx,
-         feat.props->>'fid' AS fid,
+         ${fidColumnSql('feat.props')} AS fid,
          ${featureRefSql('feat.props')} AS feature_ref
   FROM trees feat CROSS JOIN redline_union redl
   WHERE redl.geom IS NOT NULL AND NOT ST_DWithin(feat.geom, redl.geom, ${OUTSIDE_BOUNDARY_TOLERANCE_M})
@@ -346,8 +361,8 @@ SELECT 'AREA_PARCELS_OUTSIDE_REDLINE',
        jsonb_build_object(
          'count', count(*),
          'sample', (
-           SELECT jsonb_agg(jsonb_build_object('idx', idx, 'fid', fid, 'feature_ref', feature_ref) ORDER BY idx)
-           FROM (SELECT idx, fid, feature_ref FROM c_areas_outside ORDER BY idx LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
+           SELECT jsonb_agg(jsonb_build_object('idx', idx, 'fid', fid, 'feature_ref', feature_ref, 'escape_area_sqm', escape_area_sqm, 'escape_location_wkt', escape_location_wkt) ORDER BY idx)
+           FROM (SELECT idx, fid, feature_ref, escape_area_sqm, escape_location_wkt FROM c_areas_outside ORDER BY idx LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
          )
        )
 FROM c_areas_outside
