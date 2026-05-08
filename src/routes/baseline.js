@@ -136,6 +136,22 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *                     properties:
  *                       code: { type: string }
  *                       message: { type: string }
+ *                       details:
+ *                         type: object
+ *                         description: |
+ *                           Structured payload, present on list-bearing error
+ *                           codes (e.g. AREA_PARCELS_OUTSIDE_REDLINE,
+ *                           PARCEL_OVERLAPS, SLIVERS_INSIDE_REDLINE).
+ *                           Always carries `count` (the truthful total of
+ *                           offending features) and `sample` (a capped array
+ *                           of per-feature objects with `idx`, `fid`, and
+ *                           `feature_ref` — overlaps and slivers carry
+ *                           variant shapes).
+ *                         properties:
+ *                           count: { type: integer }
+ *                           sample:
+ *                             type: array
+ *                             items: { type: object }
  *       400:
  *         description: uploadId is missing or not a valid UUID
  *       413:

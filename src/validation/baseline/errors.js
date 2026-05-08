@@ -21,6 +21,7 @@ export const ERROR_CODES = Object.freeze({
   AREA_PARCELS_INVALID_GEOMETRY: 'AREA_PARCELS_INVALID_GEOMETRY',
   PARCEL_OVERLAPS: 'PARCEL_OVERLAPS',
   SLIVERS_INSIDE_REDLINE: 'SLIVERS_INSIDE_REDLINE',
+  SLIVERS_OUTSIDE_REDLINE: 'SLIVERS_OUTSIDE_REDLINE',
   AREA_PARCELS_OUTSIDE_REDLINE: 'AREA_PARCELS_OUTSIDE_REDLINE',
   HEDGEROWS_OUTSIDE_REDLINE: 'HEDGEROWS_OUTSIDE_REDLINE',
   WATERCOURSES_OUTSIDE_REDLINE: 'WATERCOURSES_OUTSIDE_REDLINE',
@@ -29,6 +30,6 @@ export const ERROR_CODES = Object.freeze({
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH'
 })
 
-export function makeError(code, message) {
-  return { code, message }
+export function makeError(code, message, details) {
+  return details === undefined ? { code, message } : { code, message, details }
 }
