@@ -10,12 +10,14 @@
   "scripts": {
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
+    "predev": "node scripts/ensure-env.js",
     "dev": "NODE_ENV=development USE_SWAGGER=true npm run server:watch",
     "dev:debug": "NODE_ENV=development npm run server:debug",
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
-    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test && npm run test:integration",
+    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test",
+    "git:pre-push-hook": "npm run test:integration:full",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
     "postinstall": "npm run setup:husky",
@@ -27,7 +29,10 @@
     "start": "NODE_ENV=production node --use-strict .",
     "test": "TZ=UTC vitest run --coverage",
     "test:watch": "TZ=UTC vitest",
-    "test:integration": "TZ=UTC vitest run --config vitest.integration.config.js"
+    "test:integration": "TZ=UTC vitest run --config vitest.integration.config.js",
+    "test:integration:coverage": "TZ=UTC vitest run --config vitest.integration.config.js --coverage --coverage.enabled",
+    "test:integration:routes": "node scripts/assert-route-coverage.mjs",
+    "test:integration:full": "npm run test:integration:coverage && npm run test:integration:routes"
   },
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",

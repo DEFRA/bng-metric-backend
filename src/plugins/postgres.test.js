@@ -37,42 +37,50 @@ vi.mock('@aws-sdk/credential-providers', () => ({
   fromNodeProviderChain: vi.fn().mockReturnValue('mock-credentials')
 }))
 
-describe('#postgres plugin', () => {
-  const mockServer = {
-    logger: { info: vi.fn(), error: vi.fn() },
-    decorate: vi.fn(),
-    secureContext: null
-  }
+const CONNECTION_REFUSED = 'connection refused'
 
-  const baseOptions = {
-    host: 'localhost',
-    port: 5432,
-    user: 'dev',
-    database: 'bng',
-    localPassword: 'dev',
-    region: 'eu-west-2'
-  }
+const mockServer = {
+  logger: { info: vi.fn(), error: vi.fn() },
+  decorate: vi.fn(),
+  secureContext: null
+}
 
-  beforeEach(() => {
-    mockServer.decorate.mockReset()
-    mockServer.logger.info.mockReset()
-    mockServer.logger.error.mockReset()
-    mockConnect.mockClear()
-    mockQuery.mockClear()
-    mockRelease.mockClear()
+const baseOptions = {
+  host: 'localhost',
+  port: 5432,
+  user: 'dev',
+  database: 'bng',
+  localPassword: 'dev',
+  region: 'eu-west-2'
+}
+
+function resetMocks() {
+  mockServer.decorate.mockReset()
+  mockServer.logger.info.mockReset()
+  mockServer.logger.error.mockReset()
+  mockConnect.mockClear()
+  mockQuery.mockClear()
+  mockRelease.mockClear()
+}
+
+async function captureLocalPasswordFn() {
+  const Pool = (await import('pg-pool')).default
+  let passwordFn
+  Pool.mockImplementation(function (opts) {
+    passwordFn = opts.password
+    this.on = (event, handler) => {
+      mockEventHandlers[event] = handler
+    }
+    this.connect = mockConnect
   })
+  return () => passwordFn
+}
+
+describe('#postgres plugin local auth', () => {
+  beforeEach(resetMocks)
 
   test('Should use local password when iamAuthentication is false', async () => {
-    const Pool = (await import('pg-pool')).default
-    let passwordFn
-
-    Pool.mockImplementation(function (opts) {
-      passwordFn = opts.password
-      this.on = (event, handler) => {
-        mockEventHandlers[event] = handler
-      }
-      this.connect = mockConnect
-    })
+    const getPasswordFn = await captureLocalPasswordFn()
 
     await postgres.plugin.register(mockServer, {
       ...baseOptions,
@@ -89,7 +97,7 @@ describe('#postgres plugin', () => {
       'pg',
       expect.anything()
     )
-    expect(passwordFn()).toBe('dev')
+    expect(getPasswordFn()()).toBe('dev')
   })
 
   test('Should verify connectivity at startup', async () => {
@@ -104,17 +112,17 @@ describe('#postgres plugin', () => {
   })
 
   test('Should throw if startup connection fails', async () => {
-    mockConnect.mockRejectedValueOnce(new Error('connection refused'))
+    mockConnect.mockRejectedValueOnce(new Error(CONNECTION_REFUSED))
 
     await expect(
       postgres.plugin.register(mockServer, {
         ...baseOptions,
         iamAuthentication: false
       })
-    ).rejects.toThrow('connection refused')
+    ).rejects.toThrow(CONNECTION_REFUSED)
 
     expect(mockServer.logger.error).toHaveBeenCalledWith(
-      expect.stringContaining('connection refused')
+      expect.stringContaining(CONNECTION_REFUSED)
     )
   })
 
@@ -130,27 +138,21 @@ describe('#postgres plugin', () => {
     mockEventHandlers.error(new Error('pool error'))
     expect(logger.error).toHaveBeenCalledWith('Postgres pool error: pool error')
   })
+})
+
+describe('#postgres plugin IAM auth', () => {
+  beforeEach(resetMocks)
 
   test('Should return IAM token when iamAuthentication is true', async () => {
     const { Signer } = await import('@aws-sdk/rds-signer')
-
-    const Pool = (await import('pg-pool')).default
-    let passwordFn
-
-    Pool.mockImplementation(function (opts) {
-      passwordFn = opts.password
-      this.on = (event, handler) => {
-        mockEventHandlers[event] = handler
-      }
-      this.connect = mockConnect
-    })
+    const getPasswordFn = await captureLocalPasswordFn()
 
     await postgres.plugin.register(mockServer, {
       ...baseOptions,
       iamAuthentication: true
     })
 
-    const token = await passwordFn()
+    const token = await getPasswordFn()()
 
     expect(Signer).toHaveBeenCalledWith(
       expect.objectContaining({

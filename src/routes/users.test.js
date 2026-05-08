@@ -24,7 +24,7 @@ const mockUserProjects = [
     project: {
       name: 'Oakwood Farm BNG Assessment',
       site: { name: 'Oakwood Farm', grid_ref: 'SP 987 654' },
-      units: { habitat: 25.0, hedgerow: 8.1 }
+      units: { habitat: 25, hedgerow: 8.1 }
     },
     userId: TEST_USER_ID,
     bngProjectVersion: 1,

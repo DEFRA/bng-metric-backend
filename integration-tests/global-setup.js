@@ -1,10 +1,19 @@
 import { execFile } from 'node:child_process'
 import { promisify } from 'node:util'
+import fs from 'node:fs'
+import path from 'node:path'
 import pg from 'pg'
 import { getDbConfig } from './helpers/db.js'
 
 const execFileAsync = promisify(execFile)
 const { Client } = pg
+
+const ROUTE_HITS_FILE = path.resolve('coverage/route-hits.json')
+
+function resetRouteHits() {
+  fs.mkdirSync(path.dirname(ROUTE_HITS_FILE), { recursive: true })
+  fs.writeFileSync(ROUTE_HITS_FILE, '[]\n')
+}
 
 async function probePostgres() {
   const cfg = getDbConfig()
@@ -28,6 +37,12 @@ async function applyMigrations() {
 }
 
 export async function setup() {
+  // Wipe any prior run's route hits before workers start collecting fresh ones.
+  // Workers run with isolate:true so each test file gets a fresh module graph;
+  // the recorder merges with the on-disk file rather than holding state across
+  // files, which only works if we start from a known-empty file.
+  resetRouteHits()
+
   const cfg = getDbConfig()
   try {
     await probePostgres()

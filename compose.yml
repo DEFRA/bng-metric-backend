@@ -139,8 +139,8 @@ services:
       PORT: 7337
       NODE_ENV: development
       REDIS_HOST: redis
-      USE_SINGLE_INSTANCE_CACHE: true
-      MOCK_VIRUS_SCAN_ENABLED: true
+      USE_SINGLE_INSTANCE_CACHE: 'true'
+      MOCK_VIRUS_SCAN_ENABLED: 'true'
       MOCK_VIRUS_RESULT_DELAY: 2
       SQS_ENDPOINT: http://localstack:4566
       S3_ENDPOINT: http://localstack:4566
