@@ -17,10 +17,55 @@ const unitsSchema = Joi.object({
   watercourse: Joi.number()
 })
 
+const redLineSchema = Joi.object({
+  featureId: Joi.string().uuid().required(),
+  properties: Joi.object().unknown(true)
+}).allow(null)
+
+const habitatSchema = Joi.object({
+  featureId: Joi.string().uuid().required(),
+  ref: Joi.string().allow(null, ''),
+  type: Joi.string().allow(null, ''),
+  broadType: Joi.string().allow(null, ''),
+  distinctiveness: Joi.string().allow(null, ''),
+  distinctivenessScore: Joi.number().allow(null),
+  condition: Joi.string().allow(null, ''),
+  strategicSignificance: Joi.string().allow(null, ''),
+  retentionCategory: Joi.string().allow(null, ''),
+  area: Joi.number().allow(null),
+  properties: Joi.object().unknown(true)
+})
+
+const linearHabitatSchema = Joi.object({
+  featureId: Joi.string().uuid().required(),
+  ref: Joi.string().allow(null, ''),
+  type: Joi.string().allow(null, ''),
+  condition: Joi.string().allow(null, ''),
+  length: Joi.number().allow(null),
+  properties: Joi.object().unknown(true)
+})
+
+const baselineSchema = Joi.object({
+  uploadId: Joi.string().allow(null),
+  importedAt: Joi.string().isoDate(),
+  redLine: redLineSchema,
+  habitats: Joi.array().items(habitatSchema),
+  hedgerows: Joi.array().items(linearHabitatSchema),
+  watercourses: Joi.array().items(linearHabitatSchema)
+})
+
 const projectSchema = Joi.object({
   name: Joi.string(),
   site: siteSchema,
-  units: unitsSchema
+  units: unitsSchema,
+  baseline: baselineSchema
 })
 
-export { projectSchema, siteSchema, unitsSchema }
+export {
+  projectSchema,
+  siteSchema,
+  unitsSchema,
+  baselineSchema,
+  habitatSchema,
+  linearHabitatSchema
+}
