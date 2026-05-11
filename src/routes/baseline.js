@@ -171,8 +171,7 @@ async function persistBaseline(
     await tx
       .update(projects)
       .set({
-        project: sql`jsonb_set(${projects.project}, '{baseline}', ${docJson}::jsonb, true)`,
-        updatedAt: sql`now()`
+        project: sql`jsonb_set(${projects.project}, '{baseline}', ${docJson}::jsonb, true)`
       })
       .where(eq(projects.id, projectId))
   })

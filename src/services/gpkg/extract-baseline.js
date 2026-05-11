@@ -114,6 +114,15 @@ function buildRedLine(features) {
   }
 }
 
+/**
+ * Map an array of parsed GeoPackage features into parallel `documents` and
+ * `geometries` arrays, splitting attribute data from geometry.
+ *
+ * @param {object[]} features
+ * @param {(feature: object) => { document: object, geometryRow: object }} builder
+ *   Per-feature transform — one of `buildHabitat` or `buildLinear` — that
+ *   returns the JSONB-bound document and the matching PostGIS geometry row.
+ */
 function splitFeatures(features, builder) {
   const documents = []
   const geometries = []
