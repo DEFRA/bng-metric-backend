@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeAll, afterAll } from 'vitest'
 import hapi from '@hapi/hapi'
+import Database from 'better-sqlite3'
 
 vi.mock('../../plugins/postgres.js', () => ({
   postgres: {
@@ -9,6 +10,12 @@ vi.mock('../../plugins/postgres.js', () => ({
       register: vi.fn()
     }
   }
+}))
+
+vi.mock('better-sqlite3', () => ({
+  default: vi.fn(function () {
+    return { close: vi.fn() }
+  })
 }))
 
 describe('#startServer', () => {
@@ -53,6 +60,28 @@ describe('#startServer', () => {
       await expect(startServerImport.startServer()).rejects.toThrow(
         'Server failed to start'
       )
+    })
+  })
+
+  describe('better-sqlite3 native-binding smoke check', () => {
+    test('Throws an actionable rebuild message when the binding is mismatched', async () => {
+      vi.mocked(Database).mockImplementationOnce(function () {
+        throw new Error(
+          "The module 'better_sqlite3.node' was compiled against a different Node.js version using NODE_MODULE_VERSION 115. This version of Node.js requires NODE_MODULE_VERSION 137."
+        )
+      })
+
+      await expect(startServerImport.startServer()).rejects.toThrow(
+        /better-sqlite3 native binding mismatches.*npm rebuild better-sqlite3/s
+      )
+    })
+
+    test('Re-throws unexpected errors unchanged', async () => {
+      vi.mocked(Database).mockImplementationOnce(function () {
+        throw new Error('disk full')
+      })
+
+      await expect(startServerImport.startServer()).rejects.toThrow('disk full')
     })
   })
 })
