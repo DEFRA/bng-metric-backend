@@ -5,12 +5,14 @@ import { geometry } from './custom-types.js'
 
 const bng = pgSchema('bng')
 
+const BNG_SRID = 27700
+
 const baselineRedLine = bng.table('baseline_red_line', {
   id: uuid('id')
     .primaryKey()
     .default(sql`gen_random_uuid()`),
   projectId: uuid('project_id').notNull(),
-  geom: geometry('MultiPolygon', 27700)('geom').notNull()
+  geom: geometry('MultiPolygon', BNG_SRID)('geom').notNull()
 })
 
 const baselineHabitats = bng.table('baseline_habitats', {
@@ -19,7 +21,7 @@ const baselineHabitats = bng.table('baseline_habitats', {
     .default(sql`gen_random_uuid()`),
   projectId: uuid('project_id').notNull(),
   ref: text('ref'),
-  geom: geometry('MultiPolygon', 27700)('geom').notNull()
+  geom: geometry('MultiPolygon', BNG_SRID)('geom').notNull()
 })
 
 const baselineHedgerows = bng.table('baseline_hedgerows', {
@@ -28,7 +30,7 @@ const baselineHedgerows = bng.table('baseline_hedgerows', {
     .default(sql`gen_random_uuid()`),
   projectId: uuid('project_id').notNull(),
   ref: text('ref'),
-  geom: geometry('MultiLineString', 27700)('geom').notNull()
+  geom: geometry('MultiLineString', BNG_SRID)('geom').notNull()
 })
 
 const baselineWatercourses = bng.table('baseline_watercourses', {
@@ -37,7 +39,7 @@ const baselineWatercourses = bng.table('baseline_watercourses', {
     .default(sql`gen_random_uuid()`),
   projectId: uuid('project_id').notNull(),
   ref: text('ref'),
-  geom: geometry('MultiLineString', 27700)('geom').notNull()
+  geom: geometry('MultiLineString', BNG_SRID)('geom').notNull()
 })
 
 export {

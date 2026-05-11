@@ -5,6 +5,10 @@ import { extractBaseline } from './extract-baseline.js'
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
 
+const BNG_SRID = 27700
+const WGS84_SRID = 4326
+const PARCEL_REF = 'Parcel Ref'
+
 const SAMPLE_POLYGON = {
   type: 'Polygon',
   coordinates: [
@@ -26,7 +30,7 @@ const SAMPLE_LINESTRING = {
   ]
 }
 
-function feature(properties, geometry = SAMPLE_POLYGON, srid = 27700) {
+function feature(properties, geometry = SAMPLE_POLYGON, srid = BNG_SRID) {
   return {
     type: 'Feature',
     properties,
@@ -81,9 +85,9 @@ describe('extractBaseline — featureId join keys', () => {
   it('assigns a UUID featureId to every feature, matched between document and geometry halves', () => {
     const out = extractBaseline({
       redline: [feature({ name: 'r' })],
-      areas: [feature({ 'Parcel Ref': 'P1' })],
-      hedgerows: [feature({ 'Parcel Ref': 'H1' }, SAMPLE_LINESTRING)],
-      watercourses: [feature({ 'Parcel Ref': 'W1' }, SAMPLE_LINESTRING)]
+      areas: [feature({ [PARCEL_REF]: 'P1' })],
+      hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
+      watercourses: [feature({ [PARCEL_REF]: 'W1' }, SAMPLE_LINESTRING)]
     })
 
     expect(out.document.redLine.featureId).toMatch(UUID_REGEX)
@@ -107,7 +111,7 @@ describe('extractBaseline — featureId join keys', () => {
   it('produces a unique featureId per feature within the same layer', () => {
     const out = extractBaseline({
       redline: [],
-      areas: [feature({ 'Parcel Ref': 'P1' }), feature({ 'Parcel Ref': 'P2' })],
+      areas: [feature({ [PARCEL_REF]: 'P1' }), feature({ [PARCEL_REF]: 'P2' })],
       hedgerows: [],
       watercourses: []
     })
@@ -117,13 +121,13 @@ describe('extractBaseline — featureId join keys', () => {
   })
 })
 
-describe('extractBaseline — document (attribute) half', () => {
+describe('extractBaseline — document AC1 fields and habitat shape', () => {
   it('extracts AC1 fields per habitat: ref, type, distinctiveness, condition, plus retention/strategic significance', () => {
     const out = extractBaseline({
       redline: [],
       areas: [
         feature({
-          'Parcel Ref': 'P1',
+          [PARCEL_REF]: 'P1',
           'Baseline Habitat Type': 'Grassland - Lowland meadows',
           'Baseline Broad Habitat Type': 'Grassland',
           'Baseline Condition': 'Good',
@@ -155,9 +159,9 @@ describe('extractBaseline — document (attribute) half', () => {
   it('does not include geometry or srid in document features', () => {
     const out = extractBaseline({
       redline: [feature({ name: 'r' })],
-      areas: [feature({ 'Parcel Ref': 'P1' })],
-      hedgerows: [feature({ 'Parcel Ref': 'H1' }, SAMPLE_LINESTRING)],
-      watercourses: [feature({ 'Parcel Ref': 'W1' }, SAMPLE_LINESTRING)]
+      areas: [feature({ [PARCEL_REF]: 'P1' })],
+      hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
+      watercourses: [feature({ [PARCEL_REF]: 'W1' }, SAMPLE_LINESTRING)]
     })
 
     expect(out.document.redLine).not.toHaveProperty('geometry')
@@ -170,7 +174,7 @@ describe('extractBaseline — document (attribute) half', () => {
 
   it('preserves the raw GPKG row as `properties` so nothing is lost in extraction', () => {
     const row = {
-      'Parcel Ref': 'P1',
+      [PARCEL_REF]: 'P1',
       'Baseline Habitat Type': 'Grassland - Modified grassland',
       ExtraField: 'something custom',
       fid: 42
@@ -185,13 +189,15 @@ describe('extractBaseline — document (attribute) half', () => {
 
     expect(out.document.habitats[0].properties).toEqual(row)
   })
+})
 
+describe('extractBaseline — document distinctiveness lookups and key fallbacks', () => {
   it('returns null distinctiveness when the habitat type is unknown', () => {
     const out = extractBaseline({
       redline: [],
       areas: [
         feature({
-          'Parcel Ref': 'P1',
+          [PARCEL_REF]: 'P1',
           'Baseline Habitat Type': 'Made-up habitat type that does not exist',
           'Baseline Condition': 'Good'
         })
@@ -209,7 +215,7 @@ describe('extractBaseline — document (attribute) half', () => {
       redline: [],
       areas: [
         feature({
-          'Parcel Ref': 'P1',
+          [PARCEL_REF]: 'P1',
           'Baseline Habitat Type': 'GRASSLAND - LOWLAND MEADOWS'
         })
       ],
@@ -242,7 +248,9 @@ describe('extractBaseline — document (attribute) half', () => {
       })
     )
   })
+})
 
+describe('extractBaseline — document hedgerows, watercourses, and missing-field defaults', () => {
   it('extracts hedgerows and watercourses with ref, type, condition and length', () => {
     const out = extractBaseline({
       redline: [],
@@ -250,7 +258,7 @@ describe('extractBaseline — document (attribute) half', () => {
       hedgerows: [
         feature(
           {
-            'Parcel Ref': 'H1',
+            [PARCEL_REF]: 'H1',
             'Baseline Habitat Type': 'Native species rich hedgerow',
             'Baseline Condition': 'Good',
             Length: 100
@@ -261,7 +269,7 @@ describe('extractBaseline — document (attribute) half', () => {
       watercourses: [
         feature(
           {
-            'Parcel Ref': 'W1',
+            [PARCEL_REF]: 'W1',
             'Baseline Habitat Type':
               'Watercourse footprint - Watercourse footprint',
             'Baseline Condition': 'Moderate',
@@ -323,7 +331,7 @@ describe('extractBaseline — geometries half', () => {
     expect(out.geometries.redLine).toEqual({
       featureId: out.document.redLine.featureId,
       geometry: SAMPLE_POLYGON,
-      srid: 27700
+      srid: BNG_SRID
     })
   })
 
@@ -332,7 +340,7 @@ describe('extractBaseline — geometries half', () => {
       redline: [],
       areas: [
         feature({
-          'Parcel Ref': 'P1',
+          [PARCEL_REF]: 'P1',
           'Baseline Habitat Type': 'Grassland - Lowland meadows'
         })
       ],
@@ -345,27 +353,27 @@ describe('extractBaseline — geometries half', () => {
       featureId: out.document.habitats[0].featureId,
       ref: 'P1',
       geometry: SAMPLE_POLYGON,
-      srid: 27700
+      srid: BNG_SRID
     })
   })
 
   it('keeps the source SRID alongside each geometry so the persistence layer can ST_Transform', () => {
     const out = extractBaseline({
       redline: [],
-      areas: [feature({ 'Parcel Ref': 'P1' }, SAMPLE_POLYGON, 4326)],
+      areas: [feature({ [PARCEL_REF]: 'P1' }, SAMPLE_POLYGON, WGS84_SRID)],
       hedgerows: [],
       watercourses: []
     })
 
-    expect(out.geometries.habitats[0].srid).toBe(4326)
+    expect(out.geometries.habitats[0].srid).toBe(WGS84_SRID)
   })
 
   it('returns one geometry row per hedgerow and watercourse', () => {
     const out = extractBaseline({
       redline: [],
       areas: [],
-      hedgerows: [feature({ 'Parcel Ref': 'H1' }, SAMPLE_LINESTRING)],
-      watercourses: [feature({ 'Parcel Ref': 'W1' }, SAMPLE_LINESTRING)]
+      hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
+      watercourses: [feature({ [PARCEL_REF]: 'W1' }, SAMPLE_LINESTRING)]
     })
 
     expect(out.geometries.hedgerows).toHaveLength(1)
@@ -373,7 +381,7 @@ describe('extractBaseline — geometries half', () => {
       featureId: out.document.hedgerows[0].featureId,
       ref: 'H1',
       geometry: SAMPLE_LINESTRING,
-      srid: 27700
+      srid: BNG_SRID
     })
     expect(out.geometries.watercourses).toHaveLength(1)
     expect(out.geometries.watercourses[0].ref).toBe('W1')

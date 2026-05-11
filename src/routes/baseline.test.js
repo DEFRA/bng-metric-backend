@@ -1,6 +1,23 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import {
+  UPLOAD_ID,
+  PROJECT_ID,
+  MOCK_BUCKET,
+  MOCK_KEY,
+  MOCK_BUFFER,
+  THROWS_502,
+  HTTP_404,
+  HTTP_422,
+  HTTP_502,
+  HTTP_504,
+  HTTP_413,
+  STUB_LAYERS,
+  STUB_EXTRACTED,
+  makeH,
+  makeDrizzle
+} from './baseline.test-fixtures.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
@@ -51,142 +68,6 @@ const { readBaselineGeoPackage } =
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
 const { validateBaseline } = await import('./baseline.js')
-
-const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
-const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
-const FEATURE_ID_RED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
-const FEATURE_ID_HAB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
-const FEATURE_ID_HEDGE = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
-const FEATURE_ID_WATER = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
-
-const MOCK_BUCKET = 'baseline-files'
-const MOCK_KEY = 'baseline/file.gpkg'
-const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
-const THROWS_502 = 'throws a 502 Bad Gateway'
-
-const HTTP_404 = 404
-const HTTP_422 = 422
-const HTTP_502 = 502
-const HTTP_504 = 504
-const HTTP_413 = 413
-
-const STUB_LAYERS = {
-  redline: [],
-  areas: [],
-  hedgerows: [],
-  watercourses: [],
-  iggis: [],
-  trees: [],
-  missingLayers: []
-}
-
-const SAMPLE_GEOM = { type: 'Polygon', coordinates: [[[0, 0]]] }
-const SAMPLE_LINE = { type: 'LineString', coordinates: [[0, 0]] }
-
-const STUB_EXTRACTED = {
-  document: {
-    uploadId: UPLOAD_ID,
-    importedAt: '2026-05-08T00:00:00.000Z',
-    redLine: { featureId: FEATURE_ID_RED, properties: {} },
-    habitats: [{ featureId: FEATURE_ID_HAB, ref: 'P1' }],
-    hedgerows: [{ featureId: FEATURE_ID_HEDGE, ref: 'H1' }],
-    watercourses: [{ featureId: FEATURE_ID_WATER, ref: 'W1' }]
-  },
-  geometries: {
-    redLine: { featureId: FEATURE_ID_RED, geometry: SAMPLE_GEOM, srid: 27700 },
-    habitats: [
-      {
-        featureId: FEATURE_ID_HAB,
-        ref: 'P1',
-        geometry: SAMPLE_GEOM,
-        srid: 27700
-      }
-    ],
-    hedgerows: [
-      {
-        featureId: FEATURE_ID_HEDGE,
-        ref: 'H1',
-        geometry: SAMPLE_LINE,
-        srid: 27700
-      }
-    ],
-    watercourses: [
-      {
-        featureId: FEATURE_ID_WATER,
-        ref: 'W1',
-        geometry: SAMPLE_LINE,
-        srid: 27700
-      }
-    ]
-  }
-}
-
-function makeH() {
-  return {
-    response: vi.fn().mockReturnThis(),
-    code: vi.fn().mockReturnThis()
-  }
-}
-
-/**
- * Build a drizzle test double whose .transaction(cb) calls cb with a tx object
- * that recordss every chained call. The tx supports the four DSL paths the route
- * uses (select/delete/update) plus tx.execute(...) for the raw INSERT SQL.
- *
- * `projectExists` controls whether the initial project SELECT returns a row;
- * setting it to false drives the 404 path.
- */
-function makeDrizzle({ projectExists = true } = {}) {
-  const log = {
-    transactionCalls: 0,
-    selectCalls: 0,
-    deletes: [],
-    executes: [],
-    updates: []
-  }
-
-  const tx = {
-    select: vi.fn(() => {
-      log.selectCalls += 1
-      return {
-        from: vi.fn(() => ({
-          where: vi.fn(() => ({
-            limit: vi.fn(() =>
-              Promise.resolve(projectExists ? [{ id: PROJECT_ID }] : [])
-            )
-          }))
-        }))
-      }
-    }),
-    delete: vi.fn((table) => ({
-      where: vi.fn(() => {
-        log.deletes.push(table)
-        return Promise.resolve()
-      })
-    })),
-    execute: vi.fn((sqlChunk) => {
-      log.executes.push(sqlChunk)
-      return Promise.resolve()
-    }),
-    update: vi.fn((table) => ({
-      set: vi.fn(() => ({
-        where: vi.fn(() => {
-          log.updates.push(table)
-          return Promise.resolve()
-        })
-      }))
-    }))
-  }
-
-  const drizzle = {
-    transaction: vi.fn(async (cb) => {
-      log.transactionCalls += 1
-      return cb(tx)
-    })
-  }
-
-  return { drizzle, tx, log }
-}
 
 describe('validateBaseline route configuration', () => {
   it('is a POST route', () => {
@@ -244,7 +125,30 @@ describe('validateBaseline Joi payload validation', () => {
   })
 })
 
-describe('validateBaseline handler happy paths', () => {
+function setupHappyPathMocks() {
+  vi.mocked(waitForUploadReady).mockResolvedValue({
+    bucket: MOCK_BUCKET,
+    key: MOCK_KEY
+  })
+  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(validateBaselineLayers).mockResolvedValue({
+    valid: true,
+    errors: []
+  })
+  vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+}
+
+function makeBaselineRequest({ drizzle, payload = null } = {}) {
+  return {
+    params: { uploadId: UPLOAD_ID },
+    payload,
+    drizzle
+  }
+}
+
+describe('validateBaseline handler — pipeline calls', () => {
   let h
   let drizzleHarness
 
@@ -252,59 +156,61 @@ describe('validateBaseline handler happy paths', () => {
     vi.clearAllMocks()
     h = makeH()
     drizzleHarness = makeDrizzle()
-    vi.mocked(waitForUploadReady).mockResolvedValue({
-      bucket: MOCK_BUCKET,
-      key: MOCK_KEY
-    })
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
-      valid: true,
-      errors: []
-    })
-    vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+    setupHappyPathMocks()
   })
 
-  function makeRequest(payload = null) {
-    return {
-      params: { uploadId: UPLOAD_ID },
-      payload,
-      drizzle: drizzleHarness.drizzle
-    }
-  }
-
   it('waits for the upload to be ready using the uploadId', async () => {
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
   })
 
   it('downloads the file using the resolved bucket and key', async () => {
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
   })
 
   it('runs the gpkg gate against the downloaded buffer', async () => {
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
   })
 
   it('runs full baseline validation when the gate passes', async () => {
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(readBaselineGeoPackage).toHaveBeenCalled()
     expect(validateBaselineLayers).toHaveBeenCalledWith(STUB_LAYERS, undefined)
+  })
+})
+
+describe('validateBaseline handler — response shape', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
   })
 
   it('returns the baseline validation result when valid', async () => {
     const result = { valid: true, errors: [] }
     vi.mocked(validateBaselineLayers).mockResolvedValue(result)
-
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(result)
   })
 
@@ -319,9 +225,10 @@ describe('validateBaseline handler happy paths', () => {
       ]
     }
     vi.mocked(validateBaselineLayers).mockResolvedValue(result)
-
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(result)
   })
 
@@ -333,58 +240,31 @@ describe('validateBaseline handler happy paths', () => {
       ]
     }
     vi.mocked(validateGpkg).mockReturnValue(gateResult)
-
-    await validateBaseline.handler(makeRequest(), h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(gateResult)
     expect(validateBaselineLayers).not.toHaveBeenCalled()
   })
 })
 
-describe('validateBaseline handler persistence', () => {
+describe('validateBaseline handler persistence — happy path side effects', () => {
   let h
 
   beforeEach(() => {
     vi.clearAllMocks()
     h = makeH()
-    vi.mocked(waitForUploadReady).mockResolvedValue({
-      bucket: MOCK_BUCKET,
-      key: MOCK_KEY
-    })
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
-      valid: true,
-      errors: []
-    })
-    vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
-  })
-
-  it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
-    const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: null,
-      drizzle
-    }
-
-    await validateBaseline.handler(request, h)
-
-    expect(extractBaseline).not.toHaveBeenCalled()
-    expect(log.transactionCalls).toBe(0)
+    setupHappyPathMocks()
   })
 
   it('opens a transaction when projectId is supplied and validation passes', async () => {
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
       uploadId: UPLOAD_ID
     })
@@ -393,55 +273,61 @@ describe('validateBaseline handler persistence', () => {
 
   it('checks the project exists at the start of the transaction', async () => {
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     expect(log.selectCalls).toBe(1)
   })
 
   it('deletes prior baseline rows from all four feature tables before inserting', async () => {
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     expect(log.deletes).toHaveLength(4)
   })
 
   it('inserts geometry rows for each non-empty layer', async () => {
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     // Stub data has 1 red line + 1 habitat + 1 hedgerow + 1 watercourse = 4 inserts
     expect(log.executes).toHaveLength(4)
   })
 
   it('updates the project JSONB document at the end of the transaction', async () => {
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     expect(log.updates).toHaveLength(1)
+  })
+})
+
+describe('validateBaseline handler persistence — guard rails', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
+
+  it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({ drizzle, payload: null })
+    await validateBaseline.handler(request, h)
+    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(log.transactionCalls).toBe(0)
   })
 
   it('does not persist when projectId is supplied but validation fails', async () => {
@@ -449,44 +335,34 @@ describe('validateBaseline handler persistence', () => {
       valid: false,
       errors: [{ code: 'REDLINE_INVALID_GEOMETRY', message: 'bad' }]
     })
-
     const { drizzle, log } = makeDrizzle()
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h)
-
     expect(extractBaseline).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(0)
   })
 
   it('throws a 404 Boom error when the projectId does not match an existing project', async () => {
     const { drizzle } = makeDrizzle({ projectExists: false })
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     const err = await validateBaseline.handler(request, h).catch((e) => e)
-
     expect(err.isBoom).toBe(true)
     expect(err.output.statusCode).toBe(HTTP_404)
   })
 
   it('does not insert any geometry rows when the project is missing', async () => {
     const { drizzle, log } = makeDrizzle({ projectExists: false })
-    const request = {
-      params: { uploadId: UPLOAD_ID },
-      payload: { projectId: PROJECT_ID },
-      drizzle
-    }
-
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
     await validateBaseline.handler(request, h).catch(() => {})
-
     expect(log.executes).toHaveLength(0)
     expect(log.updates).toHaveLength(0)
   })

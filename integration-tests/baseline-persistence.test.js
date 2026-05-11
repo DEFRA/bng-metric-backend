@@ -14,6 +14,7 @@ import {
 
 const HTTP_OK = 200
 const HTTP_NOT_FOUND = 404
+const BNG_SRID = 27700
 const BUCKET = 'baseline-files'
 const FIXTURE = 'baseline-complete.gpkg'
 const UNKNOWN_PROJECT_ID = '00000000-0000-4000-8000-000000000000'
@@ -107,195 +108,195 @@ async function fetchLayerRows(table, projectId) {
   return rows
 }
 
-describe('POST /baseline/validate/{uploadId} — persistence', () => {
-  describe('with a valid projectId and a complete GeoPackage', () => {
-    it('persists the unpacked baseline against the project', async () => {
-      const project = await createProject('Integration test — happy path')
-      const uploadId = await uploadFixture(FIXTURE)
+describe('POST /baseline/validate/{uploadId} — persistence (document + red line)', () => {
+  it('persists the unpacked baseline against the project', async () => {
+    const project = await createProject('Integration test — happy path')
+    const uploadId = await uploadFixture(FIXTURE)
 
-      const res = await callValidate(uploadId, { projectId: project.id })
+    const res = await callValidate(uploadId, { projectId: project.id })
 
-      expect(res.statusCode).toBe(HTTP_OK)
-      expect(res.result).toEqual({ valid: true, errors: [] })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({ valid: true, errors: [] })
 
-      // JSONB document carries the baseline block
-      const stored = await fetchProject(project.id)
-      expect(stored.baseline).toBeDefined()
-      expect(stored.baseline.uploadId).toBe(uploadId)
-      expect(stored.baseline.importedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
-      expect(stored.baseline.redLine).not.toBeNull()
-      expect(stored.baseline.redLine.featureId).toMatch(
-        /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    // JSONB document carries the baseline block
+    const stored = await fetchProject(project.id)
+    expect(stored.baseline).toBeDefined()
+    expect(stored.baseline.uploadId).toBe(uploadId)
+    expect(stored.baseline.importedAt).toMatch(/^\d{4}-\d{2}-\d{2}T/)
+    expect(stored.baseline.redLine).not.toBeNull()
+    expect(stored.baseline.redLine.featureId).toMatch(
+      /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
+    )
+    expect(Array.isArray(stored.baseline.habitats)).toBe(true)
+    expect(stored.baseline.habitats.length).toBeGreaterThan(0)
+  })
+
+  it('saves AC1 fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {
+    const project = await createProject('Integration test — AC1 fields')
+    const uploadId = await uploadFixture(FIXTURE)
+
+    await callValidate(uploadId, { projectId: project.id })
+
+    const stored = await fetchProject(project.id)
+    for (const habitat of stored.baseline.habitats) {
+      expect(habitat).toEqual(
+        expect.objectContaining({
+          featureId: expect.any(String),
+          ref: expect.anything(),
+          type: expect.anything(),
+          condition: expect.anything()
+        })
       )
-      expect(Array.isArray(stored.baseline.habitats)).toBe(true)
-      expect(stored.baseline.habitats.length).toBeGreaterThan(0)
-    })
+      // distinctiveness is derived; allow null for habitat types that don't
+      // appear in the lookup (real-world data isn't always pristine).
+      expect(habitat).toHaveProperty('distinctiveness')
+      expect(habitat).toHaveProperty('strategicSignificance')
+      expect(habitat).toHaveProperty('retentionCategory')
+    }
+  })
 
-    it('saves AC1 fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {
-      const project = await createProject('Integration test — AC1 fields')
-      const uploadId = await uploadFixture(FIXTURE)
+  it('inserts exactly one red line row in 27700 with valid geometry', async () => {
+    const project = await createProject('Integration test — red line')
+    const uploadId = await uploadFixture(FIXTURE)
 
-      await callValidate(uploadId, { projectId: project.id })
+    await callValidate(uploadId, { projectId: project.id })
 
-      const stored = await fetchProject(project.id)
-      for (const habitat of stored.baseline.habitats) {
-        expect(habitat).toEqual(
-          expect.objectContaining({
-            featureId: expect.any(String),
-            ref: expect.anything(),
-            type: expect.anything(),
-            condition: expect.anything()
-          })
-        )
-        // distinctiveness is derived; allow null for habitat types that don't
-        // appear in the lookup (real-world data isn't always pristine).
-        expect(habitat).toHaveProperty('distinctiveness')
-        expect(habitat).toHaveProperty('strategicSignificance')
-        expect(habitat).toHaveProperty('retentionCategory')
-      }
-    })
+    const rows = await fetchLayerRows('baseline_red_line', project.id)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].srid).toBe(BNG_SRID)
+    expect(rows[0].is_valid).toBe(true)
+    expect(rows[0].geom_type).toBe('MULTIPOLYGON')
+  })
+})
 
-    it('inserts exactly one red line row in 27700 with valid geometry', async () => {
-      const project = await createProject('Integration test — red line')
-      const uploadId = await uploadFixture(FIXTURE)
+describe('POST /baseline/validate/{uploadId} — persistence (per-layer feature rows)', () => {
+  it('inserts one habitat row per habitat in 27700 with valid geometry, matched to the JSONB by featureId', async () => {
+    const project = await createProject('Integration test — habitats')
+    const uploadId = await uploadFixture(FIXTURE)
 
-      await callValidate(uploadId, { projectId: project.id })
+    await callValidate(uploadId, { projectId: project.id })
 
-      const rows = await fetchLayerRows('baseline_red_line', project.id)
-      expect(rows).toHaveLength(1)
-      expect(rows[0].srid).toBe(27700)
-      expect(rows[0].is_valid).toBe(true)
-      expect(rows[0].geom_type).toBe('MULTIPOLYGON')
-    })
+    const stored = await fetchProject(project.id)
+    const docFeatureIds = stored.baseline.habitats.map((h) => h.featureId)
+    const dbRows = await fetchLayerRows('baseline_habitats', project.id)
 
-    it('inserts one habitat row per habitat in 27700 with valid geometry, matched to the JSONB by featureId', async () => {
-      const project = await createProject('Integration test — habitats')
-      const uploadId = await uploadFixture(FIXTURE)
+    expect(dbRows.length).toBe(docFeatureIds.length)
+    expect(dbRows.length).toBeGreaterThan(0)
+    for (const row of dbRows) {
+      expect(row.srid).toBe(BNG_SRID)
+      expect(row.is_valid).toBe(true)
+      expect(row.geom_type).toBe('MULTIPOLYGON')
+      expect(docFeatureIds).toContain(row.id)
+    }
+  })
 
-      await callValidate(uploadId, { projectId: project.id })
+  it('persists hedgerows and watercourses if present in the GeoPackage, in 27700 with MultiLineString geometry', async () => {
+    const project = await createProject('Integration test — linear layers')
+    const uploadId = await uploadFixture(FIXTURE)
 
-      const stored = await fetchProject(project.id)
-      const docFeatureIds = stored.baseline.habitats.map((h) => h.featureId)
-      const dbRows = await fetchLayerRows('baseline_habitats', project.id)
+    await callValidate(uploadId, { projectId: project.id })
 
-      expect(dbRows.length).toBe(docFeatureIds.length)
-      expect(dbRows.length).toBeGreaterThan(0)
-      for (const row of dbRows) {
-        expect(row.srid).toBe(27700)
+    for (const table of ['baseline_hedgerows', 'baseline_watercourses']) {
+      const rows = await fetchLayerRows(table, project.id)
+      // Fixture may or may not contain these layers — assert shape only when present.
+      for (const row of rows) {
+        expect(row.srid).toBe(BNG_SRID)
         expect(row.is_valid).toBe(true)
-        expect(row.geom_type).toBe('MULTIPOLYGON')
-        expect(docFeatureIds).toContain(row.id)
+        expect(row.geom_type).toBe('MULTILINESTRING')
       }
-    })
+    }
+  })
+})
 
-    it('persists hedgerows and watercourses if present in the GeoPackage, in 27700 with MultiLineString geometry', async () => {
-      const project = await createProject('Integration test — linear layers')
-      const uploadId = await uploadFixture(FIXTURE)
+describe('POST /baseline/validate/{uploadId} — re-upload behaviour', () => {
+  it('replaces the previous baseline rather than appending to it', async () => {
+    const project = await createProject('Integration test — re-upload')
+    const firstUploadId = await uploadFixture(FIXTURE)
+    await callValidate(firstUploadId, { projectId: project.id })
 
-      await callValidate(uploadId, { projectId: project.id })
+    const firstHabitats = await countLayer('baseline_habitats', project.id)
+    expect(firstHabitats).toBeGreaterThan(0)
 
-      for (const table of ['baseline_hedgerows', 'baseline_watercourses']) {
-        const rows = await fetchLayerRows(table, project.id)
-        // Fixture may or may not contain these layers — assert shape only when present.
-        for (const row of rows) {
-          expect(row.srid).toBe(27700)
-          expect(row.is_valid).toBe(true)
-          expect(row.geom_type).toBe('MULTILINESTRING')
-        }
-      }
-    })
+    const secondUploadId = await uploadFixture(FIXTURE)
+    await callValidate(secondUploadId, { projectId: project.id })
+
+    const secondHabitats = await countLayer('baseline_habitats', project.id)
+    const redLineCount = await countLayer('baseline_red_line', project.id)
+
+    expect(secondHabitats).toBe(firstHabitats)
+    expect(redLineCount).toBe(1)
+
+    const stored = await fetchProject(project.id)
+    expect(stored.baseline.uploadId).toBe(secondUploadId)
   })
 
-  describe('re-upload behaviour', () => {
-    it('replaces the previous baseline rather than appending to it', async () => {
-      const project = await createProject('Integration test — re-upload')
-      const firstUploadId = await uploadFixture(FIXTURE)
-      await callValidate(firstUploadId, { projectId: project.id })
+  it('keeps featureIds fresh across re-uploads (a re-upload is a clean import, not an in-place edit)', async () => {
+    const project = await createProject('Integration test — featureId churn')
 
-      const firstHabitats = await countLayer('baseline_habitats', project.id)
-      expect(firstHabitats).toBeGreaterThan(0)
+    const firstUploadId = await uploadFixture(FIXTURE)
+    await callValidate(firstUploadId, { projectId: project.id })
+    const firstStored = await fetchProject(project.id)
+    const firstIds = new Set(
+      firstStored.baseline.habitats.map((h) => h.featureId)
+    )
 
-      const secondUploadId = await uploadFixture(FIXTURE)
-      await callValidate(secondUploadId, { projectId: project.id })
+    const secondUploadId = await uploadFixture(FIXTURE)
+    await callValidate(secondUploadId, { projectId: project.id })
+    const secondStored = await fetchProject(project.id)
+    const secondIds = new Set(
+      secondStored.baseline.habitats.map((h) => h.featureId)
+    )
 
-      const secondHabitats = await countLayer('baseline_habitats', project.id)
-      const redLineCount = await countLayer('baseline_red_line', project.id)
-
-      expect(secondHabitats).toBe(firstHabitats)
-      expect(redLineCount).toBe(1)
-
-      const stored = await fetchProject(project.id)
-      expect(stored.baseline.uploadId).toBe(secondUploadId)
-    })
-
-    it('keeps featureIds fresh across re-uploads (a re-upload is a clean import, not an in-place edit)', async () => {
-      const project = await createProject('Integration test — featureId churn')
-
-      const firstUploadId = await uploadFixture(FIXTURE)
-      await callValidate(firstUploadId, { projectId: project.id })
-      const firstStored = await fetchProject(project.id)
-      const firstIds = new Set(
-        firstStored.baseline.habitats.map((h) => h.featureId)
-      )
-
-      const secondUploadId = await uploadFixture(FIXTURE)
-      await callValidate(secondUploadId, { projectId: project.id })
-      const secondStored = await fetchProject(project.id)
-      const secondIds = new Set(
-        secondStored.baseline.habitats.map((h) => h.featureId)
-      )
-
-      // No overlap — every habitat got a fresh UUID on the second import.
-      for (const id of secondIds) {
-        expect(firstIds.has(id)).toBe(false)
-      }
-    })
+    // No overlap — every habitat got a fresh UUID on the second import.
+    for (const id of secondIds) {
+      expect(firstIds.has(id)).toBe(false)
+    }
   })
+})
 
-  describe('without a projectId', () => {
-    it('validates without persisting anything', async () => {
-      const project = await createProject('Integration test — no projectId')
-      const uploadId = await uploadFixture(FIXTURE)
+describe('POST /baseline/validate/{uploadId} — without a projectId', () => {
+  it('validates without persisting anything', async () => {
+    const project = await createProject('Integration test — no projectId')
+    const uploadId = await uploadFixture(FIXTURE)
 
-      const res = await callValidate(uploadId, undefined)
+    const res = await callValidate(uploadId, undefined)
 
-      expect(res.statusCode).toBe(HTTP_OK)
-      expect(res.result).toEqual({ valid: true, errors: [] })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({ valid: true, errors: [] })
 
-      const stored = await fetchProject(project.id)
-      expect(stored.baseline).toBeUndefined()
+    const stored = await fetchProject(project.id)
+    expect(stored.baseline).toBeUndefined()
 
-      for (const table of [
-        'baseline_red_line',
-        'baseline_habitats',
-        'baseline_hedgerows',
-        'baseline_watercourses'
-      ]) {
-        expect(await countLayer(table, project.id)).toBe(0)
-      }
-    })
+    for (const table of [
+      'baseline_red_line',
+      'baseline_habitats',
+      'baseline_hedgerows',
+      'baseline_watercourses'
+    ]) {
+      expect(await countLayer(table, project.id)).toBe(0)
+    }
   })
+})
 
-  describe('with a projectId that does not match an existing project', () => {
-    it('returns 404 and persists nothing', async () => {
-      const uploadId = await uploadFixture(FIXTURE)
+describe('POST /baseline/validate/{uploadId} — with a projectId that does not match an existing project', () => {
+  it('returns 404 and persists nothing', async () => {
+    const uploadId = await uploadFixture(FIXTURE)
 
-      const res = await callValidate(uploadId, {
-        projectId: UNKNOWN_PROJECT_ID
-      })
-
-      expect(res.statusCode).toBe(HTTP_NOT_FOUND)
-
-      // No project means we can't filter by project_id; assert the unknown id
-      // also has no rows (which it shouldn't, since the transaction rolled back).
-      for (const table of [
-        'baseline_red_line',
-        'baseline_habitats',
-        'baseline_hedgerows',
-        'baseline_watercourses'
-      ]) {
-        expect(await countLayer(table, UNKNOWN_PROJECT_ID)).toBe(0)
-      }
+    const res = await callValidate(uploadId, {
+      projectId: UNKNOWN_PROJECT_ID
     })
+
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+
+    // No project means we can't filter by project_id; assert the unknown id
+    // also has no rows (which it shouldn't, since the transaction rolled back).
+    for (const table of [
+      'baseline_red_line',
+      'baseline_habitats',
+      'baseline_hedgerows',
+      'baseline_watercourses'
+    ]) {
+      expect(await countLayer(table, UNKNOWN_PROJECT_ID)).toBe(0)
+    }
   })
 })
