@@ -1,0 +1,171 @@
+import { vi } from 'vitest'
+
+const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
+const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+const FEATURE_ID_RED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+const FEATURE_ID_HAB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
+const FEATURE_ID_HEDGE = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+const FEATURE_ID_WATER = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+
+const MOCK_BUCKET = 'baseline-files'
+const MOCK_KEY = 'baseline/file.gpkg'
+const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
+const THROWS_502 = 'throws a 502 Bad Gateway'
+
+const HTTP_404 = 404
+const HTTP_422 = 422
+const HTTP_502 = 502
+const HTTP_504 = 504
+const HTTP_413 = 413
+
+const BNG_SRID = 27700
+
+const STUB_LAYERS = {
+  redline: [],
+  areas: [],
+  hedgerows: [],
+  watercourses: [],
+  iggis: [],
+  trees: [],
+  missingLayers: []
+}
+
+const SAMPLE_GEOM = { type: 'Polygon', coordinates: [[[0, 0]]] }
+const SAMPLE_LINE = { type: 'LineString', coordinates: [[0, 0]] }
+
+const STUB_EXTRACTED = {
+  document: {
+    uploadId: UPLOAD_ID,
+    importedAt: '2026-05-08T00:00:00.000Z',
+    redLine: { featureId: FEATURE_ID_RED, properties: {} },
+    habitats: [{ featureId: FEATURE_ID_HAB, ref: 'P1' }],
+    hedgerows: [{ featureId: FEATURE_ID_HEDGE, ref: 'H1' }],
+    watercourses: [{ featureId: FEATURE_ID_WATER, ref: 'W1' }]
+  },
+  geometries: {
+    redLine: {
+      featureId: FEATURE_ID_RED,
+      geometry: SAMPLE_GEOM,
+      srid: BNG_SRID
+    },
+    habitats: [
+      {
+        featureId: FEATURE_ID_HAB,
+        ref: 'P1',
+        geometry: SAMPLE_GEOM,
+        srid: BNG_SRID
+      }
+    ],
+    hedgerows: [
+      {
+        featureId: FEATURE_ID_HEDGE,
+        ref: 'H1',
+        geometry: SAMPLE_LINE,
+        srid: BNG_SRID
+      }
+    ],
+    watercourses: [
+      {
+        featureId: FEATURE_ID_WATER,
+        ref: 'W1',
+        geometry: SAMPLE_LINE,
+        srid: BNG_SRID
+      }
+    ]
+  }
+}
+
+function makeH() {
+  return {
+    response: vi.fn().mockReturnThis(),
+    code: vi.fn().mockReturnThis()
+  }
+}
+
+// Drizzle's .select().from().where().limit() chain. Hoisted out of makeDrizzle
+// so the nested arrow functions stay below S2004's 4-level depth limit.
+function projectLookupChain(rows) {
+  return {
+    from: () => ({
+      where: () => ({
+        limit: () => Promise.resolve(rows)
+      })
+    })
+  }
+}
+
+/**
+ * Build a drizzle test double whose .transaction(cb) calls cb with a tx object
+ * that records every chained call. The tx supports the four DSL paths the route
+ * uses (select/delete/update) plus tx.execute(...) for the raw INSERT SQL.
+ *
+ * `projectExists` controls whether the initial project SELECT returns a row;
+ * setting it to false drives the 404 path.
+ */
+function makeDrizzle({ projectExists = true } = {}) {
+  const log = {
+    transactionCalls: 0,
+    selectCalls: 0,
+    deletes: [],
+    executes: [],
+    updates: []
+  }
+
+  const tx = {
+    select: vi.fn(() => {
+      log.selectCalls += 1
+      return projectLookupChain(projectExists ? [{ id: PROJECT_ID }] : [])
+    }),
+    delete: vi.fn((table) => ({
+      where: vi.fn(() => {
+        log.deletes.push(table)
+        return Promise.resolve()
+      })
+    })),
+    execute: vi.fn((sqlChunk) => {
+      log.executes.push(sqlChunk)
+      return Promise.resolve()
+    }),
+    update: vi.fn((table) => ({
+      set: vi.fn(() => ({
+        where: vi.fn(() => {
+          log.updates.push(table)
+          return Promise.resolve()
+        })
+      }))
+    }))
+  }
+
+  const drizzle = {
+    transaction: vi.fn(async (cb) => {
+      log.transactionCalls += 1
+      return cb(tx)
+    })
+  }
+
+  return { drizzle, tx, log }
+}
+
+export {
+  UPLOAD_ID,
+  PROJECT_ID,
+  FEATURE_ID_RED,
+  FEATURE_ID_HAB,
+  FEATURE_ID_HEDGE,
+  FEATURE_ID_WATER,
+  MOCK_BUCKET,
+  MOCK_KEY,
+  MOCK_BUFFER,
+  THROWS_502,
+  HTTP_404,
+  HTTP_422,
+  HTTP_502,
+  HTTP_504,
+  HTTP_413,
+  STUB_LAYERS,
+  STUB_EXTRACTED,
+  SAMPLE_GEOM,
+  SAMPLE_LINE,
+  makeH,
+  makeDrizzle
+}
