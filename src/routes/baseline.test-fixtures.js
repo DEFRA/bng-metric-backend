@@ -83,22 +83,19 @@ function makeH() {
   }
 }
 
-// Drizzle's .select().from().where().for().limit() chain. Hoisted out of
-// makeDrizzle so the nested arrow functions stay below S2004's 4-level depth
-// limit. The .for('update') step (paired with SET LOCAL lock_timeout) is what
-// serialises concurrent re-uploads for the same project — the mock no-ops it
-// and returns the same rows, unless `lockError` is set, in which case
-// `.limit()` rejects with that error (simulates the 55P03 the driver would
-// raise after lock_timeout fires).
+// Drizzle's .select().from().where().for().limit() chain. Built bottom-up so
+// each step is a single-level arrow rather than nested inline, keeping the
+// arrows under S2004's 4-deep limit. The .for('update') step (paired with
+// SET LOCAL lock_timeout) is what serialises concurrent re-uploads for the
+// same project — the mock no-ops every step and returns `rows`, unless
+// `lockError` is set, in which case `.limit()` rejects with that error
+// (simulates the 55P03 the driver would raise after lock_timeout fires).
 function projectLookupChain(rows, lockError) {
   const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
-  return {
-    from: () => ({
-      where: () => ({
-        for: () => ({ limit: () => result })
-      })
-    })
-  }
+  const limitStep = { limit: () => result }
+  const forStep = { for: () => limitStep }
+  const whereStep = { where: () => forStep }
+  return { from: () => whereStep }
 }
 
 /**

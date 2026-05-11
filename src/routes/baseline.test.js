@@ -149,6 +149,10 @@ function makeBaselineRequest({ drizzle, payload = null } = {}) {
   }
 }
 
+// One SET LOCAL lock_timeout + one INSERT per non-empty geometry layer
+// (red line, habitats, hedgerows, watercourses) on the stub data.
+const HAPPY_PATH_EXECUTE_COUNT = 5
+
 describe('validateBaseline handler — pipeline calls', () => {
   let h
   let drizzleHarness
@@ -299,8 +303,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    // 1 SET LOCAL lock_timeout + 1 red line + 1 habitat + 1 hedgerow + 1 watercourse = 5
-    expect(log.executes).toHaveLength(5)
+    expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
   })
 
   it('updates the project JSONB document at the end of the transaction', async () => {
@@ -367,6 +370,16 @@ describe('validateBaseline handler persistence — guard rails', () => {
     // SET LOCAL lock_timeout runs before the project lookup, so 1 execute but no inserts
     expect(log.executes).toHaveLength(1)
     expect(log.updates).toHaveLength(0)
+  })
+})
+
+describe('validateBaseline handler persistence — lock contention and rollback', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
   })
 
   it('throws a 409 Boom error when the project row lock cannot be acquired within lock_timeout', async () => {
