@@ -8,6 +8,8 @@ const UUID_REGEX =
 const BNG_SRID = 27700
 const WGS84_SRID = 4326
 const PARCEL_REF = 'Parcel Ref'
+const HABITAT_TYPE = 'Baseline Habitat Type'
+const CONDITION = 'Baseline Condition'
 
 const SAMPLE_POLYGON = {
   type: 'Polygon',
@@ -128,9 +130,9 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          'Baseline Habitat Type': 'Grassland - Lowland meadows',
+          [HABITAT_TYPE]: 'Grassland - Lowland meadows',
           'Baseline Broad Habitat Type': 'Grassland',
-          'Baseline Condition': 'Good',
+          [CONDITION]: 'Good',
           'Baseline Strategic Significance': 'High',
           'Retention Category': 'Retain',
           Area: 1.23
@@ -175,7 +177,7 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
   it('preserves the raw GPKG row as `properties` so nothing is lost in extraction', () => {
     const row = {
       [PARCEL_REF]: 'P1',
-      'Baseline Habitat Type': 'Grassland - Modified grassland',
+      [HABITAT_TYPE]: 'Grassland - Modified grassland',
       ExtraField: 'something custom',
       fid: 42
     }
@@ -198,8 +200,8 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          'Baseline Habitat Type': 'Made-up habitat type that does not exist',
-          'Baseline Condition': 'Good'
+          [HABITAT_TYPE]: 'Made-up habitat type that does not exist',
+          [CONDITION]: 'Good'
         })
       ],
       hedgerows: [],
@@ -216,7 +218,7 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          'Baseline Habitat Type': 'GRASSLAND - LOWLAND MEADOWS'
+          [HABITAT_TYPE]: 'GRASSLAND - LOWLAND MEADOWS'
         })
       ],
       hedgerows: [],
@@ -259,8 +261,8 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
         feature(
           {
             [PARCEL_REF]: 'H1',
-            'Baseline Habitat Type': 'Native species rich hedgerow',
-            'Baseline Condition': 'Good',
+            [HABITAT_TYPE]: 'Native species rich hedgerow',
+            [CONDITION]: 'Good',
             Length: 100
           },
           SAMPLE_LINESTRING
@@ -270,9 +272,8 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
         feature(
           {
             [PARCEL_REF]: 'W1',
-            'Baseline Habitat Type':
-              'Watercourse footprint - Watercourse footprint',
-            'Baseline Condition': 'Moderate',
+            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [CONDITION]: 'Moderate',
             Length: 250
           },
           SAMPLE_LINESTRING
@@ -341,7 +342,7 @@ describe('extractBaseline — geometries half', () => {
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          'Baseline Habitat Type': 'Grassland - Lowland meadows'
+          [HABITAT_TYPE]: 'Grassland - Lowland meadows'
         })
       ],
       hedgerows: [],
