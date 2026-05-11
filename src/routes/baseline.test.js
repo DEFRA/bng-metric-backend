@@ -9,6 +9,7 @@ import {
   MOCK_BUFFER,
   THROWS_502,
   HTTP_404,
+  HTTP_409,
   HTTP_422,
   HTTP_502,
   HTTP_504,
@@ -298,8 +299,8 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    // Stub data has 1 red line + 1 habitat + 1 hedgerow + 1 watercourse = 4 inserts
-    expect(log.executes).toHaveLength(4)
+    // 1 SET LOCAL lock_timeout + 1 red line + 1 habitat + 1 hedgerow + 1 watercourse = 5
+    expect(log.executes).toHaveLength(5)
   })
 
   it('updates the project JSONB document at the end of the transaction', async () => {
@@ -363,7 +364,47 @@ describe('validateBaseline handler persistence — guard rails', () => {
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h).catch(() => {})
-    expect(log.executes).toHaveLength(0)
+    // SET LOCAL lock_timeout runs before the project lookup, so 1 execute but no inserts
+    expect(log.executes).toHaveLength(1)
+    expect(log.updates).toHaveLength(0)
+  })
+
+  it('throws a 409 Boom error when the project row lock cannot be acquired within lock_timeout', async () => {
+    const lockError = Object.assign(
+      new Error('canceling statement due to lock timeout'),
+      {
+        code: '55P03'
+      }
+    )
+    const { drizzle, log } = makeDrizzle({ lockError })
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    const err = await validateBaseline.handler(request, h).catch((e) => e)
+    expect(err.isBoom).toBe(true)
+    expect(err.output.statusCode).toBe(HTTP_409)
+    expect(log.executes).toHaveLength(1) // just the SET LOCAL lock_timeout
+    expect(log.updates).toHaveLength(0)
+  })
+
+  // Regression guard: the JSONB document write must live inside the same
+  // transaction as the geometry inserts. If an insert throws, the doc update
+  // must never fire. Catches anyone later refactoring the update outside the
+  // transaction.
+  it('does not write the project document when an insert throws', async () => {
+    const { drizzle, tx, log } = makeDrizzle()
+    // First execute is SET LOCAL lock_timeout — let it succeed, then reject the
+    // first geometry INSERT to simulate a mid-import failure.
+    tx.execute
+      .mockImplementationOnce(() => Promise.resolve())
+      .mockImplementationOnce(() => Promise.reject(new Error('bad geom')))
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.transactionCalls).toBe(1)
     expect(log.updates).toHaveLength(0)
   })
 })

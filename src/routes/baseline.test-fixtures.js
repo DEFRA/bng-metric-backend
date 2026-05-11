@@ -13,6 +13,7 @@ const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const HTTP_404 = 404
+const HTTP_409 = 409
 const HTTP_422 = 422
 const HTTP_502 = 502
 const HTTP_504 = 504
@@ -82,13 +83,19 @@ function makeH() {
   }
 }
 
-// Drizzle's .select().from().where().limit() chain. Hoisted out of makeDrizzle
-// so the nested arrow functions stay below S2004's 4-level depth limit.
-function projectLookupChain(rows) {
+// Drizzle's .select().from().where().for().limit() chain. Hoisted out of
+// makeDrizzle so the nested arrow functions stay below S2004's 4-level depth
+// limit. The .for('update') step (paired with SET LOCAL lock_timeout) is what
+// serialises concurrent re-uploads for the same project — the mock no-ops it
+// and returns the same rows, unless `lockError` is set, in which case
+// `.limit()` rejects with that error (simulates the 55P03 the driver would
+// raise after lock_timeout fires).
+function projectLookupChain(rows, lockError) {
+  const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
   return {
     from: () => ({
       where: () => ({
-        limit: () => Promise.resolve(rows)
+        for: () => ({ limit: () => result })
       })
     })
   }
@@ -102,7 +109,7 @@ function projectLookupChain(rows) {
  * `projectExists` controls whether the initial project SELECT returns a row;
  * setting it to false drives the 404 path.
  */
-function makeDrizzle({ projectExists = true } = {}) {
+function makeDrizzle({ projectExists = true, lockError = null } = {}) {
   const log = {
     transactionCalls: 0,
     selectCalls: 0,
@@ -114,7 +121,10 @@ function makeDrizzle({ projectExists = true } = {}) {
   const tx = {
     select: vi.fn(() => {
       log.selectCalls += 1
-      return projectLookupChain(projectExists ? [{ id: PROJECT_ID }] : [])
+      return projectLookupChain(
+        projectExists ? [{ id: PROJECT_ID }] : [],
+        lockError
+      )
     }),
     delete: vi.fn((table) => ({
       where: vi.fn(() => {
@@ -158,6 +168,7 @@ export {
   MOCK_BUFFER,
   THROWS_502,
   HTTP_404,
+  HTTP_409,
   HTTP_422,
   HTTP_502,
   HTTP_504,

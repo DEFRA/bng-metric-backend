@@ -83,39 +83,40 @@ async function fetchBaselineBuffer(bucket, key, uploadId) {
 // every geometry to EPSG:27700 regardless of the source SRID, matching what the
 // validation pipeline already enforces.
 
-async function insertPolygonRow(tx, table, projectId, row) {
+// Cap rows per INSERT to keep statement size bounded — PostgreSQL allows up to
+// 65535 bind parameters per query, and a large site with thousands of features
+// is rare but possible. 500 leaves ample headroom and matches typical batch
+// tuning advice for PostGIS bulk loads.
+const INSERT_BATCH_SIZE = 500
+
+function geometryRowValues(projectId, row) {
   const geomJson = JSON.stringify(row.geometry)
-  const includeRef = table !== baselineRedLine
-  if (includeRef) {
+  return sql`(
+    ${row.featureId}::uuid,
+    ${projectId}::uuid,
+    ${row.ref ?? null},
+    ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
+  )`
+}
+
+async function insertGeometryRowsBatched(tx, table, projectId, rows) {
+  for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+    const batch = rows.slice(i, i + INSERT_BATCH_SIZE)
+    const values = batch.map((row) => geometryRowValues(projectId, row))
     await tx.execute(sql`
       INSERT INTO ${table} (id, project_id, ref, geom)
-      VALUES (
-        ${row.featureId}::uuid,
-        ${projectId}::uuid,
-        ${row.ref ?? null},
-        ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
-      )
-    `)
-  } else {
-    await tx.execute(sql`
-      INSERT INTO ${table} (id, project_id, geom)
-      VALUES (
-        ${row.featureId}::uuid,
-        ${projectId}::uuid,
-        ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
-      )
+      VALUES ${sql.join(values, sql`, `)}
     `)
   }
 }
 
-async function insertLineRow(tx, table, projectId, row) {
+async function insertRedLineRow(tx, projectId, row) {
   const geomJson = JSON.stringify(row.geometry)
   await tx.execute(sql`
-    INSERT INTO ${table} (id, project_id, ref, geom)
+    INSERT INTO ${baselineRedLine} (id, project_id, geom)
     VALUES (
       ${row.featureId}::uuid,
       ${projectId}::uuid,
-      ${row.ref ?? null},
       ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
     )
   `)
@@ -128,11 +129,47 @@ async function persistBaseline(
   geometries,
   uploadId
 ) {
+  try {
+    await runPersistTransaction(drizzle, projectId, document, geometries)
+  } catch (err) {
+    if (err?.isBoom) {
+      throw err
+    }
+    // PostgreSQL 55P03 (lock_not_available) means SELECT ... FOR UPDATE waited
+    // past the 5s lock_timeout for another transaction mid-persist on the same
+    // project. Surface as 409 so the caller can retry; persist is normally
+    // sub-second so a 5s wait is well past "another one in progress."
+    if (err?.code === '55P03') {
+      throw Boom.conflict(
+        'Another baseline upload for this project is in progress'
+      )
+    }
+    throw err
+  }
+
+  logger.info(
+    `validateBaseline: persisted baseline for projectId ${projectId} from uploadId ${uploadId}`
+  )
+}
+
+async function runPersistTransaction(drizzle, projectId, document, geometries) {
   await drizzle.transaction(async (tx) => {
+    // Cap the wait on the project row lock so a stuck or pathologically slow
+    // concurrent persist can't hang this request indefinitely. 5s is generous
+    // — the lock holder's own work (delete + batched inserts + JSONB update)
+    // should finish in well under a second for realistic dataset sizes.
+    await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
+
+    // SELECT ... FOR UPDATE serialises concurrent re-uploads for the same
+    // project. Without this, two interleaved POSTs could each DELETE the
+    // prior baseline rows and INSERT new ones — UNIQUE(project_id) on
+    // baseline_red_line would trip one of them, but the other three tables
+    // would briefly double up before rollback.
     const projectRows = await tx
       .select({ id: projects.id })
       .from(projects)
       .where(eq(projects.id, projectId))
+      .for('update')
       .limit(1)
     if (projectRows.length === 0) {
       throw Boom.notFound(`Project ${projectId} not found`)
@@ -155,17 +192,26 @@ async function persistBaseline(
       .where(eq(baselineWatercourses.projectId, projectId))
 
     if (geometries.redLine) {
-      await insertPolygonRow(tx, baselineRedLine, projectId, geometries.redLine)
+      await insertRedLineRow(tx, projectId, geometries.redLine)
     }
-    for (const row of geometries.habitats) {
-      await insertPolygonRow(tx, baselineHabitats, projectId, row)
-    }
-    for (const row of geometries.hedgerows) {
-      await insertLineRow(tx, baselineHedgerows, projectId, row)
-    }
-    for (const row of geometries.watercourses) {
-      await insertLineRow(tx, baselineWatercourses, projectId, row)
-    }
+    await insertGeometryRowsBatched(
+      tx,
+      baselineHabitats,
+      projectId,
+      geometries.habitats
+    )
+    await insertGeometryRowsBatched(
+      tx,
+      baselineHedgerows,
+      projectId,
+      geometries.hedgerows
+    )
+    await insertGeometryRowsBatched(
+      tx,
+      baselineWatercourses,
+      projectId,
+      geometries.watercourses
+    )
 
     const docJson = JSON.stringify(document)
     await tx
@@ -175,10 +221,6 @@ async function persistBaseline(
       })
       .where(eq(projects.id, projectId))
   })
-
-  logger.info(
-    `validateBaseline: persisted baseline for projectId ${projectId} from uploadId ${uploadId}`
-  )
 }
 
 async function runFullValidation(buffer, drizzle, pgPool, context, h) {
@@ -295,6 +337,8 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
  *         description: uploadId is missing or not a valid UUID
  *       404:
  *         description: projectId was provided but does not match an existing project
+ *       409:
+ *         description: Another baseline upload for the same project is currently being persisted — retry shortly
  *       413:
  *         description: File exceeds the maximum allowed size (100 MB)
  *       422:
