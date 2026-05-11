@@ -10,6 +10,7 @@ const WGS84_SRID = 4326
 const PARCEL_REF = 'Parcel Ref'
 const HABITAT_TYPE = 'Baseline Habitat Type'
 const CONDITION = 'Baseline Condition'
+const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 
 const SAMPLE_POLYGON = {
   type: 'Polygon',
@@ -130,7 +131,7 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          [HABITAT_TYPE]: 'Grassland - Lowland meadows',
+          [HABITAT_TYPE]: LOWLAND_MEADOWS,
           'Baseline Broad Habitat Type': 'Grassland',
           [CONDITION]: 'Good',
           'Baseline Strategic Significance': 'High',
@@ -146,7 +147,7 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
     expect(out.document.habitats[0]).toEqual(
       expect.objectContaining({
         ref: 'P1',
-        type: 'Grassland - Lowland meadows',
+        type: LOWLAND_MEADOWS,
         broadType: 'Grassland',
         distinctiveness: 'V.High',
         distinctivenessScore: 8,
@@ -234,7 +235,7 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
       areas: [
         feature({
           parcel_ref: 'P-alt',
-          Baseline_Habitat_Type: 'Grassland - Lowland meadows',
+          Baseline_Habitat_Type: LOWLAND_MEADOWS,
           Baseline_Condition: 'Moderate'
         })
       ],
@@ -245,7 +246,7 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
     expect(out.document.habitats[0]).toEqual(
       expect.objectContaining({
         ref: 'P-alt',
-        type: 'Grassland - Lowland meadows',
+        type: LOWLAND_MEADOWS,
         condition: 'Moderate'
       })
     )
@@ -342,7 +343,7 @@ describe('extractBaseline — geometries half', () => {
       areas: [
         feature({
           [PARCEL_REF]: 'P1',
-          [HABITAT_TYPE]: 'Grassland - Lowland meadows'
+          [HABITAT_TYPE]: LOWLAND_MEADOWS
         })
       ],
       hedgerows: [],
