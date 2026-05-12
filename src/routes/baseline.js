@@ -16,10 +16,13 @@ import {
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import { validateGpkg } from '../services/gpkg/validate-gpkg.js'
-import { extractBaseline } from '../services/gpkg/extract-baseline.js'
-import { readBaselineGeoPackage } from '../validation/baseline/geopackage.js'
+import {
+  validateGpkg,
+  readBaselineGeoPackage
+} from '../validation/baseline/geopackage.js'
+import { extractBaseline } from '../validation/baseline/extract-baseline.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
+import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
 import {
   projects,
   baselineRedLine,
@@ -263,10 +266,10 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
       .response({
         valid: false,
         errors: [
-          {
-            code: 'VALIDATION_FAILED',
-            message: 'Unable to validate baseline file'
-          }
+          makeError(
+            ERROR_CODES.VALIDATION_FAILED,
+            'Unable to validate baseline file'
+          )
         ]
       })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
