@@ -202,7 +202,12 @@ export async function getUploadedFileS3Location(uploadId) {
   logger.info(
     `Resolved S3 location - uploadId: ${uploadId}, bucket: ${file.s3Bucket}, key: ${file.s3Key}`
   )
-  return { bucket: file.s3Bucket, key: file.s3Key }
+  return {
+    bucket: file.s3Bucket,
+    key: file.s3Key,
+    filename: file.filename ?? null,
+    fileSize: file.contentLength ?? null
+  }
 }
 
 /**

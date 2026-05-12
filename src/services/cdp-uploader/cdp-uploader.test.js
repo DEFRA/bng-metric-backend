@@ -256,7 +256,32 @@ describe('getUploadedFileS3Location', () => {
     delete process.env.ENVIRONMENT
   })
 
-  it('should return bucket and key from form.file', async () => {
+  it('should return bucket, key, filename and fileSize from form.file', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'ready',
+        form: {
+          file: {
+            s3Bucket: S3_BUCKET,
+            s3Key: S3_KEY,
+            filename: 'survey.gpkg',
+            contentLength: 204800
+          }
+        }
+      }
+    })
+
+    const result = await getUploadedFileS3Location(UPLOAD_ID)
+
+    expect(result).toEqual({
+      bucket: S3_BUCKET,
+      key: S3_KEY,
+      filename: 'survey.gpkg',
+      fileSize: 204800
+    })
+  })
+
+  it('should return null filename and fileSize when absent from form.file', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
@@ -270,7 +295,9 @@ describe('getUploadedFileS3Location', () => {
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
-      key: S3_KEY
+      key: S3_KEY,
+      filename: null,
+      fileSize: null
     })
   })
 
@@ -315,7 +342,12 @@ describe('waitForUploadReady', () => {
     uploadStatus: 'ready',
     numberOfRejectedFiles: 0,
     form: {
-      file: { s3Bucket: S3_BUCKET, s3Key: S3_KEY }
+      file: {
+        s3Bucket: S3_BUCKET,
+        s3Key: S3_KEY,
+        filename: 'survey.gpkg',
+        contentLength: 204800
+      }
     }
   }
 
@@ -331,7 +363,9 @@ describe('waitForUploadReady', () => {
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
-      key: S3_KEY
+      key: S3_KEY,
+      filename: 'survey.gpkg',
+      fileSize: 204800
     })
   })
 
@@ -345,7 +379,9 @@ describe('waitForUploadReady', () => {
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
-      key: S3_KEY
+      key: S3_KEY,
+      filename: 'survey.gpkg',
+      fileSize: 204800
     })
     // 2 pending status polls + 1 ready status poll + 1 S3 location fetch
     expect(Wreck.get).toHaveBeenCalledTimes(4)
@@ -371,7 +407,9 @@ describe('waitForUploadReady', () => {
 
     expect(result).toEqual({
       bucket: S3_BUCKET,
-      key: S3_KEY
+      key: S3_KEY,
+      filename: 'survey.gpkg',
+      fileSize: 204800
     })
   })
 

@@ -230,7 +230,7 @@ async function runPersistTransaction(drizzle, projectId, document, geometries) {
 }
 
 async function runFullValidation(buffer, drizzle, pgPool, context, h) {
-  const { uploadId, projectId } = context
+  const { uploadId, projectId, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
   const localPath = path.join(tmpDir, 'baseline.gpkg')
 
@@ -270,6 +270,8 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
       }
       const { document, geometries } = extractBaseline(layersWithIds, {
         uploadId,
+        filename,
+        fileSize,
         habitatSizes
       })
       enrichBaselineDocumentWithUnits(document)
@@ -393,7 +395,8 @@ const validateBaseline = {
     const { uploadId } = request.params
     const projectId = request.payload?.projectId ?? null
 
-    const { bucket, key } = await resolveUploadLocation(uploadId)
+    const { bucket, key, filename, fileSize } =
+      await resolveUploadLocation(uploadId)
     const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
 
     const gateResult = validateGpkg(buffer)
@@ -408,7 +411,7 @@ const validateBaseline = {
       buffer,
       request.drizzle,
       request.pg,
-      { uploadId, projectId },
+      { uploadId, projectId, filename, fileSize },
       h
     )
   }

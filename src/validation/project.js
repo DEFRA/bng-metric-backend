@@ -56,6 +56,8 @@ const linearHabitatSchema = Joi.object({
 
 const baselineSchema = Joi.object({
   uploadId: Joi.string().uuid().allow(null),
+  filename: Joi.string().allow(null),
+  fileSize: Joi.number().integer().min(0).allow(null),
   importedAt: Joi.string().isoDate(),
   redLine: redLineSchema,
   habitats: Joi.array().items(habitatSchema),

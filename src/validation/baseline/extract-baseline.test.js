@@ -89,6 +89,30 @@ describe('extractBaseline — top-level shape', () => {
     expect(out.document.importedAt).toBe('2026-05-08T10:00:00.000Z')
     expect(out.geometries).not.toHaveProperty('uploadId')
   })
+
+  it('threads filename and fileSize from meta into the document', () => {
+    const out = extractBaseline(
+      { redline: [], areas: [], hedgerows: [], watercourses: [] },
+      { filename: 'survey.gpkg', fileSize: 204800 }
+    )
+
+    expect(out.document.filename).toBe('survey.gpkg')
+    expect(out.document.fileSize).toBe(204800)
+    expect(out.geometries).not.toHaveProperty('filename')
+    expect(out.geometries).not.toHaveProperty('fileSize')
+  })
+
+  it('sets filename and fileSize to null when absent from meta', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.filename).toBeNull()
+    expect(out.document.fileSize).toBeNull()
+  })
 })
 
 describe('extractBaseline — habitatSizes embedding', () => {
