@@ -13,10 +13,10 @@ import {
   makePoint,
   makePolygon,
   missingLayerError
-} from './validate-gpkg.test-helpers.js'
+} from '../../../test/helpers/baseline-geopackage.js'
 
-const { validateGpkg } = await import('./validate-gpkg.js')
-const { ERROR_CODES } = await import('../../validation/baseline/errors.js')
+const { validateGpkg } = await import('./geopackage.js')
+const { ERROR_CODES } = await import('./errors.js')
 
 describe('validateGpkg when the Habitats geometry column is missing or invalid', () => {
   it('returns a descriptive error when there is no registered geometry column', () => {
@@ -25,7 +25,7 @@ describe('validateGpkg when the Habitats geometry column is missing or invalid',
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
-        geomColumnNames: { habitats: null }
+        habitatsGeomColumnName: null
       })
     )
 
@@ -44,9 +44,7 @@ describe('validateGpkg when the Habitats geometry column is missing or invalid',
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
-        geomColumnNames: {
-          habitats: 'geom"; DROP TABLE "Habitats"; --'
-        }
+        habitatsGeomColumnName: 'geom"; DROP TABLE "Habitats"; --'
       })
     )
 
