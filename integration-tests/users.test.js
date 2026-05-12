@@ -136,4 +136,12 @@ describe('GET /users/{userId}/projects validation', () => {
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
+
+  it('returns 400 for an invalid order value', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: `/users/${userId}/projects?order=bogus`
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
 })
