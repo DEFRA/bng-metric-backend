@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="11" author="bng-team">
+        <comment>
+            Create bng.baseline_red_line — exactly one MultiPolygon row per
+            project, keyed back to bng.projects with ON DELETE CASCADE.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_red_line (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL UNIQUE
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                geom geometry(MultiPolygon, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_red_line_geom
+                ON bng.baseline_red_line USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_red_line;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="12" author="bng-team">
+        <comment>
+            Create bng.baseline_habitats — many MultiPolygon rows per project,
+            each carrying the user-facing Parcel Ref so PostGIS-only queries can
+            return identifiers without joining back to projects.project JSONB.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_habitats (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiPolygon, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_habitats_project_id
+                ON bng.baseline_habitats (project_id);
+
+            CREATE INDEX idx_baseline_habitats_geom
+                ON bng.baseline_habitats USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_habitats;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="13" author="bng-team">
+        <comment>
+            Create bng.baseline_hedgerows — many MultiLineString rows per project.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_hedgerows (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_hedgerows_project_id
+                ON bng.baseline_hedgerows (project_id);
+
+            CREATE INDEX idx_baseline_hedgerows_geom
+                ON bng.baseline_hedgerows USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_hedgerows;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="14" author="bng-team">
+        <comment>
+            Create bng.baseline_watercourses — many MultiLineString rows per
+            project.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_watercourses (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_watercourses_project_id
+                ON bng.baseline_watercourses (project_id);
+
+            CREATE INDEX idx_baseline_watercourses_geom
+                ON bng.baseline_watercourses USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_watercourses;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

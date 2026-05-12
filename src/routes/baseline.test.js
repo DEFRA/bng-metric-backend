@@ -1,6 +1,24 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import {
+  UPLOAD_ID,
+  PROJECT_ID,
+  MOCK_BUCKET,
+  MOCK_KEY,
+  MOCK_BUFFER,
+  THROWS_502,
+  HTTP_404,
+  HTTP_409,
+  HTTP_422,
+  HTTP_502,
+  HTTP_504,
+  HTTP_413,
+  STUB_LAYERS,
+  STUB_EXTRACTED,
+  makeH,
+  makeDrizzle
+} from './baseline.test-fixtures.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
@@ -22,8 +40,16 @@ vi.mock('../services/gpkg/validate-gpkg.js', () => ({
   validateGpkg: vi.fn()
 }))
 
+vi.mock('../services/gpkg/extract-baseline.js', () => ({
+  extractBaseline: vi.fn()
+}))
+
+vi.mock('../validation/baseline/geopackage.js', () => ({
+  readBaselineGeoPackage: vi.fn()
+}))
+
 vi.mock('../validation/baseline/index.js', () => ({
-  validateBaselineFile: vi.fn()
+  validateBaselineLayers: vi.fn()
 }))
 
 // Preserve real error classes so instanceof checks in the handler work correctly
@@ -37,26 +63,12 @@ const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg } = await import('../services/gpkg/validate-gpkg.js')
-const { validateBaselineFile } = await import('../validation/baseline/index.js')
+const { extractBaseline } = await import('../services/gpkg/extract-baseline.js')
+const { readBaselineGeoPackage } =
+  await import('../validation/baseline/geopackage.js')
+const { validateBaselineLayers } =
+  await import('../validation/baseline/index.js')
 const { validateBaseline } = await import('./baseline.js')
-
-const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
-const MOCK_BUCKET = 'baseline-files'
-const MOCK_KEY = 'baseline/file.gpkg'
-const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
-const THROWS_502 = 'throws a 502 Bad Gateway'
-
-const HTTP_422 = 422
-const HTTP_502 = 502
-const HTTP_504 = 504
-const HTTP_413 = 413
-
-function makeH() {
-  return {
-    response: vi.fn().mockReturnThis(),
-    code: vi.fn().mockReturnThis()
-  }
-}
 
 describe('validateBaseline route configuration', () => {
   it('is a POST route', () => {
@@ -89,55 +101,121 @@ describe('validateBaseline Joi param validation', () => {
   })
 })
 
-describe('validateBaseline handler happy paths', () => {
-  const request = { params: { uploadId: UPLOAD_ID } }
+describe('validateBaseline Joi payload validation', () => {
+  const schema = validateBaseline.options.validate.payload
+
+  it('accepts a missing payload', () => {
+    const { error } = schema.validate(undefined)
+    expect(error).toBeUndefined()
+  })
+
+  it('accepts a null payload', () => {
+    const { error } = schema.validate(null)
+    expect(error).toBeUndefined()
+  })
+
+  it('accepts a payload with a valid projectId', () => {
+    const { error } = schema.validate({ projectId: PROJECT_ID })
+    expect(error).toBeUndefined()
+  })
+
+  it('rejects a payload with a non-UUID projectId', () => {
+    const { error } = schema.validate({ projectId: 'not-a-uuid' })
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"projectId" must be a valid GUID/)
+  })
+})
+
+function setupHappyPathMocks() {
+  vi.mocked(waitForUploadReady).mockResolvedValue({
+    bucket: MOCK_BUCKET,
+    key: MOCK_KEY
+  })
+  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+  vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(validateBaselineLayers).mockResolvedValue({
+    valid: true,
+    errors: []
+  })
+  vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+}
+
+function makeBaselineRequest({ drizzle, payload = null } = {}) {
+  return {
+    params: { uploadId: UPLOAD_ID },
+    payload,
+    drizzle
+  }
+}
+
+// One SET LOCAL lock_timeout + one INSERT per non-empty geometry layer
+// (red line, habitats, hedgerows, watercourses) on the stub data.
+const HAPPY_PATH_EXECUTE_COUNT = 5
+
+describe('validateBaseline handler — pipeline calls', () => {
   let h
+  let drizzleHarness
 
   beforeEach(() => {
     vi.clearAllMocks()
     h = makeH()
-    vi.mocked(waitForUploadReady).mockResolvedValue({
-      bucket: MOCK_BUCKET,
-      key: MOCK_KEY
-    })
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(validateBaselineFile).mockResolvedValue({
-      valid: true,
-      errors: []
-    })
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
   })
 
   it('waits for the upload to be ready using the uploadId', async () => {
-    await validateBaseline.handler(request, h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
   })
 
   it('downloads the file using the resolved bucket and key', async () => {
-    await validateBaseline.handler(request, h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
   })
 
   it('runs the gpkg gate against the downloaded buffer', async () => {
-    await validateBaseline.handler(request, h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(validateGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
   })
 
   it('runs full baseline validation when the gate passes', async () => {
-    await validateBaseline.handler(request, h)
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(readBaselineGeoPackage).toHaveBeenCalled()
+    expect(validateBaselineLayers).toHaveBeenCalledWith(STUB_LAYERS, undefined)
+  })
+})
 
-    expect(validateBaselineFile).toHaveBeenCalled()
+describe('validateBaseline handler — response shape', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
   })
 
   it('returns the baseline validation result when valid', async () => {
     const result = { valid: true, errors: [] }
-    vi.mocked(validateBaselineFile).mockResolvedValue(result)
-
-    await validateBaseline.handler(request, h)
-
+    vi.mocked(validateBaselineLayers).mockResolvedValue(result)
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(result)
   })
 
@@ -151,10 +229,11 @@ describe('validateBaseline handler happy paths', () => {
         }
       ]
     }
-    vi.mocked(validateBaselineFile).mockResolvedValue(result)
-
-    await validateBaseline.handler(request, h)
-
+    vi.mocked(validateBaselineLayers).mockResolvedValue(result)
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(result)
   })
 
@@ -166,16 +245,185 @@ describe('validateBaseline handler happy paths', () => {
       ]
     }
     vi.mocked(validateGpkg).mockReturnValue(gateResult)
-
-    await validateBaseline.handler(request, h)
-
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
     expect(h.response).toHaveBeenCalledWith(gateResult)
-    expect(validateBaselineFile).not.toHaveBeenCalled()
+    expect(validateBaselineLayers).not.toHaveBeenCalled()
+  })
+})
+
+describe('validateBaseline handler persistence — happy path side effects', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
+
+  it('opens a transaction when projectId is supplied and validation passes', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
+      uploadId: UPLOAD_ID
+    })
+    expect(log.transactionCalls).toBe(1)
+  })
+
+  it('checks the project exists at the start of the transaction', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.selectCalls).toBe(1)
+  })
+
+  it('deletes prior baseline rows from all four feature tables before inserting', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.deletes).toHaveLength(4)
+  })
+
+  it('inserts geometry rows for each non-empty layer', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
+  })
+
+  it('updates the project JSONB document at the end of the transaction', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.updates).toHaveLength(1)
+  })
+})
+
+describe('validateBaseline handler persistence — guard rails', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
+
+  it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({ drizzle, payload: null })
+    await validateBaseline.handler(request, h)
+    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(log.transactionCalls).toBe(0)
+  })
+
+  it('does not persist when projectId is supplied but validation fails', async () => {
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
+      valid: false,
+      errors: [{ code: 'REDLINE_INVALID_GEOMETRY', message: 'bad' }]
+    })
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(log.transactionCalls).toBe(0)
+  })
+
+  it('throws a 404 Boom error when the projectId does not match an existing project', async () => {
+    const { drizzle } = makeDrizzle({ projectExists: false })
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    const err = await validateBaseline.handler(request, h).catch((e) => e)
+    expect(err.isBoom).toBe(true)
+    expect(err.output.statusCode).toBe(HTTP_404)
+  })
+
+  it('does not insert any geometry rows when the project is missing', async () => {
+    const { drizzle, log } = makeDrizzle({ projectExists: false })
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h).catch(() => {})
+    // SET LOCAL lock_timeout runs before the project lookup, so 1 execute but no inserts
+    expect(log.executes).toHaveLength(1)
+    expect(log.updates).toHaveLength(0)
+  })
+})
+
+describe('validateBaseline handler persistence — lock contention and rollback', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
+
+  it('throws a 409 Boom error when the project row lock cannot be acquired within lock_timeout', async () => {
+    const lockError = Object.assign(
+      new Error('canceling statement due to lock timeout'),
+      {
+        code: '55P03'
+      }
+    )
+    const { drizzle, log } = makeDrizzle({ lockError })
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    const err = await validateBaseline.handler(request, h).catch((e) => e)
+    expect(err.isBoom).toBe(true)
+    expect(err.output.statusCode).toBe(HTTP_409)
+    expect(log.executes).toHaveLength(1) // just the SET LOCAL lock_timeout
+    expect(log.updates).toHaveLength(0)
+  })
+
+  // Regression guard: the JSONB document write must live inside the same
+  // transaction as the geometry inserts. If an insert throws, the doc update
+  // must never fire. Catches anyone later refactoring the update outside the
+  // transaction.
+  it('does not write the project document when an insert throws', async () => {
+    const { drizzle, tx, log } = makeDrizzle()
+    // First execute is SET LOCAL lock_timeout — let it succeed, then reject the
+    // first geometry INSERT to simulate a mid-import failure.
+    tx.execute
+      .mockImplementationOnce(() => Promise.resolve())
+      .mockImplementationOnce(() => Promise.reject(new Error('bad geom')))
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.transactionCalls).toBe(1)
+    expect(log.updates).toHaveLength(0)
   })
 })
 
 describe('validateBaseline handler upload error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID } }
+  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
   let h
 
   beforeEach(() => {
@@ -183,7 +431,8 @@ describe('validateBaseline handler upload error handling', () => {
     h = makeH()
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(validateBaselineFile).mockResolvedValue({
+    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
       valid: true,
       errors: []
     })
@@ -240,7 +489,7 @@ describe('validateBaseline handler upload error handling', () => {
 })
 
 describe('validateBaseline handler download error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID } }
+  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
   let h
 
   beforeEach(() => {
@@ -251,7 +500,8 @@ describe('validateBaseline handler download error handling', () => {
       key: MOCK_KEY
     })
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(validateBaselineFile).mockResolvedValue({
+    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
       valid: true,
       errors: []
     })
@@ -310,7 +560,7 @@ describe('validateBaseline handler download error handling', () => {
 })
 
 describe('validateBaseline handler full validation error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID } }
+  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
   let h
 
   beforeEach(() => {
@@ -322,10 +572,11 @@ describe('validateBaseline handler full validation error handling', () => {
     })
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
   })
 
-  it('returns 500 when validateBaselineFile throws', async () => {
-    vi.mocked(validateBaselineFile).mockRejectedValue(new Error('boom'))
+  it('returns 500 when validateBaselineLayers throws', async () => {
+    vi.mocked(validateBaselineLayers).mockRejectedValue(new Error('boom'))
 
     await validateBaseline.handler(request, h)
 

@@ -3,6 +3,7 @@ import os from 'node:os'
 import path from 'node:path'
 
 import Boom from '@hapi/boom'
+import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 
 import {
@@ -16,7 +17,16 @@ import {
   S3TimeoutError
 } from '../services/s3/download-file.js'
 import { validateGpkg } from '../services/gpkg/validate-gpkg.js'
-import { validateBaselineFile } from '../validation/baseline/index.js'
+import { extractBaseline } from '../services/gpkg/extract-baseline.js'
+import { readBaselineGeoPackage } from '../validation/baseline/geopackage.js'
+import { validateBaselineLayers } from '../validation/baseline/index.js'
+import {
+  projects,
+  baselineRedLine,
+  baselineHabitats,
+  baselineHedgerows,
+  baselineWatercourses
+} from '../db/schema/index.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
@@ -68,15 +78,172 @@ async function fetchBaselineBuffer(bucket, key, uploadId) {
   }
 }
 
-async function runFullValidation(buffer, pgPool, uploadId, h) {
+// PostGIS has no built-in upsert for geometry; ST_Multi promotes Polygon →
+// MultiPolygon (and LineString → MultiLineString), and ST_Transform standardises
+// every geometry to EPSG:27700 regardless of the source SRID, matching what the
+// validation pipeline already enforces.
+
+// Cap rows per INSERT to keep statement size bounded — PostgreSQL allows up to
+// 65535 bind parameters per query, and a large site with thousands of features
+// is rare but possible. 500 leaves ample headroom and matches typical batch
+// tuning advice for PostGIS bulk loads.
+const INSERT_BATCH_SIZE = 500
+
+function geometryRowValues(projectId, row) {
+  const geomJson = JSON.stringify(row.geometry)
+  return sql`(
+    ${row.featureId}::uuid,
+    ${projectId}::uuid,
+    ${row.ref ?? null},
+    ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
+  )`
+}
+
+async function insertGeometryRowsBatched(tx, table, projectId, rows) {
+  for (let i = 0; i < rows.length; i += INSERT_BATCH_SIZE) {
+    const batch = rows.slice(i, i + INSERT_BATCH_SIZE)
+    const values = batch.map((row) => geometryRowValues(projectId, row))
+    await tx.execute(sql`
+      INSERT INTO ${table} (id, project_id, ref, geom)
+      VALUES ${sql.join(values, sql`, `)}
+    `)
+  }
+}
+
+async function insertRedLineRow(tx, projectId, row) {
+  const geomJson = JSON.stringify(row.geometry)
+  await tx.execute(sql`
+    INSERT INTO ${baselineRedLine} (id, project_id, geom)
+    VALUES (
+      ${row.featureId}::uuid,
+      ${projectId}::uuid,
+      ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${row.srid}), 27700))
+    )
+  `)
+}
+
+async function persistBaseline(
+  drizzle,
+  projectId,
+  document,
+  geometries,
+  uploadId
+) {
+  try {
+    await runPersistTransaction(drizzle, projectId, document, geometries)
+  } catch (err) {
+    if (err?.isBoom) {
+      throw err
+    }
+    // PostgreSQL 55P03 (lock_not_available) means SELECT ... FOR UPDATE waited
+    // past the 5s lock_timeout for another transaction mid-persist on the same
+    // project. Surface as 409 so the caller can retry; persist is normally
+    // sub-second so a 5s wait is well past "another one in progress."
+    if (err?.code === '55P03') {
+      throw Boom.conflict(
+        'Another baseline upload for this project is in progress'
+      )
+    }
+    throw err
+  }
+
+  logger.info(
+    `validateBaseline: persisted baseline for projectId ${projectId} from uploadId ${uploadId}`
+  )
+}
+
+async function runPersistTransaction(drizzle, projectId, document, geometries) {
+  await drizzle.transaction(async (tx) => {
+    // Cap the wait on the project row lock so a stuck or pathologically slow
+    // concurrent persist can't hang this request indefinitely. 5s is generous
+    // — the lock holder's own work (delete + batched inserts + JSONB update)
+    // should finish in well under a second for realistic dataset sizes.
+    await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
+
+    // SELECT ... FOR UPDATE serialises concurrent re-uploads for the same
+    // project. Without this, two interleaved POSTs could each DELETE the
+    // prior baseline rows and INSERT new ones — UNIQUE(project_id) on
+    // baseline_red_line would trip one of them, but the other three tables
+    // would briefly double up before rollback.
+    const projectRows = await tx
+      .select({ id: projects.id })
+      .from(projects)
+      .where(eq(projects.id, projectId))
+      .for('update')
+      .limit(1)
+    if (projectRows.length === 0) {
+      throw Boom.notFound(`Project ${projectId} not found`)
+    }
+
+    // Re-upload safety: drop any prior baseline rows before inserting new
+    // ones. ON DELETE CASCADE on the project FK does not help here — the
+    // project is not being deleted.
+    await tx
+      .delete(baselineRedLine)
+      .where(eq(baselineRedLine.projectId, projectId))
+    await tx
+      .delete(baselineHabitats)
+      .where(eq(baselineHabitats.projectId, projectId))
+    await tx
+      .delete(baselineHedgerows)
+      .where(eq(baselineHedgerows.projectId, projectId))
+    await tx
+      .delete(baselineWatercourses)
+      .where(eq(baselineWatercourses.projectId, projectId))
+
+    if (geometries.redLine) {
+      await insertRedLineRow(tx, projectId, geometries.redLine)
+    }
+    await insertGeometryRowsBatched(
+      tx,
+      baselineHabitats,
+      projectId,
+      geometries.habitats
+    )
+    await insertGeometryRowsBatched(
+      tx,
+      baselineHedgerows,
+      projectId,
+      geometries.hedgerows
+    )
+    await insertGeometryRowsBatched(
+      tx,
+      baselineWatercourses,
+      projectId,
+      geometries.watercourses
+    )
+
+    const docJson = JSON.stringify(document)
+    await tx
+      .update(projects)
+      .set({
+        project: sql`jsonb_set(${projects.project}, '{baseline}', ${docJson}::jsonb, true)`
+      })
+      .where(eq(projects.id, projectId))
+  })
+}
+
+async function runFullValidation(buffer, drizzle, pgPool, context, h) {
+  const { uploadId, projectId } = context
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
   const localPath = path.join(tmpDir, 'baseline.gpkg')
 
   try {
     await fs.writeFile(localPath, buffer)
-    const result = await validateBaselineFile(localPath, pgPool)
+    const layers = readBaselineGeoPackage(localPath)
+    const result = await validateBaselineLayers(layers, pgPool)
     if (result.valid) {
       logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+      if (projectId) {
+        const { document, geometries } = extractBaseline(layers, { uploadId })
+        await persistBaseline(
+          drizzle,
+          projectId,
+          document,
+          geometries,
+          uploadId
+        )
+      }
     } else {
       logger.info(
         `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
@@ -86,6 +253,9 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
     }
     return h.response(result)
   } catch (error) {
+    if (error?.isBoom) {
+      throw error
+    }
     logger.error(
       `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
     )
@@ -119,6 +289,17 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *         schema:
  *           type: string
  *           format: uuid
+ *     requestBody:
+ *       required: false
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               projectId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: When provided, the unpacked baseline data is saved against the project's JSONB document.
  *     responses:
  *       200:
  *         description: Returns validation result
@@ -154,6 +335,10 @@ async function runFullValidation(buffer, pgPool, uploadId, h) {
  *                             items: { type: object }
  *       400:
  *         description: uploadId is missing or not a valid UUID
+ *       404:
+ *         description: projectId was provided but does not match an existing project
+ *       409:
+ *         description: Another baseline upload for the same project is currently being persisted — retry shortly
  *       413:
  *         description: File exceeds the maximum allowed size (100 MB)
  *       422:
@@ -172,11 +357,17 @@ const validateBaseline = {
     validate: {
       params: Joi.object({
         uploadId: Joi.string().uuid().required()
+      }),
+      payload: Joi.object({
+        projectId: Joi.string().uuid()
       })
+        .allow(null)
+        .optional()
     }
   },
   handler: async (request, h) => {
     const { uploadId } = request.params
+    const projectId = request.payload?.projectId ?? null
 
     const { bucket, key } = await resolveUploadLocation(uploadId)
     const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
@@ -189,7 +380,13 @@ const validateBaseline = {
       return h.response(gateResult)
     }
 
-    return runFullValidation(buffer, request.pg, uploadId, h)
+    return runFullValidation(
+      buffer,
+      request.drizzle,
+      request.pg,
+      { uploadId, projectId },
+      h
+    )
   }
 }
 
