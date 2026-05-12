@@ -8,7 +8,12 @@ export default defineConfig({
     hookTimeout: 60_000,
     pool: 'forks',
     forks: {
-      singleFork: true
+      // singleFork was removed in Vitest 4. Keeping an explicit (but empty-ish)
+      // forks block is required: without it, fileParallelism:false causes Vitest 4
+      // to route all files through a single shared fork which exits after the first
+      // file completes. With the block present, Vitest 4 allocates one fork per file
+      // and fileParallelism:false serialises them — the intended Vitest 3 behaviour.
+      isolate: true
     },
     // Tests share Postgres; afterEach TRUNCATE in one file would wipe rows created
     // by another file mid-flight (and deadlock on overlapping table locks).

@@ -23,8 +23,14 @@ if (!fs.existsSync(hitsPath)) {
   process.exit(1)
 }
 
-const manifest = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
+const manifestFile = JSON.parse(fs.readFileSync(manifestPath, 'utf8'))
 const hits = JSON.parse(fs.readFileSync(hitsPath, 'utf8'))
+
+// Support both the legacy array format and the current { routes, excluded } format.
+const manifest = Array.isArray(manifestFile) ? manifestFile : manifestFile.routes
+const excludedRoutes = new Set(
+  Array.isArray(manifestFile) ? [] : (manifestFile.excluded ?? []).map((e) => e.route)
+)
 
 const server = await createServer()
 const registered = server
@@ -38,7 +44,9 @@ const manifestSet = new Set(manifest)
 const registeredSet = new Set(registered)
 const hitsSet = new Set(hits)
 
-const missingFromManifest = registered.filter((r) => !manifestSet.has(r))
+const missingFromManifest = registered.filter(
+  (r) => !manifestSet.has(r) && !excludedRoutes.has(r)
+)
 const extraInManifest = manifest.filter((r) => !registeredSet.has(r))
 const uncovered = manifest.filter((r) => !hitsSet.has(r))
 
@@ -67,4 +75,6 @@ if (errors.length) {
   process.exit(1)
 }
 
-console.log(`Route coverage OK — ${manifest.length} routes, all exercised.`)
+const excludedCount = excludedRoutes.size
+const suffix = excludedCount ? ` (${excludedCount} excluded — see route-manifest.json)` : ''
+console.log(`Route coverage OK — ${manifest.length} routes, all exercised.${suffix}`)
