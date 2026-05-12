@@ -1,0 +1,832 @@
+{
+  "schemaVersion": 1,
+  "referenceFiles": ["Net Gain Habitat Mapping Layers.gpkg"],
+  "description": "Layer names, attribute columns and SQLite-affinity types from the reference GeoPackage templates. Layers marked required must be present in an upload; optional layers may be omitted. Compare table/column names case-insensitively where product rules require it.",
+  "coordinateReferenceSystem": {
+    "srsId": 27700
+  },
+  "layers": [
+    {
+      "tableName": "Habitats",
+      "required": true,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geom",
+        "geometryType": "MULTIPOLYGON"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geom",
+          "sqliteType": "MULTIPOLYGON",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Parcel Ref",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Broad Habitat Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Habitat Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Area",
+          "sqliteType": "MEDIUMINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Retention Category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Broad Habitat Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Habitat Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Habitat created in advance/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Delay in starting habitat creation/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Spatial risk category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Location",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Site Name",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Date",
+          "sqliteType": "DATE",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Details",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Comment",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Mapped by",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Company",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Base Map",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    },
+    {
+      "tableName": "Hedgerows",
+      "required": false,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geom",
+        "geometryType": "LINESTRING"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geom",
+          "sqliteType": "LINESTRING",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Parcel Ref",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Hedge Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Retention Category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Hedge Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Length",
+          "sqliteType": "MEDIUMINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Habitat created in advance/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Delay in starting habitat creation/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Spatial risk category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Location",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Site Name",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Date",
+          "sqliteType": "DATE",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Details",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Comments",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Mapped by",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Company",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Base Map",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    },
+    {
+      "tableName": "Red Line Boundary",
+      "required": true,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geometry",
+        "geometryType": "POLYGON"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geometry",
+          "sqliteType": "POLYGON",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Area",
+          "sqliteType": "REAL",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Site Name",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    },
+    {
+      "tableName": "Rivers",
+      "required": false,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geom",
+        "geometryType": "LINESTRING"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geom",
+          "sqliteType": "LINESTRING",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Parcel Ref",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline River Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Encroachment into Watercourse",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Encroachment into riparian zone",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Retention Category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed River Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Length",
+          "sqliteType": "MEDIUMINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Habitat created in advance/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Delay in starting habitat creation/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Spatial risk category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Location",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Encroachment into Watercourse",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Encroachment into riparian zone",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Site Name",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Date",
+          "sqliteType": "DATE",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Details",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Comments",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Mapped by",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Company",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Base Map",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Enhancement Type",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    },
+    {
+      "tableName": "Urban Trees",
+      "required": false,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geometry",
+        "geometryType": "POINT"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geometry",
+          "sqliteType": "POINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Tree Ref",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Tree Size",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Tree Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Retention Category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Tree Size",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Condition",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Tree Type",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Location",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Habitat Created/Enhanced in advance/years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Delay in starting habitat creation/enhancement in years",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Spatial risk category",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Site Name",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Date",
+          "sqliteType": "DATE",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Survey Details",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Comment",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Mapped by",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Company",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Base Map",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Count",
+          "sqliteType": "MEDIUMINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Rural or Urban Tree",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Rural or Urban Tree",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    },
+    {
+      "tableName": "Water course enhancement through meanders",
+      "required": false,
+      "dataType": "features",
+      "srsId": 27700,
+      "geometryColumn": {
+        "name": "geometry",
+        "geometryType": "LINESTRING"
+      },
+      "columns": [
+        {
+          "name": "fid",
+          "sqliteType": "INTEGER",
+          "notNull": true,
+          "primaryKey": true
+        },
+        {
+          "name": "geometry",
+          "sqliteType": "LINESTRING",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Parcel Ref",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed River Type",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Condition",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Strategic Significance",
+          "sqliteType": "TEXT(99)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Encroachment into Watercourse",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Encroachment into riparian zone",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Length",
+          "sqliteType": "MEDIUMINT",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Habitat created in advance/years",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Delay in starting habitat creation/years",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Location",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Spatial risk category",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Baseline Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        },
+        {
+          "name": "Proposed Distinctiveness",
+          "sqliteType": "TEXT(999)",
+          "notNull": false,
+          "primaryKey": false
+        }
+      ]
+    }
+  ]
+}

@@ -9,7 +9,7 @@ import { validateBaselineLayersPostgis } from './postgis/index.js'
  *
  * @param {string} filePath
  * @param {import('pg').Pool} pool
- * @returns {Promise<{ valid: boolean, errors: object[] }>}
+ * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string }> }>}
  */
 export async function validateBaselineFile(filePath, pool) {
   const layers = readBaselineGeoPackage(filePath)

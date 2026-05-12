@@ -12,7 +12,12 @@ export default defineConfig({
       reportsDirectory: './coverage',
       reporter: ['text', 'lcov'],
       include: ['src/**/*.js'],
-      exclude: [...configDefaults.exclude, 'coverage']
+      exclude: [
+        ...configDefaults.exclude,
+        'coverage',
+        // Re-export-only facade; exercised by geopackage-internals.test.js — no executable lines to cover.
+        'src/validation/baseline/geopackage-internals.js'
+      ]
     },
     setupFiles: ['.vite/setup-files.js']
   }
