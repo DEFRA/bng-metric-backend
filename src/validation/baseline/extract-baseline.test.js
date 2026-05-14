@@ -59,7 +59,8 @@ describe('extractBaseline — top-level shape', () => {
           redLine: null,
           habitats: [],
           hedgerows: [],
-          watercourses: []
+          watercourses: [],
+          habitatSizes: null
         }),
         geometries: {
           redLine: null,
@@ -81,6 +82,62 @@ describe('extractBaseline — top-level shape', () => {
     expect(out.document.uploadId).toBe('u-123')
     expect(out.document.importedAt).toBe('2026-05-08T10:00:00.000Z')
     expect(out.geometries).not.toHaveProperty('uploadId')
+  })
+
+  it('embeds per-feature sizes and stores totals summary in habitatSizes', () => {
+    const habitatSizes = {
+      areaHabitats: {
+        individualSquareMetres: [{ idx: 0, fid: null, featureRef: 'P1', sizeSquareMetres: 5000 }],
+        totalSquareMetres: 5000
+      },
+      hedgerows: {
+        individualMetres: [{ idx: 0, fid: null, featureRef: 'H1', sizeMetres: 120 }],
+        totalMetres: 120
+      },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [feature({ [PARCEL_REF]: 'P1' })],
+        hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
+        watercourses: []
+      },
+      { habitatSizes }
+    )
+
+    // Per-feature sizes embedded directly in each feature document
+    expect(out.document.habitats[0].sizeSquareMetres).toBe(5000)
+    expect(out.document.hedgerows[0].sizeMetres).toBe(120)
+
+    // Top-level habitatSizes holds totals only (no individual arrays)
+    expect(out.document.habitatSizes).toEqual({
+      areaHabitats: { totalSquareMetres: 5000 },
+      hedgerows: { totalMetres: 120 },
+      watercourses: { totalMetres: 0 }
+    })
+
+    // Geometry half is untouched
+    expect(out.geometries).not.toHaveProperty('habitatSizes')
+  })
+
+  it('sets sizeSquareMetres/sizeMetres to null for features with no geometry in sizes result', () => {
+    const habitatSizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractBaseline(
+      { redline: [], areas: [feature({ [PARCEL_REF]: 'P1' })], hedgerows: [], watercourses: [] },
+      { habitatSizes }
+    )
+
+    expect(out.document.habitats[0].sizeSquareMetres).toBeNull()
+  })
+
+  it('sets habitatSizes to null when not provided', () => {
+    const out = extractBaseline({ redline: [], areas: [], hedgerows: [], watercourses: [] })
+    expect(out.document.habitatSizes).toBeNull()
   })
 })
 

@@ -1,5 +1,8 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
+import { connect } from './helpers/db.js'
+import { truncateTestData } from './helpers/db-cleanup.js'
 import {
   fixturePath,
   uploadViaCdpUploader,
@@ -33,15 +36,23 @@ async function uploadFixture(server, fixtureName) {
 
 describe('POST /baseline/validate/{uploadId}', () => {
   let server
+  let dbClient
 
   beforeAll(async () => {
     await assertCdpUploaderReachable()
     await assertLocalStackPipelineReady()
     server = await startServer()
+    dbClient = await connect()
   })
 
   afterAll(async () => {
-    await stopServer(server)
+    if (dbClient) {
+      await truncateTestData(dbClient)
+      await dbClient.end()
+    }
+    if (server) {
+      await stopServer(server)
+    }
   })
 
   it('returns 400 for a non-UUID uploadId', async () => {
@@ -59,7 +70,53 @@ describe('POST /baseline/validate/{uploadId}', () => {
       url: `/baseline/validate/${uploadId}`
     })
     expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result).toEqual({ valid: true, errors: [] })
+    expect(res.result.valid).toBe(true)
+    expect(res.result.errors).toEqual([])
+  })
+
+  it('persists habitatSizes onto the project document when projectId is supplied', async () => {
+    const userId = `it-${randomUUID()}`
+    const created = await server.inject({
+      method: 'POST',
+      url: '/projects/new',
+      payload: { project: { name: 'Habitat sizes test' }, userId }
+    })
+    expect(created.statusCode).toBe(HTTP_OK)
+    const { id: projectId } = created.result
+
+    const uploadId = await uploadFixture(server, 'baseline-complete.gpkg')
+    const res = await server.inject({
+      method: 'POST',
+      url: `/baseline/validate/${uploadId}`,
+      payload: { projectId }
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.valid).toBe(true)
+
+    // habitatSizes summary — totals only, no individual arrays
+    const { rows } = await dbClient.query(
+      `SELECT project->'baseline'->'habitatSizes' AS habitat_sizes
+       FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const habitatSizes = rows[0].habitat_sizes
+    expect(habitatSizes).toEqual({
+      areaHabitats: { totalSquareMetres: expect.any(Number) },
+      hedgerows: { totalMetres: expect.any(Number) },
+      watercourses: { totalMetres: expect.any(Number) }
+    })
+    expect(habitatSizes.areaHabitats.totalSquareMetres).toBeGreaterThan(0)
+
+    // Per-feature size embedded directly in each habitat document
+    const { rows: habitatRows } = await dbClient.query(
+      `SELECT jsonb_array_elements(project->'baseline'->'habitats') AS habitat
+       FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(habitatRows.length).toBeGreaterThan(0)
+    for (const { habitat } of habitatRows) {
+      expect(typeof habitat.sizeSquareMetres).toBe('number')
+    }
   })
 
   it('reports a non-GeoPackage file as invalid', async () => {

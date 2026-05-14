@@ -27,7 +27,11 @@ async function probePostgres() {
 }
 
 async function applyMigrations() {
-  const { stdout, stderr } = await execFileAsync('npm', ['run', 'db:update'], {
+  // On Windows the npm script runs a .sh via Docker — use wsl to invoke it.
+  const isWin = process.platform === 'win32'
+  const cmd = isWin ? 'wsl' : 'npm'
+  const args = isWin ? ['npm', 'run', 'db:update'] : ['run', 'db:update']
+  const { stdout, stderr } = await execFileAsync(cmd, args, {
     maxBuffer: 32 * 1024 * 1024
   })
   if (process.env.DEBUG_INTEGRATION) {

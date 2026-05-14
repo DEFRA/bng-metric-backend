@@ -151,6 +151,7 @@ function splitFeatures(features, builder) {
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
  * @param {string} [meta.importedAt] ISO timestamp; defaults to now
+ * @param {object} [meta.habitatSizes] pre-calculated habitat sizes from calculateHabitatSizes
  * @returns {{
  *   document: object,
  *   geometries: {
@@ -167,6 +168,30 @@ export function extractBaseline(layers, meta = {}) {
   const hedgerows = splitFeatures(layers.hedgerows ?? [], buildLinear)
   const watercourses = splitFeatures(layers.watercourses ?? [], buildLinear)
 
+  // Embed the PostGIS-calculated size directly onto each feature document so
+  // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
+  // secondary join. idx is the 0-based position of the feature in its source
+  // layer array and is the join key between the sizes result and the documents.
+  let habitatSizesSummary = null
+  if (meta.habitatSizes) {
+    const { areaHabitats, hedgerows: hw, watercourses: wc } = meta.habitatSizes
+
+    const areaSizes = new Map(areaHabitats.individualSquareMetres.map((s) => [s.idx, s.sizeSquareMetres]))
+    habitats.documents.forEach((doc, i) => { doc.sizeSquareMetres = areaSizes.get(i) ?? null })
+
+    const hedgerowSizes = new Map(hw.individualMetres.map((s) => [s.idx, s.sizeMetres]))
+    hedgerows.documents.forEach((doc, i) => { doc.sizeMetres = hedgerowSizes.get(i) ?? null })
+
+    const watercourseSizes = new Map(wc.individualMetres.map((s) => [s.idx, s.sizeMetres]))
+    watercourses.documents.forEach((doc, i) => { doc.sizeMetres = watercourseSizes.get(i) ?? null })
+
+    habitatSizesSummary = {
+      areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
+      hedgerows: { totalMetres: hw.totalMetres },
+      watercourses: { totalMetres: wc.totalMetres }
+    }
+  }
+
   return {
     document: {
       uploadId: meta.uploadId ?? null,
@@ -174,7 +199,8 @@ export function extractBaseline(layers, meta = {}) {
       redLine: redLine.document,
       habitats: habitats.documents,
       hedgerows: hedgerows.documents,
-      watercourses: watercourses.documents
+      watercourses: watercourses.documents,
+      habitatSizes: habitatSizesSummary
     },
     geometries: {
       redLine: redLine.geometryRow,
