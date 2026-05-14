@@ -68,7 +68,8 @@ const { extractBaseline } =
   await import('../validation/baseline/extract-baseline.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
-const { calculateHabitatSizes } = await import('../services/baseline/calculate-habitat-sizes.js')
+const { calculateHabitatSizes } =
+  await import('../services/baseline/calculate-habitat-sizes.js')
 const { ERROR_CODES } = await import('../validation/baseline/errors.js')
 const { validateBaseline } = await import('./baseline.js')
 

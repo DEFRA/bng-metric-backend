@@ -176,14 +176,29 @@ export function extractBaseline(layers, meta = {}) {
   if (meta.habitatSizes) {
     const { areaHabitats, hedgerows: hw, watercourses: wc } = meta.habitatSizes
 
-    const areaSizes = new Map(areaHabitats.individualSquareMetres.map((s) => [s.idx, s.sizeSquareMetres]))
-    habitats.documents.forEach((doc, i) => { doc.sizeSquareMetres = areaSizes.get(i) ?? null })
+    const areaSizes = new Map(
+      areaHabitats.individualSquareMetres.map((s) => [
+        s.idx,
+        s.sizeSquareMetres
+      ])
+    )
+    habitats.documents.forEach((doc, i) => {
+      doc.sizeSquareMetres = areaSizes.get(i) ?? null
+    })
 
-    const hedgerowSizes = new Map(hw.individualMetres.map((s) => [s.idx, s.sizeMetres]))
-    hedgerows.documents.forEach((doc, i) => { doc.sizeMetres = hedgerowSizes.get(i) ?? null })
+    const hedgerowSizes = new Map(
+      hw.individualMetres.map((s) => [s.idx, s.sizeMetres])
+    )
+    hedgerows.documents.forEach((doc, i) => {
+      doc.sizeMetres = hedgerowSizes.get(i) ?? null
+    })
 
-    const watercourseSizes = new Map(wc.individualMetres.map((s) => [s.idx, s.sizeMetres]))
-    watercourses.documents.forEach((doc, i) => { doc.sizeMetres = watercourseSizes.get(i) ?? null })
+    const watercourseSizes = new Map(
+      wc.individualMetres.map((s) => [s.idx, s.sizeMetres])
+    )
+    watercourses.documents.forEach((doc, i) => {
+      doc.sizeMetres = watercourseSizes.get(i) ?? null
+    })
 
     habitatSizesSummary = {
       areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },

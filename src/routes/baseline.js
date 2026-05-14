@@ -240,8 +240,17 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
       logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
       if (projectId) {
         const habitatSizes = await calculateHabitatSizes(pgPool, layers)
-        const { document, geometries } = extractBaseline(layers, { uploadId, habitatSizes })
-        await persistBaseline(drizzle, projectId, document, geometries, uploadId)
+        const { document, geometries } = extractBaseline(layers, {
+          uploadId,
+          habitatSizes
+        })
+        await persistBaseline(
+          drizzle,
+          projectId,
+          document,
+          geometries,
+          uploadId
+        )
       }
       return h.response(result)
     } else {

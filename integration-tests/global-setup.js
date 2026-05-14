@@ -27,10 +27,31 @@ async function probePostgres() {
 }
 
 async function applyMigrations() {
-  // On Windows the npm script runs a .sh via Docker — use wsl to invoke it.
-  const isWin = process.platform === 'win32'
-  const cmd = isWin ? 'wsl' : 'npm'
-  const args = isWin ? ['npm', 'run', 'db:update'] : ['run', 'db:update']
+  let cmd, args
+
+  if (process.platform === 'win32') {
+    // On Windows, run the Docker Liquibase container directly rather than
+    // going through a bash shell script (WSL bash may not be available).
+    const changelogDir = path.resolve('changelog').replaceAll('\\', '/')
+    cmd = 'docker'
+    args = [
+      'run',
+      '--rm',
+      '--network',
+      'cdp-tenant',
+      '--entrypoint',
+      'sh',
+      '-v',
+      `${changelogDir}:/liquibase/changelog`,
+      'liquibase/liquibase',
+      '-c',
+      'lpm add postgresql --global && liquibase --changelog-file=changelog/db.changelog.xml --url=jdbc:postgresql://postgres:5432/bng_metric_backend --username=dev --password=dev update'
+    ]
+  } else {
+    cmd = 'npm'
+    args = ['run', 'db:update']
+  }
+
   const { stdout, stderr } = await execFileAsync(cmd, args, {
     maxBuffer: 32 * 1024 * 1024
   })

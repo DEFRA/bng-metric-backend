@@ -205,5 +205,3 @@ describe('validateBaseline handler — response shape', () => {
     )
   })
 })
-
-
