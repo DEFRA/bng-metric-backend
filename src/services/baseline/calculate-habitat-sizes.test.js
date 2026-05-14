@@ -7,6 +7,69 @@ import {
   CALCULATE_HABITAT_SIZES_QUERY
 } from './calculate-habitat-sizes.js'
 
+const BNG_SRID = 27700
+const WGS84_SRID = 4326
+
+const MOCK_SIZE_QUERY_ROWS = [
+  {
+    layer: 'areas',
+    idx: 0,
+    fid: '10',
+    feature_ref: 'A-10',
+    size_value: '1.25'
+  },
+  {
+    layer: 'areas',
+    idx: 1,
+    fid: '11',
+    feature_ref: 'A-11',
+    size_value: '0.75'
+  },
+  {
+    layer: 'hedgerows',
+    idx: 0,
+    fid: '20',
+    feature_ref: 'H-20',
+    size_value: '0.5'
+  },
+  {
+    layer: 'watercourses',
+    idx: 0,
+    fid: '30',
+    feature_ref: 'W-30',
+    size_value: '0.25'
+  }
+]
+
+const LAYERS_FOR_SIZE_QUERY = {
+  areas: [
+    {
+      nativeGeometry: { type: 'Polygon', coordinates: [] },
+      nativeSrid: BNG_SRID,
+      properties: { fid: 10, 'Parcel Ref': 'A-10' }
+    },
+    {
+      nativeGeometry: { type: 'Polygon', coordinates: [] },
+      nativeSrid: BNG_SRID,
+      properties: { fid: 11, 'Parcel Ref': 'A-11' }
+    }
+  ],
+  hedgerows: [
+    {
+      nativeGeometry: { type: 'LineString', coordinates: [] },
+      nativeSrid: WGS84_SRID,
+      properties: { fid: 20, 'Parcel Ref': 'H-20' }
+    }
+  ],
+  watercourses: [
+    {
+      nativeGeometry: { type: 'LineString', coordinates: [] },
+      nativeSrid: WGS84_SRID,
+      properties: { fid: 30, 'Baseline Parcel Ref': 'W-30' }
+    }
+  ]
+}
+
 describe('HABITAT_SIZE_LAYERS', () => {
   it('includes only layers used by AC1 size calculations', () => {
     expect(HABITAT_SIZE_LAYERS).toEqual(['areas', 'hedgerows', 'watercourses'])
@@ -19,28 +82,28 @@ describe('buildLayerArrays', () => {
       areas: [
         {
           nativeGeometry: { type: 'Polygon', coordinates: [] },
-          nativeSrid: 27700,
+          nativeSrid: BNG_SRID,
           properties: { fid: 1, 'Parcel Ref': 'A1' }
         }
       ],
       hedgerows: [
         {
           nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: 4326,
+          nativeSrid: WGS84_SRID,
           properties: { fid: 2, 'Parcel Ref': 'H1' }
         }
       ],
       watercourses: [
         {
           nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: 4326,
+          nativeSrid: WGS84_SRID,
           properties: { fid: 3, 'Baseline Parcel Ref': 'W1' }
         }
       ],
       trees: [
         {
           nativeGeometry: { type: 'Point', coordinates: [0, 0] },
-          nativeSrid: 4326,
+          nativeSrid: WGS84_SRID,
           properties: { fid: 4 }
         }
       ]
@@ -50,7 +113,7 @@ describe('buildLayerArrays', () => {
 
     expect(result.layerNames).toEqual(['areas', 'hedgerows', 'watercourses'])
     expect(result.idxs).toEqual([0, 0, 0])
-    expect(result.srids).toEqual([27700, 4326, 4326])
+    expect(result.srids).toEqual([BNG_SRID, WGS84_SRID, WGS84_SRID])
     expect(result.props).toEqual([
       JSON.stringify({ fid: 1, 'Parcel Ref': 'A1' }),
       JSON.stringify({ fid: 2, 'Parcel Ref': 'H1' }),
@@ -60,7 +123,7 @@ describe('buildLayerArrays', () => {
 
   it('skips features without geometry', () => {
     const result = buildLayerArrays({
-      areas: [{ nativeSrid: 27700, properties: { fid: 9 } }]
+      areas: [{ nativeSrid: BNG_SRID, properties: { fid: 9 } }]
     })
 
     expect(result.layerNames).toEqual([])
@@ -97,70 +160,10 @@ describe('calculateHabitatSizes', () => {
 
   it('aggregates individual and total size values from query rows', async () => {
     const pool = {
-      query: vi.fn().mockResolvedValue({
-        rows: [
-          {
-            layer: 'areas',
-            idx: 0,
-            fid: '10',
-            feature_ref: 'A-10',
-            size_value: '1.25'
-          },
-          {
-            layer: 'areas',
-            idx: 1,
-            fid: '11',
-            feature_ref: 'A-11',
-            size_value: '0.75'
-          },
-          {
-            layer: 'hedgerows',
-            idx: 0,
-            fid: '20',
-            feature_ref: 'H-20',
-            size_value: '0.5'
-          },
-          {
-            layer: 'watercourses',
-            idx: 0,
-            fid: '30',
-            feature_ref: 'W-30',
-            size_value: '0.25'
-          }
-        ]
-      })
+      query: vi.fn().mockResolvedValue({ rows: MOCK_SIZE_QUERY_ROWS })
     }
 
-    const layers = {
-      areas: [
-        {
-          nativeGeometry: { type: 'Polygon', coordinates: [] },
-          nativeSrid: 27700,
-          properties: { fid: 10, 'Parcel Ref': 'A-10' }
-        },
-        {
-          nativeGeometry: { type: 'Polygon', coordinates: [] },
-          nativeSrid: 27700,
-          properties: { fid: 11, 'Parcel Ref': 'A-11' }
-        }
-      ],
-      hedgerows: [
-        {
-          nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: 4326,
-          properties: { fid: 20, 'Parcel Ref': 'H-20' }
-        }
-      ],
-      watercourses: [
-        {
-          nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: 4326,
-          properties: { fid: 30, 'Baseline Parcel Ref': 'W-30' }
-        }
-      ]
-    }
-
-    const result = await calculateHabitatSizes(pool, layers)
+    const result = await calculateHabitatSizes(pool, LAYERS_FOR_SIZE_QUERY)
 
     expect(pool.query).toHaveBeenCalledWith(CALCULATE_HABITAT_SIZES_QUERY, [
       ['areas', 'areas', 'hedgerows', 'watercourses'],
@@ -177,7 +180,7 @@ describe('calculateHabitatSizes', () => {
         JSON.stringify({ type: 'LineString', coordinates: [] }),
         JSON.stringify({ type: 'LineString', coordinates: [] })
       ],
-      [27700, 27700, 4326, 4326]
+      [BNG_SRID, BNG_SRID, WGS84_SRID, WGS84_SRID]
     ])
 
     expect(result).toEqual({

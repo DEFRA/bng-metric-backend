@@ -12,6 +12,9 @@ const HABITAT_TYPE = 'Baseline Habitat Type'
 const CONDITION = 'Baseline Condition'
 const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 
+const HABITAT_SQM = 5000
+const HEDGEROW_M = 120
+
 const SAMPLE_POLYGON = {
   type: 'Polygon',
   coordinates: [
@@ -83,20 +86,22 @@ describe('extractBaseline — top-level shape', () => {
     expect(out.document.importedAt).toBe('2026-05-08T10:00:00.000Z')
     expect(out.geometries).not.toHaveProperty('uploadId')
   })
+})
 
+describe('extractBaseline — habitatSizes embedding', () => {
   it('embeds per-feature sizes and stores totals summary in habitatSizes', () => {
     const habitatSizes = {
       areaHabitats: {
         individualSquareMetres: [
-          { idx: 0, fid: null, featureRef: 'P1', sizeSquareMetres: 5000 }
+          { idx: 0, fid: null, featureRef: 'P1', sizeSquareMetres: HABITAT_SQM }
         ],
-        totalSquareMetres: 5000
+        totalSquareMetres: HABITAT_SQM
       },
       hedgerows: {
         individualMetres: [
-          { idx: 0, fid: null, featureRef: 'H1', sizeMetres: 120 }
+          { idx: 0, fid: null, featureRef: 'H1', sizeMetres: HEDGEROW_M }
         ],
-        totalMetres: 120
+        totalMetres: HEDGEROW_M
       },
       watercourses: { individualMetres: [], totalMetres: 0 }
     }
@@ -111,13 +116,13 @@ describe('extractBaseline — top-level shape', () => {
     )
 
     // Per-feature sizes embedded directly in each feature document
-    expect(out.document.habitats[0].sizeSquareMetres).toBe(5000)
-    expect(out.document.hedgerows[0].sizeMetres).toBe(120)
+    expect(out.document.habitats[0].sizeSquareMetres).toBe(HABITAT_SQM)
+    expect(out.document.hedgerows[0].sizeMetres).toBe(HEDGEROW_M)
 
     // Top-level habitatSizes holds totals only (no individual arrays)
     expect(out.document.habitatSizes).toEqual({
-      areaHabitats: { totalSquareMetres: 5000 },
-      hedgerows: { totalMetres: 120 },
+      areaHabitats: { totalSquareMetres: HABITAT_SQM },
+      hedgerows: { totalMetres: HEDGEROW_M },
       watercourses: { totalMetres: 0 }
     })
 
