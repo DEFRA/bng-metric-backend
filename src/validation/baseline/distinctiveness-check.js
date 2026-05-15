@@ -1,4 +1,5 @@
 import { ERROR_CODES, makeError } from './errors.js'
+import { PROP_KEYS, pickProp } from './properties.js'
 import { getDistinctiveness } from './reference/habitat-distinctiveness.js'
 
 // BMD-352 / MVS scope: only Medium, Low and Very Low distinctiveness habitats
@@ -7,30 +8,6 @@ import { getDistinctiveness } from './reference/habitat-distinctiveness.js'
 const OUT_OF_SCOPE_BANDS = new Set(['High', 'V.High'])
 
 const SAMPLE_CAP = 50
-
-const HABITAT_TYPE_KEYS = ['Baseline Habitat Type', 'Baseline_Habitat_Type']
-const PARCEL_REF_KEYS = ['Parcel Ref', 'Parcel_Ref', 'parcel_ref']
-
-function pickProp(properties, candidates) {
-  if (!properties) {
-    return null
-  }
-  for (const key of candidates) {
-    if (key in properties && properties[key] != null) {
-      return properties[key]
-    }
-  }
-  const lowered = new Map(
-    Object.keys(properties).map((k) => [k.toLowerCase(), k])
-  )
-  for (const key of candidates) {
-    const hit = lowered.get(key.toLowerCase())
-    if (hit && properties[hit] != null) {
-      return properties[hit]
-    }
-  }
-  return null
-}
 
 function describeFeature(sample) {
   if (sample?.feature_ref) {
@@ -70,13 +47,13 @@ export function checkBaselineDistinctiveness(layers) {
   const offenders = []
   features.forEach((feature, idx) => {
     const props = feature?.properties ?? {}
-    const habitatType = pickProp(props, HABITAT_TYPE_KEYS)
+    const habitatType = pickProp(props, PROP_KEYS.habitatType)
     const band = getDistinctiveness(habitatType)
     if (band && OUT_OF_SCOPE_BANDS.has(band)) {
       offenders.push({
         idx,
         fid: props.fid != null ? String(props.fid) : null,
-        feature_ref: pickProp(props, PARCEL_REF_KEYS),
+        feature_ref: pickProp(props, PROP_KEYS.parcelRef),
         habitat_type: habitatType,
         distinctiveness: band
       })
