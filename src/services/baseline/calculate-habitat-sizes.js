@@ -12,7 +12,7 @@ WITH features_in AS (
 SELECT layer,
        idx,
        props->>'fid' AS fid,
-       COALESCE(props->>'Parcel Ref', props->>'Tree Ref', props->>'Baseline Parcel Ref') AS feature_ref,
+       COALESCE(props->>'Parcel Ref', props->>'Baseline Parcel Ref') AS feature_ref,
        CASE
          WHEN layer = 'areas' THEN ST_Area(ST_MakeValid(geom))
          ELSE ST_Length(ST_MakeValid(geom))
