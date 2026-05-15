@@ -42,6 +42,9 @@ export const ERROR_CODES = Object.freeze({
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH',
   HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE',
 
+  /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
+  SIZING_FAILED: 'SIZING_FAILED',
+
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
 })

@@ -7,7 +7,7 @@ import {
 import { PROP_KEYS, pickProp } from './properties.js'
 
 function buildHabitat(feature) {
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, PROP_KEYS.habitatType)
   const distinctiveness = getDistinctiveness(habitatType)
@@ -37,7 +37,7 @@ function buildHabitat(feature) {
 }
 
 function buildLinear(feature) {
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, PROP_KEYS.parcelRef)
 
@@ -63,7 +63,7 @@ function buildRedLine(features) {
   if (!feature) {
     return { document: null, geometryRow: null }
   }
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   return {
     document: {
       featureId,
@@ -114,6 +114,7 @@ function splitFeatures(features, builder) {
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
  * @param {string} [meta.importedAt] ISO timestamp; defaults to now
+ * @param {object} [meta.habitatSizes] pre-calculated habitat sizes from calculateHabitatSizes
  * @returns {{
  *   document: object,
  *   geometries: {
@@ -130,6 +131,44 @@ export function extractBaseline(layers, meta = {}) {
   const hedgerows = splitFeatures(layers.hedgerows ?? [], buildLinear)
   const watercourses = splitFeatures(layers.watercourses ?? [], buildLinear)
 
+  // Embed the PostGIS-calculated size directly onto each feature document so
+  // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
+  // secondary join. featureId is the join key between the sizes result and the documents.
+  let habitatSizesSummary = null
+  if (meta.habitatSizes) {
+    const { areaHabitats, hedgerows: hw, watercourses: wc } = meta.habitatSizes
+
+    const areaSizes = new Map(
+      areaHabitats.individualSquareMetres.map((s) => [
+        s.featureId,
+        s.sizeSquareMetres
+      ])
+    )
+    habitats.documents.forEach((doc) => {
+      doc.sizeSquareMetres = areaSizes.get(doc.featureId) ?? null
+    })
+
+    const hedgerowSizes = new Map(
+      hw.individualMetres.map((s) => [s.featureId, s.sizeMetres])
+    )
+    hedgerows.documents.forEach((doc) => {
+      doc.sizeMetres = hedgerowSizes.get(doc.featureId) ?? null
+    })
+
+    const watercourseSizes = new Map(
+      wc.individualMetres.map((s) => [s.featureId, s.sizeMetres])
+    )
+    watercourses.documents.forEach((doc) => {
+      doc.sizeMetres = watercourseSizes.get(doc.featureId) ?? null
+    })
+
+    habitatSizesSummary = {
+      areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
+      hedgerows: { totalMetres: hw.totalMetres },
+      watercourses: { totalMetres: wc.totalMetres }
+    }
+  }
+
   return {
     document: {
       uploadId: meta.uploadId ?? null,
@@ -137,7 +176,8 @@ export function extractBaseline(layers, meta = {}) {
       redLine: redLine.document,
       habitats: habitats.documents,
       hedgerows: hedgerows.documents,
-      watercourses: watercourses.documents
+      watercourses: watercourses.documents,
+      habitatSizes: habitatSizesSummary
     },
     geometries: {
       redLine: redLine.geometryRow,

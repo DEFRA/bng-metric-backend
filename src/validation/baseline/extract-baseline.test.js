@@ -12,6 +12,12 @@ const HABITAT_TYPE = 'Baseline Habitat Type'
 const CONDITION = 'Baseline Condition'
 const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 
+const HABITAT_SQM = 5000
+const HEDGEROW_M = 120
+
+const FEAT_ID_AREA = 'featarea-0000-0000-0000-000000000000'
+const FEAT_ID_HEDGE = 'featheg0-0000-0000-0000-000000000000'
+
 const SAMPLE_POLYGON = {
   type: 'Polygon',
   coordinates: [
@@ -59,7 +65,8 @@ describe('extractBaseline — top-level shape', () => {
           redLine: null,
           habitats: [],
           hedgerows: [],
-          watercourses: []
+          watercourses: [],
+          habitatSizes: null
         }),
         geometries: {
           redLine: null,
@@ -81,6 +88,91 @@ describe('extractBaseline — top-level shape', () => {
     expect(out.document.uploadId).toBe('u-123')
     expect(out.document.importedAt).toBe('2026-05-08T10:00:00.000Z')
     expect(out.geometries).not.toHaveProperty('uploadId')
+  })
+})
+
+describe('extractBaseline — habitatSizes embedding', () => {
+  it('embeds per-feature sizes and stores totals summary in habitatSizes', () => {
+    const habitatSizes = {
+      areaHabitats: {
+        individualSquareMetres: [
+          {
+            featureId: FEAT_ID_AREA,
+            sizeSquareMetres: HABITAT_SQM
+          }
+        ],
+        totalSquareMetres: HABITAT_SQM
+      },
+      hedgerows: {
+        individualMetres: [
+          {
+            featureId: FEAT_ID_HEDGE,
+            sizeMetres: HEDGEROW_M
+          }
+        ],
+        totalMetres: HEDGEROW_M
+      },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [
+          { ...feature({ [PARCEL_REF]: 'P1' }), featureId: FEAT_ID_AREA }
+        ],
+        hedgerows: [
+          {
+            ...feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING),
+            featureId: FEAT_ID_HEDGE
+          }
+        ],
+        watercourses: []
+      },
+      { habitatSizes }
+    )
+
+    // Per-feature sizes embedded directly in each feature document
+    expect(out.document.habitats[0].sizeSquareMetres).toBe(HABITAT_SQM)
+    expect(out.document.hedgerows[0].sizeMetres).toBe(HEDGEROW_M)
+
+    // Top-level habitatSizes holds totals only (no individual arrays)
+    expect(out.document.habitatSizes).toEqual({
+      areaHabitats: { totalSquareMetres: HABITAT_SQM },
+      hedgerows: { totalMetres: HEDGEROW_M },
+      watercourses: { totalMetres: 0 }
+    })
+
+    // Geometry half is untouched
+    expect(out.geometries).not.toHaveProperty('habitatSizes')
+  })
+
+  it('sets sizeSquareMetres/sizeMetres to null for features with no geometry in sizes result', () => {
+    const habitatSizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [feature({ [PARCEL_REF]: 'P1' })],
+        hedgerows: [],
+        watercourses: []
+      },
+      { habitatSizes }
+    )
+
+    expect(out.document.habitats[0].sizeSquareMetres).toBeNull()
+  })
+
+  it('sets habitatSizes to null when not provided', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+    expect(out.document.habitatSizes).toBeNull()
   })
 })
 

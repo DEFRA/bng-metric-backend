@@ -49,6 +49,10 @@ vi.mock('../validation/baseline/index.js', () => ({
   validateBaselineLayers: vi.fn()
 }))
 
+vi.mock('../services/baseline/calculate-habitat-sizes.js', () => ({
+  calculateHabitatSizes: vi.fn()
+}))
+
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
   return { ...actual, downloadFile: vi.fn() }
@@ -64,6 +68,8 @@ const { extractBaseline } =
   await import('../validation/baseline/extract-baseline.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
+const { calculateHabitatSizes } =
+  await import('../services/baseline/calculate-habitat-sizes.js')
 const { ERROR_CODES } = await import('../validation/baseline/errors.js')
 const { validateBaseline } = await import('./baseline.js')
 
@@ -80,6 +86,11 @@ function setupHappyPathMocks() {
     errors: []
   })
   vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+  vi.mocked(calculateHabitatSizes).mockResolvedValue({
+    areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+    hedgerows: { individualMetres: [], totalMetres: 0 },
+    watercourses: { individualMetres: [], totalMetres: 0 }
+  })
 }
 
 function makeBaselineRequest({ drizzle, payload = null } = {}) {
@@ -108,9 +119,10 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
-      uploadId: UPLOAD_ID
-    })
+    expect(extractBaseline).toHaveBeenCalledWith(
+      STUB_LAYERS,
+      expect.objectContaining({ uploadId: UPLOAD_ID })
+    )
     expect(log.transactionCalls).toBe(1)
   })
 
@@ -152,6 +164,26 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     })
     await validateBaseline.handler(request, h)
     expect(log.updates).toHaveLength(1)
+  })
+
+  it('passes habitatSizes into extractBaseline as meta', async () => {
+    const sizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    vi.mocked(calculateHabitatSizes).mockResolvedValue(sizes)
+
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      makeH()
+    )
+
+    expect(extractBaseline).toHaveBeenCalledWith(
+      STUB_LAYERS,
+      expect.objectContaining({ habitatSizes: sizes })
+    )
   })
 })
 
@@ -419,6 +451,35 @@ describe('validateBaseline handler full validation error handling', () => {
           expect.objectContaining({
             code: ERROR_CODES.VALIDATION_FAILED,
             message: 'Unable to validate baseline file'
+          })
+        ]
+      })
+    )
+  })
+
+  it('returns 500 SIZING_FAILED when calculateHabitatSizes throws', async () => {
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
+    vi.mocked(calculateHabitatSizes).mockRejectedValue(
+      new Error('DB connection lost')
+    )
+
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.SIZING_FAILED,
+            message: 'Unable to calculate habitat sizes'
           })
         ]
       })
