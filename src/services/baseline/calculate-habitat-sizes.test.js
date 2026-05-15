@@ -80,13 +80,6 @@ describe('buildLayerArrays', () => {
           nativeSrid: WGS84_SRID,
           featureId: 'fid-wrcs-1'
         }
-      ],
-      trees: [
-        {
-          nativeGeometry: { type: 'Point', coordinates: [0, 0] },
-          nativeSrid: WGS84_SRID,
-          featureId: 'fid-tree-1'
-        }
       ]
     }
 
