@@ -239,7 +239,25 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
     if (result.valid) {
       logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
       if (projectId) {
-        const habitatSizes = await calculateHabitatSizes(pgPool, layers)
+        let habitatSizes
+        try {
+          habitatSizes = await calculateHabitatSizes(pgPool, layers)
+        } catch (err) {
+          logger.error(
+            `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
+          )
+          return h
+            .response({
+              valid: false,
+              errors: [
+                makeError(
+                  ERROR_CODES.SIZING_FAILED,
+                  'Unable to calculate habitat sizes'
+                )
+              ]
+            })
+            .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+        }
         const { document, geometries } = extractBaseline(layers, {
           uploadId,
           habitatSizes

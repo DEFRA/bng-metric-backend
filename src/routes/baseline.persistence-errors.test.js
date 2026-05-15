@@ -456,4 +456,33 @@ describe('validateBaseline handler full validation error handling', () => {
       })
     )
   })
+
+  it('returns 500 SIZING_FAILED when calculateHabitatSizes throws', async () => {
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
+    vi.mocked(calculateHabitatSizes).mockRejectedValue(
+      new Error('DB connection lost')
+    )
+
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.SIZING_FAILED,
+            message: 'Unable to calculate habitat sizes'
+          })
+        ]
+      })
+    )
+  })
 })
