@@ -52,7 +52,7 @@ export function checkBaselineDistinctiveness(layers) {
     if (band && OUT_OF_SCOPE_BANDS.has(band)) {
       offenders.push({
         idx,
-        fid: props.fid != null ? String(props.fid) : null,
+        fid: props.fid == null ? null : String(props.fid),
         feature_ref: pickProp(props, PROP_KEYS.parcelRef),
         habitat_type: habitatType,
         distinctiveness: band

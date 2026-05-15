@@ -25,24 +25,19 @@ vi.mock('./distinctiveness-check.js', () => ({
 
 const BASELINE_WIRE_MKDTEMP_PREFIX = 'bng-baseline-wire-test-'
 
-describe('validateBaselineFile / validateBaselineLayers wired to Postgres', () => {
+describe('validateBaselineFile wired to Postgres', () => {
   let validateBaselineFile
-  let validateBaselineLayers
   let readBaselineGeoPackage
   let validateBaselineLayersPostgis
-  let checkBaselineDistinctiveness
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    ;({ validateBaselineFile, validateBaselineLayers } =
-      await import('./index.js'))
+    ;({ validateBaselineFile } = await import('./index.js'))
     ;({ readBaselineGeoPackage } = await import('./geopackage.js'))
     ;({ validateBaselineLayersPostgis } = await import('./postgis/index.js'))
-    ;({ checkBaselineDistinctiveness } =
-      await import('./distinctiveness-check.js'))
   })
 
-  it('validateBaselineFile reads the GeoPackage then runs PostGIS validation', async () => {
+  it('reads the GeoPackage then runs PostGIS validation', async () => {
     const pooled = {}
 
     vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({
@@ -70,8 +65,24 @@ describe('validateBaselineFile / validateBaselineLayers wired to Postgres', () =
       await rm(isolateDir, { recursive: true, force: true })
     }
   })
+})
 
-  it('validateBaselineLayers forwards layers to validateBaselineLayersPostgis', async () => {
+describe('validateBaselineLayers wired to Postgres', () => {
+  let validateBaselineLayers
+  let readBaselineGeoPackage
+  let validateBaselineLayersPostgis
+  let checkBaselineDistinctiveness
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    ;({ validateBaselineLayers } = await import('./index.js'))
+    ;({ readBaselineGeoPackage } = await import('./geopackage.js'))
+    ;({ validateBaselineLayersPostgis } = await import('./postgis/index.js'))
+    ;({ checkBaselineDistinctiveness } =
+      await import('./distinctiveness-check.js'))
+  })
+
+  it('forwards layers to validateBaselineLayersPostgis', async () => {
     const pooled = {}
     const layers = { redline: [1], areas: [] }
     vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({

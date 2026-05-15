@@ -3,6 +3,13 @@ import { describe, expect, it } from 'vitest'
 import { checkBaselineDistinctiveness } from './distinctiveness-check.js'
 import { ERROR_CODES } from './errors.js'
 
+const HABITAT_HIGH = 'Woodland and forest - Wet woodland'
+const HABITAT_VHIGH = 'Grassland - Lowland meadows'
+const SAMPLE_CAP = 50
+const OFFENDER_TOTAL = 73
+const SAMPLE_OVERFLOW = OFFENDER_TOTAL - SAMPLE_CAP
+const EXPECTED_OFFENDER_INDEXES = [1, 3]
+
 function area(habitatType, extra = {}) {
   return {
     properties: {
@@ -12,7 +19,7 @@ function area(habitatType, extra = {}) {
   }
 }
 
-describe('checkBaselineDistinctiveness', () => {
+describe('checkBaselineDistinctiveness — in-scope habitats', () => {
   it('returns null when every habitat is Medium / Low / Very Low', () => {
     const layers = {
       areas: [
@@ -36,7 +43,9 @@ describe('checkBaselineDistinctiveness', () => {
     }
     expect(checkBaselineDistinctiveness(layers)).toBeNull()
   })
+})
 
+describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
   it('rejects a High distinctiveness habitat with code + parcel ref in message', () => {
     const layers = {
       areas: [
@@ -64,25 +73,21 @@ describe('checkBaselineDistinctiveness', () => {
 
   it('rejects a Very High distinctiveness habitat', () => {
     const layers = {
-      areas: [
-        area('Grassland - Lowland meadows', { 'Parcel Ref': 'PR-B', fid: 2 })
-      ]
+      areas: [area(HABITAT_VHIGH, { 'Parcel Ref': 'PR-B', fid: 2 })]
     }
     const err = checkBaselineDistinctiveness(layers)
     expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
     expect(err.details.sample[0].distinctiveness).toBe('V.High')
-    expect(err.details.sample[0].habitat_type).toBe(
-      'Grassland - Lowland meadows'
-    )
+    expect(err.details.sample[0].habitat_type).toBe(HABITAT_VHIGH)
   })
 
   it('lists every offending parcel in details.sample preserving layer order', () => {
     const layers = {
       areas: [
         area('Grassland - Modified grassland', { 'Parcel Ref': 'PR-OK' }),
-        area('Woodland and forest - Wet woodland', { 'Parcel Ref': 'PR-1' }), // High
+        area(HABITAT_HIGH, { 'Parcel Ref': 'PR-1' }),
         area('Cropland - Cereal crops', { 'Parcel Ref': 'PR-OK-2' }),
-        area('Grassland - Lowland meadows', { 'Parcel Ref': 'PR-2' }) // V.High
+        area(HABITAT_VHIGH, { 'Parcel Ref': 'PR-2' })
       ]
     }
     const err = checkBaselineDistinctiveness(layers)
@@ -91,24 +96,28 @@ describe('checkBaselineDistinctiveness', () => {
       'PR-1',
       'PR-2'
     ])
-    expect(err.details.sample.map((s) => s.idx)).toEqual([1, 3])
+    expect(err.details.sample.map((s) => s.idx)).toEqual(
+      EXPECTED_OFFENDER_INDEXES
+    )
   })
 
-  it('caps sample at 50 and appends "(and N more)" to the message when more offenders exist', () => {
-    const offenders = Array.from({ length: 73 }, (_, i) =>
-      area('Woodland and forest - Wet woodland', { 'Parcel Ref': `PR-${i}` })
+  it(`caps sample at ${SAMPLE_CAP} and appends "(and N more)" to the message when more offenders exist`, () => {
+    const offenders = Array.from({ length: OFFENDER_TOTAL }, (_, i) =>
+      area(HABITAT_HIGH, { 'Parcel Ref': `PR-${i}` })
     )
     const err = checkBaselineDistinctiveness({ areas: offenders })
-    expect(err.details.count).toBe(73)
-    expect(err.details.sample).toHaveLength(50)
-    expect(err.message).toMatch(/\(and 23 more\)$/)
+    expect(err.details.count).toBe(OFFENDER_TOTAL)
+    expect(err.details.sample).toHaveLength(SAMPLE_CAP)
+    expect(err.message).toMatch(
+      new RegExp(`\\(and ${SAMPLE_OVERFLOW} more\\)$`)
+    )
   })
+})
 
+describe('checkBaselineDistinctiveness — feature label and property fallbacks', () => {
   it('falls back to fid when Parcel Ref is missing', () => {
     const layers = {
-      areas: [
-        area('Woodland and forest - Wet woodland', { fid: 7 }) // no Parcel Ref
-      ]
+      areas: [area(HABITAT_HIGH, { fid: 7 })]
     }
     const err = checkBaselineDistinctiveness(layers)
     expect(err.message).toMatch(/fid 7/)
@@ -118,7 +127,7 @@ describe('checkBaselineDistinctiveness', () => {
 
   it('falls back to feature #idx when both Parcel Ref and fid are missing', () => {
     const layers = {
-      areas: [area('Woodland and forest - Wet woodland')]
+      areas: [area(HABITAT_HIGH)]
     }
     const err = checkBaselineDistinctiveness(layers)
     expect(err.message).toMatch(/feature #0/)
@@ -129,7 +138,7 @@ describe('checkBaselineDistinctiveness', () => {
       areas: [
         {
           properties: {
-            Baseline_Habitat_Type: 'Woodland and forest - Wet woodland',
+            Baseline_Habitat_Type: HABITAT_HIGH,
             Parcel_Ref: 'PR-U'
           }
         }
