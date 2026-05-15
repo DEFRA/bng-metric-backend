@@ -8,7 +8,8 @@ const HABITAT_VHIGH = 'Grassland - Lowland meadows'
 const SAMPLE_CAP = 50
 const OFFENDER_TOTAL = 73
 const SAMPLE_OVERFLOW = OFFENDER_TOTAL - SAMPLE_CAP
-const EXPECTED_OFFENDER_INDEXES = [1, 3]
+const HIGH_PARCEL_INDEX = 1
+const VHIGH_PARCEL_INDEX = 3
 
 function area(habitatType, extra = {}) {
   return {
@@ -96,9 +97,10 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
       'PR-1',
       'PR-2'
     ])
-    expect(err.details.sample.map((s) => s.idx)).toEqual(
-      EXPECTED_OFFENDER_INDEXES
-    )
+    expect(err.details.sample.map((s) => s.idx)).toEqual([
+      HIGH_PARCEL_INDEX,
+      VHIGH_PARCEL_INDEX
+    ])
   })
 
   it(`caps sample at ${SAMPLE_CAP} and appends "(and N more)" to the message when more offenders exist`, () => {
@@ -109,7 +111,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
     expect(err.details.count).toBe(OFFENDER_TOTAL)
     expect(err.details.sample).toHaveLength(SAMPLE_CAP)
     expect(err.message).toMatch(
-      new RegExp(`\\(and ${SAMPLE_OVERFLOW} more\\)$`)
+      new RegExp(String.raw`\(and ${SAMPLE_OVERFLOW} more\)$`)
     )
   })
 })
