@@ -34,6 +34,51 @@ async function uploadFixture(server, fixtureName) {
   return uploadId
 }
 
+async function assertHabitatSizesPersisted(server, dbClient) {
+  const userId = `it-${randomUUID()}`
+  const created = await server.inject({
+    method: 'POST',
+    url: '/projects/new',
+    payload: { project: { name: 'Habitat sizes test' }, userId }
+  })
+  expect(created.statusCode).toBe(HTTP_OK)
+  const { id: projectId } = created.result
+
+  const uploadId = await uploadFixture(server, 'baseline-complete.gpkg')
+  const res = await server.inject({
+    method: 'POST',
+    url: `/baseline/validate/${uploadId}`,
+    payload: { projectId }
+  })
+  expect(res.statusCode).toBe(HTTP_OK)
+  expect(res.result.valid).toBe(true)
+
+  // habitatSizes summary — totals only, no individual arrays
+  const { rows } = await dbClient.query(
+    `SELECT project->'baseline'->'habitatSizes' AS habitat_sizes
+       FROM bng.projects WHERE id = $1`,
+    [projectId]
+  )
+  const habitatSizes = rows[0].habitat_sizes
+  expect(habitatSizes).toEqual({
+    areaHabitats: { totalSquareMetres: expect.any(Number) },
+    hedgerows: { totalMetres: expect.any(Number) },
+    watercourses: { totalMetres: expect.any(Number) }
+  })
+  expect(habitatSizes.areaHabitats.totalSquareMetres).toBeGreaterThan(0)
+
+  // Per-feature size embedded directly in each habitat document
+  const { rows: habitatRows } = await dbClient.query(
+    `SELECT jsonb_array_elements(project->'baseline'->'habitats') AS habitat
+       FROM bng.projects WHERE id = $1`,
+    [projectId]
+  )
+  expect(habitatRows.length).toBeGreaterThan(0)
+  for (const { habitat } of habitatRows) {
+    expect(typeof habitat.sizeSquareMetres).toBe('number')
+  }
+}
+
 describe('POST /baseline/validate/{uploadId}', () => {
   let server
   let dbClient
@@ -75,48 +120,7 @@ describe('POST /baseline/validate/{uploadId}', () => {
   })
 
   it('persists habitatSizes onto the project document when projectId is supplied', async () => {
-    const userId = `it-${randomUUID()}`
-    const created = await server.inject({
-      method: 'POST',
-      url: '/projects/new',
-      payload: { project: { name: 'Habitat sizes test' }, userId }
-    })
-    expect(created.statusCode).toBe(HTTP_OK)
-    const { id: projectId } = created.result
-
-    const uploadId = await uploadFixture(server, 'baseline-complete.gpkg')
-    const res = await server.inject({
-      method: 'POST',
-      url: `/baseline/validate/${uploadId}`,
-      payload: { projectId }
-    })
-    expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.valid).toBe(true)
-
-    // habitatSizes summary — totals only, no individual arrays
-    const { rows } = await dbClient.query(
-      `SELECT project->'baseline'->'habitatSizes' AS habitat_sizes
-       FROM bng.projects WHERE id = $1`,
-      [projectId]
-    )
-    const habitatSizes = rows[0].habitat_sizes
-    expect(habitatSizes).toEqual({
-      areaHabitats: { totalSquareMetres: expect.any(Number) },
-      hedgerows: { totalMetres: expect.any(Number) },
-      watercourses: { totalMetres: expect.any(Number) }
-    })
-    expect(habitatSizes.areaHabitats.totalSquareMetres).toBeGreaterThan(0)
-
-    // Per-feature size embedded directly in each habitat document
-    const { rows: habitatRows } = await dbClient.query(
-      `SELECT jsonb_array_elements(project->'baseline'->'habitats') AS habitat
-       FROM bng.projects WHERE id = $1`,
-      [projectId]
-    )
-    expect(habitatRows.length).toBeGreaterThan(0)
-    for (const { habitat } of habitatRows) {
-      expect(typeof habitat.sizeSquareMetres).toBe('number')
-    }
+    await assertHabitatSizesPersisted(server, dbClient)
   })
 
   it('reports a non-GeoPackage file as invalid', async () => {
