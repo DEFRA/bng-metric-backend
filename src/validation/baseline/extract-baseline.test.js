@@ -98,8 +98,6 @@ describe('extractBaseline — habitatSizes embedding', () => {
         individualSquareMetres: [
           {
             featureId: FEAT_ID_AREA,
-            fid: null,
-            featureRef: 'P1',
             sizeSquareMetres: HABITAT_SQM
           }
         ],
@@ -109,8 +107,6 @@ describe('extractBaseline — habitatSizes embedding', () => {
         individualMetres: [
           {
             featureId: FEAT_ID_HEDGE,
-            fid: null,
-            featureRef: 'H1',
             sizeMetres: HEDGEROW_M
           }
         ],

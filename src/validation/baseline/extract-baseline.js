@@ -170,8 +170,7 @@ export function extractBaseline(layers, meta = {}) {
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
-  // secondary join. idx is the 0-based position of the feature in its source
-  // layer array and is the join key between the sizes result and the documents.
+  // secondary join. featureId is the join key between the sizes result and the documents.
   let habitatSizesSummary = null
   if (meta.habitatSizes) {
     const { areaHabitats, hedgerows: hw, watercourses: wc } = meta.habitatSizes
