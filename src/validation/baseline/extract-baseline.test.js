@@ -15,6 +15,9 @@ const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 const HABITAT_SQM = 5000
 const HEDGEROW_M = 120
 
+const FEAT_ID_AREA = 'featarea-0000-0000-0000-000000000000'
+const FEAT_ID_HEDGE = 'featheg0-0000-0000-0000-000000000000'
+
 const SAMPLE_POLYGON = {
   type: 'Polygon',
   coordinates: [
@@ -93,13 +96,23 @@ describe('extractBaseline — habitatSizes embedding', () => {
     const habitatSizes = {
       areaHabitats: {
         individualSquareMetres: [
-          { idx: 0, fid: null, featureRef: 'P1', sizeSquareMetres: HABITAT_SQM }
+          {
+            featureId: FEAT_ID_AREA,
+            fid: null,
+            featureRef: 'P1',
+            sizeSquareMetres: HABITAT_SQM
+          }
         ],
         totalSquareMetres: HABITAT_SQM
       },
       hedgerows: {
         individualMetres: [
-          { idx: 0, fid: null, featureRef: 'H1', sizeMetres: HEDGEROW_M }
+          {
+            featureId: FEAT_ID_HEDGE,
+            fid: null,
+            featureRef: 'H1',
+            sizeMetres: HEDGEROW_M
+          }
         ],
         totalMetres: HEDGEROW_M
       },
@@ -108,8 +121,15 @@ describe('extractBaseline — habitatSizes embedding', () => {
     const out = extractBaseline(
       {
         redline: [],
-        areas: [feature({ [PARCEL_REF]: 'P1' })],
-        hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
+        areas: [
+          { ...feature({ [PARCEL_REF]: 'P1' }), featureId: FEAT_ID_AREA }
+        ],
+        hedgerows: [
+          {
+            ...feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING),
+            featureId: FEAT_ID_HEDGE
+          }
+        ],
         watercourses: []
       },
       { habitatSizes }

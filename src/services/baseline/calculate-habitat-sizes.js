@@ -3,14 +3,14 @@ const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 const CALCULATE_HABITAT_SIZES_QUERY = /* sql */ `
 WITH features_in AS (
   SELECT layer,
-         idx,
+         feature_id,
          props::jsonb AS props,
          ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(g), srid), 27700) AS geom
-  FROM unnest($1::text[], $2::int[], $3::text[], $4::text[], $5::int[])
-    AS t(layer, idx, props, g, srid)
+  FROM unnest($1::text[], $2::text[], $3::text[], $4::text[], $5::int[])
+    AS t(layer, feature_id, props, g, srid)
 )
 SELECT layer,
-       idx,
+       feature_id,
        props->>'fid' AS fid,
        COALESCE(props->>'Parcel Ref', props->>'Baseline Parcel Ref') AS feature_ref,
        CASE
@@ -18,12 +18,12 @@ SELECT layer,
          ELSE ST_Length(ST_MakeValid(geom))
        END AS size_value
 FROM features_in
-ORDER BY layer, idx
+ORDER BY layer, feature_id
 `
 
 function buildLayerArrays(layers) {
   const layerNames = []
-  const idxs = []
+  const featureIds = []
   const props = []
   const geoms = []
   const srids = []
@@ -31,20 +31,20 @@ function buildLayerArrays(layers) {
   for (const layerName of HABITAT_SIZE_LAYERS) {
     const features = layers[layerName] ?? []
 
-    features.forEach((feature, index) => {
+    for (const feature of features) {
       if (!feature?.nativeGeometry) {
-        return
+        continue
       }
 
       layerNames.push(layerName)
-      idxs.push(index)
+      featureIds.push(feature.featureId)
       props.push(JSON.stringify(feature.properties ?? {}))
       geoms.push(JSON.stringify(feature.nativeGeometry))
       srids.push(feature.nativeSrid)
-    })
+    }
   }
 
-  return { layerNames, idxs, props, geoms, srids }
+  return { layerNames, featureIds, props, geoms, srids }
 }
 
 function emptyResult() {
@@ -88,7 +88,7 @@ function appendCalculatedSizes(result, rows) {
     const sizeValue = Number(row.size_value)
     if (key === 'areaHabitats') {
       result[key].individualSquareMetres.push({
-        idx: row.idx,
+        featureId: row.feature_id,
         fid: row.fid ?? null,
         featureRef: row.feature_ref ?? null,
         sizeSquareMetres: sizeValue
@@ -96,7 +96,7 @@ function appendCalculatedSizes(result, rows) {
       result[key].totalSquareMetres += sizeValue
     } else {
       result[key].individualMetres.push({
-        idx: row.idx,
+        featureId: row.feature_id,
         fid: row.fid ?? null,
         featureRef: row.feature_ref ?? null,
         sizeMetres: sizeValue
@@ -111,7 +111,8 @@ async function calculateHabitatSizes(pool, layers) {
     throw new Error('calculateHabitatSizes requires a pg pool')
   }
 
-  const { layerNames, idxs, props, geoms, srids } = buildLayerArrays(layers)
+  const { layerNames, featureIds, props, geoms, srids } =
+    buildLayerArrays(layers)
 
   if (layerNames.length === 0) {
     return emptyResult()
@@ -119,7 +120,7 @@ async function calculateHabitatSizes(pool, layers) {
 
   const { rows } = await pool.query(CALCULATE_HABITAT_SIZES_QUERY, [
     layerNames,
-    idxs,
+    featureIds,
     props,
     geoms,
     srids

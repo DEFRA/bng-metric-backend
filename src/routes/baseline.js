@@ -21,6 +21,7 @@ import {
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
 import { extractBaseline } from '../validation/baseline/extract-baseline.js'
+import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
@@ -239,9 +240,10 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
     if (result.valid) {
       logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
       if (projectId) {
+        const layersWithIds = assignFeatureIds(layers)
         let habitatSizes
         try {
-          habitatSizes = await calculateHabitatSizes(pgPool, layers)
+          habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
         } catch (err) {
           logger.error(
             `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
@@ -258,7 +260,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
             })
             .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
         }
-        const { document, geometries } = extractBaseline(layers, {
+        const { document, geometries } = extractBaseline(layersWithIds, {
           uploadId,
           habitatSizes
         })

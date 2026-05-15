@@ -44,7 +44,7 @@ function pickProp(properties, candidates) {
 }
 
 function buildHabitat(feature) {
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, PROP_KEYS.habitatType)
   const distinctiveness = getDistinctiveness(habitatType)
@@ -74,7 +74,7 @@ function buildHabitat(feature) {
 }
 
 function buildLinear(feature) {
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, PROP_KEYS.parcelRef)
 
@@ -100,7 +100,7 @@ function buildRedLine(features) {
   if (!feature) {
     return { document: null, geometryRow: null }
   }
-  const featureId = randomUUID()
+  const featureId = feature.featureId ?? randomUUID()
   return {
     document: {
       featureId,
@@ -178,26 +178,26 @@ export function extractBaseline(layers, meta = {}) {
 
     const areaSizes = new Map(
       areaHabitats.individualSquareMetres.map((s) => [
-        s.idx,
+        s.featureId,
         s.sizeSquareMetres
       ])
     )
-    habitats.documents.forEach((doc, i) => {
-      doc.sizeSquareMetres = areaSizes.get(i) ?? null
+    habitats.documents.forEach((doc) => {
+      doc.sizeSquareMetres = areaSizes.get(doc.featureId) ?? null
     })
 
     const hedgerowSizes = new Map(
-      hw.individualMetres.map((s) => [s.idx, s.sizeMetres])
+      hw.individualMetres.map((s) => [s.featureId, s.sizeMetres])
     )
-    hedgerows.documents.forEach((doc, i) => {
-      doc.sizeMetres = hedgerowSizes.get(i) ?? null
+    hedgerows.documents.forEach((doc) => {
+      doc.sizeMetres = hedgerowSizes.get(doc.featureId) ?? null
     })
 
     const watercourseSizes = new Map(
-      wc.individualMetres.map((s) => [s.idx, s.sizeMetres])
+      wc.individualMetres.map((s) => [s.featureId, s.sizeMetres])
     )
-    watercourses.documents.forEach((doc, i) => {
-      doc.sizeMetres = watercourseSizes.get(i) ?? null
+    watercourses.documents.forEach((doc) => {
+      doc.sizeMetres = watercourseSizes.get(doc.featureId) ?? null
     })
 
     habitatSizesSummary = {
