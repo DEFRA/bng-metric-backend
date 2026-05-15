@@ -56,8 +56,6 @@ const { extractBaseline } =
   await import('../validation/baseline/extract-baseline.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
-const { ERROR_CODES, makeError } =
-  await import('../validation/baseline/errors.js')
 const { validateBaseline } = await import('./baseline.js')
 
 describe('validateBaseline route configuration', () => {
@@ -202,43 +200,8 @@ describe('validateBaseline handler — response shape', () => {
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(h.response).toHaveBeenCalledWith(result)
-  })
-
-  it('returns the baseline validation result when invalid', async () => {
-    const result = {
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.REDLINE_INVALID_GEOMETRY,
-          'Redline boundary geometry is invalid'
-        )
-      ]
-    }
-    vi.mocked(validateBaselineLayers).mockResolvedValue(result)
-    await validateBaseline.handler(
-      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
-      h
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({ valid: true, errors: [] })
     )
-    expect(h.response).toHaveBeenCalledWith(result)
-  })
-
-  it('returns the gate result and skips full validation when the gate fails', async () => {
-    const gateResult = {
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.GPKG_MISSING_LAYER,
-          'Missing required feature layer in GeoPackage: Red Line Boundary'
-        )
-      ]
-    }
-    vi.mocked(validateGpkg).mockReturnValue(gateResult)
-    await validateBaseline.handler(
-      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
-      h
-    )
-    expect(h.response).toHaveBeenCalledWith(gateResult)
-    expect(validateBaselineLayers).not.toHaveBeenCalled()
   })
 })

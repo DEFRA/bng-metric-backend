@@ -21,7 +21,9 @@ import {
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
 import { extractBaseline } from '../validation/baseline/extract-baseline.js'
+import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
+import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
 import {
   projects,
@@ -235,24 +237,41 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
     await fs.writeFile(localPath, buffer)
     const layers = readBaselineGeoPackage(localPath)
     const result = await validateBaselineLayers(layers, pgPool)
-    if (result.valid) {
-      logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
-      if (projectId) {
-        const { document, geometries } = extractBaseline(layers, { uploadId })
-        await persistBaseline(
-          drizzle,
-          projectId,
-          document,
-          geometries,
-          uploadId
-        )
-      }
-    } else {
+    if (!result.valid) {
       logger.info(
         `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
           .map((e) => `${e.code}: ${e.message}`)
           .join(' | ')}`
       )
+      return h.response(result)
+    }
+    logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+    if (projectId) {
+      const layersWithIds = assignFeatureIds(layers)
+      let habitatSizes
+      try {
+        habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
+      } catch (err) {
+        logger.error(
+          `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
+        )
+        return h
+          .response({
+            valid: false,
+            errors: [
+              makeError(
+                ERROR_CODES.SIZING_FAILED,
+                'Unable to calculate habitat sizes'
+              )
+            ]
+          })
+          .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      }
+      const { document, geometries } = extractBaseline(layersWithIds, {
+        uploadId,
+        habitatSizes
+      })
+      await persistBaseline(drizzle, projectId, document, geometries, uploadId)
     }
     return h.response(result)
   } catch (error) {

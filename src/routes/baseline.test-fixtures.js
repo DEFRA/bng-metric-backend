@@ -134,9 +134,9 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
       return Promise.resolve()
     }),
     update: vi.fn((table) => ({
-      set: vi.fn(() => ({
+      set: vi.fn((payload) => ({
         where: vi.fn(() => {
-          log.updates.push(table)
+          log.updates.push({ table, payload })
           return Promise.resolve()
         })
       }))

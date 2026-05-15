@@ -41,6 +41,9 @@ export const ERROR_CODES = Object.freeze({
   TREES_OUTSIDE_REDLINE: 'TREES_OUTSIDE_REDLINE',
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH',
 
+  /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
+  SIZING_FAILED: 'SIZING_FAILED',
+
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
 })
