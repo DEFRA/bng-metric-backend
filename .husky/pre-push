@@ -1,1 +1,2 @@
+node scripts/run-gitleaks.mjs --range
 npm run git:pre-push-hook

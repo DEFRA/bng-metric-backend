@@ -9,5 +9,17 @@ npm-debug.log
 coverage
 .cache
 .eslintcache
+# Secrets — never commit
 .env
+.env.*
+!.env.template
 localstack/
+
+# Private keys / certs
+*.pem
+*.key
+*.p12
+*.pfx
+id_rsa
+id_ed25519
+*.kdbx

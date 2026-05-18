@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "engines": {
-    "node": ">=24"
+    "node": ">=24.14.1"
   },
   "scripts": {
     "db:update": "scripts/liquibase.sh update",
@@ -18,9 +18,10 @@
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
     "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test",
     "git:pre-push-hook": "npm run test:integration:full",
+    "install:gitleaks": "node scripts/install-gitleaks.mjs",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
-    "postinstall": "npm run setup:husky",
+    "postinstall": "node -e \"if(!process.env.CI && require('fs').existsSync('.git')){require('child_process').execSync('npm run setup:husky && npm run install:gitleaks',{stdio:'inherit'})}\"",
     "security-audit": "npm audit --audit-level=high",
     "server:debug": "nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
     "server:watch": "nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",

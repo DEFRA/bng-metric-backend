@@ -193,6 +193,51 @@ the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github
 
 Instructions for setting up SonarCloud can be found in [sonar-project.properties](./sonar-project.properties)
 
+## Security: Secret scanning
+
+This repo scans for secrets at three independent layers — a real credential has to slip past all three to reach `main`:
+
+| Layer        | When         | What runs                                                                         |
+| ------------ | ------------ | --------------------------------------------------------------------------------- |
+| pre-commit   | `git commit` | `gitleaks protect --staged` on the staged diff (< 200ms)                          |
+| pre-push     | `git push`   | `gitleaks detect` on `@{u}..HEAD` (catches `--no-verify`), then integration tests |
+| CI (PR-gate) | every PR     | `gitleaks-action` + `trufflehog --only-verified`                                  |
+
+### Setup
+
+`npm install` is the only setup step — `husky` is configured via `postinstall`, and `scripts/install-gitleaks.mjs` downloads a pinned gitleaks binary into `node_modules/.gitleaks/bin/` (verifies SHA-256; reuses any system `gitleaks` already on `PATH`). No `brew install` needed.
+
+If the download fails (firewall/offline), the hook falls back to a system `gitleaks` on `PATH`. Manual install:
+
+```bash
+brew install gitleaks            # macOS
+sudo apt install gitleaks        # Debian/Ubuntu
+choco install gitleaks           # Windows
+```
+
+### Allowlisted dev placeholders
+
+`.gitleaks.toml` carries an allowlist for the documented LocalStack / Postgres dev placeholders that appear in `.env.template`, `compose.yml`, `compose/aws.env`, and the CI workflow env blocks:
+
+- `POSTGRES_PASSWORD: dev` / `POSTGRES_USER: dev`
+- `AWS_ACCESS_KEY_ID=test` / `AWS_SECRET_ACCESS_KEY=test`
+
+These are deliberate, non-secret fixtures (LocalStack accepts any `test`/`test` AWS creds). If a real credential ever needs the same shape, change the value — don't widen the allowlist.
+
+### Adding a new allowlist entry
+
+Edit `.gitleaks.toml` and open a PR — a security-aware reviewer must approve the widening. See [CODEOWNERS](.github/CODEOWNERS) for current owners.
+
+### Emergency bypass
+
+```bash
+SKIP_GITLEAKS_INSTALL=1 npm install   # skip binary download
+git commit --no-verify                # skip local pre-commit
+git push --no-verify                  # skip local pre-push
+```
+
+CI still runs the same scans on the PR and **will block the merge**. Don't rely on `--no-verify` to land a real secret.
+
 ## Licence
 
 THIS INFORMATION IS LICENSED UNDER THE CONDITIONS OF THE OPEN GOVERNMENT LICENCE found at:
