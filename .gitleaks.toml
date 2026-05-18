@@ -1,0 +1,23 @@
+[extend]
+useDefault = true
+
+# Allowlist for documented LocalStack / dev placeholders.
+# These values are deliberate, non-secret fixtures (LocalStack accepts any
+# `test`/`test` AWS creds; `dev`/`dev` is the Postgres dev login). They live in
+# .env.template, compose.yml, compose/aws.env, and CI workflow env blocks.
+# If a real secret ever needs the same shape, change the value — don't widen.
+[allowlist]
+description = "Backend allowlist"
+paths = [
+  '''node_modules/''',
+  '''coverage/''',
+  '''localstack/''',
+  '''package-lock\.json''',
+]
+regexes = [
+  '''POSTGRES_PASSWORD\s*[:=]\s*dev''',
+  '''POSTGRES_USER\s*[:=]\s*dev''',
+  '''AWS_ACCESS_KEY_ID\s*[:=]\s*test''',
+  '''AWS_SECRET_ACCESS_KEY\s*[:=]\s*test''',
+]
+stopwords = ["localstack"]
