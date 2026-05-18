@@ -12,6 +12,7 @@ const BUNDLED = path.join(
   BIN_NAME
 )
 const CONFIG = path.join(REPO_ROOT, '.gitleaks.toml')
+const RANGE_FALLBACK_DEPTH = 20
 
 function resolveBinary() {
   if (existsSync(BUNDLED)) {
@@ -54,7 +55,9 @@ if (mode === 'staged') {
     { encoding: 'utf8' }
   )
   const range =
-    upstream.status === 0 ? `${upstream.stdout.trim()}..HEAD` : 'HEAD~20..HEAD'
+    upstream.status === 0
+      ? `${upstream.stdout.trim()}..HEAD`
+      : `HEAD~${RANGE_FALLBACK_DEPTH}..HEAD`
   args = ['detect', `--log-opts=${range}`, ...common]
 }
 
