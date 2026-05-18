@@ -5,14 +5,16 @@ import {
   createWriteStream,
   existsSync,
   mkdirSync,
+  mkdtempSync,
   readFileSync,
-  unlinkSync
+  rmSync
 } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import { pipeline } from 'node:stream/promises'
 
 const GITLEAKS_VERSION = '8.21.2'
+const EXECUTABLE_PERMS = 0o755
 const REPO_ROOT = path.resolve(import.meta.dirname, '..')
 const INSTALL_DIR = path.join(REPO_ROOT, 'node_modules', '.gitleaks', 'bin')
 const BIN_NAME = process.platform === 'win32' ? 'gitleaks.exe' : 'gitleaks'
@@ -88,9 +90,10 @@ async function main() {
 
   mkdirSync(INSTALL_DIR, { recursive: true })
   const base = `https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}`
-  const archivePath = path.join(tmpdir(), asset)
+  const workDir = mkdtempSync(path.join(tmpdir(), 'install-gitleaks-'))
+  const archivePath = path.join(workDir, asset)
   const sumsPath = path.join(
-    tmpdir(),
+    workDir,
     `gitleaks_${GITLEAKS_VERSION}_checksums.txt`
   )
 
@@ -115,7 +118,7 @@ async function main() {
     log('checksum OK, extracting')
     await extract(archivePath, INSTALL_DIR)
     if (process.platform !== 'win32') {
-      chmodSync(TARGET, 0o755)
+      chmodSync(TARGET, EXECUTABLE_PERMS)
     }
     log(`installed at ${TARGET}`)
   } catch (err) {
@@ -125,12 +128,7 @@ async function main() {
     )
     warn('pre-commit hook will still try PATH.')
   } finally {
-    if (existsSync(archivePath)) {
-      unlinkSync(archivePath)
-    }
-    if (existsSync(sumsPath)) {
-      unlinkSync(sumsPath)
-    }
+    rmSync(workDir, { recursive: true, force: true })
   }
 }
 
