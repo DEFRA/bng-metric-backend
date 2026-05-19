@@ -14,6 +14,7 @@ const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 
 const HABITAT_SQM = 5000
 const HEDGEROW_M = 120
+const UPLOADED_FILE_SIZE = 204800
 
 const FEAT_ID_AREA = 'featarea-0000-0000-0000-000000000000'
 const FEAT_ID_HEDGE = 'featheg0-0000-0000-0000-000000000000'
@@ -93,11 +94,11 @@ describe('extractBaseline — top-level shape', () => {
   it('threads filename and fileSize from meta into the document', () => {
     const out = extractBaseline(
       { redline: [], areas: [], hedgerows: [], watercourses: [] },
-      { filename: 'survey.gpkg', fileSize: 204800 }
+      { filename: 'survey.gpkg', fileSize: UPLOADED_FILE_SIZE }
     )
 
     expect(out.document.filename).toBe('survey.gpkg')
-    expect(out.document.fileSize).toBe(204800)
+    expect(out.document.fileSize).toBe(UPLOADED_FILE_SIZE)
     expect(out.geometries).not.toHaveProperty('filename')
     expect(out.geometries).not.toHaveProperty('fileSize')
   })
