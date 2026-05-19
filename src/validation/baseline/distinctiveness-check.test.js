@@ -61,6 +61,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
     expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
     expect(err.message).toContain('Feature Ref PR-A')
     expect(err.details.count).toBe(1)
+    expect(err.details.allowedBands).toEqual(['Medium', 'Low', 'V.Low'])
     expect(err.details.sample).toEqual([
       {
         idx: 0,
@@ -149,5 +150,51 @@ describe('checkBaselineDistinctiveness — feature label and property fallbacks'
     const err = checkBaselineDistinctiveness(layers)
     expect(err).not.toBeNull()
     expect(err.details.sample[0].feature_ref).toBe('PR-U')
+  })
+})
+
+describe('checkBaselineDistinctiveness — real GeoPackage column layout', () => {
+  // Real QGIS-authored GeoPackages split the habitat name across two columns:
+  // Baseline Broad Habitat Type holds "Grassland", Baseline Habitat Type holds
+  // "Lowland meadows". The lookup needs to combine them; before the fix the
+  // check ran a Type-only lookup that always returned null and the validator
+  // silently passed every file.
+  it('detects an out-of-scope habitat when broad and type are in separate columns', () => {
+    const layers = {
+      areas: [
+        {
+          properties: {
+            'Baseline Broad Habitat Type': 'Grassland',
+            'Baseline Habitat Type': 'Lowland meadows',
+            'Parcel Ref': 'PR-A',
+            fid: 1
+          }
+        }
+      ]
+    }
+    const err = checkBaselineDistinctiveness(layers)
+    expect(err).not.toBeNull()
+    expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
+    expect(err.details.sample[0]).toEqual({
+      idx: 0,
+      fid: '1',
+      feature_ref: 'PR-A',
+      habitat_type: 'Grassland - Lowland meadows',
+      distinctiveness: 'V.High'
+    })
+  })
+
+  it('returns null for in-scope habitats with split columns', () => {
+    const layers = {
+      areas: [
+        {
+          properties: {
+            'Baseline Broad Habitat Type': 'Grassland',
+            'Baseline Habitat Type': 'Modified grassland'
+          }
+        }
+      ]
+    }
+    expect(checkBaselineDistinctiveness(layers)).toBeNull()
   })
 })

@@ -1,6 +1,9 @@
 import { ERROR_CODES, makeError } from './errors.js'
-import { PROP_KEYS, pickProp } from './properties.js'
-import { getDistinctiveness } from './reference/habitat-distinctiveness.js'
+import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
+import {
+  distinctivenessScores,
+  getDistinctiveness
+} from './reference/habitat-distinctiveness.js'
 
 // BMD-352 / MVS scope: only Medium, Low and Very Low distinctiveness habitats
 // are accepted. High and Very High are rejected with one aggregate error
@@ -8,6 +11,15 @@ import { getDistinctiveness } from './reference/habitat-distinctiveness.js'
 const OUT_OF_SCOPE_BANDS = new Set(['High', 'V.High'])
 
 const SAMPLE_CAP = 50
+
+// Derive the allowed-band ID list from the reference data so it can never
+// drift from OUT_OF_SCOPE_BANDS. The frontend owns the display-name mapping
+// ("V.Low" → "Very low") since it already maintains that vocabulary for the
+// offender lines; we just publish the raw IDs as structured details.
+// Bands appear in their reference order (highest → lowest score).
+const ALLOWED_BANDS = Object.keys(distinctivenessScores).filter(
+  (band) => !OUT_OF_SCOPE_BANDS.has(band)
+)
 
 function describeFeature(sample) {
   if (sample?.feature_ref) {
@@ -47,7 +59,7 @@ export function checkBaselineDistinctiveness(layers) {
   const offenders = []
   features.forEach((feature, idx) => {
     const props = feature?.properties ?? {}
-    const habitatType = pickProp(props, PROP_KEYS.habitatType)
+    const habitatType = buildHabitatLookupKey(props)
     const band = getDistinctiveness(habitatType)
     if (band && OUT_OF_SCOPE_BANDS.has(band)) {
       offenders.push({
@@ -65,7 +77,11 @@ export function checkBaselineDistinctiveness(layers) {
   }
 
   const sample = offenders.slice(0, SAMPLE_CAP)
-  const details = { count: offenders.length, sample }
+  const details = {
+    count: offenders.length,
+    sample,
+    allowedBands: ALLOWED_BANDS
+  }
 
   return makeError(
     ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,

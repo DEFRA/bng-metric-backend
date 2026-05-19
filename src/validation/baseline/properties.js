@@ -35,3 +35,31 @@ export function pickProp(properties, candidates) {
   }
   return null
 }
+
+const BROAD_TYPE_SEPARATOR = ' - '
+
+/**
+ * Build the habitat lookup key used by getDistinctiveness — the full
+ * "<broad> - <type>" string the reference table is keyed on. Real
+ * QGIS-authored GeoPackages split this across two columns
+ * (Baseline Broad Habitat Type + Baseline Habitat Type), so we read both
+ * and concatenate. Some legacy fixtures (and a few inputs in the wild)
+ * already store the full name in Baseline Habitat Type; those are passed
+ * through unchanged so the lookup still works.
+ *
+ * Returns null when neither column carries a usable value.
+ */
+export function buildHabitatLookupKey(properties) {
+  const habitatType = pickProp(properties, PROP_KEYS.habitatType)
+  if (!habitatType || typeof habitatType !== 'string') {
+    return null
+  }
+  if (habitatType.includes(BROAD_TYPE_SEPARATOR)) {
+    return habitatType
+  }
+  const broad = pickProp(properties, PROP_KEYS.broadHabitat)
+  if (!broad || typeof broad !== 'string') {
+    return habitatType
+  }
+  return `${broad}${BROAD_TYPE_SEPARATOR}${habitatType}`
+}

@@ -343,6 +343,35 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
       })
     )
   })
+
+  // Real QGIS-authored GeoPackages put the broad name in
+  // "Baseline Broad Habitat Type" and the type alone in "Baseline Habitat Type".
+  // The lookup must combine them; before the fix `getDistinctiveness("Lowland
+  // meadows")` returned null for every real file so every persisted habitat
+  // document had distinctiveness: null.
+  it('combines broad + type columns to resolve distinctiveness for real GeoPackage shape', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Baseline Broad Habitat Type': 'Grassland',
+          [HABITAT_TYPE]: 'Lowland meadows'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0]).toEqual(
+      expect.objectContaining({
+        type: 'Lowland meadows',
+        broadType: 'Grassland',
+        distinctiveness: 'V.High',
+        distinctivenessScore: 8
+      })
+    )
+  })
 })
 
 describe('extractBaseline — document hedgerows, watercourses, and missing-field defaults', () => {

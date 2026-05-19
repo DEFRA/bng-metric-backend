@@ -4,13 +4,13 @@ import {
   distinctivenessScores,
   getDistinctiveness
 } from './reference/habitat-distinctiveness.js'
-import { PROP_KEYS, pickProp } from './properties.js'
+import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
 
 function buildHabitat(feature) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, PROP_KEYS.habitatType)
-  const distinctiveness = getDistinctiveness(habitatType)
+  const distinctiveness = getDistinctiveness(buildHabitatLookupKey(props))
   const score = distinctiveness ? distinctivenessScores[distinctiveness] : null
   const ref = pickProp(props, PROP_KEYS.parcelRef)
 
