@@ -49,12 +49,7 @@ describe('checkBaselineDistinctiveness — in-scope habitats', () => {
 describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
   it('rejects a High distinctiveness habitat with code + parcel ref in message', () => {
     const layers = {
-      areas: [
-        area('Woodland and forest - Lowland mixed deciduous woodland', {
-          'Parcel Ref': 'PR-A',
-          fid: 1
-        })
-      ]
+      areas: [area(HABITAT_HIGH, { 'Parcel Ref': 'PR-A', fid: 1 })]
     }
     const err = checkBaselineDistinctiveness(layers)
     expect(err).not.toBeNull()
@@ -67,7 +62,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
         idx: 0,
         fid: '1',
         feature_ref: 'PR-A',
-        habitat_type: 'Woodland and forest - Lowland mixed deciduous woodland',
+        habitat_type: HABITAT_HIGH,
         distinctiveness: 'High'
       }
     ])

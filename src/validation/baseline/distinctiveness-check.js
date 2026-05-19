@@ -62,9 +62,10 @@ export function checkBaselineDistinctiveness(layers) {
     const habitatType = buildHabitatLookupKey(props)
     const band = getDistinctiveness(habitatType)
     if (band && OUT_OF_SCOPE_BANDS.has(band)) {
+      const rawFid = pickProp(props, PROP_KEYS.fid)
       offenders.push({
         idx,
-        fid: props.fid == null ? null : String(props.fid),
+        fid: rawFid == null ? null : String(rawFid),
         feature_ref: pickProp(props, PROP_KEYS.parcelRef),
         habitat_type: habitatType,
         distinctiveness: band

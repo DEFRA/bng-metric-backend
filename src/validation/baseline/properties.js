@@ -12,7 +12,10 @@ export const PROP_KEYS = {
   ],
   retentionCategory: ['Retention Category', 'Retention_Category'],
   area: ['Area', 'Shape_Area'],
-  length: ['Length', 'Shape_Length']
+  length: ['Length', 'Shape_Length'],
+  // fid is a GeoPackage-mandated lowercase column, so no real spelling
+  // variants — listed here for consistency with the other property reads.
+  fid: ['fid']
 }
 
 export function pickProp(properties, candidates) {
