@@ -21,17 +21,15 @@ const ALLOWED_BANDS = Object.keys(distinctivenessScores).filter(
   (band) => !OUT_OF_SCOPE_BANDS.has(band)
 )
 
+// `idx` is always set (from the forEach below), so it's the terminal fallback.
 function describeFeature(sample) {
-  if (sample?.feature_ref) {
+  if (sample.feature_ref) {
     return `Feature Ref ${sample.feature_ref}`
   }
-  if (sample?.fid != null && sample.fid !== '') {
+  if (sample.fid != null && sample.fid !== '') {
     return `fid ${sample.fid}`
   }
-  if (sample?.idx != null) {
-    return `feature #${sample.idx}`
-  }
-  return 'feature'
+  return `feature #${sample.idx}`
 }
 
 function formatList(prefix, count, sample) {
