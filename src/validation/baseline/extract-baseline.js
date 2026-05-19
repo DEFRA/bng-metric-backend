@@ -6,6 +6,20 @@ import {
 } from './reference/habitat-distinctiveness.js'
 import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
 
+/**
+ * @param {number | null | undefined} sizeSquareMetres
+ * @returns {number | null}
+ */
+function areaFromSizeSquareMetres(sizeSquareMetres) {
+  if (
+    typeof sizeSquareMetres !== 'number' ||
+    !Number.isFinite(sizeSquareMetres)
+  ) {
+    return null
+  }
+  return Math.round(sizeSquareMetres)
+}
+
 function buildHabitat(feature) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
@@ -145,7 +159,9 @@ export function extractBaseline(layers, meta = {}) {
       ])
     )
     habitats.documents.forEach((doc) => {
-      doc.sizeSquareMetres = areaSizes.get(doc.featureId) ?? null
+      const sizeSquareMetres = areaSizes.get(doc.featureId) ?? null
+      doc.sizeSquareMetres = sizeSquareMetres
+      doc.area = areaFromSizeSquareMetres(sizeSquareMetres)
     })
 
     const hedgerowSizes = new Map(

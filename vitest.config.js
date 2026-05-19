@@ -6,17 +6,19 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
-    include: ['src/**/*.test.js'],
+    include: ['src/**/*.test.js', 'bng-metric-engine/src/**/*.test.js'],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
       reporter: ['text', 'lcov'],
-      include: ['src/**/*.js'],
+      include: ['src/**/*.js', 'bng-metric-engine/src/**/*.js'],
       exclude: [
         ...configDefaults.exclude,
         'coverage',
         // Re-export-only facade; exercised by geopackage-internals.test.js — no executable lines to cover.
-        'src/validation/baseline/geopackage-internals.js'
+        'src/validation/baseline/geopackage-internals.js',
+        // Pure re-exports for `bng-metric-engine` package entrypoint.
+        'bng-metric-engine/src/index.js'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

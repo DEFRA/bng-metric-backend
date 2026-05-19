@@ -17,6 +17,13 @@ const unitsSchema = Joi.object({
   watercourse: Joi.number()
 })
 
+const baselineUnitsTotalsSchema = Joi.object({
+  totalUnits: Joi.number().required(),
+  habitatsTotal: Joi.number().required(),
+  hedgerowsTotal: Joi.number().required(),
+  watercoursesTotal: Joi.number().required()
+})
+
 const redLineSchema = Joi.object({
   featureId: Joi.string().uuid().required(),
   properties: Joi.object().unknown(true)
@@ -33,6 +40,8 @@ const habitatSchema = Joi.object({
   strategicSignificance: Joi.string().allow(null, ''),
   retentionCategory: Joi.string().allow(null, ''),
   area: Joi.number().allow(null),
+  sizeSquareMetres: Joi.number().allow(null),
+  units: Joi.number().allow(null),
   properties: Joi.object().unknown(true)
 })
 
@@ -51,7 +60,8 @@ const baselineSchema = Joi.object({
   redLine: redLineSchema,
   habitats: Joi.array().items(habitatSchema),
   hedgerows: Joi.array().items(linearHabitatSchema),
-  watercourses: Joi.array().items(linearHabitatSchema)
+  watercourses: Joi.array().items(linearHabitatSchema),
+  units: baselineUnitsTotalsSchema
 })
 
 const projectSchema = Joi.object({
@@ -65,6 +75,7 @@ export {
   projectSchema,
   siteSchema,
   unitsSchema,
+  baselineUnitsTotalsSchema,
   baselineSchema,
   habitatSchema,
   linearHabitatSchema

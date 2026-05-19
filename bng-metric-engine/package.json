@@ -1,0 +1,28 @@
+{
+  "name": "bng-metric-engine",
+  "version": "0.0.0",
+  "description": "Biodiversity Net Gain metric reference lookup tables and statutory metric calculations.",
+  "type": "module",
+  "main": "./src/index.js",
+  "exports": {
+    ".": "./src/index.js"
+  },
+  "files": [
+    "src"
+  ],
+  "engines": {
+    "node": ">=24"
+  },
+  "keywords": [
+    "biodiversity",
+    "bng",
+    "defra",
+    "metric",
+    "natural-england"
+  ],
+  "author": "Defra DDTS",
+  "license": "OGL-UK-3.0",
+  "publishConfig": {
+    "access": "public"
+  }
+}
