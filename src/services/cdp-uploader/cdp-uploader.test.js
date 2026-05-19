@@ -24,6 +24,7 @@ const S3_BUCKET = 'baseline-files'
 const S3_KEY = 'baseline/file.gpkg'
 const UPLOAD_ID = 'abc-123'
 const REDIRECT = '/projects/1/upload-received'
+const FILENAME = 'survey.gpkg'
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -264,7 +265,7 @@ describe('getUploadedFileS3Location', () => {
           file: {
             s3Bucket: S3_BUCKET,
             s3Key: S3_KEY,
-            filename: 'survey.gpkg',
+            filename: FILENAME,
             contentLength: 204800
           }
         }
@@ -276,7 +277,7 @@ describe('getUploadedFileS3Location', () => {
     expect(result).toEqual({
       bucket: S3_BUCKET,
       key: S3_KEY,
-      filename: 'survey.gpkg',
+      filename: FILENAME,
       fileSize: 204800
     })
   })
@@ -345,7 +346,7 @@ describe('waitForUploadReady', () => {
       file: {
         s3Bucket: S3_BUCKET,
         s3Key: S3_KEY,
-        filename: 'survey.gpkg',
+        filename: FILENAME,
         contentLength: 204800
       }
     }
@@ -364,7 +365,7 @@ describe('waitForUploadReady', () => {
     expect(result).toEqual({
       bucket: S3_BUCKET,
       key: S3_KEY,
-      filename: 'survey.gpkg',
+      filename: FILENAME,
       fileSize: 204800
     })
   })
@@ -380,7 +381,7 @@ describe('waitForUploadReady', () => {
     expect(result).toEqual({
       bucket: S3_BUCKET,
       key: S3_KEY,
-      filename: 'survey.gpkg',
+      filename: FILENAME,
       fileSize: 204800
     })
     // 2 pending status polls + 1 ready status poll + 1 S3 location fetch
@@ -408,7 +409,7 @@ describe('waitForUploadReady', () => {
     expect(result).toEqual({
       bucket: S3_BUCKET,
       key: S3_KEY,
-      filename: 'survey.gpkg',
+      filename: FILENAME,
       fileSize: 204800
     })
   })
