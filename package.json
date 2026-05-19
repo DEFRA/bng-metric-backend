@@ -21,7 +21,7 @@
     "install:gitleaks": "node scripts/install-gitleaks.mjs",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
     "lint:fix": "npm run lint -- --fix",
-    "postinstall": "node -e \"if(!process.env.CI && require('fs').existsSync('.git')){require('child_process').execSync('npm run setup:husky && npm run install:gitleaks',{stdio:'inherit'})}\"",
+    "postinstall": "node scripts/postinstall.mjs",
     "security-audit": "npm audit --audit-level=high",
     "server:debug": "nodemon --inspect-brk=0.0.0.0 --ext js,json --legacy-watch ./src",
     "server:watch": "nodemon --inspect=0.0.0.0 --ext js,json --legacy-watch ./src",

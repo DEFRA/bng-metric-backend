@@ -12,7 +12,9 @@ ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
-RUN npm install
+# Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
+# scripts/ is not in this image, and the hooks are not needed inside the container.
+RUN npm pkg delete scripts.postinstall && npm install
 COPY --chown=node:node ./src ./src
 
 CMD [ "npm", "run", "docker:dev" ]
@@ -30,7 +32,9 @@ USER node
 COPY --from=development /home/node/package*.json ./
 COPY --from=development /home/node/src ./src/
 
-RUN npm ci --omit=dev
+# Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
+# scripts/ is not shipped in the production image, and the hooks are not needed at runtime.
+RUN npm pkg delete scripts.postinstall && npm ci --omit=dev
 
 ARG PORT
 ENV PORT=${PORT}
