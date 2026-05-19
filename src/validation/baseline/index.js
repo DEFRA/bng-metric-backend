@@ -1,3 +1,4 @@
+import { checkBaselineDistinctiveness } from './distinctiveness-check.js'
 import { readBaselineGeoPackage } from './geopackage.js'
 import { validateBaselineLayersPostgis } from './postgis/index.js'
 
@@ -26,5 +27,12 @@ export async function validateBaselineLayers(layers, pool) {
   if (!pool) {
     throw new Error('validateBaselineLayers requires a pg pool')
   }
-  return validateBaselineLayersPostgis(pool, layers)
+  const { valid, errors } = await validateBaselineLayersPostgis(pool, layers)
+  // Distinctiveness is a JS-side eligibility check (BMD-352). Surface it ahead
+  // of geometry errors so the user sees the policy blocker first.
+  const distinctivenessError = checkBaselineDistinctiveness(layers)
+  if (!distinctivenessError) {
+    return { valid, errors }
+  }
+  return { valid: false, errors: [distinctivenessError, ...errors] }
 }

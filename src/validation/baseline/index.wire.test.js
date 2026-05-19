@@ -4,6 +4,8 @@ import { join } from 'node:path'
 
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { ERROR_CODES } from './errors.js'
+
 vi.mock('./geopackage.js', () => ({
   readBaselineGeoPackage: vi.fn(() => ({
     redline: [],
@@ -17,24 +19,25 @@ vi.mock('./postgis/index.js', () => ({
     errors: []
   }))
 }))
+vi.mock('./distinctiveness-check.js', () => ({
+  checkBaselineDistinctiveness: vi.fn(() => null)
+}))
 
 const BASELINE_WIRE_MKDTEMP_PREFIX = 'bng-baseline-wire-test-'
 
-describe('validateBaselineFile / validateBaselineLayers wired to Postgres', () => {
+describe('validateBaselineFile wired to Postgres', () => {
   let validateBaselineFile
-  let validateBaselineLayers
   let readBaselineGeoPackage
   let validateBaselineLayersPostgis
 
   beforeEach(async () => {
     vi.clearAllMocks()
-    ;({ validateBaselineFile, validateBaselineLayers } =
-      await import('./index.js'))
+    ;({ validateBaselineFile } = await import('./index.js'))
     ;({ readBaselineGeoPackage } = await import('./geopackage.js'))
     ;({ validateBaselineLayersPostgis } = await import('./postgis/index.js'))
   })
 
-  it('validateBaselineFile reads the GeoPackage then runs PostGIS validation', async () => {
+  it('reads the GeoPackage then runs PostGIS validation', async () => {
     const pooled = {}
 
     vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({
@@ -62,8 +65,24 @@ describe('validateBaselineFile / validateBaselineLayers wired to Postgres', () =
       await rm(isolateDir, { recursive: true, force: true })
     }
   })
+})
 
-  it('validateBaselineLayers forwards layers to validateBaselineLayersPostgis', async () => {
+describe('validateBaselineLayers wired to Postgres', () => {
+  let validateBaselineLayers
+  let readBaselineGeoPackage
+  let validateBaselineLayersPostgis
+  let checkBaselineDistinctiveness
+
+  beforeEach(async () => {
+    vi.clearAllMocks()
+    ;({ validateBaselineLayers } = await import('./index.js'))
+    ;({ readBaselineGeoPackage } = await import('./geopackage.js'))
+    ;({ validateBaselineLayersPostgis } = await import('./postgis/index.js'))
+    ;({ checkBaselineDistinctiveness } =
+      await import('./distinctiveness-check.js'))
+  })
+
+  it('forwards layers to validateBaselineLayersPostgis', async () => {
     const pooled = {}
     const layers = { redline: [1], areas: [] }
     vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({
@@ -76,5 +95,45 @@ describe('validateBaselineFile / validateBaselineLayers wired to Postgres', () =
     expect(readBaselineGeoPackage).not.toHaveBeenCalled()
     expect(validateBaselineLayersPostgis).toHaveBeenCalledWith(pooled, layers)
     expect(out).toEqual({ valid: true, errors: [] })
+  })
+
+  it('prepends a distinctiveness error ahead of geometry errors', async () => {
+    const pooled = {}
+    const layers = { redline: [1], areas: [{}] }
+    vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({
+      valid: false,
+      errors: [{ code: ERROR_CODES.PARCEL_OVERLAPS, message: 'overlap' }]
+    })
+    vi.mocked(checkBaselineDistinctiveness).mockReturnValueOnce({
+      code: ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,
+      message: 'out of scope',
+      details: { count: 1, sample: [] }
+    })
+
+    const out = await validateBaselineLayers(layers, pooled)
+
+    expect(out.valid).toBe(false)
+    expect(out.errors.map((e) => e.code)).toEqual([
+      ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,
+      ERROR_CODES.PARCEL_OVERLAPS
+    ])
+  })
+
+  it('flips valid → false when only the distinctiveness check fails', async () => {
+    const pooled = {}
+    const layers = { redline: [1], areas: [{}] }
+    vi.mocked(validateBaselineLayersPostgis).mockResolvedValueOnce({
+      valid: true,
+      errors: []
+    })
+    vi.mocked(checkBaselineDistinctiveness).mockReturnValueOnce({
+      code: ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,
+      message: 'out of scope',
+      details: { count: 1, sample: [] }
+    })
+
+    const out = await validateBaselineLayers(layers, pooled)
+    expect(out.valid).toBe(false)
+    expect(out.errors).toHaveLength(1)
   })
 })
