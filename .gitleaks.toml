@@ -15,9 +15,9 @@ paths = [
   '''package-lock\.json''',
 ]
 regexes = [
-  '''POSTGRES_PASSWORD\s*[:=]\s*dev''',
-  '''POSTGRES_USER\s*[:=]\s*dev''',
-  '''AWS_ACCESS_KEY_ID\s*[:=]\s*test''',
-  '''AWS_SECRET_ACCESS_KEY\s*[:=]\s*test''',
+  '''POSTGRES_PASSWORD\s*[:=]\s*dev\b''',
+  '''POSTGRES_USER\s*[:=]\s*dev\b''',
+  '''AWS_ACCESS_KEY_ID\s*[:=]\s*test\b''',
+  '''AWS_SECRET_ACCESS_KEY\s*[:=]\s*test\b''',
 ]
 stopwords = ["localstack"]
