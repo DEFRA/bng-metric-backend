@@ -1,0 +1,1190 @@
+{
+  "Cropland - Arable field margins cultivated annually": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Arable field margins game bird mix": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Arable field margins pollen and nectar": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Arable field margins tussocky": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Cereal crops": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Winter stubble": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Horticulture": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Intensive orchards": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Non-cereal crops": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Cropland - Temporary grass and clover leys": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Traditional orchards": {
+    "Good": 30,
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 10,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Bracken": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Floodplain wetland mosaic and CFGM": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 8,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Lowland calcareous grassland": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 8,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Lowland dry acid grassland": {
+    "Good": "30+",
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Lowland meadows": {
+    "Good": 15,
+    "Fairly Good": 12,
+    "Moderate": 10,
+    "Fairly Poor": 8,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Modified grassland": {
+    "Good": 7,
+    "Fairly Good": 5,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Other lowland acid grassland": {
+    "Good": 15,
+    "Fairly Good": 12,
+    "Moderate": 10,
+    "Fairly Poor": 5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Other neutral grassland": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 2,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Tall herb communities (H6430)": {
+    "Good": 30,
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Upland acid grassland": {
+    "Good": 15,
+    "Fairly Good": 12,
+    "Moderate": 10,
+    "Fairly Poor": 5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Upland calcareous grassland": {
+    "Good": 25,
+    "Fairly Good": 20,
+    "Moderate": 15,
+    "Fairly Poor": 12,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Grassland - Upland hay meadows": {
+    "Good": 20,
+    "Fairly Good": 18,
+    "Moderate": 15,
+    "Fairly Poor": 12,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Blackthorn scrub": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Bramble scrub": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Gorse scrub": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Hawthorn scrub": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Hazel scrub": {
+    "Good": 15,
+    "Fairly Good": 12,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Willow scrub": {
+    "Good": 15,
+    "Fairly Good": 12,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Lowland heathland": {
+    "Good": "30+",
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Mixed scrub": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Mountain heaths and willow scrub": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 25,
+    "Fairly Poor": 23,
+    "Poor": 15,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Rhododendron scrub": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Dunes with sea buckthorn (H2160)": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Other sea buckthorn scrub": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Heathland and shrub - Upland heathland": {
+    "Good": 30,
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Aquifer fed naturally fluctuating water bodies": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 15,
+    "Fairly Poor": 10,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - High alkalinity lakes": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Low alkalinity lakes": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Marl lakes": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Moderate alkalinity lakes": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Peat lakes": {
+    "Good": 30,
+    "Fairly Good": 20,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Ponds (priority habitat)": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Ponds (non-priority habitat)": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Reservoirs": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Temporary lakes ponds and pools (H3170)": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Calaminarian grasslands": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 2,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Coastal sand dunes": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Coastal vegetated shingle": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Ruderal/Ephemeral": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Tall forbs": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Inland rock outcrop and scree habitats": {
+    "Good": "30+",
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Limestone pavement": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Maritime cliff and slopes": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Sparsely vegetated land - Other inland rock and scree": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Allotments": {
+    "Good": 1,
+    "Fairly Good": 1,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Lakes - Ornamental lake or pond": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Artificial unvegetated, unsealed surface": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": 0
+  },
+  "Urban - Bioswale": {
+    "Good": 3,
+    "Fairly Good": 2,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Intensive green roof": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Built linear features": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": 0
+  },
+  "Urban - Cemeteries and churchyards": {
+    "Good": 20,
+    "Fairly Good": 17,
+    "Moderate": 15,
+    "Fairly Poor": 12,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Developed land; sealed surface": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": 0
+  },
+  "Urban - Other green roof": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Facade-bound green wall": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Ground based green wall": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Ground level planters": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Biodiverse green roof": {
+    "Good": 10,
+    "Fairly Good": 8,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Introduced shrub": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Open mosaic habitats on previously developed land": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 0,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Rain garden": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Actively worked sand pit quarry or open cast mine": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Individual trees - Urban tree": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 27,
+    "Fairly Poor": 19,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Sustainable drainage system": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Unvegetated garden": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": 0
+  },
+  "Urban - Vacant or derelict land": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Bare ground": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Urban - Vegetated garden": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": 1,
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Blanket bog": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Depressions on peat substrates (H7150)": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 25,
+    "Poor": 15,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Fens (upland and lowland)": {
+    "Good": 30,
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Lowland raised bog": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 20,
+    "Poor": 15,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Oceanic valley mire[1] (D2.1)": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 20,
+    "Poor": 15,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Purple moor grass and rush pastures": {
+    "Good": 30,
+    "Fairly Good": 25,
+    "Moderate": 20,
+    "Fairly Poor": 15,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Reedbeds": {
+    "Good": 12,
+    "Fairly Good": 10,
+    "Moderate": 7,
+    "Fairly Poor": 5,
+    "Poor": 3,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Wetland - Transition mires and quaking bogs (H7140)": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 25,
+    "Poor": 15,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Felled": {
+    "Good": "30+",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Lowland beech and yew woodland": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Lowland mixed deciduous woodland": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Native pine woodlands": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Other coniferous woodland": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 10,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Other Scot's pine woodland": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Other woodland; broadleaved": {
+    "Good": "30+",
+    "Fairly Good": 25,
+    "Moderate": 15,
+    "Fairly Poor": 7,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Other woodland; mixed": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 30,
+    "Fairly Poor": 10,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Upland birchwoods": {
+    "Good": "30+",
+    "Fairly Good": 30,
+    "Moderate": 25,
+    "Fairly Poor": 20,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Upland mixed ashwoods": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Upland oakwood": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Wet woodland": {
+    "Good": "30+",
+    "Fairly Good": 30,
+    "Moderate": 15,
+    "Fairly Poor": 10,
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Woodland and forest - Wood-pasture and parkland": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": 25,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Coastal lagoons - Coastal lagoons": {
+    "Good": 10,
+    "Fairly Good": 8,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - High energy littoral rock": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - High energy littoral rock - on peat, clay or chalk": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Moderate energy littoral rock": {
+    "Good": 13,
+    "Fairly Good": 8,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Moderate energy littoral rock - on peat, clay or chalk": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Low energy littoral rock": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 5,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Low energy littoral rock - on peat, clay or chalk": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Features of littoral rock": {
+    "Good": 13,
+    "Fairly Good": 8,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Rocky shore - Features of littoral rock - on peat, clay or chalk": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral coarse sediment": {
+    "Good": 3,
+    "Fairly Good": 2,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral mud": {
+    "Good": 6,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral mixed sediments": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Coastal saltmarsh - Saltmarshes and saline reedbeds": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 7,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Coastal saltmarsh - Artificial saltmarshes and saline reedbeds": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 7,
+    "Fairly Poor": 3,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral seagrass": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 5,
+    "Poor": 2,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral seagrass on peat, clay or chalk": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": "30+",
+    "Fairly Poor": "30+",
+    "Poor": "30+",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Mussels": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 3,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Sabellaria": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 3,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Features of littoral sediment": {
+    "Good": 10,
+    "Fairly Good": 7,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 3,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral coarse sediment": {
+    "Good": 3,
+    "Fairly Good": 2,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral mud": {
+    "Good": 6,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral sand": {
+    "Good": 4,
+    "Fairly Good": 2,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral muddy sand": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral mixed sediments": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral seagrass": {
+    "Good": 20,
+    "Fairly Good": 15,
+    "Moderate": 10,
+    "Fairly Poor": 5,
+    "Poor": 2,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Artificial littoral biogenic reefs": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 5,
+    "Fairly Poor": 3,
+    "Poor": 3,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral sand": {
+    "Good": 4,
+    "Fairly Good": 2,
+    "Moderate": 1,
+    "Fairly Poor": 1,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal sediment - Littoral muddy sand": {
+    "Good": 5,
+    "Fairly Good": 4,
+    "Moderate": 3,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal hard structures - Artificial hard structures": {
+    "Good": 15,
+    "Fairly Good": 10,
+    "Moderate": 5,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal hard structures - Artificial features of hard structures": {
+    "Good": 13,
+    "Fairly Good": 8,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Intertidal hard structures - Artificial hard structures with integrated greening of grey infrastructure (IGGI)": {
+    "Good": 13,
+    "Fairly Good": 8,
+    "Moderate": 4,
+    "Fairly Poor": 2,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Watercourse footprint - Watercourse footprint": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": "Not Possible",
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": 0
+  },
+  "Individual trees - Rural tree": {
+    "Good": "30+",
+    "Fairly Good": "30+",
+    "Moderate": 27,
+    "Fairly Poor": 19,
+    "Poor": 10,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  }
+}

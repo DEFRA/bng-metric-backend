@@ -12,10 +12,14 @@ ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json ./
+# Workspace dependency (bng-metric-engine) must be present before npm install —
+# "workspace:*" cannot be resolved from the root package.json alone.
+COPY --chown=node:node bng-metric-engine/package.json ./bng-metric-engine/
 # Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
 # scripts/ is not in this image, and the hooks are not needed inside the container.
 RUN npm pkg delete scripts.postinstall && npm install
 COPY --chown=node:node ./src ./src
+COPY --chown=node:node ./bng-metric-engine ./bng-metric-engine
 
 CMD [ "npm", "run", "docker:dev" ]
 
@@ -30,11 +34,14 @@ RUN apk add --no-cache curl
 USER node
 
 COPY --from=development /home/node/package*.json ./
-COPY --from=development /home/node/src ./src/
+COPY --from=development /home/node/bng-metric-engine/package.json ./bng-metric-engine/
 
 # Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
 # scripts/ is not shipped in the production image, and the hooks are not needed at runtime.
 RUN npm pkg delete scripts.postinstall && npm ci --omit=dev
+
+COPY --from=development /home/node/src ./src/
+COPY --from=development /home/node/bng-metric-engine ./bng-metric-engine/
 
 ARG PORT
 ENV PORT=${PORT}

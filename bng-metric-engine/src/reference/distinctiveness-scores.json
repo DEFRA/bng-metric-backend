@@ -1,0 +1,22 @@
+{
+  "V.High": {
+    "Score": 8,
+    "Suggested action": "Same habitat required - bespoke compensation option"
+  },
+  "High": {
+    "Score": 6,
+    "Suggested action": "Same habitat required ="
+  },
+  "Medium": {
+    "Score": 4,
+    "Suggested action": "Same broad habitat or a higher distinctiveness habitat required (≥)"
+  },
+  "Low": {
+    "Score": 2,
+    "Suggested action": "Same distinctiveness or better habitat required ≥"
+  },
+  "V.Low": {
+    "Score": 0,
+    "Suggested action": "Compensation Not Required"
+  }
+}

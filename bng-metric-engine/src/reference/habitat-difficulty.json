@@ -1,0 +1,531 @@
+{
+  "Coastal lagoons": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+
+  "Coastal saltmarsh - Saltmarshes and saline reedbeds": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Cropland - Arable field margins cultivated annually": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Arable field margins game bird mix": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Arable field margins pollen and nectar": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Arable field margins tussocky": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Cereal crops": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Winter stubble": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Horticulture": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Intensive orchards": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Non-cereal crops": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Cropland - Temporary grass and clover leys": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Traditional orchards": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Grassland - Bracken": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Floodplain wetland mosaic and CFGM": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Grassland - Lowland calcareous grassland": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Grassland - Lowland dry acid grassland": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Grassland - Lowland meadows": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Grassland - Modified grassland": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Other lowland acid grassland": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Other neutral grassland": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Tall herb communities (H6430)": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Grassland - Upland acid grassland": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Grassland - Upland calcareous grassland": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Grassland - Upland hay meadows": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Heathland and shrub - Blackthorn scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Bramble scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Gorse scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Hawthorn scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Hazel scrub": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Willow scrub": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Lowland heathland": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Heathland and shrub - Mixed scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Mountain heaths and willow scrub": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Heathland and shrub - Rhododendron scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Dunes with sea buckthorn (H2160)": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Other sea buckthorn scrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Heathland and shrub - Upland heathland": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral biogenic reefs": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral coarse sediment": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral mixed sediments": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral muddy sand": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral seagrass": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Intertidal sediment - Features of littoral sediment": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Sabellaria": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral coarse sediment": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral mixed sediments": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral mud": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral seagrass": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Intertidal sediment - Littoral seagrass on peat, clay or chalk": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Lakes - Aquifer fed naturally fluctuating water bodies": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Lakes - Ornamental lake or pond": {
+    "Creation": "Low",
+    "Enhancement": "High"
+  },
+  "Lakes - High alkalinity lakes": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Lakes - Low alkalinity lakes": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Lakes - Marl lakes": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Lakes - Moderate alkalinity lakes": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Lakes - Peat lakes": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Lakes - Ponds (non-priority habitat)": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Lakes - Ponds (priority habitat)": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Lakes - Reservoirs": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Lakes - Temporary lakes ponds and pools (H3170)": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Features of littoral rock": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Features of littoral rock - on peat, clay or chalk": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - High energy littoral rock": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - High energy littoral rock - on peat, clay or chalk": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Low energy littoral rock": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Low energy littoral rock - on peat, clay or chalk": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Moderate energy littoral rock": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Rocky shore - Moderate energy littoral rock - on peat, clay or chalk": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Calaminarian grasslands": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Coastal sand dunes": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Coastal vegetated shingle": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Inland rock outcrop and scree habitats": {
+    "Creation": "High",
+    "Enhancement": "Low"
+  },
+  "Sparsely vegetated land - Limestone pavement": {
+    "Creation": "Very High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Maritime cliff and slopes": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Other inland rock and scree": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Ruderal/Ephemeral": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Sparsely vegetated land - Tall forbs": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Urban - Vacant or derelict land": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Bare ground": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Allotments": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Artificial unvegetated, unsealed surface": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Bioswale": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Urban - Intensive green roof": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Built linear features": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Cemeteries and churchyards": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Urban - Developed land; sealed surface": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Other green roof": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Facade-bound green wall": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Urban - Ground based green wall": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Urban - Ground level planters": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Biodiverse green roof": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Urban - Introduced shrub": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Open mosaic habitats on previously developed land": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Urban - Rain garden": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Actively worked sand pit quarry or open cast mine": {
+    "Creation": "Medium",
+    "Enhancement": "Low"
+  },
+  "Individual trees - Urban tree": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Sustainable drainage system": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Urban - Unvegetated garden": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Urban - Vegetated garden": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Wetland - Blanket bog": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Wetland - Depressions on peat substrates (H7150)": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Wetland - Fens (upland and lowland)": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Wetland - Lowland raised bog": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Wetland - Oceanic valley mire[1] (D2.1)": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Wetland - Purple moor grass and rush pastures": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Wetland - Reedbeds": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Wetland - Transition mires and quaking bogs (H7140)": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Felled": {
+    "Creation": "High",
+    "Enhancement": "Low"
+  },
+  "Woodland and forest - Lowland beech and yew woodland": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Lowland mixed deciduous woodland": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Native pine woodlands": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Other coniferous woodland": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Woodland and forest - Other Scot's pine woodland": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Woodland and forest - Other woodland; broadleaved": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Woodland and forest - Other woodland; mixed": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Woodland and forest - Upland birchwoods": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Woodland and forest - Upland mixed ashwoods": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Upland oakwood": {
+    "Creation": "High",
+    "Enhancement": "High"
+  },
+  "Woodland and forest - Wet woodland": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Woodland and forest - Wood-pasture and parkland": {
+    "Creation": "Very High",
+    "Enhancement": "High"
+  },
+  "Intertidal sediment - Littoral sand": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral muddy sand": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal hard structures - Artificial hard structures": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal hard structures - Artificial features of hard structures": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Intertidal hard structures - Artificial hard structures with integrated greening of grey infrastructure (IGGI)": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Coastal saltmarsh - Artificial saltmarshes and saline reedbeds": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Mussels": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral mud": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Intertidal sediment - Artificial littoral sand": {
+    "Creation": "Medium",
+    "Enhancement": "Medium"
+  },
+  "Watercourse footprint - Watercourse footprint": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  },
+  "Individual trees - Rural tree": {
+    "Creation": "Low",
+    "Enhancement": "Low"
+  }
+}

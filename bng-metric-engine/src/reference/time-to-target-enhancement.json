@@ -1,0 +1,5018 @@
+{
+  "Cropland - Arable field margins cultivated annually": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": 1,
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Arable field margins game bird mix": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": 1,
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Arable field margins pollen and nectar": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": 1,
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Arable field margins tussocky": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": 1,
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Cereal crops": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Winter stubble": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Horticulture": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Intensive orchards": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Non-cereal crops": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Cropland - Temporary grass and clover leys": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Traditional orchards": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Bracken": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Floodplain wetland mosaic and CFGM": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 8,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 8,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 7
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Lowland calcareous grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Lowland dry acid grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Lowland meadows": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 8,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 4,
+      "Moderate": 8,
+      "Fairly Good": 11,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 4,
+      "Fairly Good": 8,
+      "Good": 11
+    },
+    "Moderate": {
+      "Fairly Good": 4,
+      "Good": 8
+    },
+    "Fairly Good": {
+      "Good": 4
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Modified grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Other lowland acid grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Other neutral grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Tall herb communities (H6430)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Upland acid grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Upland calcareous grassland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 12,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 18,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Grassland - Upland hay meadows": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 12,
+      "Moderate": 15,
+      "Fairly Good": 18,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 18,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Blackthorn scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 5,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Bramble scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Gorse scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Hawthorn scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Hazel scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 8,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Willow scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 8,
+      "Good": 12
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Lowland heathland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Mixed scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Mountain heaths and willow scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 23,
+      "Moderate": 25,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": 20,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Poor": {
+      "Fairly Poor": 20,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 20,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": 20
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Rhododendron scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Dunes with sea buckthorn (H2160)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Other sea buckthorn scrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Heathland and shrub - Upland heathland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 30,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Aquifer fed naturally fluctuating water bodies": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - High alkalinity lakes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 2,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Low alkalinity lakes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Marl lakes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Moderate alkalinity lakes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Peat lakes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Ponds (priority habitat)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 2,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Ponds (non-priority habitat)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Reservoirs": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 15,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Temporary lakes ponds and pools (H3170)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 2,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Calaminarian grasslands": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 2,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 3,
+      "Fairly Good": 5,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 4,
+      "Good": 7
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 5
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Coastal sand dunes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 8,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 7,
+      "Good": 12
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Coastal vegetated shingle": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 8,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 7,
+      "Good": 12
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Ruderal/Ephemeral": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Tall forbs": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Inland rock outcrop and scree habitats": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 15,
+      "Fairly Good": 25,
+      "Good": 27
+    },
+    "Moderate": {
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 15
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Limestone pavement": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "30+",
+      "Fairly Poor": "30+",
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Maritime cliff and slopes": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 15,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 8,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 7,
+      "Good": 12
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Sparsely vegetated land - Other inland rock and scree": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 3,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Allotments": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Lakes - Ornamental lake or pond": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Artificial unvegetated, unsealed surface": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Bioswale": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Intensive green roof": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Built linear features": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Cemeteries and churchyards": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 12,
+      "Moderate": 15,
+      "Fairly Good": 17,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Developed land; sealed surface": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Other green roof": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Facade-bound green wall": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Ground based green wall": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Ground level planters": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Biodiverse green roof": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 3,
+      "Moderate": 5,
+      "Fairly Good": 8,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 8,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Introduced shrub": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Open mosaic habitats on previously developed land": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 0,
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 5,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 3,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Rain garden": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Actively worked sand pit quarry or open cast mine": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Individual trees - Urban tree": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 8,
+      "Moderate": 16,
+      "Fairly Good": 24,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 16,
+      "Good": 24
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 16
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Sustainable drainage system": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Unvegetated garden": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Vacant or derelict land": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Bare ground": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 1
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Urban - Vegetated garden": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 5
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Blanket bog": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 25,
+      "Moderate": 30,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": 30,
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": 30
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Depressions on peat substrates (H7150)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 25,
+      "Moderate": 30,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Fens (upland and lowland)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 12,
+      "Moderate": 15,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 12,
+      "Fairly Good": 15,
+      "Good": 18
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Lowland raised bog": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 20,
+      "Moderate": 30,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Oceanic valley mire[1] (D2.1)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 20,
+      "Moderate": 30,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Purple moor grass and rush pastures": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 12,
+      "Moderate": 15,
+      "Fairly Good": 17,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Reedbeds": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 7,
+      "Moderate": 10,
+      "Fairly Good": 12,
+      "Good": 15
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 7,
+      "Fairly Good": 10,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Wetland - Transition mires and quaking bogs (H7140)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 15,
+      "Fairly Poor": 25,
+      "Moderate": 30,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": 30
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 20
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Felled": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Lowland beech and yew woodland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": "30+"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Lowland mixed deciduous woodland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 20,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Native pine woodlands": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 25,
+      "Fairly Poor": 30,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Other coniferous woodland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 25,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 20,
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": "30+"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Other Scot's pine woodland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 20,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Other woodland; broadleaved": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Other woodland; mixed": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 5,
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Moderate": {
+      "Fairly Good": 5,
+      "Good": 10
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Upland birchwoods": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 20,
+      "Moderate": 25,
+      "Fairly Good": 30,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Upland mixed ashwoods": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 10,
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 15,
+      "Fairly Good": 20,
+      "Good": 25
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 15
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Upland oakwood": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": "30+"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Wet woodland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 20,
+      "Moderate": 25,
+      "Fairly Good": 30,
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 25,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 5,
+      "Fairly Good": 20,
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": 15,
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": 30
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Woodland and forest - Wood-pasture and parkland": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 10,
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 25,
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": "30+",
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Moderate": {
+      "Fairly Good": "30+",
+      "Good": "30+"
+    },
+    "Fairly Good": {
+      "Good": "30+"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Coastal lagoons - Coastal lagoons": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 4,
+      "Fairly Good": 8,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 3,
+      "Fairly Good": 7,
+      "Good": 11
+    },
+    "Moderate": {
+      "Fairly Good": 4,
+      "Good": 8
+    },
+    "Fairly Good": {
+      "Good": 4
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - High energy littoral rock": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 6
+    },
+    "Fairly Good": {
+      "Good": 4
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - High energy littoral rock - on peat, clay or chalk": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 6
+    },
+    "Fairly Good": {
+      "Good": 4
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Moderate energy littoral rock": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Moderate energy littoral rock - on peat, clay or chalk": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Low energy littoral rock": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 10
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 8
+    },
+    "Fairly Good": {
+      "Good": 6
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Low energy littoral rock - on peat, clay or chalk": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 10
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 8
+    },
+    "Fairly Good": {
+      "Good": 6
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Features of littoral rock": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Rocky shore - Features of littoral rock - on peat, clay or chalk": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral coarse sediment": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 4
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral mud": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral mixed sediments": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 4
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Coastal saltmarsh - Saltmarshes and saline reedbeds": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 6,
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 4,
+      "Fairly Good": 8,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 4,
+      "Good": 14
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Coastal saltmarsh - Artificial saltmarshes and saline reedbeds": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 6,
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Poor": {
+      "Moderate": 4,
+      "Fairly Good": 8,
+      "Good": 18
+    },
+    "Moderate": {
+      "Fairly Good": 4,
+      "Good": 14
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral seagrass": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 2,
+      "Fairly Poor": 5,
+      "Moderate": 10,
+      "Fairly Good": 15,
+      "Good": 20
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 3,
+      "Moderate": 13,
+      "Fairly Good": 23,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral seagrass on peat, clay or chalk": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 3,
+      "Moderate": 13,
+      "Fairly Good": 23,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Mussels": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 3,
+      "Good": 6
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral biogenic reefs - Sabellaria": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 3,
+      "Good": 6
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Features of littoral sediment": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 5
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral coarse sediment": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 4
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral mud": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral sand": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral muddy sand": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral mixed sediments": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 1,
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 4
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 3
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 2
+    },
+    "Fairly Good": {
+      "Good": 1
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral seagrass": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 3,
+      "Moderate": 13,
+      "Fairly Good": 23,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 10,
+      "Fairly Good": 20,
+      "Good": 30
+    },
+    "Moderate": {
+      "Fairly Good": 10,
+      "Good": 20
+    },
+    "Fairly Good": {
+      "Good": 10
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Artificial littoral biogenic reefs": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 7,
+      "Good": 10
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 3,
+      "Good": 8
+    },
+    "Moderate": {
+      "Fairly Good": 3,
+      "Good": 6
+    },
+    "Fairly Good": {
+      "Good": 3
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral sand": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 3,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Fairly Poor": {
+      "Moderate": 1,
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Moderate": {
+      "Fairly Good": 1,
+      "Good": 3
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal sediment - Littoral muddy sand": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 8
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 6
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 4
+    },
+    "Fairly Good": {
+      "Good": 2
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal hard structures - Artificial hard structures": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 12
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 10
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 8
+    },
+    "Fairly Good": {
+      "Good": 6
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal hard structures - Artificial features of hard structures": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Intertidal hard structures - Artificial hard structures with integrated greening of grey infrastructure (IGGI)": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": 1,
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 8,
+      "Good": 13
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 2,
+      "Moderate": 4,
+      "Fairly Good": 6,
+      "Good": 11
+    },
+    "Fairly Poor": {
+      "Moderate": 2,
+      "Fairly Good": 4,
+      "Good": 9
+    },
+    "Moderate": {
+      "Fairly Good": 2,
+      "Good": 7
+    },
+    "Fairly Good": {
+      "Good": 5
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Watercourse footprint - Watercourse footprint": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Moderate": {
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  },
+  "Individual trees - Rural tree": {
+    "Lower": {
+      "N/A - Other": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "Poor": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "CA N/A": {
+      "Fairly Poor": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Good": "Not Possible"
+    },
+    "Poor": {
+      "Fairly Poor": 8,
+      "Moderate": 16,
+      "Fairly Good": 24,
+      "Good": "30+"
+    },
+    "Fairly Poor": {
+      "Moderate": 8,
+      "Fairly Good": 16,
+      "Good": 24
+    },
+    "Moderate": {
+      "Fairly Good": 8,
+      "Good": 16
+    },
+    "Fairly Good": {
+      "Good": 8
+    },
+    "Good": {
+      "Good": "Not Possible"
+    }
+  }
+}

@@ -129,6 +129,26 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
     )
     expect(Array.isArray(stored.baseline.habitats)).toBe(true)
     expect(stored.baseline.habitats.length).toBeGreaterThan(0)
+    const metricReady = stored.baseline.habitats.filter(
+      (h) => typeof h.units === 'number'
+    )
+    expect(metricReady.length).toBeGreaterThan(0)
+
+    expect(stored.baseline.units).toEqual(
+      expect.objectContaining({
+        habitatsTotal: expect.any(Number),
+        hedgerowsTotal: 0,
+        watercoursesTotal: 0,
+        totalUnits: expect.any(Number)
+      })
+    )
+    const habitatsSum = metricReady.reduce((sum, h) => sum + h.units, 0)
+    expect(stored.baseline.units.habitatsTotal).toBe(habitatsSum)
+    expect(stored.baseline.units.totalUnits).toBe(
+      stored.baseline.units.habitatsTotal +
+        stored.baseline.units.hedgerowsTotal +
+        stored.baseline.units.watercoursesTotal
+    )
   })
 
   it('saves AC1 fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {
