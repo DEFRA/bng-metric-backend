@@ -1,4 +1,7 @@
-import { calculateAreaHabitatBaseline } from 'bng-metric-engine'
+import {
+  BaselineLookupError,
+  calculateAreaHabitatBaseline
+} from 'bng-metric-engine'
 
 /** `area` on persisted baselines is PostGIS size in m², rounded to the nearest integer. */
 const SQ_METRES_PER_HECTARE = 10_000
@@ -99,11 +102,15 @@ function enrichHabitatParcelWithUnits(habitat) {
   const sizeHa = area / SQ_METRES_PER_HECTARE
   let result = null
   for (const engineType of engineHabitatTypeCandidates(habitat)) {
+    if (result !== null) {
+      break
+    }
     try {
       result = calculateAreaHabitatBaseline(sizeHa, engineType, condition)
-      break
-    } catch {
-      // Try next habitat label variant
+    } catch (error) {
+      if (!(error instanceof BaselineLookupError)) {
+        throw error
+      }
     }
   }
   if (result !== null) {

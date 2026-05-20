@@ -1,12 +1,16 @@
 import { describe, expect, it, vi } from 'vitest'
 
 import * as referenceConstants from './reference-constants.js'
+import { BaselineLookupError } from './errors.js'
 import {
   validateCondition,
   validateHabitat,
   validateHabitatChange,
   validateSize,
-  validateYears
+  validateYears,
+  MAX_YEARS,
+  MIN_YEARS,
+  MAX_YEARS_PLUS
 } from './validate.js'
 
 const VALID_HABITAT = 'Grassland - Modified grassland'
@@ -51,6 +55,7 @@ describe('validateHabitat', () => {
   })
 
   it('rejects unknown habitat', () => {
+    expect(() => validateHabitat('Not a habitat')).toThrow(BaselineLookupError)
     expect(() => validateHabitat('Not a habitat')).toThrow(
       'is not a valid habitat'
     )
@@ -84,6 +89,9 @@ describe('validateCondition', () => {
   })
 
   it('rejects condition not listed for habitat', () => {
+    expect(() =>
+      validateCondition(VALID_HABITAT, 'Not A Real Condition')
+    ).toThrow(BaselineLookupError)
     expect(() =>
       validateCondition(VALID_HABITAT, 'Not A Real Condition')
     ).toThrow('is not a valid condition for habitat')
@@ -123,8 +131,8 @@ describe('validateHabitatChange', () => {
 
 describe('validateYears', () => {
   it('normalises legacy 30+ and numeric strings', () => {
-    expect(validateYears('30+')).toBe(30)
-    expect(validateYears('0')).toBe(0)
+    expect(validateYears(MAX_YEARS_PLUS)).toBe(MAX_YEARS)
+    expect(validateYears(String(MIN_YEARS))).toBe(MIN_YEARS)
     expect(validateYears('15')).toBe(15)
     expect(validateYears(7)).toBe(7)
   })
@@ -143,8 +151,12 @@ describe('validateYears', () => {
 
   it('rejects non-integer and out-of-range numbers', () => {
     expect(() => validateYears(1.5)).toThrow('is not a valid number for years')
-    expect(() => validateYears(31)).toThrow('is not a valid number for years')
-    expect(() => validateYears(-1)).toThrow('is not a valid number for years')
+    expect(() => validateYears(MAX_YEARS + 1)).toThrow(
+      'is not a valid number for years'
+    )
+    expect(() => validateYears(MIN_YEARS - 1)).toThrow(
+      'is not a valid number for years'
+    )
   })
 
   it('rejects non-number non-string years including objects and symbols', () => {
@@ -157,5 +169,57 @@ describe('validateYears', () => {
     const circular = {}
     circular.self = circular
     expect(() => validateYears(circular)).toThrow(TypeError)
+  })
+
+  it('throws when year is absent from multiplier reference keys', async () => {
+    vi.resetModules()
+    vi.doMock('./reference-constants.js', async (importOriginal) => {
+      const actual = await importOriginal()
+      const rest = { ...actual.TIME_TO_TARGET_MULTIPLIER }
+      delete rest['5']
+      return {
+        ...actual,
+        TIME_TO_TARGET_MULTIPLIER: rest
+      }
+    })
+
+    const { validateYears: validateYearsReloaded } =
+      await import('./validate.js')
+
+    expect(() => validateYearsReloaded(5)).toThrow(
+      'not listed in the time-to-target multiplier reference data'
+    )
+
+    vi.doUnmock('./reference-constants.js')
+    vi.resetModules()
+  })
+})
+
+describe('validate module init with corrupted reference rows', () => {
+  it('ignores non-object habitat difficulty rows when building change types', async () => {
+    vi.resetModules()
+    vi.doMock('./reference-constants.js', async (importOriginal) => {
+      const actual = await importOriginal()
+      return {
+        ...actual,
+        HABITAT_DIFFICULTY: {
+          ...actual.HABITAT_DIFFICULTY,
+          'Corrupt habitat row': null,
+          'Another bad row': 'Low'
+        }
+      }
+    })
+
+    const { validateHabitatChange: validateHabitatChangeReloaded } =
+      await import('./validate.js')
+
+    expect(() => validateHabitatChangeReloaded('Creation')).not.toThrow()
+    expect(() => validateHabitatChangeReloaded('Enhancement')).not.toThrow()
+    expect(() => validateHabitatChangeReloaded('Retrofit')).toThrow(
+      'is not a valid change type'
+    )
+
+    vi.doUnmock('./reference-constants.js')
+    vi.resetModules()
   })
 })

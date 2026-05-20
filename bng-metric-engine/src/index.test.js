@@ -6,6 +6,7 @@ describe('bng-metric-engine public exports', () => {
   it('re-exports reference tables and baseline helpers', () => {
     expect(pkg.calculateAreaHabitatBaseline).toBeTypeOf('function')
     expect(pkg.resolveDistinctiveness).toBeTypeOf('function')
+    expect(pkg.BaselineLookupError).toBeTypeOf('function')
     expect(pkg.CONDITION_SCORES).toBeTypeOf('object')
     expect(pkg.DIFFICULTY_MULTIPLIER).toBeTypeOf('object')
     expect(pkg.DISTINCTIVENESS_CATEGORIES).toBeTypeOf('object')

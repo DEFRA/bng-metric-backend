@@ -167,7 +167,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
     expect(out.document.habitats[0].area).toBeNull()
   })
 
-  it('sets area to sizeSquareMetres rounded to the nearest integer', () => {
+  it('sets area from PostGIS sizeSquareMetres rounded to the nearest integer', () => {
     const habitatSizes = {
       areaHabitats: {
         individualSquareMetres: [
@@ -198,6 +198,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
 
     expect(out.document.habitats[0].sizeSquareMetres).toBe(5000.6)
     expect(out.document.habitats[0].area).toBe(5001)
+    expect(out.document.habitats[0].properties.Area).toBe(4999)
   })
 
   it('sets habitatSizes to null when not provided', () => {
@@ -252,7 +253,7 @@ describe('extractBaseline — featureId join keys', () => {
 })
 
 describe('extractBaseline — document AC1 fields and habitat shape', () => {
-  it('extracts AC1 fields per habitat: ref, type, distinctiveness, condition, plus retention/strategic significance', () => {
+  it('extracts AC1 fields per habitat: ref, type, condition, plus retention/strategic significance', () => {
     const out = extractBaseline({
       redline: [],
       areas: [
@@ -276,14 +277,16 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
         ref: 'P1',
         type: LOWLAND_MEADOWS,
         broadType: 'Grassland',
-        distinctiveness: 'V.High',
-        distinctivenessScore: 8,
         condition: 'Good',
         strategicSignificance: 'High',
         retentionCategory: 'Retain',
-        area: 1.23
+        properties: expect.objectContaining({ Area: 1.23 })
       })
     )
+    expect(out.document.habitats[0]).not.toHaveProperty('area')
+    expect(out.document.habitats[0]).not.toHaveProperty('sizeSquareMetres')
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctiveness')
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctivenessScore')
   })
 
   it('does not include geometry or srid in document features', () => {
@@ -321,41 +324,7 @@ describe('extractBaseline — document AC1 fields and habitat shape', () => {
   })
 })
 
-describe('extractBaseline — document distinctiveness lookups and key fallbacks', () => {
-  it('returns null distinctiveness when the habitat type is unknown', () => {
-    const out = extractBaseline({
-      redline: [],
-      areas: [
-        feature({
-          [PARCEL_REF]: 'P1',
-          [HABITAT_TYPE]: 'Made-up habitat type that does not exist',
-          [CONDITION]: 'Good'
-        })
-      ],
-      hedgerows: [],
-      watercourses: []
-    })
-
-    expect(out.document.habitats[0].distinctiveness).toBeNull()
-    expect(out.document.habitats[0].distinctivenessScore).toBeNull()
-  })
-
-  it('matches habitat type lookups case-insensitively', () => {
-    const out = extractBaseline({
-      redline: [],
-      areas: [
-        feature({
-          [PARCEL_REF]: 'P1',
-          [HABITAT_TYPE]: 'GRASSLAND - LOWLAND MEADOWS'
-        })
-      ],
-      hedgerows: [],
-      watercourses: []
-    })
-
-    expect(out.document.habitats[0].distinctiveness).toBe('V.High')
-  })
-
+describe('extractBaseline — document property key fallbacks', () => {
   it('falls back to alternative property keys (underscored / lowercased)', () => {
     const out = extractBaseline({
       redline: [],
@@ -377,14 +346,13 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
         condition: 'Moderate'
       })
     )
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctiveness')
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctivenessScore')
   })
 
   // Real QGIS-authored GeoPackages put the broad name in
   // "Baseline Broad Habitat Type" and the type alone in "Baseline Habitat Type".
-  // The lookup must combine them; before the fix `getDistinctiveness("Lowland
-  // meadows")` returned null for every real file so every persisted habitat
-  // document had distinctiveness: null.
-  it('combines broad + type columns to resolve distinctiveness for real GeoPackage shape', () => {
+  it('extracts separate broad and type columns for real GeoPackage shape', () => {
     const out = extractBaseline({
       redline: [],
       areas: [
@@ -401,11 +369,11 @@ describe('extractBaseline — document distinctiveness lookups and key fallbacks
     expect(out.document.habitats[0]).toEqual(
       expect.objectContaining({
         type: 'Lowland meadows',
-        broadType: 'Grassland',
-        distinctiveness: 'V.High',
-        distinctivenessScore: 8
+        broadType: 'Grassland'
       })
     )
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctiveness')
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctivenessScore')
   })
 })
 
@@ -467,10 +435,11 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
       expect.objectContaining({
         ref: null,
         type: null,
-        condition: null,
-        distinctiveness: null
+        condition: null
       })
     )
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctiveness')
+    expect(out.document.habitats[0]).not.toHaveProperty('distinctivenessScore')
   })
 })
 

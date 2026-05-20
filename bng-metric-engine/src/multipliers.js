@@ -1,8 +1,13 @@
+import { BaselineLookupError } from './errors.js'
 import {
   validateHabitat,
   validateCondition,
   validateYears,
-  validateHabitatChange
+  validateHabitatChange,
+  MAX_YEARS_PLUS,
+  MAX_YEARS,
+  MIN_YEARS,
+  OVER_MAX_YEARS
 } from './validate.js'
 import {
   CONDITION_SCORES,
@@ -43,15 +48,6 @@ export function resolveDistinctiveness(habitat) {
 }
 
 /**
- * Get the distinctiveness score for a given habitat
- * @param {string} habitat - The habitat name (e.g., "Grassland - Bracken")
- * @returns {number} The distinctiveness score, or 0 if habitat not found
- */
-function getDistinctivenessMultiplier(habitat) {
-  return resolveDistinctiveness(habitat).distinctivenessScore
-}
-
-/**
  * Get the condition multiplier for a given habitat and condition
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
  * @param {string} condition - The condition name (e.g., "Moderate")
@@ -63,9 +59,9 @@ function getConditionMultiplier(habitat, condition) {
 
   const conditionScoreRow = CONDITION_SCORES[habitat][condition]
 
-  // If the value is "Not Possible" or not a number, return 0
+  // Throw an error if the value is "Not Possible" or not a number
   if (conditionScoreRow === 'Not Possible') {
-    throw new Error(
+    throw new BaselineLookupError(
       `Condition '${condition}' is not a valid condition for habitat: ${habitat}`
     )
   }
@@ -79,63 +75,160 @@ function getConditionMultiplier(habitat, condition) {
   )
 }
 
+function lookupCreationTimeToTarget(habitat, endCondition) {
+  const timeToTargetValue = TIME_TO_TARGET_CREATION[habitat]?.[endCondition]
+
+  if (timeToTargetValue === undefined || timeToTargetValue === null) {
+    throw new Error(
+      `Time to target not found for habitat: ${habitat}, endCondition: ${endCondition}`
+    )
+  }
+  if (timeToTargetValue === 'Not Possible') {
+    throw new Error(
+      `Time to target 'Not Possible' for habitat: ${habitat}, endCondition: ${endCondition}`
+    )
+  }
+  return timeToTargetValue
+}
+
+function lookupEnhancementTimeToTarget(
+  habitat,
+  creationOrEnhancement,
+  startCondition,
+  endCondition
+) {
+  const timeToTargetValue =
+    TIME_TO_TARGET_ENHANCEMENT[habitat]?.[startCondition]?.[endCondition]
+
+  if (timeToTargetValue === undefined || timeToTargetValue === null) {
+    throw new Error(
+      `Time to target not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
+    )
+  }
+  if (timeToTargetValue === 'Not Possible') {
+    throw new Error(
+      `Time to target 'Not Possible' for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
+    )
+  }
+  return timeToTargetValue
+}
+
+function lookupRawTimeToTarget(
+  habitat,
+  creationOrEnhancement,
+  startCondition,
+  endCondition
+) {
+  const rawValue =
+    creationOrEnhancement === 'Creation'
+      ? lookupCreationTimeToTarget(habitat, endCondition)
+      : lookupEnhancementTimeToTarget(
+          habitat,
+          creationOrEnhancement,
+          startCondition,
+          endCondition
+        )
+
+  return normaliseReferenceYears(rawValue)
+}
+
+/**
+ * @param {number | string} timeToTargetValue - Reference table years or legacy "30+"
+ * @returns {number}
+ */
+function normaliseReferenceYears(timeToTargetValue) {
+  if (timeToTargetValue === MAX_YEARS_PLUS) {
+    return MAX_YEARS
+  }
+  if (typeof timeToTargetValue !== 'number') {
+    throw new TypeError(
+      `Reference time to target must be a number or "${MAX_YEARS_PLUS}", got: ${timeToTargetValue}`
+    )
+  }
+  return timeToTargetValue
+}
+
+/**
+ * @param {number} years - The number of years to compute
+ * @param {number} validatedAdvanceYears - The number of years to advance the project
+ * @param {number} validatedDelayYears - The number of years to delay the project
+ * @returns {number} The computed years, clamped to the minimum and maximum years
+ */
+function applyDelayAdvanceAndClamp(
+  years,
+  validatedAdvanceYears,
+  validatedDelayYears
+) {
+  const computed = years + validatedDelayYears - validatedAdvanceYears
+
+  if (computed < MIN_YEARS) {
+    return MIN_YEARS
+  }
+  if (computed > MAX_YEARS) {
+    return MAX_YEARS + 1
+  }
+  return computed
+}
+
+/**
+ * @param {number} years
+ * @returns {string}
+ */
+function toTimeToTargetBucketKey(years) {
+  if (years > MAX_YEARS) {
+    return OVER_MAX_YEARS
+  }
+  return String(years)
+}
+
+/**
+ * @param {number} advanceYears - The number of years to advance the project
+ * @param {string} timeToTargetKey - The time to target bucket key (e.g. "5", ">30")
+ * @returns {boolean} True if the advance years meet the time to target, false otherwise
+ */
+function advanceMeetsTimeToTarget(advanceYears, timeToTargetKey) {
+  const targetYears =
+    timeToTargetKey === OVER_MAX_YEARS ? MAX_YEARS + 1 : Number(timeToTargetKey)
+  return advanceYears >= targetYears
+}
+
 /**
  * Get the time to target value for a given habitat and creation/enhancement type
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
  * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement"
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
- * @param {number} delayYears - The number of years to delay the project
  * @param {number} advanceYears - The number of years to advance the project
- * @returns {number} The time to target value, or 0 if habitat/type not found
+ * @param {number} delayYears - The number of years to delay the project
+ * @returns {string} Time-to-target bucket key (e.g. "5", ">30")
  * @throws {Error} If time to target not found for habitat/type
  */
-
 function getTimeToTargetValue(
   habitat,
   creationOrEnhancement,
   startCondition,
   endCondition,
-  delayYears,
-  advanceYears
+  advanceYears,
+  delayYears
 ) {
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  advanceYears = validateYears(advanceYears)
-  delayYears = validateYears(delayYears)
+  const validatedAdvanceYears = validateYears(advanceYears)
+  const validatedDelayYears = validateYears(delayYears)
 
-  let timeToTargetValue
-  if (creationOrEnhancement === 'Creation') {
-    timeToTargetValue = TIME_TO_TARGET_CREATION[habitat]?.[endCondition]
-  } else {
-    timeToTargetValue =
-      TIME_TO_TARGET_ENHANCEMENT[habitat]?.[startCondition]?.[endCondition]
-    // Return 0 if not found or "Not Possible"
-    if (timeToTargetValue === undefined || timeToTargetValue === null) {
-      throw new Error(
-        `Time to target not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
-      )
-    } else if (timeToTargetValue === 'Not Possible') {
-      timeToTargetValue = 1
-    }
-  }
-
-  // Considering "30+" as 30 years (not sure if this is correct)
-  if (timeToTargetValue === '30+') {
-    timeToTargetValue = 30
-  }
-
-  // Now need to factor in the delay and advance years
-  timeToTargetValue = timeToTargetValue + delayYears - advanceYears
-
-  if (timeToTargetValue < 0) {
-    timeToTargetValue = 0
-  } else if (timeToTargetValue > 30) {
-    timeToTargetValue = '>30'
-  }
-
-  return timeToTargetValue
+  const referenceYears = lookupRawTimeToTarget(
+    habitat,
+    creationOrEnhancement,
+    startCondition,
+    endCondition
+  )
+  const computedYears = applyDelayAdvanceAndClamp(
+    referenceYears,
+    validatedAdvanceYears,
+    validatedDelayYears
+  )
+  return toTimeToTargetBucketKey(computedYears)
 }
 
 /**
@@ -144,8 +237,8 @@ function getTimeToTargetValue(
  * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement"
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
- * @param {number} delayYears - The number of years to delay the project
  * @param {number} advanceYears - The number of years to advance the project
+ * @param {number} delayYears - The number of years to delay the project
  * @returns {number} The time multiplier, or 0 if habitat/type not found
  */
 function getTimeMultiplier(
@@ -153,14 +246,14 @@ function getTimeMultiplier(
   creationOrEnhancement,
   startCondition,
   endCondition,
-  delayYears,
-  advanceYears
+  advanceYears,
+  delayYears
 ) {
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  advanceYears = validateYears(advanceYears)
-  delayYears = validateYears(delayYears)
+  const validatedAdvanceYears = validateYears(advanceYears)
+  const validatedDelayYears = validateYears(delayYears)
 
   // For Enhancement, startCondition is required
   if (
@@ -172,20 +265,16 @@ function getTimeMultiplier(
     )
   }
 
-  const timeToTargetValue = getTimeToTargetValue(
+  const timeToTargetKey = getTimeToTargetValue(
     habitat,
     creationOrEnhancement,
     startCondition,
     endCondition,
-    delayYears,
-    advanceYears
+    validatedAdvanceYears,
+    validatedDelayYears
   )
 
-  const timeKey =
-    typeof timeToTargetValue === 'number'
-      ? String(timeToTargetValue)
-      : timeToTargetValue
-  const timeMultiplier = TIME_TO_TARGET_MULTIPLIER[timeKey]
+  const timeMultiplier = TIME_TO_TARGET_MULTIPLIER[timeToTargetKey]
 
   if (timeMultiplier === undefined || timeMultiplier === null) {
     throw new Error(
@@ -196,6 +285,42 @@ function getTimeMultiplier(
   }
 
   return timeMultiplier
+}
+
+/**
+ * Statutory tool: Creation projects with enough advance time to reach Poor but not
+ * the full target use Enhancement difficulty bands for lookup.
+ *
+ * @param {string} habitat
+ * @param {string} creationOrEnhancement
+ * @param {string} [startCondition]
+ * @param {number} validatedAdvanceYears
+ * @param {number} validatedDelayYears
+ * @returns {'Creation' | 'Enhancement'}
+ */
+function resolveDifficultyChangeType(
+  habitat,
+  creationOrEnhancement,
+  startCondition,
+  validatedAdvanceYears,
+  validatedDelayYears
+) {
+  if (creationOrEnhancement !== 'Creation') {
+    return creationOrEnhancement
+  }
+
+  const poorTargetYears = getTimeToTargetValue(
+    habitat,
+    creationOrEnhancement,
+    startCondition,
+    'Poor',
+    validatedAdvanceYears,
+    validatedDelayYears
+  )
+
+  return advanceMeetsTimeToTarget(validatedAdvanceYears, poorTargetYears)
+    ? 'Enhancement'
+    : 'Creation'
 }
 
 /**
@@ -219,8 +344,8 @@ function getDifficultyMultiplier(
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  advanceYears = validateYears(advanceYears)
-  delayYears = validateYears(delayYears)
+  const validatedAdvanceYears = validateYears(advanceYears)
+  const validatedDelayYears = validateYears(delayYears)
 
   // For Enhancement, startCondition is required
   if (
@@ -239,31 +364,28 @@ function getDifficultyMultiplier(
     creationOrEnhancement,
     startCondition,
     endCondition,
-    delayYears,
-    advanceYears
+    validatedAdvanceYears,
+    validatedDelayYears
   )
-  if (advanceYears >= timeToTargetValue) {
+  if (advanceMeetsTimeToTarget(validatedAdvanceYears, timeToTargetValue)) {
     difficultyDesc = 'Low'
   } else {
-    if (creationOrEnhancement === 'Creation') {
-      const poorTargetYears = getTimeToTargetValue(
-        habitat,
-        creationOrEnhancement,
-        startCondition,
-        'Poor',
-        delayYears,
-        advanceYears
-      )
-      if (advanceYears >= poorTargetYears) {
-        creationOrEnhancement = 'Enhancement'
-      }
-    }
+    const difficultyChangeType = resolveDifficultyChangeType(
+      habitat,
+      creationOrEnhancement,
+      startCondition,
+      validatedAdvanceYears,
+      validatedDelayYears
+    )
 
-    // Look up the habitat in habitatDifficulty
-    difficultyDesc = HABITAT_DIFFICULTY[habitat][creationOrEnhancement]
+    const difficultyRow = HABITAT_DIFFICULTY[habitat]
+    if (!difficultyRow || typeof difficultyRow !== 'object') {
+      throw new Error(`No difficulty reference data for habitat: ${habitat}`)
+    }
+    difficultyDesc = difficultyRow[difficultyChangeType]
     if (!difficultyDesc) {
       throw new Error(
-        `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}`
+        `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${difficultyChangeType}`
       )
     }
   }
@@ -284,7 +406,6 @@ function getDifficultyMultiplier(
 }
 
 export {
-  getDistinctivenessMultiplier,
   getConditionMultiplier,
   getTimeToTargetValue,
   getTimeMultiplier,

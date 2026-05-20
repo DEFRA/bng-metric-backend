@@ -1,3 +1,4 @@
+import { BaselineLookupError } from './errors.js' // NOSONAR: thrown in validateHabitat/validateCondition (S1128 false positive)
 import {
   CONDITION_SCORES,
   DISTINCTIVENESS_CATEGORIES,
@@ -6,15 +7,27 @@ import {
   TIME_TO_TARGET_MULTIPLIER
 } from './reference-constants.js'
 
+/** Minimum delay/advance years accepted by the statutory multiplier tables. */
+export const MIN_YEARS = 0
+
+/** Maximum delay/advance years accepted by the statutory multiplier tables. */
+export const MAX_YEARS = 30
+
+/** Legacy string alias for {@link MAX_YEARS} in metric inputs. */
+export const MAX_YEARS_PLUS = '30+'
+
+/** Time-to-target bucket key when computed years exceed {@link MAX_YEARS}. */
+export const OVER_MAX_YEARS = '>30'
+
+/** Keys accepted for delay/advance years (integers 0–30 per multiplier table). */
+const VALID_YEAR_KEYS = new Set(Object.keys(TIME_TO_TARGET_MULTIPLIER))
+
 /** Change-type keys present on habitat difficulty rows (e.g. Creation, Enhancement). */
 const VALID_HABITAT_CHANGE_TYPES = new Set(
   Object.values(HABITAT_DIFFICULTY).flatMap((entry) =>
     entry && typeof entry === 'object' ? Object.keys(entry) : []
   )
 )
-
-/** Keys accepted for delay/advance years (integers 0–30 per multiplier table). */
-const VALID_YEAR_KEYS = new Set(Object.keys(TIME_TO_TARGET_MULTIPLIER))
 
 /** Safe for error messages when `years` may be an object or other non-primitive. */
 function formatYearsForMessage(years) {
@@ -65,7 +78,7 @@ export function validateHabitat(habitat) {
     throw new TypeError(`Habitat must be a string, got ${typeof habitat}`)
   }
   if (!Object.hasOwn(DISTINCTIVENESS_CATEGORIES, habitat)) {
-    throw new Error(`Habitat '${habitat}' is not a valid habitat`)
+    throw new BaselineLookupError(`Habitat '${habitat}' is not a valid habitat`)
   }
   const category = DISTINCTIVENESS_CATEGORIES[habitat]
   if (
@@ -98,8 +111,61 @@ export function validateCondition(habitat, condition) {
     throw new Error(`No condition reference data for habitat: ${habitat}`)
   }
   if (!Object.hasOwn(row, condition)) {
-    throw new Error(
+    throw new BaselineLookupError(
       `Condition '${condition}' is not a valid condition for habitat: ${habitat}`
+    )
+  }
+}
+
+function yearsRangeMessage() {
+  return `Expected an integer from ${MIN_YEARS} to ${MAX_YEARS}`
+}
+
+/**
+ * @param {unknown} years
+ * @returns {number}
+ */
+function parseYearsNumber(years) {
+  if (typeof years === 'string') {
+    const trimmed = years.trim()
+    if (trimmed === '') {
+      throw new Error(`years value is empty`)
+    }
+    if (!/^\d+$/u.test(trimmed)) {
+      throw new Error(
+        `${formatYearsForMessage(years)} is not a valid value for years. ${yearsRangeMessage()} as a number or numeric string (legacy alias '${MAX_YEARS_PLUS}' is accepted).`
+      )
+    }
+    return Number(trimmed)
+  }
+  if (typeof years === 'number') {
+    return years
+  }
+  throw new TypeError(
+    `${formatYearsForMessage(years)} is not a valid value for years. ${yearsRangeMessage()}.`
+  )
+}
+
+/**
+ * @param {unknown} years
+ * @param {number} n
+ */
+function assertYearsInStatutoryRange(years, n) {
+  if (!Number.isInteger(n) || n < MIN_YEARS || n > MAX_YEARS) {
+    throw new Error(
+      `${formatYearsForMessage(years)} is not a valid number for years. ${yearsRangeMessage()}.`
+    )
+  }
+}
+
+/**
+ * @param {unknown} years
+ * @param {number} n
+ */
+function assertYearsInReferenceTable(years, n) {
+  if (!VALID_YEAR_KEYS.has(String(n))) {
+    throw new Error(
+      `${formatYearsForMessage(years)} is not listed in the time-to-target multiplier reference data.`
     )
   }
 }
@@ -123,52 +189,21 @@ export function validateHabitatChange(changeType) {
 }
 
 /**
- * @param {unknown} years - Delay or advance years (integer 0–30, or legacy string forms)
- * @returns {number} Normalised integer years in 0–30
- * @throws {Error} If years is not allowed by {@link TIME_TO_TARGET_MULTIPLIER} keys for 0–30.
+ * @param {unknown} years - Delay or advance years (integer {@link MIN_YEARS}–{@link MAX_YEARS}, or legacy string forms)
+ * @returns {number} Normalised integer years in {@link MIN_YEARS}–{@link MAX_YEARS}
+ * @throws {Error} If years is not allowed by {@link TIME_TO_TARGET_MULTIPLIER} keys for {@link MIN_YEARS}–{@link MAX_YEARS}.
  */
 export function validateYears(years) {
   if (years === null || years === undefined) {
     throw new Error('years not specified')
   }
 
-  /** Legacy alias used elsewhere in this codebase */
-  if (years === '30+') {
-    return 30
+  if (years === MAX_YEARS_PLUS) {
+    return MAX_YEARS
   }
 
-  let n
-  if (typeof years === 'string') {
-    const trimmed = years.trim()
-    if (trimmed === '') {
-      throw new Error(`years value is empty`)
-    }
-    if (!/^\d+$/u.test(trimmed)) {
-      throw new Error(
-        `${formatYearsForMessage(years)} is not a valid value for years. Expected an integer from 0 to 30 as a number or numeric string (legacy alias '30+' is accepted).`
-      )
-    }
-    n = Number(trimmed)
-  } else if (typeof years === 'number') {
-    n = years
-  } else {
-    throw new TypeError(
-      `${formatYearsForMessage(years)} is not a valid value for years. Expected an integer from 0 to 30.`
-    )
-  }
-
-  if (!Number.isInteger(n) || n < 0 || n > 30) {
-    throw new Error(
-      `${formatYearsForMessage(years)} is not a valid number for years. Expected an integer from 0 to 30.`
-    )
-  }
-
-  const key = String(n)
-  if (!VALID_YEAR_KEYS.has(key)) {
-    throw new Error(
-      `${formatYearsForMessage(years)} is not listed in the time-to-target multiplier reference data.`
-    )
-  }
-
+  const n = parseYearsNumber(years)
+  assertYearsInStatutoryRange(years, n)
+  assertYearsInReferenceTable(years, n)
   return n
 }
