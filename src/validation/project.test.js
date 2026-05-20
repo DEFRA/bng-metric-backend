@@ -6,6 +6,8 @@ import {
   baselineSchema
 } from './project.js'
 
+const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+
 describe('#siteSchema', () => {
   test('Should validate a valid site object', () => {
     const { error } = siteSchema.validate({
@@ -98,5 +100,29 @@ describe('#projectSchema', () => {
       units: { totalUnits: 1, habitatsTotal: 1 }
     })
     expect(error).toBeDefined()
+  })
+  
+  test('Should reject baseline filename longer than 255 characters', () => {
+    const { error } = projectSchema.validate({
+      baseline: {
+        uploadId: null,
+        filename: `${'a'.repeat(256)}.gpkg`,
+        fileSize: 1024
+      }
+    })
+    expect(error).toBeDefined()
+    expect(error.details[0].path).toEqual(['baseline', 'filename'])
+  })
+
+  test('Should reject baseline file size over the 100 MB limit', () => {
+    const { error } = projectSchema.validate({
+      baseline: {
+        uploadId: null,
+        filename: 'survey.gpkg',
+        fileSize: MAX_FILE_SIZE_BYTES + 1
+      }
+    })
+    expect(error).toBeDefined()
+    expect(error.details[0].path).toEqual(['baseline', 'fileSize'])
   })
 })
