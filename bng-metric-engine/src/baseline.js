@@ -4,7 +4,7 @@ import {
   getConditionMultiplier
 } from './multipliers.js'
 
-/** Placeholder until strategic significance is wired from project inputs (metric uses 1 for baseline). */
+/** Metric uses 1 for baseline */
 const BASELINE_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
 
 /**

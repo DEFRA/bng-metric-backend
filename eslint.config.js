@@ -11,5 +11,12 @@ export default [
     rules: {
       curly: ['error', 'all']
     }
+  },
+  {
+    files: ['bng-metric-engine/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2025,
+      sourceType: 'module'
+    }
   }
 ]

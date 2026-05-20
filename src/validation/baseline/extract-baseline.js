@@ -1,10 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import {
-  distinctivenessScores,
-  getDistinctiveness
-} from './reference/habitat-distinctiveness.js'
-import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
+import { PROP_KEYS, pickProp } from './properties.js'
 
 /**
  * @param {number | null | undefined} sizeSquareMetres
@@ -24,21 +20,20 @@ function buildHabitat(feature) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, PROP_KEYS.habitatType)
-  const distinctiveness = getDistinctiveness(buildHabitatLookupKey(props))
-  const score = distinctiveness ? distinctivenessScores[distinctiveness] : null
   const ref = pickProp(props, PROP_KEYS.parcelRef)
+
+  // NOTE: distinctiveness and distinctivenessScore are not included here because
+  // they are calculated separately by the metric engine.
+  // NOTE2: area is set from PostGIS habitatSizes (sizeSquareMetres) in extractBaseline.
 
   const document = {
     featureId,
     ref,
     type: habitatType,
     broadType: pickProp(props, PROP_KEYS.broadHabitat),
-    distinctiveness,
-    distinctivenessScore: score?.score ?? null,
     condition: pickProp(props, PROP_KEYS.condition),
     strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
-    area: pickProp(props, PROP_KEYS.area),
     properties: props
   }
   const geometryRow = {

@@ -9,5 +9,6 @@ export {
   TIME_TO_TARGET_MULTIPLIER
 } from './reference-constants.js'
 
+export { BaselineLookupError } from './errors.js'
 export { calculateAreaHabitatBaseline } from './baseline.js'
 export { resolveDistinctiveness } from './multipliers.js'

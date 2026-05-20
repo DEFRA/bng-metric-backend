@@ -1,4 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
+
+import { BaselineLookupError } from 'bng-metric-engine'
 
 import {
   enrichBaselineDocumentWithUnits,
@@ -7,6 +9,31 @@ import {
   sumFeatureBaselineUnits,
   summarizeBaselineUnitsTotals
 } from './enrich-baseline-units.js'
+
+const calculateAreaHabitatBaselineMock = vi.hoisted(() => vi.fn())
+const engineActual = vi.hoisted(() => ({
+  calculateAreaHabitatBaseline: null
+}))
+
+vi.mock('bng-metric-engine', async (importOriginal) => {
+  const actual = await importOriginal()
+  engineActual.calculateAreaHabitatBaseline =
+    actual.calculateAreaHabitatBaseline
+  calculateAreaHabitatBaselineMock.mockImplementation(
+    actual.calculateAreaHabitatBaseline
+  )
+  return {
+    ...actual,
+    calculateAreaHabitatBaseline: (...args) =>
+      calculateAreaHabitatBaselineMock(...args)
+  }
+})
+
+afterEach(() => {
+  calculateAreaHabitatBaselineMock.mockImplementation(
+    engineActual.calculateAreaHabitatBaseline
+  )
+})
 
 describe('normalizeConditionForEngine', () => {
   it('strips leading list index from statutory condition labels', () => {
@@ -223,6 +250,86 @@ describe('enrichBaselineDocumentWithUnits', () => {
     enrichBaselineDocumentWithUnits(document)
     expect(document.habitats[0]).not.toHaveProperty('units')
     expect(document.units.habitatsTotal).toBe(0)
+  })
+
+  it('propagates unexpected engine errors instead of swallowing them', () => {
+    calculateAreaHabitatBaselineMock.mockImplementation(() => {
+      throw new Error('unexpected engine failure')
+    })
+
+    expect(() =>
+      enrichBaselineDocumentWithUnits({
+        habitats: [
+          {
+            type: 'Grassland - Modified grassland',
+            condition: 'Moderate',
+            area: 10_000
+          }
+        ]
+      })
+    ).toThrow('unexpected engine failure')
+  })
+
+  it('tries the next habitat label after BaselineLookupError on the first candidate', () => {
+    calculateAreaHabitatBaselineMock.mockImplementation(
+      (sizeHa, engineType, condition) => {
+        if (engineType === 'Developed land; sealed surface') {
+          throw new BaselineLookupError(
+            "Habitat 'Developed land; sealed surface' is not a valid habitat"
+          )
+        }
+        return {
+          units: 0,
+          distinctiveness: 'V.Low',
+          distinctivenessScore: 0,
+          conditionScore: 0,
+          strategicSignificanceScore: 1
+        }
+      }
+    )
+
+    const document = {
+      habitats: [
+        {
+          type: 'Developed land; sealed surface',
+          broadType: 'Urban',
+          condition: 'N/A - Other',
+          area: 676
+        }
+      ]
+    }
+    enrichBaselineDocumentWithUnits(document)
+    expect(calculateAreaHabitatBaselineMock).toHaveBeenCalledTimes(2)
+    expect(document.habitats[0].units).toBe(0)
+  })
+
+  it('stops after the first successful candidate without calling the engine again', () => {
+    const successResult = {
+      units: 2,
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
+      conditionScore: 2,
+      strategicSignificanceScore: 1
+    }
+    calculateAreaHabitatBaselineMock.mockReturnValue(successResult)
+
+    // type does not include the broad prefix, so two candidates are yielded:
+    // 1) 'Modified grassland'  2) 'Grassland - Modified grassland'
+    // The mock succeeds on the first call, so the break on the second iteration
+    // should prevent a second engine call.
+    const document = {
+      habitats: [
+        {
+          type: 'Modified grassland',
+          broadType: 'Grassland',
+          condition: 'Moderate',
+          area: 10_000
+        }
+      ]
+    }
+    enrichBaselineDocumentWithUnits(document)
+    expect(calculateAreaHabitatBaselineMock).toHaveBeenCalledTimes(1)
+    expect(document.habitats[0].units).toBe(2)
   })
 
   it('sets zero units totals when habitats are absent', () => {
