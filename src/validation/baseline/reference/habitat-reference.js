@@ -1,27 +1,10 @@
-// Habitat reference data for the Habitat Details page (BMD-315).
+// Reference data for the Habitat Details page (BMD-315): broad habitats,
+// habitat types, conditions, and trading rules. Hand-ported from the digital
+// prototype.
 //
-// Three lookups: habitatsByBroad lists every (broad, habitat type) pair with
-// its distinctiveness band; conditionsByHabitatType maps each habitat type to
-// the condition bands that apply to it (with score); tradingRulesByDistinctiveness
-// maps each distinctiveness band to its trading-rule guidance text.
-//
-// Hand-ported from bng-metric-digital-prototype/app/lib/metric-values-habitat-*.js.
-// The frontend renders dropdown options from these tables; saving (BMD-480)
-// will read the same source so the displayed and persisted values cannot drift.
-//
-// FOLLOW-UP after BMD-426 (PR #35) merges: the bng-metric-engine package
-// vendored by that PR ships canonical reference JSON that supersedes the
-// hand-ported tables below. Replace with thin readers over the engine
-// constants to remove the duplicate source of truth:
-//   - CONDITION_PATTERNS + conditionPatternByHabitatType
-//       → derive from bng-metric-engine CONDITION_SCORES (filter out
-//         "Not Possible" entries, order by score descending)
-//   - tradingRulesByDistinctiveness
-//       → derive from bng-metric-engine DISTINCTIVENESS_SCORES
-//         (the "Suggested action" field on each band)
-// Keep this file as the route-handler-facing module — only its data source
-// changes. The split-key helpers (splitHabitatTypeKey, getHabitatsByBroad)
-// stay since they shape the engine data into the route's response.
+// Once BMD-426 (PR #35) merges, the same data lives in bng-metric-engine.
+// Replace the constants below with thin readers over its CONDITION_SCORES
+// and DISTINCTIVENESS_SCORES so we have one source of truth.
 
 import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
 
