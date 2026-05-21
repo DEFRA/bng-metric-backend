@@ -8,6 +8,20 @@
 // Hand-ported from bng-metric-digital-prototype/app/lib/metric-values-habitat-*.js.
 // The frontend renders dropdown options from these tables; saving (BMD-480)
 // will read the same source so the displayed and persisted values cannot drift.
+//
+// FOLLOW-UP after BMD-426 (PR #35) merges: the bng-metric-engine package
+// vendored by that PR ships canonical reference JSON that supersedes the
+// hand-ported tables below. Replace with thin readers over the engine
+// constants to remove the duplicate source of truth:
+//   - CONDITION_PATTERNS + conditionPatternByHabitatType
+//       → derive from bng-metric-engine CONDITION_SCORES (filter out
+//         "Not Possible" entries, order by score descending)
+//   - tradingRulesByDistinctiveness
+//       → derive from bng-metric-engine DISTINCTIVENESS_SCORES
+//         (the "Suggested action" field on each band)
+// Keep this file as the route-handler-facing module — only its data source
+// changes. The split-key helpers (splitHabitatTypeKey, getHabitatsByBroad)
+// stay since they shape the engine data into the route's response.
 
 import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
 
