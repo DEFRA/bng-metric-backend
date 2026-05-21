@@ -9,10 +9,9 @@
 // The frontend renders dropdown options from these tables; saving (BMD-480)
 // will read the same source so the displayed and persisted values cannot drift.
 
-import {
-  distinctivenessByHabitatType,
-  distinctivenessScores
-} from './habitat-distinctiveness.js'
+import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
+
+export { distinctivenessScores } from './habitat-distinctiveness.js'
 
 // Each habitat type maps to one of four condition profiles. Splitting the
 // table this way keeps the file readable: the per-habitat map only carries the
@@ -272,7 +271,6 @@ export {
   CONDITION_PATTERNS,
   conditionPatternByHabitatType,
   tradingRulesByDistinctiveness,
-  distinctivenessScores,
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
