@@ -109,6 +109,34 @@ describe('GET /projects/{id}', () => {
   })
 })
 
+describe('GET /projects/{projectId}/habitats/{featureId}', () => {
+  it('returns 404 when the project does not exist', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${randomUUID()}/habitats/${randomUUID()}`
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('returns 404 when the project has no matching habitat', async () => {
+    const created = await createProject('Has no baseline')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}/habitats/${randomUUID()}`
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('returns 400 for a non-UUID featureId', async () => {
+    const created = await createProject('Bad feature id')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}/habitats/not-a-uuid`
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+})
+
 describe('PATCH /projects/{id}', () => {
   it('updates the project name', async () => {
     const created = await createProject('Original')
