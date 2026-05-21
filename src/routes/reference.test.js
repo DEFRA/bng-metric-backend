@@ -1,0 +1,129 @@
+import { describe, test, expect } from 'vitest'
+
+import {
+  getBroadHabitats,
+  getHabitatTypes,
+  getConditions,
+  getTradingRules
+} from './reference.js'
+
+describe('#getBroadHabitats', () => {
+  test('Returns an alphabetised list of broad habitats', () => {
+    const result = getBroadHabitats.handler({}, {})
+    expect(Array.isArray(result)).toBe(true)
+    const sorted = [...result].sort((a, b) => a.localeCompare(b))
+    expect(result).toEqual(sorted)
+  })
+
+  test('Excludes broads with no V.Low/Low/Medium habitat types', () => {
+    const result = getBroadHabitats.handler({}, {})
+    // Wetland is V.High only — should be excluded
+    expect(result).not.toContain('Wetland')
+    // Coastal lagoons is High only — should be excluded
+    expect(result).not.toContain('Coastal lagoons')
+    // Rocky shore is High/V.High only — should be excluded
+    expect(result).not.toContain('Rocky shore')
+  })
+
+  test('Includes broads with Medium or Low entries', () => {
+    const result = getBroadHabitats.handler({}, {})
+    expect(result).toContain('Cropland')
+    expect(result).toContain('Grassland')
+    expect(result).toContain('Urban')
+  })
+})
+
+describe('#getHabitatTypes', () => {
+  test('Returns the alphabetised habitat types for a broad habitat', () => {
+    const request = { query: { broad: 'Cropland' } }
+    const result = getHabitatTypes.handler(request, {})
+    expect(result.length).toBeGreaterThan(0)
+    expect(result).toContain('Cereal crops')
+    const sorted = [...result].sort((a, b) => a.localeCompare(b))
+    expect(result).toEqual(sorted)
+  })
+
+  test('Excludes habitat types with High or V.High distinctiveness', () => {
+    const request = { query: { broad: 'Grassland' } }
+    const result = getHabitatTypes.handler(request, {})
+    // Lowland meadows is V.High — must be excluded
+    expect(result).not.toContain('Lowland meadows')
+    // Modified grassland is Low — must be included
+    expect(result).toContain('Modified grassland')
+  })
+
+  test('Returns empty array for an unknown broad habitat', () => {
+    const request = { query: { broad: 'Not a real broad' } }
+    expect(getHabitatTypes.handler(request, {})).toEqual([])
+  })
+})
+
+describe('#getHabitatTypes validation', () => {
+  const schema = getHabitatTypes.options.validate.query
+
+  test('Passes with a broad query param', () => {
+    const { error } = schema.validate({ broad: 'Cropland' })
+    expect(error).toBeUndefined()
+  })
+
+  test('Fails when broad is missing', () => {
+    const { error } = schema.validate({})
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"broad" is required')
+  })
+
+  test('Fails when broad is empty', () => {
+    const { error } = schema.validate({ broad: '' })
+    expect(error).toBeDefined()
+  })
+})
+
+describe('#getConditions', () => {
+  test('Returns the five-band scale for a grassland habitat type', () => {
+    const request = {
+      query: { habitatType: 'Grassland - Modified grassland' }
+    }
+    const result = getConditions.handler(request, {})
+    expect(result).toEqual([
+      { condition: 'Good', score: 3 },
+      { condition: 'Fairly Good', score: 2.5 },
+      { condition: 'Moderate', score: 2 },
+      { condition: 'Fairly Poor', score: 1.5 },
+      { condition: 'Poor', score: 1 }
+    ])
+  })
+
+  test('Returns Condition Assessment N/A for cropland habitats', () => {
+    const request = {
+      query: { habitatType: 'Cropland - Cereal crops' }
+    }
+    const result = getConditions.handler(request, {})
+    expect(result).toEqual([
+      { condition: 'Condition Assessment N/A', score: 1 }
+    ])
+  })
+
+  test('Returns N/A - Other for sealed urban surfaces', () => {
+    const request = {
+      query: { habitatType: 'Urban - Developed land; sealed surface' }
+    }
+    const result = getConditions.handler(request, {})
+    expect(result).toEqual([{ condition: 'N/A - Other', score: 0 }])
+  })
+
+  test('Returns empty array for unknown habitat type', () => {
+    const request = { query: { habitatType: 'Not a real habitat' } }
+    expect(getConditions.handler(request, {})).toEqual([])
+  })
+})
+
+describe('#getTradingRules', () => {
+  test('Returns guidance text for all five distinctiveness bands', () => {
+    const result = getTradingRules.handler({}, {})
+    expect(Object.keys(result).sort()).toEqual(
+      ['High', 'Low', 'Medium', 'V.High', 'V.Low'].sort()
+    )
+    expect(result.Medium).toContain('Same broad habitat')
+    expect(result['V.Low']).toContain('Not Required')
+  })
+})

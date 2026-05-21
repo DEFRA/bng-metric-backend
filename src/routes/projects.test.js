@@ -2,6 +2,7 @@ import { describe, test, expect, vi } from 'vitest'
 import {
   getProjects,
   getProject,
+  getHabitat,
   createProject,
   updateProject
 } from './projects.js'
@@ -214,6 +215,120 @@ describe('#getProject validation', () => {
     const { error } = paramsSchema.validate({ id: 'not-a-uuid' })
     expect(error).toBeDefined()
     expect(error.message).toContain('"id" must be a valid GUID')
+  })
+})
+
+describe('#getHabitat', () => {
+  const HABITAT_1_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
+  const HABITAT_2_ID = 'aa0e8400-e29b-41d4-a716-446655440002'
+  const UNKNOWN_HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440099'
+
+  const projectWithHabitats = {
+    id: PROJECT_1_ID,
+    project: {
+      name: 'Project with habitats',
+      baseline: {
+        habitats: [
+          {
+            featureId: HABITAT_1_ID,
+            ref: '1',
+            type: 'Grassland - Modified grassland',
+            broadType: 'Grassland',
+            distinctiveness: 'Low',
+            distinctivenessScore: 2,
+            condition: 'Good',
+            sizeSquareMetres: 12345
+          },
+          {
+            featureId: HABITAT_2_ID,
+            ref: '2',
+            type: 'Cropland - Cereal crops',
+            broadType: 'Cropland',
+            distinctiveness: 'Low',
+            distinctivenessScore: 2,
+            sizeSquareMetres: 9876
+          }
+        ]
+      }
+    },
+    userId: USER_001
+  }
+
+  test('Returns the matching habitat document', async () => {
+    const drizzle = createMockDrizzle([projectWithHabitats])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_1_ID, featureId: HABITAT_1_ID }
+    }
+
+    const result = await getHabitat.handler(request, {})
+
+    expect(result.featureId).toBe(HABITAT_1_ID)
+    expect(result.type).toBe('Grassland - Modified grassland')
+  })
+
+  test('Throws 404 when the project is not found', async () => {
+    const drizzle = createMockDrizzle([])
+    const request = {
+      drizzle,
+      params: { projectId: UNKNOWN_PROJECT_ID, featureId: HABITAT_1_ID }
+    }
+    await expect(getHabitat.handler(request, {})).rejects.toThrow(
+      `Project ${UNKNOWN_PROJECT_ID} not found`
+    )
+  })
+
+  test('Throws 404 when the project has no baseline yet', async () => {
+    const drizzle = createMockDrizzle([
+      { id: PROJECT_1_ID, project: { name: 'No baseline' }, userId: USER_001 }
+    ])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_1_ID, featureId: HABITAT_1_ID }
+    }
+    await expect(getHabitat.handler(request, {})).rejects.toThrow(
+      `Habitat ${HABITAT_1_ID} not found in project ${PROJECT_1_ID}`
+    )
+  })
+
+  test('Throws 404 when the habitat featureId does not match', async () => {
+    const drizzle = createMockDrizzle([projectWithHabitats])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_1_ID, featureId: UNKNOWN_HABITAT_ID }
+    }
+    await expect(getHabitat.handler(request, {})).rejects.toThrow(
+      `Habitat ${UNKNOWN_HABITAT_ID} not found in project ${PROJECT_1_ID}`
+    )
+  })
+})
+
+describe('#getHabitat validation', () => {
+  const paramsSchema = getHabitat.options.validate.params
+
+  test('Passes with two UUID params', () => {
+    const { error } = paramsSchema.validate({
+      projectId: PROJECT_1_ID,
+      featureId: 'aa0e8400-e29b-41d4-a716-446655440001'
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Fails when projectId is missing', () => {
+    const { error } = paramsSchema.validate({
+      featureId: 'aa0e8400-e29b-41d4-a716-446655440001'
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"projectId" is required')
+  })
+
+  test('Fails when featureId is not a UUID', () => {
+    const { error } = paramsSchema.validate({
+      projectId: PROJECT_1_ID,
+      featureId: 'not-a-uuid'
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"featureId" must be a valid GUID')
   })
 })
 

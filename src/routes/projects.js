@@ -64,6 +64,30 @@ import { projects } from '../db/schema/index.js'
  *       404:
  *         description: Project not found
  *
+ * /projects/{projectId}/habitats/{featureId}:
+ *   get:
+ *     tags:
+ *       - Projects
+ *     summary: Get a single habitat document from a project's baseline
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: featureId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     responses:
+ *       200:
+ *         description: Returns the habitat document
+ *       404:
+ *         description: Project or habitat not found
+ *
  * /projects/new:
  *   post:
  *     tags:
@@ -142,6 +166,39 @@ const createProject = {
   }
 }
 
+const getHabitat = {
+  method: 'GET',
+  path: '/projects/{projectId}/habitats/{featureId}',
+  options: {
+    validate: {
+      params: Joi.object({
+        projectId: Joi.string().uuid().required(),
+        featureId: Joi.string().uuid().required()
+      })
+    }
+  },
+  handler: async (request, _h) => {
+    const { projectId, featureId } = request.params
+    const rows = await request.drizzle
+      .select()
+      .from(projects)
+      .where(eq(projects.id, projectId))
+
+    if (rows.length === 0) {
+      throw Boom.notFound(`Project ${projectId} not found`)
+    }
+
+    const habitats = rows[0].project?.baseline?.habitats ?? []
+    const habitat = habitats.find((h) => h.featureId === featureId)
+    if (!habitat) {
+      throw Boom.notFound(
+        `Habitat ${featureId} not found in project ${projectId}`
+      )
+    }
+    return habitat
+  }
+}
+
 const updateProject = {
   method: 'PATCH',
   path: '/projects/{id}',
@@ -185,4 +242,4 @@ const updateProject = {
   }
 }
 
-export { getProjects, getProject, createProject, updateProject }
+export { getProjects, getProject, getHabitat, createProject, updateProject }
