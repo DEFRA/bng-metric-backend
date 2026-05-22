@@ -171,9 +171,9 @@ const conditionPatternByHabitatType = {
 // swap the values here when UCD finalises.
 const tradingRulesByDistinctiveness = {
   'V.High': 'Same habitat required - bespoke compensation option',
-  High: 'Same habitat required =',
+  High: 'Same habitat required (=)',
   Medium: 'Same broad habitat or a higher distinctiveness habitat required (≥)',
-  Low: 'Same distinctiveness or better habitat required ≥',
+  Low: 'Same distinctiveness or better habitat required (≥)',
   'V.Low': 'Compensation Not Required'
 }
 

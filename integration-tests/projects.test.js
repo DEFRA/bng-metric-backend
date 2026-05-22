@@ -110,6 +110,39 @@ describe('GET /projects/{id}', () => {
 })
 
 describe('GET /projects/{projectId}/habitats/{featureId}', () => {
+  it('returns the habitat document for a matching featureId', async () => {
+    const featureId = randomUUID()
+    const habitat = {
+      featureId,
+      ref: '1',
+      type: 'Grassland - Modified grassland',
+      broadType: 'Grassland',
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
+      condition: 'Good',
+      sizeSquareMetres: 12345
+    }
+    const created = await server.inject({
+      method: 'POST',
+      url: PROJECTS_NEW_URL,
+      payload: {
+        project: {
+          name: 'With baseline habitats',
+          baseline: { habitats: [habitat] }
+        },
+        userId
+      }
+    })
+    expect(created.statusCode).toBe(HTTP_OK)
+
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.result.id}/habitats/${featureId}`
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual(habitat)
+  })
+
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
       method: 'GET',
