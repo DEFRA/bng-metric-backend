@@ -6,6 +6,7 @@
   "GET /projects/{projectId}/habitats/{featureId}",
   "POST /projects/new",
   "PATCH /projects/{id}",
+  "PUT /projects/{projectId}/habitats/{featureId}",
   "POST /upload/initiate",
   "GET /upload/{uploadId}/status",
   "POST /baseline/validate/{uploadId}",
