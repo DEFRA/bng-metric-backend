@@ -5,7 +5,7 @@
   },
   "High": {
     "Score": 6,
-    "Suggested action": "Same habitat required ="
+    "Suggested action": "Same habitat required (=)"
   },
   "Medium": {
     "Score": 4,
@@ -13,7 +13,7 @@
   },
   "Low": {
     "Score": 2,
-    "Suggested action": "Same distinctiveness or better habitat required ≥"
+    "Suggested action": "Same distinctiveness or better habitat required (≥)"
   },
   "V.Low": {
     "Score": 0,

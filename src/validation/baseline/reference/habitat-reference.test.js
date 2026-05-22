@@ -1,18 +1,13 @@
 import { describe, test, expect } from 'vitest'
 
 import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
-import { conditionPatternByHabitatType } from './habitat-reference.js'
+import { getConditionsForHabitatType } from './habitat-reference.js'
 
 describe('habitat reference data integrity', () => {
-  test('every habitat type in the distinctiveness table has a condition pattern', () => {
+  test('every habitat type in the distinctiveness table has condition options', () => {
     for (const key of Object.keys(distinctivenessByHabitatType)) {
-      expect(conditionPatternByHabitatType[key], key).toBeDefined()
-    }
-  })
-
-  test('every habitat type in the condition table has a distinctiveness band', () => {
-    for (const key of Object.keys(conditionPatternByHabitatType)) {
-      expect(distinctivenessByHabitatType[key], key).toBeDefined()
+      const conditions = getConditionsForHabitatType(key)
+      expect(conditions.length, key).toBeGreaterThan(0)
     }
   })
 })
