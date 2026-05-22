@@ -109,6 +109,67 @@ describe('GET /projects/{id}', () => {
   })
 })
 
+describe('GET /projects/{projectId}/habitats/{featureId}', () => {
+  it('returns the habitat document for a matching featureId', async () => {
+    const featureId = randomUUID()
+    const habitat = {
+      featureId,
+      ref: '1',
+      type: 'Grassland - Modified grassland',
+      broadType: 'Grassland',
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
+      condition: 'Good',
+      sizeSquareMetres: 12345
+    }
+    const created = await server.inject({
+      method: 'POST',
+      url: PROJECTS_NEW_URL,
+      payload: {
+        project: {
+          name: 'With baseline habitats',
+          baseline: { habitats: [habitat] }
+        },
+        userId
+      }
+    })
+    expect(created.statusCode).toBe(HTTP_OK)
+
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.result.id}/habitats/${featureId}`
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual(habitat)
+  })
+
+  it('returns 404 when the project does not exist', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${randomUUID()}/habitats/${randomUUID()}`
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('returns 404 when the project has no matching habitat', async () => {
+    const created = await createProject('Has no baseline')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}/habitats/${randomUUID()}`
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('returns 400 for a non-UUID featureId', async () => {
+    const created = await createProject('Bad feature id')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}/habitats/not-a-uuid`
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+})
+
 describe('PATCH /projects/{id}', () => {
   it('updates the project name', async () => {
     const created = await createProject('Original')
