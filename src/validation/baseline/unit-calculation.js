@@ -73,6 +73,14 @@ function resolveDistinctiveness(broadType, habitatType) {
  * @param {number} [params.spatialRisk] fixed 1 for MVS
  * @returns {number}
  */
+function isFiniteNumber(value) {
+  return typeof value === 'number' && Number.isFinite(value)
+}
+
+function isValidArea(sizeSquareMetres) {
+  return isFiniteNumber(sizeSquareMetres) && sizeSquareMetres > 0
+}
+
 function computeHabitatUnits({
   sizeSquareMetres,
   distinctivenessScore,
@@ -81,19 +89,10 @@ function computeHabitatUnits({
   spatialRisk = DEFAULT_SPATIAL_RISK
 }) {
   if (
-    typeof sizeSquareMetres !== 'number' ||
-    !Number.isFinite(sizeSquareMetres) ||
-    sizeSquareMetres <= 0
+    !isValidArea(sizeSquareMetres) ||
+    !isFiniteNumber(distinctivenessScore) ||
+    !isFiniteNumber(conditionScore)
   ) {
-    return 0
-  }
-  if (
-    typeof distinctivenessScore !== 'number' ||
-    !Number.isFinite(distinctivenessScore)
-  ) {
-    return 0
-  }
-  if (typeof conditionScore !== 'number' || !Number.isFinite(conditionScore)) {
     return 0
   }
   const areaHectares = sizeSquareMetres / SQUARE_METRES_PER_HECTARE
@@ -151,9 +150,7 @@ function recomputeAreaHabitat({
   const complete =
     distinctiveness !== null &&
     conditionScore !== null &&
-    typeof sizeSquareMetres === 'number' &&
-    Number.isFinite(sizeSquareMetres) &&
-    sizeSquareMetres > 0
+    isValidArea(sizeSquareMetres)
 
   return {
     distinctiveness: distinctiveness?.distinctiveness ?? null,
