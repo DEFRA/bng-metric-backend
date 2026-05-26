@@ -5,8 +5,7 @@ import {
   unitsSchema,
   baselineSchema
 } from './project.js'
-
-const MAX_FILE_SIZE_BYTES = 100 * 1024 * 1024
+import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
 
 describe('#siteSchema', () => {
   test('Should validate a valid site object', () => {
@@ -101,7 +100,7 @@ describe('#projectSchema', () => {
     })
     expect(error).toBeDefined()
   })
-  
+
   test('Should reject baseline filename longer than 255 characters', () => {
     const { error } = projectSchema.validate({
       baseline: {
