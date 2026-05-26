@@ -26,6 +26,7 @@ import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
+import { baselineSchema } from '../validation/project.js'
 import {
   projects,
   baselineRedLine,
@@ -275,6 +276,20 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
         habitatSizes
       })
       enrichBaselineDocumentWithUnits(document)
+      const { error: schemaError } = baselineSchema.validate(document, {
+        allowUnknown: true
+      })
+      if (schemaError) {
+        logger.info(
+          `validateBaseline - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
+        )
+        return h.response({
+          valid: false,
+          errors: [
+            makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)
+          ]
+        })
+      }
       await persistBaseline(drizzle, projectId, document, geometries, uploadId)
     }
     return h.response(result)
