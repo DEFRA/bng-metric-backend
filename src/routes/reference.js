@@ -31,7 +31,19 @@ import {
  *           type: string
  *     responses:
  *       200:
- *         description: Returns an alphabetical list of habitat type names
+ *         description: |
+ *           Returns the alphabetical list of habitat types for the broad,
+ *           each with its distinctiveness band and score.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name: { type: string }
+ *                   distinctiveness: { type: string }
+ *                   distinctivenessScore: { type: number }
  *
  * /reference/conditions:
  *   get:

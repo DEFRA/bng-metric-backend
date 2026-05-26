@@ -4,7 +4,10 @@
 // and engine cannot drift.
 
 import { CONDITION_SCORES, DISTINCTIVENESS_SCORES } from 'bng-metric-engine'
-import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
+import {
+  distinctivenessByHabitatType,
+  distinctivenessScores
+} from './habitat-distinctiveness.js'
 
 export { distinctivenessScores } from './habitat-distinctiveness.js'
 
@@ -76,19 +79,25 @@ function getAreaBroadHabitats() {
 
 /**
  * Habitat types (sorted) within a broad habitat that qualify for the area
- * habitats journey.
+ * habitats journey. Each entry carries its distinctiveness band + score so
+ * the frontend can render AC2 (Distinctiveness text on habitat-type change)
+ * client-side without a further round trip.
  *
  * @param {string} broadHabitat
- * @returns {string[]}
+ * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
  */
 function getAreaHabitatTypes(broadHabitat) {
   const types = []
   for (const row of getHabitatsByBroad({ areaOnly: true })) {
     if (row.broadHabitat === broadHabitat) {
-      types.push(row.habitatType)
+      types.push({
+        name: row.habitatType,
+        distinctiveness: row.distinctiveness,
+        distinctivenessScore: distinctivenessScores[row.distinctiveness]?.score
+      })
     }
   }
-  return types.sort((a, b) => a.localeCompare(b))
+  return types.sort((a, b) => a.name.localeCompare(b.name))
 }
 
 /**

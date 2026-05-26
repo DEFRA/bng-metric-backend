@@ -38,18 +38,32 @@ describe('#getHabitatTypes', () => {
     const request = { query: { broad: 'Cropland' } }
     const result = getHabitatTypes.handler(request, {})
     expect(result.length).toBeGreaterThan(0)
-    expect(result).toContain('Cereal crops')
-    const sorted = [...result].sort((a, b) => a.localeCompare(b))
+    expect(result.map((t) => t.name)).toContain('Cereal crops')
+    const sorted = [...result].sort((a, b) => a.name.localeCompare(b.name))
     expect(result).toEqual(sorted)
+  })
+
+  test('Each entry carries its distinctiveness band and score', () => {
+    const request = { query: { broad: 'Grassland' } }
+    const result = getHabitatTypes.handler(request, {})
+    const modifiedGrassland = result.find(
+      (t) => t.name === 'Modified grassland'
+    )
+    expect(modifiedGrassland).toEqual({
+      name: 'Modified grassland',
+      distinctiveness: 'Low',
+      distinctivenessScore: 2
+    })
   })
 
   test('Excludes habitat types with High or V.High distinctiveness', () => {
     const request = { query: { broad: 'Grassland' } }
     const result = getHabitatTypes.handler(request, {})
+    const names = result.map((t) => t.name)
     // Lowland meadows is V.High — must be excluded
-    expect(result).not.toContain('Lowland meadows')
+    expect(names).not.toContain('Lowland meadows')
     // Modified grassland is Low — must be included
-    expect(result).toContain('Modified grassland')
+    expect(names).toContain('Modified grassland')
   })
 
   test('Returns empty array for an unknown broad habitat', () => {
