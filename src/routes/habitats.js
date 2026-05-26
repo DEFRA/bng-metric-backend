@@ -117,7 +117,7 @@ const updateAreaHabitat = {
     const updatedProject = {
       ...project,
       baseline: {
-        ...(project.baseline ?? {}),
+        ...project.baseline,
         habitats: updatedHabitats
       }
     }
