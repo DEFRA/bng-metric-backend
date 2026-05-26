@@ -13,6 +13,7 @@
   "GET /users/{userId}/projects",
   "GET /reference/broad-habitats",
   "GET /reference/habitat-types",
+  "GET /reference/habitat-types-by-broad",
   "GET /reference/conditions",
   "GET /reference/trading-rules"
 ]

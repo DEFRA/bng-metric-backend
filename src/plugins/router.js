@@ -17,6 +17,7 @@ import { getUserProjects } from '../routes/users.js'
 import {
   getBroadHabitats,
   getHabitatTypes,
+  getHabitatTypesByBroad,
   getConditions,
   getTradingRules
 } from '../routes/reference.js'
@@ -41,6 +42,7 @@ const router = {
         getUserProjects,
         getBroadHabitats,
         getHabitatTypes,
+        getHabitatTypesByBroad,
         getConditions,
         getTradingRules
       ])

@@ -101,6 +101,30 @@ function getAreaHabitatTypes(broadHabitat) {
 }
 
 /**
+ * Every area habitat type grouped by broad habitat. Returned in one response
+ * by /reference/habitat-types-by-broad so the BMD-480 client-side dropdown JS
+ * can avoid the 1 + N round trips it would otherwise need.
+ *
+ * @returns {Object<string, Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>>}
+ */
+function getAreaHabitatTypesByBroad() {
+  const grouped = {}
+  for (const row of getHabitatsByBroad({ areaOnly: true })) {
+    const list = grouped[row.broadHabitat] ?? []
+    list.push({
+      name: row.habitatType,
+      distinctiveness: row.distinctiveness,
+      distinctivenessScore: distinctivenessScores[row.distinctiveness]?.score
+    })
+    grouped[row.broadHabitat] = list
+  }
+  for (const broad of Object.keys(grouped)) {
+    grouped[broad].sort((a, b) => a.name.localeCompare(b.name))
+  }
+  return grouped
+}
+
+/**
  * Condition options for a habitat type, in canonical AC8b order, with
  * "Not Possible" entries removed. Returns [] for habitat types the engine
  * does not know about.
@@ -127,5 +151,6 @@ export {
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
+  getAreaHabitatTypesByBroad,
   getConditionsForHabitatType
 }

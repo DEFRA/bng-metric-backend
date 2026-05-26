@@ -53,6 +53,23 @@ describe('GET /reference/habitat-types', () => {
   })
 })
 
+describe('GET /reference/habitat-types-by-broad', () => {
+  it('returns the full lookup grouped by broad with band + score per type', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/habitat-types-by-broad'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(typeof res.result).toBe('object')
+    expect(res.result).toHaveProperty('Grassland')
+    res.result.Grassland.forEach((entry) => {
+      expect(entry).toHaveProperty('name')
+      expect(entry).toHaveProperty('distinctiveness')
+      expect(entry).toHaveProperty('distinctivenessScore')
+    })
+  })
+})
+
 describe('GET /reference/conditions', () => {
   it('returns the five-band condition list for a grassland habitat type', async () => {
     const res = await server.inject({

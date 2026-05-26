@@ -3,6 +3,7 @@ import Joi from 'joi'
 import {
   getAreaBroadHabitats,
   getAreaHabitatTypes,
+  getAreaHabitatTypesByBroad,
   getConditionsForHabitatType,
   tradingRulesByDistinctiveness
 } from '../validation/baseline/reference/habitat-reference.js'
@@ -44,6 +45,32 @@ import {
  *                   name: { type: string }
  *                   distinctiveness: { type: string }
  *                   distinctivenessScore: { type: number }
+ *
+ * /reference/habitat-types-by-broad:
+ *   get:
+ *     tags:
+ *       - Reference
+ *     summary: Every area habitat type grouped by broad habitat
+ *     description: |
+ *       Returns the full lookup table in one response. The BMD-480 client-side
+ *       dropdown JS uses this to repopulate the habitat-type dropdown on broad
+ *       change and to look up distinctiveness band/score on habitat-type
+ *       change, without a per-broad round trip.
+ *     responses:
+ *       200:
+ *         description: Map of broad name to habitat-type entries
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               additionalProperties:
+ *                 type: array
+ *                 items:
+ *                   type: object
+ *                   properties:
+ *                     name: { type: string }
+ *                     distinctiveness: { type: string }
+ *                     distinctivenessScore: { type: number }
  *
  * /reference/conditions:
  *   get:
@@ -91,6 +118,12 @@ const getHabitatTypes = {
   }
 }
 
+const getHabitatTypesByBroad = {
+  method: 'GET',
+  path: '/reference/habitat-types-by-broad',
+  handler: (_request, _h) => getAreaHabitatTypesByBroad()
+}
+
 const getConditions = {
   method: 'GET',
   path: '/reference/conditions',
@@ -113,4 +146,10 @@ const getTradingRules = {
   handler: (_request, _h) => tradingRulesByDistinctiveness
 }
 
-export { getBroadHabitats, getHabitatTypes, getConditions, getTradingRules }
+export {
+  getBroadHabitats,
+  getHabitatTypes,
+  getHabitatTypesByBroad,
+  getConditions,
+  getTradingRules
+}

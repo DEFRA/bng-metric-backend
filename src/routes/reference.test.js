@@ -3,6 +3,7 @@ import { describe, test, expect } from 'vitest'
 import {
   getBroadHabitats,
   getHabitatTypes,
+  getHabitatTypesByBroad,
   getConditions,
   getTradingRules
 } from './reference.js'
@@ -89,6 +90,42 @@ describe('#getHabitatTypes validation', () => {
   test('Fails when broad is empty', () => {
     const { error } = schema.validate({ broad: '' })
     expect(error).toBeDefined()
+  })
+})
+
+describe('#getHabitatTypesByBroad', () => {
+  test('Returns the full lookup grouped by broad habitat', () => {
+    const result = getHabitatTypesByBroad.handler({}, {})
+    expect(typeof result).toBe('object')
+    expect(Object.keys(result).length).toBeGreaterThan(0)
+    expect(result).toHaveProperty('Grassland')
+    expect(result).toHaveProperty('Cropland')
+  })
+
+  test('Each entry carries name, distinctiveness, and distinctivenessScore', () => {
+    const result = getHabitatTypesByBroad.handler({}, {})
+    const modifiedGrassland = result.Grassland.find(
+      (t) => t.name === 'Modified grassland'
+    )
+    expect(modifiedGrassland).toEqual({
+      name: 'Modified grassland',
+      distinctiveness: 'Low',
+      distinctivenessScore: 2
+    })
+  })
+
+  test('Habitat types within each broad are sorted alphabetically', () => {
+    const result = getHabitatTypesByBroad.handler({}, {})
+    for (const types of Object.values(result)) {
+      const sorted = [...types].sort((a, b) => a.name.localeCompare(b.name))
+      expect(types).toEqual(sorted)
+    }
+  })
+
+  test('Excludes broads whose only types are High or V.High', () => {
+    const result = getHabitatTypesByBroad.handler({}, {})
+    expect(result).not.toHaveProperty('Wetland')
+    expect(result).not.toHaveProperty('Coastal lagoons')
   })
 })
 
