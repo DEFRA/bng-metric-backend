@@ -1,120 +1,67 @@
 // Habitat unit calculation and status determination.
 //
-// Used by the save endpoint for BMD-480: when the user edits the dropdowns on
-// an Area Habitat and clicks Save, the backend recomputes the unit value and
-// completeness status before persisting the habitat document.
+// Used by the area-habitat PUT route (BMD-480): when the user edits the
+// dropdowns and clicks Save, the backend recomputes units and completeness
+// before persisting. Delegates reference lookups and arithmetic to
+// bng-metric-engine so the calculator stays the single source of truth.
 //
-// Formula (Statutory Biodiversity Metric, baseline area habitats):
-//
-//   units = areaHectares
-//         × distinctivenessScore
-//         × conditionScore
-//         × strategicSignificanceMultiplier
-//         × spatialRiskMultiplier
-//
-// Strategic significance and spatial risk are both fixed to 1 for the Minimum
-// Viable Service (MVS) — see BMD-315 AC9. They are passed in explicitly so
-// later stories can vary them without touching this function.
-//
-// A habitat is "Complete" when *every* input the formula needs is present and
-// valid; otherwise it is "Incomplete" with zero units (BMD-480 AC6).
+// The engine throws on null/unknown/invalid inputs (it is designed for the
+// happy path of a complete habitat row). This wrapper applies the BMD-480
+// AC6 soft-fail policy: any missing or invalid dropdown returns the habitat
+// with `status: 'Incomplete'` and zero units, but the distinctiveness band
+// is still resolved as soon as the (broad, habitat type) pair is recognised
+// so the UI can display it before the user picks a condition.
 
 import {
-  distinctivenessByHabitatType,
-  distinctivenessScores
-} from './reference/habitat-distinctiveness.js'
-import { getConditionScore } from './reference/habitat-condition.js'
+  BaselineLookupError,
+  calculateAreaHabitatBaseline,
+  resolveDistinctiveness
+} from 'bng-metric-engine'
 
 const SQUARE_METRES_PER_HECTARE = 10_000
-const DEFAULT_STRATEGIC_SIGNIFICANCE = 1
-const DEFAULT_SPATIAL_RISK = 1
 
 const HABITAT_STATUS = Object.freeze({
   COMPLETE: 'Complete',
   INCOMPLETE: 'Incomplete'
 })
 
-/**
- * Resolve the distinctiveness band + numeric score for a (broadType,
- * habitatType) pair. Returns null when either value is missing or the pair has
- * no entry in the reference table.
- *
- * @param {string|null|undefined} broadType
- * @param {string|null|undefined} habitatType
- * @returns {{ distinctiveness: string, score: number }|null}
- */
-function resolveDistinctiveness(broadType, habitatType) {
-  if (!broadType || !habitatType) {
-    return null
-  }
-  const key = `${broadType} - ${habitatType}`
-  const band = distinctivenessByHabitatType[key]
-  if (!band) {
-    return null
-  }
-  const entry = distinctivenessScores[band]
-  if (!entry) {
-    return null
-  }
-  return { distinctiveness: band, score: entry.score }
-}
-
-/**
- * Compute baseline habitat units for an area habitat.
- *
- * Returns 0 whenever any input is missing or invalid — that mirrors the AC6
- * "Scenario B" rule (incomplete habitats save zero units).
- *
- * @param {object} params
- * @param {number|null} params.sizeSquareMetres area in m² (from PostGIS)
- * @param {number|null} params.distinctivenessScore numeric score (0,2,4,6,8)
- * @param {number|null} params.conditionScore numeric score (0–3)
- * @param {number} [params.strategicSignificance] fixed 1 for MVS
- * @param {number} [params.spatialRisk] fixed 1 for MVS
- * @returns {number}
- */
-function isFiniteNumber(value) {
-  return typeof value === 'number' && Number.isFinite(value)
-}
-
 function isValidArea(sizeSquareMetres) {
-  return isFiniteNumber(sizeSquareMetres) && sizeSquareMetres > 0
+  return (
+    typeof sizeSquareMetres === 'number' &&
+    Number.isFinite(sizeSquareMetres) &&
+    sizeSquareMetres > 0
+  )
 }
 
-function computeHabitatUnits({
-  sizeSquareMetres,
-  distinctivenessScore,
-  conditionScore,
-  strategicSignificance = DEFAULT_STRATEGIC_SIGNIFICANCE,
-  spatialRisk = DEFAULT_SPATIAL_RISK
-}) {
-  if (
-    !isValidArea(sizeSquareMetres) ||
-    !isFiniteNumber(distinctivenessScore) ||
-    !isFiniteNumber(conditionScore)
-  ) {
-    return 0
+function lookupDistinctiveness(habitatKey) {
+  try {
+    return resolveDistinctiveness(habitatKey)
+  } catch (err) {
+    if (err instanceof BaselineLookupError) {
+      return null
+    }
+    throw err
   }
-  const areaHectares = sizeSquareMetres / SQUARE_METRES_PER_HECTARE
-  return (
-    areaHectares *
-    distinctivenessScore *
-    conditionScore *
-    strategicSignificance *
-    spatialRisk
-  )
+}
+
+function buildIncomplete(distinct) {
+  return {
+    distinctiveness: distinct?.distinctiveness ?? null,
+    distinctivenessScore: distinct?.distinctivenessScore ?? null,
+    conditionScore: null,
+    habitatUnits: 0,
+    status: HABITAT_STATUS.INCOMPLETE
+  }
 }
 
 /**
  * Recompute the derived fields of an area habitat after a dropdown edit.
  *
  * Given the user's selections (broadType, habitatType, condition) and the
- * habitat's existing area, returns the canonical persisted shape: distinct-
- * iveness band + score, condition score, units, and status. Saves zero units
- * + "Incomplete" when any selection is missing or unrecognised.
- *
- * Pure — does no I/O. The caller is responsible for merging the result back
- * into the JSONB habitat document.
+ * habitat's existing area, returns the canonical persisted shape:
+ * distinctiveness band + score, condition score, units, and status. Saves
+ * zero units + "Incomplete" when any selection is missing or unrecognised.
+ * Pure — does no I/O.
  *
  * @param {object} params
  * @param {string|null|undefined} params.broadType
@@ -135,36 +82,37 @@ function recomputeAreaHabitat({
   condition,
   sizeSquareMetres
 }) {
-  const distinctiveness = resolveDistinctiveness(broadType, habitatType)
-  const habitatKey =
-    broadType && habitatType ? `${broadType} - ${habitatType}` : null
-  const conditionScore = getConditionScore(habitatKey, condition)
-  const distinctivenessScore = distinctiveness?.score ?? null
+  if (!broadType || !habitatType) {
+    return buildIncomplete(null)
+  }
+  const habitatKey = `${broadType} - ${habitatType}`
+  const distinct = lookupDistinctiveness(habitatKey)
+  if (!distinct) {
+    return buildIncomplete(null)
+  }
+  if (!condition || !isValidArea(sizeSquareMetres)) {
+    return buildIncomplete(distinct)
+  }
 
-  const habitatUnits = computeHabitatUnits({
-    sizeSquareMetres,
-    distinctivenessScore,
-    conditionScore
-  })
-
-  const complete =
-    distinctiveness !== null &&
-    conditionScore !== null &&
-    isValidArea(sizeSquareMetres)
-
-  return {
-    distinctiveness: distinctiveness?.distinctiveness ?? null,
-    distinctivenessScore,
-    conditionScore,
-    habitatUnits: complete ? habitatUnits : 0,
-    status: complete ? HABITAT_STATUS.COMPLETE : HABITAT_STATUS.INCOMPLETE
+  try {
+    const sizeHa = sizeSquareMetres / SQUARE_METRES_PER_HECTARE
+    const result = calculateAreaHabitatBaseline(sizeHa, habitatKey, condition)
+    return {
+      distinctiveness: result.distinctiveness,
+      distinctivenessScore: result.distinctivenessScore,
+      conditionScore: result.conditionScore,
+      habitatUnits: result.units,
+      status: HABITAT_STATUS.COMPLETE
+    }
+  } catch (err) {
+    // Engine rejects the (habitat, condition) pair as "Not Possible". The
+    // route treats this as the user having picked an incompatible condition
+    // mid-flight — keep distinctiveness, drop condition score and units.
+    if (err instanceof BaselineLookupError) {
+      return buildIncomplete(distinct)
+    }
+    throw err
   }
 }
 
-export {
-  HABITAT_STATUS,
-  SQUARE_METRES_PER_HECTARE,
-  computeHabitatUnits,
-  recomputeAreaHabitat,
-  resolveDistinctiveness
-}
+export { HABITAT_STATUS, recomputeAreaHabitat }
