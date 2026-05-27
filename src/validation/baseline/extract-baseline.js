@@ -51,20 +51,24 @@ function buildHabitat(feature) {
   return { document, geometryRow }
 }
 
-function buildLinear(feature) {
+function buildLinearFeature(feature, extraProperties, statusForDocument) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, PROP_KEYS.parcelRef)
+  const extraDocumentProperties = Object.fromEntries(
+    extraProperties.map(([name, keys]) => [name, pickProp(props, keys)])
+  )
 
   const document = {
     featureId,
     ref,
     type: pickProp(props, PROP_KEYS.habitatType),
     condition: pickProp(props, PROP_KEYS.condition),
+    ...extraDocumentProperties,
     length: pickProp(props, PROP_KEYS.length),
     properties: props
   }
-  document.status = hedgerowStatus(document)
+  document.status = statusForDocument(document)
   const geometryRow = {
     featureId,
     ref,
@@ -74,29 +78,19 @@ function buildLinear(feature) {
   return { document, geometryRow }
 }
 
-function buildWatercourse(feature) {
-  const featureId = feature.featureId ?? randomUUID()
-  const props = feature.properties ?? {}
-  const ref = pickProp(props, PROP_KEYS.parcelRef)
+function buildHedgerow(feature) {
+  return buildLinearFeature(feature, [], hedgerowStatus)
+}
 
-  const document = {
-    featureId,
-    ref,
-    type: pickProp(props, PROP_KEYS.habitatType),
-    condition: pickProp(props, PROP_KEYS.condition),
-    riparianEncroachment: pickProp(props, PROP_KEYS.riparianEncroachment),
-    watercourseEncroachment: pickProp(props, PROP_KEYS.watercourseEncroachment),
-    length: pickProp(props, PROP_KEYS.length),
-    properties: props
-  }
-  document.status = watercourseStatus(document)
-  const geometryRow = {
-    featureId,
-    ref,
-    geometry: feature.nativeGeometry,
-    srid: feature.nativeSrid
-  }
-  return { document, geometryRow }
+function buildWatercourse(feature) {
+  return buildLinearFeature(
+    feature,
+    [
+      ['riparianEncroachment', PROP_KEYS.riparianEncroachment],
+      ['watercourseEncroachment', PROP_KEYS.watercourseEncroachment]
+    ],
+    watercourseStatus
+  )
 }
 
 function buildRedLine(features) {
@@ -124,7 +118,7 @@ function buildRedLine(features) {
  *
  * @param {object[]} features
  * @param {(feature: object) => { document: object, geometryRow: object }} builder
- *   Per-feature transform — one of `buildHabitat` or `buildLinear` — that
+ *   Per-feature transform, e.g. `buildHabitat` or a linear feature builder, that
  *   returns the JSONB-bound document and the matching PostGIS geometry row.
  */
 function splitFeatures(features, builder) {
@@ -169,7 +163,7 @@ function splitFeatures(features, builder) {
 export function extractBaseline(layers, meta = {}) {
   const redLine = buildRedLine(layers.redline)
   const habitats = splitFeatures(layers.areas ?? [], buildHabitat)
-  const hedgerows = splitFeatures(layers.hedgerows ?? [], buildLinear)
+  const hedgerows = splitFeatures(layers.hedgerows ?? [], buildHedgerow)
   const watercourses = splitFeatures(
     layers.watercourses ?? [],
     buildWatercourse
