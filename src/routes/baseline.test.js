@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import { ERROR_CODES } from '../validation/baseline/errors.js'
 import {
   UPLOAD_ID,
   PROJECT_ID,
@@ -186,6 +187,62 @@ const EMPTY_HABITAT_SIZES = {
     totalMetres: 0
   }
 }
+
+describe('validateBaseline handler — upload metadata early rejection', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+  })
+
+  it('rejects before downloading when filename exceeds max length and projectId is present', async () => {
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY,
+      filename: 'a'.repeat(256) + '.gpkg',
+      fileSize: MOCK_FILE_SIZE
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+
+    expect(downloadFile).not.toHaveBeenCalled()
+    expect(validateBaselineLayers).not.toHaveBeenCalled()
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: expect.arrayContaining([
+          expect.objectContaining({ code: ERROR_CODES.INVALID_FILE_METADATA })
+        ])
+      })
+    )
+  })
+
+  it('does not reject early when projectId is absent, even with an invalid filename', async () => {
+    vi.mocked(waitForUploadReady).mockResolvedValue({
+      bucket: MOCK_BUCKET,
+      key: MOCK_KEY,
+      filename: 'a'.repeat(256) + '.gpkg',
+      fileSize: MOCK_FILE_SIZE
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(downloadFile).toHaveBeenCalled()
+  })
+})
 
 describe('validateBaseline handler — pipeline calls', () => {
   let h

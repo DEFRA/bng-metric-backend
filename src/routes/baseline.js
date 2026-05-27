@@ -85,6 +85,24 @@ async function fetchBaselineBuffer(bucket, key, uploadId) {
   }
 }
 
+function validateUploadMetadata(uploadId, filename, fileSize, h) {
+  const { error: metaError } = baselineSchema.validate(
+    { uploadId, filename, fileSize },
+    { allowUnknown: true }
+  )
+  if (!metaError) {
+    return null
+  }
+
+  logger.info(
+    `validateBaseline - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+  )
+  return h.response({
+    valid: false,
+    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, metaError.message)]
+  })
+}
+
 // PostGIS has no built-in upsert for geometry; ST_Multi promotes Polygon →
 // MultiPolygon (and LineString → MultiLineString), and ST_Transform standardises
 // every geometry to EPSG:27700 regardless of the source SRID, matching what the
@@ -444,6 +462,18 @@ const validateBaseline = {
 
     const { bucket, key, filename, fileSize } =
       await resolveUploadLocation(uploadId)
+    if (projectId) {
+      const metadataErrorResponse = validateUploadMetadata(
+        uploadId,
+        filename,
+        fileSize,
+        h
+      )
+      if (metadataErrorResponse) {
+        return metadataErrorResponse
+      }
+    }
+
     const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
 
     const gateResult = validateGpkg(buffer)
