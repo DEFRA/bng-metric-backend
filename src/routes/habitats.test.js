@@ -44,25 +44,37 @@ function defaultHabitats() {
   ]
 }
 
-function makeDrizzle(projectRow, { updateReturning = projectRow } = {}) {
-  const selectChain = {
-    where: vi.fn().mockResolvedValue(projectRow ? [projectRow] : [])
-  }
-  selectChain.from = vi.fn().mockReturnValue({ where: selectChain.where })
+// Mirrors the drizzle .select().from().where().for('update').limit() chain the
+// route uses to read the project row under a transaction-scoped row lock.
+// `lockError` simulates the 55P03 the driver raises when SET LOCAL lock_timeout
+// fires while another transaction is mid-edit.
+function projectLookupChain(rows, lockError) {
+  const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
+  const limitStep = { limit: () => result }
+  const forStep = { for: () => limitStep }
+  const whereStep = { where: () => forStep }
+  return { from: () => whereStep }
+}
 
-  const returning = vi
-    .fn()
-    .mockResolvedValue(updateReturning ? [updateReturning] : [])
-  const where = vi.fn().mockReturnValue({ returning })
-  const set = vi.fn().mockReturnValue({ where })
+function makeDrizzle(projectRow, { lockError = null } = {}) {
+  const set = vi.fn().mockReturnValue({
+    where: vi.fn().mockResolvedValue(undefined)
+  })
+  const execute = vi.fn().mockResolvedValue(undefined)
+
+  const tx = {
+    execute,
+    select: vi.fn(() =>
+      projectLookupChain(projectRow ? [projectRow] : [], lockError)
+    ),
+    update: vi.fn().mockReturnValue({ set })
+  }
 
   return {
-    select: vi.fn().mockReturnValue(selectChain),
-    update: vi.fn().mockReturnValue({ set }),
-    _selectWhere: selectChain.where,
+    transaction: vi.fn((cb) => cb(tx)),
+    _tx: tx,
     _updateSet: set,
-    _updateWhere: where,
-    _updateReturning: returning
+    _execute: execute
   }
 }
 
@@ -232,6 +244,33 @@ describe('updateAreaHabitat handler — error cases', () => {
         {}
       )
     ).rejects.toThrow(/Habitat .* not found/)
+  })
+
+  test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
+    const lockError = Object.assign(new Error('lock_not_available'), {
+      code: '55P03'
+    })
+    const drizzle = makeDrizzle(makeProjectRow(defaultHabitats()), {
+      lockError
+    })
+
+    await expect(
+      updateAreaHabitat.handler(
+        {
+          drizzle,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+          payload: {
+            broadType: 'Grassland',
+            habitatType: 'Lowland meadows',
+            condition: 'Good'
+          }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: { statusCode: 409 }
+    })
   })
 
   test('throws 404 when the project has no baseline yet', async () => {
