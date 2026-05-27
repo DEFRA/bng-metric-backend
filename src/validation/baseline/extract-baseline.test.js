@@ -525,3 +525,197 @@ describe('extractBaseline — graceful inputs', () => {
     expect(out.geometries.watercourses).toEqual([])
   })
 })
+
+describe('extractBaseline — habitat status (AC1–AC6)', () => {
+  it('sets area habitat status to Complete when broadType, type and condition are all present', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Baseline Broad Habitat Type': 'Grassland',
+          [HABITAT_TYPE]: 'Lowland meadows',
+          [CONDITION]: 'Good'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].status).toBe('Complete')
+  })
+
+  it('sets area habitat status to Incomplete when any required field is missing', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          [HABITAT_TYPE]: 'Lowland meadows'
+          // condition and broadType absent
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].status).toBe('Incomplete')
+  })
+
+  it('sets hedgerow status to Complete when type and condition are both present', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'H1',
+            [HABITAT_TYPE]: 'Native species rich hedgerow',
+            [CONDITION]: 'Good'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: []
+    })
+
+    expect(out.document.hedgerows[0].status).toBe('Complete')
+  })
+
+  it('sets hedgerow status to Incomplete when condition is missing', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'H1',
+            [HABITAT_TYPE]: 'Native species rich hedgerow'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: []
+    })
+
+    expect(out.document.hedgerows[0].status).toBe('Incomplete')
+  })
+
+  it('sets watercourse status to Complete when all four required fields are present', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [CONDITION]: 'Moderate',
+            'Baseline Encroachment into riparian zone': 'None',
+            'Baseline Encroachment into Watercourse': 'None'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0].status).toBe('Complete')
+  })
+
+  it('sets watercourse status to Incomplete when riparianEncroachment is missing', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [CONDITION]: 'Moderate',
+            'Baseline Encroachment into Watercourse': 'None'
+            // riparianEncroachment absent
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0].status).toBe('Incomplete')
+  })
+
+  it('sets watercourse status to Incomplete when watercourseEncroachment is missing', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [CONDITION]: 'Moderate',
+            'Baseline Encroachment into riparian zone': 'None'
+            // watercourseEncroachment absent
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0].status).toBe('Incomplete')
+  })
+
+  it('embeds riparianEncroachment and watercourseEncroachment on watercourse documents', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            'Baseline Encroachment into riparian zone': 'Low',
+            'Baseline Encroachment into Watercourse': 'High'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0].riparianEncroachment).toBe('Low')
+    expect(out.document.watercourses[0].watercourseEncroachment).toBe('High')
+    expect(out.document.watercourses[0]).not.toHaveProperty(
+      'watercoursEncroachment'
+    )
+  })
+
+  it('reads underscored watercourse encroachment columns', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [CONDITION]: 'Moderate',
+            Baseline_Encroachment_into_riparian_zone: 'Low',
+            Baseline_Encroachment_into_Watercourse: 'High'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0]).toEqual(
+      expect.objectContaining({
+        riparianEncroachment: 'Low',
+        watercourseEncroachment: 'High',
+        status: 'Complete'
+      })
+    )
+  })
+})

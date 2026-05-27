@@ -1,5 +1,10 @@
 import { describe, test, expect } from 'vitest'
-import { projectSchema, siteSchema, unitsSchema } from './index.js'
+import {
+  baselineSchema,
+  projectSchema,
+  siteSchema,
+  unitsSchema
+} from './project.js'
 
 describe('#siteSchema', () => {
   test('Should validate a valid site object', () => {
@@ -53,5 +58,87 @@ describe('#projectSchema', () => {
       units: { habitat: 'bad' }
     })
     expect(error).toBeDefined()
+  })
+})
+
+describe('#baselineSchema', () => {
+  const validBaseline = {
+    uploadId: 'f6b667d8-998f-4f55-8a20-204c0c289147',
+    importedAt: '2026-05-08T00:00:00.000Z',
+    redLine: null,
+    habitats: [
+      {
+        featureId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+        ref: 'P1',
+        type: 'Lowland meadows',
+        broadType: 'Grassland',
+        condition: 'Good',
+        sizeSquareMetres: 10,
+        status: 'Complete',
+        properties: {}
+      }
+    ],
+    hedgerows: [
+      {
+        featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        type: 'Native species rich hedgerow',
+        condition: 'Good',
+        sizeMetres: 20,
+        status: 'Complete',
+        properties: {}
+      }
+    ],
+    watercourses: [
+      {
+        featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+        type: 'Watercourse footprint - Watercourse footprint',
+        condition: 'Moderate',
+        riparianEncroachment: 'None',
+        watercourseEncroachment: 'None',
+        sizeMetres: 30,
+        status: 'Complete',
+        properties: {}
+      }
+    ],
+    habitatSizes: {
+      areaHabitats: { totalSquareMetres: 10 },
+      hedgerows: { totalMetres: 20 },
+      watercourses: { totalMetres: 30 }
+    }
+  }
+
+  test('Should validate persisted baseline status and size fields', () => {
+    const { error } = baselineSchema.validate(validBaseline)
+    expect(error).toBeUndefined()
+  })
+
+  test('Should require status on persisted habitat documents', () => {
+    const baseline = structuredClone(validBaseline)
+    delete baseline.habitats[0].status
+
+    const { error } = baselineSchema.validate(baseline)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"habitats\[0\]\.status" is required/)
+  })
+
+  test('Should reject invalid persisted status values', () => {
+    const baseline = structuredClone(validBaseline)
+    baseline.watercourses[0].status = 'Done'
+
+    const { error } = baselineSchema.validate(baseline)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"watercourses\[0\]\.status" must be one of/)
+  })
+
+  test('Should reject the legacy misspelled watercoursEncroachment field', () => {
+    const baseline = structuredClone(validBaseline)
+    baseline.watercourses[0].watercoursEncroachment = 'None'
+    delete baseline.watercourses[0].watercourseEncroachment
+
+    const { error } = baselineSchema.validate(baseline)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(
+      /"watercourses\[0\]\.watercoursEncroachment" is not allowed/
+    )
   })
 })

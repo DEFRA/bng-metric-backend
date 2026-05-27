@@ -11,6 +11,14 @@ export const PROP_KEYS = {
     'Baseline_Strategic_Significance'
   ],
   retentionCategory: ['Retention Category', 'Retention_Category'],
+  riparianEncroachment: [
+    'Baseline Encroachment into riparian zone',
+    'Baseline_Encroachment_into_riparian_zone'
+  ],
+  watercourseEncroachment: [
+    'Baseline Encroachment into Watercourse',
+    'Baseline_Encroachment_into_Watercourse'
+  ],
   area: ['Area', 'Shape_Area'],
   length: ['Length', 'Shape_Length'],
   // fid is a GeoPackage-mandated lowercase column, so no real spelling

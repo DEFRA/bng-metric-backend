@@ -5,6 +5,11 @@ import {
   getDistinctiveness
 } from './reference/habitat-distinctiveness.js'
 import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
+import {
+  areaStatus,
+  hedgerowStatus,
+  watercourseStatus
+} from '../../services/baseline/calculate-habitat-statuses.js'
 
 function buildHabitat(feature) {
   const featureId = feature.featureId ?? randomUUID()
@@ -27,6 +32,7 @@ function buildHabitat(feature) {
     area: pickProp(props, PROP_KEYS.area),
     properties: props
   }
+  document.status = areaStatus(document)
   const geometryRow = {
     featureId,
     ref,
@@ -49,6 +55,32 @@ function buildLinear(feature) {
     length: pickProp(props, PROP_KEYS.length),
     properties: props
   }
+  document.status = hedgerowStatus(document)
+  const geometryRow = {
+    featureId,
+    ref,
+    geometry: feature.nativeGeometry,
+    srid: feature.nativeSrid
+  }
+  return { document, geometryRow }
+}
+
+function buildWatercourse(feature) {
+  const featureId = feature.featureId ?? randomUUID()
+  const props = feature.properties ?? {}
+  const ref = pickProp(props, PROP_KEYS.parcelRef)
+
+  const document = {
+    featureId,
+    ref,
+    type: pickProp(props, PROP_KEYS.habitatType),
+    condition: pickProp(props, PROP_KEYS.condition),
+    riparianEncroachment: pickProp(props, PROP_KEYS.riparianEncroachment),
+    watercourseEncroachment: pickProp(props, PROP_KEYS.watercourseEncroachment),
+    length: pickProp(props, PROP_KEYS.length),
+    properties: props
+  }
+  document.status = watercourseStatus(document)
   const geometryRow = {
     featureId,
     ref,
@@ -129,7 +161,10 @@ export function extractBaseline(layers, meta = {}) {
   const redLine = buildRedLine(layers.redline)
   const habitats = splitFeatures(layers.areas ?? [], buildHabitat)
   const hedgerows = splitFeatures(layers.hedgerows ?? [], buildLinear)
-  const watercourses = splitFeatures(layers.watercourses ?? [], buildLinear)
+  const watercourses = splitFeatures(
+    layers.watercourses ?? [],
+    buildWatercourse
+  )
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a

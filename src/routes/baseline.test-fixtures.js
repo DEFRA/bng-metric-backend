@@ -39,9 +39,44 @@ const STUB_EXTRACTED = {
     uploadId: UPLOAD_ID,
     importedAt: '2026-05-08T00:00:00.000Z',
     redLine: { featureId: FEATURE_ID_RED, properties: {} },
-    habitats: [{ featureId: FEATURE_ID_HAB, ref: 'P1' }],
-    hedgerows: [{ featureId: FEATURE_ID_HEDGE, ref: 'H1' }],
-    watercourses: [{ featureId: FEATURE_ID_WATER, ref: 'W1' }]
+    habitats: [
+      {
+        featureId: FEATURE_ID_HAB,
+        ref: 'P1',
+        type: 'Lowland meadows',
+        broadType: 'Grassland',
+        condition: 'Good',
+        status: 'Complete',
+        sizeSquareMetres: 10
+      }
+    ],
+    hedgerows: [
+      {
+        featureId: FEATURE_ID_HEDGE,
+        ref: 'H1',
+        type: 'Native species rich hedgerow',
+        condition: 'Good',
+        status: 'Complete',
+        sizeMetres: 20
+      }
+    ],
+    watercourses: [
+      {
+        featureId: FEATURE_ID_WATER,
+        ref: 'W1',
+        type: 'Watercourse footprint - Watercourse footprint',
+        condition: 'Moderate',
+        riparianEncroachment: 'None',
+        watercourseEncroachment: 'None',
+        status: 'Complete',
+        sizeMetres: 30
+      }
+    ],
+    habitatSizes: {
+      areaHabitats: { totalSquareMetres: 10 },
+      hedgerows: { totalMetres: 20 },
+      watercourses: { totalMetres: 30 }
+    }
   },
   geometries: {
     redLine: {

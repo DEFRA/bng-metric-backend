@@ -76,6 +76,26 @@ async function assertHabitatSizesPersisted(server, dbClient) {
   expect(habitatRows.length).toBeGreaterThan(0)
   for (const { habitat } of habitatRows) {
     expect(typeof habitat.sizeSquareMetres).toBe('number')
+    expect(['Complete', 'Incomplete']).toContain(habitat.status)
+  }
+
+  // Status on hedgerows and watercourses
+  const { rows: hedgerowRows } = await dbClient.query(
+    `SELECT jsonb_array_elements(project->'baseline'->'hedgerows') AS hedgerow
+       FROM bng.projects WHERE id = $1`,
+    [projectId]
+  )
+  for (const { hedgerow } of hedgerowRows) {
+    expect(['Complete', 'Incomplete']).toContain(hedgerow.status)
+  }
+
+  const { rows: watercourseRows } = await dbClient.query(
+    `SELECT jsonb_array_elements(project->'baseline'->'watercourses') AS watercourse
+       FROM bng.projects WHERE id = $1`,
+    [projectId]
+  )
+  for (const { watercourse } of watercourseRows) {
+    expect(['Complete', 'Incomplete']).toContain(watercourse.status)
   }
 }
 
