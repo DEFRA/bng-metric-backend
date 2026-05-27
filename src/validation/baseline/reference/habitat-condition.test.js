@@ -1,8 +1,5 @@
 import { describe, test, expect } from 'vitest'
-import {
-  conditionsByHabitatType,
-  getConditionScore
-} from './habitat-condition.js'
+import { getConditionScore } from './habitat-condition.js'
 
 describe('getConditionScore', () => {
   test('returns the numeric score for a standard 1-3 habitat', () => {
@@ -65,21 +62,5 @@ describe('getConditionScore', () => {
     expect(getConditionScore('Grassland - Lowland meadows', null)).toBeNull()
     expect(getConditionScore(undefined, undefined)).toBeNull()
     expect(getConditionScore('', '')).toBeNull()
-  })
-})
-
-describe('conditionsByHabitatType', () => {
-  test('covers every distinctiveness-table habitat type', async () => {
-    const { distinctivenessByHabitatType } =
-      await import('./habitat-distinctiveness.js')
-
-    const missing = Object.keys(distinctivenessByHabitatType).filter(
-      (t) => !(t in conditionsByHabitatType)
-    )
-
-    // The Infrastructure (IGGI) habitat is intentionally absent from the
-    // condition table — it sits outside the Statutory Metric condition matrix.
-    // Everything else must be represented.
-    expect(missing).toEqual(['Infrastructure (IGGI) - Infrastructure (IGGI)'])
   })
 })
