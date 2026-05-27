@@ -20,6 +20,7 @@ import {
   validateGpkg,
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
+import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
 import { extractBaseline } from '../validation/baseline/extract-baseline.js'
 import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
@@ -271,6 +272,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
         uploadId,
         habitatSizes
       })
+      enrichBaselineDocumentWithUnits(document)
       await persistBaseline(drizzle, projectId, document, geometries, uploadId)
     }
     return h.response(result)

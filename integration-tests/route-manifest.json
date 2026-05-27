@@ -3,10 +3,15 @@
   "GET /db-info",
   "GET /projects",
   "GET /projects/{id}",
+  "GET /projects/{projectId}/habitats/{featureId}",
   "POST /projects/new",
   "PATCH /projects/{id}",
   "POST /upload/initiate",
   "GET /upload/{uploadId}/status",
   "POST /baseline/validate/{uploadId}",
-  "GET /users/{userId}/projects"
+  "GET /users/{userId}/projects",
+  "GET /reference/broad-habitats",
+  "GET /reference/habitat-types",
+  "GET /reference/conditions",
+  "GET /reference/trading-rules"
 ]

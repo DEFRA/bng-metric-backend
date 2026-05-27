@@ -59,6 +59,47 @@ describe('#projectSchema', () => {
     })
     expect(error).toBeDefined()
   })
+
+  test('Should allow baseline habitat rows with metric units', () => {
+    const { error } = baselineSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      redLine: null,
+      habitats: [
+        {
+          featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          type: 'Grassland - Modified grassland',
+          condition: 'Moderate',
+          area: 100,
+          sizeSquareMetres: 100.4,
+          distinctiveness: 'Low',
+          distinctivenessScore: 2,
+          status: 'Complete',
+          units: 0.04
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      units: {
+        totalUnits: 0.04,
+        habitatsTotal: 0.04,
+        hedgerowsTotal: 0,
+        watercoursesTotal: 0
+      }
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should reject baseline units totals with missing fields', () => {
+    const { error } = baselineSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      redLine: null,
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      units: { totalUnits: 1, habitatsTotal: 1 }
+    })
+    expect(error).toBeDefined()
+  })
 })
 
 describe('#baselineSchema', () => {

@@ -7,6 +7,9 @@
   "engines": {
     "node": ">=24.14.1"
   },
+  "workspaces": [
+    "bng-metric-engine"
+  ],
   "scripts": {
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
@@ -69,7 +72,8 @@
     "swagger-jsdoc": "6.2.8",
     "swagger-ui-dist": "5.32.4",
     "undici": "7.24.6",
-    "wkx": "0.5.0"
+    "wkx": "0.5.0",
+    "bng-metric-engine": "workspace:*"
   },
   "devDependencies": {
     "@babel/core": "7.28.5",
