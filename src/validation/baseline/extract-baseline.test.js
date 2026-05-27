@@ -252,8 +252,8 @@ describe('extractBaseline — featureId join keys', () => {
   })
 })
 
-describe('extractBaseline — document AC1 fields and habitat shape', () => {
-  it('extracts AC1 fields per habitat: ref, type, condition, plus retention/strategic significance', () => {
+describe('extractBaseline — habitat document fields and shape', () => {
+  it('extracts habitat fields per parcel: ref, type, condition, plus retention/strategic significance', () => {
     const out = extractBaseline({
       redline: [],
       areas: [
@@ -423,7 +423,7 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
     )
   })
 
-  it('returns null for missing AC1 fields rather than undefined', () => {
+  it('returns null for missing habitat fields rather than undefined', () => {
     const out = extractBaseline({
       redline: [],
       areas: [feature({})],
@@ -530,7 +530,7 @@ describe('extractBaseline — graceful inputs', () => {
   })
 })
 
-describe('extractBaseline — habitat status (AC1–AC6)', () => {
+describe('extractBaseline — habitat status', () => {
   it('sets area habitat status to Complete when broadType, type and condition are all present', () => {
     const out = extractBaseline({
       redline: [],

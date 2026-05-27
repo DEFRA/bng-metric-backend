@@ -4,7 +4,7 @@ export const HABITAT_STATUS = {
 }
 
 /**
- * AC1 / AC4 — area habitats require broadType, type, and condition.
+ * Area habitats require broad habitat type, habitat type, and condition.
  *
  * @param {{ broadType: unknown, type: unknown, condition: unknown }} doc
  * @returns {'Complete'|'Incomplete'}
@@ -16,7 +16,7 @@ export function areaStatus(doc) {
 }
 
 /**
- * AC2 / AC5 — hedgerows require type and condition.
+ * Hedgerows require habitat type and condition.
  *
  * @param {{ type: unknown, condition: unknown }} doc
  * @returns {'Complete'|'Incomplete'}
@@ -28,8 +28,8 @@ export function hedgerowStatus(doc) {
 }
 
 /**
- * AC3 / AC6 — watercourses require type, condition, riparianEncroachment,
- * and watercourseEncroachment.
+ * Watercourses require habitat type, condition, riparian encroachment, and
+ * watercourse encroachment.
  *
  * @param {{ type: unknown, condition: unknown, riparianEncroachment: unknown, watercourseEncroachment: unknown }} doc
  * @returns {'Complete'|'Incomplete'}

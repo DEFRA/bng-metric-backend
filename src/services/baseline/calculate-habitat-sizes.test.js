@@ -52,7 +52,7 @@ const LAYERS_FOR_SIZE_QUERY = {
 }
 
 describe('HABITAT_SIZE_LAYERS', () => {
-  it('includes only layers used by AC1 size calculations', () => {
+  it('includes only layers used by baseline size calculations', () => {
     expect(HABITAT_SIZE_LAYERS).toEqual(['areas', 'hedgerows', 'watercourses'])
   })
 })

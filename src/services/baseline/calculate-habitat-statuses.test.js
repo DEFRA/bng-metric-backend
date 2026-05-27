@@ -17,7 +17,7 @@ describe('HABITAT_STATUS', () => {
   })
 })
 
-describe('areaStatus — AC1 / AC4', () => {
+describe('areaStatus', () => {
   it('returns Complete when broadType, type and condition are all present', () => {
     expect(
       areaStatus({
@@ -61,7 +61,7 @@ describe('areaStatus — AC1 / AC4', () => {
   })
 })
 
-describe('hedgerowStatus — AC2 / AC5', () => {
+describe('hedgerowStatus', () => {
   it('returns Complete when type and condition are both present', () => {
     expect(
       hedgerowStatus({
@@ -86,7 +86,7 @@ describe('hedgerowStatus — AC2 / AC5', () => {
   })
 })
 
-describe('watercourseStatus — AC3 / AC6', () => {
+describe('watercourseStatus', () => {
   const complete = {
     type: 'Watercourse footprint - Watercourse footprint',
     condition: 'Moderate',
