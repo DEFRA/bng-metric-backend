@@ -6,6 +6,10 @@
  */
 import Joi from 'joi'
 
+import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
+
+const MAX_FILENAME_LENGTH = 255
+
 const siteSchema = Joi.object({
   name: Joi.string(),
   grid_ref: Joi.string()
@@ -84,6 +88,8 @@ const watercourseHabitatSchema = Joi.object({
 
 const baselineSchema = Joi.object({
   uploadId: Joi.string().uuid().allow(null),
+  filename: Joi.string().max(MAX_FILENAME_LENGTH).allow(null),
+  fileSize: Joi.number().integer().min(0).max(MAX_FILE_SIZE_BYTES).allow(null),
   importedAt: Joi.string().isoDate(),
   redLine: redLineSchema,
   habitats: Joi.array().items(habitatSchema),

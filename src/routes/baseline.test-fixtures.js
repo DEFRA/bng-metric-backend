@@ -9,6 +9,8 @@ const FEATURE_ID_WATER = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
 
 const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
+const MOCK_FILENAME = 'my-baseline.gpkg'
+const MOCK_FILE_SIZE = 204800
 const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
@@ -197,6 +199,8 @@ export {
   FEATURE_ID_WATER,
   MOCK_BUCKET,
   MOCK_KEY,
+  MOCK_FILENAME,
+  MOCK_FILE_SIZE,
   MOCK_BUFFER,
   THROWS_502,
   HTTP_404,

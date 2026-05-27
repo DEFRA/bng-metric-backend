@@ -6,12 +6,14 @@
   "GET /projects/{projectId}/habitats/{featureId}",
   "POST /projects/new",
   "PATCH /projects/{id}",
+  "PUT /projects/{projectId}/habitats/{featureId}",
   "POST /upload/initiate",
   "GET /upload/{uploadId}/status",
   "POST /baseline/validate/{uploadId}",
   "GET /users/{userId}/projects",
   "GET /reference/broad-habitats",
   "GET /reference/habitat-types",
+  "GET /reference/habitat-types-by-broad",
   "GET /reference/conditions",
   "GET /reference/trading-rules"
 ]

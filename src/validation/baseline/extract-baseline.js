@@ -148,6 +148,8 @@ function splitFeatures(features, builder) {
  * @param {object[]} layers.watercourses
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
+ * @param {string} [meta.filename]
+ * @param {number} [meta.fileSize]
  * @param {string} [meta.importedAt] ISO timestamp; defaults to now
  * @param {object} [meta.habitatSizes] pre-calculated habitat sizes from calculateHabitatSizes
  * @returns {{
@@ -212,6 +214,8 @@ export function extractBaseline(layers, meta = {}) {
   return {
     document: {
       uploadId: meta.uploadId ?? null,
+      filename: meta.filename ?? null,
+      fileSize: meta.fileSize ?? null,
       importedAt: meta.importedAt ?? new Date().toISOString(),
       redLine: redLine.document,
       habitats: habitats.documents,

@@ -4,7 +4,10 @@
 // and engine cannot drift.
 
 import { CONDITION_SCORES, DISTINCTIVENESS_SCORES } from 'bng-metric-engine'
-import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
+import {
+  distinctivenessByHabitatType,
+  distinctivenessScores
+} from './habitat-distinctiveness.js'
 
 export { distinctivenessScores } from './habitat-distinctiveness.js'
 
@@ -77,19 +80,49 @@ function getAreaBroadHabitats() {
 
 /**
  * Habitat types (sorted) within a broad habitat that qualify for the area
- * habitats journey.
+ * habitats journey. Each entry carries its distinctiveness band + score so
+ * the frontend can render AC2 (Distinctiveness text on habitat-type change)
+ * client-side without a further round trip.
  *
  * @param {string} broadHabitat
- * @returns {string[]}
+ * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
  */
 function getAreaHabitatTypes(broadHabitat) {
   const types = []
   for (const row of getHabitatsByBroad({ areaOnly: true })) {
     if (row.broadHabitat === broadHabitat) {
-      types.push(row.habitatType)
+      types.push({
+        name: row.habitatType,
+        distinctiveness: row.distinctiveness,
+        distinctivenessScore: distinctivenessScores[row.distinctiveness]?.score
+      })
     }
   }
-  return types.sort((a, b) => a.localeCompare(b))
+  return types.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Every area habitat type grouped by broad habitat. Returned in one response
+ * by /reference/habitat-types-by-broad so the BMD-480 client-side dropdown JS
+ * can avoid the 1 + N round trips it would otherwise need.
+ *
+ * @returns {Object<string, Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>>}
+ */
+function getAreaHabitatTypesByBroad() {
+  const grouped = {}
+  for (const row of getHabitatsByBroad({ areaOnly: true })) {
+    const list = grouped[row.broadHabitat] ?? []
+    list.push({
+      name: row.habitatType,
+      distinctiveness: row.distinctiveness,
+      distinctivenessScore: distinctivenessScores[row.distinctiveness]?.score
+    })
+    grouped[row.broadHabitat] = list
+  }
+  for (const broad of Object.keys(grouped)) {
+    grouped[broad].sort((a, b) => a.name.localeCompare(b.name))
+  }
+  return grouped
 }
 
 /**
@@ -119,5 +152,6 @@ export {
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
+  getAreaHabitatTypesByBroad,
   getConditionsForHabitatType
 }

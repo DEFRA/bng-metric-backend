@@ -524,3 +524,46 @@ describe('validateBaseline handler full validation error handling', () => {
     )
   })
 })
+
+describe('validateBaseline handler — document schema validation', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
+
+  it('returns INVALID_FILE_METADATA when filename exceeds the allowed length', async () => {
+    vi.mocked(extractBaseline).mockReturnValue({
+      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      geometries: STUB_EXTRACTED.geometries
+    })
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [
+          expect.objectContaining({ code: ERROR_CODES.INVALID_FILE_METADATA })
+        ]
+      })
+    )
+  })
+
+  it('does not open a transaction when document schema validation fails', async () => {
+    vi.mocked(extractBaseline).mockReturnValue({
+      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      geometries: STUB_EXTRACTED.geometries
+    })
+    const { drizzle, log } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+    expect(log.transactionCalls).toBe(0)
+  })
+})
