@@ -10,12 +10,14 @@ import {
   createProject,
   updateProject
 } from '../routes/projects.js'
+import { updateAreaHabitat } from '../routes/habitats.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
 import { getUserProjects } from '../routes/users.js'
 import {
   getBroadHabitats,
   getHabitatTypes,
+  getHabitatTypesByBroad,
   getConditions,
   getTradingRules
 } from '../routes/reference.js'
@@ -33,12 +35,14 @@ const router = {
         getHabitat,
         createProject,
         updateProject,
+        updateAreaHabitat,
         initiateUpload,
         uploadStatus,
         validateBaseline,
         getUserProjects,
         getBroadHabitats,
         getHabitatTypes,
+        getHabitatTypesByBroad,
         getConditions,
         getTradingRules
       ])

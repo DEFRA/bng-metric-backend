@@ -30,13 +30,18 @@ describe('GET /reference/broad-habitats', () => {
 })
 
 describe('GET /reference/habitat-types', () => {
-  it('returns habitat types for a given broad habitat', async () => {
+  it('returns habitat types with distinctiveness band and score', async () => {
     const res = await server.inject({
       method: 'GET',
       url: '/reference/habitat-types?broad=Cropland'
     })
     expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result).toContain('Cereal crops')
+    expect(res.result.map((t) => t.name)).toContain('Cereal crops')
+    res.result.forEach((entry) => {
+      expect(entry).toHaveProperty('name')
+      expect(entry).toHaveProperty('distinctiveness')
+      expect(entry).toHaveProperty('distinctivenessScore')
+    })
   })
 
   it('returns 400 when broad query param is missing', async () => {
@@ -45,6 +50,23 @@ describe('GET /reference/habitat-types', () => {
       url: '/reference/habitat-types'
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+})
+
+describe('GET /reference/habitat-types-by-broad', () => {
+  it('returns the full lookup grouped by broad with band + score per type', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/habitat-types-by-broad'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(typeof res.result).toBe('object')
+    expect(res.result).toHaveProperty('Grassland')
+    res.result.Grassland.forEach((entry) => {
+      expect(entry).toHaveProperty('name')
+      expect(entry).toHaveProperty('distinctiveness')
+      expect(entry).toHaveProperty('distinctivenessScore')
+    })
   })
 })
 
