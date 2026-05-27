@@ -174,7 +174,7 @@ export class UploadTimeoutError extends Error {
  * Returns the bucket and key for the first file in the upload (baseline uploads
  * are single-file). Throws if the upload is not complete or no file is found.
  * @param {string} uploadId - The upload ID to resolve
- * @returns {Promise<{bucket: string, key: string}>}
+ * @returns {Promise<{bucket: string, key: string, filename: string|null, fileSize: number|null}>}
  */
 export async function getUploadedFileS3Location(uploadId) {
   const baseUrl = getCdpUploaderUrl()
@@ -202,7 +202,12 @@ export async function getUploadedFileS3Location(uploadId) {
   logger.info(
     `Resolved S3 location - uploadId: ${uploadId}, bucket: ${file.s3Bucket}, key: ${file.s3Key}`
   )
-  return { bucket: file.s3Bucket, key: file.s3Key }
+  return {
+    bucket: file.s3Bucket,
+    key: file.s3Key,
+    filename: file.filename ?? null,
+    fileSize: file.contentLength ?? null
+  }
 }
 
 /**

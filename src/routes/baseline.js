@@ -26,6 +26,7 @@ import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
+import { baselineSchema } from '../validation/project.js'
 import {
   projects,
   baselineRedLine,
@@ -82,6 +83,24 @@ async function fetchBaselineBuffer(bucket, key, uploadId) {
     )
     throw Boom.badGateway('Unable to download file from storage')
   }
+}
+
+function validateUploadMetadata(uploadId, filename, fileSize, h) {
+  const { error: metaError } = baselineSchema.validate(
+    { uploadId, filename, fileSize },
+    { allowUnknown: true }
+  )
+  if (!metaError) {
+    return null
+  }
+
+  logger.info(
+    `validateBaseline - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+  )
+  return h.response({
+    valid: false,
+    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, metaError.message)]
+  })
 }
 
 // PostGIS has no built-in upsert for geometry; ST_Multi promotes Polygon →
@@ -229,8 +248,71 @@ async function runPersistTransaction(drizzle, projectId, document, geometries) {
   })
 }
 
+/**
+ * Sizes, extracts, validates against the Joi schema, and persists the baseline
+ * document for a known-valid set of layers. Returns a Hapi response on any
+ * recoverable error, or `null` on success.
+ */
+async function saveBaselineForProject(
+  drizzle,
+  pgPool,
+  projectId,
+  layers,
+  context,
+  h
+) {
+  const { uploadId, filename, fileSize } = context
+  const layersWithIds = assignFeatureIds(layers)
+
+  let habitatSizes
+  try {
+    habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
+  } catch (err) {
+    logger.error(
+      `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
+    )
+    return h
+      .response({
+        valid: false,
+        errors: [
+          makeError(
+            ERROR_CODES.SIZING_FAILED,
+            'Unable to calculate habitat sizes'
+          )
+        ]
+      })
+      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  }
+
+  const { document, geometries } = extractBaseline(layersWithIds, {
+    uploadId,
+    filename,
+    fileSize,
+    habitatSizes
+  })
+
+  enrichBaselineDocumentWithUnits(document)
+  const { error: schemaError } = baselineSchema.validate(document, {
+    allowUnknown: true
+  })
+  if (schemaError) {
+    logger.info(
+      `validateBaseline - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
+    )
+    return h.response({
+      valid: false,
+      errors: [
+        makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)
+      ]
+    })
+  }
+
+  await persistBaseline(drizzle, projectId, document, geometries, uploadId)
+  return null
+}
+
 async function runFullValidation(buffer, drizzle, pgPool, context, h) {
-  const { uploadId, projectId } = context
+  const { uploadId, projectId, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), 'baseline-'))
   const localPath = path.join(tmpDir, 'baseline.gpkg')
 
@@ -248,32 +330,17 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
     }
     logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
     if (projectId) {
-      const layersWithIds = assignFeatureIds(layers)
-      let habitatSizes
-      try {
-        habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
-      } catch (err) {
-        logger.error(
-          `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
-        )
-        return h
-          .response({
-            valid: false,
-            errors: [
-              makeError(
-                ERROR_CODES.SIZING_FAILED,
-                'Unable to calculate habitat sizes'
-              )
-            ]
-          })
-          .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+      const errorResponse = await saveBaselineForProject(
+        drizzle,
+        pgPool,
+        projectId,
+        layers,
+        { uploadId, filename, fileSize },
+        h
+      )
+      if (errorResponse) {
+        return errorResponse
       }
-      const { document, geometries } = extractBaseline(layersWithIds, {
-        uploadId,
-        habitatSizes
-      })
-      enrichBaselineDocumentWithUnits(document)
-      await persistBaseline(drizzle, projectId, document, geometries, uploadId)
     }
     return h.response(result)
   } catch (error) {
@@ -393,7 +460,20 @@ const validateBaseline = {
     const { uploadId } = request.params
     const projectId = request.payload?.projectId ?? null
 
-    const { bucket, key } = await resolveUploadLocation(uploadId)
+    const { bucket, key, filename, fileSize } =
+      await resolveUploadLocation(uploadId)
+    if (projectId) {
+      const metadataErrorResponse = validateUploadMetadata(
+        uploadId,
+        filename,
+        fileSize,
+        h
+      )
+      if (metadataErrorResponse) {
+        return metadataErrorResponse
+      }
+    }
+
     const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
 
     const gateResult = validateGpkg(buffer)
@@ -408,7 +488,7 @@ const validateBaseline = {
       buffer,
       request.drizzle,
       request.pg,
-      { uploadId, projectId },
+      { uploadId, projectId, filename, fileSize },
       h
     )
   }
