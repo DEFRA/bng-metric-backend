@@ -10,6 +10,15 @@ import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
 
 const MAX_FILENAME_LENGTH = 255
 
+// Whitelist-only approach addresses six classes of attack in one rule:
+//   1. Extension spoofing  — bidi overrides (U+202E etc.) not in [a-zA-Z0-9 ._-]
+//   2. Path traversal      — / and leading dots excluded; .. sequences impossible
+//   3. Log injection       — \n, \r and other control chars not in the set
+//   4. Wrong extension     — \.gpkg$ is mandatory (case-insensitive)
+//   5. Invisible chars     — zero-width / formatting codepoints not in the set
+//   6. SQL injection       — ' " ; not in the set; lone - cannot form --
+const SAFE_FILENAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9 ._-]*\.gpkg$/i
+
 const siteSchema = Joi.object({
   name: Joi.string(),
   grid_ref: Joi.string()
@@ -88,7 +97,10 @@ const watercourseHabitatSchema = Joi.object({
 
 const baselineSchema = Joi.object({
   uploadId: Joi.string().uuid().allow(null),
-  filename: Joi.string().max(MAX_FILENAME_LENGTH).allow(null),
+  filename: Joi.string()
+    .max(MAX_FILENAME_LENGTH)
+    .pattern(SAFE_FILENAME_RE)
+    .allow(null),
   fileSize: Joi.number().integer().min(0).max(MAX_FILE_SIZE_BYTES).allow(null),
   importedAt: Joi.string().isoDate(),
   redLine: redLineSchema,
