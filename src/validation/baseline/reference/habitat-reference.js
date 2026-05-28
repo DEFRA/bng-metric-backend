@@ -13,8 +13,8 @@ export { distinctivenessScores } from './habitat-distinctiveness.js'
 
 const NOT_POSSIBLE = 'Not Possible'
 
-// Trading rules per AC10. Sourced from the engine's "Suggested action"
-// strings so the wording stays in lockstep with the calculator.
+// Trading rules sourced from the engine's "Suggested action" strings so the
+// wording stays in lockstep with the calculator.
 const tradingRulesByDistinctiveness = Object.fromEntries(
   Object.entries(DISTINCTIVENESS_SCORES).map(([band, entry]) => [
     band,
@@ -23,7 +23,8 @@ const tradingRulesByDistinctiveness = Object.fromEntries(
 )
 
 // Habitat types whose distinctiveness band is one of these are shown in the
-// Area Habitats dropdown. High and V.High are excluded per AC5b / AC6b.
+// Area Habitats dropdown. High and V.High are excluded because they cannot be
+// selected in the area habitats journey.
 const AREA_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
 // Split a habitat type key like 'Grassland - Lowland meadows' or
@@ -125,9 +126,9 @@ function getAreaHabitatTypesByBroad() {
 }
 
 /**
- * Condition options for a habitat type, in canonical AC8b order, with
- * "Not Possible" entries removed. Returns [] for habitat types the engine
- * does not know about.
+ * Condition options for a habitat type, in the engine's canonical order, with
+ * "Not Possible" entries removed. Returns [] for habitat types the engine does
+ * not know about.
  *
  * @param {string} habitatType
  * @returns {Array<{ condition: string, score: number }>}

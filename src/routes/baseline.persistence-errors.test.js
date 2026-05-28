@@ -166,6 +166,44 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     expect(log.updates).toHaveLength(1)
   })
 
+  it('writes status and size fields into the persisted JSONB baseline document', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+    await validateBaseline.handler(request, h)
+
+    const docJson = log.updates[0].payload.project.queryChunks.find(
+      (chunk) => typeof chunk === 'string' && chunk.includes('"habitats"')
+    )
+    const document = JSON.parse(docJson)
+    expect(document.habitats[0]).toEqual(
+      expect.objectContaining({
+        status: 'Complete',
+        sizeSquareMetres: 10
+      })
+    )
+    expect(document.hedgerows[0]).toEqual(
+      expect.objectContaining({
+        status: 'Complete',
+        sizeMetres: 20
+      })
+    )
+    expect(document.watercourses[0]).toEqual(
+      expect.objectContaining({
+        status: 'Complete',
+        sizeMetres: 30,
+        watercourseEncroachment: 'None'
+      })
+    )
+    expect(document.habitatSizes).toEqual(
+      expect.objectContaining({
+        areaHabitats: { totalSquareMetres: 10 }
+      })
+    )
+  })
+
   it('passes habitatSizes into extractBaseline as meta', async () => {
     const sizes = {
       areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },

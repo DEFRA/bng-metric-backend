@@ -1,1 +1,9 @@
-export { projectSchema, siteSchema, unitsSchema } from './project.js'
+export {
+  baselineSchema,
+  habitatSchema,
+  linearHabitatSchema,
+  projectSchema,
+  siteSchema,
+  unitsSchema,
+  watercourseHabitatSchema
+} from './project.js'

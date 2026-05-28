@@ -21,6 +21,18 @@ const unitsSchema = Joi.object({
   watercourse: Joi.number()
 })
 
+const habitatSizesSummarySchema = Joi.object({
+  areaHabitats: Joi.object({
+    totalSquareMetres: Joi.number().required()
+  }).required(),
+  hedgerows: Joi.object({
+    totalMetres: Joi.number().required()
+  }).required(),
+  watercourses: Joi.object({
+    totalMetres: Joi.number().required()
+  }).required()
+}).allow(null)
+
 const baselineUnitsTotalsSchema = Joi.object({
   totalUnits: Joi.number().required(),
   habitatsTotal: Joi.number().required(),
@@ -45,6 +57,7 @@ const habitatSchema = Joi.object({
   retentionCategory: Joi.string().allow(null, ''),
   area: Joi.number().allow(null),
   sizeSquareMetres: Joi.number().allow(null),
+  status: Joi.string().valid('Complete', 'Incomplete').required(),
   units: Joi.number().allow(null),
   properties: Joi.object().unknown(true)
 })
@@ -55,6 +68,21 @@ const linearHabitatSchema = Joi.object({
   type: Joi.string().allow(null, ''),
   condition: Joi.string().allow(null, ''),
   length: Joi.number().allow(null),
+  sizeMetres: Joi.number().allow(null),
+  status: Joi.string().valid('Complete', 'Incomplete').required(),
+  properties: Joi.object().unknown(true)
+})
+
+const watercourseHabitatSchema = Joi.object({
+  featureId: Joi.string().uuid().required(),
+  ref: Joi.string().allow(null, ''),
+  type: Joi.string().allow(null, ''),
+  condition: Joi.string().allow(null, ''),
+  riparianEncroachment: Joi.string().allow(null, ''),
+  watercourseEncroachment: Joi.string().allow(null, ''),
+  length: Joi.number().allow(null),
+  sizeMetres: Joi.number().allow(null),
+  status: Joi.string().valid('Complete', 'Incomplete').required(),
   properties: Joi.object().unknown(true)
 })
 
@@ -66,7 +94,8 @@ const baselineSchema = Joi.object({
   redLine: redLineSchema,
   habitats: Joi.array().items(habitatSchema),
   hedgerows: Joi.array().items(linearHabitatSchema),
-  watercourses: Joi.array().items(linearHabitatSchema),
+  watercourses: Joi.array().items(watercourseHabitatSchema),
+  habitatSizes: habitatSizesSummarySchema,
   units: baselineUnitsTotalsSchema
 })
 
@@ -84,5 +113,6 @@ export {
   baselineUnitsTotalsSchema,
   baselineSchema,
   habitatSchema,
-  linearHabitatSchema
+  linearHabitatSchema,
+  watercourseHabitatSchema
 }

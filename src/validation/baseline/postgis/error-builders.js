@@ -69,8 +69,8 @@ function describeSliver(sample) {
 
 /**
  * Variant of describeFeature that also names the escape geometry's area + WKT
- * so AC8's per-parcel report co-locates the parcel ref with where on the map
- * it leaks the redline.
+ * so the per-parcel report co-locates the parcel ref with where on the map it
+ * leaks the redline.
  */
 function describeFeatureWithEscape(sample) {
   const base = describeFeature(sample)

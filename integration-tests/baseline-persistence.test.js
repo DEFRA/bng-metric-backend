@@ -151,8 +151,8 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
     )
   })
 
-  it('saves AC1 fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {
-    const project = await createProject('Integration test — AC1 fields')
+  it('saves core habitat fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {
+    const project = await createProject('Integration test — habitat fields')
     const uploadId = await uploadFixture(FIXTURE)
 
     await callValidate(uploadId, { projectId: project.id })

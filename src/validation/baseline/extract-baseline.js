@@ -1,6 +1,11 @@
 import { randomUUID } from 'node:crypto'
 
 import { PROP_KEYS, pickProp } from './properties.js'
+import {
+  areaStatus,
+  hedgerowStatus,
+  watercourseStatus
+} from '../../services/baseline/calculate-habitat-statuses.js'
 
 /**
  * @param {number | null | undefined} sizeSquareMetres
@@ -36,6 +41,7 @@ function buildHabitat(feature) {
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     properties: props
   }
+  document.status = areaStatus(document)
   const geometryRow = {
     featureId,
     ref,
@@ -45,19 +51,24 @@ function buildHabitat(feature) {
   return { document, geometryRow }
 }
 
-function buildLinear(feature) {
+function buildLinearFeature(feature, extraProperties, statusForDocument) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, PROP_KEYS.parcelRef)
+  const extraDocumentProperties = Object.fromEntries(
+    extraProperties.map(([name, keys]) => [name, pickProp(props, keys)])
+  )
 
   const document = {
     featureId,
     ref,
     type: pickProp(props, PROP_KEYS.habitatType),
     condition: pickProp(props, PROP_KEYS.condition),
+    ...extraDocumentProperties,
     length: pickProp(props, PROP_KEYS.length),
     properties: props
   }
+  document.status = statusForDocument(document)
   const geometryRow = {
     featureId,
     ref,
@@ -65,6 +76,21 @@ function buildLinear(feature) {
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
+}
+
+function buildHedgerow(feature) {
+  return buildLinearFeature(feature, [], hedgerowStatus)
+}
+
+function buildWatercourse(feature) {
+  return buildLinearFeature(
+    feature,
+    [
+      ['riparianEncroachment', PROP_KEYS.riparianEncroachment],
+      ['watercourseEncroachment', PROP_KEYS.watercourseEncroachment]
+    ],
+    watercourseStatus
+  )
 }
 
 function buildRedLine(features) {
@@ -92,7 +118,7 @@ function buildRedLine(features) {
  *
  * @param {object[]} features
  * @param {(feature: object) => { document: object, geometryRow: object }} builder
- *   Per-feature transform — one of `buildHabitat` or `buildLinear` — that
+ *   Per-feature transform, e.g. `buildHabitat` or a linear feature builder, that
  *   returns the JSONB-bound document and the matching PostGIS geometry row.
  */
 function splitFeatures(features, builder) {
@@ -139,8 +165,11 @@ function splitFeatures(features, builder) {
 export function extractBaseline(layers, meta = {}) {
   const redLine = buildRedLine(layers.redline)
   const habitats = splitFeatures(layers.areas ?? [], buildHabitat)
-  const hedgerows = splitFeatures(layers.hedgerows ?? [], buildLinear)
-  const watercourses = splitFeatures(layers.watercourses ?? [], buildLinear)
+  const hedgerows = splitFeatures(layers.hedgerows ?? [], buildHedgerow)
+  const watercourses = splitFeatures(
+    layers.watercourses ?? [],
+    buildWatercourse
+  )
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
