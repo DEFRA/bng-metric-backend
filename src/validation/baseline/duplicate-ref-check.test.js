@@ -102,4 +102,16 @@ describe('checkDuplicateHabitatRefs — duplicates present', () => {
     expect(err.details.count).toBe(1)
     expect(err.details.sample[0].ref).toBe('PR-1')
   })
+
+  it('caps the sample at 50 entries and appends "and N more" to the message', () => {
+    const areas = []
+    for (let i = 0; i < 60; i++) {
+      areas.push(area(`PR-${i}`))
+      areas.push(area(`PR-${i}`))
+    }
+    const err = checkDuplicateHabitatRefs({ areas })
+    expect(err.details.count).toBe(60)
+    expect(err.details.sample).toHaveLength(50)
+    expect(err.message).toContain('(and 10 more)')
+  })
 })

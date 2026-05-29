@@ -10,8 +10,13 @@ const FIRST_DUPLICATE_INSTANCE = 2
  * that ref. Habitats with a missing or blank ref are ignored — that is a
  * separate schema concern.
  *
+ * `details.count` is the number of *distinct duplicated refs* (not the number
+ * of offending features) — e.g. PR-1 appearing 3× and PR-2 appearing 2× yields
+ * `count: 2`. This differs from distinctiveness-check, where `count` is the
+ * number of offending features.
+ *
  * @param {object} layers Output of readBaselineGeoPackage
- * @returns {{ code: string, message: string, details: object }|null}
+ * @returns {{ code: string, message: string, details: { count: number, sample: Array<{ ref: string, indices: number[], count: number }> } }|null}
  */
 export function checkDuplicateHabitatRefs(layers) {
   const features = layers?.areas ?? []

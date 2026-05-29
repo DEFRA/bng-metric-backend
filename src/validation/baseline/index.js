@@ -31,12 +31,12 @@ export async function validateBaselineLayers(layers, pool) {
   const { valid, errors } = await validateBaselineLayersPostgis(pool, layers)
   // JS-side checks that don't need PostGIS. Surface ahead of geometry errors so
   // the user sees blocking policy/data-quality issues first.
-  const jsErrors = [
+  const dataQualityErrors = [
     checkBaselineDistinctiveness(layers),
     checkDuplicateHabitatRefs(layers)
   ].filter(Boolean)
-  if (jsErrors.length === 0) {
+  if (dataQualityErrors.length === 0) {
     return { valid, errors }
   }
-  return { valid: false, errors: [...jsErrors, ...errors] }
+  return { valid: false, errors: [...dataQualityErrors, ...errors] }
 }
