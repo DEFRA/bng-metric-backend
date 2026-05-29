@@ -1,4 +1,5 @@
 import { checkBaselineDistinctiveness } from './distinctiveness-check.js'
+import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readBaselineGeoPackage } from './geopackage.js'
 import { validateBaselineLayersPostgis } from './postgis/index.js'
 
@@ -28,11 +29,14 @@ export async function validateBaselineLayers(layers, pool) {
     throw new Error('validateBaselineLayers requires a pg pool')
   }
   const { valid, errors } = await validateBaselineLayersPostgis(pool, layers)
-  // Distinctiveness is a JS-side eligibility check (BMD-352). Surface it ahead
-  // of geometry errors so the user sees the policy blocker first.
-  const distinctivenessError = checkBaselineDistinctiveness(layers)
-  if (!distinctivenessError) {
+  // JS-side checks that don't need PostGIS. Surface ahead of geometry errors so
+  // the user sees blocking policy/data-quality issues first.
+  const dataQualityErrors = [
+    checkBaselineDistinctiveness(layers),
+    checkDuplicateHabitatRefs(layers)
+  ].filter(Boolean)
+  if (dataQualityErrors.length === 0) {
     return { valid, errors }
   }
-  return { valid: false, errors: [distinctivenessError, ...errors] }
+  return { valid: false, errors: [...dataQualityErrors, ...errors] }
 }
