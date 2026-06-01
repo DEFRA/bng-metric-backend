@@ -27,6 +27,9 @@ const tradingRulesByDistinctiveness = Object.fromEntries(
 // selected in the area habitats journey.
 const AREA_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
+// Same MVS-scope filter applies to the hedgerow dropdown (BMD-500 AC6b).
+const HEDGEROW_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
+
 // Split a habitat type key like 'Grassland - Lowland meadows' or
 // 'Rocky shore - High energy littoral rock - on peat, clay or chalk' into
 // { broadHabitat, habitatType } on the first ' - ' only.
@@ -147,11 +150,67 @@ function getConditionsForHabitatType(habitatType) {
   return out
 }
 
+// Hedgerow reference data lives on a separate engine export from the area data
+// (engine work tracked in BMD-427/428). Until that lands, expose empty
+// readers so the hedgerow journey wires up end to end and the dropdowns
+// populate as soon as the engine ships the JSON. The shapes match the area
+// equivalents so the frontend strategy can reuse the same view-model code.
+const HEDGEROW_DISTINCTIVENESS_CATEGORIES = {}
+const HEDGEROW_CONDITION_SCORES = {}
+
+/**
+ * Hedgerow habitat types in the MVS scope (V.Low / Low / Medium), sorted by
+ * name. Each entry carries its distinctiveness band + score so the client can
+ * derive distinctiveness text without a round trip.
+ *
+ * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
+ */
+function getHedgerowHabitatTypes() {
+  const types = []
+  for (const [name, distinctiveness] of Object.entries(
+    HEDGEROW_DISTINCTIVENESS_CATEGORIES
+  )) {
+    if (!HEDGEROW_HABITAT_BANDS.has(distinctiveness)) {
+      continue
+    }
+    types.push({
+      name,
+      distinctiveness,
+      distinctivenessScore: distinctivenessScores[distinctiveness]?.score
+    })
+  }
+  return types.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Condition options for a hedgerow habitat type, in the engine's canonical
+ * order, with "Not Possible" entries removed. Returns [] for hedgerow types
+ * the engine does not know about.
+ *
+ * @param {string} habitatType
+ * @returns {Array<{ condition: string, score: number }>}
+ */
+function getConditionsForHedgerowType(habitatType) {
+  const scoresByCondition = HEDGEROW_CONDITION_SCORES[habitatType]
+  if (!scoresByCondition) {
+    return []
+  }
+  const out = []
+  for (const [condition, score] of Object.entries(scoresByCondition)) {
+    if (score !== NOT_POSSIBLE) {
+      out.push({ condition, score })
+    }
+  }
+  return out
+}
+
 export {
   tradingRulesByDistinctiveness,
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
   getAreaHabitatTypesByBroad,
-  getConditionsForHabitatType
+  getConditionsForHabitatType,
+  getHedgerowHabitatTypes,
+  getConditionsForHedgerowType
 }
