@@ -4,10 +4,11 @@ import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
-
-const HTTP_OK = 200
-const HTTP_BAD_REQUEST = 400
-const HTTP_NOT_FOUND = 404
+import {
+  HTTP_OK,
+  HTTP_BAD_REQUEST,
+  HTTP_NOT_FOUND
+} from './helpers/http-status.js'
 
 let server
 let dbClient

@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { startServer, stopServer } from './helpers/server.js'
-
-const HTTP_OK = 200
-const HTTP_BAD_REQUEST = 400
+import { HTTP_OK, HTTP_BAD_REQUEST } from './helpers/http-status.js'
 
 let server
 
