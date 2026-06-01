@@ -1,6 +1,6 @@
 # Statutory metric reference data
 
-Lookup tables used by `bng-metric-engine` for unit calculations and habitat/condition validation. Each file is imported statically from `src/reference-constants.js`. The engine package holds the **full set** of tables needed for unit calculations.
+Lookup tables used by `bng-metric-engine` for unit calculations and habitat/condition validation. Every file is imported statically in `src/reference-constants.js`, which is the single inventory of all reference data. The engine package holds the **full set** of tables needed for unit calculations.
 
 ## Source
 
@@ -17,22 +17,30 @@ These tables mirror the reference data embedded in the published Statutory Metri
 
 ## Files
 
-| JSON file                         | Exported as                  | Purpose                                           |
-| --------------------------------- | ---------------------------- | ------------------------------------------------- |
-| `condition-scores.json`           | `CONDITION_SCORES`           | Condition band → numeric score per habitat type   |
-| `difficulty-multiplier.json`      | `DIFFICULTY_MULTIPLIER`      | Habitat difficulty band → multiplier              |
-| `distinctiveness-categories.json` | `DISTINCTIVENESS_CATEGORIES` | Baseline habitat type → distinctiveness band      |
-| `distinctiveness-scores.json`     | `DISTINCTIVENESS_SCORES`     | Distinctiveness band → score and suggested action |
-| `habitat-difficulty.json`         | `HABITAT_DIFFICULTY`         | Habitat → creation/enhancement difficulty band    |
-| `time-to-target-creation.json`    | `TIME_TO_TARGET_CREATION`    | Years to target condition (creation)              |
-| `time-to-target-enhancement.json` | `TIME_TO_TARGET_ENHANCEMENT` | Years to target condition (enhancement)           |
-| `time-to-target-multiplier.json`  | `TIME_TO_TARGET_MULTIPLIER`  | Time-to-target → multiplier                       |
+| JSON file                                           | Constant                                       | Purpose                                                  |
+| --------------------------------------------------- | ---------------------------------------------- | -------------------------------------------------------- |
+| `difficulty-multiplier.json`                        | `DIFFICULTY_MULTIPLIER`                        | Habitat difficulty band → multiplier                     |
+| `habitat-area-condition-scores.json`                | `CONDITION_SCORES`                             | Condition band → numeric score per habitat area type     |
+| `habitat-area-difficulty.json`                      | `HABITAT_DIFFICULTY`                           | Habitat area type → creation/enhancement difficulty band |
+| `habitat-area-distinctiveness-categories.json`      | `DISTINCTIVENESS_CATEGORIES`                   | Habitat area type → distinctiveness band                 |
+| `habitat-area-distinctiveness-scores.json`          | `DISTINCTIVENESS_SCORES`                       | Distinctiveness band → score and suggested action        |
+| `habitat-area-time-to-target-creation.json`         | `TIME_TO_TARGET_CREATION`                      | Years to target condition, habitat area (creation)       |
+| `habitat-area-time-to-target-enhancement.json`      | `TIME_TO_TARGET_ENHANCEMENT`                   | Years to target condition, habitat area (enhancement)    |
+| `hedgerow-condition-scores.json`                    | `HEDGEROW_CONDITION_SCORES`                    | Condition band → numeric score per hedgerow type         |
+| `hedgerow-distinctiveness-categories.json`          | `HEDGEROW_DISTINCTIVENESS_CATEGORIES`          | Hedgerow type → distinctiveness band                     |
+| `hedgerow-distinctiveness-scores.json`              | `HEDGEROW_DISTINCTIVENESS_SCORES`              | Distinctiveness band → score (hedgerow)                  |
+| `time-to-target-multiplier.json`                    | `TIME_TO_TARGET_MULTIPLIER`                    | Time-to-target years → multiplier                        |
+| `watercourse-condition-scores.json`                 | `WATERCOURSE_CONDITION_SCORES`                 | Condition band → numeric score per watercourse type      |
+| `watercourse-distinctiveness-categories.json`       | `WATERCOURSE_DISTINCTIVENESS_CATEGORIES`       | Watercourse type → distinctiveness band                  |
+| `watercourse-distinctiveness-scores.json`           | `WATERCOURSE_DISTINCTIVENESS_SCORES`           | Distinctiveness band → score (watercourse)               |
+| `watercourse-encroachment-multiplier.json`          | `WATERCOURSE_ENCROACHMENT_MULTIPLIER`          | Watercourse encroachment band → multiplier               |
+| `watercourse-riparian-encroachment-multiplier.json` | `WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER` | Riparian encroachment band → multiplier                  |
 
 ## Updating
 
 1. Obtain the latest published Statutory Metric reference tables from Natural England.
 2. Update the relevant JSON file(s) in this directory (preserve key strings exactly — they are join keys for GeoPackage data).
-3. Add a static import and export in `src/reference-constants.js` if adding a new table.
+3. Add a static import and export in `src/reference-constants.js` if adding a new table, and add a row to the table above.
 4. Update the **Metric version** / **Extracted on** rows in this README.
 5. Run `npm test -- bng-metric-engine/` and any backend tests that depend on engine calculations.
 

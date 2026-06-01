@@ -151,6 +151,44 @@ describe('getTimeToTargetValue', () => {
       getTimeToTargetValue(H, 'Enhancement', 'Moderate', 'Moderate', 0, 0)
     ).toThrow('Time to target not found')
   })
+
+  it('Creation: throws when time-to-target is Not Possible', () => {
+    // 'Condition Assessment N/A' maps to 'Not Possible' in the creation table
+    expect(() =>
+      getTimeToTargetValue(
+        H,
+        'Creation',
+        undefined,
+        'Condition Assessment N/A',
+        0,
+        0
+      )
+    ).toThrow("Time to target 'Not Possible'")
+  })
+
+  it('Creation: throws when endCondition is missing from the reference table', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_CREATION', 'get')
+    spy.mockReturnValue({ [H]: {} })
+    try {
+      expect(() =>
+        getTimeToTargetValue(H, 'Creation', undefined, 'Moderate', 0, 0)
+      ).toThrow('Time to target not found')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('Creation: throws TypeError when reference value is not a number or "30+"', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_CREATION', 'get')
+    spy.mockReturnValue({ [H]: { Moderate: 'unexpected-string' } })
+    try {
+      expect(() =>
+        getTimeToTargetValue(H, 'Creation', undefined, 'Moderate', 0, 0)
+      ).toThrow(TypeError)
+    } finally {
+      spy.mockRestore()
+    }
+  })
 })
 
 describe('getTimeMultiplier', () => {

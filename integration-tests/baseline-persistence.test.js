@@ -129,21 +129,45 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
     )
     expect(Array.isArray(stored.baseline.habitats)).toBe(true)
     expect(stored.baseline.habitats.length).toBeGreaterThan(0)
-    const metricReady = stored.baseline.habitats.filter(
+    const metricReadyHabitats = stored.baseline.habitats.filter(
       (h) => typeof h.units === 'number'
     )
-    expect(metricReady.length).toBeGreaterThan(0)
+    expect(metricReadyHabitats.length).toBeGreaterThan(0)
+
+    expect(Array.isArray(stored.baseline.hedgerows)).toBe(true)
+    expect(stored.baseline.hedgerows.length).toBeGreaterThan(0)
+    const metricReadyHedgerows = stored.baseline.hedgerows.filter(
+      (h) => typeof h.units === 'number'
+    )
+    expect(metricReadyHedgerows.length).toBeGreaterThan(0)
+
+    expect(Array.isArray(stored.baseline.watercourses)).toBe(true)
+    expect(stored.baseline.watercourses.length).toBeGreaterThan(0)
+    const metricReadyWatercourses = stored.baseline.watercourses.filter(
+      (w) => typeof w.units === 'number'
+    )
+    expect(metricReadyWatercourses.length).toBeGreaterThan(0)
 
     expect(stored.baseline.units).toEqual(
       expect.objectContaining({
         habitatsTotal: expect.any(Number),
-        hedgerowsTotal: 0,
-        watercoursesTotal: 0,
+        hedgerowsTotal: expect.any(Number),
+        watercoursesTotal: expect.any(Number),
         totalUnits: expect.any(Number)
       })
     )
-    const habitatsSum = metricReady.reduce((sum, h) => sum + h.units, 0)
+    const habitatsSum = metricReadyHabitats.reduce((sum, h) => sum + h.units, 0)
+    const hedgerowsSum = metricReadyHedgerows.reduce(
+      (sum, h) => sum + h.units,
+      0
+    )
+    const watercoursesSum = metricReadyWatercourses.reduce(
+      (sum, w) => sum + w.units,
+      0
+    )
     expect(stored.baseline.units.habitatsTotal).toBe(habitatsSum)
+    expect(stored.baseline.units.hedgerowsTotal).toBe(hedgerowsSum)
+    expect(stored.baseline.units.watercoursesTotal).toBe(watercoursesSum)
     expect(stored.baseline.units.totalUnits).toBe(
       stored.baseline.units.habitatsTotal +
         stored.baseline.units.hedgerowsTotal +

@@ -1,11 +1,15 @@
 import { ERROR_CODES, makeError } from './errors.js'
 import {
   POLYGON_WKB_TYPES,
+  LINESTRING_WKB_TYPES,
   RLB_LYR,
   HABITATS_LYR,
+  HEDGEROWS_LYR,
+  RIVERS_LYR,
   GPKG_CONTENTS_FEATURES_DATA_TYPE,
   RL_BOUNDARY_EXPECTED_POLYGON_COUNT,
-  HABITATS_EXPECTED_MIN_POLYGON_COUNT
+  HABITATS_EXPECTED_MIN_POLYGON_COUNT,
+  LINEAR_LAYER_EXPECTED_MIN_LINESTRING_COUNT
 } from './geopackage-constants.js'
 import {
   SAFE_SQL_IDENTIFIER,
@@ -96,6 +100,30 @@ function countPolygonGeomRows(rows) {
 }
 
 /**
+ * @param {Array<{ geom: Buffer }>} rows
+ */
+function countLinestringGeomRows(rows) {
+  return rows.filter((row) => LINESTRING_WKB_TYPES.has(getWkbType(row.geom)))
+    .length
+}
+
+/**
+ * Count rows in a table registered in gpkg_contents by its lower-case key.
+ * Returns 0 if the table cannot be queried (e.g. not yet created).
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} tableName actual table name (not lower-cased key)
+ * @returns {number}
+ */
+function countTableRows(db, tableName) {
+  try {
+    const qt = quoteSqliteIdent(tableName)
+    return db.prepare(`SELECT COUNT(*) AS n FROM ${qt}`).get().n
+  } catch {
+    return 0
+  }
+}
+
+/**
  * @param {number} polygonCount
  * @param {string[]} errors
  */
@@ -115,7 +143,7 @@ function pushRlPolygonCountErrors(polygonCount, errors) {
       )
     )
   } else {
-    // Exactly RL_BOUNDARY_EXPECTED_POLYGON_COUNT — valid baseline case for RLB polygon count.
+    // exactly RL_BOUNDARY_EXPECTED_POLYGON_COUNT polygons — valid, no error
   }
 }
 
@@ -179,7 +207,41 @@ export function validateRedLineBoundary(db, errors, logger = NO_OP_LOGGER) {
 }
 
 /**
- * Habitats must include at least one readable polygon/multipolygon feature.
+ * When a layer has readable geometry rows, every row must match the expected
+ * WKB type and at least {@link minExpectedCount} rows must do so.
+ *
+ * @param {object} params
+ * @param {Array<{ geom: Buffer }>} params.rows
+ * @param {number} params.matchingCount
+ * @param {number} params.minExpectedCount
+ * @param {string} params.insufficientErrorCode
+ * @param {string} params.insufficientMessage
+ * @param {string} params.wrongTypeErrorCode
+ * @param {string} params.wrongTypeMessage
+ * @param {string[]} params.errors
+ */
+function pushExpectedGeometryTypeErrors({
+  rows,
+  matchingCount,
+  minExpectedCount,
+  insufficientErrorCode,
+  insufficientMessage,
+  wrongTypeErrorCode,
+  wrongTypeMessage,
+  errors
+}) {
+  if (matchingCount < minExpectedCount) {
+    errors.push(makeError(insufficientErrorCode, insufficientMessage))
+    return
+  }
+  if (matchingCount < rows.length) {
+    errors.push(makeError(wrongTypeErrorCode, wrongTypeMessage))
+  }
+}
+
+/**
+ * Habitats must include at least one readable polygon/multipolygon feature,
+ * and every non-null geometry row must be a polygon or multipolygon.
  *
  * @param {import('better-sqlite3').Database} db
  * @param {string[]} errors
@@ -223,12 +285,132 @@ export function validateHabitats(db, errors, logger = NO_OP_LOGGER) {
   }
 
   const polygonCount = countPolygonGeomRows(rows)
-  if (polygonCount < HABITATS_EXPECTED_MIN_POLYGON_COUNT) {
+  pushExpectedGeometryTypeErrors({
+    rows,
+    matchingCount: polygonCount,
+    minExpectedCount: HABITATS_EXPECTED_MIN_POLYGON_COUNT,
+    insufficientErrorCode: ERROR_CODES.NO_HABITAT_AREAS,
+    insufficientMessage:
+      'Zero area habitat parcels in GeoPackage (expecting at least one)',
+    wrongTypeErrorCode: ERROR_CODES.GPKG_HABITATS_WRONG_GEOMETRY_TYPE,
+    wrongTypeMessage: 'Habitats contains feature(s) with non-polygon geometry',
+    errors
+  })
+}
+
+/**
+ * Validate a linear (line-string) feature layer that is optional in the
+ * GeoPackage. Skips silently when the layer has zero rows — an empty optional
+ * layer is not an error. When the layer has rows, every non-null geometry row
+ * must be a linestring and at least one linestring is required.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ * @param {{ warn: (msg: string) => void }} logger
+ * @param {object} layerConfig
+ * @param {string} layerConfig.layerLowerKey lower(table_name) used in gpkg_contents
+ * @param {string} layerConfig.unreadableErrorCode ERROR_CODES key for unreadable geometry
+ * @param {string} layerConfig.noLinestringErrorCode ERROR_CODES key when no linestrings
+ * @param {string} layerConfig.wrongTypeErrorCode ERROR_CODES key for mixed geometry types
+ * @param {string} layerConfig.layerLabel human-readable name for log messages
+ */
+function validateOptionalLinearLayer(db, errors, logger, layerConfig) {
+  const {
+    layerLowerKey,
+    unreadableErrorCode,
+    noLinestringErrorCode,
+    wrongTypeErrorCode,
+    layerLabel
+  } = layerConfig
+  const meta = featureLayerContentsRow(db, layerLowerKey)
+  if (!meta) {
+    return
+  }
+  const { table_name: tableName } = meta
+
+  const rowCount = countTableRows(db, tableName)
+  if (rowCount === INTEGER_COUNT_NONE) {
+    return
+  }
+
+  const geomRow = geomColumnNameRow(db, layerLowerKey)
+  if (!geomRow) {
+    return
+  }
+  if (!SAFE_SQL_IDENTIFIER.test(geomRow.column_name)) {
+    return
+  }
+
+  const rows = selectNonNullGeometryRowsOrLog(
+    db,
+    tableName,
+    geomRow.column_name,
+    logger,
+    (detail) => `${layerLabel} geometry check skipped: ${detail}`
+  )
+  if (!rows) {
+    return
+  }
+
+  const unreadableCount = countUnreadableGeomRows(rows)
+  if (unreadableCount > INTEGER_COUNT_NONE) {
+    logger.warn(
+      `${LOG_VALIDATE_PREFIX}${unreadableCount} unreadable geometry blob(s) in ${layerLabel} (table: ${tableName})`
+    )
     errors.push(
       makeError(
-        ERROR_CODES.NO_HABITAT_AREAS,
-        'Zero area habitat parcels in GeoPackage (expecting at least one)'
+        unreadableErrorCode,
+        `${layerLabel} contains unreadable geometry`
       )
     )
+    return
   }
+
+  const linestringCount = countLinestringGeomRows(rows)
+  pushExpectedGeometryTypeErrors({
+    rows,
+    matchingCount: linestringCount,
+    minExpectedCount: LINEAR_LAYER_EXPECTED_MIN_LINESTRING_COUNT,
+    insufficientErrorCode: noLinestringErrorCode,
+    insufficientMessage: `${layerLabel} has feature(s) but no readable linestring geometry`,
+    wrongTypeErrorCode,
+    wrongTypeMessage: `${layerLabel} contains feature(s) with non-linestring geometry`,
+    errors
+  })
+}
+
+/**
+ * Validates the optional Hedgerows layer: if present and non-empty, every
+ * geometry row must be a readable linestring.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ * @param {{ warn: (msg: string) => void }} [logger]
+ */
+export function validateHedgerows(db, errors, logger = NO_OP_LOGGER) {
+  validateOptionalLinearLayer(db, errors, logger, {
+    layerLowerKey: HEDGEROWS_LYR,
+    unreadableErrorCode: ERROR_CODES.GPKG_HEDGEROWS_UNREADABLE_GEOMETRY,
+    noLinestringErrorCode: ERROR_CODES.GPKG_HEDGEROWS_NO_LINESTRING_GEOMETRY,
+    wrongTypeErrorCode: ERROR_CODES.GPKG_HEDGEROWS_WRONG_GEOMETRY_TYPE,
+    layerLabel: 'Hedgerows'
+  })
+}
+
+/**
+ * Validates the optional Rivers (watercourses) layer: if present and
+ * non-empty, every geometry row must be a readable linestring.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {string[]} errors
+ * @param {{ warn: (msg: string) => void }} [logger]
+ */
+export function validateWatercourses(db, errors, logger = NO_OP_LOGGER) {
+  validateOptionalLinearLayer(db, errors, logger, {
+    layerLowerKey: RIVERS_LYR,
+    unreadableErrorCode: ERROR_CODES.GPKG_RIVERS_UNREADABLE_GEOMETRY,
+    noLinestringErrorCode: ERROR_CODES.GPKG_RIVERS_NO_LINESTRING_GEOMETRY,
+    wrongTypeErrorCode: ERROR_CODES.GPKG_RIVERS_WRONG_GEOMETRY_TYPE,
+    layerLabel: 'Rivers'
+  })
 }

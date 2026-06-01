@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 
 import {
   ALL_LAYERS,
+  ERR_HABITATS_WRONG_GEOMETRY,
   ERR_UNREADABLE_HABITATS,
   ERR_ZERO_HABITATS,
   GP10_APP_ID,
@@ -106,7 +107,7 @@ describe('validateGpkg when the Habitats layer has zero area habitat parcels', (
     expect(result).toEqual({ valid: true, errors: [] })
   })
 
-  it('counts polygons even when mixed with non-polygon rows', () => {
+  it('returns an error when polygon and non-polygon geometries are mixed', () => {
     const result = validateGpkg(
       buildBuffer({
         appId: GP10_APP_ID,
@@ -118,7 +119,9 @@ describe('validateGpkg when the Habitats layer has zero area habitat parcels', (
       })
     )
 
-    expect(result).toEqual({ valid: true, errors: [] })
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    expect(result.errors[0]).toEqual(ERR_HABITATS_WRONG_GEOMETRY)
   })
 })
 

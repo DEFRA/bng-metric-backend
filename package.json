@@ -5,7 +5,7 @@
   "main": "src/index.js",
   "type": "module",
   "engines": {
-    "node": ">=24.14.1"
+    "node": ">=24.11.1"
   },
   "workspaces": [
     "bng-metric-engine"
@@ -56,6 +56,7 @@
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "better-sqlite3": "12.9.0",
+    "bng-metric-engine": "workspace:*",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
     "dotenv": "17.4.2",
@@ -73,14 +74,13 @@
     "swagger-jsdoc": "6.2.8",
     "swagger-ui-dist": "5.32.4",
     "undici": "7.24.6",
-    "wkx": "0.5.0",
-    "bng-metric-engine": "workspace:*"
+    "wkx": "0.5.0"
   },
   "devDependencies": {
     "@babel/core": "7.28.5",
     "@babel/preset-env": "7.28.5",
     "@types/node": "24.11.1",
-    "@vitest/coverage-v8": "4.1.7",
+    "@vitest/coverage-v8": "4.1.8",
     "autoprefixer": "10.4.23",
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
@@ -89,12 +89,12 @@
     "nodemon": "3.1.11",
     "npm-run-all": "4.1.5",
     "prettier": "3.7.4",
-    "vitest": "4.1.7",
+    "vitest": "4.1.8",
     "vitest-fetch-mock": "0.4.5"
   },
   "overrides": {
     "@hapi/wreck": "18.1.2",
-    "vitest": "4.1.7",
-    "@vitest/coverage-v8": "4.1.7"
+    "vitest": "4.1.8",
+    "@vitest/coverage-v8": "4.1.8"
   }
 }

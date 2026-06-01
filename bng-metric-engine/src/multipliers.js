@@ -20,6 +20,8 @@ import {
   TIME_TO_TARGET_MULTIPLIER
 } from './reference-constants.js'
 
+const NOT_POSSIBLE = 'Not Possible'
+
 /**
  * Resolve the statutory distinctiveness band label (e.g. "Low", "V.Low") and its
  * numeric score for a habitat type key used in reference tables.
@@ -60,7 +62,7 @@ function getConditionMultiplier(habitat, condition) {
   const conditionScoreRow = CONDITION_SCORES[habitat][condition]
 
   // Throw an error if the value is "Not Possible" or not a number
-  if (conditionScoreRow === 'Not Possible') {
+  if (conditionScoreRow === NOT_POSSIBLE) {
     throw new BaselineLookupError(
       `Condition '${condition}' is not a valid condition for habitat: ${habitat}`
     )
@@ -83,9 +85,9 @@ function lookupCreationTimeToTarget(habitat, endCondition) {
       `Time to target not found for habitat: ${habitat}, endCondition: ${endCondition}`
     )
   }
-  if (timeToTargetValue === 'Not Possible') {
+  if (timeToTargetValue === NOT_POSSIBLE) {
     throw new Error(
-      `Time to target 'Not Possible' for habitat: ${habitat}, endCondition: ${endCondition}`
+      `Time to target '${NOT_POSSIBLE}' for habitat: ${habitat}, endCondition: ${endCondition}`
     )
   }
   return timeToTargetValue
@@ -105,9 +107,9 @@ function lookupEnhancementTimeToTarget(
       `Time to target not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
     )
   }
-  if (timeToTargetValue === 'Not Possible') {
+  if (timeToTargetValue === NOT_POSSIBLE) {
     throw new Error(
-      `Time to target 'Not Possible' for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
+      `Time to target '${NOT_POSSIBLE}' for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
     )
   }
   return timeToTargetValue
@@ -254,16 +256,11 @@ function getTimeMultiplier(
   validateCondition(habitat, endCondition)
   const validatedAdvanceYears = validateYears(advanceYears)
   const validatedDelayYears = validateYears(delayYears)
-
-  // For Enhancement, startCondition is required
-  if (
-    creationOrEnhancement === 'Enhancement' &&
-    (!startCondition || typeof startCondition !== 'string')
-  ) {
-    throw new Error(
-      `Start condition not specified for enhancement of habitat: ${habitat}`
-    )
-  }
+  validateEnhancementStartCondition(
+    habitat,
+    creationOrEnhancement,
+    startCondition
+  )
 
   const timeToTargetKey = getTimeToTargetValue(
     habitat,
@@ -280,11 +277,71 @@ function getTimeMultiplier(
     throw new Error(
       `Time multiplier not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}, startCondition: ${startCondition}, endCondition: ${endCondition}`
     )
-  } else if (timeMultiplier === 'Not Possible') {
+  } else if (timeMultiplier === NOT_POSSIBLE) {
     throw new Error(`Time multiplier for habitat '${habitat}' is not possible`)
+  } else {
+    return timeMultiplier
   }
+}
 
-  return timeMultiplier
+/**
+ * @param {string} habitat
+ * @param {string} creationOrEnhancement
+ * @param {string | undefined} startCondition
+ */
+function validateEnhancementStartCondition(
+  habitat,
+  creationOrEnhancement,
+  startCondition
+) {
+  if (
+    creationOrEnhancement === 'Enhancement' &&
+    (!startCondition || typeof startCondition !== 'string')
+  ) {
+    throw new Error(
+      `Start condition not specified for enhancement of habitat: ${habitat}`
+    )
+  }
+}
+
+/**
+ * @param {string} habitat
+ * @param {string} creationOrEnhancement
+ * @param {string | undefined} startCondition
+ * @param {number} validatedAdvanceYears
+ * @param {number} validatedDelayYears
+ * @param {string} timeToTargetValue
+ * @returns {string}
+ */
+function resolveDifficultyDesc(
+  habitat,
+  creationOrEnhancement,
+  startCondition,
+  validatedAdvanceYears,
+  validatedDelayYears,
+  timeToTargetValue
+) {
+  if (advanceMeetsTimeToTarget(validatedAdvanceYears, timeToTargetValue)) {
+    return 'Low'
+  }
+  const difficultyChangeType = resolveDifficultyChangeType(
+    habitat,
+    creationOrEnhancement,
+    startCondition,
+    validatedAdvanceYears,
+    validatedDelayYears
+  )
+  const difficultyRow = HABITAT_DIFFICULTY[habitat]
+  if (!difficultyRow || typeof difficultyRow !== 'object') {
+    throw new Error(`No difficulty reference data for habitat: ${habitat}`)
+  }
+  const difficultyDesc = difficultyRow[difficultyChangeType]
+  if (!difficultyDesc) {
+    throw new Error(
+      `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${difficultyChangeType}`
+    )
+  }
+  return difficultyDesc
 }
 
 /**
@@ -346,18 +403,11 @@ function getDifficultyMultiplier(
   validateCondition(habitat, endCondition)
   const validatedAdvanceYears = validateYears(advanceYears)
   const validatedDelayYears = validateYears(delayYears)
-
-  // For Enhancement, startCondition is required
-  if (
-    creationOrEnhancement === 'Enhancement' &&
-    (!startCondition || typeof startCondition !== 'string')
-  ) {
-    throw new Error(
-      `Start condition not specified for enhancement of habitat: ${habitat}`
-    )
-  }
-
-  let difficultyDesc
+  validateEnhancementStartCondition(
+    habitat,
+    creationOrEnhancement,
+    startCondition
+  )
 
   const timeToTargetValue = getTimeToTargetValue(
     habitat,
@@ -367,36 +417,19 @@ function getDifficultyMultiplier(
     validatedAdvanceYears,
     validatedDelayYears
   )
-  if (advanceMeetsTimeToTarget(validatedAdvanceYears, timeToTargetValue)) {
-    difficultyDesc = 'Low'
-  } else {
-    const difficultyChangeType = resolveDifficultyChangeType(
-      habitat,
-      creationOrEnhancement,
-      startCondition,
-      validatedAdvanceYears,
-      validatedDelayYears
-    )
 
-    const difficultyRow = HABITAT_DIFFICULTY[habitat]
-    if (!difficultyRow || typeof difficultyRow !== 'object') {
-      throw new Error(`No difficulty reference data for habitat: ${habitat}`)
-    }
-    difficultyDesc = difficultyRow[difficultyChangeType]
-    if (!difficultyDesc) {
-      throw new Error(
-        `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${difficultyChangeType}`
-      )
-    }
-  }
+  const difficultyDesc = resolveDifficultyDesc(
+    habitat,
+    creationOrEnhancement,
+    startCondition,
+    validatedAdvanceYears,
+    validatedDelayYears,
+    timeToTargetValue
+  )
 
   const difficultyMultiplier = DIFFICULTY_MULTIPLIER[difficultyDesc]
 
-  if (
-    difficultyMultiplier === undefined ||
-    difficultyMultiplier === null ||
-    difficultyMultiplier === 'Not Possible'
-  ) {
+  if (difficultyMultiplier == null || difficultyMultiplier === NOT_POSSIBLE) {
     throw new Error(
       `Difficulty multiplier not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}`
     )

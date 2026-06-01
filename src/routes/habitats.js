@@ -2,6 +2,7 @@ import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
+import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js'
 
 /**
@@ -86,14 +87,12 @@ const updateAreaHabitat = {
     } catch (err) {
       if (err?.isBoom) {
         throw err
-      }
-      // PostgreSQL 55P03 (lock_not_available): SELECT ... FOR UPDATE waited
-      // past the 5s lock_timeout for another concurrent edit on this project.
-      // Surface as 409 so the caller can retry.
-      if (err?.code === '55P03') {
+      } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+        // SELECT ... FOR UPDATE waited past lock_timeout for another edit.
         throw Boom.conflict('Another edit for this project is in progress')
+      } else {
+        throw err
       }
-      throw err
     }
   }
 }

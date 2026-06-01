@@ -51,7 +51,12 @@ function buildHabitat(feature) {
   return { document, geometryRow }
 }
 
-function buildLinearFeature(feature, extraProperties, statusForDocument) {
+function buildLinearFeature(
+  feature,
+  typeKey,
+  extraProperties,
+  statusForDocument
+) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, PROP_KEYS.parcelRef)
@@ -62,10 +67,9 @@ function buildLinearFeature(feature, extraProperties, statusForDocument) {
   const document = {
     featureId,
     ref,
-    type: pickProp(props, PROP_KEYS.habitatType),
+    type: pickProp(props, typeKey),
     condition: pickProp(props, PROP_KEYS.condition),
     ...extraDocumentProperties,
-    length: pickProp(props, PROP_KEYS.length),
     properties: props
   }
   document.status = statusForDocument(document)
@@ -79,12 +83,13 @@ function buildLinearFeature(feature, extraProperties, statusForDocument) {
 }
 
 function buildHedgerow(feature) {
-  return buildLinearFeature(feature, [], hedgerowStatus)
+  return buildLinearFeature(feature, PROP_KEYS.hedgerowType, [], hedgerowStatus)
 }
 
 function buildWatercourse(feature) {
   return buildLinearFeature(
     feature,
+    PROP_KEYS.riverType,
     [
       ['riparianEncroachment', PROP_KEYS.riparianEncroachment],
       ['watercourseEncroachment', PROP_KEYS.watercourseEncroachment]
@@ -133,6 +138,56 @@ function splitFeatures(features, builder) {
 }
 
 /**
+ * @param {object[]} documents
+ * @param {Array<{ featureId: string, sizeMetres: number }>} sizeEntries
+ */
+function embedLinearFeatureSizes(documents, sizeEntries) {
+  const sizesByFeatureId = new Map(
+    sizeEntries.map((entry) => [entry.featureId, entry.sizeMetres])
+  )
+  for (const document of documents) {
+    document.sizeMetres = sizesByFeatureId.get(document.featureId) ?? null
+  }
+}
+
+/**
+ * @param {object} habitats
+ * @param {object} hedgerows
+ * @param {object} watercourses
+ * @param {object} habitatSizes
+ * @returns {object}
+ */
+function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
+  const {
+    areaHabitats,
+    hedgerows: hedgerowSizes,
+    watercourses: wcSizes
+  } = habitatSizes
+
+  const areaSizesByFeatureId = new Map(
+    areaHabitats.individualSquareMetres.map((entry) => [
+      entry.featureId,
+      entry.sizeSquareMetres
+    ])
+  )
+  for (const document of habitats.documents) {
+    const sizeSquareMetres =
+      areaSizesByFeatureId.get(document.featureId) ?? null
+    document.sizeSquareMetres = sizeSquareMetres
+    document.area = areaFromSizeSquareMetres(sizeSquareMetres)
+  }
+
+  embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
+  embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
+
+  return {
+    areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
+    hedgerows: { totalMetres: hedgerowSizes.totalMetres },
+    watercourses: { totalMetres: wcSizes.totalMetres }
+  }
+}
+
+/**
  * Shape an already-parsed `layers` object (from readBaselineGeoPackage) into
  * (a) the JSONB document persisted onto bng.projects.project.baseline (attribute
  * data only, no geometry), and (b) the parallel geometry rows for the four
@@ -176,39 +231,12 @@ export function extractBaseline(layers, meta = {}) {
   // secondary join. featureId is the join key between the sizes result and the documents.
   let habitatSizesSummary = null
   if (meta.habitatSizes) {
-    const { areaHabitats, hedgerows: hw, watercourses: wc } = meta.habitatSizes
-
-    const areaSizes = new Map(
-      areaHabitats.individualSquareMetres.map((s) => [
-        s.featureId,
-        s.sizeSquareMetres
-      ])
+    habitatSizesSummary = embedHabitatSizes(
+      habitats,
+      hedgerows,
+      watercourses,
+      meta.habitatSizes
     )
-    habitats.documents.forEach((doc) => {
-      const sizeSquareMetres = areaSizes.get(doc.featureId) ?? null
-      doc.sizeSquareMetres = sizeSquareMetres
-      doc.area = areaFromSizeSquareMetres(sizeSquareMetres)
-    })
-
-    const hedgerowSizes = new Map(
-      hw.individualMetres.map((s) => [s.featureId, s.sizeMetres])
-    )
-    hedgerows.documents.forEach((doc) => {
-      doc.sizeMetres = hedgerowSizes.get(doc.featureId) ?? null
-    })
-
-    const watercourseSizes = new Map(
-      wc.individualMetres.map((s) => [s.featureId, s.sizeMetres])
-    )
-    watercourses.documents.forEach((doc) => {
-      doc.sizeMetres = watercourseSizes.get(doc.featureId) ?? null
-    })
-
-    habitatSizesSummary = {
-      areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
-      hedgerows: { totalMetres: hw.totalMetres },
-      watercourses: { totalMetres: wc.totalMetres }
-    }
   }
 
   return {

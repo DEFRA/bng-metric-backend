@@ -44,7 +44,8 @@ function formatList(prefix, count, sample) {
  * Scan the area habitats layer and produce a single error listing every
  * habitat whose distinctiveness band falls outside the MVS scope (i.e. High or
  * Very High). Returns `null` when every habitat is in scope (or when the layer
- * is empty — that case is the NO_HABITAT_AREAS geometry check's concern).
+ * is empty or has wrong geometry types — those cases are handled by the
+ * habitats GPKG geometry checks (NO_HABITAT_AREAS / GPKG_HABITATS_WRONG_GEOMETRY_TYPE).
  *
  * Unknown habitat types — those not present in the reference table — are
  * passed through; the schema check upstream is responsible for catching them.

@@ -1,0 +1,13 @@
+{
+  "Major/Major": 0.75,
+  "Major/Moderate": 0.8,
+  "Major/Minor": 0.84,
+  "Major/No Encroachment": 0.87,
+  "Moderate/Moderate": 0.85,
+  "Moderate/Minor": 0.9,
+  "Moderate/No Encroachment": 0.92,
+  "Minor/Minor": 0.95,
+  "Minor/No Encroachment": 0.98,
+  "No Encroachment/No Encroachment": 1,
+  "N/A - Culvert": 1
+}

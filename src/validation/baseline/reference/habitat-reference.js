@@ -13,12 +13,12 @@ export { distinctivenessScores } from './habitat-distinctiveness.js'
 
 const NOT_POSSIBLE = 'Not Possible'
 
-// Trading rules sourced from the engine's "Suggested action" strings so the
-// wording stays in lockstep with the calculator.
+// Trading rules per AC10. Sourced from the engine's "Trading rules"
+// strings so the wording stays in lockstep with the calculator.
 const tradingRulesByDistinctiveness = Object.fromEntries(
   Object.entries(DISTINCTIVENESS_SCORES).map(([band, entry]) => [
     band,
-    entry['Suggested action']
+    entry['Trading rules']
   ])
 )
 

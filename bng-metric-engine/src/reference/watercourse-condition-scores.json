@@ -1,0 +1,47 @@
+{
+  "Priority habitat": {
+    "Good": 3,
+    "Fairly Good": 2.5,
+    "Moderate": 2,
+    "Fairly Poor": 1.5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Other rivers and streams": {
+    "Good": 3,
+    "Fairly Good": 2.5,
+    "Moderate": 2,
+    "Fairly Poor": 1.5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Ditches": {
+    "Good": 3,
+    "Fairly Good": 2.5,
+    "Moderate": 2,
+    "Fairly Poor": 1.5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Canals": {
+    "Good": 3,
+    "Fairly Good": 2.5,
+    "Moderate": 2,
+    "Fairly Poor": 1.5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Culvert": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  }
+}

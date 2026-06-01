@@ -52,6 +52,10 @@ describe('geopackage-internals.js (barrel)', () => {
       validateFeatures.validateRedLineBoundary
     )
     expect(internals.validateHabitats).toBe(validateFeatures.validateHabitats)
+    expect(internals.validateHedgerows).toBe(validateFeatures.validateHedgerows)
+    expect(internals.validateWatercourses).toBe(
+      validateFeatures.validateWatercourses
+    )
   })
 
   it('does not advertise unexpected exports', () => {
@@ -67,7 +71,9 @@ describe('geopackage-internals.js (barrel)', () => {
       'formatSrsIdForError',
       'pragmaTableInfoByLowerName',
       'validateHabitats',
-      'validateRedLineBoundary'
+      'validateHedgerows',
+      'validateRedLineBoundary',
+      'validateWatercourses'
     ])
     expect(new Set(Object.keys(internals))).toEqual(allowed)
   })

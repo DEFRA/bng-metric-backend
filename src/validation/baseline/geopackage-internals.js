@@ -14,5 +14,7 @@ export {
 
 export {
   validateRedLineBoundary,
-  validateHabitats
+  validateHabitats,
+  validateHedgerows,
+  validateWatercourses
 } from './geopackage-internals-validate-features.js'

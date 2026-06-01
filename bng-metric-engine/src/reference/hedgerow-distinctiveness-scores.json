@@ -1,0 +1,22 @@
+{
+  "V.High": {
+    "Score": 8,
+    "Trading rules": "Like for like"
+  },
+  "High": {
+    "Score": 6,
+    "Trading rules": "Like for like or better"
+  },
+  "Medium": {
+    "Score": 4,
+    "Trading rules": "Same distinctiveness band or better"
+  },
+  "Low": {
+    "Score": 2,
+    "Trading rules": "Same distinctiveness band or better"
+  },
+  "V.Low": {
+    "Score": 1,
+    "Trading rules": "Same distinctiveness band or better"
+  }
+}

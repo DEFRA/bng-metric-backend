@@ -56,7 +56,7 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_HEDGE,
         ref: 'H1',
-        type: 'Native species rich hedgerow',
+        type: 'Species-rich native hedgerow',
         condition: 'Good',
         status: 'Complete',
         sizeMetres: 20
@@ -66,10 +66,10 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_WATER,
         ref: 'W1',
-        type: 'Watercourse footprint - Watercourse footprint',
+        type: 'Ditches',
         condition: 'Moderate',
-        riparianEncroachment: 'None',
-        watercourseEncroachment: 'None',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        watercourseEncroachment: 'No Encroachment',
         status: 'Complete',
         sizeMetres: 30
       }

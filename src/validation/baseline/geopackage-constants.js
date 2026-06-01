@@ -59,6 +59,13 @@ export const WKB_POLYGON_ZM = 3003
 export const WKB_MULTI_POLYGON_ZM = 3006
 
 export const WKB_LINE_STRING = 2
+export const WKB_MULTI_LINE_STRING = 5
+export const WKB_LINE_STRING_Z = 1002
+export const WKB_MULTI_LINE_STRING_Z = 1005
+export const WKB_LINE_STRING_M = 2002
+export const WKB_MULTI_LINE_STRING_M = 2005
+export const WKB_LINE_STRING_ZM = 3002
+export const WKB_MULTI_LINE_STRING_ZM = 3005
 export const WKB_POINT = 1
 
 export const POLYGON_WKB_TYPES = new Set([
@@ -78,6 +85,12 @@ export const RLB_LYR = 'red line boundary'
 /** Lower-case `gpkg_contents.table_name` key for the Habitats layer */
 export const HABITATS_LYR = 'habitats'
 
+/** Lower-case `gpkg_contents.table_name` key for the Hedgerows layer */
+export const HEDGEROWS_LYR = 'hedgerows'
+
+/** Lower-case `gpkg_contents.table_name` key for the Rivers (watercourses) layer */
+export const RIVERS_LYR = 'rivers'
+
 /** Lower-case string stored in `gpkg_contents.data_type` for spatial feature layers. */
 export const GPKG_CONTENTS_FEATURES_DATA_TYPE = 'features'
 
@@ -86,3 +99,17 @@ export const RL_BOUNDARY_EXPECTED_POLYGON_COUNT = 1
 
 /** Habitats: minimum polygon / multi-polygon count required. */
 export const HABITATS_EXPECTED_MIN_POLYGON_COUNT = 1
+
+/** Optional linear layers: minimum linestring count when the layer has rows. */
+export const LINEAR_LAYER_EXPECTED_MIN_LINESTRING_COUNT = 1
+
+export const LINESTRING_WKB_TYPES = new Set([
+  WKB_LINE_STRING,
+  WKB_MULTI_LINE_STRING,
+  WKB_LINE_STRING_Z,
+  WKB_MULTI_LINE_STRING_Z,
+  WKB_LINE_STRING_M,
+  WKB_MULTI_LINE_STRING_M,
+  WKB_LINE_STRING_ZM,
+  WKB_MULTI_LINE_STRING_ZM
+])

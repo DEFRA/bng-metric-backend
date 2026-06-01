@@ -9,6 +9,8 @@ const BNG_SRID = 27700
 const WGS84_SRID = 4326
 const PARCEL_REF = 'Parcel Ref'
 const HABITAT_TYPE = 'Baseline Habitat Type'
+const HEDGEROW_TYPE = 'Baseline Hedge Type'
+const RIVER_TYPE = 'Baseline River Type'
 const CONDITION = 'Baseline Condition'
 const LOWLAND_MEADOWS = 'Grassland - Lowland meadows'
 
@@ -18,6 +20,8 @@ const UPLOADED_FILE_SIZE = 204800
 
 const FEAT_ID_AREA = 'featarea-0000-0000-0000-000000000000'
 const FEAT_ID_HEDGE = 'featheg0-0000-0000-0000-000000000000'
+const FEAT_ID_WC = 'featwc00-0000-0000-0000-000000000000'
+const WATERCOURSE_M = 250
 
 const SAMPLE_POLYGON = {
   type: 'Polygon',
@@ -170,6 +174,44 @@ describe('extractBaseline — habitatSizes embedding', () => {
 
     // Geometry half is untouched
     expect(out.geometries).not.toHaveProperty('habitatSizes')
+  })
+
+  it('embeds sizeMetres from habitatSizes onto watercourse documents', () => {
+    const habitatSizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: {
+        individualMetres: [
+          { featureId: FEAT_ID_WC, sizeMetres: WATERCOURSE_M }
+        ],
+        totalMetres: WATERCOURSE_M
+      }
+    }
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [
+          {
+            ...feature(
+              {
+                [PARCEL_REF]: 'W1',
+                'Baseline River Type': 'Priority habitat',
+                [CONDITION]: 'Good'
+              },
+              SAMPLE_LINESTRING
+            ),
+            featureId: FEAT_ID_WC
+          }
+        ]
+      },
+      { habitatSizes }
+    )
+    expect(out.document.watercourses[0].sizeMetres).toBe(WATERCOURSE_M)
+    expect(out.document.habitatSizes.watercourses.totalMetres).toBe(
+      WATERCOURSE_M
+    )
   })
 
   it('sets sizeSquareMetres/sizeMetres to null for features with no geometry in sizes result', () => {
@@ -403,7 +445,7 @@ describe('extractBaseline — document property key fallbacks', () => {
 })
 
 describe('extractBaseline — document hedgerows, watercourses, and missing-field defaults', () => {
-  it('extracts hedgerows and watercourses with ref, type, condition and length', () => {
+  it('extracts hedgerows and watercourses with ref, type and condition', () => {
     const out = extractBaseline({
       redline: [],
       areas: [],
@@ -411,9 +453,8 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
         feature(
           {
             [PARCEL_REF]: 'H1',
-            [HABITAT_TYPE]: 'Native species rich hedgerow',
-            [CONDITION]: 'Good',
-            Length: 100
+            [HEDGEROW_TYPE]: 'Native species-rich hedgerow',
+            [CONDITION]: 'Good'
           },
           SAMPLE_LINESTRING
         )
@@ -422,9 +463,11 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
         feature(
           {
             [PARCEL_REF]: 'W1',
-            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [RIVER_TYPE]: 'Chalk stream',
             [CONDITION]: 'Moderate',
-            Length: 250
+            'Baseline Encroachment into Watercourse': 'Minor',
+            'Baseline Encroachment into riparian zone':
+              '1. Minor/No Encroachment'
           },
           SAMPLE_LINESTRING
         )
@@ -434,16 +477,17 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
     expect(out.document.hedgerows[0]).toEqual(
       expect.objectContaining({
         ref: 'H1',
-        type: 'Native species rich hedgerow',
-        condition: 'Good',
-        length: 100
+        type: 'Native species-rich hedgerow',
+        condition: 'Good'
       })
     )
     expect(out.document.watercourses[0]).toEqual(
       expect.objectContaining({
         ref: 'W1',
+        type: 'Chalk stream',
         condition: 'Moderate',
-        length: 250
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: '1. Minor/No Encroachment'
       })
     )
   })
@@ -599,7 +643,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'H1',
-            [HABITAT_TYPE]: 'Native species rich hedgerow',
+            [HEDGEROW_TYPE]: 'Native species rich hedgerow',
             [CONDITION]: 'Good'
           },
           SAMPLE_LINESTRING
@@ -619,7 +663,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'H1',
-            [HABITAT_TYPE]: 'Native species rich hedgerow'
+            [HEDGEROW_TYPE]: 'Native species rich hedgerow'
           },
           SAMPLE_LINESTRING
         )
@@ -639,7 +683,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'W1',
-            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [RIVER_TYPE]: 'Watercourse footprint - Watercourse footprint',
             [CONDITION]: 'Moderate',
             'Baseline Encroachment into riparian zone': 'None',
             'Baseline Encroachment into Watercourse': 'None'
@@ -661,7 +705,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'W1',
-            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [RIVER_TYPE]: 'Watercourse footprint - Watercourse footprint',
             [CONDITION]: 'Moderate',
             'Baseline Encroachment into Watercourse': 'None'
             // riparianEncroachment absent
@@ -683,7 +727,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'W1',
-            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [RIVER_TYPE]: 'Watercourse footprint - Watercourse footprint',
             [CONDITION]: 'Moderate',
             'Baseline Encroachment into riparian zone': 'None'
             // watercourseEncroachment absent
@@ -729,7 +773,7 @@ describe('extractBaseline — habitat status', () => {
         feature(
           {
             [PARCEL_REF]: 'W1',
-            [HABITAT_TYPE]: 'Watercourse footprint - Watercourse footprint',
+            [RIVER_TYPE]: 'Watercourse footprint - Watercourse footprint',
             [CONDITION]: 'Moderate',
             Baseline_Encroachment_into_riparian_zone: 'Low',
             Baseline_Encroachment_into_Watercourse: 'High'

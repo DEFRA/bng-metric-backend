@@ -1,0 +1,18 @@
+{
+  "V.High": {
+    "Score": 8,
+    "Trading rules": "Same habitat required - bespoke compensation option"
+  },
+  "High": {
+    "Score": 6,
+    "Trading rules": "Same habitat required ="
+  },
+  "Medium": {
+    "Score": 4,
+    "Trading rules": "Same habitat required ="
+  },
+  "Low": {
+    "Score": 2,
+    "Trading rules": "Better distinctiveness habitat required"
+  }
+}
