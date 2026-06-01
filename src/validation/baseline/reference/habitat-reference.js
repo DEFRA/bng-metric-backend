@@ -22,10 +22,11 @@ const tradingRulesByDistinctiveness = Object.fromEntries(
   ])
 )
 
-// Habitat types whose distinctiveness band is one of these are shown in the
-// Area Habitats dropdown. High and V.High are excluded because they cannot be
-// selected in the area habitats journey.
-const AREA_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
+// Distinctiveness bands in the MVS scope — the dropdowns for both the area
+// habitats journey and the hedgerow journey (BMD-500 AC6b) filter to these
+// bands. High and V.High are excluded because neither journey lets the user
+// pick them.
+const MVS_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
 // Split a habitat type key like 'Grassland - Lowland meadows' or
 // 'Rocky shore - High energy littoral rock - on peat, clay or chalk' into
@@ -55,7 +56,7 @@ function getHabitatsByBroad(options = {}) {
   for (const [key, distinctiveness] of Object.entries(
     distinctivenessByHabitatType
   )) {
-    if (areaOnly && !AREA_HABITAT_BANDS.has(distinctiveness)) {
+    if (areaOnly && !MVS_BANDS.has(distinctiveness)) {
       continue
     }
     const { broadHabitat, habitatType } = splitHabitatTypeKey(key)
@@ -147,11 +148,80 @@ function getConditionsForHabitatType(habitatType) {
   return out
 }
 
+// Hedgerow reference data lives on a separate engine export from the area data
+// (engine work tracked in BMD-427/428). Until that lands, expose empty
+// readers so the hedgerow journey wires up end to end and the dropdowns
+// populate as soon as the engine ships the JSON. The shapes match the area
+// equivalents so the frontend strategy can reuse the same view-model code.
+const HEDGEROW_DISTINCTIVENESS_CATEGORIES = {}
+const HEDGEROW_CONDITION_SCORES = {}
+
+/**
+ * Hedgerow habitat types in the MVS scope (V.Low / Low / Medium), sorted by
+ * name. Each entry carries its distinctiveness band + score so the client can
+ * derive distinctiveness text without a round trip.
+ *
+ * The `categories` parameter is exposed for tests so the logic can be
+ * exercised before BMD-427/428 populates the real engine data; production
+ * callers should use the default.
+ *
+ * @param {Object<string, string>} [categories]
+ * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
+ */
+function getHedgerowHabitatTypes(
+  categories = HEDGEROW_DISTINCTIVENESS_CATEGORIES
+) {
+  const types = []
+  for (const [name, distinctiveness] of Object.entries(categories)) {
+    if (!MVS_BANDS.has(distinctiveness)) {
+      continue
+    }
+    types.push({
+      name,
+      distinctiveness,
+      distinctivenessScore: distinctivenessScores[distinctiveness]?.score
+    })
+  }
+  return types.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Condition options for a hedgerow habitat type, in the engine's canonical
+ * order, with "Not Possible" entries removed. Returns [] for hedgerow types
+ * the engine does not know about.
+ *
+ * The `scoresLookup` parameter is exposed for tests so the logic can be
+ * exercised before BMD-427/428 populates the real engine data; production
+ * callers should use the default.
+ *
+ * @param {string} habitatType
+ * @param {Object<string, Object<string, number|string>>} [scoresLookup]
+ * @returns {Array<{ condition: string, score: number }>}
+ */
+function getConditionsForHedgerowType(
+  habitatType,
+  scoresLookup = HEDGEROW_CONDITION_SCORES
+) {
+  const scoresByCondition = scoresLookup[habitatType]
+  if (!scoresByCondition) {
+    return []
+  }
+  const out = []
+  for (const [condition, score] of Object.entries(scoresByCondition)) {
+    if (score !== NOT_POSSIBLE) {
+      out.push({ condition, score })
+    }
+  }
+  return out
+}
+
 export {
   tradingRulesByDistinctiveness,
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
   getAreaHabitatTypesByBroad,
-  getConditionsForHabitatType
+  getConditionsForHabitatType,
+  getHedgerowHabitatTypes,
+  getConditionsForHedgerowType
 }

@@ -5,6 +5,8 @@ import {
   getAreaHabitatTypes,
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType,
+  getConditionsForHedgerowType,
+  getHedgerowHabitatTypes,
   tradingRulesByDistinctiveness
 } from '../validation/baseline/reference/habitat-reference.js'
 
@@ -83,9 +85,41 @@ import {
  *         required: true
  *         schema:
  *           type: string
+ *       - in: query
+ *         name: featureType
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [habitat, hedgerow]
+ *           default: habitat
+ *         description: Which reference table to look up. Defaults to area habitats.
  *     responses:
  *       200:
  *         description: Returns the condition options in canonical order
+ *
+ * /reference/hedgerow-types:
+ *   get:
+ *     tags:
+ *       - Reference
+ *     summary: Hedgerow habitat types available in the hedgerow journey
+ *     description: |
+ *       Returns the MVS-scope (V.Low / Low / Medium) hedgerow habitat types in
+ *       alphabetical order, each with its distinctiveness band + score. Used
+ *       by the BMD-500 hedgerow details page to populate the habitat-type
+ *       dropdown and supply distinctiveness data for client-side rendering.
+ *     responses:
+ *       200:
+ *         description: Alphabetical list of hedgerow habitat types
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name: { type: string }
+ *                   distinctiveness: { type: string }
+ *                   distinctivenessScore: { type: number }
  *
  * /reference/trading-rules:
  *   get:
@@ -130,14 +164,25 @@ const getConditions = {
   options: {
     validate: {
       query: Joi.object({
-        habitatType: Joi.string().trim().min(1).required()
+        habitatType: Joi.string().trim().min(1).required(),
+        featureType: Joi.string()
+          .valid('habitat', 'hedgerow')
+          .default('habitat')
       })
     }
   },
   handler: (request, _h) => {
-    const { habitatType } = request.query
-    return getConditionsForHabitatType(habitatType)
+    const { habitatType, featureType } = request.query
+    return featureType === 'hedgerow'
+      ? getConditionsForHedgerowType(habitatType)
+      : getConditionsForHabitatType(habitatType)
   }
+}
+
+const getHedgerowTypes = {
+  method: 'GET',
+  path: '/reference/hedgerow-types',
+  handler: (_request, _h) => getHedgerowHabitatTypes()
 }
 
 const getTradingRules = {
@@ -151,5 +196,6 @@ export {
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
+  getHedgerowTypes,
   getTradingRules
 }

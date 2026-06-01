@@ -11,6 +11,7 @@ import {
   updateProject
 } from '../routes/projects.js'
 import { updateAreaHabitat } from '../routes/habitats.js'
+import { getFeature } from '../routes/features.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
 import { getUserProjects } from '../routes/users.js'
@@ -19,6 +20,7 @@ import {
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
+  getHedgerowTypes,
   getTradingRules
 } from '../routes/reference.js'
 import { swagger } from '../common/helpers/swagger.js'
@@ -36,6 +38,7 @@ const router = {
         createProject,
         updateProject,
         updateAreaHabitat,
+        getFeature,
         initiateUpload,
         uploadStatus,
         validateBaseline,
@@ -44,6 +47,7 @@ const router = {
         getHabitatTypes,
         getHabitatTypesByBroad,
         getConditions,
+        getHedgerowTypes,
         getTradingRules
       ])
 

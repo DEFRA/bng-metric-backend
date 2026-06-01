@@ -5,8 +5,10 @@ import {
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
+  getHedgerowTypes,
   getTradingRules
 } from './reference.js'
+import { getHedgerowHabitatTypes } from '../validation/baseline/reference/habitat-reference.js'
 
 describe('#getBroadHabitats', () => {
   test('Returns an alphabetised list of broad habitats', () => {
@@ -165,6 +167,61 @@ describe('#getConditions', () => {
   test('Returns empty array for unknown habitat type', () => {
     const request = { query: { habitatType: 'Not a real habitat' } }
     expect(getConditions.handler(request, {})).toEqual([])
+  })
+
+  test('Dispatches to hedgerow lookup when featureType=hedgerow', () => {
+    // Hedgerow reference data is not bundled in the engine yet (tracked in
+    // BMD-427/428), so the hedgerow lookup currently returns []. The
+    // assertion here is on the dispatch — it asks the hedgerow table even
+    // for a key that would resolve against area data.
+    const request = {
+      query: {
+        habitatType: 'Grassland - Modified grassland',
+        featureType: 'hedgerow'
+      }
+    }
+    expect(getConditions.handler(request, {})).toEqual([])
+  })
+})
+
+describe('#getConditions validation', () => {
+  const schema = getConditions.options.validate.query
+
+  test('Defaults featureType to "habitat" when omitted', () => {
+    const { value, error } = schema.validate({
+      habitatType: 'Grassland - Modified grassland'
+    })
+    expect(error).toBeUndefined()
+    expect(value.featureType).toBe('habitat')
+  })
+
+  test('Accepts featureType=hedgerow', () => {
+    const { value, error } = schema.validate({
+      habitatType: 'Native hedgerow',
+      featureType: 'hedgerow'
+    })
+    expect(error).toBeUndefined()
+    expect(value.featureType).toBe('hedgerow')
+  })
+
+  test('Rejects unsupported featureType', () => {
+    const { error } = schema.validate({
+      habitatType: 'River',
+      featureType: 'watercourse'
+    })
+    expect(error).toBeDefined()
+  })
+})
+
+describe('#getHedgerowTypes', () => {
+  test.todo(
+    'Returns the MVS-scope hedgerow types in alphabetical order (BMD-427/428)'
+  )
+
+  test('handler delegates to getHedgerowHabitatTypes', () => {
+    // Pins the route → reader wiring so it stays in lockstep with whatever
+    // getHedgerowHabitatTypes returns once BMD-427/428 lands real data.
+    expect(getHedgerowTypes.handler({}, {})).toEqual(getHedgerowHabitatTypes())
   })
 })
 

@@ -1,9 +1,7 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { startServer, stopServer } from './helpers/server.js'
-
-const HTTP_OK = 200
-const HTTP_BAD_REQUEST = 400
+import { HTTP_OK, HTTP_BAD_REQUEST } from './helpers/http-status.js'
 
 let server
 
@@ -105,5 +103,20 @@ describe('GET /reference/trading-rules', () => {
     expect(Object.keys(res.result).sort()).toEqual(
       ['High', 'Low', 'Medium', 'V.High', 'V.Low'].sort()
     )
+  })
+})
+
+describe('GET /reference/hedgerow-types', () => {
+  // Route-coverage check requires every manifest route to be hit, so this
+  // smoke test stays even though the endpoint returns an empty array until
+  // BMD-427/428 lands the hedgerow reference data. Full content assertions
+  // (name / distinctiveness / distinctivenessScore) belong in that ticket.
+  it('is reachable and returns a JSON array', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-types'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(Array.isArray(res.result)).toBe(true)
   })
 })
