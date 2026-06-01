@@ -1,7 +1,7 @@
 import Boom from '@hapi/boom'
 import { eq } from 'drizzle-orm'
-import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
+import { projectFeatureIdParams } from './shared-params.js'
 
 const FEATURE_LAYERS = [
   { type: 'habitat', key: 'habitats' },
@@ -59,18 +59,8 @@ function findFeature(baseline, featureId) {
  *       baseline feature by featureId alone — the data tells the caller what
  *       kind of feature it is.
  *     parameters:
- *       - in: path
- *         name: projectId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
- *       - in: path
- *         name: featureId
- *         required: true
- *         schema:
- *           type: string
- *           format: uuid
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
  *     responses:
  *       200:
  *         description: Returns the feature with its type
@@ -92,10 +82,7 @@ const getFeature = {
   path: '/projects/{projectId}/features/{featureId}',
   options: {
     validate: {
-      params: Joi.object({
-        projectId: Joi.string().uuid().required(),
-        featureId: Joi.string().uuid().required()
-      })
+      params: projectFeatureIdParams
     }
   },
   handler: async (request, _h) => {
