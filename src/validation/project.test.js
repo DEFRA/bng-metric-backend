@@ -127,6 +127,58 @@ describe('#projectSchema', () => {
   })
 })
 
+describe('#filename validation', () => {
+  const withFilename = (filename) => baselineSchema.validate({ filename })
+
+  test('Should accept a clean .gpkg filename', () => {
+    const { error } = withFilename('survey.gpkg')
+    expect(error).toBeUndefined()
+  })
+
+  test('Should accept filenames with dots, hyphens, underscores and spaces', () => {
+    const { error } = withFilename('my survey_v2.0-final.gpkg')
+    expect(error).toBeUndefined()
+  })
+
+  test('Should accept null filename', () => {
+    const { error } = withFilename(null)
+    expect(error).toBeUndefined()
+  })
+
+  test('Should reject wrong extension (extension spoofing via legitimate name)', () => {
+    // survey.exe has no .gpkg extension — must be rejected
+    const { error } = withFilename('survey.exe')
+    expect(error).toBeDefined()
+  })
+
+  test('Should reject RTL override character (extension spoofing)', () => {
+    // U+202E flips rendering so survey\u202Egpkg.exe displays as survey.exe.gpkg
+    const { error } = withFilename('survey\u202Egpkg.exe')
+    expect(error).toBeDefined()
+  })
+
+  test('Should reject path traversal sequences', () => {
+    const { error } = withFilename('../../../etc/passwd.gpkg')
+    expect(error).toBeDefined()
+  })
+
+  test('Should reject newline (log injection)', () => {
+    const { error } = withFilename('survey\n.gpkg')
+    expect(error).toBeDefined()
+  })
+
+  test('Should reject zero-width space (invisible-char duplicate)', () => {
+    // sur\u200Bvey.gpkg renders identically to survey.gpkg but is a different string
+    const { error } = withFilename('sur\u200Bvey.gpkg')
+    expect(error).toBeDefined()
+  })
+
+  test('Should reject SQL injection characters', () => {
+    const { error } = withFilename("survey'; DROP TABLE projects; --.gpkg")
+    expect(error).toBeDefined()
+  })
+})
+
 describe('#baselineSchema', () => {
   const validBaseline = {
     uploadId: 'f6b667d8-998f-4f55-8a20-204c0c289147',
