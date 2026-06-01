@@ -3,6 +3,10 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/baseline/errors.js'
 import {
+  GEOPACKAGE_METRIC,
+  VALIDATION_CATEGORY
+} from '../common/helpers/metric-names.js'
+import {
   UPLOAD_ID,
   PROJECT_ID,
   MOCK_BUCKET,
@@ -26,9 +30,10 @@ import {
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
   UploadFailedError: class MockUploadFailedError extends Error {
-    constructor(message) {
+    constructor(message, errorMessage = null) {
       super(message)
       this.name = 'UploadFailedError'
+      this.errorMessage = errorMessage
     }
   },
   UploadTimeoutError: class MockUploadTimeoutError extends Error {
@@ -70,6 +75,11 @@ vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   return { ...actual, downloadFile: vi.fn() }
 })
 
+vi.mock('../common/helpers/metrics.js', () => ({
+  metricsCounter: vi.fn(),
+  metricsByteSize: vi.fn()
+}))
+
 const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
@@ -84,6 +94,8 @@ const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
 const { calculateHabitatSizes } =
   await import('../services/baseline/calculate-habitat-sizes.js')
+const { metricsCounter, metricsByteSize } =
+  await import('../common/helpers/metrics.js')
 const { validateBaseline } = await import('./baseline.js')
 
 describe('validateBaseline route configuration', () => {
@@ -680,6 +692,100 @@ describe('validateBaseline handler full validation error handling', () => {
         valid: false,
         errors: [expect.objectContaining({ code: 'VALIDATION_FAILED' })]
       })
+    )
+  })
+})
+
+describe('validateBaseline handler — metrics', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+  })
+
+  it('emits the upload size and a success counter when validation passes', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsByteSize).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.uploadSizeBytes,
+      MOCK_FILE_SIZE
+    )
+    expect(metricsCounter).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationSucceeded
+    )
+  })
+
+  it('emits an internal_data failure when the gpkg gate rejects', async () => {
+    vi.mocked(validateGpkg).mockReturnValue({ valid: false, errors: ['bad'] })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(metricsCounter).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationFailed,
+      1,
+      { category: VALIDATION_CATEGORY.internalData }
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationSucceeded
+    )
+  })
+
+  it('emits a geometric failure when full validation rejects', async () => {
+    vi.mocked(validateBaselineLayers).mockResolvedValue({
+      valid: false,
+      errors: [{ code: 'REDLINE_INVALID_GEOMETRY', message: 'bad' }]
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(metricsCounter).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationFailed,
+      1,
+      { category: VALIDATION_CATEGORY.geometric }
+    )
+  })
+
+  it('emits a virus failure when the upload is rejected for a virus', async () => {
+    vi.mocked(waitForUploadReady).mockRejectedValue(
+      new UploadFailedError('rejected', 'The selected file contains a virus')
+    )
+
+    await validateBaseline
+      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
+      .catch(() => {})
+
+    expect(metricsCounter).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationFailed,
+      1,
+      { category: VALIDATION_CATEGORY.virus }
+    )
+  })
+
+  it('does not emit a virus failure for a non-virus rejection', async () => {
+    vi.mocked(waitForUploadReady).mockRejectedValue(
+      new UploadFailedError('rejected', 'Some other reason')
+    )
+
+    await validateBaseline
+      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
+      .catch(() => {})
+
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationFailed,
+      1,
+      { category: VALIDATION_CATEGORY.virus }
     )
   })
 })

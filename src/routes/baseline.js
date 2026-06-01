@@ -36,8 +36,17 @@ import {
 } from '../db/schema/index.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
+import {
+  GEOPACKAGE_METRIC,
+  VALIDATION_CATEGORY
+} from '../common/helpers/metric-names.js'
 
 const logger = createLogger()
+
+// CDP Uploader reports a virus rejection via the file's errorMessage (e.g.
+// "The selected file contains a virus"); match it to categorise the metric.
+const VIRUS_REJECTION_PATTERN = /virus/i
 
 async function resolveUploadLocation(uploadId) {
   try {
@@ -53,6 +62,11 @@ async function resolveUploadLocation(uploadId) {
       logger.error(
         `validateBaseline: upload was rejected for uploadId ${uploadId}: ${err.message}`
       )
+      if (VIRUS_REJECTION_PATTERN.test(err.errorMessage ?? '')) {
+        await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+          category: VALIDATION_CATEGORY.virus
+        })
+      }
       throw Boom.badData('Upload was rejected')
     }
     logger.error(
@@ -326,9 +340,13 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
           .map((e) => `${e.code}: ${e.message}`)
           .join(' | ')}`
       )
+      await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+        category: VALIDATION_CATEGORY.geometric
+      })
       return h.response(result)
     }
     logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+    await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
     if (projectId) {
       const errorResponse = await saveBaselineForProject(
         drizzle,
@@ -462,6 +480,9 @@ const validateBaseline = {
 
     const { bucket, key, filename, fileSize } =
       await resolveUploadLocation(uploadId)
+    if (fileSize != null) {
+      await metricsByteSize(GEOPACKAGE_METRIC.uploadSizeBytes, fileSize)
+    }
     if (projectId) {
       const metadataErrorResponse = validateUploadMetadata(
         uploadId,
@@ -481,6 +502,9 @@ const validateBaseline = {
       logger.info(
         `validateBaseline - rejected at gpkg gate uploadId ${uploadId}`
       )
+      await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+        category: VALIDATION_CATEGORY.internalData
+      })
       return h.response(gateResult)
     }
 

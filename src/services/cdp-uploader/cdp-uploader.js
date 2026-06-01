@@ -143,7 +143,8 @@ export async function waitForUploadReady(
     // field is a permanent rejection, fail immediately.
     if (!statusResult.error && TERMINAL_FAILURE_STATUSES.has(uploadStatus)) {
       throw new UploadFailedError(
-        `Upload ${uploadId} was rejected by CDP Uploader`
+        `Upload ${uploadId} was rejected by CDP Uploader`,
+        statusResult.errorMessage ?? null
       )
     }
 
@@ -156,9 +157,16 @@ export async function waitForUploadReady(
 }
 
 export class UploadFailedError extends Error {
-  constructor(message) {
+  /**
+   * @param {string} message
+   * @param {string|null} [errorMessage] - the rejection reason reported by CDP
+   *   Uploader (e.g. "The selected file contains a virus"), used to categorise
+   *   the failure metric.
+   */
+  constructor(message, errorMessage = null) {
     super(message)
     this.name = 'UploadFailedError'
+    this.errorMessage = errorMessage
   }
 }
 
