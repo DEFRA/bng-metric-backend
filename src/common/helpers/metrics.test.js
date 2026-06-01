@@ -1,24 +1,23 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { StorageResolution, Unit } from 'aws-embedded-metrics'
 
 import { config } from '../../config.js'
-import { metricsCounter } from './metrics.js'
+import { metricsCounter, metricsByteSize } from './metrics.js'
 
-const mockPutMetric = vi.fn()
-const mockFlush = vi.fn()
+const mockCounter = vi.fn()
+const mockByteSize = vi.fn()
 const mockLoggerError = vi.fn()
 
-vi.mock('aws-embedded-metrics', async (importOriginal) => {
-  const awsEmbeddedMetrics = await importOriginal()
+vi.mock('@defra/cdp-metrics', () => ({
+  Metrics: class {
+    counter(...args) {
+      return mockCounter(...args)
+    }
 
-  return {
-    ...awsEmbeddedMetrics,
-    createMetricsLogger: () => ({
-      putMetric: mockPutMetric,
-      flush: mockFlush
-    })
+    byteSize(...args) {
+      return mockByteSize(...args)
+    }
   }
-})
+}))
 vi.mock('./logging/logger.js', () => ({
   createLogger: () => ({ error: (...args) => mockLoggerError(...args) })
 }))
@@ -26,20 +25,26 @@ vi.mock('./logging/logger.js', () => ({
 const mockMetricsName = 'mock-metrics-name'
 const defaultMetricsValue = 1
 const mockValue = 200
+const mockDimensions = { category: 'geometric' }
 
 describe('#metrics', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
   describe('When metrics is not enabled', () => {
     beforeEach(async () => {
       config.set('isMetricsEnabled', false)
       await metricsCounter(mockMetricsName, mockValue)
+      await metricsByteSize(mockMetricsName, mockValue)
     })
 
-    test('Should not call metric', () => {
-      expect(mockPutMetric).not.toHaveBeenCalled()
+    test('Should not emit a counter', () => {
+      expect(mockCounter).not.toHaveBeenCalled()
     })
 
-    test('Should not call flush', () => {
-      expect(mockFlush).not.toHaveBeenCalled()
+    test('Should not emit a byte size', () => {
+      expect(mockByteSize).not.toHaveBeenCalled()
     })
   })
 
@@ -48,49 +53,45 @@ describe('#metrics', () => {
       config.set('isMetricsEnabled', true)
     })
 
-    test('Should send metric with default value', async () => {
+    test('Should emit a counter with the default value', async () => {
       await metricsCounter(mockMetricsName)
 
-      expect(mockPutMetric).toHaveBeenCalledWith(
+      expect(mockCounter).toHaveBeenCalledWith(
         mockMetricsName,
         defaultMetricsValue,
-        Unit.Count,
-        StorageResolution.Standard
+        {}
       )
     })
 
-    test('Should send metric', async () => {
-      await metricsCounter(mockMetricsName, mockValue)
+    test('Should emit a counter with a value and dimensions', async () => {
+      await metricsCounter(mockMetricsName, mockValue, mockDimensions)
 
-      expect(mockPutMetric).toHaveBeenCalledWith(
+      expect(mockCounter).toHaveBeenCalledWith(
         mockMetricsName,
         mockValue,
-        Unit.Count,
-        StorageResolution.Standard
+        mockDimensions
       )
     })
 
-    test('Should not call flush', async () => {
-      await metricsCounter(mockMetricsName, mockValue)
-      expect(mockFlush).toHaveBeenCalled()
+    test('Should emit a byte size with a value', async () => {
+      await metricsByteSize(mockMetricsName, mockValue)
+
+      expect(mockByteSize).toHaveBeenCalledWith(mockMetricsName, mockValue, {})
     })
   })
 
-  describe('When metrics throws', () => {
-    const mockError = 'mock-metrics-put-error'
+  describe('When the underlying metric call throws', () => {
+    const mockError = new Error('mock-metrics-put-error')
 
     beforeEach(async () => {
       config.set('isMetricsEnabled', true)
-      mockFlush.mockRejectedValue(new Error(mockError))
+      mockCounter.mockRejectedValueOnce(mockError)
 
       await metricsCounter(mockMetricsName, mockValue)
     })
 
-    test('Should log expected error', () => {
-      expect(mockLoggerError).toHaveBeenCalledWith(
-        new Error(mockError),
-        mockError
-      )
+    test('Should log the error and not rethrow', () => {
+      expect(mockLoggerError).toHaveBeenCalledWith(mockError, mockError.message)
     })
   })
 })

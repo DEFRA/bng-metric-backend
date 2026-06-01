@@ -408,6 +408,28 @@ describe('waitForUploadReady failures', () => {
     ).rejects.toThrow(UploadFailedError)
   })
 
+  it('carries the rejection reason on the UploadFailedError', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: {
+        uploadStatus: 'rejected',
+        numberOfRejectedFiles: 1,
+        form: {
+          file: {
+            fileStatus: 'rejected',
+            errorMessage: 'The selected file contains a virus'
+          }
+        }
+      }
+    })
+
+    const error = await waitForUploadReady(UPLOAD_ID, {
+      pollIntervalMs: 0
+    }).catch((e) => e)
+
+    expect(error).toBeInstanceOf(UploadFailedError)
+    expect(error.errorMessage).toBe('The selected file contains a virus')
+  })
+
   it('should throw UploadTimeoutError when the deadline is exceeded', async () => {
     vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingUploadPayload })
 
