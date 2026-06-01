@@ -17,7 +17,7 @@ const MAX_FILENAME_LENGTH = 255
 //   4. Wrong extension     — \.gpkg$ is mandatory (case-insensitive)
 //   5. Invisible chars     — zero-width / formatting codepoints not in the set
 //   6. SQL injection       — ' " ; not in the set; lone - cannot form --
-const SAFE_FILENAME_RE = /^[a-zA-Z0-9][a-zA-Z0-9 ._-]*\.gpkg$/i
+const SAFE_FILENAME_RE = /^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i
 
 const siteSchema = Joi.object({
   name: Joi.string(),
