@@ -161,13 +161,18 @@ const HEDGEROW_CONDITION_SCORES = {}
  * name. Each entry carries its distinctiveness band + score so the client can
  * derive distinctiveness text without a round trip.
  *
+ * The `categories` parameter is exposed for tests so the logic can be
+ * exercised before BMD-427/428 populates the real engine data; production
+ * callers should use the default.
+ *
+ * @param {Object<string, string>} [categories]
  * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
  */
-function getHedgerowHabitatTypes() {
+function getHedgerowHabitatTypes(
+  categories = HEDGEROW_DISTINCTIVENESS_CATEGORIES
+) {
   const types = []
-  for (const [name, distinctiveness] of Object.entries(
-    HEDGEROW_DISTINCTIVENESS_CATEGORIES
-  )) {
+  for (const [name, distinctiveness] of Object.entries(categories)) {
     if (!MVS_BANDS.has(distinctiveness)) {
       continue
     }
@@ -185,11 +190,19 @@ function getHedgerowHabitatTypes() {
  * order, with "Not Possible" entries removed. Returns [] for hedgerow types
  * the engine does not know about.
  *
+ * The `scoresLookup` parameter is exposed for tests so the logic can be
+ * exercised before BMD-427/428 populates the real engine data; production
+ * callers should use the default.
+ *
  * @param {string} habitatType
+ * @param {Object<string, Object<string, number|string>>} [scoresLookup]
  * @returns {Array<{ condition: string, score: number }>}
  */
-function getConditionsForHedgerowType(habitatType) {
-  const scoresByCondition = HEDGEROW_CONDITION_SCORES[habitatType]
+function getConditionsForHedgerowType(
+  habitatType,
+  scoresLookup = HEDGEROW_CONDITION_SCORES
+) {
+  const scoresByCondition = scoresLookup[habitatType]
   if (!scoresByCondition) {
     return []
   }

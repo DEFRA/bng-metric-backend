@@ -5,8 +5,10 @@ import {
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
+  getHedgerowTypes,
   getTradingRules
 } from './reference.js'
+import { getHedgerowHabitatTypes } from '../validation/baseline/reference/habitat-reference.js'
 
 describe('#getBroadHabitats', () => {
   test('Returns an alphabetised list of broad habitats', () => {
@@ -215,6 +217,12 @@ describe('#getHedgerowTypes', () => {
   test.todo(
     'Returns the MVS-scope hedgerow types in alphabetical order (BMD-427/428)'
   )
+
+  test('handler delegates to getHedgerowHabitatTypes', () => {
+    // Pins the route → reader wiring so it stays in lockstep with whatever
+    // getHedgerowHabitatTypes returns once BMD-427/428 lands real data.
+    expect(getHedgerowTypes.handler({}, {})).toEqual(getHedgerowHabitatTypes())
+  })
 })
 
 describe('#getTradingRules', () => {
