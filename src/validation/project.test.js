@@ -152,8 +152,8 @@ describe('#filename validation', () => {
   })
 
   test('Should reject RTL override character (extension spoofing)', () => {
-    // U+202E flips rendering so survey‮gpkg.exe displays as survey.exe.gpkg
-    const { error } = withFilename('survey‮gpkg.exe')
+    // U+202E flips rendering so survey\u202Egpkg.exe displays as survey.exe.gpkg
+    const { error } = withFilename('survey\u202Egpkg.exe')
     expect(error).toBeDefined()
   })
 
