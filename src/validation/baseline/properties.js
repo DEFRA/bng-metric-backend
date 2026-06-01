@@ -5,20 +5,22 @@ export const PROP_KEYS = {
   parcelRef: ['Parcel Ref', 'Parcel_Ref', 'parcel_ref'],
   habitatType: ['Baseline Habitat Type', 'Baseline_Habitat_Type'],
   broadHabitat: ['Baseline Broad Habitat Type', 'Baseline_Broad_Habitat_Type'],
+  hedgerowType: ['Baseline Hedge Type', 'Baseline_Hedge_Type'],
+  riverType: ['Baseline River Type', 'Baseline_River_Type'],
   condition: ['Baseline Condition', 'Baseline_Condition'],
   strategicSignificance: [
     'Baseline Strategic Significance',
     'Baseline_Strategic_Significance'
   ],
-  retentionCategory: ['Retention Category', 'Retention_Category'],
-  riparianEncroachment: [
-    'Baseline Encroachment into riparian zone',
-    'Baseline_Encroachment_into_riparian_zone'
-  ],
   watercourseEncroachment: [
     'Baseline Encroachment into Watercourse',
     'Baseline_Encroachment_into_Watercourse'
   ],
+  riparianEncroachment: [
+    'Baseline Encroachment into riparian zone',
+    'Baseline_Encroachment_into_riparian_zone'
+  ],
+  retentionCategory: ['Retention Category', 'Retention_Category'],
   area: ['Area', 'Shape_Area'],
   length: ['Length', 'Shape_Length'],
   // fid is a GeoPackage-mandated lowercase column, so no real spelling

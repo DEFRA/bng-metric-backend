@@ -18,12 +18,16 @@ import {
   GPKG_ENVELOPE_SIZES,
   RLB_LYR,
   HABITATS_LYR,
+  HEDGEROWS_LYR,
+  RIVERS_LYR,
   GPKG_CONTENTS_FEATURES_DATA_TYPE
 } from './geopackage-constants.js'
 import {
   compareGpkgToBaselineSchema,
   validateRedLineBoundary,
-  validateHabitats
+  validateHabitats,
+  validateHedgerows,
+  validateWatercourses
 } from './geopackage-internals.js'
 
 const logger = createLogger()
@@ -158,6 +162,15 @@ function validateGpkg(buffer) {
 
     if (contentTables.has(HABITATS_LYR)) {
       validateHabitats(db, errors, logger)
+    }
+
+    // Hedgerows and Rivers are optional layers. Only validate when present;
+    // the validator itself skips silently when the table has zero rows.
+    if (contentTables.has(HEDGEROWS_LYR)) {
+      validateHedgerows(db, errors, logger)
+    }
+    if (contentTables.has(RIVERS_LYR)) {
+      validateWatercourses(db, errors, logger)
     }
 
     const valid = errors.length === 0

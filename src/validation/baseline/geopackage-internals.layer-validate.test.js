@@ -19,12 +19,16 @@ import {
 
 const LAYER_RLB = 'Red Line Boundary'
 const LAYER_HABITATS = 'Habitats'
+const LAYER_HEDGEROWS = 'Hedgerows'
+const LAYER_RIVERS = 'Rivers'
 
 const { ERROR_CODES } = await import('./errors.js')
 const {
   compareOneLayerToBaselineSchema,
   validateRedLineBoundary,
-  validateHabitats
+  validateHabitats,
+  validateHedgerows,
+  validateWatercourses
 } = await import('./geopackage-internals.js')
 
 const habitatsLayer = baselineSchema.layers.find(
@@ -214,6 +218,22 @@ describe('validateRedLineBoundary — big-endian WKB', () => {
   })
 })
 
+describe('validateRedLineBoundary — geom registration mismatch, no explicit logger', () => {
+  it('does not throw when no logger is supplied and the SELECT fails', () => {
+    const db = openMemoryGp10WithSystemTables()
+    registerBareFeatureBlobLayer(db, {
+      tableName: LAYER_RLB,
+      regColumnName: 'wrong_geom',
+      geometryTypeName: 'POLYGON'
+    })
+
+    const errors = []
+    expect(() => validateRedLineBoundary(db, errors)).not.toThrow()
+    expect(errors).toEqual([])
+    db.close()
+  })
+})
+
 describe('validateRedLineBoundary — geom registration mismatch vs table DDL', () => {
   it('does not throw and skips polygon counting with warn', () => {
     const db = openMemoryGp10WithSystemTables()
@@ -277,6 +297,119 @@ describe('validateHabitats — unsafe geometry column identifier', () => {
     const warn = vi.fn()
     const errors = []
     validateHabitats(db, errors, { warn })
+
+    expect(errors).toEqual([])
+    expect(warn).not.toHaveBeenCalled()
+    db.close()
+  })
+})
+
+describe('validateHedgerows — layer absent from gpkg_contents', () => {
+  it('returns early with no errors when the layer is not registered', () => {
+    const db = openMinimalGpkgContentsStub()
+    const errors = []
+    validateHedgerows(db, errors)
+    expect(errors).toEqual([])
+    db.close()
+  })
+})
+
+describe('validateHedgerows — layer registered in contents but physical table missing', () => {
+  it('returns early with no errors when countTableRows catches a missing-table error', () => {
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      hedgerowsLayer.tableName,
+      hedgerowsLayer.srsId
+    )
+    // Physical table not created — countTableRows SELECT will throw and return 0
+
+    const errors = []
+    validateHedgerows(db, errors)
+    expect(errors).toEqual([])
+    db.close()
+  })
+})
+
+describe('validateHedgerows — optional layer edge cases', () => {
+  it('returns early when geometry registration is missing despite non-zero rows', () => {
+    const db = openMemoryGp10WithSystemTables()
+    db.exec(createLayerTableDDL(hedgerowsLayer))
+    insertGpkgFeatureContentsRow(
+      db,
+      hedgerowsLayer.tableName,
+      hedgerowsLayer.srsId
+    )
+    db.prepare(
+      `INSERT INTO "${LAYER_HEDGEROWS}" (fid, geom) VALUES (1, ?)`
+    ).run(Buffer.alloc(1))
+
+    const warn = vi.fn()
+    const errors = []
+    validateHedgerows(db, errors, { warn })
+
+    expect(errors).toEqual([])
+    expect(warn).not.toHaveBeenCalled()
+    db.close()
+  })
+
+  it('returns early when the geometry column name is not a safe SQLite identifier', () => {
+    const db = openMemoryGp10WithSystemTables()
+    registerBareFeatureBlobLayer(db, {
+      tableName: LAYER_HEDGEROWS,
+      regColumnName: 'geom-bad',
+      geometryTypeName: 'MULTILINESTRING'
+    })
+    db.prepare(
+      `INSERT INTO "${LAYER_HEDGEROWS}" (fid, geom) VALUES (1, ?)`
+    ).run(Buffer.alloc(1))
+
+    const warn = vi.fn()
+    const errors = []
+    validateHedgerows(db, errors, { warn })
+
+    expect(errors).toEqual([])
+    expect(warn).not.toHaveBeenCalled()
+    db.close()
+  })
+
+  it('warns and skips geometry checks when the registered column does not exist', () => {
+    const db = openMemoryGp10WithSystemTables()
+    registerBareFeatureBlobLayer(db, {
+      tableName: LAYER_HEDGEROWS,
+      regColumnName: 'wrong_geom',
+      geometryTypeName: 'MULTILINESTRING'
+    })
+    db.prepare(
+      `INSERT INTO "${LAYER_HEDGEROWS}" (fid, geom) VALUES (1, ?)`
+    ).run(Buffer.alloc(1))
+
+    const warn = vi.fn()
+    const errors = []
+    validateHedgerows(db, errors, { warn })
+
+    expect(errors).toEqual([])
+    expect(warn).toHaveBeenCalledTimes(1)
+    expect(warn.mock.calls[0][0]).toMatch(/Hedgerows geometry check skipped/i)
+    db.close()
+  })
+})
+
+describe('validateWatercourses — optional layer edge cases', () => {
+  it('returns early when geometry registration is missing despite non-zero rows', () => {
+    const db = openMemoryGp10WithSystemTables()
+    const riversLayer = baselineSchema.layers.find(
+      (layer) => layer.tableName === LAYER_RIVERS
+    )
+    db.exec(createLayerTableDDL(riversLayer))
+    insertGpkgFeatureContentsRow(db, riversLayer.tableName, riversLayer.srsId)
+    db.prepare(`INSERT INTO "${LAYER_RIVERS}" (fid, geom) VALUES (1, ?)`).run(
+      Buffer.alloc(1)
+    )
+
+    const warn = vi.fn()
+    const errors = []
+    validateWatercourses(db, errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).not.toHaveBeenCalled()

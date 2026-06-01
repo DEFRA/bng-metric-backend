@@ -1160,6 +1160,15 @@
     "Condition Assessment N/A": "Not Possible",
     "N/A - Other": "Not Possible"
   },
+  "Intertidal hard structures - Artificial hard structures with integrated greening of grey infrastructure (IGGI)": {
+    "Good": 3,
+    "Fairly Good": 2.5,
+    "Moderate": 2,
+    "Fairly Poor": 1.5,
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
   "Infrastructure (IGGI) - Infrastructure (IGGI)": {
     "Good": 3,
     "Fairly Good": 2.5,

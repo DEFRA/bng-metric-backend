@@ -67,3 +67,38 @@ export const ERR_UNREADABLE_HABITATS = makeError(
   ERROR_CODES.GPKG_HABITATS_UNREADABLE_GEOMETRY,
   'Habitats contains unreadable geometry'
 )
+
+export const ERR_HABITATS_WRONG_GEOMETRY = makeError(
+  ERROR_CODES.GPKG_HABITATS_WRONG_GEOMETRY_TYPE,
+  'Habitats contains feature(s) with non-polygon geometry'
+)
+
+export const ERR_UNREADABLE_HEDGEROWS = makeError(
+  ERROR_CODES.GPKG_HEDGEROWS_UNREADABLE_GEOMETRY,
+  'Hedgerows contains unreadable geometry'
+)
+
+export const ERR_NO_LINESTRING_HEDGEROWS = makeError(
+  ERROR_CODES.GPKG_HEDGEROWS_NO_LINESTRING_GEOMETRY,
+  'Hedgerows has feature(s) but no readable linestring geometry'
+)
+
+export const ERR_WRONG_GEOMETRY_HEDGEROWS = makeError(
+  ERROR_CODES.GPKG_HEDGEROWS_WRONG_GEOMETRY_TYPE,
+  'Hedgerows contains feature(s) with non-linestring geometry'
+)
+
+export const ERR_UNREADABLE_RIVERS = makeError(
+  ERROR_CODES.GPKG_RIVERS_UNREADABLE_GEOMETRY,
+  'Rivers contains unreadable geometry'
+)
+
+export const ERR_NO_LINESTRING_RIVERS = makeError(
+  ERROR_CODES.GPKG_RIVERS_NO_LINESTRING_GEOMETRY,
+  'Rivers has feature(s) but no readable linestring geometry'
+)
+
+export const ERR_WRONG_GEOMETRY_RIVERS = makeError(
+  ERROR_CODES.GPKG_RIVERS_WRONG_GEOMETRY_TYPE,
+  'Rivers contains feature(s) with non-linestring geometry'
+)

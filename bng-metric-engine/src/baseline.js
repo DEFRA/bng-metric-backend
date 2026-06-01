@@ -3,6 +3,7 @@ import {
   resolveDistinctiveness,
   getConditionMultiplier
 } from './multipliers.js'
+import { roundToSigFigs } from './utils.js'
 
 /** Metric uses 1 for baseline */
 const BASELINE_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
@@ -27,8 +28,9 @@ export function calculateAreaHabitatBaseline(size, habitat, condition) {
   const conditionScore = getConditionMultiplier(habitat, condition)
   const strategicSignificanceScore = BASELINE_STRATEGIC_SIGNIFICANCE_MULTIPLIER
 
-  const units =
+  const units = roundToSigFigs(
     size * distinctivenessScore * conditionScore * strategicSignificanceScore
+  )
 
   return {
     units,

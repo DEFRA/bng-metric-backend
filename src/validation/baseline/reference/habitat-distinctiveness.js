@@ -4,7 +4,7 @@
 // DISTINCTIVENESS_SCORES so backend and engine cannot drift.
 //   - distinctivenessByHabitatType: habitat type string → distinctiveness band
 //   - distinctivenessScores: band → { score }; preserves the prior local shape
-//     (lowercase `score`, no "Suggested action") so existing consumers don't
+//     (lowercase `score`, no "Trading rules") so existing consumers don't
 //     need to change. Trading-rule guidance is exposed separately via
 //     habitat-reference.js's tradingRulesByDistinctiveness.
 

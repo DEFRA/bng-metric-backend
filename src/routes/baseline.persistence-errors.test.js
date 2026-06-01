@@ -194,7 +194,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       expect.objectContaining({
         status: 'Complete',
         sizeMetres: 30,
-        watercourseEncroachment: 'None'
+        watercourseEncroachment: 'No Encroachment'
       })
     )
     expect(document.habitatSizes).toEqual(
