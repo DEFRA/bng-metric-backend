@@ -22,13 +22,11 @@ const tradingRulesByDistinctiveness = Object.fromEntries(
   ])
 )
 
-// Habitat types whose distinctiveness band is one of these are shown in the
-// Area Habitats dropdown. High and V.High are excluded because they cannot be
-// selected in the area habitats journey.
-const AREA_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
-
-// Same MVS-scope filter applies to the hedgerow dropdown (BMD-500 AC6b).
-const HEDGEROW_HABITAT_BANDS = new Set(['V.Low', 'Low', 'Medium'])
+// Distinctiveness bands in the MVS scope — the dropdowns for both the area
+// habitats journey and the hedgerow journey (BMD-500 AC6b) filter to these
+// bands. High and V.High are excluded because neither journey lets the user
+// pick them.
+const MVS_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
 // Split a habitat type key like 'Grassland - Lowland meadows' or
 // 'Rocky shore - High energy littoral rock - on peat, clay or chalk' into
@@ -58,7 +56,7 @@ function getHabitatsByBroad(options = {}) {
   for (const [key, distinctiveness] of Object.entries(
     distinctivenessByHabitatType
   )) {
-    if (areaOnly && !AREA_HABITAT_BANDS.has(distinctiveness)) {
+    if (areaOnly && !MVS_BANDS.has(distinctiveness)) {
       continue
     }
     const { broadHabitat, habitatType } = splitHabitatTypeKey(key)
@@ -170,7 +168,7 @@ function getHedgerowHabitatTypes() {
   for (const [name, distinctiveness] of Object.entries(
     HEDGEROW_DISTINCTIVENESS_CATEGORIES
   )) {
-    if (!HEDGEROW_HABITAT_BANDS.has(distinctiveness)) {
+    if (!MVS_BANDS.has(distinctiveness)) {
       continue
     }
     types.push({

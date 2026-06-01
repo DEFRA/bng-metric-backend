@@ -107,12 +107,11 @@ describe('GET /reference/trading-rules', () => {
 })
 
 describe('GET /reference/hedgerow-types', () => {
-  // The hedgerow reference data is sourced from a separate engine export
-  // (tracked in BMD-427/428). Until that lands, the endpoint returns an
-  // empty array. The contract — array of { name, distinctiveness,
-  // distinctivenessScore } — is verified once data is populated; for now
-  // we only assert shape.
-  it('returns an array (empty until hedgerow reference data lands)', async () => {
+  // Route-coverage check requires every manifest route to be hit, so this
+  // smoke test stays even though the endpoint returns an empty array until
+  // BMD-427/428 lands the hedgerow reference data. Full content assertions
+  // (name / distinctiveness / distinctivenessScore) belong in that ticket.
+  it('is reachable and returns a JSON array', async () => {
     const res = await server.inject({
       method: 'GET',
       url: '/reference/hedgerow-types'

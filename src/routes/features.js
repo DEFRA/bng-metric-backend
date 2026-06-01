@@ -14,21 +14,36 @@ const FEATURE_LAYERS = [
  * it belongs to. Used by the unified feature endpoint so callers identify a
  * feature by its UUID alone — the type comes from the data, not the URL.
  *
+ * Relies on featureIds being unique across habitats, hedgerows and
+ * watercourses (they're generated as UUIDs at baseline-validate time, so
+ * collisions are vanishingly unlikely). If a duplicate is ever observed it
+ * indicates upstream data corruption and we throw rather than silently
+ * returning the wrong layer's feature.
+ *
  * @param {object} baseline
  * @param {string} featureId
  * @returns {{ type: string, feature: object } | null}
+ * @throws {Error} when the same featureId appears in more than one layer
  */
 function findFeature(baseline, featureId) {
   if (!baseline) {
     return null
   }
+  const matches = []
   for (const { type, key } of FEATURE_LAYERS) {
     const found = baseline[key]?.find((f) => f?.featureId === featureId)
     if (found) {
-      return { type, feature: found }
+      matches.push({ type, feature: found })
     }
   }
-  return null
+  if (matches.length > 1) {
+    throw new Error(
+      `featureId ${featureId} appears in multiple layers: ${matches
+        .map((m) => m.type)
+        .join(', ')}`
+    )
+  }
+  return matches[0] ?? null
 }
 
 /**

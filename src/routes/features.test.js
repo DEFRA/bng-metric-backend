@@ -91,6 +91,16 @@ describe('#findFeature', () => {
       feature: sampleHabitat
     })
   })
+
+  test('throws when the same featureId appears in multiple layers', () => {
+    const baseline = {
+      habitats: [{ featureId: HABITAT_ID, ref: '1' }],
+      hedgerows: [{ featureId: HABITAT_ID, ref: 'H1' }]
+    }
+    expect(() => findFeature(baseline, HABITAT_ID)).toThrow(
+      /appears in multiple layers/
+    )
+  })
 })
 
 describe('#getFeature', () => {

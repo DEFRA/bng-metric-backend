@@ -5,7 +5,6 @@ import {
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
-  getHedgerowTypes,
   getTradingRules
 } from './reference.js'
 
@@ -213,10 +212,9 @@ describe('#getConditions validation', () => {
 })
 
 describe('#getHedgerowTypes', () => {
-  test('Returns an array (empty until BMD-427/428 lands hedgerow reference data)', () => {
-    const result = getHedgerowTypes.handler({}, {})
-    expect(Array.isArray(result)).toBe(true)
-  })
+  test.todo(
+    'Returns the MVS-scope hedgerow types in alphabetical order (BMD-427/428)'
+  )
 })
 
 describe('#getTradingRules', () => {
