@@ -107,3 +107,19 @@ describe('GET /reference/trading-rules', () => {
     )
   })
 })
+
+describe('GET /reference/hedgerow-types', () => {
+  // The hedgerow reference data is sourced from a separate engine export
+  // (tracked in BMD-427/428). Until that lands, the endpoint returns an
+  // empty array. The contract — array of { name, distinctiveness,
+  // distinctivenessScore } — is verified once data is populated; for now
+  // we only assert shape.
+  it('returns an array (empty until hedgerow reference data lands)', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-types'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(Array.isArray(res.result)).toBe(true)
+  })
+})

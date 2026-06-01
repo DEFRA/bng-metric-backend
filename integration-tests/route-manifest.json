@@ -3,6 +3,7 @@
   "GET /db-info",
   "GET /projects",
   "GET /projects/{id}",
+  "GET /projects/{projectId}/features/{featureId}",
   "GET /projects/{projectId}/habitats/{featureId}",
   "POST /projects/new",
   "PATCH /projects/{id}",
@@ -15,5 +16,6 @@
   "GET /reference/habitat-types",
   "GET /reference/habitat-types-by-broad",
   "GET /reference/conditions",
+  "GET /reference/hedgerow-types",
   "GET /reference/trading-rules"
 ]
