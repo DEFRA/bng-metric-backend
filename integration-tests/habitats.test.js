@@ -81,7 +81,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       distinctivenessScore: 8,
       conditionScore: 3,
       // 1 ha × 8 × 3 = 24
-      habitatUnits: 24,
+      units: 24,
       status: 'Complete'
     })
 
@@ -93,7 +93,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       broadType: 'Grassland',
       type: 'Lowland meadows',
       condition: 'Good',
-      habitatUnits: 24,
+      units: 24,
       status: 'Complete'
     })
   })
@@ -115,7 +115,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toMatchObject({
       conditionScore: null,
-      habitatUnits: 0,
+      units: 0,
       status: 'Incomplete'
     })
   })

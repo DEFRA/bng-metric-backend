@@ -223,5 +223,7 @@ export {
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType,
   getHedgerowHabitatTypes,
-  getConditionsForHedgerowType
+  getConditionsForHedgerowType,
+  HEDGEROW_DISTINCTIVENESS_CATEGORIES,
+  HEDGEROW_CONDITION_SCORES
 }

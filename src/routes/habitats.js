@@ -1,9 +1,13 @@
 import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
+
 import { projects } from '../db/schema/index.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
-import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js'
+import {
+  APPLY_RESULT,
+  applyFeatureUpdate
+} from '../utilities/baseline/apply-feature-update.js'
 
 /**
  * @openapi
@@ -17,6 +21,10 @@ import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js
  *       for a single area habitat, then recomputes the derived distinctiveness,
  *       condition score, habitat-unit total and Complete/Incomplete status
  *       before saving. Returns the updated habitat document.
+ *
+ *       Thin wrapper around the shared feature-update helper used by the
+ *       unified `PUT /projects/{projectId}/features/{featureId}` endpoint —
+ *       kept live so callers that still hit the typed URL keep working.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -106,10 +114,7 @@ async function runUpdate(
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
   // SELECT ... FOR UPDATE serialises concurrent edits to the same project.
-  // Without this, two concurrent PUTs (even to different habitats within the
-  // same project) would each read the project JSONB, mutate one habitat in
-  // JS, and write the whole document back — last-write-wins drops the other
-  // edit. Mirrors the pattern in src/routes/baseline.js.
+  // Mirrors the pattern in src/routes/baseline.js.
   const [row] = await tx
     .select()
     .from(projects)
@@ -120,54 +125,33 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
-  const project = row.project ?? {}
-  const habitats = project.baseline?.habitats ?? []
-  const habitatIndex = habitats.findIndex((h) => h?.featureId === featureId)
-  if (habitatIndex === -1) {
+  const result = applyFeatureUpdate(row.project ?? {}, {
+    featureId,
+    edits: {
+      broadType: blankToNull(broadType),
+      habitatType: blankToNull(habitatType),
+      condition: blankToNull(condition)
+    },
+    expectedType: 'habitat'
+  })
+  // The legacy typed URL only addresses area habitats. A featureId that lives
+  // in another layer (hedgerow, watercourse) 404s here so cross-layer access
+  // through this endpoint is impossible.
+  if (
+    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
+    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
+  ) {
     throw Boom.notFound(
       `Habitat ${featureId} not found in project ${projectId}`
     )
   }
 
-  const existing = habitats[habitatIndex]
-  const newBroadType = blankToNull(broadType)
-  const newHabitatType = blankToNull(habitatType)
-  const newCondition = blankToNull(condition)
-  const derived = recomputeAreaHabitat({
-    broadType: newBroadType,
-    habitatType: newHabitatType,
-    condition: newCondition,
-    sizeSquareMetres: existing.sizeSquareMetres ?? null
-  })
-
-  const updatedHabitat = {
-    ...existing,
-    broadType: newBroadType,
-    type: newHabitatType,
-    condition: newCondition,
-    distinctiveness: derived.distinctiveness,
-    distinctivenessScore: derived.distinctivenessScore,
-    conditionScore: derived.conditionScore,
-    habitatUnits: derived.habitatUnits,
-    status: derived.status
-  }
-
-  const updatedHabitats = habitats.slice()
-  updatedHabitats[habitatIndex] = updatedHabitat
-  const updatedProject = {
-    ...project,
-    baseline: {
-      ...project.baseline,
-      habitats: updatedHabitats
-    }
-  }
-
   await tx
     .update(projects)
-    .set({ project: updatedProject })
+    .set({ project: result.project })
     .where(eq(projects.id, projectId))
 
-  return updatedHabitat
+  return result.feature
 }
 
 function blankToNull(value) {
