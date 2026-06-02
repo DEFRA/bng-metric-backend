@@ -8,6 +8,7 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/baseline/apply-feature-update.js'
+import { projectFeatureIdParams } from './shared-params.js'
 
 /**
  * @openapi
@@ -67,10 +68,7 @@ const updateAreaHabitat = {
   path: '/projects/{projectId}/habitats/{featureId}',
   options: {
     validate: {
-      params: Joi.object({
-        projectId: Joi.string().uuid().required(),
-        featureId: Joi.string().uuid().required()
-      }),
+      params: projectFeatureIdParams,
       payload: Joi.object({
         broadType: Joi.string().trim().allow(null, '').optional(),
         habitatType: Joi.string().trim().allow(null, '').optional(),
@@ -127,11 +125,7 @@ async function runUpdate(
 
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
-    edits: {
-      broadType: blankToNull(broadType),
-      habitatType: blankToNull(habitatType),
-      condition: blankToNull(condition)
-    },
+    edits: { broadType, habitatType, condition },
     expectedType: 'habitat'
   })
   // The legacy typed URL only addresses area habitats. A featureId that lives
@@ -152,14 +146,6 @@ async function runUpdate(
     .where(eq(projects.id, projectId))
 
   return result.feature
-}
-
-function blankToNull(value) {
-  if (value === null || value === undefined) {
-    return null
-  }
-  const trimmed = typeof value === 'string' ? value.trim() : value
-  return trimmed === '' ? null : trimmed
 }
 
 export { updateAreaHabitat }

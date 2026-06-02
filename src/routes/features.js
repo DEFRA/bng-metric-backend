@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
+import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
@@ -86,8 +87,9 @@ const getFeature = {
  *       selections, recomputes distinctiveness / condition score / units /
  *       status, refreshes the project-level units totals, then returns
  *       `{ type, feature }`. The feature type is discovered from the data,
- *       so a single endpoint handles habitats, hedgerows and (eventually)
- *       watercourses.
+ *       so a single endpoint handles habitats and hedgerows. Watercourse
+ *       editing is not yet supported and returns 400 until the engine
+ *       publishes watercourse scoring.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -110,6 +112,8 @@ const getFeature = {
  *     responses:
  *       200:
  *         description: Returns the updated feature with its type
+ *       400:
+ *         description: Feature type is not editable via this endpoint (e.g. watercourse)
  *       404:
  *         description: Project or feature not found
  *       409:
@@ -136,14 +140,14 @@ const updateFeature = {
         runFeatureUpdate(tx, {
           projectId,
           featureId,
-          edits: normalizeEdits(request.payload)
+          edits: request.payload
         })
       )
     } catch (err) {
       if (err?.isBoom) {
         throw err
       }
-      if (err?.code === '55P03') {
+      if (err?.code === PG_LOCK_NOT_AVAILABLE) {
         throw Boom.conflict('Another edit for this project is in progress')
       }
       throw err
@@ -189,22 +193,6 @@ async function runFeatureUpdate(tx, { projectId, featureId, edits }) {
     .where(eq(projects.id, projectId))
 
   return { type: result.type, feature: result.feature }
-}
-
-function normalizeEdits(payload) {
-  return {
-    broadType: blankToNull(payload.broadType),
-    habitatType: blankToNull(payload.habitatType),
-    condition: blankToNull(payload.condition)
-  }
-}
-
-function blankToNull(value) {
-  if (value === null || value === undefined) {
-    return null
-  }
-  const trimmed = typeof value === 'string' ? value.trim() : value
-  return trimmed === '' ? null : trimmed
 }
 
 export { getFeature, updateFeature, findFeature }

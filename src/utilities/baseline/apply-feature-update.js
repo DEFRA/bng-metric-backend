@@ -36,6 +36,22 @@ const APPLY_RESULT = Object.freeze({
   UNSUPPORTED_TYPE: 'unsupportedType'
 })
 
+function blankToNull(value) {
+  if (value === null || value === undefined) {
+    return null
+  }
+  const trimmed = typeof value === 'string' ? value.trim() : value
+  return trimmed === '' ? null : trimmed
+}
+
+function normalizeEdits(edits = {}) {
+  return {
+    broadType: blankToNull(edits.broadType),
+    habitatType: blankToNull(edits.habitatType),
+    condition: blankToNull(edits.condition)
+  }
+}
+
 function recomputeForType(type, existing, edits) {
   if (type === 'habitat') {
     return recomputeAreaHabitat({
@@ -116,6 +132,7 @@ function spliceFeatureInBaseline(
  * }
  */
 function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
+  const normalizedEdits = normalizeEdits(edits)
   const baseline = project?.baseline
   const found = findFeature(baseline, featureId)
   if (!found) {
@@ -125,12 +142,17 @@ function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
     return { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
   }
 
-  const derived = recomputeForType(found.type, found.feature, edits)
+  const derived = recomputeForType(found.type, found.feature, normalizedEdits)
   if (!derived) {
     return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
   }
 
-  const updatedFeature = mergeFeature(found.type, found.feature, edits, derived)
+  const updatedFeature = mergeFeature(
+    found.type,
+    found.feature,
+    normalizedEdits,
+    derived
+  )
   const updatedBaseline = spliceFeatureInBaseline(
     baseline,
     found.key,

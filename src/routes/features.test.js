@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest'
 
+import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import { getFeature, updateFeature } from './features.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
@@ -63,8 +64,8 @@ function getFeatureMockDrizzle(rows) {
 }
 
 // Same shape as habitats.test.js — drizzle inside a transaction with
-// SELECT ... FOR UPDATE. lockError simulates the 55P03 raised when the row
-// lock can't be acquired before lock_timeout fires.
+// SELECT ... FOR UPDATE. lockError simulates PG_LOCK_NOT_AVAILABLE raised
+// when the row lock can't be acquired before lock_timeout fires.
 function projectLookupChain(rows, lockError) {
   const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
   const limitStep = { limit: () => result }
@@ -322,9 +323,26 @@ describe('updateFeature handler — error cases', () => {
     ).rejects.toThrow(/Feature .* not found/)
   })
 
+  test('throws 400 when the featureId points at a watercourse (not yet editable)', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    await expect(
+      updateFeature.handler(
+        {
+          drizzle,
+          params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+          payload: { habitatType: 'River', condition: 'Good' }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: { statusCode: 400 }
+    })
+  })
+
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
     const lockError = Object.assign(new Error('lock_not_available'), {
-      code: '55P03'
+      code: PG_LOCK_NOT_AVAILABLE
     })
     const drizzle = makeTxDrizzle(makeProject(), { lockError })
     await expect(

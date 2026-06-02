@@ -4,6 +4,7 @@ import { APPLY_RESULT, applyFeatureUpdate } from './apply-feature-update.js'
 
 const HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
 const HEDGEROW_ID = 'bb0e8400-e29b-41d4-a716-446655440002'
+const WATERCOURSE_ID = 'cc0e8400-e29b-41d4-a716-446655440003'
 
 function projectFixture() {
   return {
@@ -186,5 +187,23 @@ describe('applyFeatureUpdate — error outcomes', () => {
       expectedType: 'habitat'
     })
     expect(result.status).toBe(APPLY_RESULT.OK)
+  })
+
+  test('returns UNSUPPORTED_TYPE for a watercourse featureId', () => {
+    const project = projectFixture()
+    project.baseline.watercourses = [
+      {
+        featureId: WATERCOURSE_ID,
+        ref: 'W1',
+        type: 'River',
+        sizeMetres: 200
+      }
+    ]
+    const result = applyFeatureUpdate(project, {
+      featureId: WATERCOURSE_ID,
+      edits: { habitatType: 'River', condition: 'Good' }
+    })
+    expect(result.status).toBe(APPLY_RESULT.UNSUPPORTED_TYPE)
+    expect(result.type).toBe('watercourse')
   })
 })
