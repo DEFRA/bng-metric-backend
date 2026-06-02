@@ -126,15 +126,17 @@ describe('applyFeatureUpdate — hedgerow dispatch', () => {
     })
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.type).toBe('hedgerow')
-    // BMD-427/428 not landed → empty reference data → Incomplete + 0 units.
-    // The persistence path itself works (correct layer, canonical keys,
-    // totals refresh) so the hedgerow journey wires up end-to-end.
+    // 1 km × Low (2) × Good (3) × 1 SS = 6 units. Pins the wiring from the
+    // helper through `recomputeHedgerow` to the engine.
     expect(result.feature).toMatchObject({
       featureId: HEDGEROW_ID,
       type: 'Native hedgerow',
       condition: 'Good',
-      units: 0,
-      status: 'Incomplete'
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
+      conditionScore: 3,
+      units: 6,
+      status: 'Complete'
     })
     expect(result.feature.broadType).toBeUndefined()
   })

@@ -170,17 +170,31 @@ describe('#getConditions', () => {
   })
 
   test('Dispatches to hedgerow lookup when featureType=hedgerow', () => {
-    // Hedgerow reference data is not bundled in the engine yet (tracked in
-    // BMD-427/428), so the hedgerow lookup currently returns []. The
-    // assertion here is on the dispatch — it asks the hedgerow table even
-    // for a key that would resolve against area data.
-    const request = {
-      query: {
-        habitatType: 'Grassland - Modified grassland',
-        featureType: 'hedgerow'
-      }
-    }
-    expect(getConditions.handler(request, {})).toEqual([])
+    // An area-shaped key has no entry in the hedgerow table; conversely a
+    // hedgerow type returns hedgerow conditions. Pins the dispatch and the
+    // wiring to the engine-bundled hedgerow data.
+    expect(
+      getConditions.handler(
+        {
+          query: {
+            habitatType: 'Grassland - Modified grassland',
+            featureType: 'hedgerow'
+          }
+        },
+        {}
+      )
+    ).toEqual([])
+    const hedgerowConditions = getConditions.handler(
+      {
+        query: { habitatType: 'Native hedgerow', featureType: 'hedgerow' }
+      },
+      {}
+    )
+    expect(hedgerowConditions.map((c) => c.condition)).toEqual([
+      'Good',
+      'Moderate',
+      'Poor'
+    ])
   })
 })
 
@@ -214,13 +228,18 @@ describe('#getConditions validation', () => {
 })
 
 describe('#getHedgerowTypes', () => {
-  test.todo(
-    'Returns the MVS-scope hedgerow types in alphabetical order (BMD-427/428)'
-  )
+  test('Returns the MVS-scope hedgerow types in alphabetical order', () => {
+    const result = getHedgerowTypes.handler({}, {})
+    expect(result.length).toBeGreaterThan(0)
+    const names = result.map((r) => r.name)
+    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names)
+    for (const entry of result) {
+      expect(['V.Low', 'Low', 'Medium']).toContain(entry.distinctiveness)
+    }
+    expect(names).toContain('Native hedgerow')
+  })
 
   test('handler delegates to getHedgerowHabitatTypes', () => {
-    // Pins the route → reader wiring so it stays in lockstep with whatever
-    // getHedgerowHabitatTypes returns once BMD-427/428 lands real data.
     expect(getHedgerowTypes.handler({}, {})).toEqual(getHedgerowHabitatTypes())
   })
 })

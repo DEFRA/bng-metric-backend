@@ -229,16 +229,14 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
 
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.type).toBe('hedgerow')
-    // BMD-427/428 hasn't landed the hedgerow engine data yet, so the
-    // production reference defaults to empty and every hedgerow save
-    // resolves to Incomplete. The persistence path itself (layer, canonical
-    // keys, totals refresh) still works end to end.
+    // 1 km × Low (2) × Good (3) × 1 SS = 6 units. Pins the full
+    // request → recompute → engine → persistence loop.
     expect(res.result.feature).toMatchObject({
       featureId: hedgerow.featureId,
       type: 'Native hedgerow',
       condition: 'Good',
-      status: 'Incomplete',
-      units: 0
+      status: 'Complete',
+      units: 6
     })
 
     const { rows } = await dbClient.query(
@@ -248,8 +246,8 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
     expect(rows[0].project.baseline.hedgerows[0]).toMatchObject({
       type: 'Native hedgerow',
       condition: 'Good',
-      status: 'Incomplete',
-      units: 0
+      status: 'Complete',
+      units: 6
     })
     expect(rows[0].project.baseline.habitats).toEqual([])
   })

@@ -261,15 +261,15 @@ describe('updateFeature handler — hedgerow dispatch', () => {
     )
 
     expect(result.type).toBe('hedgerow')
+    // 1 km × Low (2) × Good (3) × 1 SS = 6 units.
     expect(result.feature).toMatchObject({
       featureId: HEDGEROW_ID,
       type: 'Native hedgerow',
       condition: 'Good',
-      // BMD-427/428 not landed → production reference data is empty →
-      // hedgerow recompute falls through to Incomplete. The route, splice
-      // and totals refresh still happen.
-      status: 'Incomplete',
-      units: 0
+      distinctiveness: 'Low',
+      conditionScore: 3,
+      status: 'Complete',
+      units: 6
     })
   })
 
@@ -289,7 +289,7 @@ describe('updateFeature handler — hedgerow dispatch', () => {
     const persisted = drizzle._updateSet.mock.calls[0][0].project
     expect(persisted.baseline.units).toMatchObject({
       habitatsTotal: 4,
-      hedgerowsTotal: 0
+      hedgerowsTotal: 6
     })
   })
 })

@@ -133,39 +133,21 @@ describe('recomputeAreaHabitat', () => {
 })
 
 describe('recomputeHedgerow', () => {
-  // BMD-427/428 will publish hedgerow scoring through bng-metric-engine, at
-  // which point recomputeHedgerow can drop these injected references. Until
-  // then the function exposes them so the engine-bound logic can be tested
-  // ahead of the data landing.
-  const references = {
-    distinctivenessByType: {
-      'Native hedgerow': 'Medium',
-      'Line of trees': 'Low'
-    },
-    conditionScores: {
-      'Native hedgerow': {
-        Good: 3,
-        Moderate: 2,
-        Poor: 1,
-        'Not Possible': 'Not Possible'
-      },
-      'Line of trees': { Good: 3, Poor: 1 }
-    }
-  }
+  // Uses real bng-metric-engine data (BMD-427/428). Native hedgerow is Low (2),
+  // valid conditions are Good (3) / Moderate (2) / Poor (1).
 
   test('Complete + computed units when all inputs are valid', () => {
-    // 1000 m = 1 km; Medium (4) × Good (3) × 1 km × 1 SS = 12
+    // 1000 m = 1 km; Low (2) × Good (3) × 1 km × 1 SS = 6
     const result = recomputeHedgerow({
       habitatType: 'Native hedgerow',
       condition: 'Good',
-      sizeMetres: 1000,
-      references
+      sizeMetres: 1000
     })
     expect(result).toEqual({
-      distinctiveness: 'Medium',
-      distinctivenessScore: 4,
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
       conditionScore: 3,
-      units: 12,
+      units: 6,
       status: HABITAT_STATUS.COMPLETE
     })
   })
@@ -173,10 +155,9 @@ describe('recomputeHedgerow', () => {
   test('converts metres to kilometres', () => {
     // 500 m = 0.5 km; Low (2) × Good (3) × 0.5 = 3
     const result = recomputeHedgerow({
-      habitatType: 'Line of trees',
+      habitatType: 'Native hedgerow',
       condition: 'Good',
-      sizeMetres: 500,
-      references
+      sizeMetres: 500
     })
     expect(result.units).toBe(3)
     expect(result.status).toBe(HABITAT_STATUS.COMPLETE)
@@ -186,8 +167,7 @@ describe('recomputeHedgerow', () => {
     const result = recomputeHedgerow({
       habitatType: null,
       condition: 'Good',
-      sizeMetres: 1000,
-      references
+      sizeMetres: 1000
     })
     expect(result).toMatchObject({
       distinctiveness: null,
@@ -202,8 +182,7 @@ describe('recomputeHedgerow', () => {
     const result = recomputeHedgerow({
       habitatType: 'Unknown type',
       condition: 'Good',
-      sizeMetres: 1000,
-      references
+      sizeMetres: 1000
     })
     expect(result.distinctiveness).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
@@ -214,12 +193,11 @@ describe('recomputeHedgerow', () => {
     const result = recomputeHedgerow({
       habitatType: 'Native hedgerow',
       condition: null,
-      sizeMetres: 1000,
-      references
+      sizeMetres: 1000
     })
     expect(result).toMatchObject({
-      distinctiveness: 'Medium',
-      distinctivenessScore: 4,
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
       conditionScore: null,
       units: 0,
       status: HABITAT_STATUS.INCOMPLETE
@@ -227,11 +205,11 @@ describe('recomputeHedgerow', () => {
   })
 
   test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
+    // Fairly Good is "Not Possible" for Native hedgerow in the engine data.
     const result = recomputeHedgerow({
       habitatType: 'Native hedgerow',
-      condition: 'Not Possible',
-      sizeMetres: 1000,
-      references
+      condition: 'Fairly Good',
+      sizeMetres: 1000
     })
     expect(result.conditionScore).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
@@ -242,8 +220,7 @@ describe('recomputeHedgerow', () => {
     const noSize = recomputeHedgerow({
       habitatType: 'Native hedgerow',
       condition: 'Good',
-      sizeMetres: null,
-      references
+      sizeMetres: null
     })
     expect(noSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
     expect(noSize.units).toBe(0)
@@ -251,23 +228,9 @@ describe('recomputeHedgerow', () => {
     const zeroSize = recomputeHedgerow({
       habitatType: 'Native hedgerow',
       condition: 'Good',
-      sizeMetres: 0,
-      references
+      sizeMetres: 0
     })
     expect(zeroSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
     expect(zeroSize.units).toBe(0)
-  })
-
-  test('defaults to empty reference data when none injected (BMD-427/428 unblocker)', () => {
-    // Until the engine ships hedgerow scoring, the production defaults are
-    // empty objects, so any save resolves to Incomplete. This locks that
-    // behaviour in so the soft-fail does not regress when the engine lands.
-    const result = recomputeHedgerow({
-      habitatType: 'Native hedgerow',
-      condition: 'Good',
-      sizeMetres: 1000
-    })
-    expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
   })
 })
