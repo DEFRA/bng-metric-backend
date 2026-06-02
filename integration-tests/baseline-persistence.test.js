@@ -17,6 +17,7 @@ const HTTP_NOT_FOUND = 404
 const BNG_SRID = 27700
 const BUCKET = 'baseline-files'
 const FIXTURE = 'baseline-complete.gpkg'
+const NULL_AREA_CONDITION_FIXTURE = 'baseline-null-area-condition.gpkg'
 const UNKNOWN_PROJECT_ID = '00000000-0000-4000-8000-000000000000'
 
 let server
@@ -197,6 +198,30 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
       expect(habitat).toHaveProperty('strategicSignificance')
       expect(habitat).toHaveProperty('retentionCategory')
     }
+  })
+
+  it('saves an area habitat as Incomplete when a required attribute is missing', async () => {
+    const project = await createProject('Integration test - AC4 area status')
+    const uploadId = await uploadFixture(NULL_AREA_CONDITION_FIXTURE)
+
+    const res = await callValidate(uploadId, { projectId: project.id })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({ valid: true, errors: [] })
+
+    const stored = await fetchProject(project.id)
+    const habitat = stored.baseline.habitats.find((h) => h.ref === 'H1')
+
+    expect(habitat).toEqual(
+      expect.objectContaining({
+        ref: 'H1',
+        broadType: 'Urban',
+        type: 'Developed land; sealed surface',
+        condition: null,
+        status: 'Incomplete'
+      })
+    )
+    expect(habitat).not.toHaveProperty('units')
   })
 
   it('inserts exactly one red line row in 27700 with valid geometry', async () => {
