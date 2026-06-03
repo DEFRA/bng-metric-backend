@@ -204,6 +204,23 @@ describe('recomputeHedgerow', () => {
     })
   })
 
+  test('V.Low hedgerow uses the hedgerow scores table (score 1, not the area table value of 0)', () => {
+    // Non-native and ornamental hedgerow is the V.Low entry in the engine's
+    // hedgerow categories. The hedgerow distinctiveness table scores V.Low at
+    // 1, whereas the area table scores it at 0 — this asserts we read the
+    // right table on the Incomplete path.
+    const result = recomputeHedgerow({
+      habitatType: 'Non-native and ornamental hedgerow',
+      condition: null,
+      sizeMetres: 1000
+    })
+    expect(result).toMatchObject({
+      distinctiveness: 'V.Low',
+      distinctivenessScore: 1,
+      status: HABITAT_STATUS.INCOMPLETE
+    })
+  })
+
   test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
     // Fairly Good is "Not Possible" for Native hedgerow in the engine data.
     const result = recomputeHedgerow({

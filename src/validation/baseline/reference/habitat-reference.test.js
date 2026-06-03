@@ -70,6 +70,19 @@ describe('getHedgerowHabitatTypes (fixture-injected)', () => {
     // engine churn that drops it surfaces here rather than silently.
     expect(result.map((r) => r.name)).toContain('Native hedgerow')
   })
+
+  test('V.Low hedgerow types carry score 1 (hedgerow table), not 0 (area table)', () => {
+    // The hedgerow distinctiveness table scores V.Low at 1; the area table
+    // scores it at 0. Non-native and ornamental hedgerow is the V.Low entry.
+    const result = getHedgerowHabitatTypes()
+    const vLow = result.find(
+      (r) => r.name === 'Non-native and ornamental hedgerow'
+    )
+    expect(vLow).toMatchObject({
+      distinctiveness: 'V.Low',
+      distinctivenessScore: 1
+    })
+  })
 })
 
 describe('getConditionsForHedgerowType (fixture-injected)', () => {

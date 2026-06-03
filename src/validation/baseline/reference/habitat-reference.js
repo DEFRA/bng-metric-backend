@@ -7,14 +7,25 @@ import {
   CONDITION_SCORES,
   DISTINCTIVENESS_SCORES,
   HEDGEROW_CONDITION_SCORES,
-  HEDGEROW_DISTINCTIVENESS_CATEGORIES
+  HEDGEROW_DISTINCTIVENESS_CATEGORIES,
+  HEDGEROW_DISTINCTIVENESS_SCORES
 } from 'bng-metric-engine'
 import {
   distinctivenessByHabitatType,
   distinctivenessScores
 } from './habitat-distinctiveness.js'
 
+// Hedgerow scores differ from area scores at V.Low (1 vs 0) per the statutory
+// metric tables, so the hedgerow path must read its own scores table.
+const hedgerowDistinctivenessScores = Object.fromEntries(
+  Object.entries(HEDGEROW_DISTINCTIVENESS_SCORES).map(([band, { Score }]) => [
+    band,
+    { score: Score }
+  ])
+)
+
 export { distinctivenessScores } from './habitat-distinctiveness.js'
+export { hedgerowDistinctivenessScores }
 
 const NOT_POSSIBLE = 'Not Possible'
 
@@ -180,7 +191,8 @@ function getHedgerowHabitatTypes(
     types.push({
       name,
       distinctiveness,
-      distinctivenessScore: distinctivenessScores[distinctiveness]?.score
+      distinctivenessScore:
+        hedgerowDistinctivenessScores[distinctiveness]?.score
     })
   }
   return types.sort((a, b) => a.name.localeCompare(b.name))

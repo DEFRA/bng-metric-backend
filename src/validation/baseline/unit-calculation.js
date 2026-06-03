@@ -24,7 +24,7 @@ import {
 } from 'bng-metric-engine'
 import {
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-  distinctivenessScores
+  hedgerowDistinctivenessScores
 } from './reference/habitat-reference.js'
 
 const SQUARE_METRES_PER_HECTARE = 10_000
@@ -55,7 +55,7 @@ function lookupHedgerowDistinctiveness(habitatType) {
   if (!band) {
     return null
   }
-  const score = distinctivenessScores[band]?.score
+  const score = hedgerowDistinctivenessScores[band]?.score
   if (typeof score !== 'number') {
     return null
   }
