@@ -11,7 +11,7 @@ import {
   updateProject
 } from '../routes/projects.js'
 import { updateAreaHabitat } from '../routes/habitats.js'
-import { getFeature } from '../routes/features.js'
+import { getFeature, updateFeature } from '../routes/features.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
 import { getUserProjects } from '../routes/users.js'
@@ -39,6 +39,7 @@ const router = {
         updateProject,
         updateAreaHabitat,
         getFeature,
+        updateFeature,
         initiateUpload,
         uploadStatus,
         validateBaseline,
