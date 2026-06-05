@@ -1,5 +1,8 @@
 import { describe, test, expect, vi } from 'vitest'
-import { updateAreaHabitat } from './habitats.js'
+import {
+  updateAreaHabitat,
+  updatePostInterventionAreaHabitat
+} from './habitats.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
@@ -7,12 +10,12 @@ const HABITAT_1_ID = '11111111-2222-3333-4444-555555555555'
 const HABITAT_2_ID = '66666666-7777-8888-9999-aaaaaaaaaaaa'
 const UNKNOWN_HABITAT_ID = 'ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb'
 
-function makeProjectRow(habitats) {
+function makeProjectRow(habitats, documentKey = 'baseline') {
   return {
     id: PROJECT_ID,
     project: {
       name: 'Test Project',
-      baseline: { habitats }
+      [documentKey]: { habitats }
     },
     userId: 'test-user-001',
     bngProjectVersion: 1
@@ -83,6 +86,15 @@ describe('updateAreaHabitat route shape', () => {
     expect(updateAreaHabitat.method).toBe('PUT')
     expect(updateAreaHabitat.path).toBe(
       '/projects/{projectId}/habitats/{featureId}'
+    )
+  })
+})
+
+describe('updatePostInterventionAreaHabitat route shape', () => {
+  test('is a PUT at /projects/{projectId}/post-intervention/habitats/{featureId}', () => {
+    expect(updatePostInterventionAreaHabitat.method).toBe('PUT')
+    expect(updatePostInterventionAreaHabitat.path).toBe(
+      '/projects/{projectId}/post-intervention/habitats/{featureId}'
     )
   })
 })
@@ -204,7 +216,41 @@ describe('updateAreaHabitat handler — happy path', () => {
   })
 })
 
-describe('updateAreaHabitat handler — error cases', () => {
+describe('updatePostInterventionAreaHabitat handler', () => {
+  test('persists edits to project.postIntervention', async () => {
+    const habitats = defaultHabitats()
+    const projectRow = makeProjectRow(habitats, 'postIntervention')
+    const drizzle = makeDrizzle(projectRow)
+
+    const result = await updatePostInterventionAreaHabitat.handler(
+      {
+        drizzle,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Lowland meadows',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    expect(result).toMatchObject({
+      featureId: HABITAT_1_ID,
+      broadType: 'Grassland',
+      type: 'Lowland meadows',
+      condition: 'Good',
+      status: 'Complete'
+    })
+
+    const persistedProject = drizzle._updateSet.mock.calls[0][0].project
+    expect(persistedProject.postIntervention.habitats[0]).toEqual(result)
+    expect(persistedProject.postIntervention.habitats[1]).toEqual(habitats[1])
+    expect(persistedProject.baseline).toBeUndefined()
+  })
+})
+
+describe('updateAreaHabitat handler error cases', () => {
   test('throws 404 when the project does not exist', async () => {
     const drizzle = makeDrizzle(null)
 

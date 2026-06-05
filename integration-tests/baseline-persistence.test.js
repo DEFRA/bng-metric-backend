@@ -78,6 +78,14 @@ async function callValidate(uploadId, payload) {
   })
 }
 
+async function callPostInterventionValidate(uploadId, payload) {
+  return server.inject({
+    method: 'POST',
+    url: `/post-intervention/validate/${uploadId}`,
+    payload
+  })
+}
+
 async function fetchProject(id) {
   const { rows } = await dbClient.query(
     'SELECT project FROM bng.projects WHERE id = $1',
@@ -238,7 +246,101 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
   })
 })
 
-describe('POST /baseline/validate/{uploadId} — persistence (per-layer feature rows)', () => {
+describe('POST /post-intervention/validate/{uploadId} - persistence and feature editing', () => {
+  it('persists post-intervention data separately from baseline and supports feature read/edit', async () => {
+    const project = await createProject('Integration test - post intervention')
+    const uploadId = await uploadFixture(FIXTURE)
+
+    const res = await callPostInterventionValidate(uploadId, {
+      projectId: project.id
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({ valid: true, errors: [] })
+
+    const stored = await fetchProject(project.id)
+    expect(stored.baseline).toBeUndefined()
+    expect(stored.postIntervention).toBeDefined()
+    expect(stored.postIntervention.uploadId).toBe(uploadId)
+    expect(stored.postIntervention.habitats.length).toBeGreaterThan(0)
+    expect(stored.postIntervention.hedgerows.length).toBeGreaterThan(0)
+    expect(stored.postIntervention.watercourses.length).toBeGreaterThan(0)
+    expect(stored.postIntervention.habitatSizes).toEqual(
+      expect.objectContaining({
+        areaHabitats: expect.any(Object),
+        hedgerows: expect.any(Object),
+        watercourses: expect.any(Object)
+      })
+    )
+    expect(stored.postIntervention.units).toEqual(
+      expect.objectContaining({
+        habitatsTotal: expect.any(Number),
+        hedgerowsTotal: expect.any(Number),
+        watercoursesTotal: expect.any(Number),
+        totalUnits: expect.any(Number)
+      })
+    )
+
+    expect(await countLayer('baseline_habitats', project.id)).toBe(0)
+    expect(await countLayer('post_intervention_red_line', project.id)).toBe(1)
+    const postInterventionRows = await fetchLayerRows(
+      'post_intervention_habitats',
+      project.id
+    )
+    const docFeatureIds = stored.postIntervention.habitats.map(
+      (h) => h.featureId
+    )
+    expect(postInterventionRows.length).toBe(docFeatureIds.length)
+    expect(postInterventionRows.length).toBeGreaterThan(0)
+    for (const row of postInterventionRows) {
+      expect(row.srid).toBe(BNG_SRID)
+      expect(row.is_valid).toBe(true)
+      expect(row.geom_type).toBe('MULTIPOLYGON')
+      expect(docFeatureIds).toContain(row.id)
+    }
+
+    const habitat = stored.postIntervention.habitats.find((h) => h.ref === 'H2')
+    const featureRes = await server.inject({
+      method: 'GET',
+      url: `/projects/${project.id}/post-intervention/features/${habitat.featureId}`
+    })
+    expect(featureRes.statusCode).toBe(HTTP_OK)
+    expect(featureRes.result).toEqual({
+      type: 'habitat',
+      feature: habitat
+    })
+
+    const updateRes = await server.inject({
+      method: 'PUT',
+      url: `/projects/${project.id}/post-intervention/habitats/${habitat.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+    expect(updateRes.statusCode).toBe(HTTP_OK)
+    expect(updateRes.result).toEqual(
+      expect.objectContaining({
+        featureId: habitat.featureId,
+        broadType: 'Grassland',
+        type: 'Lowland meadows',
+        condition: 'Good',
+        status: 'Complete'
+      })
+    )
+
+    const updated = await fetchProject(project.id)
+    expect(updated.baseline).toBeUndefined()
+    expect(
+      updated.postIntervention.habitats.find(
+        (h) => h.featureId === habitat.featureId
+      )
+    ).toEqual(updateRes.result)
+  })
+})
+
+describe('POST /baseline/validate/{uploadId} - persistence (per-layer feature rows)', () => {
   it('inserts one habitat row per habitat in 27700 with valid geometry, matched to the JSONB by featureId', async () => {
     const project = await createProject('Integration test — habitats')
     const uploadId = await uploadFixture(FIXTURE)

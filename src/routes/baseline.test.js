@@ -96,7 +96,8 @@ const { calculateHabitatSizes } =
   await import('../services/baseline/calculate-habitat-sizes.js')
 const { metricsCounter, metricsByteSize } =
   await import('../common/helpers/metrics.js')
-const { validateBaseline } = await import('./baseline.js')
+const { validateBaseline, validatePostIntervention } =
+  await import('./baseline.js')
 
 describe('validateBaseline route configuration', () => {
   it('is a POST route', () => {
@@ -105,6 +106,15 @@ describe('validateBaseline route configuration', () => {
 
   it('has the correct path', () => {
     expect(validateBaseline.path).toBe('/baseline/validate/{uploadId}')
+  })
+})
+
+describe('validatePostIntervention route configuration', () => {
+  it('is a POST route for post-intervention uploads', () => {
+    expect(validatePostIntervention.method).toBe('POST')
+    expect(validatePostIntervention.path).toBe(
+      '/post-intervention/validate/{uploadId}'
+    )
   })
 })
 
@@ -423,7 +433,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
   })
 })
 
-describe('validateBaseline handler persistence — guard rails', () => {
+describe('validatePostIntervention handler persistence', () => {
   let h
 
   beforeEach(() => {
@@ -432,6 +442,37 @@ describe('validateBaseline handler persistence — guard rails', () => {
     setupHappyPathMocks()
   })
 
+  it('persists the processed document and replaces post-intervention geometry rows', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID }
+    })
+
+    await validatePostIntervention.handler(request, h)
+
+    expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
+      uploadId: UPLOAD_ID,
+      filename: MOCK_FILENAME,
+      fileSize: MOCK_FILE_SIZE,
+      habitatSizes: EMPTY_HABITAT_SIZES
+    })
+    expect(log.transactionCalls).toBe(1)
+    expect(log.selectCalls).toBe(1)
+    expect(log.deletes).toHaveLength(4)
+    expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
+    expect(log.updates).toHaveLength(1)
+  })
+})
+
+describe('validateBaseline handler persistence guard rails', () => {
+  let h
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    setupHappyPathMocks()
+  })
   it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({ drizzle, payload: null })

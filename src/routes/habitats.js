@@ -54,52 +54,115 @@ import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js
  *       409:
  *         description: Another edit for this project is in progress
  */
-const updateAreaHabitat = {
-  method: 'PUT',
-  path: '/projects/{projectId}/habitats/{featureId}',
-  options: {
-    validate: {
-      params: Joi.object({
-        projectId: Joi.string().uuid().required(),
-        featureId: Joi.string().uuid().required()
-      }),
-      payload: Joi.object({
-        broadType: Joi.string().trim().allow(null, '').optional(),
-        habitatType: Joi.string().trim().allow(null, '').optional(),
-        condition: Joi.string().trim().allow(null, '').optional()
-      })
-    }
-  },
-  handler: async (request, _h) => {
-    const { projectId, featureId } = request.params
-    const { broadType, habitatType, condition } = request.payload
-
-    try {
-      return await request.drizzle.transaction((tx) =>
-        runUpdate(tx, {
-          projectId,
-          featureId,
-          broadType,
-          habitatType,
-          condition
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/habitats/{featureId}:
+ *   put:
+ *     tags:
+ *       - Habitats
+ *     summary: Save dropdown edits to one post-intervention area habitat
+ *     description: |
+ *       Persists the user's broad-habitat / habitat-type / condition selections
+ *       for a single post-intervention area habitat, then recomputes the
+ *       derived distinctiveness, condition score, habitat-unit total and
+ *       Complete/Incomplete status before saving. Returns the updated habitat
+ *       document.
+ *     parameters:
+ *       - in: path
+ *         name: projectId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *       - in: path
+ *         name: featureId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               broadType:
+ *                 type: string
+ *                 nullable: true
+ *               habitatType:
+ *                 type: string
+ *                 nullable: true
+ *               condition:
+ *                 type: string
+ *                 nullable: true
+ *     responses:
+ *       200:
+ *         description: Returns the updated habitat document
+ *       404:
+ *         description: Project or habitat not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+function createUpdateAreaHabitatRoute({ path, documentKey }) {
+  return {
+    method: 'PUT',
+    path,
+    options: {
+      validate: {
+        params: Joi.object({
+          projectId: Joi.string().uuid().required(),
+          featureId: Joi.string().uuid().required()
+        }),
+        payload: Joi.object({
+          broadType: Joi.string().trim().allow(null, '').optional(),
+          habitatType: Joi.string().trim().allow(null, '').optional(),
+          condition: Joi.string().trim().allow(null, '').optional()
         })
-      )
-    } catch (err) {
-      if (err?.isBoom) {
-        throw err
-      } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
-        // SELECT ... FOR UPDATE waited past lock_timeout for another edit.
-        throw Boom.conflict('Another edit for this project is in progress')
-      } else {
-        throw err
+      }
+    },
+    handler: async (request, _h) => {
+      const { projectId, featureId } = request.params
+      const { broadType, habitatType, condition } = request.payload
+
+      try {
+        return await request.drizzle.transaction((tx) =>
+          runUpdate(tx, {
+            projectId,
+            featureId,
+            broadType,
+            habitatType,
+            condition,
+            documentKey
+          })
+        )
+      } catch (err) {
+        if (err?.isBoom) {
+          throw err
+        } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+          // SELECT ... FOR UPDATE waited past lock_timeout for another edit.
+          throw Boom.conflict('Another edit for this project is in progress')
+        } else {
+          throw err
+        }
       }
     }
   }
 }
 
+const updateAreaHabitat = createUpdateAreaHabitatRoute({
+  path: '/projects/{projectId}/habitats/{featureId}',
+  documentKey: 'baseline'
+})
+
+const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
+  path: '/projects/{projectId}/post-intervention/habitats/{featureId}',
+  documentKey: 'postIntervention'
+})
+
 async function runUpdate(
   tx,
-  { projectId, featureId, broadType, habitatType, condition }
+  { projectId, featureId, broadType, habitatType, condition, documentKey }
 ) {
   // Cap the wait on the project row lock so a stuck or pathologically slow
   // concurrent edit can't hang this request indefinitely.
@@ -121,7 +184,8 @@ async function runUpdate(
   }
 
   const project = row.project ?? {}
-  const habitats = project.baseline?.habitats ?? []
+  const featureSet = project[documentKey]
+  const habitats = featureSet?.habitats ?? []
   const habitatIndex = habitats.findIndex((h) => h?.featureId === featureId)
   if (habitatIndex === -1) {
     throw Boom.notFound(
@@ -156,8 +220,8 @@ async function runUpdate(
   updatedHabitats[habitatIndex] = updatedHabitat
   const updatedProject = {
     ...project,
-    baseline: {
-      ...project.baseline,
+    [documentKey]: {
+      ...featureSet,
       habitats: updatedHabitats
     }
   }
@@ -178,4 +242,4 @@ function blankToNull(value) {
   return trimmed === '' ? null : trimmed
 }
 
-export { updateAreaHabitat }
+export { updateAreaHabitat, updatePostInterventionAreaHabitat }

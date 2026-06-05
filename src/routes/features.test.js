@@ -1,6 +1,10 @@
 import { describe, test, expect, vi } from 'vitest'
 
-import { getFeature, findFeature } from './features.js'
+import {
+  getFeature,
+  getPostInterventionFeature,
+  findFeature
+} from './features.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
@@ -34,6 +38,17 @@ const projectWithBaseline = {
       habitats: [sampleHabitat],
       hedgerows: [sampleHedgerow],
       watercourses: [sampleWatercourse]
+    }
+  }
+}
+
+const projectWithPostIntervention = {
+  id: PROJECT_ID,
+  project: {
+    postIntervention: {
+      habitats: [sampleHabitat],
+      hedgerows: [sampleHedgerow],
+      watercourses: []
     }
   }
 }
@@ -155,6 +170,31 @@ describe('#getFeature', () => {
       params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
     }
     await expect(getFeature.handler(request, {})).rejects.toThrow(
+      `Feature ${HABITAT_ID} not found in project ${PROJECT_ID}`
+    )
+  })
+})
+
+describe('#getPostInterventionFeature', () => {
+  test('returns { type, feature } from postIntervention', async () => {
+    const drizzle = createMockDrizzle([projectWithPostIntervention])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID }
+    }
+    const result = await getPostInterventionFeature.handler(request, {})
+    expect(result).toEqual({ type: 'hedgerow', feature: sampleHedgerow })
+  })
+
+  test('throws 404 when the project has no postIntervention data', async () => {
+    const drizzle = createMockDrizzle([projectWithBaseline])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
+    }
+    await expect(
+      getPostInterventionFeature.handler(request, {})
+    ).rejects.toThrow(
       `Feature ${HABITAT_ID} not found in project ${PROJECT_ID}`
     )
   })

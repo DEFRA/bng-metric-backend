@@ -115,7 +115,8 @@ const projectSchema = Joi.object({
   name: Joi.string(),
   site: siteSchema,
   units: unitsSchema,
-  baseline: baselineSchema
+  baseline: baselineSchema,
+  postIntervention: baselineSchema
 })
 
 export {

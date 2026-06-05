@@ -77,6 +77,36 @@ function findFeature(baseline, featureId) {
  *       404:
  *         description: Project or feature not found
  */
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/features/{featureId}:
+ *   get:
+ *     tags:
+ *       - Projects
+ *     summary: Get a single post-intervention feature regardless of layer
+ *     description: |
+ *       Scans post-intervention habitats, hedgerows and watercourses and
+ *       returns the matching feature with a `type` discriminator. Lets the
+ *       frontend address any post-intervention feature by featureId alone.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     responses:
+ *       200:
+ *         description: Returns the feature with its type
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 type:
+ *                   type: string
+ *                   enum: [habitat, hedgerow, watercourse]
+ *                 feature:
+ *                   type: object
+ *       404:
+ *         description: Project or feature not found
+ */
 const getFeature = {
   method: 'GET',
   path: '/projects/{projectId}/features/{featureId}',
@@ -107,4 +137,36 @@ const getFeature = {
   }
 }
 
-export { getFeature, findFeature }
+function createGetFeatureRoute({ path, documentKey }) {
+  return {
+    ...getFeature,
+    path,
+    handler: async (request, _h) => {
+      const { projectId, featureId } = request.params
+      const rows = await request.drizzle
+        .select()
+        .from(projects)
+        .where(eq(projects.id, projectId))
+
+      if (rows.length === 0) {
+        throw Boom.notFound(`Project ${projectId} not found`)
+      }
+
+      const featureSet = rows[0].project?.[documentKey]
+      const found = findFeature(featureSet, featureId)
+      if (!found) {
+        throw Boom.notFound(
+          `Feature ${featureId} not found in project ${projectId}`
+        )
+      }
+      return found
+    }
+  }
+}
+
+const getPostInterventionFeature = createGetFeatureRoute({
+  path: '/projects/{projectId}/post-intervention/features/{featureId}',
+  documentKey: 'postIntervention'
+})
+
+export { getFeature, getPostInterventionFeature, findFeature }
