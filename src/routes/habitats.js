@@ -1,9 +1,14 @@
 import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
+
 import { projects } from '../db/schema/index.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
-import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js'
+import {
+  APPLY_RESULT,
+  applyFeatureUpdate
+} from '../utilities/baseline/apply-feature-update.js'
+import { projectFeatureIdParams } from './shared-params.js'
 
 /**
  * @openapi
@@ -17,6 +22,10 @@ import { recomputeAreaHabitat } from '../validation/baseline/unit-calculation.js
  *       for a single area habitat, then recomputes the derived distinctiveness,
  *       condition score, habitat-unit total and Complete/Incomplete status
  *       before saving. Returns the updated habitat document.
+ *
+ *       Thin wrapper around the shared feature-update helper used by the
+ *       unified `PUT /projects/{projectId}/features/{featureId}` endpoint -
+ *       kept live so callers that still hit the typed URL keep working.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -110,10 +119,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
     path,
     options: {
       validate: {
-        params: Joi.object({
-          projectId: Joi.string().uuid().required(),
-          featureId: Joi.string().uuid().required()
-        }),
+        params: projectFeatureIdParams,
         payload: Joi.object({
           broadType: Joi.string().trim().allow(null, '').optional(),
           habitatType: Joi.string().trim().allow(null, '').optional(),
@@ -139,12 +145,11 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       } catch (err) {
         if (err?.isBoom) {
           throw err
-        } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
-          // SELECT ... FOR UPDATE waited past lock_timeout for another edit.
-          throw Boom.conflict('Another edit for this project is in progress')
-        } else {
-          throw err
         }
+        if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+          throw Boom.conflict('Another edit for this project is in progress')
+        }
+        throw err
       }
     }
   }
@@ -164,15 +169,8 @@ async function runUpdate(
   tx,
   { projectId, featureId, broadType, habitatType, condition, documentKey }
 ) {
-  // Cap the wait on the project row lock so a stuck or pathologically slow
-  // concurrent edit can't hang this request indefinitely.
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
-  // SELECT ... FOR UPDATE serialises concurrent edits to the same project.
-  // Without this, two concurrent PUTs (even to different habitats within the
-  // same project) would each read the project JSONB, mutate one habitat in
-  // JS, and write the whole document back — last-write-wins drops the other
-  // edit. Mirrors the pattern in src/routes/baseline.js.
   const [row] = await tx
     .select()
     .from(projects)
@@ -183,63 +181,27 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
-  const project = row.project ?? {}
-  const featureSet = project[documentKey]
-  const habitats = featureSet?.habitats ?? []
-  const habitatIndex = habitats.findIndex((h) => h?.featureId === featureId)
-  if (habitatIndex === -1) {
+  const result = applyFeatureUpdate(row.project ?? {}, {
+    featureId,
+    edits: { broadType, habitatType, condition },
+    expectedType: 'habitat',
+    documentKey
+  })
+  if (
+    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
+    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
+  ) {
     throw Boom.notFound(
       `Habitat ${featureId} not found in project ${projectId}`
     )
   }
 
-  const existing = habitats[habitatIndex]
-  const newBroadType = blankToNull(broadType)
-  const newHabitatType = blankToNull(habitatType)
-  const newCondition = blankToNull(condition)
-  const derived = recomputeAreaHabitat({
-    broadType: newBroadType,
-    habitatType: newHabitatType,
-    condition: newCondition,
-    sizeSquareMetres: existing.sizeSquareMetres ?? null
-  })
-
-  const updatedHabitat = {
-    ...existing,
-    broadType: newBroadType,
-    type: newHabitatType,
-    condition: newCondition,
-    distinctiveness: derived.distinctiveness,
-    distinctivenessScore: derived.distinctivenessScore,
-    conditionScore: derived.conditionScore,
-    habitatUnits: derived.habitatUnits,
-    status: derived.status
-  }
-
-  const updatedHabitats = habitats.slice()
-  updatedHabitats[habitatIndex] = updatedHabitat
-  const updatedProject = {
-    ...project,
-    [documentKey]: {
-      ...featureSet,
-      habitats: updatedHabitats
-    }
-  }
-
   await tx
     .update(projects)
-    .set({ project: updatedProject })
+    .set({ project: result.project })
     .where(eq(projects.id, projectId))
 
-  return updatedHabitat
-}
-
-function blankToNull(value) {
-  if (value === null || value === undefined) {
-    return null
-  }
-  const trimmed = typeof value === 'string' ? value.trim() : value
-  return trimmed === '' ? null : trimmed
+  return result.feature
 }
 
 export { updateAreaHabitat, updatePostInterventionAreaHabitat }

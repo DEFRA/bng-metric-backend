@@ -14,7 +14,11 @@ import {
   updateAreaHabitat,
   updatePostInterventionAreaHabitat
 } from '../routes/habitats.js'
-import { getFeature, getPostInterventionFeature } from '../routes/features.js'
+import {
+  getFeature,
+  getPostInterventionFeature,
+  updateFeature
+} from '../routes/features.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import {
   validateBaseline,
@@ -47,6 +51,7 @@ const router = {
         updatePostInterventionAreaHabitat,
         getFeature,
         getPostInterventionFeature,
+        updateFeature,
         initiateUpload,
         uploadStatus,
         validateBaseline,

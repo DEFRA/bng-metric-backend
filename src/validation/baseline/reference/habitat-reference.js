@@ -3,13 +3,29 @@
 // bng-metric-engine's CONDITION_SCORES and DISTINCTIVENESS_SCORES so backend
 // and engine cannot drift.
 
-import { CONDITION_SCORES, DISTINCTIVENESS_SCORES } from 'bng-metric-engine'
+import {
+  CONDITION_SCORES,
+  DISTINCTIVENESS_SCORES,
+  HEDGEROW_CONDITION_SCORES,
+  HEDGEROW_DISTINCTIVENESS_CATEGORIES,
+  HEDGEROW_DISTINCTIVENESS_SCORES
+} from 'bng-metric-engine'
 import {
   distinctivenessByHabitatType,
   distinctivenessScores
 } from './habitat-distinctiveness.js'
 
+// Hedgerow scores differ from area scores at V.Low (1 vs 0) per the statutory
+// metric tables, so the hedgerow path must read its own scores table.
+const hedgerowDistinctivenessScores = Object.fromEntries(
+  Object.entries(HEDGEROW_DISTINCTIVENESS_SCORES).map(([band, { Score }]) => [
+    band,
+    { score: Score }
+  ])
+)
+
 export { distinctivenessScores } from './habitat-distinctiveness.js'
+export { hedgerowDistinctivenessScores }
 
 const NOT_POSSIBLE = 'Not Possible'
 
@@ -148,13 +164,9 @@ function getConditionsForHabitatType(habitatType) {
   return out
 }
 
-// Hedgerow reference data lives on a separate engine export from the area data
-// (engine work tracked in BMD-427/428). Until that lands, expose empty
-// readers so the hedgerow journey wires up end to end and the dropdowns
-// populate as soon as the engine ships the JSON. The shapes match the area
-// equivalents so the frontend strategy can reuse the same view-model code.
-const HEDGEROW_DISTINCTIVENESS_CATEGORIES = {}
-const HEDGEROW_CONDITION_SCORES = {}
+// Hedgerow reference data comes from the bundled engine (BMD-427/428).
+// Shapes match the area equivalents so the frontend strategy reuses the
+// same view-model code.
 
 /**
  * Hedgerow habitat types in the MVS scope (V.Low / Low / Medium), sorted by
@@ -179,7 +191,8 @@ function getHedgerowHabitatTypes(
     types.push({
       name,
       distinctiveness,
-      distinctivenessScore: distinctivenessScores[distinctiveness]?.score
+      distinctivenessScore:
+        hedgerowDistinctivenessScores[distinctiveness]?.score
     })
   }
   return types.sort((a, b) => a.name.localeCompare(b.name))
@@ -223,5 +236,7 @@ export {
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType,
   getHedgerowHabitatTypes,
-  getConditionsForHedgerowType
+  getConditionsForHedgerowType,
+  HEDGEROW_DISTINCTIVENESS_CATEGORIES,
+  HEDGEROW_CONDITION_SCORES
 }

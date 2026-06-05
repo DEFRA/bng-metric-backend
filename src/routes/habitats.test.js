@@ -127,7 +127,7 @@ describe('updateAreaHabitat handler — happy path', () => {
       distinctivenessScore: 8,
       conditionScore: 3,
       // 1 ha × 8 × 3 = 24
-      habitatUnits: 24,
+      units: 24,
       status: 'Complete'
     })
 
@@ -164,7 +164,7 @@ describe('updateAreaHabitat handler — happy path', () => {
       distinctiveness: 'V.High',
       distinctivenessScore: 8,
       conditionScore: null,
-      habitatUnits: 0,
+      units: 0,
       status: 'Incomplete'
     })
   })
@@ -189,8 +189,64 @@ describe('updateAreaHabitat handler — happy path', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      habitatUnits: 0,
+      units: 0,
       status: 'Incomplete'
+    })
+  })
+
+  test('refreshes baseline.units totals so the habitat-list summary stays in sync', async () => {
+    const habitats = [
+      {
+        featureId: HABITAT_1_ID,
+        ref: 'A1',
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Poor',
+        sizeSquareMetres: 10_000,
+        units: 4
+      },
+      {
+        featureId: HABITAT_2_ID,
+        ref: 'A2',
+        type: 'Cereal crops',
+        broadType: 'Cropland',
+        condition: 'Condition Assessment N/A',
+        sizeSquareMetres: 10_000,
+        units: 2
+      }
+    ]
+    const projectRow = makeProjectRow(habitats)
+    projectRow.project.baseline.hedgerows = []
+    projectRow.project.baseline.watercourses = []
+    projectRow.project.baseline.units = {
+      totalUnits: 6,
+      habitatsTotal: 6,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0
+    }
+    const drizzle = makeDrizzle(projectRow)
+
+    await updateAreaHabitat.handler(
+      {
+        drizzle,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Lowland meadows',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    // Edited habitat: 1 ha × V.High (8) × Good (3) = 24, so habitatsTotal
+    // should be 24 + 2 (the unchanged Cereal crops row) = 26.
+    const persistedProject = drizzle._updateSet.mock.calls[0][0].project
+    expect(persistedProject.baseline.units).toEqual({
+      totalUnits: 26,
+      habitatsTotal: 26,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0
     })
   })
 
@@ -281,6 +337,44 @@ describe('updateAreaHabitat handler error cases', () => {
         {
           drizzle,
           params: { projectId: PROJECT_ID, featureId: UNKNOWN_HABITAT_ID },
+          payload: {
+            broadType: 'Grassland',
+            habitatType: 'Lowland meadows',
+            condition: 'Good'
+          }
+        },
+        {}
+      )
+    ).rejects.toThrow(/Habitat .* not found/)
+  })
+
+  test('throws 404 when the featureId belongs to a hedgerow (legacy area URL only serves habitats)', async () => {
+    const hedgerowOnlyProject = {
+      id: PROJECT_ID,
+      project: {
+        name: 'Test Project',
+        baseline: {
+          habitats: [],
+          hedgerows: [
+            {
+              featureId: HABITAT_1_ID,
+              ref: 'H1',
+              type: 'Native hedgerow',
+              sizeMetres: 200
+            }
+          ]
+        }
+      },
+      userId: 'test-user-001',
+      bngProjectVersion: 1
+    }
+    const drizzle = makeDrizzle(hedgerowOnlyProject)
+
+    await expect(
+      updateAreaHabitat.handler(
+        {
+          drizzle,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: {
             broadType: 'Grassland',
             habitatType: 'Lowland meadows',

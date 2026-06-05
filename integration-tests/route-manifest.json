@@ -8,6 +8,7 @@
   "GET /projects/{projectId}/habitats/{featureId}",
   "POST /projects/new",
   "PATCH /projects/{id}",
+  "PUT /projects/{projectId}/features/{featureId}",
   "PUT /projects/{projectId}/habitats/{featureId}",
   "PUT /projects/{projectId}/post-intervention/habitats/{featureId}",
   "POST /upload/initiate",

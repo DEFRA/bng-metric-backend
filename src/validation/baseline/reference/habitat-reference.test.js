@@ -16,10 +16,10 @@ describe('habitat reference data integrity', () => {
   })
 })
 
-// The hedgerow reference data won't ship until BMD-427/428, so the production
-// lookup tables are empty placeholders. These tests inject fixture data
-// through the optional parameter to exercise the filtering and ordering
-// logic so it doesn't decay before real data lands.
+// Real hedgerow reference data is bundled in bng-metric-engine (BMD-427/428).
+// These tests exercise the filtering and ordering logic with fixtures so they
+// stay decoupled from the engine's data choices; production wiring is
+// covered by the default-argument test in each block.
 describe('getHedgerowHabitatTypes (fixture-injected)', () => {
   test('returns entries sorted alphabetically by name', () => {
     const categories = {
@@ -59,8 +59,29 @@ describe('getHedgerowHabitatTypes (fixture-injected)', () => {
     expect(getHedgerowHabitatTypes({ Only: 'High' })).toEqual([])
   })
 
-  test('returns [] for the empty placeholder (default argument)', () => {
-    expect(getHedgerowHabitatTypes()).toEqual([])
+  test('returns the engine-bundled hedgerow types in MVS scope (default argument)', () => {
+    const result = getHedgerowHabitatTypes()
+    expect(result.length).toBeGreaterThan(0)
+    const bands = new Set(result.map((r) => r.distinctiveness))
+    for (const band of bands) {
+      expect(['V.Low', 'Low', 'Medium']).toContain(band)
+    }
+    // Native hedgerow is the canonical Low-band entry — pin it so any later
+    // engine churn that drops it surfaces here rather than silently.
+    expect(result.map((r) => r.name)).toContain('Native hedgerow')
+  })
+
+  test('V.Low hedgerow types carry score 1 (hedgerow table), not 0 (area table)', () => {
+    // The hedgerow distinctiveness table scores V.Low at 1; the area table
+    // scores it at 0. Non-native and ornamental hedgerow is the V.Low entry.
+    const result = getHedgerowHabitatTypes()
+    const vLow = result.find(
+      (r) => r.name === 'Non-native and ornamental hedgerow'
+    )
+    expect(vLow).toMatchObject({
+      distinctiveness: 'V.Low',
+      distinctivenessScore: 1
+    })
   })
 })
 
@@ -88,7 +109,16 @@ describe('getConditionsForHedgerowType (fixture-injected)', () => {
     expect(getConditionsForHedgerowType('Made-up', scoresLookup)).toEqual([])
   })
 
-  test('returns [] for the empty placeholder (default argument)', () => {
-    expect(getConditionsForHedgerowType('Anything')).toEqual([])
+  test('reads from the engine-bundled scores when called without a fixture', () => {
+    // Native hedgerow has Good / Moderate / Poor as the numeric-scoring
+    // conditions in the engine reference data; the rest are "Not Possible"
+    // and should be filtered out.
+    const conditions = getConditionsForHedgerowType('Native hedgerow')
+    expect(conditions.map((c) => c.condition)).toEqual([
+      'Good',
+      'Moderate',
+      'Poor'
+    ])
+    expect(getConditionsForHedgerowType('Made-up')).toEqual([])
   })
 })
