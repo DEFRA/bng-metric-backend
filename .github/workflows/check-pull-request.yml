@@ -176,6 +176,11 @@ jobs:
           npm run lint
           npm test
 
+      - name: Data dictionary is up to date
+        run: |
+          npm run data-dictionary
+          git diff --exit-code -- docs/data-dictionary.md docs/data-dictionary.json
+
       - name: Security audit
         run: npm run security-audit
 
