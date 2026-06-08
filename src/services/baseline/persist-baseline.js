@@ -134,7 +134,7 @@ async function updateProjectDocumentSection(
   await tx
     .update(projects)
     .set({
-      project: sql`jsonb_set(${projects.project}, ${[projectDocumentKey]}::text[], ${docJson}::jsonb, true)`
+      project: sql`jsonb_set(${projects.project}, array[${projectDocumentKey}]::text[], ${docJson}::jsonb, true)`
     })
     .where(eq(projects.id, projectId))
 }
