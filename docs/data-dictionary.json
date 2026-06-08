@@ -1,0 +1,1135 @@
+{
+  "postgres": [
+    {
+      "name": "bng.audit_log",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "project",
+          "type": "jsonb",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "bng_project_version",
+          "type": "integer",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "operation",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "audited_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.baseline_habitats",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiPolygon, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.baseline_hedgerows",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiLineString, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.baseline_red_line",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiPolygon, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.baseline_watercourses",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiLineString, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.projects",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "project",
+          "type": "jsonb",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "bng_project_version",
+          "type": "integer",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "1",
+          "references": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
+    }
+  ],
+  "projectJson": [
+    {
+      "path": "name",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project name shown to the user; editable via PATCH /projects/{id}."
+    },
+    {
+      "path": "site",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Development site details."
+    },
+    {
+      "path": "site.name",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text name of the development site."
+    },
+    {
+      "path": "site.grid_ref",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Ordnance Survey national grid reference for the site."
+    },
+    {
+      "path": "units",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project-level biodiversity unit summary."
+    },
+    {
+      "path": "units.habitat",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project-level area-habitat biodiversity unit total."
+    },
+    {
+      "path": "units.hedgerow",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project-level hedgerow biodiversity unit total."
+    },
+    {
+      "path": "units.watercourse",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project-level watercourse biodiversity unit total."
+    },
+    {
+      "path": "baseline",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Imported baseline state: features, sizes and unit totals. Written by the baseline upload flow."
+    },
+    {
+      "path": "baseline.uploadId",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "CDP Uploader upload ID for the source GeoPackage. Null until a baseline is imported."
+    },
+    {
+      "path": "baseline.filename",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._-]*\\.gpkg$/i"],
+      "openMap": false,
+      "description": "Original filename of the uploaded baseline GeoPackage. Constrained to a safe `*.gpkg` pattern."
+    },
+    {
+      "path": "baseline.fileSize",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["integer", "min 0", "max 104857600"],
+      "openMap": false,
+      "description": "Size of the uploaded GeoPackage, in bytes."
+    },
+    {
+      "path": "baseline.importedAt",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["ISO 8601 date"],
+      "openMap": false,
+      "description": "ISO 8601 timestamp of when the baseline was imported."
+    },
+    {
+      "path": "baseline.redLine",
+      "type": "object",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Red Line Boundary feature defining the site extent. Null until a baseline is imported."
+    },
+    {
+      "path": "baseline.redLine.featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "UUID assigned on import; join key to the bng.baseline_red_line geometry row."
+    },
+    {
+      "path": "baseline.redLine.properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Red Line Boundary layer."
+    },
+    {
+      "path": "baseline.habitats",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Area (polygon) habitat parcels in the baseline."
+    },
+    {
+      "path": "baseline.habitats[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "An area (polygon) habitat parcel."
+    },
+    {
+      "path": "baseline.habitats[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "UUID assigned on import; join key to the bng.baseline_habitats geometry row."
+    },
+    {
+      "path": "baseline.habitats[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Parcel reference from the GeoPackage (Parcel Ref column)."
+    },
+    {
+      "path": "baseline.habitats[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline habitat type, e.g. 'Lowland meadows'."
+    },
+    {
+      "path": "baseline.habitats[].broadType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline broad habitat type, e.g. 'Grassland'."
+    },
+    {
+      "path": "baseline.habitats[].distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-metric-engine from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
+    },
+    {
+      "path": "baseline.habitats[].distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "baseline.habitats[].condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline condition assessment, e.g. 'Good'."
+    },
+    {
+      "path": "baseline.habitats[].conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits."
+    },
+    {
+      "path": "baseline.habitats[].strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category from the GeoPackage."
+    },
+    {
+      "path": "baseline.habitats[].retentionCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Retention category from the GeoPackage."
+    },
+    {
+      "path": "baseline.habitats[].area",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Parcel area in square metres, measured in PostGIS and rounded to the nearest integer. This is the value fed to the unit calculation."
+    },
+    {
+      "path": "baseline.habitats[].sizeSquareMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Exact parcel area in square metres as measured in PostGIS."
+    },
+    {
+      "path": "baseline.habitats[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+    },
+    {
+      "path": "baseline.habitats[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
+    },
+    {
+      "path": "baseline.habitats[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Habitats layer."
+    },
+    {
+      "path": "baseline.hedgerows",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Hedgerow (linear) features in the baseline."
+    },
+    {
+      "path": "baseline.hedgerows[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "A hedgerow (linear) feature."
+    },
+    {
+      "path": "baseline.hedgerows[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "UUID assigned on import; join key to the bng.baseline_hedgerows geometry row."
+    },
+    {
+      "path": "baseline.hedgerows[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Feature reference from the GeoPackage (Parcel Ref column)."
+    },
+    {
+      "path": "baseline.hedgerows[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Hedgerow type (Baseline Hedge Type column)."
+    },
+    {
+      "path": "baseline.hedgerows[].condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Hedgerow condition assessment."
+    },
+    {
+      "path": "baseline.hedgerows[].distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-metric-engine from the hedgerow type."
+    },
+    {
+      "path": "baseline.hedgerows[].distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "baseline.hedgerows[].conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score from bng-metric-engine."
+    },
+    {
+      "path": "baseline.hedgerows[].length",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+    },
+    {
+      "path": "baseline.hedgerows[].sizeMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Length in metres as measured in PostGIS."
+    },
+    {
+      "path": "baseline.hedgerows[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when type and condition are both set; otherwise 'Incomplete'."
+    },
+    {
+      "path": "baseline.hedgerows[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428)."
+    },
+    {
+      "path": "baseline.hedgerows[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Hedgerows layer."
+    },
+    {
+      "path": "baseline.watercourses",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse (linear) features in the baseline."
+    },
+    {
+      "path": "baseline.watercourses[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "A watercourse (linear) feature."
+    },
+    {
+      "path": "baseline.watercourses[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "UUID assigned on import; join key to the bng.baseline_watercourses geometry row."
+    },
+    {
+      "path": "baseline.watercourses[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Feature reference from the GeoPackage (Parcel Ref column)."
+    },
+    {
+      "path": "baseline.watercourses[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse type (Baseline River Type column)."
+    },
+    {
+      "path": "baseline.watercourses[].condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse condition assessment."
+    },
+    {
+      "path": "baseline.watercourses[].riparianEncroachment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Riparian-zone encroachment category from the GeoPackage."
+    },
+    {
+      "path": "baseline.watercourses[].watercourseEncroachment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse encroachment category from the GeoPackage."
+    },
+    {
+      "path": "baseline.watercourses[].distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-metric-engine from the watercourse type."
+    },
+    {
+      "path": "baseline.watercourses[].distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "baseline.watercourses[].conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score from bng-metric-engine."
+    },
+    {
+      "path": "baseline.watercourses[].length",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+    },
+    {
+      "path": "baseline.watercourses[].sizeMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Length in metres as measured in PostGIS."
+    },
+    {
+      "path": "baseline.watercourses[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'."
+    },
+    {
+      "path": "baseline.watercourses[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428)."
+    },
+    {
+      "path": "baseline.watercourses[].waterEncroachmentMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
+    },
+    {
+      "path": "baseline.watercourses[].riparianEncroachmentMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Riparian-encroachment multiplier applied by bng-metric-engine when computing units."
+    },
+    {
+      "path": "baseline.watercourses[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Watercourses layer."
+    },
+    {
+      "path": "baseline.habitatSizes",
+      "type": "object",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total feature sizes by module, measured from geometry in PostGIS. Null until a baseline is imported."
+    },
+    {
+      "path": "baseline.habitatSizes.areaHabitats",
+      "type": "object",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": ""
+    },
+    {
+      "path": "baseline.habitatSizes.areaHabitats.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total area of all habitat parcels, in square metres."
+    },
+    {
+      "path": "baseline.habitatSizes.hedgerows",
+      "type": "object",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": ""
+    },
+    {
+      "path": "baseline.habitatSizes.hedgerows.totalMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total length of all hedgerows, in metres."
+    },
+    {
+      "path": "baseline.habitatSizes.watercourses",
+      "type": "object",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": ""
+    },
+    {
+      "path": "baseline.habitatSizes.watercourses.totalMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total length of all watercourses, in metres."
+    },
+    {
+      "path": "baseline.units",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity unit totals, summed across features."
+    },
+    {
+      "path": "baseline.units.totalUnits",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of habitat, hedgerow and watercourse baseline units."
+    },
+    {
+      "path": "baseline.units.habitatsTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across all area habitats."
+    },
+    {
+      "path": "baseline.units.hedgerowsTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across all hedgerows."
+    },
+    {
+      "path": "baseline.units.watercoursesTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across all watercourses."
+    }
+  ]
+}

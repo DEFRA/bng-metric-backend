@@ -11,6 +11,7 @@
     "bng-metric-engine"
   ],
   "scripts": {
+    "data-dictionary": "node scripts/gen-data-dictionary.js && prettier --write --log-level warn docs/data-dictionary.md docs/data-dictionary.json",
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
     "predev": "node scripts/ensure-env.js",
