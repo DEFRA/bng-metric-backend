@@ -234,10 +234,7 @@ function getHedgerowHabitatTypes(
  * @param {Object<string, Object<string, number|string>>} [scoresLookup]
  * @returns {Array<{ condition: string, score: number }>}
  */
-function getConditionsForHedgerowType(
-  habitatType,
-  scoresLookup = HEDGEROW_CONDITION_SCORES
-) {
+function conditionsFromScoreTable(habitatType, scoresLookup) {
   const scoresByCondition = scoresLookup[habitatType]
   if (!scoresByCondition) {
     return []
@@ -249,6 +246,13 @@ function getConditionsForHedgerowType(
     }
   }
   return out
+}
+
+function getConditionsForHedgerowType(
+  habitatType,
+  scoresLookup = HEDGEROW_CONDITION_SCORES
+) {
+  return conditionsFromScoreTable(habitatType, scoresLookup)
 }
 
 // Watercourse reference data comes from the bundled engine. Unlike hedgerow,
@@ -294,17 +298,7 @@ function getConditionsForWatercourseType(
   habitatType,
   scoresLookup = WATERCOURSE_CONDITION_SCORES
 ) {
-  const scoresByCondition = scoresLookup[habitatType]
-  if (!scoresByCondition) {
-    return []
-  }
-  const out = []
-  for (const [condition, score] of Object.entries(scoresByCondition)) {
-    if (score !== NOT_POSSIBLE) {
-      out.push({ condition, score })
-    }
-  }
-  return out
+  return conditionsFromScoreTable(habitatType, scoresLookup)
 }
 
 // BMD-502 story implies the encroachment options are filtered per watercourse
