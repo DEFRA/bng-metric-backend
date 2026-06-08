@@ -169,8 +169,15 @@ async function runUpdate(
   tx,
   { projectId, featureId, broadType, habitatType, condition, documentKey }
 ) {
+  // Cap the wait on the project row lock so a stuck or pathologically slow
+  // concurrent edit can't hang this request indefinitely.
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
+  // SELECT ... FOR UPDATE serializes concurrent edits to the same project:
+  // without it, two concurrent PUTs to different features in the same
+  // project would each read the JSONB, mutate locally, and write back —
+  // last-write-wins drops one edit. Mirrors src/routes/habitats.js +
+  // src/routes/baseline.js.
   const [row] = await tx
     .select()
     .from(projects)

@@ -53,7 +53,28 @@ describe('persistBaseline', () => {
     expect(log.executes).toHaveLength(5)
     expect(log.updates).toHaveLength(1)
     expect(logger.info).toHaveBeenCalledWith(
-      `validateBaseline: persisted baseline for projectId ${PROJECT_ID} from uploadId ${UPLOAD_ID}`
+      `baseline: persisted baseline for projectId ${PROJECT_ID} from uploadId ${UPLOAD_ID}`
+    )
+  })
+
+  it('uses the upload label in the persistence success log', async () => {
+    const { drizzle } = makeDrizzle()
+
+    await persistBaseline(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      STUB_EXTRACTED.geometries,
+      {
+        uploadId: UPLOAD_ID,
+        logger,
+        projectDocumentKey: 'postIntervention',
+        uploadLabel: 'post-intervention'
+      }
+    )
+
+    expect(logger.info).toHaveBeenCalledWith(
+      `post-intervention: persisted post-intervention for projectId ${PROJECT_ID} from uploadId ${UPLOAD_ID}`
     )
   })
 

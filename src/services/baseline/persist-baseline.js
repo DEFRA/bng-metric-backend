@@ -124,10 +124,6 @@ async function persistGeometryLayers(tx, projectId, geometries, featureTables) {
   )
 }
 
-function jsonbPathForProjectSection(projectDocumentKey) {
-  return "'{" + projectDocumentKey + "}'"
-}
-
 async function updateProjectDocumentSection(
   tx,
   projectId,
@@ -135,11 +131,10 @@ async function updateProjectDocumentSection(
   projectDocumentKey
 ) {
   const docJson = JSON.stringify(document)
-  const documentPath = jsonbPathForProjectSection(projectDocumentKey)
   await tx
     .update(projects)
     .set({
-      project: sql`jsonb_set(${projects.project}, ${sql.raw(documentPath)}, ${docJson}::jsonb, true)`
+      project: sql`jsonb_set(${projects.project}, ${[projectDocumentKey]}::text[], ${docJson}::jsonb, true)`
     })
     .where(eq(projects.id, projectId))
 }
@@ -214,7 +209,7 @@ async function persistBaseline(
   }
 
   logger.info(
-    `validateBaseline: persisted ${uploadLabel} for projectId ${projectId} from uploadId ${uploadId}`
+    `${uploadLabel}: persisted ${uploadLabel} for projectId ${projectId} from uploadId ${uploadId}`
   )
 }
 
