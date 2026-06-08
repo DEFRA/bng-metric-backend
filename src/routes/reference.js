@@ -6,8 +6,13 @@ import {
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType,
   getConditionsForHedgerowType,
+  getConditionsForWatercourseType,
   getHedgerowHabitatTypes,
-  tradingRulesByDistinctiveness
+  getRiparianEncroachmentOptions,
+  getWatercourseEncroachmentOptions,
+  getWatercourseHabitatTypes,
+  tradingRulesByDistinctiveness,
+  watercourseTradingRulesByDistinctiveness
 } from '../validation/baseline/reference/habitat-reference.js'
 
 /**
@@ -90,7 +95,7 @@ import {
  *         required: false
  *         schema:
  *           type: string
- *           enum: [habitat, hedgerow]
+ *           enum: [habitat, hedgerow, watercourse]
  *           default: habitat
  *         description: Which reference table to look up. Defaults to area habitats.
  *     responses:
@@ -121,11 +126,71 @@ import {
  *                   distinctiveness: { type: string }
  *                   distinctivenessScore: { type: number }
  *
+ * /reference/watercourse-types:
+ *   get:
+ *     tags:
+ *       - Reference
+ *     summary: Watercourse habitat types available in the watercourse journey
+ *     description: |
+ *       Returns the engine's watercourse habitat types sorted alphabetically,
+ *       each with its distinctiveness band + score. All four bands the engine
+ *       emits (V.High / High / Medium / Low) are included — filtering would
+ *       hide saved Priority habitat (V.High) rows.
+ *     responses:
+ *       200:
+ *         description: Alphabetical list of watercourse habitat types
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 properties:
+ *                   name: { type: string }
+ *                   distinctiveness: { type: string }
+ *                   distinctivenessScore: { type: number }
+ *
+ * /reference/watercourse-encroachments:
+ *   get:
+ *     tags:
+ *       - Reference
+ *     summary: Watercourse + riparian encroachment dropdown options
+ *     description: |
+ *       Returns both encroachment lists in one response so the watercourse
+ *       details page only needs one round trip for them. Each list is in the
+ *       engine's canonical authored order.
+ *     responses:
+ *       200:
+ *         description: Map of encroachment dropdown to option list
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 watercourse:
+ *                   type: array
+ *                   items: { type: string }
+ *                 riparian:
+ *                   type: array
+ *                   items: { type: string }
+ *
  * /reference/trading-rules:
  *   get:
  *     tags:
  *       - Reference
  *     summary: Trading-rule guidance text per distinctiveness band
+ *     parameters:
+ *       - in: query
+ *         name: featureType
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [habitat, hedgerow, watercourse]
+ *           default: habitat
+ *         description: |
+ *           Which feature's trading-rules wording to return. Area and hedgerow
+ *           share the area distinctiveness table; watercourse has its own at
+ *           V.High.
  *     responses:
  *       200:
  *         description: Returns a map of band to guidance text
@@ -158,6 +223,12 @@ const getHabitatTypesByBroad = {
   handler: (_request, _h) => getAreaHabitatTypesByBroad()
 }
 
+const CONDITION_LOOKUPS = {
+  habitat: getConditionsForHabitatType,
+  hedgerow: getConditionsForHedgerowType,
+  watercourse: getConditionsForWatercourseType
+}
+
 const getConditions = {
   method: 'GET',
   path: '/reference/conditions',
@@ -166,16 +237,14 @@ const getConditions = {
       query: Joi.object({
         habitatType: Joi.string().trim().min(1).required(),
         featureType: Joi.string()
-          .valid('habitat', 'hedgerow')
+          .valid('habitat', 'hedgerow', 'watercourse')
           .default('habitat')
       })
     }
   },
   handler: (request, _h) => {
-    const { habitatType, featureType } = request.query
-    return featureType === 'hedgerow'
-      ? getConditionsForHedgerowType(habitatType)
-      : getConditionsForHabitatType(habitatType)
+    const { habitatType, featureType = 'habitat' } = request.query
+    return CONDITION_LOOKUPS[featureType](habitatType)
   }
 }
 
@@ -185,10 +254,45 @@ const getHedgerowTypes = {
   handler: (_request, _h) => getHedgerowHabitatTypes()
 }
 
+const getWatercourseTypes = {
+  method: 'GET',
+  path: '/reference/watercourse-types',
+  handler: (_request, _h) => getWatercourseHabitatTypes()
+}
+
+// One endpoint returns both encroachment lists so the watercourse strategy can
+// fetch its static reference slice in a single round trip rather than two.
+const getWatercourseEncroachments = {
+  method: 'GET',
+  path: '/reference/watercourse-encroachments',
+  handler: (_request, _h) => ({
+    watercourse: getWatercourseEncroachmentOptions(),
+    riparian: getRiparianEncroachmentOptions()
+  })
+}
+
+const TRADING_RULES_BY_FEATURE_TYPE = {
+  habitat: tradingRulesByDistinctiveness,
+  hedgerow: tradingRulesByDistinctiveness,
+  watercourse: watercourseTradingRulesByDistinctiveness
+}
+
 const getTradingRules = {
   method: 'GET',
   path: '/reference/trading-rules',
-  handler: (_request, _h) => tradingRulesByDistinctiveness
+  options: {
+    validate: {
+      query: Joi.object({
+        featureType: Joi.string()
+          .valid('habitat', 'hedgerow', 'watercourse')
+          .default('habitat')
+      })
+    }
+  },
+  handler: (request, _h) => {
+    const featureType = request.query?.featureType ?? 'habitat'
+    return TRADING_RULES_BY_FEATURE_TYPE[featureType]
+  }
 }
 
 export {
@@ -197,5 +301,7 @@ export {
   getHabitatTypesByBroad,
   getConditions,
   getHedgerowTypes,
+  getWatercourseTypes,
+  getWatercourseEncroachments,
   getTradingRules
 }
