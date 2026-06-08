@@ -120,3 +120,33 @@ describe('GET /reference/hedgerow-types', () => {
     expect(Array.isArray(res.result)).toBe(true)
   })
 })
+
+describe('GET /reference/watercourse-types', () => {
+  it('returns the watercourse types with distinctiveness band and score', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-types'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.map((t) => t.name)).toContain('Priority habitat')
+    res.result.forEach((entry) => {
+      expect(entry).toHaveProperty('name')
+      expect(entry).toHaveProperty('distinctiveness')
+      expect(entry).toHaveProperty('distinctivenessScore')
+    })
+  })
+})
+
+describe('GET /reference/watercourse-encroachments', () => {
+  it('returns both encroachment lists in one response', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-encroachments'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.watercourse).toContain('No Encroachment')
+    expect(res.result.watercourse).toContain('N/A - Culvert')
+    expect(res.result.riparian).toContain('No Encroachment/No Encroachment')
+    expect(res.result.riparian).toContain('N/A - Culvert')
+  })
+})
