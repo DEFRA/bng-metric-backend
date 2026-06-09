@@ -1,5 +1,19 @@
-import { describe, test, expect, vi } from 'vitest'
+import { beforeEach, describe, test, expect, vi } from 'vitest'
 import { updateAreaHabitat } from './habitats.js'
+import { setBaselineFeature } from '../db/persist-project.js'
+
+// The route persists surgically via setBaselineFeature (a jsonb_set, not an
+// inspectable object), so we mock it and assert the route computed the right
+// { layer, index, feature, unitsTotals } to write. That helper's validation is
+// covered by persist-project.test.js; the totals maths by
+// apply-feature-update.test.js; end-to-end persistence by the integration tests.
+vi.mock('../db/persist-project.js', () => ({
+  setBaselineFeature: vi.fn().mockResolvedValue(undefined)
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
@@ -119,13 +133,18 @@ describe('updateAreaHabitat handler — happy path', () => {
       status: 'Complete'
     })
 
-    // The other habitat in the array must be unchanged.
-    const persistedProject = drizzle._updateSet.mock.calls[0][0].project
-    expect(persistedProject.baseline.habitats[1]).toEqual(habitats[1])
-
-    // The whole project document must be persisted (existing top-level fields
-    // preserved).
-    expect(persistedProject.name).toBe('Test Project')
+    // Persisted surgically: only the edited feature (by layer + index) and the
+    // refreshed totals are handed to the choke point — the rest of the document
+    // is left untouched in the DB.
+    expect(setBaselineFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'habitats',
+        index: 0,
+        feature: expect.objectContaining({ featureId: HABITAT_1_ID, units: 24 })
+      })
+    )
   })
 
   test('marks the habitat Incomplete with zero units when a dropdown is unset', async () => {
@@ -228,14 +247,20 @@ describe('updateAreaHabitat handler — happy path', () => {
     )
 
     // Edited habitat: 1 ha × V.High (8) × Good (3) = 24, so habitatsTotal
-    // should be 24 + 2 (the unchanged Cereal crops row) = 26.
-    const persistedProject = drizzle._updateSet.mock.calls[0][0].project
-    expect(persistedProject.baseline.units).toEqual({
-      totalUnits: 26,
-      habitatsTotal: 26,
-      hedgerowsTotal: 0,
-      watercoursesTotal: 0
-    })
+    // should be 24 + 2 (the unchanged Cereal crops row) = 26. These refreshed
+    // totals are written surgically alongside the feature.
+    expect(setBaselineFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        unitsTotals: {
+          totalUnits: 26,
+          habitatsTotal: 26,
+          hedgerowsTotal: 0,
+          watercoursesTotal: 0
+        }
+      })
+    )
   })
 
   test('preserves area, ref and other non-dropdown fields', async () => {
