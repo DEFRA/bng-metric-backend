@@ -20,7 +20,7 @@ import {
   recomputeHedgerow
 } from '../../validation/baseline/unit-calculation.js'
 
-import { summarizeBaselineUnitsTotals } from '../baseline/enrich-baseline-units.js'
+import { summarizeFeatureSetUnitsTotals } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
 
 /**
@@ -162,7 +162,7 @@ function applyFeatureUpdate(
     featureId,
     updatedFeature
   )
-  summarizeBaselineUnitsTotals(updatedFeatureSet)
+  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
 
   return {
     status: APPLY_RESULT.OK,

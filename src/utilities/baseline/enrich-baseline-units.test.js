@@ -5,9 +5,7 @@ import { BaselineLookupError } from 'bng-metric-engine'
 import {
   enrichBaselineDocumentWithUnits,
   engineHabitatTypeCandidates,
-  normalizeConditionForEngine,
-  sumFeatureBaselineUnits,
-  summarizeBaselineUnitsTotals
+  normalizeConditionForEngine
 } from './enrich-baseline-units.js'
 
 const calculateAreaHabitatBaselineMock = vi.hoisted(() => vi.fn())
@@ -115,57 +113,6 @@ describe('engineHabitatTypeCandidates', () => {
         })
       )
     ).toEqual(['Urban - Developed land; sealed surface'])
-  })
-})
-
-describe('sumFeatureBaselineUnits', () => {
-  it('sums only finite numeric units on features', () => {
-    expect(
-      sumFeatureBaselineUnits([
-        { units: 4 },
-        { units: 1.5 },
-        { units: null },
-        {},
-        { units: Number.NaN }
-      ])
-    ).toBe(5.5)
-  })
-
-  it('returns 0 for missing or empty arrays', () => {
-    expect(sumFeatureBaselineUnits(undefined)).toBe(0)
-    expect(sumFeatureBaselineUnits([])).toBe(0)
-  })
-})
-
-describe('summarizeBaselineUnitsTotals', () => {
-  it('sums units per layer and sets totalUnits to their combined total', () => {
-    const document = {
-      habitats: [{ units: 3 }, { units: 1 }],
-      hedgerows: [{ units: 99 }],
-      watercourses: []
-    }
-    summarizeBaselineUnitsTotals(document)
-    expect(document.units).toEqual({
-      totalUnits: 103,
-      habitatsTotal: 4,
-      hedgerowsTotal: 99,
-      watercoursesTotal: 0
-    })
-  })
-
-  it('emits zero totals when no features have units', () => {
-    const document = {
-      habitats: [{ ref: 'H1' }],
-      hedgerows: [],
-      watercourses: []
-    }
-    summarizeBaselineUnitsTotals(document)
-    expect(document.units).toEqual({
-      totalUnits: 0,
-      habitatsTotal: 0,
-      hedgerowsTotal: 0,
-      watercoursesTotal: 0
-    })
   })
 })
 

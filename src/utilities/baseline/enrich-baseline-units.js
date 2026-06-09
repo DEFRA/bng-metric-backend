@@ -9,6 +9,7 @@ import {
 } from 'bng-metric-engine'
 
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
+import { summarizeFeatureSetUnitsTotals } from '../features/feature-set-units.js'
 
 const LOG_ENRICH_PREFIX = 'enrichBaseline: '
 
@@ -55,50 +56,6 @@ export function* engineHabitatTypeCandidates(habitat) {
       yield `${broad} - ${type}`
     }
   }
-}
-
-/**
- * Sum `units` on features that have a finite numeric value (uncalculated rows are skipped).
- *
- * @param {object[] | undefined} features
- * @returns {number}
- */
-export function sumFeatureBaselineUnits(features) {
-  if (!Array.isArray(features)) {
-    return 0
-  }
-  let total = 0
-  for (const feature of features) {
-    const units = feature?.units
-    if (typeof units === 'number' && Number.isFinite(units)) {
-      total += units
-    }
-  }
-  return total
-}
-
-/**
- * Sets `baselineDocument.units` with cumulative baseline units per layer and overall.
- * Hedgerow and watercourse per-feature units are not calculated yet; totals are 0 until then.
- *
- * @param {{ habitats?: object[], hedgerows?: object[], watercourses?: object[] }} baselineDocument
- * @returns {typeof baselineDocument}
- */
-export function summarizeBaselineUnitsTotals(baselineDocument) {
-  const habitatsTotal = sumFeatureBaselineUnits(baselineDocument?.habitats)
-  const hedgerowsTotal = sumFeatureBaselineUnits(baselineDocument?.hedgerows)
-  const watercoursesTotal = sumFeatureBaselineUnits(
-    baselineDocument?.watercourses
-  )
-  const totalUnits = habitatsTotal + hedgerowsTotal + watercoursesTotal
-
-  baselineDocument.units = {
-    totalUnits,
-    habitatsTotal,
-    hedgerowsTotal,
-    watercoursesTotal
-  }
-  return baselineDocument
 }
 
 /**
@@ -368,6 +325,6 @@ export function enrichBaselineDocumentWithUnits(
     }
   }
 
-  summarizeBaselineUnitsTotals(baselineDocument)
+  summarizeFeatureSetUnitsTotals(baselineDocument)
   return baselineDocument
 }

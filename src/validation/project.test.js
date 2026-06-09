@@ -1,6 +1,6 @@
 import { describe, test, expect } from 'vitest'
 import {
-  baselineSchema,
+  habitatDataSchema,
   projectSchema,
   siteSchema,
   unitsSchema
@@ -62,7 +62,7 @@ describe('#projectSchema', () => {
   })
 
   test('Should allow baseline habitat rows with metric units', () => {
-    const { error } = baselineSchema.validate({
+    const { error } = habitatDataSchema.validate({
       importedAt: '2026-01-01T00:00:00.000Z',
       redLine: null,
       habitats: [
@@ -91,7 +91,7 @@ describe('#projectSchema', () => {
   })
 
   test('Should reject baseline units totals with missing fields', () => {
-    const { error } = baselineSchema.validate({
+    const { error } = habitatDataSchema.validate({
       importedAt: '2026-01-01T00:00:00.000Z',
       redLine: null,
       habitats: [],
@@ -128,7 +128,7 @@ describe('#projectSchema', () => {
 })
 
 describe('#filename validation', () => {
-  const withFilename = (filename) => baselineSchema.validate({ filename })
+  const withFilename = (filename) => habitatDataSchema.validate({ filename })
 
   test('Should accept a clean .gpkg filename', () => {
     const { error } = withFilename('survey.gpkg')
@@ -179,7 +179,7 @@ describe('#filename validation', () => {
   })
 })
 
-describe('#baselineSchema', () => {
+describe('#habitatDataSchema', () => {
   const validBaseline = {
     uploadId: 'f6b667d8-998f-4f55-8a20-204c0c289147',
     importedAt: '2026-05-08T00:00:00.000Z',
@@ -226,7 +226,7 @@ describe('#baselineSchema', () => {
   }
 
   test('Should validate persisted baseline status and size fields', () => {
-    const { error } = baselineSchema.validate(validBaseline)
+    const { error } = habitatDataSchema.validate(validBaseline)
     expect(error).toBeUndefined()
   })
 
@@ -234,7 +234,7 @@ describe('#baselineSchema', () => {
     const baseline = structuredClone(validBaseline)
     delete baseline.habitats[0].status
 
-    const { error } = baselineSchema.validate(baseline)
+    const { error } = habitatDataSchema.validate(baseline)
     expect(error).toBeDefined()
     expect(error.message).toMatch(/"habitats\[0\]\.status" is required/)
   })
@@ -243,7 +243,7 @@ describe('#baselineSchema', () => {
     const baseline = structuredClone(validBaseline)
     baseline.watercourses[0].status = 'Done'
 
-    const { error } = baselineSchema.validate(baseline)
+    const { error } = habitatDataSchema.validate(baseline)
     expect(error).toBeDefined()
     expect(error.message).toMatch(/"watercourses\[0\]\.status" must be one of/)
   })
@@ -253,7 +253,7 @@ describe('#baselineSchema', () => {
     baseline.watercourses[0].watercoursEncroachment = 'None'
     delete baseline.watercourses[0].watercourseEncroachment
 
-    const { error } = baselineSchema.validate(baseline)
+    const { error } = habitatDataSchema.validate(baseline)
     expect(error).toBeDefined()
     expect(error.message).toMatch(
       /"watercourses\[0\]\.watercoursEncroachment" is not allowed/

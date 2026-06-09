@@ -95,7 +95,7 @@ const watercourseHabitatSchema = Joi.object({
   properties: Joi.object().unknown(true)
 })
 
-const baselineSchema = Joi.object({
+const habitatDataSchema = Joi.object({
   uploadId: Joi.string().uuid().allow(null),
   filename: Joi.string()
     .max(MAX_FILENAME_LENGTH)
@@ -115,8 +115,8 @@ const projectSchema = Joi.object({
   name: Joi.string(),
   site: siteSchema,
   units: unitsSchema,
-  baseline: baselineSchema,
-  postIntervention: baselineSchema
+  baseline: habitatDataSchema,
+  postIntervention: habitatDataSchema
 })
 
 export {
@@ -124,7 +124,7 @@ export {
   siteSchema,
   unitsSchema,
   baselineUnitsTotalsSchema,
-  baselineSchema,
+  habitatDataSchema,
   habitatSchema,
   linearHabitatSchema,
   watercourseHabitatSchema

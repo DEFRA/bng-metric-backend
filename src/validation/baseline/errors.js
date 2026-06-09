@@ -54,7 +54,7 @@ export const ERROR_CODES = Object.freeze({
   /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
   SIZING_FAILED: 'SIZING_FAILED',
 
-  /** Extracted document fails baselineSchema — e.g. filename or fileSize from CDP Uploader exceeds allowed bounds. */
+  /** Extracted document fails habitatDataSchema — e.g. filename or fileSize from CDP Uploader exceeds allowed bounds. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */

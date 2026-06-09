@@ -26,7 +26,7 @@ import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { persistBaseline } from '../services/baseline/persist-baseline.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
-import { baselineSchema } from '../validation/project.js'
+import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
@@ -129,7 +129,7 @@ function validateUploadMetadata(
   h,
   config = BASELINE_VALIDATION_CONFIG
 ) {
-  const { error: metaError } = baselineSchema.validate(
+  const { error: metaError } = habitatDataSchema.validate(
     { uploadId, filename, fileSize },
     { allowUnknown: true }
   )
@@ -191,7 +191,7 @@ async function saveBaselineForProject(
   })
 
   enrichBaselineDocumentWithUnits(document, logger)
-  const { error: schemaError } = baselineSchema.validate(document, {
+  const { error: schemaError } = habitatDataSchema.validate(document, {
     allowUnknown: true
   })
   if (schemaError) {
