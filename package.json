@@ -12,6 +12,7 @@
   ],
   "scripts": {
     "data-dictionary": "node scripts/gen-data-dictionary.js && prettier --write --log-level warn docs/data-dictionary.md docs/data-dictionary.json",
+    "data-dictionary:check": "npm run data-dictionary && { git diff --exit-code -- docs/data-dictionary.md docs/data-dictionary.json || { echo 'ERROR: data dictionary was stale and has been regenerated — stage docs/data-dictionary.{md,json} and re-commit.'; exit 1; }; }",
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
     "predev": "node scripts/ensure-env.js",
@@ -20,7 +21,7 @@
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
-    "git:pre-commit-hook": "npm run security-audit && npm run format:check && npm run lint && npm test",
+    "git:pre-commit-hook": "npm run data-dictionary:check && npm run security-audit && npm run format:check && npm run lint && npm test",
     "git:pre-push-hook": "npm run test:integration:full",
     "install:gitleaks": "node scripts/install-gitleaks.mjs",
     "lint": "eslint --cache --cache-strategy content \"**/*.{cjs,js}\"",
