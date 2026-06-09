@@ -95,16 +95,10 @@ function mergeFeature(type, existing, edits, derived) {
   }
 }
 
-function spliceFeatureInBaseline(
-  baseline,
-  layerKey,
-  featureId,
-  updatedFeature
-) {
+function spliceFeatureInBaseline(baseline, layerKey, index, updatedFeature) {
   const layer = baseline[layerKey] ?? []
-  const idx = layer.findIndex((f) => f?.featureId === featureId)
   const updatedLayer = layer.slice()
-  updatedLayer[idx] = updatedFeature
+  updatedLayer[index] = updatedFeature
   return {
     ...baseline,
     [layerKey]: updatedLayer
@@ -153,19 +147,27 @@ function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
     normalizedEdits,
     derived
   )
+  const index = baseline[found.key].findIndex((f) => f?.featureId === featureId)
   const updatedBaseline = spliceFeatureInBaseline(
     baseline,
     found.key,
-    featureId,
+    index,
     updatedFeature
   )
   summarizeBaselineUnitsTotals(updatedBaseline)
 
+  // `layer` / `index` / `unitsTotals` let callers persist surgically via
+  // persist-project.js (jsonb_set the one feature + the totals) rather than
+  // rewriting the whole document. `project` is retained for callers/tests that
+  // want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
-    project: { ...project, baseline: updatedBaseline },
-    feature: updatedFeature
+    layer: found.key,
+    index,
+    feature: updatedFeature,
+    unitsTotals: updatedBaseline.units,
+    project: { ...project, baseline: updatedBaseline }
   }
 }
 

@@ -3,6 +3,7 @@ import { eq, sql } from 'drizzle-orm'
 import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
+import { setBaselineFeature } from '../db/persist-project.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
@@ -140,10 +141,12 @@ async function runUpdate(
     )
   }
 
-  await tx
-    .update(projects)
-    .set({ project: result.project })
-    .where(eq(projects.id, projectId))
+  await setBaselineFeature(tx, projectId, {
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals
+  })
 
   return result.feature
 }
