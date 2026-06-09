@@ -4,6 +4,7 @@
   "POST /auth/session",
   "GET /projects",
   "GET /projects/{id}",
+  "GET /projects/{projectId}/baseline/geojson",
   "GET /projects/{projectId}/features/{featureId}",
   "GET /projects/{projectId}/post-intervention/features/{featureId}",
   "GET /projects/{projectId}/habitats/{featureId}",

@@ -25,6 +25,7 @@ import {
   validateBaseline,
   validatePostIntervention
 } from '../routes/baseline.js'
+import { getBaselineGeoJson } from '../routes/baseline-geojson.js'
 import { getUserProjects } from '../routes/users.js'
 import {
   getBroadHabitats,
@@ -59,6 +60,7 @@ const router = {
         uploadStatus,
         validateBaseline,
         validatePostIntervention,
+        getBaselineGeoJson,
         getUserProjects,
         getBroadHabitats,
         getHabitatTypes,
