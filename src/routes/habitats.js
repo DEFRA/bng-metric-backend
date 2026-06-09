@@ -1,6 +1,5 @@
 import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
-import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
 import { setBaselineFeature } from '../db/persist-project.js'
@@ -9,7 +8,7 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/baseline/apply-feature-update.js'
-import { projectFeatureIdParams } from './shared-params.js'
+import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
  * @openapi
@@ -70,11 +69,7 @@ const updateAreaHabitat = {
   options: {
     validate: {
       params: projectFeatureIdParams,
-      payload: Joi.object({
-        broadType: Joi.string().trim().allow(null, '').optional(),
-        habitatType: Joi.string().trim().allow(null, '').optional(),
-        condition: Joi.string().trim().allow(null, '').optional()
-      })
+      payload: featureEditPayload
     }
   },
   handler: async (request, _h) => {

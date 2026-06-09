@@ -164,127 +164,115 @@ const habitatSchema = Joi.object({
     )
 }).description('An area (polygon) habitat parcel.')
 
-const linearHabitatSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_hedgerows geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Feature reference from the GeoPackage (Parcel Ref column).'),
-  type: Joi.string()
-    .allow(null, '')
-    .description('Hedgerow type (Baseline Hedge Type column).'),
-  condition: Joi.string()
-    .allow(null, '')
-    .description('Hedgerow condition assessment.'),
-  distinctiveness: Joi.string()
-    .allow(null, '')
-    .description(
-      'Distinctiveness band resolved by bng-metric-engine from the hedgerow type.'
-    ),
-  distinctivenessScore: Joi.number()
-    .allow(null)
-    .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
-  conditionScore: Joi.number()
-    .allow(null)
-    .description('Numeric condition score from bng-metric-engine.'),
-  length: Joi.number()
-    .allow(null)
-    .description(
-      'Length in metres (PostGIS size, rounded). Set during unit enrichment.'
-    ),
-  sizeMetres: Joi.number()
-    .allow(null)
-    .description('Length in metres as measured in PostGIS.'),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description(
-      "'Complete' when type and condition are both set; otherwise 'Incomplete'."
-    ),
-  units: Joi.number()
-    .allow(null)
-    .description(
-      'Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428).'
-    ),
-  properties: Joi.object()
-    .unknown(true)
-    .description(
-      'Raw attribute columns copied verbatim from the GeoPackage Hedgerows layer.'
-    )
-}).description('A hedgerow (linear) feature.')
+// Hedgerows and watercourses share the same linear-feature shape. This factory
+// keeps their field order and prose identical while letting each supply its own
+// descriptions and module-specific fields. Field order is significant — it
+// drives the generated data dictionary — so `afterCondition` and
+// `beforeProperties` splice extra keys into the exact positions each module
+// uses.
+function linearFeatureSchema({
+  geometryRow,
+  typeDescription,
+  conditionDescription,
+  afterCondition = {},
+  distinctivenessDescription,
+  statusDescription,
+  unitsDescription,
+  beforeProperties = {},
+  propertiesDescription,
+  rootDescription
+}) {
+  return Joi.object({
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
+      ),
+    ref: Joi.string()
+      .allow(null, '')
+      .description(
+        'Feature reference from the GeoPackage (Parcel Ref column).'
+      ),
+    type: Joi.string().allow(null, '').description(typeDescription),
+    condition: Joi.string().allow(null, '').description(conditionDescription),
+    ...afterCondition,
+    distinctiveness: Joi.string()
+      .allow(null, '')
+      .description(distinctivenessDescription),
+    distinctivenessScore: Joi.number()
+      .allow(null)
+      .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
+    conditionScore: Joi.number()
+      .allow(null)
+      .description('Numeric condition score from bng-metric-engine.'),
+    length: Joi.number()
+      .allow(null)
+      .description(
+        'Length in metres (PostGIS size, rounded). Set during unit enrichment.'
+      ),
+    sizeMetres: Joi.number()
+      .allow(null)
+      .description('Length in metres as measured in PostGIS.'),
+    status: Joi.string()
+      .valid('Complete', 'Incomplete')
+      .required()
+      .description(statusDescription),
+    units: Joi.number().allow(null).description(unitsDescription),
+    ...beforeProperties,
+    properties: Joi.object().unknown(true).description(propertiesDescription)
+  }).description(rootDescription)
+}
 
-const watercourseHabitatSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_watercourses geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Feature reference from the GeoPackage (Parcel Ref column).'),
-  type: Joi.string()
-    .allow(null, '')
-    .description('Watercourse type (Baseline River Type column).'),
-  condition: Joi.string()
-    .allow(null, '')
-    .description('Watercourse condition assessment.'),
-  riparianEncroachment: Joi.string()
-    .allow(null, '')
-    .description('Riparian-zone encroachment category from the GeoPackage.'),
-  watercourseEncroachment: Joi.string()
-    .allow(null, '')
-    .description('Watercourse encroachment category from the GeoPackage.'),
-  distinctiveness: Joi.string()
-    .allow(null, '')
-    .description(
-      'Distinctiveness band resolved by bng-metric-engine from the watercourse type.'
-    ),
-  distinctivenessScore: Joi.number()
-    .allow(null)
-    .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
-  conditionScore: Joi.number()
-    .allow(null)
-    .description('Numeric condition score from bng-metric-engine.'),
-  length: Joi.number()
-    .allow(null)
-    .description(
-      'Length in metres (PostGIS size, rounded). Set during unit enrichment.'
-    ),
-  sizeMetres: Joi.number()
-    .allow(null)
-    .description('Length in metres as measured in PostGIS.'),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description(
-      "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'."
-    ),
-  units: Joi.number()
-    .allow(null)
-    .description(
-      'Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428).'
-    ),
-  waterEncroachmentMultiplier: Joi.number()
-    .allow(null)
-    .description(
-      'Watercourse-encroachment multiplier applied by bng-metric-engine when computing units.'
-    ),
-  riparianEncroachmentMultiplier: Joi.number()
-    .allow(null)
-    .description(
-      'Riparian-encroachment multiplier applied by bng-metric-engine when computing units.'
-    ),
-  properties: Joi.object()
-    .unknown(true)
-    .description(
-      'Raw attribute columns copied verbatim from the GeoPackage Watercourses layer.'
-    )
-}).description('A watercourse (linear) feature.')
+const linearHabitatSchema = linearFeatureSchema({
+  geometryRow: 'bng.baseline_hedgerows',
+  typeDescription: 'Hedgerow type (Baseline Hedge Type column).',
+  conditionDescription: 'Hedgerow condition assessment.',
+  distinctivenessDescription:
+    'Distinctiveness band resolved by bng-metric-engine from the hedgerow type.',
+  statusDescription:
+    "'Complete' when type and condition are both set; otherwise 'Incomplete'.",
+  unitsDescription:
+    'Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428).',
+  propertiesDescription:
+    'Raw attribute columns copied verbatim from the GeoPackage Hedgerows layer.',
+  rootDescription: 'A hedgerow (linear) feature.'
+})
+
+const watercourseHabitatSchema = linearFeatureSchema({
+  geometryRow: 'bng.baseline_watercourses',
+  typeDescription: 'Watercourse type (Baseline River Type column).',
+  conditionDescription: 'Watercourse condition assessment.',
+  afterCondition: {
+    riparianEncroachment: Joi.string()
+      .allow(null, '')
+      .description('Riparian-zone encroachment category from the GeoPackage.'),
+    watercourseEncroachment: Joi.string()
+      .allow(null, '')
+      .description('Watercourse encroachment category from the GeoPackage.')
+  },
+  distinctivenessDescription:
+    'Distinctiveness band resolved by bng-metric-engine from the watercourse type.',
+  statusDescription:
+    "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'.",
+  unitsDescription:
+    'Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428).',
+  beforeProperties: {
+    waterEncroachmentMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Watercourse-encroachment multiplier applied by bng-metric-engine when computing units.'
+      ),
+    riparianEncroachmentMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Riparian-encroachment multiplier applied by bng-metric-engine when computing units.'
+      )
+  },
+  propertiesDescription:
+    'Raw attribute columns copied verbatim from the GeoPackage Watercourses layer.',
+  rootDescription: 'A watercourse (linear) feature.'
+})
 
 const baselineSchema = Joi.object({
   uploadId: Joi.string()
