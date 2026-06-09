@@ -23,6 +23,9 @@ const MAX_FILENAME_LENGTH = 255
 //   6. SQL injection       — ' " ; not in the set; lone - cannot form --
 const SAFE_FILENAME_RE = /^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i
 
+const DISTINCTIVENESS_SCORE_DESCRIPTION =
+  'Numeric distinctiveness score for the band, from bng-metric-engine.'
+
 const siteSchema = Joi.object({
   name: Joi.string().description('Free-text name of the development site.'),
   grid_ref: Joi.string().description(
@@ -120,9 +123,7 @@ const habitatSchema = Joi.object({
     ),
   distinctivenessScore: Joi.number()
     .allow(null)
-    .description(
-      'Numeric distinctiveness score for the band, from bng-metric-engine.'
-    ),
+    .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
   condition: Joi.string()
     .allow(null, '')
     .description("Baseline condition assessment, e.g. 'Good'."),
@@ -186,9 +187,7 @@ const linearHabitatSchema = Joi.object({
     ),
   distinctivenessScore: Joi.number()
     .allow(null)
-    .description(
-      'Numeric distinctiveness score for the band, from bng-metric-engine.'
-    ),
+    .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
   conditionScore: Joi.number()
     .allow(null)
     .description('Numeric condition score from bng-metric-engine.'),
@@ -247,9 +246,7 @@ const watercourseHabitatSchema = Joi.object({
     ),
   distinctivenessScore: Joi.number()
     .allow(null)
-    .description(
-      'Numeric distinctiveness score for the band, from bng-metric-engine.'
-    ),
+    .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
   conditionScore: Joi.number()
     .allow(null)
     .description('Numeric condition score from bng-metric-engine.'),

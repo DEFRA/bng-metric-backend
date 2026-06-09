@@ -9,6 +9,35 @@
 // leaves on both sides, so they compare like for like.
 
 /**
+ * True when a Joi node is an open map — an object declared with `.unknown(true)`
+ * and no explicit keys (e.g. a `*.properties` blob). Both walks treat these as
+ * opaque leaves and stop descending.
+ */
+function isOpenMap(node) {
+  return node.type === 'object' && node.flags?.unknown === true && !node.keys
+}
+
+/** The declared keys of an object node, or null if it declares none. */
+function objectKeys(node) {
+  return node.type === 'object' && node.keys ? node.keys : null
+}
+
+/** The element schema of an array node, or undefined if there is none. */
+function arrayItem(node) {
+  return node.type === 'array' ? node.items?.[0] : undefined
+}
+
+/** Append `key` to `basePath`, or start a fresh path when at the root. */
+function childPath(basePath, key) {
+  return basePath ? `${basePath}.${key}` : key
+}
+
+/** True for a non-null object value (arrays are handled before this is asked). */
+function isNonNullObject(value) {
+  return value !== null && typeof value === 'object'
+}
+
+/**
  * Walk a Joi `.describe()` output into the set of declared dotted paths,
  * recording which of those are open maps (`.unknown(true)` with no declared
  * keys) so {@link dataPaths} knows to stop descending at them.
@@ -17,25 +46,22 @@ export function schemaPaths(node, basePath, declared, openPaths) {
   if (basePath) {
     declared.add(basePath)
   }
-  const isOpenMap =
-    node.type === 'object' && node.flags?.unknown === true && !node.keys
-  if (isOpenMap) {
+  if (isOpenMap(node)) {
     if (basePath) {
       openPaths.add(basePath)
     }
     return
   }
-  if (node.type === 'object' && node.keys) {
-    for (const [key, child] of Object.entries(node.keys)) {
-      schemaPaths(
-        child,
-        basePath ? `${basePath}.${key}` : key,
-        declared,
-        openPaths
-      )
+  const keys = objectKeys(node)
+  const item = arrayItem(node)
+  if (keys) {
+    for (const [key, child] of Object.entries(keys)) {
+      schemaPaths(child, childPath(basePath, key), declared, openPaths)
     }
-  } else if (node.type === 'array' && node.items?.[0]) {
-    schemaPaths(node.items[0], `${basePath}[]`, declared, openPaths)
+  } else if (item) {
+    schemaPaths(item, `${basePath}[]`, declared, openPaths)
+  } else {
+    // leaf node — nothing further to descend into
   }
 }
 
@@ -55,12 +81,12 @@ export function dataPaths(value, basePath, openPaths, out) {
     }
     return
   }
-  if (value !== null && typeof value === 'object') {
+  if (isNonNullObject(value)) {
     if (basePath) {
       out.add(basePath)
     }
     for (const [key, child] of Object.entries(value)) {
-      dataPaths(child, basePath ? `${basePath}.${key}` : key, openPaths, out)
+      dataPaths(child, childPath(basePath, key), openPaths, out)
     }
     return
   }
@@ -80,5 +106,7 @@ export function undeclaredPaths(value, schema) {
   schemaPaths(schema.describe(), '', declared, openPaths)
   const observed = new Set()
   dataPaths(value, '', openPaths, observed)
-  return [...observed].filter((path) => !declared.has(path)).sort()
+  return [...observed]
+    .filter((path) => !declared.has(path))
+    .sort((a, b) => a.localeCompare(b))
 }
