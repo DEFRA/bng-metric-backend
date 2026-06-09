@@ -5,7 +5,7 @@
  * skill after schema changes, or edit manually as requirements become clearer.
  *
  * The `.description()` on every key is the source of prose for the generated
- * data dictionary (`npm run data-dictionary` → docs/data-dictionary.md) and for
+ * data dictionary (`npm run data-dictionary` → data-dictionary/data-dictionary.md) and for
  * the Swagger UI. Keep them accurate: they document what is actually persisted.
  */
 import Joi from 'joi'

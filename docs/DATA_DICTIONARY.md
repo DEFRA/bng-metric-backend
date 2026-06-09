@@ -14,8 +14,8 @@ truth the backend already maintains:
 
 The output is committed to the repo so it is reviewable in PRs:
 
-- [`docs/data-dictionary.md`](data-dictionary.md) — human-readable
-- [`docs/data-dictionary.json`](data-dictionary.json) — machine-readable
+- [`data-dictionary/data-dictionary.md`](../data-dictionary/data-dictionary.md) — human-readable
+- [`data-dictionary/data-dictionary.json`](../data-dictionary/data-dictionary.json) — machine-readable
 
 > Related: [SCHEMA_REFLECTION.md](SCHEMA_REFLECTION.md) explains how the Drizzle
 > and Joi files themselves are kept in sync with the live `bng` schema. The data
@@ -37,7 +37,7 @@ reliable rather than flaky.
 The field descriptions come from the `.description()` annotation on each key in
 `src/validation/project.js`. To improve the prose in the dictionary, edit those
 annotations (they also surface in the Swagger UI) and regenerate — do **not**
-edit `docs/data-dictionary.*` by hand.
+edit `data-dictionary/data-dictionary.*` by hand.
 
 ## The two consistency guards
 
@@ -65,14 +65,14 @@ In `.github/workflows/check-pull-request.yml`, the `pr-validator` job runs:
 - name: Data dictionary is up to date
   run: |
     npm run data-dictionary
-    git diff --exit-code -- docs/data-dictionary.md docs/data-dictionary.json
+    git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json
 ```
 
 The mechanism is easy to misread, so to be explicit: **`git diff` is not comparing
 the `.md` to the `.json`.** It compares each freshly regenerated file against the
 **committed** version of that same file in the PR:
 
-1. The runner checks out the PR. `docs/data-dictionary.{md,json}` are whatever the
+1. The runner checks out the PR. `data-dictionary/data-dictionary.{md,json}` are whatever the
    author committed.
 2. `npm run data-dictionary` overwrites those two files in the working tree with
    output derived purely from the **committed** `src/validation/project.js` and
@@ -106,7 +106,7 @@ You add a new field to a habitat (and the code that persists it):
    `.description()`**.
 2. `npm test` — the coverage guard confirms the schema now covers the new
    persisted field (and tells you the exact path if you missed one).
-3. `npm run data-dictionary` — regenerate `docs/data-dictionary.{md,json}`.
+3. `npm run data-dictionary` — regenerate `data-dictionary/data-dictionary.{md,json}`.
 4. Commit the schema change **and** the regenerated docs together.
 5. CI regenerates from your committed schema, gets byte-identical files, `git diff`
    exits `0` → ✅ green.
@@ -120,7 +120,7 @@ You changed the schema and committed, but skipped step 3:
 2. `git diff --exit-code` prints the unified diff and exits `1` → ❌ the step fails:
 
    ```diff
-   diff --git a/docs/data-dictionary.md b/docs/data-dictionary.md
+   diff --git a/data-dictionary/data-dictionary.md b/data-dictionary/data-dictionary.md
    @@
    +| `baseline.habitats[].retentionScore` | number | — | ✓ | — | Retention score… |
    ```
@@ -141,12 +141,12 @@ schema`, or `"baseline.habitats[].retentionScore" is not allowed`.
 
 ## Quick reference
 
-| Command                                                                     | Purpose                                                  |
-| --------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `npm run data-dictionary`                                                   | Regenerate `docs/data-dictionary.{md,json}`              |
-| `npm test`                                                                  | Run the in-process coverage guard (among all unit tests) |
-| `npm run test:integration`                                                  | Run the read-back guard against a real Postgres          |
-| `git diff --exit-code -- docs/data-dictionary.md docs/data-dictionary.json` | Reproduce the CI freshness check locally                 |
+| Command                                                                                           | Purpose                                                  |
+| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
+| `npm run data-dictionary`                                                                         | Regenerate `data-dictionary/data-dictionary.{md,json}`   |
+| `npm test`                                                                                        | Run the in-process coverage guard (among all unit tests) |
+| `npm run test:integration`                                                                        | Run the read-back guard against a real Postgres          |
+| `git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json` | Reproduce the CI freshness check locally                 |
 
 ## Files
 
@@ -161,8 +161,9 @@ bng-metric-backend/
       project-coverage.test.js                   # in-process coverage guard
   integration-tests/
     data-dictionary-coverage.test.js             # real read-back coverage guard
-  docs/
+  data-dictionary/
     data-dictionary.md                           # generated — do not edit by hand
     data-dictionary.json                         # generated — do not edit by hand
+  docs/
     DATA_DICTIONARY.md                           # this document
 ```
