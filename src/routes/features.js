@@ -7,8 +7,8 @@ import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
-} from '../utilities/baseline/apply-feature-update.js'
-import { findFeature } from '../utilities/baseline/find-feature.js'
+} from '../utilities/features/apply-feature-update.js'
+import { findFeature } from '../utilities/features/find-feature.js'
 import { projectFeatureIdParams } from './shared-params.js'
 
 /**

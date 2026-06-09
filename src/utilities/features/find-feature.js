@@ -5,28 +5,28 @@ const FEATURE_LAYERS = [
 ]
 
 /**
- * Locate a feature in a baseline document by featureId, returning the layer
- * it belongs to. Lets routes address any baseline feature by its UUID alone —
+ * Locate a feature in a document feature set by featureId, returning the layer
+ * it belongs to. Lets routes address any project feature by its UUID alone —
  * the type comes from the data.
  *
  * Relies on featureIds being unique across habitats, hedgerows and
- * watercourses (they're generated as UUIDs at baseline-validate time, so
+ * watercourses (they're generated as UUIDs at validation time, so
  * collisions are vanishingly unlikely). If a duplicate is ever observed it
  * indicates upstream data corruption and we throw rather than silently
  * returning the wrong layer's feature.
  *
- * @param {object} baseline
+ * @param {object} featureSet
  * @param {string} featureId
  * @returns {{ type: string, key: string, feature: object } | null}
  * @throws {Error} when the same featureId appears in more than one layer
  */
-function findFeature(baseline, featureId) {
-  if (!baseline) {
+function findFeature(featureSet, featureId) {
+  if (!featureSet) {
     return null
   }
   const matches = []
   for (const { type, key } of FEATURE_LAYERS) {
-    const found = baseline[key]?.find((f) => f?.featureId === featureId)
+    const found = featureSet[key]?.find((f) => f?.featureId === featureId)
     if (found) {
       matches.push({ type, key, feature: found })
     }
