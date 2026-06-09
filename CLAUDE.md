@@ -24,7 +24,7 @@ npm run db:validate
 node scripts/reflect-schema.js
 
 # 3b. If you changed src/validation/project.js, regenerate the data dictionary
-#     (a CI step fails the PR if docs/data-dictionary.* drifts from the schema)
+#     (a CI step fails the PR if data-dictionary/data-dictionary.* drifts from the schema)
 npm run data-dictionary
 
 # 4. Tests
@@ -39,7 +39,7 @@ For the full end-to-end procedure, including changeset examples, JSONB handling,
 
 All writes to the `bng.projects.project` JSONB column go through one validated choke point: `src/db/persist-project.js`. Each helper (`insertProject`, `setProjectName`, `setProjectBaseline`, `setBaselineFeature`) validates only the fragment it writes against the matching slice of the Joi schema before persisting, and partial updates use `jsonb_set` so a single feature edit never rewrites the whole document. An ESLint `no-restricted-syntax` rule bans direct `.insert(projects)` / `.update(projects)` outside that module, so a new route that persists project data **must** use a helper (or add one) — `npm run lint` rejects bypasses. See [`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
 
-The persisted shape is documented in a generated data dictionary — `docs/data-dictionary.{md,json}` via `npm run data-dictionary`, sourced from the Drizzle tables and the Joi `.description()` annotations in `src/validation/project.js`. A CI step fails the PR if the committed docs drift from the schema, and coverage tests assert the code only persists schema-declared fields. See [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
+The persisted shape is documented in a generated data dictionary — `data-dictionary/data-dictionary.{md,json}` via `npm run data-dictionary`, sourced from the Drizzle tables and the Joi `.description()` annotations in `src/validation/project.js`. A CI step fails the PR if the committed docs drift from the schema, and coverage tests assert the code only persists schema-declared fields. See [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
 
 ## Tests
 
