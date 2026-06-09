@@ -146,10 +146,10 @@ function nodeMeta(node) {
 }
 
 function walkSchema(node, path, rows) {
-  if (path) {
-    rows.push({ path, ...nodeMeta(node) })
-  }
   const meta = nodeMeta(node)
+  if (path) {
+    rows.push({ path, ...meta })
+  }
   if (meta.openMap) {
     return
   }
