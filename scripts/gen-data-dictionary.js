@@ -159,6 +159,8 @@ function walkSchema(node, path, rows) {
     }
   } else if (node.type === 'array' && node.items?.[0]) {
     walkSchema(node.items[0], `${path}[]`, rows)
+  } else {
+    // leaf node — no children to walk
   }
 }
 
@@ -171,7 +173,9 @@ function collectProjectFields() {
 // ─── Markdown rendering ───────────────────────────────────────────────────────
 
 function escapeCell(value) {
-  return String(value).replaceAll('|', '\\|').replaceAll('\n', ' ')
+  return String(value)
+    .replaceAll('|', String.raw`\|`)
+    .replaceAll('\n', ' ')
 }
 
 const tick = (value) => (value ? '✓' : '—')
@@ -193,30 +197,41 @@ function renderConstraints(field) {
   return parts.join('; ') || '—'
 }
 
+function columnKeyLabel(column) {
+  const keyParts = []
+  if (column.primaryKey) {
+    keyParts.push('PK')
+  }
+  if (column.references) {
+    keyParts.push(`FK → ${column.references}`)
+  }
+  if (column.unique && !column.primaryKey) {
+    keyParts.push('UNIQUE')
+  }
+  return keyParts.join(', ') || '—'
+}
+
+function defaultLabel(value) {
+  return value ? `\`${escapeCell(value)}\`` : '—'
+}
+
+function renderColumnRow(column) {
+  return `| \`${column.name}\` | \`${column.type}\` | ${tick(
+    column.nullable
+  )} | ${columnKeyLabel(column)} | ${defaultLabel(column.default)} |`
+}
+
 function renderPostgresSection(tables) {
   const lines = ['## Postgres tables', '']
   for (const table of tables) {
-    lines.push(`### \`${table.name}\``, '')
-    lines.push('| Column | Type | Nullable | Key | Default |')
-    lines.push('| --- | --- | --- | --- | --- |')
-    for (const column of table.columns) {
-      const keyParts = []
-      if (column.primaryKey) {
-        keyParts.push('PK')
-      }
-      if (column.references) {
-        keyParts.push(`FK → ${column.references}`)
-      }
-      if (column.unique && !column.primaryKey) {
-        keyParts.push('UNIQUE')
-      }
-      lines.push(
-        `| \`${column.name}\` | \`${column.type}\` | ${tick(column.nullable)} | ${
-          keyParts.join(', ') || '—'
-        } | ${column.default ? `\`${escapeCell(column.default)}\`` : '—'} |`
-      )
-    }
-    lines.push('')
+    lines.push(
+      `### \`${table.name}\``,
+      '',
+      '| Column | Type | Nullable | Key | Default |',
+      '| --- | --- | --- | --- | --- |',
+      ...table.columns.map(renderColumnRow),
+      ''
+    )
   }
   return lines.join('\n')
 }
@@ -282,10 +297,10 @@ function renderMarkdown(tables, fields) {
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
 console.log('Generating data dictionary…')
-const tables = collectTables()
-const fields = collectProjectFields()
+const allTables = collectTables()
+const allFields = collectProjectFields()
 console.log(
-  `  • ${tables.length} Postgres tables, ${fields.length} project JSON fields`
+  `  • ${allTables.length} Postgres tables, ${allFields.length} project JSON fields`
 )
 
 mkdirSync(DOCS_DIR, { recursive: true })
@@ -293,10 +308,10 @@ mkdirSync(DOCS_DIR, { recursive: true })
 const markdownPath = join(DOCS_DIR, 'data-dictionary.md')
 const jsonPath = join(DOCS_DIR, 'data-dictionary.json')
 
-writeFileSync(markdownPath, `${renderMarkdown(tables, fields)}\n`)
+writeFileSync(markdownPath, `${renderMarkdown(allTables, allFields)}\n`)
 writeFileSync(
   jsonPath,
-  `${JSON.stringify({ postgres: tables, projectJson: fields }, null, 2)}\n`
+  `${JSON.stringify({ postgres: allTables, projectJson: allFields }, null, 2)}\n`
 )
 
 console.log(`  • wrote ${markdownPath}`)
