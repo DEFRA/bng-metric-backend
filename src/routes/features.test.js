@@ -467,4 +467,24 @@ describe('updateFeature validation', () => {
     ).toBeUndefined()
     expect(payloadSchema.validate({}).error).toBeUndefined()
   })
+
+  test('accepts a payload with watercourse encroachment fields', () => {
+    expect(
+      payloadSchema.validate({
+        habitatType: 'Ditches',
+        condition: 'Good',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: 'Minor/Minor'
+      }).error
+    ).toBeUndefined()
+  })
+
+  test('rejects unknown keys to stop the frontend silently leaking new fields', () => {
+    expect(
+      payloadSchema.validate({
+        habitatType: 'Ditches',
+        somethingNew: 'value'
+      }).error
+    ).toBeDefined()
+  })
 })

@@ -13,11 +13,18 @@ export const projectFeatureIdParams = Joi.object({
  * Joi validator for the editable baseline-feature attributes accepted by the
  * area-habitat and feature PUT endpoints. Shared so both routes validate the
  * same shape.
+ *
+ * The two encroachment fields only apply to watercourse features; the area
+ * and hedgerow forms never submit them. They live on the shared schema rather
+ * than a watercourse-specific one because the frontend POSTs every save
+ * through a single endpoint and the backend dispatches by feature type.
  */
 export const featureEditPayload = Joi.object({
   broadType: Joi.string().trim().allow(null, '').optional(),
   habitatType: Joi.string().trim().allow(null, '').optional(),
-  condition: Joi.string().trim().allow(null, '').optional()
+  condition: Joi.string().trim().allow(null, '').optional(),
+  watercourseEncroachment: Joi.string().trim().allow(null, '').optional(),
+  riparianEncroachment: Joi.string().trim().allow(null, '').optional()
 })
 
 /**
