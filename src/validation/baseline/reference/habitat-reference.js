@@ -8,7 +8,12 @@ import {
   DISTINCTIVENESS_SCORES,
   HEDGEROW_CONDITION_SCORES,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-  HEDGEROW_DISTINCTIVENESS_SCORES
+  HEDGEROW_DISTINCTIVENESS_SCORES,
+  WATERCOURSE_CONDITION_SCORES,
+  WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
+  WATERCOURSE_DISTINCTIVENESS_SCORES,
+  WATERCOURSE_ENCROACHMENT_MULTIPLIER,
+  WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER
 } from 'bng-metric-engine'
 import {
   distinctivenessByHabitatType,
@@ -24,8 +29,16 @@ const hedgerowDistinctivenessScores = Object.fromEntries(
   ])
 )
 
+// Watercourse uses its own scores table — V.High/High/Medium/Low only, with
+// different Score values from the area band scale.
+const watercourseDistinctivenessScores = Object.fromEntries(
+  Object.entries(WATERCOURSE_DISTINCTIVENESS_SCORES).map(
+    ([band, { Score }]) => [band, { score: Score }]
+  )
+)
+
 export { distinctivenessScores } from './habitat-distinctiveness.js'
-export { hedgerowDistinctivenessScores }
+export { hedgerowDistinctivenessScores, watercourseDistinctivenessScores }
 
 const NOT_POSSIBLE = 'Not Possible'
 
@@ -33,6 +46,16 @@ const NOT_POSSIBLE = 'Not Possible'
 // strings so the wording stays in lockstep with the calculator.
 const tradingRulesByDistinctiveness = Object.fromEntries(
   Object.entries(DISTINCTIVENESS_SCORES).map(([band, entry]) => [
+    band,
+    entry['Trading rules']
+  ])
+)
+
+// Watercourse trading-rules wording differs from area at V.High; map is built
+// from the engine's watercourse-distinctiveness-scores table to stay in lockstep
+// with the calculator.
+const watercourseTradingRulesByDistinctiveness = Object.fromEntries(
+  Object.entries(WATERCOURSE_DISTINCTIVENESS_SCORES).map(([band, entry]) => [
     band,
     entry['Trading rules']
   ])
@@ -211,10 +234,7 @@ function getHedgerowHabitatTypes(
  * @param {Object<string, Object<string, number|string>>} [scoresLookup]
  * @returns {Array<{ condition: string, score: number }>}
  */
-function getConditionsForHedgerowType(
-  habitatType,
-  scoresLookup = HEDGEROW_CONDITION_SCORES
-) {
+function conditionsFromScoreTable(habitatType, scoresLookup) {
   const scoresByCondition = scoresLookup[habitatType]
   if (!scoresByCondition) {
     return []
@@ -228,8 +248,89 @@ function getConditionsForHedgerowType(
   return out
 }
 
+function getConditionsForHedgerowType(
+  habitatType,
+  scoresLookup = HEDGEROW_CONDITION_SCORES
+) {
+  return conditionsFromScoreTable(habitatType, scoresLookup)
+}
+
+// Watercourse reference data comes from the bundled engine. Unlike hedgerow,
+// every band the engine emits (V.High / High / Medium / Low) is in scope for
+// the watercourse details page — filtering to MVS bands would hide saved
+// Priority habitat (V.High) rows that users have already uploaded.
+
+/**
+ * Watercourse habitat types in the order required by the BMD-502 details page,
+ * each annotated with its distinctiveness band + score. Sorted alphabetically
+ * by name.
+ *
+ * The `categories` parameter is exposed for tests so the filter/sort logic can
+ * be exercised independently of the engine's data choices.
+ *
+ * @param {Object<string, string>} [categories]
+ * @returns {Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>}
+ */
+function getWatercourseHabitatTypes(
+  categories = WATERCOURSE_DISTINCTIVENESS_CATEGORIES
+) {
+  const types = []
+  for (const [name, distinctiveness] of Object.entries(categories)) {
+    types.push({
+      name,
+      distinctiveness,
+      distinctivenessScore:
+        watercourseDistinctivenessScores[distinctiveness]?.score
+    })
+  }
+  return types.sort((a, b) => a.name.localeCompare(b.name))
+}
+
+/**
+ * Condition options for a watercourse habitat type, in the engine's canonical
+ * order with "Not Possible" entries stripped.
+ *
+ * @param {string} habitatType
+ * @param {Object<string, Object<string, number|string>>} [scoresLookup]
+ * @returns {Array<{ condition: string, score: number }>}
+ */
+function getConditionsForWatercourseType(
+  habitatType,
+  scoresLookup = WATERCOURSE_CONDITION_SCORES
+) {
+  return conditionsFromScoreTable(habitatType, scoresLookup)
+}
+
+// BMD-502 story implies the encroachment options are filtered per watercourse
+// habitat type ("Valid values per watercourse habitat on Reference Data -
+// Habitats"). The engine bundles only the flat multiplier tables — no per-type
+// filter exists today. Returning the full list keeps the page populated; if
+// the per-type table later ships in the engine, swap these readers to take a
+// `habitatType` argument.
+
+/**
+ * All recognised watercourse-encroachment options, in the engine's authored
+ * order (No Encroachment, Minor, Major, N/A - Culvert).
+ *
+ * @returns {string[]}
+ */
+function getWatercourseEncroachmentOptions() {
+  return Object.keys(WATERCOURSE_ENCROACHMENT_MULTIPLIER)
+}
+
+/**
+ * All recognised riparian-encroachment options, in the engine's authored order
+ * (severity descending, culvert last).
+ *
+ * @returns {string[]}
+ */
+function getRiparianEncroachmentOptions() {
+  return Object.keys(WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER)
+}
+
 export {
   tradingRulesByDistinctiveness,
+  watercourseTradingRulesByDistinctiveness,
   getHabitatsByBroad,
   getAreaBroadHabitats,
   getAreaHabitatTypes,
@@ -237,6 +338,12 @@ export {
   getConditionsForHabitatType,
   getHedgerowHabitatTypes,
   getConditionsForHedgerowType,
+  getWatercourseHabitatTypes,
+  getConditionsForWatercourseType,
+  getWatercourseEncroachmentOptions,
+  getRiparianEncroachmentOptions,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-  HEDGEROW_CONDITION_SCORES
+  HEDGEROW_CONDITION_SCORES,
+  WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
+  WATERCOURSE_CONDITION_SCORES
 }

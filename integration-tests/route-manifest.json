@@ -21,5 +21,7 @@
   "GET /reference/habitat-types-by-broad",
   "GET /reference/conditions",
   "GET /reference/hedgerow-types",
+  "GET /reference/watercourse-types",
+  "GET /reference/watercourse-encroachments",
   "GET /reference/trading-rules"
 ]

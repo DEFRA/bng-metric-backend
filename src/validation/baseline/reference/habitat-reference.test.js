@@ -4,7 +4,11 @@ import { distinctivenessByHabitatType } from './habitat-distinctiveness.js'
 import {
   getConditionsForHabitatType,
   getConditionsForHedgerowType,
-  getHedgerowHabitatTypes
+  getConditionsForWatercourseType,
+  getHedgerowHabitatTypes,
+  getRiparianEncroachmentOptions,
+  getWatercourseEncroachmentOptions,
+  getWatercourseHabitatTypes
 } from './habitat-reference.js'
 
 describe('habitat reference data integrity', () => {
@@ -120,5 +124,102 @@ describe('getConditionsForHedgerowType (fixture-injected)', () => {
       'Poor'
     ])
     expect(getConditionsForHedgerowType('Made-up')).toEqual([])
+  })
+})
+
+describe('getWatercourseHabitatTypes (fixture-injected)', () => {
+  test('returns entries sorted alphabetically by name', () => {
+    const categories = {
+      Zebra: 'Low',
+      Apple: 'Medium',
+      Mango: 'High'
+    }
+    const names = getWatercourseHabitatTypes(categories).map((r) => r.name)
+    expect(names).toEqual(['Apple', 'Mango', 'Zebra'])
+  })
+
+  test('keeps every distinctiveness band the engine emits', () => {
+    // Watercourse types are not filtered to MVS bands — V.High Priority habitat
+    // must remain visible so saved rows are not hidden in the dropdown.
+    const categories = {
+      VeryHigh: 'V.High',
+      High: 'High',
+      Medium: 'Medium',
+      Low: 'Low'
+    }
+    const result = getWatercourseHabitatTypes(categories)
+    expect(result.map((r) => r.distinctiveness).sort()).toEqual(
+      ['High', 'Low', 'Medium', 'V.High'].sort()
+    )
+  })
+
+  test('attaches the watercourse-table score for each band', () => {
+    const result = getWatercourseHabitatTypes({ Priority: 'V.High' })
+    expect(result[0]).toMatchObject({
+      name: 'Priority',
+      distinctiveness: 'V.High',
+      distinctivenessScore: 8
+    })
+  })
+
+  test('returns the engine-bundled types in alphabetical order (default argument)', () => {
+    const result = getWatercourseHabitatTypes()
+    const names = result.map((r) => r.name)
+    expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
+    expect(names).toContain('Priority habitat')
+    expect(names).toContain('Other rivers and streams')
+    expect(names).toContain('Culvert')
+  })
+})
+
+describe('getConditionsForWatercourseType (fixture-injected)', () => {
+  test('returns conditions in canonical order, dropping "Not Possible"', () => {
+    const scoresLookup = {
+      'Priority habitat': {
+        Good: 3,
+        'Fairly Good': 2.5,
+        Moderate: 2,
+        'Fairly Poor': 1.5,
+        Poor: 1,
+        'Condition Assessment N/A': 'Not Possible'
+      }
+    }
+    expect(
+      getConditionsForWatercourseType('Priority habitat', scoresLookup)
+    ).toEqual([
+      { condition: 'Good', score: 3 },
+      { condition: 'Fairly Good', score: 2.5 },
+      { condition: 'Moderate', score: 2 },
+      { condition: 'Fairly Poor', score: 1.5 },
+      { condition: 'Poor', score: 1 }
+    ])
+  })
+
+  test('returns [] for an unknown watercourse habitat type', () => {
+    expect(getConditionsForWatercourseType('Made-up')).toEqual([])
+  })
+
+  test('strips "Not Possible" for Culvert, leaving Poor only', () => {
+    const conditions = getConditionsForWatercourseType('Culvert')
+    expect(conditions.map((c) => c.condition)).toEqual(['Poor'])
+  })
+})
+
+describe('encroachment option readers', () => {
+  test('watercourse encroachment options preserve engine authoring order', () => {
+    expect(getWatercourseEncroachmentOptions()).toEqual([
+      'No Encroachment',
+      'Minor',
+      'Major',
+      'N/A - Culvert'
+    ])
+  })
+
+  test('riparian encroachment options include all 11 combinations and N/A - Culvert', () => {
+    const options = getRiparianEncroachmentOptions()
+    expect(options.length).toBe(11)
+    expect(options).toContain('No Encroachment/No Encroachment')
+    expect(options).toContain('Major/Major')
+    expect(options).toContain('N/A - Culvert')
   })
 })

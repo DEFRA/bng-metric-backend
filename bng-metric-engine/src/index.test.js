@@ -8,6 +8,9 @@ describe('bng-metric-engine public exports', () => {
     expect(pkg.calculateHedgerowBaseline).toBeTypeOf('function')
     expect(pkg.calculateWatercourseBaseline).toBeTypeOf('function')
     expect(pkg.isRecognisedEncroachmentValue).toBeTypeOf('function')
+    expect(pkg.WATERCOURSE_CONDITION_SCORES).toBeTypeOf('object')
+    expect(pkg.WATERCOURSE_DISTINCTIVENESS_CATEGORIES).toBeTypeOf('object')
+    expect(pkg.WATERCOURSE_DISTINCTIVENESS_SCORES).toBeTypeOf('object')
     expect(pkg.WATERCOURSE_ENCROACHMENT_MULTIPLIER).toBeTypeOf('object')
     expect(pkg.WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER).toBeTypeOf(
       'object'

@@ -6,9 +6,14 @@ import {
   getHabitatTypesByBroad,
   getConditions,
   getHedgerowTypes,
+  getWatercourseTypes,
+  getWatercourseEncroachments,
   getTradingRules
 } from './reference.js'
-import { getHedgerowHabitatTypes } from '../validation/baseline/reference/habitat-reference.js'
+import {
+  getHedgerowHabitatTypes,
+  getWatercourseHabitatTypes
+} from '../validation/baseline/reference/habitat-reference.js'
 
 describe('#getBroadHabitats', () => {
   test('Returns an alphabetised list of broad habitats', () => {
@@ -218,10 +223,19 @@ describe('#getConditions validation', () => {
     expect(value.featureType).toBe('hedgerow')
   })
 
+  test('Accepts featureType=watercourse', () => {
+    const { value, error } = schema.validate({
+      habitatType: 'Priority habitat',
+      featureType: 'watercourse'
+    })
+    expect(error).toBeUndefined()
+    expect(value.featureType).toBe('watercourse')
+  })
+
   test('Rejects unsupported featureType', () => {
     const { error } = schema.validate({
       habitatType: 'River',
-      featureType: 'watercourse'
+      featureType: 'unknown'
     })
     expect(error).toBeDefined()
   })
@@ -244,13 +258,106 @@ describe('#getHedgerowTypes', () => {
   })
 })
 
+describe('#getWatercourseTypes', () => {
+  test('Returns watercourse types in alphabetical order with band + score', () => {
+    const result = getWatercourseTypes.handler({}, {})
+    expect(result.length).toBeGreaterThan(0)
+    const names = result.map((r) => r.name)
+    expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names)
+    expect(names).toContain('Priority habitat')
+    for (const entry of result) {
+      expect(['V.High', 'High', 'Medium', 'Low']).toContain(
+        entry.distinctiveness
+      )
+      expect(typeof entry.distinctivenessScore).toBe('number')
+    }
+  })
+
+  test('handler delegates to getWatercourseHabitatTypes', () => {
+    expect(getWatercourseTypes.handler({}, {})).toEqual(
+      getWatercourseHabitatTypes()
+    )
+  })
+})
+
+describe('#getWatercourseEncroachments', () => {
+  test('Returns both encroachment lists in engine order', () => {
+    const result = getWatercourseEncroachments.handler({}, {})
+    expect(result.watercourse).toEqual([
+      'No Encroachment',
+      'Minor',
+      'Major',
+      'N/A - Culvert'
+    ])
+    expect(result.riparian).toContain('No Encroachment/No Encroachment')
+    expect(result.riparian).toContain('N/A - Culvert')
+    expect(result.riparian.length).toBe(11)
+  })
+})
+
+describe('#getConditions (watercourse dispatch)', () => {
+  test('Returns watercourse condition options for a watercourse habitat type', () => {
+    const result = getConditions.handler(
+      {
+        query: { habitatType: 'Priority habitat', featureType: 'watercourse' }
+      },
+      {}
+    )
+    expect(result.map((c) => c.condition)).toEqual([
+      'Good',
+      'Fairly Good',
+      'Moderate',
+      'Fairly Poor',
+      'Poor'
+    ])
+  })
+
+  test('Strips Not Possible entries for Culvert', () => {
+    const result = getConditions.handler(
+      { query: { habitatType: 'Culvert', featureType: 'watercourse' } },
+      {}
+    )
+    expect(result.map((c) => c.condition)).toEqual(['Poor'])
+  })
+})
+
 describe('#getTradingRules', () => {
-  test('Returns guidance text for all five distinctiveness bands', () => {
-    const result = getTradingRules.handler({}, {})
+  test('Returns guidance text for all five area distinctiveness bands', () => {
+    const result = getTradingRules.handler(
+      { query: { featureType: 'habitat' } },
+      {}
+    )
     expect(Object.keys(result).sort()).toEqual(
       ['High', 'Low', 'Medium', 'V.High', 'V.Low'].sort()
     )
     expect(result.Medium).toContain('Same broad habitat')
     expect(result['V.Low']).toContain('Not Required')
+  })
+
+  test('Returns the watercourse-specific text when featureType=watercourse', () => {
+    const areaRules = getTradingRules.handler(
+      { query: { featureType: 'habitat' } },
+      {}
+    )
+    const watercourseRules = getTradingRules.handler(
+      { query: { featureType: 'watercourse' } },
+      {}
+    )
+    // Watercourse omits V.Low (its lowest band is Low) and uses different
+    // Medium wording from the area scale ("Same habitat required =" rather
+    // than the broad-habitat trade rule).
+    expect(Object.keys(watercourseRules).sort()).toEqual(
+      ['High', 'Low', 'Medium', 'V.High'].sort()
+    )
+    expect(watercourseRules.Medium).not.toBe(areaRules.Medium)
+  })
+
+  test('Defaults to area trading rules when featureType is omitted', () => {
+    const omitted = getTradingRules.handler({ query: {} }, {})
+    const explicit = getTradingRules.handler(
+      { query: { featureType: 'habitat' } },
+      {}
+    )
+    expect(omitted).toEqual(explicit)
   })
 })
