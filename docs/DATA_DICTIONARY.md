@@ -7,10 +7,17 @@ on `bng.projects.project` (and snapshotted into `bng.audit_log.project`).
 It is **generated**, never hand-written, from the two declarative sources of
 truth the backend already maintains:
 
-| Source of truth                       | Drives                                                                                     | Lives in                    |
-| ------------------------------------- | ------------------------------------------------------------------------------------------ | --------------------------- |
-| Drizzle table definitions             | the Postgres column tables                                                                 | `src/db/schema/*.js`        |
-| The Joi schema for the `project` blob | the JSON field tables (path, type, required, nullable, enum, constraints, **description**) | `src/validation/project.js` |
+| Source of truth                       | Drives                                                                                                       | Lives in                         |
+| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
+| Drizzle table definitions             | the Postgres column tables                                                                                   | `src/db/schema/*.js`             |
+| `TABLE_DESCRIPTIONS` in the generator | the plain-language sentence under each Postgres table                                                        | `scripts/gen-data-dictionary.js` |
+| The Joi schema for the `project` blob | the JSON field tables (path, type, constraints, **description** in Markdown; plus required/nullable in JSON) | `src/validation/project.js`      |
+
+The Markdown is also tailored for non-technical readers: the `Req?`/`Null?`
+columns are dropped (they remain in the JSON), every type and foreign-key target
+is code-formatted, and source-file references are absolute links into the
+[GitHub repo](https://github.com/DEFRA/bng-metric-backend) so they resolve when
+the page is mirrored to Confluence.
 
 The output is committed to the repo so it is reviewable in PRs:
 
@@ -122,7 +129,7 @@ You changed the schema and committed, but skipped step 3:
    ```diff
    diff --git a/data-dictionary/data-dictionary.md b/data-dictionary/data-dictionary.md
    @@
-   +| `baseline.habitats[].retentionScore` | number | — | ✓ | — | Retention score… |
+   +| `baseline.habitats[].retentionScore` | `number` | — | Retention score… |
    ```
 
    The diff in the CI log shows exactly which lines are out of date.
@@ -139,6 +146,41 @@ schema`, or `"baseline.habitats[].retentionScore" is not allowed`.
 2. Add the field (with a `.description()`) to `src/validation/project.js`, then
    follow the success workflow above.
 
+## Publishing to Confluence
+
+On every merge to `main`, the **Publish Data Dictionary** workflow
+(`.github/workflows/publish-data-dictionary.yml`) mirrors
+`data-dictionary/data-dictionary.md` to a Confluence page so non-technical staff
+can read it without GitHub access. The workflow's `paths` filter means it runs
+**only when the Markdown actually changed** in the merge — an unchanged
+dictionary never republishes.
+
+`scripts/publish-confluence.mjs` reads the committed Markdown, converts it to
+Confluence storage format via `scripts/markdown-to-confluence.mjs`, and updates
+the target page **by ID**: it GETs the current version then PUTs the new body
+with the version incremented. The conversion is dependency-free (Node built-ins
+only) and covered by `scripts/markdown-to-confluence.test.js`.
+
+To preview the exact storage XHTML that would be pushed, without contacting
+Confluence:
+
+```sh
+node scripts/publish-confluence.mjs --dry-run
+```
+
+The workflow reads its target and credentials from repository settings — set
+these once under **Settings → Secrets and variables → Actions**:
+
+| Setting                              | Kind     | Example / meaning                             |
+| ------------------------------------ | -------- | --------------------------------------------- |
+| `CONFLUENCE_BASE_URL`                | Variable | `https://defra.atlassian.net/wiki`            |
+| `CONFLUENCE_DATA_DICTIONARY_PAGE_ID` | Variable | Numeric ID of the existing page to update     |
+| `CONFLUENCE_USER_EMAIL`              | Secret   | Atlassian account email (Basic-auth username) |
+| `CONFLUENCE_API_TOKEN`               | Secret   | Atlassian API token (Basic-auth password)     |
+
+Create the page in Confluence once, take its page ID from the URL, and generate
+an API token at <https://id.atlassian.com/manage-profile/security/api-tokens>.
+
 ## Quick reference
 
 | Command                                                                                           | Purpose                                                  |
@@ -152,8 +194,13 @@ schema`, or `"baseline.habitats[].retentionScore" is not allowed`.
 
 ```
 bng-metric-backend/
+  .github/workflows/
+    publish-data-dictionary.yml                  # merge-to-main → Confluence publish
   scripts/
     gen-data-dictionary.js                       # generator (Drizzle + Joi → docs)
+    markdown-to-confluence.mjs                   # Markdown → Confluence storage format
+    markdown-to-confluence.test.js               # converter unit tests
+    publish-confluence.mjs                       # updates the Confluence page by ID
   src/
     validation/
       project.js                                 # Joi schema — source of fields + descriptions

@@ -2,6 +2,7 @@
   "postgres": [
     {
       "name": "bng.audit_log",
+      "description": "A full snapshot of a project after every change, recording who made it and when, for audit history.",
       "columns": [
         {
           "name": "id",
@@ -70,6 +71,7 @@
     },
     {
       "name": "bng.baseline_habitats",
+      "description": "The mapped outline of each baseline area-habitat parcel imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -111,6 +113,7 @@
     },
     {
       "name": "bng.baseline_hedgerows",
+      "description": "The mapped line of each baseline hedgerow imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -152,6 +155,7 @@
     },
     {
       "name": "bng.baseline_red_line",
+      "description": "The single red-line boundary outlining the overall extent of a project's development site.",
       "columns": [
         {
           "name": "id",
@@ -184,6 +188,7 @@
     },
     {
       "name": "bng.baseline_watercourses",
+      "description": "The mapped line of each baseline watercourse imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -225,6 +230,7 @@
     },
     {
       "name": "bng.post_intervention_habitats",
+      "description": "The mapped outline of each post-intervention (proposed) area-habitat parcel imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -266,6 +272,7 @@
     },
     {
       "name": "bng.post_intervention_hedgerows",
+      "description": "The mapped line of each post-intervention (proposed) hedgerow imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -307,6 +314,7 @@
     },
     {
       "name": "bng.post_intervention_red_line",
+      "description": "The single red-line boundary outlining the extent of the post-intervention (proposed) site.",
       "columns": [
         {
           "name": "id",
@@ -339,6 +347,7 @@
     },
     {
       "name": "bng.post_intervention_watercourses",
+      "description": "The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -380,6 +389,7 @@
     },
     {
       "name": "bng.projects",
+      "description": "One row per BNG project, holding the live project document plus its owner and version details.",
       "columns": [
         {
           "name": "id",

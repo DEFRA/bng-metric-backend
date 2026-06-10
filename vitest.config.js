@@ -6,7 +6,11 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
-    include: ['src/**/*.test.js', 'bng-metric-engine/src/**/*.test.js'],
+    include: [
+      'src/**/*.test.js',
+      'scripts/**/*.test.js',
+      'bng-metric-engine/src/**/*.test.js'
+    ],
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
