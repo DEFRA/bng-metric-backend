@@ -114,7 +114,7 @@ describe('setBaselineFeature', () => {
         feature: validHabitat,
         unitsTotals: validUnitsTotals
       })
-    ).rejects.toThrow(/unknown baseline layer/)
+    ).rejects.toThrow(/unknown feature layer/)
     expect(db._update).not.toHaveBeenCalled()
   })
 

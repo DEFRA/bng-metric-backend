@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="15" author="bng-team">
+        <comment>
+            Create bng.post_intervention_red_line, mirroring the baseline red
+            line geometry table.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_red_line (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL UNIQUE
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                geom geometry(MultiPolygon, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_red_line_geom
+                ON bng.post_intervention_red_line USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_red_line;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="16" author="bng-team">
+        <comment>
+            Create bng.post_intervention_habitats, mirroring the baseline
+            habitats geometry table.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_habitats (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiPolygon, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_habitats_project_id
+                ON bng.post_intervention_habitats (project_id);
+
+            CREATE INDEX idx_post_intervention_habitats_geom
+                ON bng.post_intervention_habitats USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_habitats;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="17" author="bng-team">
+        <comment>
+            Create bng.post_intervention_hedgerows, mirroring the baseline
+            hedgerows geometry table.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_hedgerows (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_hedgerows_project_id
+                ON bng.post_intervention_hedgerows (project_id);
+
+            CREATE INDEX idx_post_intervention_hedgerows_geom
+                ON bng.post_intervention_hedgerows USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_hedgerows;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="18" author="bng-team">
+        <comment>
+            Create bng.post_intervention_watercourses, mirroring the baseline
+            watercourses geometry table.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_watercourses (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_watercourses_project_id
+                ON bng.post_intervention_watercourses (project_id);
+
+            CREATE INDEX idx_post_intervention_watercourses_geom
+                ON bng.post_intervention_watercourses USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_watercourses;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

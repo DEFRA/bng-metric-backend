@@ -26,7 +26,7 @@ import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
 import { persistBaseline } from '../services/baseline/persist-baseline.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
-import { baselineSchema } from '../validation/project.js'
+import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
@@ -47,19 +47,38 @@ const BASELINE_UPLOAD_TEMP_PREFIX = 'baseline-'
 /** Fixed filename inside the staging directory (not derived from user input). */
 const BASELINE_UPLOAD_TEMP_FILENAME = 'baseline.gpkg'
 
-async function resolveUploadLocation(uploadId) {
+const BASELINE_VALIDATION_CONFIG = Object.freeze({
+  routeName: 'validateBaseline',
+  path: '/baseline/validate/{uploadId}',
+  projectDocumentKey: 'baseline',
+  uploadLabel: 'baseline',
+  validationFailedMessage: 'Unable to validate baseline file'
+})
+
+const POST_INTERVENTION_VALIDATION_CONFIG = Object.freeze({
+  routeName: 'validatePostIntervention',
+  path: '/post-intervention/validate/{uploadId}',
+  projectDocumentKey: 'postIntervention',
+  uploadLabel: 'post-intervention',
+  validationFailedMessage: 'Unable to validate post-intervention file'
+})
+
+async function resolveUploadLocation(
+  uploadId,
+  config = BASELINE_VALIDATION_CONFIG
+) {
   try {
     return await waitForUploadReady(uploadId)
   } catch (err) {
     if (err instanceof UploadTimeoutError) {
       logger.error(
-        `validateBaseline: upload did not become ready for uploadId ${uploadId}: ${err.message}`
+        `${config.routeName}: upload did not become ready for uploadId ${uploadId}: ${err.message}`
       )
       throw Boom.gatewayTimeout('Upload did not complete in time')
     }
     if (err instanceof UploadFailedError) {
       logger.error(
-        `validateBaseline: upload was rejected for uploadId ${uploadId}: ${err.message}`
+        `${config.routeName}: upload was rejected for uploadId ${uploadId}: ${err.message}`
       )
       if (VIRUS_REJECTION_PATTERN.test(err.errorMessage ?? '')) {
         await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
@@ -69,37 +88,48 @@ async function resolveUploadLocation(uploadId) {
       throw Boom.badData('Upload was rejected')
     }
     logger.error(
-      `validateBaseline: upload failed for uploadId ${uploadId}: ${err.message}`
+      `${config.routeName}: upload failed for uploadId ${uploadId}: ${err.message}`
     )
     throw Boom.badGateway('Unable to verify upload status')
   }
 }
 
-async function fetchBaselineBuffer(bucket, key, uploadId) {
+async function fetchBaselineBuffer(
+  bucket,
+  key,
+  uploadId,
+  config = BASELINE_VALIDATION_CONFIG
+) {
   try {
     return await downloadFile(bucket, key)
   } catch (err) {
     if (err instanceof S3FileTooLargeError) {
       logger.error(
-        `validateBaseline: S3 object too large for uploadId ${uploadId}: ${err.message}`
+        `${config.routeName}: S3 object too large for uploadId ${uploadId}: ${err.message}`
       )
       throw Boom.entityTooLarge('File exceeds the maximum allowed size')
     }
     if (err instanceof S3TimeoutError) {
       logger.error(
-        `validateBaseline: S3 download timed out for uploadId ${uploadId}: ${err.message}`
+        `${config.routeName}: S3 download timed out for uploadId ${uploadId}: ${err.message}`
       )
       throw Boom.gatewayTimeout('Timed out downloading file from storage')
     }
     logger.error(
-      `validateBaseline: S3 download failed for uploadId ${uploadId}: ${err.message}`
+      `${config.routeName}: S3 download failed for uploadId ${uploadId}: ${err.message}`
     )
     throw Boom.badGateway('Unable to download file from storage')
   }
 }
 
-function validateUploadMetadata(uploadId, filename, fileSize, h) {
-  const { error: metaError } = baselineSchema.validate(
+function validateUploadMetadata(
+  uploadId,
+  filename,
+  fileSize,
+  h,
+  config = BASELINE_VALIDATION_CONFIG
+) {
+  const { error: metaError } = habitatDataSchema.validate(
     { uploadId, filename, fileSize },
     { allowUnknown: true }
   )
@@ -108,7 +138,7 @@ function validateUploadMetadata(uploadId, filename, fileSize, h) {
   }
 
   logger.info(
-    `validateBaseline - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+    `${config.routeName} - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
   )
   return h.response({
     valid: false,
@@ -127,7 +157,8 @@ async function saveBaselineForProject(
   projectId,
   layers,
   context,
-  h
+  h,
+  config = BASELINE_VALIDATION_CONFIG
 ) {
   const { uploadId, filename, fileSize } = context
   const layersWithIds = assignFeatureIds(layers)
@@ -137,7 +168,7 @@ async function saveBaselineForProject(
     habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
   } catch (err) {
     logger.error(
-      `validateBaseline - sizing failed for uploadId ${uploadId}: ${err.message}`
+      `${config.routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
     )
     return h
       .response({
@@ -160,12 +191,12 @@ async function saveBaselineForProject(
   })
 
   enrichBaselineDocumentWithUnits(document, logger)
-  const { error: schemaError } = baselineSchema.validate(document, {
+  const { error: schemaError } = habitatDataSchema.validate(document, {
     allowUnknown: true
   })
   if (schemaError) {
     logger.info(
-      `validateBaseline - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
+      `${config.routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
     )
     return h.response({
       valid: false,
@@ -177,12 +208,21 @@ async function saveBaselineForProject(
 
   await persistBaseline(drizzle, projectId, document, geometries, {
     uploadId,
-    logger
+    logger,
+    projectDocumentKey: config.projectDocumentKey,
+    uploadLabel: config.uploadLabel
   })
   return null
 }
 
-async function runFullValidation(buffer, drizzle, pgPool, context, h) {
+async function runFullValidation(
+  buffer,
+  drizzle,
+  pgPool,
+  context,
+  h,
+  config = BASELINE_VALIDATION_CONFIG
+) {
   const { uploadId, projectId, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(
     path.join(os.tmpdir(), BASELINE_UPLOAD_TEMP_PREFIX)
@@ -195,7 +235,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
     const result = await validateBaselineLayers(layers, pgPool)
     if (!result.valid) {
       logger.info(
-        `validateBaseline - rejected uploadId ${uploadId}: ${result.errors
+        `${config.routeName} - rejected uploadId ${uploadId}: ${result.errors
           .map((e) => `${e.code}: ${e.message}`)
           .join(' | ')}`
       )
@@ -204,7 +244,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
       })
       return h.response(result)
     }
-    logger.info(`validateBaseline - accepted uploadId ${uploadId}`)
+    logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
     await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
     if (projectId) {
       const errorResponse = await saveBaselineForProject(
@@ -213,7 +253,8 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
         projectId,
         layers,
         { uploadId, filename, fileSize },
-        h
+        h,
+        config
       )
       if (errorResponse) {
         return errorResponse
@@ -228,7 +269,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
       throw error
     } else {
       logger.error(
-        `validateBaseline - error validating uploadId ${uploadId}: ${error.message}`
+        `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`
       )
       return h
         .response({
@@ -236,7 +277,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
           errors: [
             makeError(
               ERROR_CODES.VALIDATION_FAILED,
-              'Unable to validate baseline file'
+              config.validationFailedMessage
             )
           ]
         })
@@ -322,63 +363,137 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h) {
  *       504:
  *         description: Upload did not reach ready state in time, or S3 download timed out
  */
-const validateBaseline = {
-  method: 'POST',
-  path: '/baseline/validate/{uploadId}',
-  options: {
-    validate: {
-      params: Joi.object({
-        uploadId: Joi.string().uuid().required()
-      }),
-      payload: Joi.object({
-        projectId: Joi.string().uuid()
-      })
-        .allow(null)
-        .optional()
-    }
-  },
-  handler: async (request, h) => {
-    const { uploadId } = request.params
-    const projectId = request.payload?.projectId ?? null
-
-    const { bucket, key, filename, fileSize } =
-      await resolveUploadLocation(uploadId)
-    if (fileSize != null) {
-      await metricsByteSize(GEOPACKAGE_METRIC.uploadSizeBytes, fileSize)
-    }
-    if (projectId) {
-      const metadataErrorResponse = validateUploadMetadata(
-        uploadId,
-        filename,
-        fileSize,
-        h
-      )
-      if (metadataErrorResponse) {
-        return metadataErrorResponse
+/**
+ * @openapi
+ * /post-intervention/validate/{uploadId}:
+ *   post:
+ *     tags:
+ *       - Post Intervention
+ *     summary: Validate a post-intervention GeoPackage upload
+ *     parameters:
+ *       - in: path
+ *         name: uploadId
+ *         required: true
+ *         schema:
+ *           type: string
+ *           format: uuid
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               projectId:
+ *                 type: string
+ *                 format: uuid
+ *                 description: Saves the unpacked post-intervention data against the project's JSONB document.
+ *     responses:
+ *       200:
+ *         description: Returns validation result
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 valid:
+ *                   type: boolean
+ *                 errors:
+ *                   type: array
+ *                   items:
+ *                     type: object
+ *                     properties:
+ *                       code: { type: string }
+ *                       message: { type: string }
+ *                       details:
+ *                         type: object
+ *       400:
+ *         description: uploadId or projectId is missing or not a valid UUID
+ *       404:
+ *         description: projectId does not match an existing project
+ *       409:
+ *         description: Another post-intervention upload for the same project is currently being persisted - retry shortly
+ *       413:
+ *         description: File exceeds the maximum allowed size (100 MB)
+ *       422:
+ *         description: Upload was rejected by CDP Uploader
+ *       500:
+ *         description: Validation pipeline raised an unexpected error
+ *       502:
+ *         description: Upload status could not be verified, or S3 connection error
+ *       504:
+ *         description: Upload did not reach ready state in time, or S3 download timed out
+ */
+function createValidateGeoPackageRoute(config) {
+  return {
+    method: 'POST',
+    path: config.path,
+    options: {
+      validate: {
+        params: Joi.object({
+          uploadId: Joi.string().uuid().required()
+        }),
+        payload: Joi.object({
+          projectId: Joi.string().uuid()
+        })
+          .allow(null)
+          .optional()
       }
-    }
+    },
+    handler: async (request, h) => {
+      const { uploadId } = request.params
+      const projectId = request.payload?.projectId ?? null
 
-    const buffer = await fetchBaselineBuffer(bucket, key, uploadId)
-
-    const gateResult = validateGpkg(buffer)
-    if (!gateResult.valid) {
-      logger.info(
-        `validateBaseline - rejected at gpkg gate uploadId ${uploadId}`
+      const { bucket, key, filename, fileSize } = await resolveUploadLocation(
+        uploadId,
+        config
       )
-      await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-        category: VALIDATION_CATEGORY.internalData
-      })
-      return h.response(gateResult)
-    }
+      if (fileSize != null) {
+        await metricsByteSize(GEOPACKAGE_METRIC.uploadSizeBytes, fileSize)
+      }
+      if (projectId) {
+        const metadataErrorResponse = validateUploadMetadata(
+          uploadId,
+          filename,
+          fileSize,
+          h,
+          config
+        )
+        if (metadataErrorResponse) {
+          return metadataErrorResponse
+        }
+      }
 
-    return runFullValidation(
-      buffer,
-      request.drizzle,
-      request.pg,
-      { uploadId, projectId, filename, fileSize },
-      h
-    )
+      const buffer = await fetchBaselineBuffer(bucket, key, uploadId, config)
+
+      const gateResult = validateGpkg(buffer)
+      if (!gateResult.valid) {
+        logger.info(
+          `${config.routeName} - rejected at gpkg gate uploadId ${uploadId}`
+        )
+        await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+          category: VALIDATION_CATEGORY.internalData
+        })
+        return h.response(gateResult)
+      }
+
+      return runFullValidation(
+        buffer,
+        request.drizzle,
+        request.pg,
+        { uploadId, projectId, filename, fileSize },
+        h,
+        config
+      )
+    }
   }
 }
 
-export { validateBaseline }
+const validateBaseline = createValidateGeoPackageRoute(
+  BASELINE_VALIDATION_CONFIG
+)
+const validatePostIntervention = createValidateGeoPackageRoute(
+  POST_INTERVENTION_VALIDATION_CONFIG
+)
+
+export { validateBaseline, validatePostIntervention }

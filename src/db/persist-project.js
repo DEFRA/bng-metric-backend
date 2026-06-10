@@ -23,7 +23,7 @@ import { eq, sql } from 'drizzle-orm'
 import { projects } from './schema/index.js'
 import {
   projectSchema,
-  baselineSchema,
+  habitatDataSchema,
   baselineUnitsTotalsSchema,
   habitatSchema,
   linearHabitatSchema,
@@ -85,14 +85,23 @@ async function setProjectName(exec, id, name) {
 
 /**
  * Replace project.baseline only (baseline upload persist). Validates the
- * baseline subtree against baselineSchema.
+ * baseline subtree against habitatDataSchema.
  */
-async function setProjectBaseline(exec, id, baseline) {
-  assertFragmentValid(baselineSchema, baseline, 'project.baseline')
+async function setProjectHabitatData(
+  exec,
+  id,
+  habitatData,
+  documentKey = 'baseline'
+) {
+  assertFragmentValid(habitatDataSchema, habitatData, `project.${documentKey}`)
   await exec
     .update(projects)
-    .set({ project: jsonbSet(projects.project, ['baseline'], baseline) })
+    .set({ project: jsonbSet(projects.project, [documentKey], habitatData) })
     .where(eq(projects.id, id))
+}
+
+async function setProjectBaseline(exec, id, baseline) {
+  await setProjectHabitatData(exec, id, baseline, 'baseline')
 }
 
 /**
@@ -109,28 +118,47 @@ async function setProjectBaseline(exec, id, baseline) {
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals
  */
-async function setBaselineFeature(
+async function setProjectFeature(
   exec,
   id,
-  { layer, index, feature, unitsTotals }
+  { documentKey = 'baseline', layer, index, feature, unitsTotals }
 ) {
   const featureSchema = FEATURE_SCHEMA_BY_LAYER[layer]
   if (!featureSchema) {
-    throw Boom.badImplementation(`persist: unknown baseline layer "${layer}"`)
+    throw Boom.badImplementation(`persist: unknown feature layer "${layer}"`)
   }
-  assertFragmentValid(featureSchema, feature, `baseline.${layer}[${index}]`)
-  assertFragmentValid(baselineUnitsTotalsSchema, unitsTotals, 'baseline.units')
+  assertFragmentValid(
+    featureSchema,
+    feature,
+    `${documentKey}.${layer}[${index}]`
+  )
+  assertFragmentValid(
+    baselineUnitsTotalsSchema,
+    unitsTotals,
+    `${documentKey}.units`
+  )
 
   const withFeature = jsonbSet(
     projects.project,
-    ['baseline', layer, index],
+    [documentKey, layer, index],
     feature
   )
-  const withTotals = jsonbSet(withFeature, ['baseline', 'units'], unitsTotals)
+  const withTotals = jsonbSet(withFeature, [documentKey, 'units'], unitsTotals)
   await exec
     .update(projects)
     .set({ project: withTotals })
     .where(eq(projects.id, id))
 }
 
-export { insertProject, setProjectName, setProjectBaseline, setBaselineFeature }
+async function setBaselineFeature(exec, id, params) {
+  await setProjectFeature(exec, id, { ...params, documentKey: 'baseline' })
+}
+
+export {
+  insertProject,
+  setProjectName,
+  setProjectHabitatData,
+  setProjectBaseline,
+  setProjectFeature,
+  setBaselineFeature
+}

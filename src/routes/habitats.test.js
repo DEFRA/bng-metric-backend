@@ -1,14 +1,18 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
-import { updateAreaHabitat } from './habitats.js'
-import { setBaselineFeature } from '../db/persist-project.js'
 
-// The route persists surgically via setBaselineFeature (a jsonb_set, not an
+import { setProjectFeature } from '../db/persist-project.js'
+import {
+  updateAreaHabitat,
+  updatePostInterventionAreaHabitat
+} from './habitats.js'
+
+// The route persists surgically via setProjectFeature (a jsonb_set, not an
 // inspectable object), so we mock it and assert the route computed the right
-// { layer, index, feature, unitsTotals } to write. That helper's validation is
-// covered by persist-project.test.js; the totals maths by
+// { documentKey, layer, index, feature, unitsTotals } to write. That helper's
+// validation is covered by persist-project.test.js; the totals maths by
 // apply-feature-update.test.js; end-to-end persistence by the integration tests.
 vi.mock('../db/persist-project.js', () => ({
-  setBaselineFeature: vi.fn().mockResolvedValue(undefined)
+  setProjectFeature: vi.fn().mockResolvedValue(undefined)
 }))
 
 beforeEach(() => {
@@ -21,12 +25,12 @@ const HABITAT_1_ID = '11111111-2222-3333-4444-555555555555'
 const HABITAT_2_ID = '66666666-7777-8888-9999-aaaaaaaaaaaa'
 const UNKNOWN_HABITAT_ID = 'ffffffff-eeee-dddd-cccc-bbbbbbbbbbbb'
 
-function makeProjectRow(habitats) {
+function makeProjectRow(habitats, documentKey = 'baseline') {
   return {
     id: PROJECT_ID,
     project: {
       name: 'Test Project',
-      baseline: { habitats }
+      [documentKey]: { habitats }
     },
     userId: 'test-user-001',
     bngProjectVersion: 1
@@ -101,6 +105,15 @@ describe('updateAreaHabitat route shape', () => {
   })
 })
 
+describe('updatePostInterventionAreaHabitat route shape', () => {
+  test('is a PUT at /projects/{projectId}/post-intervention/habitats/{featureId}', () => {
+    expect(updatePostInterventionAreaHabitat.method).toBe('PUT')
+    expect(updatePostInterventionAreaHabitat.path).toBe(
+      '/projects/{projectId}/post-intervention/habitats/{featureId}'
+    )
+  })
+})
+
 describe('updateAreaHabitat handler — happy path', () => {
   test('recomputes derived fields and persists the updated habitat', async () => {
     const habitats = defaultHabitats()
@@ -136,10 +149,11 @@ describe('updateAreaHabitat handler — happy path', () => {
     // Persisted surgically: only the edited feature (by layer + index) and the
     // refreshed totals are handed to the choke point — the rest of the document
     // is left untouched in the DB.
-    expect(setBaselineFeature).toHaveBeenCalledWith(
+    expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
+        documentKey: 'baseline',
         layer: 'habitats',
         index: 0,
         feature: expect.objectContaining({ featureId: HABITAT_1_ID, units: 24 })
@@ -249,10 +263,11 @@ describe('updateAreaHabitat handler — happy path', () => {
     // Edited habitat: 1 ha × V.High (8) × Good (3) = 24, so habitatsTotal
     // should be 24 + 2 (the unchanged Cereal crops row) = 26. These refreshed
     // totals are written surgically alongside the feature.
-    expect(setBaselineFeature).toHaveBeenCalledWith(
+    expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
+        documentKey: 'baseline',
         unitsTotals: {
           totalUnits: 26,
           habitatsTotal: 26,
@@ -285,7 +300,47 @@ describe('updateAreaHabitat handler — happy path', () => {
   })
 })
 
-describe('updateAreaHabitat handler — error cases', () => {
+describe('updatePostInterventionAreaHabitat handler', () => {
+  test('persists edits to project.postIntervention', async () => {
+    const habitats = defaultHabitats()
+    const projectRow = makeProjectRow(habitats, 'postIntervention')
+    const drizzle = makeDrizzle(projectRow)
+
+    const result = await updatePostInterventionAreaHabitat.handler(
+      {
+        drizzle,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Lowland meadows',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    expect(result).toMatchObject({
+      featureId: HABITAT_1_ID,
+      broadType: 'Grassland',
+      type: 'Lowland meadows',
+      condition: 'Good',
+      status: 'Complete'
+    })
+
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: expect.objectContaining({ featureId: HABITAT_1_ID })
+      })
+    )
+  })
+})
+
+describe('updateAreaHabitat handler error cases', () => {
   test('throws 404 when the project does not exist', async () => {
     const drizzle = makeDrizzle(null)
 

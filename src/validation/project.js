@@ -274,7 +274,7 @@ const watercourseHabitatSchema = linearFeatureSchema({
   rootDescription: 'A watercourse (linear) feature.'
 })
 
-const baselineSchema = Joi.object({
+const habitatDataSchema = Joi.object({
   uploadId: Joi.string()
     .uuid()
     .allow(null)
@@ -319,7 +319,8 @@ const projectSchema = Joi.object({
   ),
   site: siteSchema,
   units: unitsSchema,
-  baseline: baselineSchema
+  baseline: habitatDataSchema,
+  postIntervention: habitatDataSchema
 }).description(
   'Root document stored in the bng.projects.project JSONB column (and snapshotted into bng.audit_log.project).'
 )
@@ -329,7 +330,7 @@ export {
   siteSchema,
   unitsSchema,
   baselineUnitsTotalsSchema,
-  baselineSchema,
+  habitatDataSchema,
   habitatSchema,
   linearHabitatSchema,
   watercourseHabitatSchema

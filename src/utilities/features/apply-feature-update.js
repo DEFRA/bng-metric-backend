@@ -1,15 +1,15 @@
-// Single entry point for "user edited a baseline feature, persist the new
-// derived shape." Used by both the area PUT (BMD-480) and the unified
-// hedgerow/feature PUT (BMD-501). Pure — does no I/O. Callers wrap the result
-// in their own transaction and write the project document back.
+// Single entry point for "user edited a project feature, persist the new
+// derived shape." Used by baseline and post-intervention PUT routes. Pure —
+// does no I/O. Callers wrap the result in their own transaction and write the
+// project document back.
 //
-// Producing the updated baseline document goes through one path so:
+// Producing the updated feature set goes through one path so:
 //
 //   - every feature type carries the same persisted derived shape
 //     (distinctiveness / distinctivenessScore / conditionScore / units /
 //     status), avoiding the kind of write-path drift that left BMD-480
 //     writing `habitatUnits` while everything else reads `units`,
-//   - per-feature totals on `baseline.units` always refresh after an edit
+//   - per-feature totals always refresh after an edit
 //     (the BMD-480 area route shipped without this and the habitat-list
 //     summary header went stale after a save), and
 //   - adding a new feature type later means adding one recompute function,
@@ -20,7 +20,7 @@ import {
   recomputeHedgerow
 } from '../../validation/baseline/unit-calculation.js'
 
-import { summarizeBaselineUnitsTotals } from './enrich-baseline-units.js'
+import { summarizeFeatureSetUnitsTotals } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
 
 /**
@@ -95,20 +95,25 @@ function mergeFeature(type, existing, edits, derived) {
   }
 }
 
-function spliceFeatureInBaseline(baseline, layerKey, index, updatedFeature) {
-  const layer = baseline[layerKey] ?? []
+function spliceFeatureInFeatureSet(
+  featureSet,
+  layerKey,
+  index,
+  updatedFeature
+) {
+  const layer = featureSet[layerKey] ?? []
   const updatedLayer = layer.slice()
   updatedLayer[index] = updatedFeature
   return {
-    ...baseline,
+    ...featureSet,
     [layerKey]: updatedLayer
   }
 }
 
 /**
  * Given a project document, locate `featureId`, recompute its derived block
- * from the supplied edits, splice it back into its layer, and refresh
- * `baseline.units.*` totals. Returns the updated project plus the updated
+ * from the supplied edits, splice it back into its layer, and refresh the
+ * feature-set unit totals. Returns the updated project plus the updated
  * feature; callers persist the project.
  *
  * `expectedType` lets the legacy typed PUT routes 404 cross-layer access
@@ -125,10 +130,13 @@ function spliceFeatureInBaseline(baseline, layerKey, index, updatedFeature) {
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */
-function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
+function applyFeatureUpdate(
+  project,
+  { featureId, edits, expectedType, documentKey = 'baseline' }
+) {
   const normalizedEdits = normalizeEdits(edits)
-  const baseline = project?.baseline
-  const found = findFeature(baseline, featureId)
+  const featureSet = project?.[documentKey]
+  const found = findFeature(featureSet, featureId)
   if (!found) {
     return { status: APPLY_RESULT.FEATURE_NOT_FOUND }
   }
@@ -147,14 +155,16 @@ function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
     normalizedEdits,
     derived
   )
-  const index = baseline[found.key].findIndex((f) => f?.featureId === featureId)
-  const updatedBaseline = spliceFeatureInBaseline(
-    baseline,
+  const index = featureSet[found.key].findIndex(
+    (f) => f?.featureId === featureId
+  )
+  const updatedFeatureSet = spliceFeatureInFeatureSet(
+    featureSet,
     found.key,
     index,
     updatedFeature
   )
-  summarizeBaselineUnitsTotals(updatedBaseline)
+  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
 
   // `layer` / `index` / `unitsTotals` let callers persist surgically via
   // persist-project.js (jsonb_set the one feature + the totals) rather than
@@ -166,8 +176,8 @@ function applyFeatureUpdate(project, { featureId, edits, expectedType }) {
     layer: found.key,
     index,
     feature: updatedFeature,
-    unitsTotals: updatedBaseline.units,
-    project: { ...project, baseline: updatedBaseline }
+    unitsTotals: updatedFeatureSet.units,
+    project: { ...project, [documentKey]: updatedFeatureSet }
   }
 }
 

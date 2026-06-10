@@ -7,9 +7,13 @@ import {
   baselineRedLine,
   baselineHabitats,
   baselineHedgerows,
-  baselineWatercourses
+  baselineWatercourses,
+  postInterventionRedLine,
+  postInterventionHabitats,
+  postInterventionHedgerows,
+  postInterventionWatercourses
 } from '../../db/schema/index.js'
-import { setProjectBaseline } from '../../db/persist-project.js'
+import { setProjectHabitatData } from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 
 /** Cap rows per INSERT to keep statement size bounded for PostGIS bulk loads. */
@@ -18,12 +22,24 @@ const INSERT_BATCH_SIZE = 500
 /** Maximum wait for the project row lock during concurrent baseline uploads. */
 const PERSIST_LOCK_TIMEOUT = '5s'
 
-const BASELINE_FEATURE_TABLES = [
-  baselineRedLine,
-  baselineHabitats,
-  baselineHedgerows,
-  baselineWatercourses
-]
+const BASELINE_FEATURE_TABLES = Object.freeze({
+  redLine: baselineRedLine,
+  habitats: baselineHabitats,
+  hedgerows: baselineHedgerows,
+  watercourses: baselineWatercourses
+})
+
+const POST_INTERVENTION_FEATURE_TABLES = Object.freeze({
+  redLine: postInterventionRedLine,
+  habitats: postInterventionHabitats,
+  hedgerows: postInterventionHedgerows,
+  watercourses: postInterventionWatercourses
+})
+
+const FEATURE_TABLE_SETS = Object.freeze({
+  baseline: BASELINE_FEATURE_TABLES,
+  postIntervention: POST_INTERVENTION_FEATURE_TABLES
+})
 
 function transformToBngMultiGeomSql(geomJson, sourceSrid) {
   return sql`ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${sourceSrid}), ${sql.raw(String(EPSG_BNG))}))`
@@ -50,10 +66,10 @@ async function insertGeometryRowsBatched(tx, table, projectId, rows) {
   }
 }
 
-async function insertRedLineRow(tx, projectId, row) {
+async function insertRedLineRow(tx, table, projectId, row) {
   const geomJson = JSON.stringify(row.geometry)
   await tx.execute(sql`
-    INSERT INTO ${baselineRedLine} (id, project_id, geom)
+    INSERT INTO ${table} (id, project_id, geom)
     VALUES (
       ${row.featureId}::uuid,
       ${projectId}::uuid,
@@ -62,8 +78,8 @@ async function insertRedLineRow(tx, projectId, row) {
   `)
 }
 
-async function deleteExistingBaselineRows(tx, projectId) {
-  for (const table of BASELINE_FEATURE_TABLES) {
+async function deleteExistingFeatureRows(tx, projectId, featureTables) {
+  for (const table of Object.values(featureTables)) {
     await tx.delete(table).where(eq(table.projectId, projectId))
   }
 }
@@ -80,54 +96,74 @@ async function assertProjectExistsForUpdate(tx, projectId) {
   }
 }
 
-async function persistGeometryLayers(tx, projectId, geometries) {
+async function persistGeometryLayers(tx, projectId, geometries, featureTables) {
   if (geometries.redLine) {
-    await insertRedLineRow(tx, projectId, geometries.redLine)
+    await insertRedLineRow(
+      tx,
+      featureTables.redLine,
+      projectId,
+      geometries.redLine
+    )
   }
   await insertGeometryRowsBatched(
     tx,
-    baselineHabitats,
+    featureTables.habitats,
     projectId,
     geometries.habitats
   )
   await insertGeometryRowsBatched(
     tx,
-    baselineHedgerows,
+    featureTables.hedgerows,
     projectId,
     geometries.hedgerows
   )
   await insertGeometryRowsBatched(
     tx,
-    baselineWatercourses,
+    featureTables.watercourses,
     projectId,
     geometries.watercourses
   )
 }
 
-async function updateProjectBaselineDocument(tx, projectId, document) {
-  // Validates the baseline subtree against baselineSchema before writing.
-  await setProjectBaseline(tx, projectId, document)
+async function updateProjectDocumentSection(
+  tx,
+  projectId,
+  document,
+  projectDocumentKey
+) {
+  await setProjectHabitatData(tx, projectId, document, projectDocumentKey)
 }
 
-async function runPersistTransaction(drizzle, projectId, document, geometries) {
+async function runPersistTransaction(
+  drizzle,
+  projectId,
+  document,
+  geometries,
+  { projectDocumentKey, featureTables }
+) {
   await drizzle.transaction(async (tx) => {
     await tx.execute(
       sql.raw(`SET LOCAL lock_timeout = '${PERSIST_LOCK_TIMEOUT}'`)
     )
 
     await assertProjectExistsForUpdate(tx, projectId)
-    await deleteExistingBaselineRows(tx, projectId)
-    await persistGeometryLayers(tx, projectId, geometries)
-    await updateProjectBaselineDocument(tx, projectId, document)
+    await deleteExistingFeatureRows(tx, projectId, featureTables)
+    await persistGeometryLayers(tx, projectId, geometries, featureTables)
+    await updateProjectDocumentSection(
+      tx,
+      projectId,
+      document,
+      projectDocumentKey
+    )
   })
 }
 
-function rethrowPersistError(err) {
+function rethrowPersistError(err, uploadLabel) {
   if (err?.isBoom) {
     throw err
   } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
     throw Boom.conflict(
-      'Another baseline upload for this project is in progress'
+      `Another ${uploadLabel} upload for this project is in progress`
     )
   } else {
     throw err
@@ -150,17 +186,26 @@ async function persistBaseline(
   projectId,
   document,
   geometries,
-  { uploadId, logger }
+  {
+    uploadId,
+    logger,
+    projectDocumentKey = 'baseline',
+    uploadLabel = 'baseline',
+    featureTables = FEATURE_TABLE_SETS[projectDocumentKey]
+  }
 ) {
   try {
-    await runPersistTransaction(drizzle, projectId, document, geometries)
+    await runPersistTransaction(drizzle, projectId, document, geometries, {
+      projectDocumentKey,
+      featureTables
+    })
   } catch (err) {
-    rethrowPersistError(err)
+    rethrowPersistError(err, uploadLabel)
   }
 
   logger.info(
-    `validateBaseline: persisted baseline for projectId ${projectId} from uploadId ${uploadId}`
+    `${uploadLabel}: persisted ${uploadLabel} for projectId ${projectId} from uploadId ${uploadId}`
   )
 }
 
-export { persistBaseline }
+export { persistBaseline, FEATURE_TABLE_SETS }

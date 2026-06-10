@@ -1,5 +1,5 @@
 export {
-  baselineSchema,
+  habitatDataSchema,
   habitatSchema,
   linearHabitatSchema,
   projectSchema,

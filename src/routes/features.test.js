@@ -1,16 +1,20 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
-import { getFeature, updateFeature } from './features.js'
-import { setBaselineFeature } from '../db/persist-project.js'
+import { setProjectFeature } from '../db/persist-project.js'
+import {
+  getFeature,
+  getPostInterventionFeature,
+  updateFeature
+} from './features.js'
 
-// The route persists surgically via setBaselineFeature (a jsonb_set, not an
+// The route persists surgically via setProjectFeature (a jsonb_set, not an
 // inspectable object), so we mock it and assert the route handed it the right
-// { layer, index, feature, unitsTotals }. That helper's validation is covered
-// by persist-project.test.js and end-to-end persistence by the integration
-// tests.
+// { documentKey, layer, index, feature, unitsTotals }. That helper's
+// validation is covered by persist-project.test.js and end-to-end persistence
+// by the integration tests.
 vi.mock('../db/persist-project.js', () => ({
-  setBaselineFeature: vi.fn().mockResolvedValue(undefined)
+  setProjectFeature: vi.fn().mockResolvedValue(undefined)
 }))
 
 beforeEach(() => {
@@ -69,6 +73,17 @@ function makeProject(habitats = [sampleHabitat]) {
   }
 }
 
+const projectWithPostIntervention = {
+  id: PROJECT_ID,
+  project: {
+    postIntervention: {
+      habitats: [sampleHabitat],
+      hedgerows: [sampleHedgerow],
+      watercourses: []
+    }
+  }
+}
+
 function getFeatureMockDrizzle(rows) {
   const chain = {
     where: vi.fn().mockResolvedValue(rows)
@@ -77,9 +92,6 @@ function getFeatureMockDrizzle(rows) {
   return { select: vi.fn().mockReturnValue(chain) }
 }
 
-// Same shape as habitats.test.js — drizzle inside a transaction with
-// SELECT ... FOR UPDATE. lockError simulates PG_LOCK_NOT_AVAILABLE raised
-// when the row lock can't be acquired before lock_timeout fires.
 function projectLookupChain(rows, lockError) {
   const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
   const limitStep = { limit: () => result }
@@ -164,6 +176,31 @@ describe('#getFeature', () => {
   })
 })
 
+describe('#getPostInterventionFeature', () => {
+  test('returns { type, feature } from postIntervention', async () => {
+    const drizzle = getFeatureMockDrizzle([projectWithPostIntervention])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID }
+    }
+    const result = await getPostInterventionFeature.handler(request, {})
+    expect(result).toEqual({ type: 'hedgerow', feature: sampleHedgerow })
+  })
+
+  test('throws 404 when the project has no postIntervention data', async () => {
+    const drizzle = getFeatureMockDrizzle([makeProject()])
+    const request = {
+      drizzle,
+      params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
+    }
+    await expect(
+      getPostInterventionFeature.handler(request, {})
+    ).rejects.toThrow(
+      `Feature ${HABITAT_ID} not found in project ${PROJECT_ID}`
+    )
+  })
+})
+
 describe('#getFeature validation', () => {
   const paramsSchema = getFeature.options.validate.params
 
@@ -201,7 +238,7 @@ describe('updateFeature route shape', () => {
   })
 })
 
-describe('updateFeature handler — area habitat dispatch', () => {
+describe('updateFeature handler - area habitat dispatch', () => {
   test('recomputes the area habitat and returns { type: "habitat", feature }', async () => {
     const drizzle = makeTxDrizzle(makeProject())
     const result = await updateFeature.handler(
@@ -225,7 +262,6 @@ describe('updateFeature handler — area habitat dispatch', () => {
       distinctiveness: 'V.High',
       distinctivenessScore: 8,
       conditionScore: 3,
-      // 1 ha × 8 × 3 = 24
       units: 24,
       status: 'Complete'
     })
@@ -248,10 +284,11 @@ describe('updateFeature handler — area habitat dispatch', () => {
       {}
     )
 
-    expect(setBaselineFeature).toHaveBeenCalledWith(
+    expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
+        documentKey: 'baseline',
         layer: 'habitats',
         unitsTotals: expect.objectContaining({
           habitatsTotal: 24,
@@ -263,7 +300,7 @@ describe('updateFeature handler — area habitat dispatch', () => {
   })
 })
 
-describe('updateFeature handler — hedgerow dispatch', () => {
+describe('updateFeature handler - hedgerow dispatch', () => {
   test('returns { type: "hedgerow", feature } and persists hedgerow shape', async () => {
     const projectRow = makeProject()
     const drizzle = makeTxDrizzle(projectRow)
@@ -281,7 +318,6 @@ describe('updateFeature handler — hedgerow dispatch', () => {
     )
 
     expect(result.type).toBe('hedgerow')
-    // 1 km × Low (2) × Good (3) × 1 SS = 6 units.
     expect(result.feature).toMatchObject({
       featureId: HEDGEROW_ID,
       type: 'Native hedgerow',
@@ -306,10 +342,11 @@ describe('updateFeature handler — hedgerow dispatch', () => {
       {}
     )
 
-    expect(setBaselineFeature).toHaveBeenCalledWith(
+    expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
+        documentKey: 'baseline',
         layer: 'hedgerows',
         unitsTotals: expect.objectContaining({
           habitatsTotal: 4,
@@ -320,7 +357,7 @@ describe('updateFeature handler — hedgerow dispatch', () => {
   })
 })
 
-describe('updateFeature handler — error cases', () => {
+describe('updateFeature handler - error cases', () => {
   test('throws 404 when the project does not exist', async () => {
     const drizzle = makeTxDrizzle(null)
     await expect(

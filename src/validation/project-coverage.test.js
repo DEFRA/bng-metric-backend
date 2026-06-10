@@ -15,7 +15,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  baselineSchema,
+  habitatDataSchema,
   habitatSchema,
   linearHabitatSchema,
   projectSchema
@@ -155,12 +155,12 @@ describe('project JSONB data-dictionary coverage', () => {
       'waterEncroachmentMultiplier'
     )
 
-    // Every key the construction code produced is declared in baselineSchema.
-    expect(undeclaredPaths(document, baselineSchema)).toEqual([])
+    // Every key the construction code produced is declared in habitatDataSchema.
+    expect(undeclaredPaths(document, habitatDataSchema)).toEqual([])
 
     // Belt and braces: strict Joi validation (no allowUnknown) also rejects any
     // undeclared key, and confirms the produced values satisfy their types.
-    const { error } = baselineSchema.validate(document)
+    const { error } = habitatDataSchema.validate(document)
     expect(error).toBeUndefined()
   })
 
@@ -208,7 +208,9 @@ describe('project JSONB data-dictionary coverage', () => {
   })
 
   it('the canonical extracted-baseline fixture matches the schema', () => {
-    expect(undeclaredPaths(STUB_EXTRACTED.document, baselineSchema)).toEqual([])
+    expect(undeclaredPaths(STUB_EXTRACTED.document, habitatDataSchema)).toEqual(
+      []
+    )
   })
 
   it('projectSchema describes a documentable tree (sanity)', () => {
