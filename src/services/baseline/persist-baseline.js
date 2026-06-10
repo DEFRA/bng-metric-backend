@@ -9,6 +9,7 @@ import {
   baselineHedgerows,
   baselineWatercourses
 } from '../../db/schema/index.js'
+import { setProjectBaseline } from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 
 /** Cap rows per INSERT to keep statement size bounded for PostGIS bulk loads. */
@@ -104,13 +105,8 @@ async function persistGeometryLayers(tx, projectId, geometries) {
 }
 
 async function updateProjectBaselineDocument(tx, projectId, document) {
-  const docJson = JSON.stringify(document)
-  await tx
-    .update(projects)
-    .set({
-      project: sql`jsonb_set(${projects.project}, '{baseline}', ${docJson}::jsonb, true)`
-    })
-    .where(eq(projects.id, projectId))
+  // Validates the baseline subtree against baselineSchema before writing.
+  await setProjectBaseline(tx, projectId, document)
 }
 
 async function runPersistTransaction(drizzle, projectId, document, geometries) {

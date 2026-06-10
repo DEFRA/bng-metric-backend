@@ -1,15 +1,15 @@
 import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
-import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
+import { setBaselineFeature } from '../db/persist-project.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/baseline/apply-feature-update.js'
 import { findFeature } from '../utilities/baseline/find-feature.js'
-import { projectFeatureIdParams } from './shared-params.js'
+import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
  * @openapi
@@ -125,11 +125,7 @@ const updateFeature = {
   options: {
     validate: {
       params: projectFeatureIdParams,
-      payload: Joi.object({
-        broadType: Joi.string().trim().allow(null, '').optional(),
-        habitatType: Joi.string().trim().allow(null, '').optional(),
-        condition: Joi.string().trim().allow(null, '').optional()
-      })
+      payload: featureEditPayload
     }
   },
   handler: async (request, _h) => {
@@ -187,10 +183,12 @@ async function runFeatureUpdate(tx, { projectId, featureId, edits }) {
     )
   }
 
-  await tx
-    .update(projects)
-    .set({ project: result.project })
-    .where(eq(projects.id, projectId))
+  await setBaselineFeature(tx, projectId, {
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals
+  })
 
   return { type: result.type, feature: result.feature }
 }
