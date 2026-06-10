@@ -118,11 +118,13 @@ async function main() {
   const page = await fetchPage(baseUrl, pageId, headers)
   const version = await updatePage(baseUrl, pageId, headers, page, body)
   console.log(
-    `Published data dictionary to Confluence page ${pageId} ("${page.title}", version ${version}).`
+    `Published data dictionary to Confluence page ${pageId} (version ${version}).`
   )
 }
 
-main().catch((error) => {
+try {
+  await main()
+} catch (error) {
   console.error(error.message)
   process.exit(1)
-})
+}
