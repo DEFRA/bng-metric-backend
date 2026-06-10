@@ -230,6 +230,7 @@
     },
     {
       "name": "bng.post_intervention_habitats",
+      "description": "The mapped outline of each post-intervention (proposed) area-habitat parcel imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -271,6 +272,7 @@
     },
     {
       "name": "bng.post_intervention_hedgerows",
+      "description": "The mapped line of each post-intervention (proposed) hedgerow imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
@@ -312,6 +314,7 @@
     },
     {
       "name": "bng.post_intervention_red_line",
+      "description": "The single red-line boundary outlining the extent of the post-intervention (proposed) site.",
       "columns": [
         {
           "name": "id",
@@ -344,6 +347,7 @@
     },
     {
       "name": "bng.post_intervention_watercourses",
+      "description": "The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.",
       "columns": [
         {
           "name": "id",
