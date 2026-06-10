@@ -13,6 +13,7 @@ import {
   postInterventionHedgerows,
   postInterventionWatercourses
 } from '../../db/schema/index.js'
+import { setProjectHabitatData } from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 
 /** Cap rows per INSERT to keep statement size bounded for PostGIS bulk loads. */
@@ -130,13 +131,7 @@ async function updateProjectDocumentSection(
   document,
   projectDocumentKey
 ) {
-  const docJson = JSON.stringify(document)
-  await tx
-    .update(projects)
-    .set({
-      project: sql`jsonb_set(${projects.project}, array[${projectDocumentKey}]::text[], ${docJson}::jsonb, true)`
-    })
-    .where(eq(projects.id, projectId))
+  await setProjectHabitatData(tx, projectId, document, projectDocumentKey)
 }
 
 async function runPersistTransaction(

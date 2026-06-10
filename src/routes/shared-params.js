@@ -10,6 +10,17 @@ export const projectFeatureIdParams = Joi.object({
 })
 
 /**
+ * Joi validator for the editable baseline-feature attributes accepted by the
+ * area-habitat and feature PUT endpoints. Shared so both routes validate the
+ * same shape.
+ */
+export const featureEditPayload = Joi.object({
+  broadType: Joi.string().trim().allow(null, '').optional(),
+  habitatType: Joi.string().trim().allow(null, '').optional(),
+  condition: Joi.string().trim().allow(null, '').optional()
+})
+
+/**
  * @openapi
  * components:
  *   parameters:

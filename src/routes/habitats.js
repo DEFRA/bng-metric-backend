@@ -1,14 +1,14 @@
 import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
-import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
+import { setProjectFeature } from '../db/persist-project.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
-import { projectFeatureIdParams } from './shared-params.js'
+import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
  * @openapi
@@ -120,11 +120,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
     options: {
       validate: {
         params: projectFeatureIdParams,
-        payload: Joi.object({
-          broadType: Joi.string().trim().allow(null, '').optional(),
-          habitatType: Joi.string().trim().allow(null, '').optional(),
-          condition: Joi.string().trim().allow(null, '').optional()
-        })
+        payload: featureEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -203,10 +199,13 @@ async function runUpdate(
     )
   }
 
-  await tx
-    .update(projects)
-    .set({ project: result.project })
-    .where(eq(projects.id, projectId))
+  await setProjectFeature(tx, projectId, {
+    documentKey,
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals
+  })
 
   return result.feature
 }

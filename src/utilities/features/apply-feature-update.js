@@ -98,13 +98,12 @@ function mergeFeature(type, existing, edits, derived) {
 function spliceFeatureInFeatureSet(
   featureSet,
   layerKey,
-  featureId,
+  index,
   updatedFeature
 ) {
   const layer = featureSet[layerKey] ?? []
-  const idx = layer.findIndex((f) => f?.featureId === featureId)
   const updatedLayer = layer.slice()
-  updatedLayer[idx] = updatedFeature
+  updatedLayer[index] = updatedFeature
   return {
     ...featureSet,
     [layerKey]: updatedLayer
@@ -156,19 +155,29 @@ function applyFeatureUpdate(
     normalizedEdits,
     derived
   )
+  const index = featureSet[found.key].findIndex(
+    (f) => f?.featureId === featureId
+  )
   const updatedFeatureSet = spliceFeatureInFeatureSet(
     featureSet,
     found.key,
-    featureId,
+    index,
     updatedFeature
   )
   summarizeFeatureSetUnitsTotals(updatedFeatureSet)
 
+  // `layer` / `index` / `unitsTotals` let callers persist surgically via
+  // persist-project.js (jsonb_set the one feature + the totals) rather than
+  // rewriting the whole document. `project` is retained for callers/tests that
+  // want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
-    project: { ...project, [documentKey]: updatedFeatureSet },
-    feature: updatedFeature
+    layer: found.key,
+    index,
+    feature: updatedFeature,
+    unitsTotals: updatedFeatureSet.units,
+    project: { ...project, [documentKey]: updatedFeatureSet }
   }
 }
 

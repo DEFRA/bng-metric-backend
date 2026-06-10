@@ -1,7 +1,9 @@
 import Boom from '@hapi/boom'
-import { eq, sql } from 'drizzle-orm'
+import { eq } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
+import { insertProject, setProjectName } from '../db/persist-project.js'
+import { projectSchema } from '../validation/project.js'
 
 /**
  * @openapi
@@ -151,18 +153,14 @@ const createProject = {
   options: {
     validate: {
       payload: Joi.object({
-        project: Joi.object().required(),
+        project: projectSchema.required(),
         userId: Joi.string().required()
       }).rename('user_id', 'userId', { ignoreUndefined: true })
     }
   },
   handler: async (request, _h) => {
     const { project, userId } = request.payload
-    const [row] = await request.drizzle
-      .insert(projects)
-      .values({ project, userId })
-      .returning()
-    return row
+    return insertProject(request.drizzle, { project, userId })
   }
 }
 
@@ -219,25 +217,10 @@ const updateProject = {
     const {
       project: { name }
     } = request.payload
-    const [row] = await request.drizzle
-      .update(projects)
-      .set({
-        project: sql`
-          jsonb_set(
-            ${projects.project},
-            '{name}',
-            to_jsonb(${name}::text),
-            true
-          )
-        `
-      })
-      .where(eq(projects.id, id))
-      .returning()
-
+    const row = await setProjectName(request.drizzle, id, name)
     if (!row) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-
     return row
   }
 }

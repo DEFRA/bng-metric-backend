@@ -1,11 +1,25 @@
-import { describe, test, expect, vi } from 'vitest'
+import { beforeEach, describe, test, expect, vi } from 'vitest'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
+import { setProjectFeature } from '../db/persist-project.js'
 import {
   getFeature,
   getPostInterventionFeature,
   updateFeature
 } from './features.js'
+
+// The route persists surgically via setProjectFeature (a jsonb_set, not an
+// inspectable object), so we mock it and assert the route handed it the right
+// { documentKey, layer, index, feature, unitsTotals }. That helper's
+// validation is covered by persist-project.test.js and end-to-end persistence
+// by the integration tests.
+vi.mock('../db/persist-project.js', () => ({
+  setProjectFeature: vi.fn().mockResolvedValue(undefined)
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
@@ -270,12 +284,19 @@ describe('updateFeature handler - area habitat dispatch', () => {
       {}
     )
 
-    const persisted = drizzle._updateSet.mock.calls[0][0].project
-    expect(persisted.baseline.units).toMatchObject({
-      habitatsTotal: 24,
-      hedgerowsTotal: 0,
-      totalUnits: 24
-    })
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        documentKey: 'baseline',
+        layer: 'habitats',
+        unitsTotals: expect.objectContaining({
+          habitatsTotal: 24,
+          hedgerowsTotal: 0,
+          totalUnits: 24
+        })
+      })
+    )
   })
 })
 
@@ -321,11 +342,18 @@ describe('updateFeature handler - hedgerow dispatch', () => {
       {}
     )
 
-    const persisted = drizzle._updateSet.mock.calls[0][0].project
-    expect(persisted.baseline.units).toMatchObject({
-      habitatsTotal: 4,
-      hedgerowsTotal: 6
-    })
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        documentKey: 'baseline',
+        layer: 'hedgerows',
+        unitsTotals: expect.objectContaining({
+          habitatsTotal: 4,
+          hedgerowsTotal: 6
+        })
+      })
+    )
   })
 })
 

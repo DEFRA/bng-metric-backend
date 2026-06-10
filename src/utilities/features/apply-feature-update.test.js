@@ -68,6 +68,10 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
     // The canonical key is `units` — guard against the BMD-480 regression
     // where the area route wrote `habitatUnits` instead.
     expect(result.feature.habitatUnits).toBeUndefined()
+    // Surgical-write locators used by persist-project.js.
+    expect(result.layer).toBe('habitats')
+    expect(result.index).toBe(0)
+    expect(result.unitsTotals).toEqual(result.project.baseline.units)
   })
 
   test('refreshes baseline.units totals so the habitat-list summary stays in sync', () => {
@@ -126,6 +130,7 @@ describe('applyFeatureUpdate — hedgerow dispatch', () => {
     })
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.type).toBe('hedgerow')
+    expect(result.layer).toBe('hedgerows')
     // 1 km × Low (2) × Good (3) × 1 SS = 6 units. Pins the wiring from the
     // helper through `recomputeHedgerow` to the engine.
     expect(result.feature).toMatchObject({

@@ -120,7 +120,10 @@ describe('GET /projects/{projectId}/habitats/{featureId}', () => {
       distinctiveness: 'Low',
       distinctivenessScore: 2,
       condition: 'Good',
-      sizeSquareMetres: 12345
+      sizeSquareMetres: 12345,
+      // `status` is required by habitatSchema; POST /projects/new now validates
+      // the document against projectSchema (via persist-project.js).
+      status: 'Complete'
     }
     const created = await server.inject({
       method: 'POST',
