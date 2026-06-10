@@ -372,6 +372,43 @@ describe('extractBaseline — habitat document fields and shape', () => {
     expect(out.document.watercourses[0]).not.toHaveProperty('geometry')
   })
 
+  it('strips the "N. " list-index prefix from condition labels on area, hedgerow and watercourse features', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          [HABITAT_TYPE]: LOWLAND_MEADOWS,
+          [CONDITION]: '3. Moderate'
+        })
+      ],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'H1',
+            [HEDGEROW_TYPE]: 'Native species-rich hedgerow',
+            [CONDITION]: '5. Poor'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            [RIVER_TYPE]: 'Chalk stream',
+            [CONDITION]: '6. N/A - Other'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.habitats[0].condition).toBe('Moderate')
+    expect(out.document.hedgerows[0].condition).toBe('Poor')
+    expect(out.document.watercourses[0].condition).toBe('N/A - Other')
+  })
+
   it('preserves the raw GPKG row as `properties` so nothing is lost in extraction', () => {
     const row = {
       [PARCEL_REF]: 'P1',
