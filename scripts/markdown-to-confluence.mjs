@@ -117,6 +117,8 @@ function renderInline(text) {
           next: end + 2
         }
       }
+    } else {
+      // not a Markdown control character — emitted as literal text below
     }
     if (token) {
       out += token.html
@@ -147,6 +149,15 @@ function consumeBlockquote(lines, start) {
   }
 }
 
+function renderTableCell(tag, cell) {
+  return `<${tag}>${renderInline(cell)}</${tag}>`
+}
+
+function renderTableRow(cells, tag) {
+  const inner = cells.map((cell) => renderTableCell(tag, cell)).join('')
+  return `<tr>${inner}</tr>`
+}
+
 function consumeTable(lines, start) {
   const header = splitTableRow(lines[start].trim())
   let i = start + 2
@@ -155,17 +166,10 @@ function consumeTable(lines, start) {
     bodyRows.push(splitTableRow(lines[i].trim()))
     i++
   }
-  const headHtml = header
-    .map((cell) => `<th>${renderInline(cell)}</th>`)
-    .join('')
-  const bodyHtml = bodyRows
-    .map(
-      (row) =>
-        `<tr>${row.map((cell) => `<td>${renderInline(cell)}</td>`).join('')}</tr>`
-    )
-    .join('')
+  const headHtml = renderTableRow(header, 'th')
+  const bodyHtml = bodyRows.map((row) => renderTableRow(row, 'td')).join('')
   return {
-    html: `<table><tbody><tr>${headHtml}</tr>${bodyHtml}</tbody></table>`,
+    html: `<table><tbody>${headHtml}${bodyHtml}</tbody></table>`,
     next: i
   }
 }
