@@ -21,6 +21,8 @@ import {
   getHabitatTypesByBroad,
   getConditions,
   getHedgerowTypes,
+  getWatercourseEncroachments,
+  getWatercourseTypes,
   getTradingRules
 } from '../routes/reference.js'
 import { swagger } from '../common/helpers/swagger.js'
@@ -49,6 +51,8 @@ const router = {
         getHabitatTypesByBroad,
         getConditions,
         getHedgerowTypes,
+        getWatercourseTypes,
+        getWatercourseEncroachments,
         getTradingRules
       ])
 
