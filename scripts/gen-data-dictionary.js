@@ -71,7 +71,15 @@ const TABLE_DESCRIPTIONS = {
   'bng.baseline_hedgerows':
     'The mapped line of each baseline hedgerow imported from the uploaded GeoPackage.',
   'bng.baseline_watercourses':
-    'The mapped line of each baseline watercourse imported from the uploaded GeoPackage.'
+    'The mapped line of each baseline watercourse imported from the uploaded GeoPackage.',
+  'bng.post_intervention_red_line':
+    'The single red-line boundary outlining the extent of the post-intervention (proposed) site.',
+  'bng.post_intervention_habitats':
+    'The mapped outline of each post-intervention (proposed) area-habitat parcel imported from the uploaded GeoPackage.',
+  'bng.post_intervention_hedgerows':
+    'The mapped line of each post-intervention (proposed) hedgerow imported from the uploaded GeoPackage.',
+  'bng.post_intervention_watercourses':
+    'The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.'
 }
 
 function formatDefault(column) {
@@ -131,6 +139,20 @@ function collectTables() {
     .filter((value) => is(value, PgTable))
     .map(describeTable)
     .sort((a, b) => a.name.localeCompare(b.name))
+}
+
+// Fail loudly (rather than emitting a blank cell) if a table has no entry in
+// TABLE_DESCRIPTIONS, so a newly added table can't slip into the dictionary
+// undocumented — the CI freshness check and pre-commit guard surface it.
+function assertAllTablesDescribed(tables) {
+  const undescribed = tables
+    .filter((table) => !table.description)
+    .map((table) => table.name)
+  if (undescribed.length > 0) {
+    throw new Error(
+      `Missing TABLE_DESCRIPTIONS for ${undescribed.join(', ')} — add a one-sentence summary in scripts/gen-data-dictionary.js`
+    )
+  }
 }
 
 // ─── Joi schema walk ─────────────────────────────────────────────────────────
@@ -341,6 +363,7 @@ function renderMarkdown(tables, fields) {
 
 console.log('Generating data dictionary…')
 const allTables = collectTables()
+assertAllTablesDescribed(allTables)
 const allFields = collectProjectFields()
 console.log(
   `  • ${allTables.length} Postgres tables, ${allFields.length} project JSON fields`
