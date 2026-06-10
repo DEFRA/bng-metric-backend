@@ -11,6 +11,11 @@
  *      (walked via projectSchema.describe()), including each field's
  *      .description() prose.
  *
+ * Plain-language table summaries (TABLE_DESCRIPTIONS) and the GitHub repo URL
+ * for source-file links also live here in the generator. Source references in
+ * the Markdown are absolute GitHub links so they resolve in the Confluence page
+ * mirrored from this file on merge to main, where repo-relative links break.
+ *
  * The Joi schema is the *intended* shape of the JSONB blob. The companion
  * guard test (src/validation/project-coverage.test.js) proves the code only
  * persists declared fields, so this dictionary stays faithful to reality.
@@ -33,9 +38,41 @@ const TEMPLATE_REF =
   'src/validation/baseline/reference/baseline-template.schema.json'
 const PROP_KEYS_REF = 'src/validation/baseline/properties.js'
 
+// Source-file references in the Markdown link to the canonical copy on GitHub so
+// they resolve wherever the dictionary is read — in particular the Confluence
+// page mirrored from it on merge to main, where repo-relative links would break.
+// The repo URL is a fixed constant (not derived from `git remote`) so the
+// generated output stays byte-identical across environments and the CI freshness
+// diff stays reliable.
+const REPO_URL = 'https://github.com/DEFRA/bng-metric-backend'
+const REPO_BRANCH = 'main'
+
+function repoFileLink(relPath, label = relPath) {
+  return `[\`${label}\`](${REPO_URL}/blob/${REPO_BRANCH}/${relPath})`
+}
+
 const dialect = new PgDialect()
 
 // ─── Postgres column introspection ──────────────────────────────────────────
+
+// Plain-language summary of each Postgres table for non-technical readers,
+// surfaced beneath the table heading in the Markdown (and mirrored into the
+// JSON). Keep each to a single short sentence; add an entry when a new table is
+// introduced.
+const TABLE_DESCRIPTIONS = {
+  'bng.projects':
+    'One row per BNG project, holding the live project document plus its owner and version details.',
+  'bng.audit_log':
+    'A full snapshot of a project after every change, recording who made it and when, for audit history.',
+  'bng.baseline_red_line':
+    "The single red-line boundary outlining the overall extent of a project's development site.",
+  'bng.baseline_habitats':
+    'The mapped outline of each baseline area-habitat parcel imported from the uploaded GeoPackage.',
+  'bng.baseline_hedgerows':
+    'The mapped line of each baseline hedgerow imported from the uploaded GeoPackage.',
+  'bng.baseline_watercourses':
+    'The mapped line of each baseline watercourse imported from the uploaded GeoPackage.'
+}
 
 function formatDefault(column) {
   if (!column.hasDefault) {
@@ -85,7 +122,8 @@ function describeTable(table) {
     references: fkByColumn.get(column.name) ?? null
   }))
 
-  return { name: `${config.schema}.${config.name}`, columns }
+  const name = `${config.schema}.${config.name}`
+  return { name, description: TABLE_DESCRIPTIONS[name] ?? null, columns }
 }
 
 function collectTables() {
@@ -204,7 +242,7 @@ function columnKeyLabel(column) {
     keyParts.push('PK')
   }
   if (column.references) {
-    keyParts.push(`FK → ${column.references}`)
+    keyParts.push(`FK → \`${column.references}\``)
   }
   if (column.unique && !column.primaryKey) {
     keyParts.push('UNIQUE')
@@ -225,9 +263,11 @@ function renderColumnRow(column) {
 function renderPostgresSection(tables) {
   const lines = ['## Postgres tables', '']
   for (const table of tables) {
+    lines.push(`### \`${table.name}\``, '')
+    if (table.description) {
+      lines.push(table.description, '')
+    }
     lines.push(
-      `### \`${table.name}\``,
-      '',
       '| Column | Type | Nullable | Key | Default |',
       '| --- | --- | --- | --- | --- |',
       ...table.columns.map(renderColumnRow),
@@ -243,16 +283,16 @@ function renderProjectJsonSection(fields) {
     '',
     'Stored in `bng.projects.project` and snapshotted verbatim into',
     '`bng.audit_log.project`. Fields below are derived from the Joi schema in',
-    '`src/validation/project.js`.',
+    `${repoFileLink('src/validation/project.js')}.`,
     '',
-    '| Field | Type | Req? | Null? | Constraints | Description |',
-    '| --- | --- | --- | --- | --- | --- |'
+    '| Field | Type | Constraints | Description |',
+    '| --- | --- | --- | --- |'
   ]
   for (const field of fields) {
     lines.push(
-      `| \`${field.path}\` | ${field.type} | ${tick(field.required)} | ${tick(
-        field.nullable
-      )} | ${renderConstraints(field)} | ${escapeCell(field.description) || '—'} |`
+      `| \`${field.path}\` | \`${field.type}\` | ${renderConstraints(
+        field
+      )} | ${escapeCell(field.description) || '—'} |`
     )
   }
   return lines.join('\n')
@@ -264,8 +304,8 @@ function renderNotesSection() {
     '',
     '- **`*.properties` open maps** hold the raw attribute columns copied',
     `  verbatim from the uploaded GeoPackage. Their column catalogue is defined`,
-    `  separately in [\`${TEMPLATE_REF}\`](../${TEMPLATE_REF}); the case-insensitive`,
-    `  key resolution lives in [\`${PROP_KEYS_REF}\`](../${PROP_KEYS_REF}).`,
+    `  separately in ${repoFileLink(TEMPLATE_REF)}; the case-insensitive`,
+    `  key resolution lives in ${repoFileLink(PROP_KEYS_REF)}.`,
     '- **Derived unit fields** (`distinctiveness`, `distinctivenessScore`,',
     '  `conditionScore`, `units`) are set on habitats, hedgerows and watercourses',
     '  by bng-metric-engine — during baseline import enrichment and again when a',
@@ -283,9 +323,11 @@ function renderMarkdown(tables, fields) {
   return [
     '# Data dictionary',
     '',
-    '> Generated by `npm run data-dictionary` (`scripts/gen-data-dictionary.js`).',
+    `> Generated by \`npm run data-dictionary\` (${repoFileLink(
+      'scripts/gen-data-dictionary.js'
+    )}).`,
     '> Do not edit by hand — change the Drizzle schema or the Joi `.description()`',
-    '> annotations and regenerate. See [DATA_DICTIONARY.md](../docs/DATA_DICTIONARY.md) for',
+    `> annotations and regenerate. See ${repoFileLink('docs/DATA_DICTIONARY.md')} for`,
     '> the workflow and the CI freshness check.',
     '',
     renderPostgresSection(tables),
