@@ -94,6 +94,16 @@ async function updatePage(baseUrl, pageId, headers, page, body) {
   return nextVersion
 }
 
+// Regex-free trailing-slash strip (a `/\/+$/` regex trips SonarCloud's ReDoS
+// hotspot, S5852, even though this use is bounded).
+function stripTrailingSlashes(value) {
+  let end = value.length
+  while (end > 0 && value[end - 1] === '/') {
+    end -= 1
+  }
+  return value.slice(0, end)
+}
+
 async function main() {
   const markdown = readFileSync(MARKDOWN_PATH, 'utf8')
   const body = buildStorageBody(markdown)
@@ -104,7 +114,7 @@ async function main() {
   }
 
   requireEnv()
-  const baseUrl = process.env.CONFLUENCE_BASE_URL.replace(/\/+$/, '')
+  const baseUrl = stripTrailingSlashes(process.env.CONFLUENCE_BASE_URL)
   const pageId = process.env.CONFLUENCE_PAGE_ID
   const auth = Buffer.from(
     `${process.env.CONFLUENCE_USER_EMAIL}:${process.env.CONFLUENCE_API_TOKEN}`
@@ -116,15 +126,12 @@ async function main() {
   }
 
   const page = await fetchPage(baseUrl, pageId, headers)
-  const version = await updatePage(baseUrl, pageId, headers, page, body)
-  console.log(
-    `Published data dictionary to Confluence page ${pageId} (version ${version}).`
-  )
+  await updatePage(baseUrl, pageId, headers, page, body)
+  // No page ID / title / version in the log: page ID comes from env and the
+  // title/version from the HTTP response, all of which SonarCloud treats as
+  // untrusted (S5145). On failure, main() rejects and Node prints the error to
+  // stderr and exits non-zero on its own.
+  console.log('Published the data dictionary to Confluence.')
 }
 
-try {
-  await main()
-} catch (error) {
-  console.error(error.message)
-  process.exit(1)
-}
+await main()

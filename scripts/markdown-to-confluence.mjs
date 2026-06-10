@@ -9,8 +9,12 @@
  * output predictable and easy to test.
  */
 
-const HEADING_RE = /^(#{1,6})\s+(.*)$/
-const LIST_ITEM_RE = /^[-*]\s+(.*)$/
+// The `\S` after the whitespace stops the `\s+` and `.*` runs from overlapping,
+// which removes the super-linear backtracking SonarCloud flags (S5852). Every
+// heading and list item the generator emits has non-space content, so this does
+// not change what matches.
+const HEADING_RE = /^(#{1,6})\s+(\S.*)$/
+const LIST_ITEM_RE = /^[-*]\s+(\S.*)$/
 const SEPARATOR_CELL_RE = /^:?-+:?$/
 
 function escapeHtml(value) {
@@ -89,44 +93,49 @@ function renderCodeSpan(text, start) {
   }
 }
 
-// Inline rendering: code spans, links and bold, with HTML-escaped literal text.
-// Code spans are matched first so backticks inside a link label or bold run are
-// treated as code. `renderInline` recurses on link labels and bold runs to keep
-// nesting working.
+// Identify the inline token starting at `i`, or null when `i` is a literal
+// character. Backtick code spans are matched first so backticks inside a link
+// label or bold run are treated as code. Link and bold tokens carry their inner
+// text for renderInline to recurse on (so nesting works); code spans are
+// self-contained and return ready-made HTML.
+function matchToken(text, i) {
+  const char = text[i]
+  if (char === '`') {
+    return renderCodeSpan(text, i)
+  }
+  if (char === '[') {
+    const link = matchLink(text, i)
+    return link
+      ? { kind: 'link', label: link.label, url: link.url, next: link.next }
+      : null
+  }
+  if (char === '*' && text[i + 1] === '*') {
+    const end = text.indexOf('**', i + 2)
+    if (end !== -1) {
+      return { kind: 'bold', inner: text.slice(i + 2, end), next: end + 2 }
+    }
+  }
+  return null
+}
+
 function renderInline(text) {
   let out = ''
   let i = 0
   while (i < text.length) {
-    const char = text[i]
-    let token = null
-    if (char === '`') {
-      token = renderCodeSpan(text, i)
-    } else if (char === '[') {
-      const link = matchLink(text, i)
-      if (link) {
-        token = {
-          html: `<a href="${escapeAttribute(link.url)}">${renderInline(link.label)}</a>`,
-          next: link.next
-        }
-      }
-    } else if (char === '*' && text[i + 1] === '*') {
-      const end = text.indexOf('**', i + 2)
-      if (end !== -1) {
-        token = {
-          html: `<strong>${renderInline(text.slice(i + 2, end))}</strong>`,
-          next: end + 2
-        }
-      }
-    } else {
-      // not a Markdown control character — emitted as literal text below
+    const token = matchToken(text, i)
+    if (!token) {
+      out += escapeHtml(text[i])
+      i += 1
+      continue
     }
-    if (token) {
+    if (token.kind === 'link') {
+      out += `<a href="${escapeAttribute(token.url)}">${renderInline(token.label)}</a>`
+    } else if (token.kind === 'bold') {
+      out += `<strong>${renderInline(token.inner)}</strong>`
+    } else {
       out += token.html
-      i = token.next
-    } else {
-      out += escapeHtml(char)
-      i++
     }
+    i = token.next
   }
   return out
 }
