@@ -9,6 +9,7 @@ import {
 } from 'bng-metric-engine'
 
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
+import { stripConditionPrefix } from './condition.js'
 import { summarizeFeatureSetUnitsTotals } from '../features/feature-set-units.js'
 
 const LOG_ENRICH_PREFIX = 'enrichBaseline: '
@@ -23,14 +24,12 @@ const SQ_METRES_PER_HECTARE = 10_000
 const METRES_PER_KM = 1000
 
 /**
- * QGIS / statutory tool condition labels are often prefixed with an index
- * (e.g. `"6. N/A - Other"`). Engine keys use the suffix only (`"N/A - Other"`).
+ * Engine entry point wrapper around stripConditionPrefix that guarantees a
+ * string return value — engine calculators expect a string, not null.
  */
 export function normalizeConditionForEngine(condition) {
-  if (typeof condition !== 'string') {
-    return ''
-  }
-  return condition.trim().replace(/^\d+\.\s+/u, '')
+  const stripped = stripConditionPrefix(condition)
+  return typeof stripped === 'string' ? stripped : ''
 }
 
 /**

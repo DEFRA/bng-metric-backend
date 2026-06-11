@@ -64,6 +64,14 @@ describe('normalizeConditionForEngine', () => {
   it('returns trimmed string when there is no index prefix', () => {
     expect(normalizeConditionForEngine('  Moderate  ')).toBe('Moderate')
   })
+
+  it('coerces null to an empty string so engine consumers always get a string', () => {
+    expect(normalizeConditionForEngine(null)).toBe('')
+  })
+
+  it('coerces undefined to an empty string so engine consumers always get a string', () => {
+    expect(normalizeConditionForEngine(undefined)).toBe('')
+  })
 })
 
 describe('engineHabitatTypeCandidates', () => {

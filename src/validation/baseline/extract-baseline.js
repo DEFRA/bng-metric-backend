@@ -6,6 +6,7 @@ import {
   hedgerowStatus,
   watercourseStatus
 } from '../../services/baseline/calculate-habitat-statuses.js'
+import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
 
 /**
  * @param {number | null | undefined} sizeSquareMetres
@@ -36,7 +37,7 @@ function buildHabitat(feature) {
     ref,
     type: habitatType,
     broadType: pickProp(props, PROP_KEYS.broadHabitat),
-    condition: pickProp(props, PROP_KEYS.condition),
+    condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     properties: props
@@ -68,7 +69,7 @@ function buildLinearFeature(
     featureId,
     ref,
     type: pickProp(props, typeKey),
-    condition: pickProp(props, PROP_KEYS.condition),
+    condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     ...extraDocumentProperties,
     properties: props
   }
