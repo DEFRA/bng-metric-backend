@@ -4,6 +4,7 @@ import {
   EPSG_BNG,
   baselineSchema
 } from '../../../test/helpers/baseline-geopackage.js'
+import { GEOPACKAGE_GEOMETRY_TYPE_NAMES } from './geopackage-constants.js'
 
 const { ERROR_CODES } = await import('./errors.js')
 const {
@@ -15,7 +16,8 @@ const {
 const {
   sqliteTypeFriendlyCategoryLabel,
   formatColumnSQLiteTypeMismatchMessage,
-  caughtValueMessage
+  caughtValueMessage,
+  isGeometrySqliteColumnType
 } = await import('./geopackage-internals-sqlite.js')
 
 const habitatsLayer = baselineSchema.layers.find(
@@ -65,6 +67,41 @@ describe('sqliteTypeFriendlyCategoryLabel', () => {
     expect(sqliteTypeFriendlyCategoryLabel('CUSTOM_TYPE_HERE')).toBe(
       'Custom type here'
     )
+  })
+
+  it('maps Z/M dimensional geometry variants to the base geometry label', () => {
+    expect(sqliteTypeFriendlyCategoryLabel('MULTIPOLYGONM')).toBe(
+      'MultiPolygon geometry'
+    )
+    expect(sqliteTypeFriendlyCategoryLabel('LINESTRINGZ')).toBe('Line geometry')
+  })
+})
+
+describe('isGeometrySqliteColumnType', () => {
+  it('recognises all GeoPackage Annex G base geometry types', () => {
+    for (const type of GEOPACKAGE_GEOMETRY_TYPE_NAMES) {
+      expect(isGeometrySqliteColumnType(type)).toBe(true)
+    }
+  })
+
+  it('recognises Z/M/ZM dimensional variants used by some producers', () => {
+    for (const type of [
+      'POINTM',
+      'MULTIPOINTM',
+      'LINESTRINGM',
+      'MULTILINESTRINGM',
+      'POLYGONM',
+      'MULTIPOLYGONM',
+      'MULTIPOLYGONZ',
+      'MULTIPOLYGONZM'
+    ]) {
+      expect(isGeometrySqliteColumnType(type)).toBe(true)
+    }
+  })
+
+  it('returns false for scalar SQLite types', () => {
+    expect(isGeometrySqliteColumnType('INTEGER')).toBe(false)
+    expect(isGeometrySqliteColumnType('TEXT')).toBe(false)
   })
 })
 

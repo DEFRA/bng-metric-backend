@@ -33,15 +33,16 @@ USER root
 RUN apk add --no-cache curl
 USER node
 
-COPY --from=development /home/node/package*.json ./
-COPY --from=development /home/node/bng-metric-engine/package.json ./bng-metric-engine/
+COPY --chown=node:node --from=development /home/node/package*.json ./
+COPY --chown=node:node --from=development /home/node/bng-metric-engine/package.json ./bng-metric-engine/
+COPY --chown=node:node --from=development /home/node/node_modules ./node_modules
+COPY --chown=node:node --from=development /home/node/bng-metric-engine ./bng-metric-engine/
 
-# Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
-# scripts/ is not shipped in the production image, and the hooks are not needed at runtime.
-RUN npm pkg delete scripts.postinstall && npm ci --omit=dev
+# Reuse the development install and prune dev dependencies locally — avoids a second
+# registry-bound `npm ci` in CI, where transient ECONNRESET failures are common.
+RUN npm pkg delete scripts.postinstall && npm prune --omit=dev
 
-COPY --from=development /home/node/src ./src/
-COPY --from=development /home/node/bng-metric-engine ./bng-metric-engine/
+COPY --chown=node:node --from=development /home/node/src ./src/
 
 ARG PORT
 ENV PORT=${PORT}

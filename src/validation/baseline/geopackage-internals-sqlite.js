@@ -1,9 +1,12 @@
 import {
   GPKG_HEADER_BYTES,
   GPKG_FLAGS_BYTE_INDEX,
+  GPKG_FLAGS_ENVELOPE_SHIFT,
   GPKG_ENVELOPE_INDICATOR_MASK,
   GPKG_ENVELOPE_SIZES,
-  WKB_MIN_BYTES
+  WKB_MIN_BYTES,
+  WKB_TYPE_CODE_OFFSET,
+  GEOPACKAGE_GEOMETRY_TYPE_NAMES
 } from './geopackage-constants.js'
 
 /** WKB well-known binary endian marker byte: little-endian payloads use 1. */
@@ -39,7 +42,8 @@ export function getWkbType(blob) {
     return null
   }
   const envelopeIndicator =
-    (blob[GPKG_FLAGS_BYTE_INDEX] >> 1) & GPKG_ENVELOPE_INDICATOR_MASK
+    (blob[GPKG_FLAGS_BYTE_INDEX] >> GPKG_FLAGS_ENVELOPE_SHIFT) &
+    GPKG_ENVELOPE_INDICATOR_MASK
   const envelopeSize = GPKG_ENVELOPE_SIZES[envelopeIndicator]
   if (envelopeSize === undefined) {
     return null
@@ -49,9 +53,10 @@ export function getWkbType(blob) {
     return null
   }
   const littleEndian = blob[wkbOffset] === WKB_LITTLE_ENDIAN_MARKER
+  const typeOffset = wkbOffset + WKB_TYPE_CODE_OFFSET
   return littleEndian
-    ? blob.readUInt32LE(wkbOffset + 1)
-    : blob.readUInt32BE(wkbOffset + 1)
+    ? blob.readUInt32LE(typeOffset)
+    : blob.readUInt32BE(typeOffset)
 }
 
 /**
@@ -89,21 +94,64 @@ const SQLITE_TYPE_BUCKET_LABEL = Object.freeze({
   '~NUMERIC': 'Numeric'
 })
 
-/** SQLite column type heads that denote a geometry column in feature tables. */
-const GEOMETRY_SQLITE_TYPE_HEADS = new Set([
-  'GEOMETRY',
-  'POINT',
-  'MULTIPOINT',
-  'LINESTRING',
-  'MULTILINESTRING',
-  'POLYGON',
-  'MULTIPOLYGON',
-  'CURVE',
-  'MULTICURVE',
-  'GEOMETRYCOLLECTION',
-  'LINESTRINGM',
-  'POLYGONM'
-])
+/**
+ * Uppercase geometry type names from GeoPackage Annex G (Tables 30–31).
+ * Used as SQLite column type heads in feature tables and in gpkg_geometry_columns.
+ */
+const GEOPACKAGE_GEOMETRY_TYPE_HEADS = new Set(GEOPACKAGE_GEOMETRY_TYPE_NAMES)
+
+const GEOMETRY_TYPE_ZM_SUFFIX = 'ZM'
+const GEOMETRY_TYPE_Z_SUFFIX = 'Z'
+const GEOMETRY_TYPE_M_SUFFIX = 'M'
+const GEOMETRY_TYPE_ZM_SUFFIX_LENGTH = GEOMETRY_TYPE_ZM_SUFFIX.length
+const GEOMETRY_TYPE_SINGLE_SUFFIX_LENGTH = GEOMETRY_TYPE_M_SUFFIX.length
+
+/**
+ * @param {string} candidate
+ * @returns {string|null}
+ */
+function knownGeometryBaseHead(candidate) {
+  if (GEOPACKAGE_GEOMETRY_TYPE_HEADS.has(candidate)) {
+    return candidate
+  } else {
+    return null
+  }
+}
+
+/**
+ * Strip optional Z / M / ZM suffixes from a comparable SQLite geometry type head.
+ * Some producers (e.g. QGIS, GDAL) declare measured or 3D columns as MULTIPOLYGONM etc.
+ * @param {string} comparableHead
+ * @returns {string}
+ */
+function geometrySqliteTypeBaseHead(comparableHead) {
+  const direct = knownGeometryBaseHead(comparableHead)
+  if (direct !== null) {
+    return direct
+  } else if (comparableHead.endsWith(GEOMETRY_TYPE_ZM_SUFFIX)) {
+    const zmBase = knownGeometryBaseHead(
+      comparableHead.slice(0, -GEOMETRY_TYPE_ZM_SUFFIX_LENGTH)
+    )
+    if (zmBase === null) {
+      return comparableHead
+    }
+    return zmBase
+  } else if (
+    comparableHead.endsWith(GEOMETRY_TYPE_Z_SUFFIX) ||
+    comparableHead.endsWith(GEOMETRY_TYPE_M_SUFFIX)
+  ) {
+    const zOrMBase = knownGeometryBaseHead(
+      comparableHead.slice(0, -GEOMETRY_TYPE_SINGLE_SUFFIX_LENGTH)
+    )
+    if (zOrMBase === null) {
+      return comparableHead
+    } else {
+      return zOrMBase
+    }
+  } else {
+    return comparableHead
+  }
+}
 
 /**
  * @param {unknown} sqliteType
@@ -111,7 +159,9 @@ const GEOMETRY_SQLITE_TYPE_HEADS = new Set([
  */
 export function isGeometrySqliteColumnType(sqliteType) {
   const comparable = baselineSqliteTypeComparable(sqliteType)
-  return GEOMETRY_SQLITE_TYPE_HEADS.has(comparable)
+  return GEOPACKAGE_GEOMETRY_TYPE_HEADS.has(
+    geometrySqliteTypeBaseHead(comparable)
+  )
 }
 
 /** GDAL / GeoPackage geometry pragma names → readable phrase ending in "geometry" where fitting. */
@@ -126,8 +176,11 @@ const SQLITE_GEOMETRY_TYPE_LABEL = Object.freeze({
   CURVE: 'Curve geometry',
   MULTICURVE: 'Multi-curve geometry',
   GEOMETRYCOLLECTION: 'Geometry collection',
-  LINESTRINGM: 'Line geometry',
-  POLYGONM: 'Polygon geometry'
+  CIRCULARSTRING: 'Circular string geometry',
+  COMPOUNDCURVE: 'Compound curve geometry',
+  CURVEPOLYGON: 'Curve polygon geometry',
+  MULTISURFACE: 'Multi-surface geometry',
+  SURFACE: 'Surface geometry'
 })
 
 /**
@@ -136,8 +189,21 @@ const SQLITE_GEOMETRY_TYPE_LABEL = Object.freeze({
 function indefiniteArticleDeterminer(word) {
   if (/^[aeiou]/i.test(word)) {
     return 'an'
+  } else {
+    return 'a'
   }
-  return 'a'
+}
+
+/**
+ * Sentence-case a raw SQLite type head as a last-resort label.
+ * @param {string} head uppercased, parenthesis-stripped type token
+ * @returns {string}
+ */
+function fallbackTypeLabel(head) {
+  const lowered = head.toLowerCase().replaceAll('_', ' ')
+  return lowered.length > 0
+    ? `${lowered[0].toUpperCase()}${lowered.slice(1)}`
+    : 'unknown'
 }
 
 /**
@@ -155,14 +221,8 @@ export function sqliteTypeFriendlyCategoryLabel(value) {
     return 'unknown'
   }
   const head = trimmed.toUpperCase().split('(')[0].trim()
-  const geo = SQLITE_GEOMETRY_TYPE_LABEL[head]
-  if (geo) {
-    return geo
-  }
-  const lowered = head.toLowerCase().replaceAll('_', ' ')
-  return lowered.length > 0
-    ? `${lowered[0].toUpperCase()}${lowered.slice(1)}`
-    : 'unknown'
+  const geo = SQLITE_GEOMETRY_TYPE_LABEL[geometrySqliteTypeBaseHead(head)]
+  return geo ?? fallbackTypeLabel(head)
 }
 
 /**
@@ -191,6 +251,7 @@ export function formatColumnSQLiteTypeMismatchMessage(
   if (!trimmedActual) {
     return `Layer "${actualTable}" baseline mismatch: column "${columnName}" has no SQLite column type declared but ${expectedLabel} was expected`
   }
+
   const actualLabel = sqliteTypeFriendlyCategoryLabel(actualTypeRaw)
 
   const scalarStyle = SQLITE_SCALAR_TYPE_LABELS.has(actualLabel)
@@ -217,25 +278,21 @@ export function quoteSqliteIdent(name) {
 export function formatSrsIdForError(raw) {
   if (raw === null || raw === undefined) {
     return 'unset'
-  }
-  if (typeof raw === 'object') {
+  } else if (typeof raw === 'object') {
     return JSON.stringify(raw)
-  }
-  if (typeof raw === 'string') {
+  } else if (typeof raw === 'string') {
     return raw
-  }
-  if (
+  } else if (
     typeof raw === 'number' ||
     typeof raw === 'boolean' ||
     typeof raw === 'bigint'
   ) {
     return String(raw)
-  }
-  if (typeof raw === 'symbol') {
+  } else if (typeof raw === 'symbol') {
     return raw.toString()
+  } else {
+    return '[function]'
   }
-  // typeof raw === 'function'
-  return '[function]'
 }
 
 /**
@@ -296,6 +353,7 @@ function primitiveCaughtDiagnostic(value) {
     case 'function':
       return '[function]'
     default:
+      /* v8 ignore next -- defensive; all standard typeof results are handled above */
       return '[unknown]'
   }
 }
@@ -308,12 +366,11 @@ function primitiveCaughtDiagnostic(value) {
 export function caughtValueMessage(caught) {
   if (caught instanceof Error) {
     return caught.message
-  }
-  if (caught !== null && typeof caught === 'object') {
+  } else if (caught !== null && typeof caught === 'object') {
     return diagnosticJsonStringify(caught)
-  }
-  if (caught === null) {
+  } else if (caught === null) {
     return 'null'
+  } else {
+    return primitiveCaughtDiagnostic(caught)
   }
-  return primitiveCaughtDiagnostic(caught)
 }
