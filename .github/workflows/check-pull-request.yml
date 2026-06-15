@@ -149,10 +149,11 @@ jobs:
 
       - name: Upload integration coverage report
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: integration-coverage
-          path: coverage/
+          path: coverage/integration/
+          if-no-files-found: warn
 
       - name: cdp-uploader logs (on failure)
         if: failure()
