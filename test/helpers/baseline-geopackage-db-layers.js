@@ -9,6 +9,7 @@ import {
 } from '../../src/validation/baseline/geopackage-constants.js'
 
 import { makePolygon } from './baseline-geopackage-db-blobs.js'
+import { isGeometrySqliteColumnType } from '../../src/validation/baseline/geopackage-internals-sqlite.js'
 import {
   createLayerTableDDL,
   createSystemTables,
@@ -40,11 +41,26 @@ function geometryRegistrationForLayer(
   return { registerGeom: true, registeredColName: defaultColName }
 }
 
-function insertLayerGeometryRows(db, layerDef, layerKey, layerFeatures) {
+function createLayerTableDDLWithGeomColumnName(layerDef, geomColumnName) {
+  const columns = layerDef.columns.map((col) =>
+    isGeometrySqliteColumnType(col.sqliteType)
+      ? { ...col, name: geomColumnName }
+      : col
+  )
+  return createLayerTableDDL({ ...layerDef, columns })
+}
+
+function insertLayerGeometryRows(
+  db,
+  layerDef,
+  layerKey,
+  layerFeatures,
+  geomColumnName
+) {
   const geoms = layerFeatures[layerKey] ??
     layerFeatures[layerDef.tableName] ?? [makePolygon()]
 
-  const gc = quoteIdent(layerDef.geometryColumn.name)
+  const gc = quoteIdent(geomColumnName)
   const tn = quoteIdent(layerDef.tableName)
   for (const geom of geoms) {
     db.prepare(`INSERT INTO ${tn} (${gc}) VALUES (?)`).run(geom)
@@ -67,7 +83,15 @@ function registerOneFeatureLayer(
     )
   }
 
-  db.exec(createLayerTableDDL(layerDef))
+  const lowerTable = layerDef.tableName.toLowerCase()
+  const { registerGeom, registeredColName } = geometryRegistrationForLayer(
+    lowerTable,
+    layerDef.geometryColumn.name,
+    rlbGeomColumnName,
+    habitatsGeomColumnName
+  )
+
+  db.exec(createLayerTableDDLWithGeomColumnName(layerDef, registeredColName))
 
   db.prepare(
     `INSERT INTO gpkg_contents (table_name, data_type, identifier, srs_id)
@@ -77,14 +101,6 @@ function registerOneFeatureLayer(
     GPKG_CONTENTS_FEATURES_DATA_TYPE,
     layerDef.tableName,
     layerDef.srsId
-  )
-
-  const lowerTable = layerDef.tableName.toLowerCase()
-  const { registerGeom, registeredColName } = geometryRegistrationForLayer(
-    lowerTable,
-    layerDef.geometryColumn.name,
-    rlbGeomColumnName,
-    habitatsGeomColumnName
   )
 
   if (registerGeom) {
@@ -101,7 +117,13 @@ function registerOneFeatureLayer(
     )
   }
 
-  insertLayerGeometryRows(db, layerDef, layerKey, layerFeatures)
+  insertLayerGeometryRows(
+    db,
+    layerDef,
+    layerKey,
+    layerFeatures,
+    registeredColName
+  )
 }
 
 export function insertFeatureLayers(

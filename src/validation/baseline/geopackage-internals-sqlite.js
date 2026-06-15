@@ -89,6 +89,31 @@ const SQLITE_TYPE_BUCKET_LABEL = Object.freeze({
   '~NUMERIC': 'Numeric'
 })
 
+/** SQLite column type heads that denote a geometry column in feature tables. */
+const GEOMETRY_SQLITE_TYPE_HEADS = new Set([
+  'GEOMETRY',
+  'POINT',
+  'MULTIPOINT',
+  'LINESTRING',
+  'MULTILINESTRING',
+  'POLYGON',
+  'MULTIPOLYGON',
+  'CURVE',
+  'MULTICURVE',
+  'GEOMETRYCOLLECTION',
+  'LINESTRINGM',
+  'POLYGONM'
+])
+
+/**
+ * @param {unknown} sqliteType
+ * @returns {boolean}
+ */
+export function isGeometrySqliteColumnType(sqliteType) {
+  const comparable = baselineSqliteTypeComparable(sqliteType)
+  return GEOMETRY_SQLITE_TYPE_HEADS.has(comparable)
+}
+
 /** GDAL / GeoPackage geometry pragma names → readable phrase ending in "geometry" where fitting. */
 const SQLITE_GEOMETRY_TYPE_LABEL = Object.freeze({
   GEOMETRY: 'Geometry',

@@ -173,8 +173,8 @@ export function validateRedLineBoundary(db, errors, logger = NO_OP_LOGGER) {
     return
   }
   if (!SAFE_SQL_IDENTIFIER.test(geomRow.column_name)) {
-    // compareGeometryRegistrationRow (step 4) pushes GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME for
-    // Red Line Boundary when the name is not a safe SQLite identifier — do not run polygon counts.
+    // compareGeometryRegistrationRow (step 4) pushes GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME
+    // when the name is not a safe SQLite identifier — do not run polygon counts.
     return
   }
 

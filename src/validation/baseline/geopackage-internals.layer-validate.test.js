@@ -144,6 +144,149 @@ describe('compareOneLayerToBaselineSchema — contents vs geometry srs_id disagr
   })
 })
 
+describe('compareOneLayerToBaselineSchema — multiple rows in gpkg_geometry_columns', () => {
+  it('reports GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS', () => {
+    const db = openMemoryGp10WithSystemTables()
+    db.exec(createLayerTableDDL(habitatsLayer))
+    insertGpkgFeatureContentsRow(
+      db,
+      habitatsLayer.tableName,
+      habitatsLayer.srsId
+    )
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom2',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    expect(
+      errors.some(
+        (e) => e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS
+      )
+    ).toBe(true)
+    db.close()
+  })
+})
+
+describe('compareOneLayerToBaselineSchema — registered geometry column has wrong SQLite type', () => {
+  it('reports GPKG_BASELINE_COLUMN_SQLITE_TYPE when the column has a non-geometry SQLite type', () => {
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      habitatsLayer.tableName,
+      habitatsLayer.srsId
+    )
+    db.exec(`CREATE TABLE "Habitats" (fid INTEGER PRIMARY KEY, geom TEXT)`)
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    expect(
+      errors.some(
+        (e) =>
+          e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE &&
+          e.message.includes('"geom"')
+      )
+    ).toBe(true)
+    db.close()
+  })
+
+  it('reports GPKG_BASELINE_COLUMN_SQLITE_TYPE when the column has the wrong geometry sub-type', () => {
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      habitatsLayer.tableName,
+      habitatsLayer.srsId
+    )
+    db.exec(`CREATE TABLE "Habitats" (fid INTEGER PRIMARY KEY, geom POLYGON)`)
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    expect(
+      errors.some(
+        (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
+      )
+    ).toBe(true)
+    db.close()
+  })
+})
+
+describe('compareOneLayerToBaselineSchema — multiple geometry columns in feature table', () => {
+  it('reports GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS', () => {
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      habitatsLayer.tableName,
+      habitatsLayer.srsId
+    )
+    db.exec(
+      `CREATE TABLE "Habitats" (fid INTEGER PRIMARY KEY, geom MULTIPOLYGON, geom2 MULTIPOLYGON)`
+    )
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    expect(
+      errors.some(
+        (e) =>
+          e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS &&
+          e.message.includes('feature table')
+      )
+    ).toBe(true)
+    db.close()
+  })
+})
+
 describe('compareOneLayerToBaselineSchema — optional layer without geometry_columns', () => {
   it('reports GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING for Hedgerows', () => {
     const db = openMemoryGp10WithSystemTables()
@@ -165,8 +308,7 @@ describe('compareOneLayerToBaselineSchema — optional layer without geometry_co
       errors.some(
         (e) =>
           e.code === ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING &&
-          e.message.includes('gpkg_geometry_columns') &&
-          e.message.includes(String(hedgerowsLayer.geometryColumn.name))
+          e.message.includes('gpkg_geometry_columns')
       )
     ).toBe(true)
     db.close()

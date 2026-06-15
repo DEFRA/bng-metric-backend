@@ -9,7 +9,8 @@ import {
   SAFE_SQL_IDENTIFIER,
   quoteSqliteIdent,
   baselineSqliteTypeComparable,
-  formatColumnSQLiteTypeMismatchMessage
+  formatColumnSQLiteTypeMismatchMessage,
+  isGeometrySqliteColumnType
 } from './geopackage-internals-sqlite.js'
 
 /**
@@ -121,20 +122,21 @@ export function compareGpkgContentsToLayerSchema(
 /**
  * @param {import('better-sqlite3').Database} db
  * @param {string} lowerTable
- * @returns {{ column_name: string, geometry_type_name: string, geom_srs_raw: unknown } | undefined}
+ * @returns {Array<{ column_name: string, geometry_type_name: string, geom_srs_raw: unknown }>}
  */
-function getGeometryColumnsRow(db, lowerTable) {
+function getGeometryColumnsRows(db, lowerTable) {
   return db
     .prepare(
       `SELECT column_name, geometry_type_name, srs_id AS geom_srs_raw
          FROM gpkg_geometry_columns
         WHERE lower(table_name) = ?`
     )
-    .get(lowerTable)
+    .all(lowerTable)
 }
 
 /**
  * Compare gpkg_geometry_columns registration (excluding srs_id — see `compareBaselineLayerSrs`).
+ * Geometry column names are not matched to the baseline template; only syntactic validity and type.
  *
  * @param {{ tableName: string, geometryColumn: { name: string, geometryType: string }, srsId: number|string }} layerDef
  * @param {string} actualTable
@@ -147,41 +149,15 @@ export function compareGeometryRegistrationRow(
   geomRow,
   errors
 ) {
-  const expectedGeomName = layerDef.geometryColumn.name
   const expectedGeomType = layerDef.geometryColumn.geometryType
-  const columnNameMismatch =
-    String(geomRow.column_name).toLowerCase() !==
-    String(expectedGeomName).toLowerCase()
 
-  if (columnNameMismatch) {
-    const lowerName = layerDef.tableName.toLowerCase()
-    const rlbWrongName =
-      lowerName === RLB_LYR && !SAFE_SQL_IDENTIFIER.test(geomRow.column_name)
-    const habitatsWrongName =
-      lowerName === HABITATS_LYR &&
-      !SAFE_SQL_IDENTIFIER.test(geomRow.column_name)
-    if (rlbWrongName) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME,
-          'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
-        )
+  if (!SAFE_SQL_IDENTIFIER.test(geomRow.column_name)) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
+        `Layer "${actualTable}" geometry column "${geomRow.column_name}" has an invalid name in gpkg_geometry_columns`
       )
-    } else if (habitatsWrongName) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_HABITATS_INVALID_GEOMETRY_COLUMN_NAME,
-          'Habitats geometry column has an invalid name in gpkg_geometry_columns'
-        )
-      )
-    } else {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_BASELINE_GEOMETRY_COLUMN_NAME,
-          `Layer "${actualTable}" baseline mismatch: geometry column in gpkg_geometry_columns must be "${expectedGeomName}" but is "${geomRow.column_name}"`
-        )
-      )
-    }
+    )
   }
 
   if (
@@ -192,6 +168,66 @@ export function compareGeometryRegistrationRow(
       makeError(
         ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME,
         `Layer "${actualTable}" baseline mismatch: expected geometry type "${expectedGeomType}" in gpkg_geometry_columns but found "${geomRow.geometry_type_name}"`
+      )
+    )
+  }
+}
+
+/**
+ * @param {string} actualTable
+ * @param {{ column_name: string }} geomRow
+ * @param {Map<string, { name: string, type: string, notnull: number, pk: number }>} actualByLowerName
+ * @param {string} expectedGeomSqliteType
+ * @param {string[]} errors
+ */
+function compareRegisteredGeometryColumnInTable(
+  actualTable,
+  geomRow,
+  actualByLowerName,
+  expectedGeomSqliteType,
+  errors
+) {
+  const geometryColumnsInTable = [...actualByLowerName.values()].filter((col) =>
+    isGeometrySqliteColumnType(col.type)
+  )
+
+  if (geometryColumnsInTable.length > 1) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS,
+        `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in the feature table but found ${geometryColumnsInTable.length}`
+      )
+    )
+    return
+  }
+
+  const registered = actualByLowerName.get(
+    String(geomRow.column_name).toLowerCase()
+  )
+  if (!registered) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
+        `Layer "${actualTable}" baseline mismatch: missing geometry column "${geomRow.column_name}"`
+      )
+    )
+    return
+  }
+
+  if (
+    !isGeometrySqliteColumnType(registered.type) ||
+    baselineSqliteTypeComparable(registered.type) !==
+      baselineSqliteTypeComparable(expectedGeomSqliteType)
+  ) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE,
+        formatColumnSQLiteTypeMismatchMessage(
+          actualTable,
+          geomRow.column_name,
+          registered.type,
+          expectedGeomSqliteType
+        )
       )
     )
   }
@@ -240,6 +276,9 @@ export function compareDefinedColumnsToSchema(
   errors
 ) {
   for (const col of layerDef.columns) {
+    if (isGeometrySqliteColumnType(col.sqliteType)) {
+      continue
+    }
     const key = String(col.name).toLowerCase()
     const actual = actualByLowerName.get(key)
     if (!actual) {
@@ -309,10 +348,9 @@ export function compareOneLayerToBaselineSchema(
 ) {
   compareGpkgContentsToLayerSchema(layerDef, actualTable, contentMeta, errors)
 
-  const geomRow = getGeometryColumnsRow(db, lowerTable)
-  const expectedGeomName = layerDef.geometryColumn.name
+  const geomRows = getGeometryColumnsRows(db, lowerTable)
 
-  if (!geomRow) {
+  if (geomRows.length === 0) {
     compareBaselineLayerSrs(layerDef, actualTable, contentMeta, null, errors)
     if (lowerTable === RLB_LYR) {
       // Red Line Boundary: GPKG_RLB_NO_GEOMETRY_COLUMN from validateRedLineBoundary
@@ -327,18 +365,43 @@ export function compareOneLayerToBaselineSchema(
       errors.push(
         makeError(
           ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING,
-          `Layer "${actualTable}" baseline mismatch: no row in gpkg_geometry_columns for geometry column "${expectedGeomName}"`
+          `Layer "${actualTable}" baseline mismatch: no geometry column registered in gpkg_geometry_columns`
         )
       )
     }
     return
   }
 
+  if (geomRows.length > 1) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS,
+        `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in gpkg_geometry_columns but found ${geomRows.length}`
+      )
+    )
+    return
+  }
+
+  const geomRow = geomRows[0]
+
   compareBaselineLayerSrs(layerDef, actualTable, contentMeta, geomRow, errors)
 
   compareGeometryRegistrationRow(layerDef, actualTable, geomRow, errors)
 
   const actualByLowerName = pragmaTableInfoByLowerName(db, actualTable)
+
+  const geometryColumnFromSchema = layerDef.columns.find((col) =>
+    isGeometrySqliteColumnType(col.sqliteType)
+  )
+  compareRegisteredGeometryColumnInTable(
+    actualTable,
+    geomRow,
+    actualByLowerName,
+    geometryColumnFromSchema?.sqliteType ??
+      layerDef.geometryColumn.geometryType,
+    errors
+  )
+
   compareDefinedColumnsToSchema(
     layerDef,
     actualTable,
