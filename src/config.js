@@ -191,6 +191,27 @@ const config = convict({
       default: 'eu-west-2',
       env: 'AWS_REGION'
     }
+  },
+  oidc: {
+    discoveryUrl: {
+      doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',
+      format: String,
+      default:
+        'http://localhost:3200/cdp-defra-id-stub/.well-known/openid-configuration',
+      env: 'OIDC_DISCOVERY_URL'
+    },
+    audience: {
+      doc: 'Expected JWT audience (the OIDC client id). Left empty against the cdp-defra-id-stub, whose tokens do not carry the client id as `aud` the way live B2C does; audience is only enforced when this is set.',
+      format: String,
+      default: '',
+      env: 'OIDC_AUDIENCE'
+    },
+    issuer: {
+      doc: 'Expected JWT issuer. Empty means derive it from the discovery document.',
+      format: String,
+      default: '',
+      env: 'OIDC_ISSUER'
+    }
   }
 })
 

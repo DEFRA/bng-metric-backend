@@ -10,10 +10,16 @@ import {
   assertCdpUploaderReachable,
   assertLocalStackPipelineReady
 } from './helpers/upload-fixtures.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const BUCKET = 'baseline-files'
+
+// A project seeded for these tests has a null relationship → visible to its
+// owner (the token subject), so a simple no-relationship token is enough.
+const seedUserId = `it-${randomUUID()}`
+let headers
 
 async function uploadFixture(server, fixtureName) {
   const initiated = await server.inject({
@@ -35,11 +41,11 @@ async function uploadFixture(server, fixtureName) {
 }
 
 async function assertHabitatSizesPersisted(server, dbClient) {
-  const userId = `it-${randomUUID()}`
   const created = await server.inject({
     method: 'POST',
     url: '/projects/new',
-    payload: { project: { name: 'Habitat sizes test' }, userId }
+    headers,
+    payload: { project: { name: 'Habitat sizes test' } }
   })
   expect(created.statusCode).toBe(HTTP_OK)
   const { id: projectId } = created.result
@@ -108,6 +114,7 @@ describe('POST /baseline/validate/{uploadId}', () => {
     await assertLocalStackPipelineReady()
     server = await startServer()
     dbClient = await connect()
+    headers = authHeaders(await mintToken({ sub: seedUserId }))
   })
 
   afterAll(async () => {

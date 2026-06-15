@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="19" author="bng-team">
+        <comment>
+            Create bng.users — one row per authenticated Defra ID user,
+            upserted on each successful login by src/db/persist-session.js.
+            user_id is the token `sub`.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.users (
+                user_id text PRIMARY KEY,
+                email text,
+                first_name text,
+                last_name text,
+                created timestamptz NOT NULL DEFAULT now(),
+                last_login timestamptz,
+                session_id text
+            );
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.users;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="20" author="bng-team">
+        <comment>
+            Create bng.relationships — the org relationships carried in a user's
+            Defra ID token. Upserted (never deleted) on each login, keyed on
+            (user_id, relationship_id). The named UNIQUE constraint is required
+            so onConflictDoUpdate has a real unique index to target.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.relationships (
+                user_id text NOT NULL
+                    REFERENCES bng.users(user_id) ON DELETE CASCADE,
+                relationship_id text NOT NULL,
+                org_id text,
+                org_name text,
+                relationship text,
+                last_updated timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT uq_relationships_user_rel
+                    UNIQUE (user_id, relationship_id)
+            );
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.relationships;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="21" author="bng-team">
+        <comment>
+            Create bng.roles — the roles (with status) carried in a user's Defra
+            ID token. Upserted (never deleted) on each login, keyed on
+            (user_id, relationship_id, name); removed access arrives naturally as
+            a status update (6/7). The (user_id, relationship_id) index backs the
+            RBAC visibility EXISTS join used by src/db/project-visibility.js.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.roles (
+                user_id text NOT NULL
+                    REFERENCES bng.users(user_id) ON DELETE CASCADE,
+                relationship_id text NOT NULL,
+                name text NOT NULL,
+                status smallint NOT NULL,
+                last_updated timestamptz NOT NULL DEFAULT now(),
+                CONSTRAINT uq_roles_user_rel_name
+                    UNIQUE (user_id, relationship_id, name)
+            );
+
+            CREATE INDEX idx_roles_user_rel
+                ON bng.roles (user_id, relationship_id);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.roles;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="22" author="bng-team">
+        <comment>
+            Stamp projects with the creating user's current org context so RBAC
+            can scope visibility to an approved relationship. Both columns are
+            nullable: legacy rows created before Defra ID RBAC have no
+            relationship and stay visible to their creator (user_id) only.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            ALTER TABLE bng.projects ADD COLUMN org_id text;
+            ALTER TABLE bng.projects ADD COLUMN relationship_id text;
+        </sql>
+        <rollback>
+            ALTER TABLE bng.projects DROP COLUMN IF EXISTS relationship_id;
+            ALTER TABLE bng.projects DROP COLUMN IF EXISTS org_id;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

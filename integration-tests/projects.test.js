@@ -3,19 +3,26 @@ import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
+const HTTP_UNAUTHORIZED = 401
 const HTTP_NOT_FOUND = 404
 const PROJECTS_NEW_URL = '/projects/new'
 
 let server
 let dbClient
+let headers
 const userId = `it-${randomUUID()}`
 
 beforeAll(async () => {
   server = await startServer()
   dbClient = await connect()
+  // No current relationship → created projects get a null relationship and stay
+  // visible to their owner (the token `sub`). RBAC role gating is exercised in
+  // defra-id-rbac.test.js.
+  headers = authHeaders(await mintToken({ sub: userId }))
   await truncateTestData(dbClient)
 })
 
@@ -32,14 +39,15 @@ async function createProject(name) {
   const res = await server.inject({
     method: 'POST',
     url: PROJECTS_NEW_URL,
-    payload: { project: { name }, userId }
+    headers,
+    payload: { project: { name } }
   })
   expect(res.statusCode).toBe(HTTP_OK)
   return res.result
 }
 
 describe('POST /projects/new', () => {
-  it('creates a project with a generated UUID', async () => {
+  it('creates a project with a generated UUID, owned by the token subject', async () => {
     const created = await createProject('New Project')
     expect(created.id).toMatch(
       /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/
@@ -48,11 +56,21 @@ describe('POST /projects/new', () => {
     expect(created.userId).toBe(userId)
   })
 
-  it('returns 400 when userId is missing', async () => {
+  it('returns 401 without a bearer token', async () => {
     const res = await server.inject({
       method: 'POST',
       url: PROJECTS_NEW_URL,
-      payload: { project: { name: 'No User' } }
+      payload: { project: { name: 'No token' } }
+    })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  it('returns 400 when a userId is supplied in the body', async () => {
+    const res = await server.inject({
+      method: 'POST',
+      url: PROJECTS_NEW_URL,
+      headers,
+      payload: { project: { name: 'With userId' }, userId }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
@@ -61,22 +79,32 @@ describe('POST /projects/new', () => {
     const res = await server.inject({
       method: 'POST',
       url: PROJECTS_NEW_URL,
-      payload: { userId }
+      headers,
+      payload: {}
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
 })
 
 describe('GET /projects', () => {
-  it('returns all projects', async () => {
+  it('returns only the requesting user’s visible projects', async () => {
     await createProject('First')
     await createProject('Second')
 
-    const res = await server.inject({ method: 'GET', url: '/projects' })
+    const res = await server.inject({
+      method: 'GET',
+      url: '/projects',
+      headers
+    })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toHaveLength(2)
     const names = res.result.map((p) => p.project.name).sort()
     expect(names).toEqual(['First', 'Second'])
+  })
+
+  it('returns 401 without a bearer token', async () => {
+    const res = await server.inject({ method: 'GET', url: '/projects' })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 })
 
@@ -85,7 +113,8 @@ describe('GET /projects/{id}', () => {
     const created = await createProject('Findable')
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${created.id}`
+      url: `/projects/${created.id}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.id).toBe(created.id)
@@ -95,7 +124,8 @@ describe('GET /projects/{id}', () => {
   it('returns 404 for an unknown UUID', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${randomUUID()}`
+      url: `/projects/${randomUUID()}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
@@ -103,9 +133,19 @@ describe('GET /projects/{id}', () => {
   it('returns 400 for a non-UUID id', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: '/projects/not-a-uuid'
+      url: '/projects/not-a-uuid',
+      headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+
+  it('returns 401 without a bearer token', async () => {
+    const created = await createProject('Needs token')
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${created.id}`
+    })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 })
 
@@ -128,19 +168,20 @@ describe('GET /projects/{projectId}/habitats/{featureId}', () => {
     const created = await server.inject({
       method: 'POST',
       url: PROJECTS_NEW_URL,
+      headers,
       payload: {
         project: {
           name: 'With baseline habitats',
           baseline: { habitats: [habitat] }
-        },
-        userId
+        }
       }
     })
     expect(created.statusCode).toBe(HTTP_OK)
 
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${created.result.id}/habitats/${featureId}`
+      url: `/projects/${created.result.id}/habitats/${featureId}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toEqual(habitat)
@@ -149,7 +190,8 @@ describe('GET /projects/{projectId}/habitats/{featureId}', () => {
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${randomUUID()}/habitats/${randomUUID()}`
+      url: `/projects/${randomUUID()}/habitats/${randomUUID()}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
@@ -158,7 +200,8 @@ describe('GET /projects/{projectId}/habitats/{featureId}', () => {
     const created = await createProject('Has no baseline')
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${created.id}/habitats/${randomUUID()}`
+      url: `/projects/${created.id}/habitats/${randomUUID()}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
@@ -167,7 +210,8 @@ describe('GET /projects/{projectId}/habitats/{featureId}', () => {
     const created = await createProject('Bad feature id')
     const res = await server.inject({
       method: 'GET',
-      url: `/projects/${created.id}/habitats/not-a-uuid`
+      url: `/projects/${created.id}/habitats/not-a-uuid`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
@@ -179,6 +223,7 @@ describe('PATCH /projects/{id}', () => {
     const res = await server.inject({
       method: 'PATCH',
       url: `/projects/${created.id}`,
+      headers,
       payload: { project: { name: 'Renamed' } }
     })
     expect(res.statusCode).toBe(HTTP_OK)
@@ -189,6 +234,7 @@ describe('PATCH /projects/{id}', () => {
     const res = await server.inject({
       method: 'PATCH',
       url: `/projects/${randomUUID()}`,
+      headers,
       payload: { project: { name: 'Renamed' } }
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
@@ -199,6 +245,7 @@ describe('PATCH /projects/{id}', () => {
     const res = await server.inject({
       method: 'PATCH',
       url: `/projects/${created.id}`,
+      headers,
       payload: { project: { name: '' } }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
@@ -208,8 +255,19 @@ describe('PATCH /projects/{id}', () => {
     const res = await server.inject({
       method: 'PATCH',
       url: '/projects/not-a-uuid',
+      headers,
       payload: { project: { name: 'X' } }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+
+  it('returns 401 without a bearer token', async () => {
+    const created = await createProject('Original')
+    const res = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${created.id}`,
+      payload: { project: { name: 'Renamed' } }
+    })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 })

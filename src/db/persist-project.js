@@ -58,27 +58,36 @@ function jsonbSet(target, path, value) {
 
 /**
  * Insert a new project document (POST /projects/new). Validates the whole
- * document against projectSchema. Returns the inserted row.
+ * document against projectSchema. The org context (orgId/relationshipId) is
+ * stamped from the creator's verified token by the route — they default to null
+ * for callers/tests that don't supply them. Returns the inserted row.
  */
-async function insertProject(db, { project, userId }) {
+async function insertProject(
+  db,
+  { project, userId, orgId = null, relationshipId = null }
+) {
   assertFragmentValid(projectSchema, project, 'project')
   const [row] = await db
     .insert(projects)
-    .values({ project, userId })
+    .values({ project, userId, orgId, relationshipId })
     .returning()
   return row
 }
 
 /**
  * Patch project.name only (PATCH /projects/{id}). Returns the updated row, or
- * null when no project matches the id.
+ * null when no project matches `where`.
+ *
+ * `where` defaults to matching the id alone; routes pass a stricter condition
+ * (id AND RBAC visibility) so a non-visible project updates nothing and the
+ * route returns 404 — without leaking existence.
  */
-async function setProjectName(exec, id, name) {
+async function setProjectName(exec, id, name, where = eq(projects.id, id)) {
   assertFragmentValid(projectSchema.extract('name'), name, 'project.name')
   const [row] = await exec
     .update(projects)
     .set({ project: jsonbSet(projects.project, ['name'], name) })
-    .where(eq(projects.id, id))
+    .where(where)
     .returning()
   return row ?? null
 }

@@ -116,9 +116,50 @@ One row per BNG project, holding the live project document plus its owner and ve
 | `id`                  | `uuid`                     | —        | PK  | —       |
 | `project`             | `jsonb`                    | —        | —   | —       |
 | `user_id`             | `text`                     | —        | —   | —       |
+| `org_id`              | `text`                     | ✓        | —   | —       |
+| `relationship_id`     | `text`                     | ✓        | —   | —       |
 | `bng_project_version` | `integer`                  | —        | —   | `1`     |
 | `created_at`          | `timestamp with time zone` | —        | —   | `now()` |
 | `updated_at`          | `timestamp with time zone` | —        | —   | `now()` |
+
+### `bng.relationships`
+
+The organisations a user is related to, taken from their Defra ID token and upserted on each login (one row per user's relationship).
+
+| Column            | Type                       | Nullable | Key                          | Default |
+| ----------------- | -------------------------- | -------- | ---------------------------- | ------- |
+| `user_id`         | `text`                     | —        | FK → `users.user_id`, UNIQUE | —       |
+| `relationship_id` | `text`                     | —        | UNIQUE                       | —       |
+| `org_id`          | `text`                     | ✓        | —                            | —       |
+| `org_name`        | `text`                     | ✓        | —                            | —       |
+| `relationship`    | `text`                     | ✓        | —                            | —       |
+| `last_updated`    | `timestamp with time zone` | —        | —                            | `now()` |
+
+### `bng.roles`
+
+The roles and their approval status a user holds per organisation relationship, upserted from the Defra ID token on each login; drives project access control.
+
+| Column            | Type                       | Nullable | Key                          | Default |
+| ----------------- | -------------------------- | -------- | ---------------------------- | ------- |
+| `user_id`         | `text`                     | —        | FK → `users.user_id`, UNIQUE | —       |
+| `relationship_id` | `text`                     | —        | UNIQUE                       | —       |
+| `name`            | `text`                     | —        | UNIQUE                       | —       |
+| `status`          | `smallint`                 | —        | —                            | —       |
+| `last_updated`    | `timestamp with time zone` | —        | —                            | `now()` |
+
+### `bng.users`
+
+One row per authenticated Defra ID user, upserted from the verified token on each login (identity and last sign-in).
+
+| Column       | Type                       | Nullable | Key | Default |
+| ------------ | -------------------------- | -------- | --- | ------- |
+| `user_id`    | `text`                     | —        | PK  | —       |
+| `email`      | `text`                     | ✓        | —   | —       |
+| `first_name` | `text`                     | ✓        | —   | —       |
+| `last_name`  | `text`                     | ✓        | —   | —       |
+| `created`    | `timestamp with time zone` | —        | —   | `now()` |
+| `last_login` | `timestamp with time zone` | ✓        | —   | —       |
+| `session_id` | `text`                     | ✓        | —   | —       |
 
 ## The `project` JSONB document
 

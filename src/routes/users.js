@@ -1,6 +1,7 @@
-import { asc, desc, eq, sql } from 'drizzle-orm'
+import { asc, desc, sql } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
+import { visibleToUser } from '../db/project-visibility.js'
 
 const orderDirections = { asc, desc }
 
@@ -16,14 +17,20 @@ const sortColumns = {
  *   get:
  *     tags:
  *       - Users
- *     summary: List projects for a user
+ *     summary: List the authenticated user's visible projects
+ *     description: |
+ *       The user is taken from the verified Bearer token (`sub`); the {userId}
+ *       path segment is retained for routing only and is not trusted. Returns
+ *       projects the user owns whose latest role for the project's relationship
+ *       is approved (status 3), plus their legacy projects with no relationship.
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: userId
  *         required: true
  *         schema:
  *           type: string
- *           format: uuid
  *       - in: query
  *         name: sort
  *         schema:
@@ -38,15 +45,20 @@ const sortColumns = {
  *           default: desc
  *     responses:
  *       200:
- *         description: Returns an array of projects belonging to the user
+ *         description: Returns an array of the user's visible projects
+ *       401:
+ *         description: Missing or invalid bearer token
  */
 const getUserProjects = {
   method: 'GET',
   path: '/users/{userId}/projects',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({
-        userId: Joi.string().uuid().required()
+        // Defra ID `sub` is not a UUID; the value is not trusted (we use the
+        // token `sub`), so accept any non-empty string for routing.
+        userId: Joi.string().required()
       }),
       query: Joi.object({
         sort: Joi.string()
@@ -57,13 +69,13 @@ const getUserProjects = {
     }
   },
   handler: async (request, _h) => {
-    const { userId } = request.params
+    const { sub } = request.auth.credentials
     const { sort, order } = request.query
 
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(eq(projects.userId, userId))
+      .where(visibleToUser(sub))
       .orderBy(orderDirections[order](sortColumns[sort]))
 
     return rows

@@ -21,6 +21,7 @@ import {
 } from './helpers/upload-fixtures.js'
 import { projectSchema } from '../src/validation/project.js'
 import { undeclaredPaths } from '../src/validation/data-dictionary-paths.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const BUCKET = 'baseline-files'
@@ -29,6 +30,7 @@ const UPLOAD_TIMEOUT_MS = 20_000
 
 let server
 let dbClient
+let headers
 const userId = `it-${randomUUID()}`
 
 beforeAll(async () => {
@@ -36,6 +38,8 @@ beforeAll(async () => {
   await assertLocalStackPipelineReady()
   server = await startServer()
   dbClient = await connect()
+  // Created project has a null relationship → visible to its owner (sub).
+  headers = authHeaders(await mintToken({ sub: userId }))
   await truncateTestData(dbClient)
 })
 
@@ -52,7 +56,8 @@ async function createProject(name) {
   const res = await server.inject({
     method: 'POST',
     url: '/projects/new',
-    payload: { project: { name }, userId }
+    headers,
+    payload: { project: { name } }
   })
   expect(res.statusCode).toBe(HTTP_OK)
   return res.result
@@ -111,6 +116,7 @@ describe('data dictionary coverage — persisted JSONB matches the schema', () =
     const editRes = await server.inject({
       method: 'PUT',
       url: `/projects/${project.id}/habitats/${target.featureId}`,
+      headers,
       payload: {
         broadType: 'Grassland',
         habitatType: 'Lowland meadows',

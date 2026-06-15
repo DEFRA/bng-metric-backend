@@ -79,7 +79,13 @@ const TABLE_DESCRIPTIONS = {
   'bng.post_intervention_hedgerows':
     'The mapped line of each post-intervention (proposed) hedgerow imported from the uploaded GeoPackage.',
   'bng.post_intervention_watercourses':
-    'The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.'
+    'The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.',
+  'bng.users':
+    'One row per authenticated Defra ID user, upserted from the verified token on each login (identity and last sign-in).',
+  'bng.relationships':
+    "The organisations a user is related to, taken from their Defra ID token and upserted on each login (one row per user's relationship).",
+  'bng.roles':
+    'The roles and their approval status a user holds per organisation relationship, upserted from the Defra ID token on each login; drives project access control.'
 }
 
 function formatDefault(column) {

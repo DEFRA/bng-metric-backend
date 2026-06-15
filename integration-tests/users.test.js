@@ -3,18 +3,24 @@ import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
+const HTTP_UNAUTHORIZED = 401
 
 let server
 let dbClient
+let headers
 const userId = randomUUID()
 const otherUserId = randomUUID()
 
 beforeAll(async () => {
   server = await startServer()
   dbClient = await connect()
+  // Identity comes from the token `sub`; the seeded projects have a null
+  // relationship so they are visible to their owner.
+  headers = authHeaders(await mintToken({ sub: userId }))
   await truncateTestData(dbClient)
 })
 
@@ -72,7 +78,8 @@ describe('GET /users/{userId}/projects sorting', () => {
     await seedThree()
     const res = await server.inject({
       method: 'GET',
-      url: `/users/${userId}/projects`
+      url: `/users/${userId}/projects`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.map((r) => r.project.name)).toEqual([
@@ -86,7 +93,8 @@ describe('GET /users/{userId}/projects sorting', () => {
     await seedThree()
     const res = await server.inject({
       method: 'GET',
-      url: `/users/${userId}/projects?sort=created_at&order=asc`
+      url: `/users/${userId}/projects?sort=created_at&order=asc`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.map((r) => r.project.name)).toEqual([
@@ -100,7 +108,8 @@ describe('GET /users/{userId}/projects sorting', () => {
     await seedThree()
     const res = await server.inject({
       method: 'GET',
-      url: `/users/${userId}/projects?sort=name&order=asc`
+      url: `/users/${userId}/projects?sort=name&order=asc`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.map((r) => r.project.name)).toEqual([
@@ -111,28 +120,33 @@ describe('GET /users/{userId}/projects sorting', () => {
   })
 
   it('returns an empty array for a user with no projects', async () => {
+    // The identity is the token subject, not the path param: a different user
+    // sees none of the seeded projects.
+    const otherHeaders = authHeaders(await mintToken({ sub: otherUserId }))
     const res = await server.inject({
       method: 'GET',
-      url: `/users/${otherUserId}/projects`
+      url: `/users/${otherUserId}/projects`,
+      headers: otherHeaders
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toEqual([])
   })
 })
 
-describe('GET /users/{userId}/projects validation', () => {
-  it('returns 400 for a non-UUID userId', async () => {
+describe('GET /users/{userId}/projects auth + validation', () => {
+  it('returns 401 without a bearer token', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: '/users/not-a-uuid/projects'
+      url: `/users/${userId}/projects`
     })
-    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 
   it('returns 400 for an invalid sort value', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: `/users/${userId}/projects?sort=bogus`
+      url: `/users/${userId}/projects?sort=bogus`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
