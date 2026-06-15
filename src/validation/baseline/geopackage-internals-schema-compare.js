@@ -264,6 +264,75 @@ export function pragmaTableInfoByLowerName(db, actualTable) {
 }
 
 /**
+ * @param {{ name: string, type: string, notnull: number, pk: number }} actual
+ * @param {{ name: string, sqliteType: string, notNull: boolean, primaryKey: boolean }} col
+ * @param {string} actualTable
+ * @param {string[]} errors
+ */
+function reportDefinedColumnShapeMismatches(actual, col, actualTable, errors) {
+  if (
+    baselineSqliteTypeComparable(actual.type) !==
+    baselineSqliteTypeComparable(col.sqliteType)
+  ) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE,
+        formatColumnSQLiteTypeMismatchMessage(
+          actualTable,
+          col.name,
+          actual.type,
+          col.sqliteType
+        )
+      )
+    )
+  }
+
+  if (!!actual.notnull !== !!col.notNull) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL,
+        `Layer "${actualTable}" baseline mismatch: column "${col.name}" NOT NULL (${col.notNull ? 'required' : 'optional'}) does not match file`
+      )
+    )
+  }
+
+  if (!!actual.pk !== !!col.primaryKey) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY,
+        `Layer "${actualTable}" baseline mismatch: primary key expectation for "${col.name}" does not match file`
+      )
+    )
+  }
+}
+
+/**
+ * @param {{ name: string, sqliteType: string, notNull: boolean, primaryKey: boolean }} col
+ * @param {string} actualTable
+ * @param {Map<string, { name: string, type: string, notnull: number, pk: number }>} actualByLowerName
+ * @param {string[]} errors
+ */
+function compareOneDefinedColumnToSchema(
+  col,
+  actualTable,
+  actualByLowerName,
+  errors
+) {
+  const actual = actualByLowerName.get(String(col.name).toLowerCase())
+  if (!actual) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
+        `Layer "${actualTable}" baseline mismatch: missing column "${col.name}"`
+      )
+    )
+    return
+  }
+
+  reportDefinedColumnShapeMismatches(actual, col, actualTable, errors)
+}
+
+/**
  * @param {{ columns: Array<{ name: string, sqliteType: string, notNull: boolean, primaryKey: boolean }> }} layerDef
  * @param {string} actualTable
  * @param {Map<string, { name: string, type: string, notnull: number, pk: number }>} actualByLowerName
@@ -277,54 +346,11 @@ export function compareDefinedColumnsToSchema(
 ) {
   for (const col of layerDef.columns) {
     if (isGeometrySqliteColumnType(col.sqliteType)) {
-      continue
-    }
-    const key = String(col.name).toLowerCase()
-    const actual = actualByLowerName.get(key)
-    if (!actual) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
-          `Layer "${actualTable}" baseline mismatch: missing column "${col.name}"`
-        )
-      )
+      // Geometry columns are validated separately from attribute columns.
       continue
     }
 
-    if (
-      baselineSqliteTypeComparable(actual.type) !==
-      baselineSqliteTypeComparable(col.sqliteType)
-    ) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE,
-          formatColumnSQLiteTypeMismatchMessage(
-            actualTable,
-            col.name,
-            actual.type,
-            col.sqliteType
-          )
-        )
-      )
-    }
-
-    if (!!actual.notnull !== !!col.notNull) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL,
-          `Layer "${actualTable}" baseline mismatch: column "${col.name}" NOT NULL (${col.notNull ? 'required' : 'optional'}) does not match file`
-        )
-      )
-    }
-
-    if (!!actual.pk !== !!col.primaryKey) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY,
-          `Layer "${actualTable}" baseline mismatch: primary key expectation for "${col.name}" does not match file`
-        )
-      )
-    }
+    compareOneDefinedColumnToSchema(col, actualTable, actualByLowerName, errors)
   }
 
   // Additional columns in the file beyond the baseline template are allowed (ignored).
