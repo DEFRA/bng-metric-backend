@@ -23,6 +23,8 @@ const LAYER_HEDGEROWS = 'Hedgerows'
 const LAYER_RIVERS = 'Rivers'
 
 const { ERROR_CODES } = await import('./errors.js')
+const { isGeometrySqliteColumnType } =
+  await import('./geopackage-internals-sqlite.js')
 const {
   compareOneLayerToBaselineSchema,
   validateRedLineBoundary,
@@ -237,6 +239,43 @@ describe('compareOneLayerToBaselineSchema — registered geometry column has wro
     const errors = compareLayerAgainstBaseline(
       db,
       habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    expect(
+      errors.some(
+        (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
+      )
+    ).toBe(true)
+    db.close()
+  })
+
+  it('falls back to geometryColumn.geometryType when the schema columns omit a geometry sqliteType', () => {
+    const layerWithoutGeometrySchemaColumn = {
+      ...habitatsLayer,
+      columns: habitatsLayer.columns.filter(
+        (col) => !isGeometrySqliteColumnType(col.sqliteType)
+      )
+    }
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      layerWithoutGeometrySchemaColumn.tableName,
+      layerWithoutGeometrySchemaColumn.srsId
+    )
+    db.exec(`CREATE TABLE "Habitats" (fid INTEGER PRIMARY KEY, geom POLYGON)`)
+    insertGpkgGeometryColumnsRow(
+      db,
+      layerWithoutGeometrySchemaColumn.tableName,
+      'geom',
+      layerWithoutGeometrySchemaColumn.geometryColumn.geometryType,
+      layerWithoutGeometrySchemaColumn.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      layerWithoutGeometrySchemaColumn,
       'habitats',
       EPSG_BNG
     )

@@ -244,11 +244,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
       })
     )
 
-    expect(
-      result.errors.some(
-        (e) => e.code === ERROR_CODES.GPKG_BASELINE_GEOMETRY_COLUMN_NAME
-      )
-    ).toBe(false)
+    expect(result.valid).toBe(true)
     expect(
       result.errors.some(
         (e) =>

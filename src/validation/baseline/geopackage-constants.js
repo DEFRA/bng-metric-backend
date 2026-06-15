@@ -32,6 +32,12 @@ export const GPKG_ENVELOPE_INDICATOR_MASK = 0x07
 /** After header + envelope: endian marker + geometry type integer */
 export const WKB_MIN_BYTES = 5
 
+/** Byte offset from the WKB slice start to the 32-bit geometry type code. */
+export const WKB_TYPE_CODE_OFFSET = 1
+
+/** Right-shift applied to the flags byte to read the envelope indicator. */
+export const GPKG_FLAGS_ENVELOPE_SHIFT = 1
+
 /** Envelope sizes by indicator — OGC gpb_format */
 export const GPKG_ENVELOPE_XY_BYTES = 32
 export const GPKG_ENVELOPE_XYZ_BYTES = 48
@@ -112,4 +118,29 @@ export const LINESTRING_WKB_TYPES = new Set([
   WKB_MULTI_LINE_STRING_M,
   WKB_LINE_STRING_ZM,
   WKB_MULTI_LINE_STRING_ZM
+])
+
+/** GeoPackage feature tables and gpkg_geometry_columns declare exactly one geometry column. */
+export const EXPECTED_GEOMETRY_COLUMN_COUNT = 1
+
+/**
+ * Uppercase GeoPackage Annex G geometry type names (Tables 30–31).
+ * @see https://www.geopackage.org/spec/#geometry_types
+ */
+export const GEOPACKAGE_GEOMETRY_TYPE_NAMES = Object.freeze([
+  'GEOMETRY',
+  'POINT',
+  'LINESTRING',
+  'POLYGON',
+  'MULTIPOINT',
+  'MULTILINESTRING',
+  'MULTIPOLYGON',
+  'GEOMETRYCOLLECTION',
+  'CIRCULARSTRING',
+  'COMPOUNDCURVE',
+  'CURVEPOLYGON',
+  'MULTICURVE',
+  'MULTISURFACE',
+  'CURVE',
+  'SURFACE'
 ])
