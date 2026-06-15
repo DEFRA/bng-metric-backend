@@ -72,13 +72,24 @@ function geometryRegCompareErrors(regRow) {
 }
 
 describe('compareGeometryRegistrationRow', () => {
-  it('reports a GPKG_BASELINE_GEOMETRY_COLUMN_NAME error when column name does not match', () => {
+  it('accepts any safe geometry column name', () => {
     const errors = geometryRegCompareErrors({
-      column_name: 'wrong_geom',
+      column_name: 'shape',
       geometry_type_name: 'MULTIPOLYGON',
       geom_srs_raw: EPSG_BNG
     })
-    expect(errors[0].message).toMatch(/must be "geom"/)
+    expect(errors).toEqual([])
+  })
+
+  it('reports GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME when the name is not a safe SQLite identifier', () => {
+    const errors = geometryRegCompareErrors({
+      column_name: 'geom-bad',
+      geometry_type_name: 'MULTIPOLYGON',
+      geom_srs_raw: EPSG_BNG
+    })
+    expect(errors[0].code).toBe(
+      ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME
+    )
   })
 
   it('reports a GPKG_BASELINE_GEOMETRY_TYPE_NAME error when geometry type does not match', () => {
@@ -247,14 +258,11 @@ describe('compareDefinedColumnsToSchema (affinity BLOB NUMERIC)', () => {
   })
 })
 
-describe('compareDefinedColumnsToSchema (affinity MULTIPOLYGON label)', () => {
-  it('uses MultiPolygon geometry label vs Integer actual', () => {
+describe('compareDefinedColumnsToSchema (geometry columns)', () => {
+  it('skips geometry columns — validated separately from attribute columns', () => {
     const layer = { columns: [schemaCol('g', 'MULTIPOLYGON')] }
     const map = new Map([['g', pragma('g', 'INTEGER')]])
-    const e = firstSqliteTypeMismatch(runCompareColumns(layer, 'GeoLayer', map))
-    expect(e).toBeDefined()
-    expect(e.message).toContain('Integer data type')
-    expect(e.message).toContain('MultiPolygon geometry')
+    expect(runCompareColumns(layer, 'GeoLayer', map)).toEqual([])
   })
 })
 

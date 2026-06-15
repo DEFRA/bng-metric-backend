@@ -11,6 +11,7 @@ import {
   LAYER_HABITATS,
   LAYER_RLB,
   buildBuffer,
+  mutateSerializedBuffer,
   makeCorruptBlob,
   makeInvalidEnvelopeBlob,
   makeLineString,
@@ -187,7 +188,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
     )
   })
 
-  it('returns GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME when Red Line Boundary column name is not a safe SQLite identifier', () => {
+  it('returns GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME when Red Line Boundary column name is not a safe SQLite identifier', () => {
     const result = validateGpkg(
       buildBuffer({
         appId: GP10_APP_ID,
@@ -199,28 +200,86 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
-    expect(result.errors[0].code).toBe('GPKG_RLB_INVALID_GEOMETRY_COLUMN_NAME')
-    expect(result.errors[0].message).toBe(
-      'Red Line Boundary geometry column has an invalid name in gpkg_geometry_columns'
+    expect(result.errors[0].code).toBe(
+      'GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME'
+    )
+    expect(result.errors[0].message).toContain(
+      'invalid name in gpkg_geometry_columns'
     )
   })
 
   it('returns structured invalid (not a throw) when gpkg_geometry_columns names a safe column absent from the RLB table', () => {
+    const buffer = mutateSerializedBuffer(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS
+      }),
+      (db) => {
+        db.prepare(
+          `UPDATE gpkg_geometry_columns
+              SET column_name = 'wrong_geom'
+            WHERE table_name = ?`
+        ).run(LAYER_RLB)
+      }
+    )
+    const result = validateGpkg(buffer)
+
+    expect(result.valid).toBe(false)
+    expect(
+      result.errors.some((e) => e.code === 'GPKG_BASELINE_MISSING_COLUMN')
+    ).toBe(true)
+    expect(
+      result.errors.some((e) => String(e.message).includes('wrong_geom'))
+    ).toBe(true)
+  })
+
+  it('accepts Red Line Boundary when the geometry column is named geom', () => {
     const result = validateGpkg(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ALL_LAYERS,
-        rlbGeomColumnName: 'wrong_geom'
+        rlbGeomColumnName: 'geom'
       })
     )
 
+    expect(
+      result.errors.some(
+        (e) => e.code === ERROR_CODES.GPKG_BASELINE_GEOMETRY_COLUMN_NAME
+      )
+    ).toBe(false)
+    expect(
+      result.errors.some(
+        (e) =>
+          e.code === 'GPKG_BASELINE_MISSING_COLUMN' &&
+          String(e.message).includes('"geometry"')
+      )
+    ).toBe(false)
+  })
+})
+
+describe('validateGpkg when a feature layer has multiple geometry columns in the table', () => {
+  it('returns GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS', () => {
+    const buffer = mutateSerializedBuffer(
+      buildBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS
+      }),
+      (db) => {
+        db.exec(`ALTER TABLE "${LAYER_HABITATS}" ADD COLUMN geom2 MULTIPOLYGON`)
+      }
+    )
+    const result = validateGpkg(buffer)
+
     expect(result.valid).toBe(false)
     expect(
-      result.errors.some((e) => e.code === 'GPKG_BASELINE_GEOMETRY_COLUMN_NAME')
-    ).toBe(true)
-    expect(
-      result.errors.some((e) => String(e.message).includes('wrong_geom'))
+      result.errors.some(
+        (e) =>
+          e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS &&
+          String(e.message).includes('feature table')
+      )
     ).toBe(true)
   })
 })
