@@ -28,6 +28,15 @@ const ROLE_STATUS = Object.freeze({
 
 const ROLE_STATUS_APPROVED = ROLE_STATUS.COMPLETE_APPROVED
 
+// Valid enrolment status codes span PENDING (1) – LOCKED (7). A status outside
+// that range — or a non-numeric one — is not a real Defra Identity status, so the
+// role is dropped rather than coerced. The CDP Defra ID stub's interactive
+// registration UI emits word labels ("complete", "pending", …) instead of codes;
+// without this guard Number() turns them into NaN, which then fails to bind to the
+// notNull smallint `status` column (invalid input syntax for type smallint: "NaN").
+const ROLE_STATUS_MIN = ROLE_STATUS.PENDING
+const ROLE_STATUS_MAX = ROLE_STATUS.LOCKED
+
 // Fixed fields at the front (relationshipId, organisationId) and back
 // (organisationLoa, relationship, relationshipLoa) of a relationship string.
 const RELATIONSHIP_LEADING_FIELDS = 2
@@ -68,6 +77,20 @@ function parseRelationship(entry) {
   }
 }
 
+// Coerce the trailing status field to a number, but only when it is a clean
+// integer in the valid 1–7 range. Returns null for anything else (non-numeric,
+// empty, out of range) so the role is dropped rather than persisted as NaN.
+function parseStatus(raw) {
+  if (!/^\d+$/.test(raw)) {
+    return null
+  }
+  const status = Number(raw)
+  if (status < ROLE_STATUS_MIN || status > ROLE_STATUS_MAX) {
+    return null
+  }
+  return status
+}
+
 function parseRole(entry) {
   if (typeof entry !== 'string') {
     return null
@@ -76,10 +99,14 @@ function parseRole(entry) {
   if (parts.length < ROLE_MIN_FIELDS) {
     return null
   }
+  const status = parseStatus(parts[parts.length - 1])
+  if (status === null) {
+    return null
+  }
   return {
     relationshipId: parts[0],
     name: parts.slice(1, parts.length - 1).join(':'),
-    status: Number(parts[parts.length - 1])
+    status
   }
 }
 

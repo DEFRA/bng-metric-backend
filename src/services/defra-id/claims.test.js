@@ -97,6 +97,34 @@ describe('parseRoles', () => {
     expect(parseRoles({ roles: ['bad'] })).toEqual([])
     expect(parseRoles({})).toEqual([])
   })
+
+  test('drops a role whose status is a non-numeric word (never NaN)', () => {
+    // The CDP Defra ID stub's registration UI emits word labels as the status
+    // segment, e.g. "123:bng completer:complete". Number() of that is NaN, which
+    // previously failed to bind to the smallint status column.
+    const claims = {
+      roles: [
+        roleString('123', 'bng completer', 'complete'),
+        roleString(REL_A, 'bng completer', ROLE_STATUS.COMPLETE_APPROVED)
+      ]
+    }
+    const result = parseRoles(claims)
+    expect(result).toEqual([
+      { relationshipId: REL_A, name: 'bng completer', status: 3 }
+    ])
+    expect(result.every((role) => Number.isInteger(role.status))).toBe(true)
+  })
+
+  test('drops a role whose status is out of the 1–7 range or empty', () => {
+    const claims = {
+      roles: [
+        roleString(REL_A, 'bng completer', '0'),
+        roleString(REL_B, 'bng completer', '8'),
+        roleString(REL_A, 'bng completer', '')
+      ]
+    }
+    expect(parseRoles(claims)).toEqual([])
+  })
 })
 
 describe('currentOrgContext', () => {
