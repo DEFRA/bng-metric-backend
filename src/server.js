@@ -45,9 +45,8 @@ async function createServer() {
   // secureContext  - loads CA certificates from environment config
   // postgres       - connection pool for PostgreSQL (must be after secureContext)
   // pulse          - provides shutdown handlers
-  // authJwt        - 'defra-jwt' scheme/strategy (must be BEFORE router, since
-  //                  routes reference auth: 'defra-jwt' at registration time)
-  // router         - routes used in the app
+  // authJwt        - 'defra-jwt' scheme/strategy (must be registered BEFORE the
+  //                  default is set and before the router adds routes)
   await server.register([
     requestLogger,
     requestTracing,
@@ -68,9 +67,20 @@ async function createServer() {
     {
       plugin: authJwt.plugin,
       options: resolveOidcAuthOptions()
-    },
-    router
+    }
   ])
+
+  // Secure by default: every route requires the 'defra-jwt' strategy unless it
+  // explicitly opts out with `auth: false`. Set here — at the root realm, after
+  // the strategy is registered but BEFORE the router adds any routes — so the
+  // default applies to all of them. A new route is therefore protected by
+  // omission; forgetting to add auth fails closed, not open. The small set of
+  // intentionally public routes (/health, /reference/*) opt out with
+  // `auth: false` and are pinned by integration-tests/auth-coverage.test.js.
+  // See docs/auth-route-policy.md.
+  server.auth.default('defra-jwt')
+
+  await server.register([router])
 
   return server
 }

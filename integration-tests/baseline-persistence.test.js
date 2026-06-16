@@ -60,6 +60,7 @@ async function uploadFixture(fixtureName) {
   const initiated = await server.inject({
     method: 'POST',
     url: '/upload/initiate',
+    headers,
     payload: { redirect: '/done', s3Bucket: BUCKET, s3Path: 'baseline/' }
   })
   expect(initiated.statusCode).toBe(HTTP_OK)
@@ -70,7 +71,8 @@ async function uploadFixture(fixtureName) {
   })
   await waitForUploadStatus(server, uploadId, {
     target: 'ready',
-    timeoutMs: 20_000
+    timeoutMs: 20_000,
+    headers
   })
   return uploadId
 }
@@ -79,6 +81,7 @@ async function callValidate(uploadId, payload) {
   return server.inject({
     method: 'POST',
     url: `/baseline/validate/${uploadId}`,
+    headers,
     payload
   })
 }
@@ -87,6 +90,7 @@ async function callPostInterventionValidate(uploadId, payload) {
   return server.inject({
     method: 'POST',
     url: `/post-intervention/validate/${uploadId}`,
+    headers,
     payload
   })
 }

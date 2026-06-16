@@ -44,7 +44,6 @@ const router = {
     register: async (server, _options) => {
       server.route([
         health,
-        dbInfo,
         postAuthSession,
         getProjects,
         getProject,
@@ -70,6 +69,13 @@ const router = {
         getWatercourseEncroachments,
         getTradingRules
       ])
+
+      // /db-info is a DB-introspection diagnostic — keep it out of the
+      // production route table entirely (it is removed, not just access-gated).
+      // See docs/auth-route-policy.md.
+      if (config.get('cdpEnvironment') !== 'prod') {
+        server.route(dbInfo)
+      }
 
       // Swagger API documentation (opt-in via USE_SWAGGER env var)
       if (config.get('useSwagger')) {

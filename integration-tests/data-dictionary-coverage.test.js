@@ -67,6 +67,7 @@ async function uploadFixture(fixtureName) {
   const initiated = await server.inject({
     method: 'POST',
     url: '/upload/initiate',
+    headers,
     payload: { redirect: '/done', s3Bucket: BUCKET, s3Path: 'baseline/' }
   })
   expect(initiated.statusCode).toBe(HTTP_OK)
@@ -74,7 +75,8 @@ async function uploadFixture(fixtureName) {
   await uploadViaCdpUploader({ uploadUrl, filePath: fixturePath(fixtureName) })
   await waitForUploadStatus(server, uploadId, {
     target: 'ready',
-    timeoutMs: UPLOAD_TIMEOUT_MS
+    timeoutMs: UPLOAD_TIMEOUT_MS,
+    headers
   })
   return uploadId
 }
@@ -102,6 +104,7 @@ describe('data dictionary coverage — persisted JSONB matches the schema', () =
     await server.inject({
       method: 'POST',
       url: `/baseline/validate/${uploadId}`,
+      headers,
       payload: { projectId: project.id }
     })
 
