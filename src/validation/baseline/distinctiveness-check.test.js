@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { checkBaselineDistinctiveness } from './distinctiveness-check.js'
+import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { ERROR_CODES } from './errors.js'
 
 const HABITAT_HIGH = 'Woodland and forest - Wet woodland'
@@ -20,7 +20,7 @@ function area(habitatType, extra = {}) {
   }
 }
 
-describe('checkBaselineDistinctiveness — in-scope habitats', () => {
+describe('checkHabitatDistinctiveness — in-scope habitats', () => {
   it('returns null when every habitat is Medium / Low / Very Low', () => {
     const layers = {
       areas: [
@@ -29,29 +29,29 @@ describe('checkBaselineDistinctiveness — in-scope habitats', () => {
         area('Urban - Developed land; sealed surface') // V.Low
       ]
     }
-    expect(checkBaselineDistinctiveness(layers)).toBeNull()
+    expect(checkHabitatDistinctiveness(layers)).toBeNull()
   })
 
   it('returns null when the areas layer is missing or empty', () => {
-    expect(checkBaselineDistinctiveness({})).toBeNull()
-    expect(checkBaselineDistinctiveness({ areas: [] })).toBeNull()
-    expect(checkBaselineDistinctiveness(null)).toBeNull()
+    expect(checkHabitatDistinctiveness({})).toBeNull()
+    expect(checkHabitatDistinctiveness({ areas: [] })).toBeNull()
+    expect(checkHabitatDistinctiveness(null)).toBeNull()
   })
 
   it('returns null when habitat types are unrecognised (schema check upstream owns that)', () => {
     const layers = {
       areas: [area('Some made-up habitat that is not in the reference table')]
     }
-    expect(checkBaselineDistinctiveness(layers)).toBeNull()
+    expect(checkHabitatDistinctiveness(layers)).toBeNull()
   })
 })
 
-describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
+describe('checkHabitatDistinctiveness — out-of-scope habitats', () => {
   it('rejects a High distinctiveness habitat with code + parcel ref in message', () => {
     const layers = {
       areas: [area(HABITAT_HIGH, { 'Parcel Ref': 'PR-A', fid: 1 })]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err).not.toBeNull()
     expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
     expect(err.message).toContain('Feature Ref PR-A')
@@ -72,7 +72,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
     const layers = {
       areas: [area(HABITAT_VHIGH, { 'Parcel Ref': 'PR-B', fid: 2 })]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
     expect(err.details.sample[0].distinctiveness).toBe('V.High')
     expect(err.details.sample[0].habitat_type).toBe(HABITAT_VHIGH)
@@ -87,7 +87,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
         area(HABITAT_VHIGH, { 'Parcel Ref': 'PR-2' })
       ]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err.details.count).toBe(2)
     expect(err.details.sample.map((s) => s.feature_ref)).toEqual([
       'PR-1',
@@ -103,7 +103,7 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
     const offenders = Array.from({ length: OFFENDER_TOTAL }, (_, i) =>
       area(HABITAT_HIGH, { 'Parcel Ref': `PR-${i}` })
     )
-    const err = checkBaselineDistinctiveness({ areas: offenders })
+    const err = checkHabitatDistinctiveness({ areas: offenders })
     expect(err.details.count).toBe(OFFENDER_TOTAL)
     expect(err.details.sample).toHaveLength(SAMPLE_CAP)
     expect(err.message).toMatch(
@@ -112,12 +112,12 @@ describe('checkBaselineDistinctiveness — out-of-scope habitats', () => {
   })
 })
 
-describe('checkBaselineDistinctiveness — feature label and property fallbacks', () => {
+describe('checkHabitatDistinctiveness — feature label and property fallbacks', () => {
   it('falls back to fid when Parcel Ref is missing', () => {
     const layers = {
       areas: [area(HABITAT_HIGH, { fid: 7 })]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err.message).toMatch(/fid 7/)
     expect(err.details.sample[0].feature_ref).toBeNull()
     expect(err.details.sample[0].fid).toBe('7')
@@ -127,7 +127,7 @@ describe('checkBaselineDistinctiveness — feature label and property fallbacks'
     const layers = {
       areas: [area(HABITAT_HIGH)]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err.message).toMatch(/feature #0/)
   })
 
@@ -142,13 +142,13 @@ describe('checkBaselineDistinctiveness — feature label and property fallbacks'
         }
       ]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err).not.toBeNull()
     expect(err.details.sample[0].feature_ref).toBe('PR-U')
   })
 })
 
-describe('checkBaselineDistinctiveness — real GeoPackage column layout', () => {
+describe('checkHabitatDistinctiveness — real GeoPackage column layout', () => {
   // Real QGIS-authored GeoPackages split the habitat name across two columns:
   // Baseline Broad Habitat Type holds "Grassland", Baseline Habitat Type holds
   // "Lowland meadows". The lookup needs to combine them; before the fix the
@@ -167,7 +167,7 @@ describe('checkBaselineDistinctiveness — real GeoPackage column layout', () =>
         }
       ]
     }
-    const err = checkBaselineDistinctiveness(layers)
+    const err = checkHabitatDistinctiveness(layers)
     expect(err).not.toBeNull()
     expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
     expect(err.details.sample[0]).toEqual({
@@ -190,6 +190,69 @@ describe('checkBaselineDistinctiveness — real GeoPackage column layout', () =>
         }
       ]
     }
-    expect(checkBaselineDistinctiveness(layers)).toBeNull()
+    expect(checkHabitatDistinctiveness(layers)).toBeNull()
+  })
+})
+
+describe('checkHabitatDistinctiveness — post-intervention variant', () => {
+  // The High/Very-High exclusion is a whole-service scope limit, so for the
+  // post-intervention document the check must read the Proposed* columns and
+  // gate them the same way it gates Baseline* columns.
+  it('rejects an out-of-scope Proposed habitat when variant is postIntervention', () => {
+    const layers = {
+      areas: [
+        {
+          properties: {
+            'Proposed Broad Habitat Type': 'Grassland',
+            'Proposed Habitat Type': 'Lowland meadows', // V.High
+            'Parcel Ref': 'PR-A',
+            fid: 1
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers, 'postIntervention')
+    expect(err).not.toBeNull()
+    expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
+    expect(err.details.sample[0]).toEqual({
+      idx: 0,
+      fid: '1',
+      feature_ref: 'PR-A',
+      habitat_type: 'Grassland - Lowland meadows',
+      distinctiveness: 'V.High'
+    })
+  })
+
+  it('ignores the Baseline* columns when checking the post-intervention variant', () => {
+    // Baseline columns are out-of-scope, Proposed columns are in-scope: the
+    // post-intervention check must follow the Proposed columns and pass.
+    const layers = {
+      areas: [
+        {
+          properties: {
+            'Baseline Broad Habitat Type': 'Grassland',
+            'Baseline Habitat Type': 'Lowland meadows', // V.High — must be ignored
+            'Proposed Broad Habitat Type': 'Grassland',
+            'Proposed Habitat Type': 'Modified grassland' // Low — in scope
+          }
+        }
+      ]
+    }
+    expect(checkHabitatDistinctiveness(layers, 'postIntervention')).toBeNull()
+  })
+
+  it('still reads Baseline* columns for the default (baseline) variant', () => {
+    const layers = {
+      areas: [
+        {
+          properties: {
+            'Baseline Broad Habitat Type': 'Grassland',
+            'Baseline Habitat Type': 'Lowland meadows', // V.High
+            'Proposed Habitat Type': 'Modified grassland' // in scope, ignored
+          }
+        }
+      ]
+    }
+    expect(checkHabitatDistinctiveness(layers)).not.toBeNull()
   })
 })

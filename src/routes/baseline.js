@@ -234,7 +234,11 @@ async function runFullValidation(
   try {
     await fs.writeFile(localPath, buffer)
     const layers = readBaselineGeoPackage(localPath)
-    const result = await validateBaselineLayers(layers, pgPool)
+    const result = await validateBaselineLayers(
+      layers,
+      pgPool,
+      config.projectDocumentKey
+    )
     if (!result.valid) {
       logger.info(
         `${config.routeName} - rejected uploadId ${uploadId}: ${result.errors

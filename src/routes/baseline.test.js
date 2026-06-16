@@ -307,7 +307,11 @@ describe('validateBaseline handler — pipeline calls', () => {
       h
     )
     expect(readBaselineGeoPackage).toHaveBeenCalled()
-    expect(validateBaselineLayers).toHaveBeenCalledWith(STUB_LAYERS, undefined)
+    expect(validateBaselineLayers).toHaveBeenCalledWith(
+      STUB_LAYERS,
+      undefined,
+      'baseline'
+    )
   })
 })
 

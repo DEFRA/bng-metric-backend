@@ -156,23 +156,32 @@ const BROAD_TYPE_SEPARATOR = ' - '
 /**
  * Build the habitat lookup key used by getDistinctiveness — the full
  * "<broad> - <type>" string the reference table is keyed on. Real
- * QGIS-authored GeoPackages split this across two columns
- * (Baseline Broad Habitat Type + Baseline Habitat Type), so we read both
- * and concatenate. Some legacy fixtures (and a few inputs in the wild)
- * already store the full name in Baseline Habitat Type; those are passed
- * through unchanged so the lookup still works.
+ * QGIS-authored GeoPackages split this across two columns (broad habitat +
+ * habitat type), so we read both and concatenate. Some legacy fixtures (and a
+ * few inputs in the wild) already store the full name in the habitat-type
+ * column; those are passed through unchanged so the lookup still works.
+ *
+ * `keys` selects which columns to read (Baseline* vs Proposed*) so the same
+ * lookup works for both the baseline and post-intervention documents; it
+ * defaults to the baseline columns.
  *
  * Returns null when neither column carries a usable value.
+ *
+ * @param {object} properties
+ * @param {{ habitatType: string[], broadHabitat: string[] }} [keys]
  */
-export function buildHabitatLookupKey(properties) {
-  const habitatType = pickProp(properties, PROP_KEYS.habitatType)
+export function buildHabitatLookupKey(
+  properties,
+  keys = featureKeysForVariant()
+) {
+  const habitatType = pickProp(properties, keys.habitatType)
   if (!habitatType || typeof habitatType !== 'string') {
     return null
   }
   if (habitatType.includes(BROAD_TYPE_SEPARATOR)) {
     return habitatType
   }
-  const broad = pickProp(properties, PROP_KEYS.broadHabitat)
+  const broad = pickProp(properties, keys.broadHabitat)
   if (!broad || typeof broad !== 'string') {
     return habitatType
   }
