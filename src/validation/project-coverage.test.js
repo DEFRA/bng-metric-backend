@@ -164,6 +164,108 @@ describe('project JSONB data-dictionary coverage', () => {
     expect(error).toBeUndefined()
   })
 
+  it('the post-intervention upload path (Proposed columns) persists only schema-declared fields', () => {
+    // Same shape as the baseline build, but the engine-relevant values live in
+    // the Proposed* columns and extraction runs with variant: postIntervention.
+    const layers = {
+      redline: [
+        {
+          featureId: FEATURE_ID_RED,
+          properties: { 'Site Name': 'Site', Area: 5000 },
+          nativeGeometry: {},
+          nativeSrid: BNG_SRID
+        }
+      ],
+      areas: [
+        {
+          featureId: FEATURE_ID_HAB,
+          properties: {
+            'Parcel Ref': 'P1',
+            'Proposed Broad Habitat Type': 'Grassland',
+            'Proposed Habitat Type': 'Lowland meadows',
+            'Proposed Condition': 'Good',
+            'Proposed Strategic Significance': 'High',
+            'Proposed Distinctiveness': 'High',
+            'Retention Category': 'Created'
+          },
+          nativeGeometry: {},
+          nativeSrid: BNG_SRID
+        }
+      ],
+      hedgerows: [
+        {
+          featureId: FEATURE_ID_HEDGE,
+          properties: {
+            'Parcel Ref': 'H1',
+            'Proposed Hedge Type': 'Native hedgerow',
+            'Proposed Condition': 'Good'
+          },
+          nativeGeometry: {},
+          nativeSrid: BNG_SRID
+        }
+      ],
+      watercourses: [
+        {
+          featureId: FEATURE_ID_WATER,
+          properties: {
+            'Parcel Ref': 'W1',
+            'Proposed River Type': 'Ditches',
+            'Proposed Condition': 'Good',
+            'Proposed Encroachment into Watercourse': 'No Encroachment',
+            'Proposed Encroachment into riparian zone':
+              'No Encroachment/No Encroachment'
+          },
+          nativeGeometry: {},
+          nativeSrid: BNG_SRID
+        }
+      ]
+    }
+
+    const meta = {
+      uploadId: UPLOAD_ID,
+      filename: 'post-intervention.gpkg',
+      fileSize: 1024,
+      importedAt: '2026-01-01T00:00:00.000Z',
+      variant: 'postIntervention',
+      habitatSizes: {
+        areaHabitats: {
+          individualSquareMetres: [
+            { featureId: FEATURE_ID_HAB, sizeSquareMetres: ONE_HECTARE_SQM }
+          ],
+          totalSquareMetres: ONE_HECTARE_SQM
+        },
+        hedgerows: {
+          individualMetres: [
+            { featureId: FEATURE_ID_HEDGE, sizeMetres: HEDGE_METRES }
+          ],
+          totalMetres: HEDGE_METRES
+        },
+        watercourses: {
+          individualMetres: [
+            { featureId: FEATURE_ID_WATER, sizeMetres: WATER_METRES }
+          ],
+          totalMetres: WATER_METRES
+        }
+      }
+    }
+
+    const { document } = extractBaseline(layers, meta)
+    enrichBaselineDocumentWithUnits(document)
+
+    // Proposed values landed in the named fields (not the Baseline* columns).
+    expect(document.habitats[0]).toEqual(
+      expect.objectContaining({
+        type: 'Lowland meadows',
+        strategicSignificance: 'High',
+        rawDistinctiveness: 'High'
+      })
+    )
+
+    expect(undeclaredPaths(document, habitatDataSchema)).toEqual([])
+    const { error } = habitatDataSchema.validate(document)
+    expect(error).toBeUndefined()
+  })
+
   it('the feature-edit paths persist only schema-declared fields', () => {
     // recompute* are the source of the derived fields applyFeatureUpdate merges
     // onto a feature and writes back. Both the complete and soft-fail branches

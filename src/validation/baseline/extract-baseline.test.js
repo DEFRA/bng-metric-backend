@@ -829,3 +829,292 @@ describe('extractBaseline — habitat status', () => {
     )
   })
 })
+
+describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', () => {
+  const METADATA_ROW = {
+    'Site Name': 'Meadow Farm',
+    'Survey Date': '2026-01-15',
+    'Survey Details': 'Walkover survey',
+    'Mapped by': 'A. Surveyor',
+    Company: 'Ecology Ltd',
+    'Base Map': 'OS MasterMap',
+    Location: 'Field 3',
+    'Spatial risk category': 'Low',
+    'Habitat created in advance/years': '2',
+    'Delay in starting habitat creation/years': '1',
+    'Baseline Distinctiveness': 'Medium'
+  }
+
+  const EXPECTED_METADATA = {
+    siteName: 'Meadow Farm',
+    surveyDate: '2026-01-15',
+    surveyDetails: 'Walkover survey',
+    mappedBy: 'A. Surveyor',
+    company: 'Ecology Ltd',
+    baseMap: 'OS MasterMap',
+    location: 'Field 3',
+    spatialRiskCategory: 'Low',
+    habitatCreatedInAdvanceYears: '2',
+    delayInStartingHabitatCreationYears: '1',
+    rawDistinctiveness: 'Medium'
+  }
+
+  it('promotes metadata onto area habitats (Comment column)', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [
+        feature({ [PARCEL_REF]: 'P1', ...METADATA_ROW, Comment: 'Note' })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0]).toEqual(
+      expect.objectContaining({ ...EXPECTED_METADATA, comment: 'Note' })
+    )
+  })
+
+  it('promotes metadata plus strategic significance and retention onto hedgerows (Comments column)', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'H1',
+            'Baseline Strategic Significance': 'High',
+            'Retention Category': 'Retained',
+            Comments: 'Hedge note',
+            ...METADATA_ROW
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: []
+    })
+
+    expect(out.document.hedgerows[0]).toEqual(
+      expect.objectContaining({
+        ...EXPECTED_METADATA,
+        comment: 'Hedge note',
+        strategicSignificance: 'High',
+        retentionCategory: 'Retained'
+      })
+    )
+  })
+
+  it('promotes metadata, strategic significance, retention and enhancement type onto watercourses', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            'Baseline Strategic Significance': 'High',
+            'Retention Category': 'Retained',
+            'Enhancement Type': 'Re-meandering',
+            Comments: 'River note',
+            ...METADATA_ROW
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0]).toEqual(
+      expect.objectContaining({
+        ...EXPECTED_METADATA,
+        comment: 'River note',
+        strategicSignificance: 'High',
+        retentionCategory: 'Retained',
+        enhancementType: 'Re-meandering'
+      })
+    )
+  })
+
+  it('promotes siteName and area onto the red line, leaving them null when absent', () => {
+    const withValues = extractBaseline({
+      redline: [feature({ 'Site Name': 'Meadow Farm', Area: 12345 })],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+    expect(withValues.document.redLine).toEqual(
+      expect.objectContaining({ siteName: 'Meadow Farm', area: 12345 })
+    )
+
+    const withoutValues = extractBaseline({
+      redline: [feature({ name: 'r' })],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+    expect(withoutValues.document.redLine).toEqual(
+      expect.objectContaining({ siteName: null, area: null })
+    )
+  })
+
+  it('defaults promoted metadata to null when the columns are absent', () => {
+    const out = extractBaseline({
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: 'P1' })],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0]).toEqual(
+      expect.objectContaining({
+        siteName: null,
+        surveyDate: null,
+        comment: null,
+        rawDistinctiveness: null
+      })
+    )
+  })
+})
+
+describe('extractBaseline — post-intervention reads Proposed columns (variant)', () => {
+  const POST = { variant: 'postIntervention' }
+
+  it('reads Proposed* habitat columns and ignores the Baseline* columns', () => {
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [
+          feature({
+            [PARCEL_REF]: 'P1',
+            // Baseline columns present but should be ignored for this variant.
+            'Baseline Broad Habitat Type': 'Grassland',
+            [HABITAT_TYPE]: 'Lowland meadows',
+            [CONDITION]: 'Poor',
+            'Baseline Strategic Significance': 'Low',
+            'Baseline Distinctiveness': 'Low',
+            // Proposed columns are the source of truth here.
+            'Proposed Broad Habitat Type': 'Woodland and forest',
+            'Proposed Habitat Type': 'Other woodland; broadleaved',
+            'Proposed Condition': 'Good',
+            'Proposed Strategic Significance': 'High',
+            'Proposed Distinctiveness': 'Medium',
+            // Retention is a single shared column (no proposed variant).
+            'Retention Category': 'Created'
+          })
+        ],
+        hedgerows: [],
+        watercourses: []
+      },
+      POST
+    )
+
+    expect(out.document.habitats[0]).toEqual(
+      expect.objectContaining({
+        broadType: 'Woodland and forest',
+        type: 'Other woodland; broadleaved',
+        condition: 'Good',
+        strategicSignificance: 'High',
+        rawDistinctiveness: 'Medium',
+        retentionCategory: 'Created'
+      })
+    )
+  })
+
+  it('reads Proposed Hedge Type / Condition / Strategic Significance for hedgerows', () => {
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [
+          feature(
+            {
+              [PARCEL_REF]: 'H1',
+              [HEDGEROW_TYPE]: 'Native hedgerow',
+              [CONDITION]: 'Poor',
+              'Proposed Hedge Type': 'Native hedgerow with trees',
+              'Proposed Condition': 'Good',
+              'Proposed Strategic Significance': 'High'
+            },
+            SAMPLE_LINESTRING
+          )
+        ],
+        watercourses: []
+      },
+      POST
+    )
+
+    expect(out.document.hedgerows[0]).toEqual(
+      expect.objectContaining({
+        type: 'Native hedgerow with trees',
+        condition: 'Good',
+        strategicSignificance: 'High',
+        status: 'Complete'
+      })
+    )
+  })
+
+  it('reads Proposed river type, condition and encroachment columns for watercourses', () => {
+    const out = extractBaseline(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [
+          feature(
+            {
+              [PARCEL_REF]: 'W1',
+              [RIVER_TYPE]: 'Ditches',
+              [CONDITION]: 'Poor',
+              'Baseline Encroachment into Watercourse': 'High',
+              'Baseline Encroachment into riparian zone': 'High',
+              'Proposed River Type': 'Rivers and streams',
+              'Proposed Condition': 'Good',
+              'Proposed Strategic Significance': 'High',
+              'Proposed Encroachment into Watercourse': 'No Encroachment',
+              'Proposed Encroachment into riparian zone': 'No Encroachment'
+            },
+            SAMPLE_LINESTRING
+          )
+        ]
+      },
+      POST
+    )
+
+    expect(out.document.watercourses[0]).toEqual(
+      expect.objectContaining({
+        type: 'Rivers and streams',
+        condition: 'Good',
+        strategicSignificance: 'High',
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment',
+        status: 'Complete'
+      })
+    )
+  })
+
+  it('still reads Baseline* columns for the default (baseline) variant', () => {
+    const layers = {
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Baseline Broad Habitat Type': 'Grassland',
+          [HABITAT_TYPE]: 'Lowland meadows',
+          [CONDITION]: 'Good',
+          'Proposed Broad Habitat Type': 'Woodland and forest',
+          'Proposed Habitat Type': 'Other woodland; broadleaved',
+          'Proposed Condition': 'Poor'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    }
+
+    expect(extractBaseline(layers).document.habitats[0]).toEqual(
+      expect.objectContaining({
+        broadType: 'Grassland',
+        type: 'Lowland meadows',
+        condition: 'Good'
+      })
+    )
+  })
+})

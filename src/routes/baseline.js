@@ -187,7 +187,9 @@ async function saveBaselineForProject(
     uploadId,
     filename,
     fileSize,
-    habitatSizes
+    habitatSizes,
+    // Baseline reads the Baseline* columns; post-intervention reads Proposed*.
+    variant: config.projectDocumentKey
   })
 
   enrichBaselineDocumentWithUnits(document, logger)

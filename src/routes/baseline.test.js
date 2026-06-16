@@ -387,7 +387,8 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES
+      habitatSizes: EMPTY_HABITAT_SIZES,
+      variant: 'baseline'
     })
     expect(log.transactionCalls).toBe(1)
   })
@@ -455,7 +456,8 @@ describe('validatePostIntervention handler persistence', () => {
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES
+      habitatSizes: EMPTY_HABITAT_SIZES,
+      variant: 'postIntervention'
     })
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
