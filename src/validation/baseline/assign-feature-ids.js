@@ -5,7 +5,7 @@ import { randomUUID } from 'node:crypto'
  * Returns a new layers object with cloned feature objects (originals untouched).
  *
  * Call this once before passing layers to both calculateHabitatSizes and
- * extractBaseline so both consumers share the same explicit join key rather
+ * extractHabitatData so both consumers share the same explicit join key rather
  * than relying on a fragile implicit array-position contract.
  *
  * @param {object} layers  The raw layers object from readBaselineGeoPackage.

@@ -67,7 +67,7 @@ function buildHabitat(feature, keys) {
   // they are calculated separately by the metric engine. rawDistinctiveness is
   // the verbatim GeoPackage distinctiveness column (Baseline/Proposed by variant),
   // preserved for reference only.
-  // NOTE2: area is set from PostGIS habitatSizes (sizeSquareMetres) in extractBaseline.
+  // NOTE2: area is set from PostGIS habitatSizes (sizeSquareMetres) in extractHabitatData.
 
   const document = {
     featureId,
@@ -276,7 +276,7 @@ function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
  *   }
  * }}
  */
-export function extractBaseline(layers, meta = {}) {
+export function extractHabitatData(layers, meta = {}) {
   // `meta.variant` selects which attribute columns to read: the baseline
   // document reads the Baseline* columns, the post-intervention document reads
   // the Proposed* columns. Shared columns (ref, retention, metadata) are read

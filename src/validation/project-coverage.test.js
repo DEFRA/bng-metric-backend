@@ -21,7 +21,7 @@ import {
   projectSchema
 } from './project.js'
 import { schemaPaths, undeclaredPaths } from './data-dictionary-paths.js'
-import { extractBaseline } from './baseline/extract-baseline.js'
+import { extractHabitatData } from './baseline/extract-habitat-data.js'
 import {
   recomputeAreaHabitat,
   recomputeHedgerow
@@ -41,7 +41,7 @@ const FEATURE_ID_WATER = '44444444-4444-4444-4444-444444444444'
 const UPLOAD_ID = '55555555-5555-5555-5555-555555555555'
 
 // Build a baseline document the way production does — parsed GeoPackage layers
-// through extractBaseline + the unit enrichment — so the produced keys are the
+// through extractHabitatData + the unit enrichment — so the produced keys are the
 // real ones, not a hand-written guess. The type/condition values are chosen to
 // resolve in bng-metric-engine so every feature type actually enriches (and
 // therefore exercises the derived unit fields, including the watercourse
@@ -128,7 +128,7 @@ function buildBaselineDocument() {
     }
   }
 
-  const { document } = extractBaseline(layers, meta)
+  const { document } = extractHabitatData(layers, meta)
   enrichBaselineDocumentWithUnits(document)
   return document
 }
@@ -249,7 +249,7 @@ describe('project JSONB data-dictionary coverage', () => {
       }
     }
 
-    const { document } = extractBaseline(layers, meta)
+    const { document } = extractHabitatData(layers, meta)
     enrichBaselineDocumentWithUnits(document)
 
     // Proposed values landed in the named fields (not the Baseline* columns).

@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { extractBaseline } from './extract-baseline.js'
+import { extractHabitatData } from './extract-habitat-data.js'
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -53,9 +53,9 @@ function feature(properties, geometry = SAMPLE_POLYGON, srid = BNG_SRID) {
   }
 }
 
-describe('extractBaseline — top-level shape', () => {
+describe('extractHabitatData — top-level shape', () => {
   it('returns both a document and geometries half', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -85,7 +85,7 @@ describe('extractBaseline — top-level shape', () => {
   })
 
   it('threads uploadId and importedAt from meta into the document half only', () => {
-    const out = extractBaseline(
+    const out = extractHabitatData(
       { redline: [], areas: [], hedgerows: [], watercourses: [] },
       { uploadId: 'u-123', importedAt: '2026-05-08T10:00:00.000Z' }
     )
@@ -96,7 +96,7 @@ describe('extractBaseline — top-level shape', () => {
   })
 
   it('threads filename and fileSize from meta into the document', () => {
-    const out = extractBaseline(
+    const out = extractHabitatData(
       { redline: [], areas: [], hedgerows: [], watercourses: [] },
       { filename: 'survey.gpkg', fileSize: UPLOADED_FILE_SIZE }
     )
@@ -108,7 +108,7 @@ describe('extractBaseline — top-level shape', () => {
   })
 
   it('sets filename and fileSize to null when absent from meta', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -120,7 +120,7 @@ describe('extractBaseline — top-level shape', () => {
   })
 })
 
-describe('extractBaseline — habitatSizes embedding', () => {
+describe('extractHabitatData — habitatSizes embedding', () => {
   it('embeds per-feature sizes and stores totals summary in habitatSizes', () => {
     const habitatSizes = {
       areaHabitats: {
@@ -143,7 +143,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
       },
       watercourses: { individualMetres: [], totalMetres: 0 }
     }
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [
@@ -187,7 +187,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
         totalMetres: WATERCOURSE_M
       }
     }
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [],
@@ -220,7 +220,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
       hedgerows: { individualMetres: [], totalMetres: 0 },
       watercourses: { individualMetres: [], totalMetres: 0 }
     }
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [feature({ [PARCEL_REF]: 'P1' })],
@@ -248,7 +248,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
       hedgerows: { individualMetres: [], totalMetres: 0 },
       watercourses: { individualMetres: [], totalMetres: 0 }
     }
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [
@@ -269,7 +269,7 @@ describe('extractBaseline — habitatSizes embedding', () => {
   })
 
   it('sets habitatSizes to null when not provided', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -279,9 +279,9 @@ describe('extractBaseline — habitatSizes embedding', () => {
   })
 })
 
-describe('extractBaseline — featureId join keys', () => {
+describe('extractHabitatData — featureId join keys', () => {
   it('assigns a UUID featureId to every feature, matched between document and geometry halves', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [feature({ name: 'r' })],
       areas: [feature({ [PARCEL_REF]: 'P1' })],
       hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
@@ -307,7 +307,7 @@ describe('extractBaseline — featureId join keys', () => {
   })
 
   it('produces a unique featureId per feature within the same layer', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [feature({ [PARCEL_REF]: 'P1' }), feature({ [PARCEL_REF]: 'P2' })],
       hedgerows: [],
@@ -319,9 +319,9 @@ describe('extractBaseline — featureId join keys', () => {
   })
 })
 
-describe('extractBaseline — habitat document fields and shape', () => {
+describe('extractHabitatData — habitat document fields and shape', () => {
   it('extracts habitat fields per parcel: ref, type, condition, plus retention/strategic significance', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -357,7 +357,7 @@ describe('extractBaseline — habitat document fields and shape', () => {
   })
 
   it('does not include geometry or srid in document features', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [feature({ name: 'r' })],
       areas: [feature({ [PARCEL_REF]: 'P1' })],
       hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
@@ -373,7 +373,7 @@ describe('extractBaseline — habitat document fields and shape', () => {
   })
 
   it('strips the "N. " list-index prefix from condition labels on area, hedgerow and watercourse features', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -417,7 +417,7 @@ describe('extractBaseline — habitat document fields and shape', () => {
       fid: 42
     }
 
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [feature(row)],
       hedgerows: [],
@@ -428,9 +428,9 @@ describe('extractBaseline — habitat document fields and shape', () => {
   })
 })
 
-describe('extractBaseline — document property key fallbacks', () => {
+describe('extractHabitatData — document property key fallbacks', () => {
   it('falls back to alternative property keys (underscored / lowercased)', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -457,7 +457,7 @@ describe('extractBaseline — document property key fallbacks', () => {
   // Real QGIS-authored GeoPackages put the broad name in
   // "Baseline Broad Habitat Type" and the type alone in "Baseline Habitat Type".
   it('extracts separate broad and type columns for real GeoPackage shape', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -481,9 +481,9 @@ describe('extractBaseline — document property key fallbacks', () => {
   })
 })
 
-describe('extractBaseline — document hedgerows, watercourses, and missing-field defaults', () => {
+describe('extractHabitatData — document hedgerows, watercourses, and missing-field defaults', () => {
   it('extracts hedgerows and watercourses with ref, type and condition', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [
@@ -530,7 +530,7 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
   })
 
   it('returns null for missing habitat fields rather than undefined', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [feature({})],
       hedgerows: [],
@@ -549,12 +549,12 @@ describe('extractBaseline — document hedgerows, watercourses, and missing-fiel
   })
 })
 
-describe('extractBaseline — geometries half', () => {
+describe('extractHabitatData — geometries half', () => {
   it('returns the red line as a single geometry row, taking the first when multiple are present', () => {
     const first = feature({ name: 'first' })
     const second = feature({ name: 'second' })
 
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [first, second],
       areas: [],
       hedgerows: [],
@@ -569,7 +569,7 @@ describe('extractBaseline — geometries half', () => {
   })
 
   it('returns one geometry row per habitat with the parcel ref denormalised for PostGIS-only queries', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -591,7 +591,7 @@ describe('extractBaseline — geometries half', () => {
   })
 
   it('keeps the source SRID alongside each geometry so the persistence layer can ST_Transform', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [feature({ [PARCEL_REF]: 'P1' }, SAMPLE_POLYGON, WGS84_SRID)],
       hedgerows: [],
@@ -602,7 +602,7 @@ describe('extractBaseline — geometries half', () => {
   })
 
   it('returns one geometry row per hedgerow and watercourse', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [feature({ [PARCEL_REF]: 'H1' }, SAMPLE_LINESTRING)],
@@ -621,9 +621,9 @@ describe('extractBaseline — geometries half', () => {
   })
 })
 
-describe('extractBaseline — graceful inputs', () => {
+describe('extractHabitatData — graceful inputs', () => {
   it('handles missing layer arrays gracefully', () => {
-    const out = extractBaseline({})
+    const out = extractHabitatData({})
 
     expect(out.document.redLine).toBeNull()
     expect(out.document.habitats).toEqual([])
@@ -636,9 +636,9 @@ describe('extractBaseline — graceful inputs', () => {
   })
 })
 
-describe('extractBaseline — habitat status', () => {
+describe('extractHabitatData — habitat status', () => {
   it('sets area habitat status to Complete when broadType, type and condition are all present', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -656,7 +656,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets area habitat status to Incomplete when any required field is missing', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({
@@ -673,7 +673,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets hedgerow status to Complete when type and condition are both present', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [
@@ -693,7 +693,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets hedgerow status to Incomplete when condition is missing', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [
@@ -712,7 +712,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets watercourse status to Complete when all four required fields are present', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -734,7 +734,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets watercourse status to Incomplete when riparianEncroachment is missing', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -756,7 +756,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('sets watercourse status to Incomplete when watercourseEncroachment is missing', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -778,7 +778,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('embeds riparianEncroachment and watercourseEncroachment on watercourse documents', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -802,7 +802,7 @@ describe('extractBaseline — habitat status', () => {
   })
 
   it('reads underscored watercourse encroachment columns', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -830,7 +830,7 @@ describe('extractBaseline — habitat status', () => {
   })
 })
 
-describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', () => {
+describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)', () => {
   const METADATA_ROW = {
     'Site Name': 'Meadow Farm',
     'Survey Date': '2026-01-15',
@@ -860,7 +860,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   }
 
   it('promotes metadata onto area habitats (Comment column)', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [
         feature({ [PARCEL_REF]: 'P1', ...METADATA_ROW, Comment: 'Note' })
@@ -875,7 +875,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   })
 
   it('promotes metadata plus strategic significance and retention onto hedgerows (Comments column)', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [
@@ -904,7 +904,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   })
 
   it('promotes metadata, strategic significance, retention and enhancement type onto watercourses', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [],
       hedgerows: [],
@@ -935,7 +935,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   })
 
   it('promotes siteName and area onto the red line, leaving them null when absent', () => {
-    const withValues = extractBaseline({
+    const withValues = extractHabitatData({
       redline: [feature({ 'Site Name': 'Meadow Farm', Area: 12345 })],
       areas: [],
       hedgerows: [],
@@ -945,7 +945,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
       expect.objectContaining({ siteName: 'Meadow Farm', area: 12345 })
     )
 
-    const withoutValues = extractBaseline({
+    const withoutValues = extractHabitatData({
       redline: [feature({ name: 'r' })],
       areas: [],
       hedgerows: [],
@@ -957,7 +957,7 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   })
 
   it('defaults promoted metadata to null when the columns are absent', () => {
-    const out = extractBaseline({
+    const out = extractHabitatData({
       redline: [],
       areas: [feature({ [PARCEL_REF]: 'P1' })],
       hedgerows: [],
@@ -975,11 +975,11 @@ describe('extractBaseline — promoted survey/provenance metadata (BMD-498)', ()
   })
 })
 
-describe('extractBaseline — post-intervention reads Proposed columns (variant)', () => {
+describe('extractHabitatData — post-intervention reads Proposed columns (variant)', () => {
   const POST = { variant: 'postIntervention' }
 
   it('reads Proposed* habitat columns and ignores the Baseline* columns', () => {
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [
@@ -1020,7 +1020,7 @@ describe('extractBaseline — post-intervention reads Proposed columns (variant)
   })
 
   it('reads Proposed Hedge Type / Condition / Strategic Significance for hedgerows', () => {
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [],
@@ -1053,7 +1053,7 @@ describe('extractBaseline — post-intervention reads Proposed columns (variant)
   })
 
   it('reads Proposed river type, condition and encroachment columns for watercourses', () => {
-    const out = extractBaseline(
+    const out = extractHabitatData(
       {
         redline: [],
         areas: [],
@@ -1109,7 +1109,7 @@ describe('extractBaseline — post-intervention reads Proposed columns (variant)
       watercourses: []
     }
 
-    expect(extractBaseline(layers).document.habitats[0]).toEqual(
+    expect(extractHabitatData(layers).document.habitats[0]).toEqual(
       expect.objectContaining({
         broadType: 'Grassland',
         type: 'Lowland meadows',

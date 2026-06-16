@@ -20,7 +20,7 @@ import {
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
 import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
-import { extractBaseline } from '../validation/baseline/extract-baseline.js'
+import { extractHabitatData } from '../validation/baseline/extract-habitat-data.js'
 import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
 import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
@@ -183,7 +183,7 @@ async function saveBaselineForProject(
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
   }
 
-  const { document, geometries } = extractBaseline(layersWithIds, {
+  const { document, geometries } = extractHabitatData(layersWithIds, {
     uploadId,
     filename,
     fileSize,
