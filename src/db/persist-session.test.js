@@ -62,6 +62,7 @@ describe('persistSession', () => {
       email: 'a@b.test',
       firstName: 'Ada',
       lastName: 'Lovelace',
+      currentRelationshipId: 'rel-1',
       relationships: [],
       roles: []
     })
@@ -71,11 +72,21 @@ describe('persistSession', () => {
       userId: SUB,
       email: 'a@b.test',
       firstName: 'Ada',
-      lastName: 'Lovelace'
+      lastName: 'Lovelace',
+      currentRelationshipId: 'rel-1'
     })
     expect(userCall.conflict.target).toBe(users.userId)
+    // The current org context is refreshed on every login.
+    expect(userCall.conflict.set).toHaveProperty('currentRelationshipId')
     // `created` is never in the update set — it must keep its original value.
     expect(userCall.conflict.set).not.toHaveProperty('created')
+  })
+
+  test('records currentRelationshipId as null when the token omits it', async () => {
+    const tx = makeTx()
+    await persistSession(makeDrizzle(tx), { sub: SUB })
+    const [userCall] = callsFor(tx, users)
+    expect(userCall.values.currentRelationshipId).toBeNull()
   })
 
   test('targets the composite unique constraints for relationships and roles', async () => {

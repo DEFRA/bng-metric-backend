@@ -9,7 +9,10 @@
         <comment>
             Create bng.users — one row per authenticated Defra ID user,
             upserted on each successful login by src/db/persist-session.js.
-            user_id is the token `sub`.
+            user_id is the token `sub`. current_relationship_id records the org
+            context the user was last acting in (the token's
+            currentRelationshipId, one of their bng.relationships rows); it is
+            nullable and refreshed on each login.
         </comment>
         <sql splitStatements="false" endDelimiter=";">
             CREATE TABLE bng.users (
@@ -19,7 +22,8 @@
                 last_name text,
                 created timestamptz NOT NULL DEFAULT now(),
                 last_login timestamptz,
-                session_id text
+                session_id text,
+                current_relationship_id text
             );
         </sql>
         <rollback>

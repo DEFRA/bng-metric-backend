@@ -23,7 +23,10 @@ function userValues(claims) {
     firstName: claims.firstName ?? claims.given_name ?? null,
     lastName: claims.lastName ?? claims.family_name ?? null,
     lastLogin: sql`now()`,
-    sessionId: claims.sessionId ?? claims.sid ?? null
+    sessionId: claims.sessionId ?? claims.sid ?? null,
+    // The org context the user is currently acting in. Identifies which of the
+    // user's relationships/roles is the active one (an Agent can hold several).
+    currentRelationshipId: claims.currentRelationshipId ?? null
   }
 }
 
@@ -38,7 +41,8 @@ async function upsertUser(tx, claims) {
         firstName: sql`excluded.first_name`,
         lastName: sql`excluded.last_name`,
         lastLogin: sql`now()`,
-        sessionId: sql`excluded.session_id`
+        sessionId: sql`excluded.session_id`,
+        currentRelationshipId: sql`excluded.current_relationship_id`
         // `created` deliberately omitted — it stays at its original value.
       }
     })

@@ -70,10 +70,14 @@ function parseRelationship(entry) {
   )
   return {
     relationshipId: parts[0],
-    orgId: parts[1],
-    orgName: nameParts.join(':'),
-    // The `relationship` descriptor sits second-from-last (before relationshipLoa).
-    relationship: parts[parts.length - 2]
+    // Citizens have no organisation: their org id/name fields are empty in the
+    // token (e.g. "relId:::0:Citizen:0"). Normalise empty to null so the DB
+    // stores null (not '') and the frontend can hide the org for citizens.
+    orgId: parts[1] || null,
+    orgName: nameParts.join(':') || null,
+    // The `relationship` descriptor (Citizen | Employee | Agent) sits
+    // second-from-last (before relationshipLoa).
+    relationship: parts[parts.length - 2] || null
   }
 }
 
@@ -111,9 +115,11 @@ function parseRole(entry) {
 }
 
 /**
- * Parse the `relationships` claim into structured objects.
+ * Parse the `relationships` claim into structured objects. `orgId`/`orgName` are
+ * null for citizens (who have no organisation); `relationship` is one of
+ * Citizen | Employee | Agent.
  * @param {object} claims verified token payload
- * @returns {Array<{relationshipId: string, orgId: string, orgName: string, relationship: string}>}
+ * @returns {Array<{relationshipId: string, orgId: string|null, orgName: string|null, relationship: string|null}>}
  */
 function parseRelationships(claims) {
   return toEntries(claims?.relationships)

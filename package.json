@@ -15,6 +15,7 @@
     "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json",
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
+    "db:clear-checksums": "scripts/liquibase.sh clearChecksums",
     "predev": "node scripts/ensure-env.js",
     "dev": "cross-env NODE_ENV=development USE_SWAGGER=true npm run server:watch",
     "dev:debug": "cross-env NODE_ENV=development npm run server:debug",

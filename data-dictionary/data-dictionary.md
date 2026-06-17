@@ -151,15 +151,16 @@ The roles and their approval status a user holds per organisation relationship, 
 
 One row per authenticated Defra ID user, upserted from the verified token on each login (identity and last sign-in).
 
-| Column       | Type                       | Nullable | Key | Default |
-| ------------ | -------------------------- | -------- | --- | ------- |
-| `user_id`    | `text`                     | —        | PK  | —       |
-| `email`      | `text`                     | ✓        | —   | —       |
-| `first_name` | `text`                     | ✓        | —   | —       |
-| `last_name`  | `text`                     | ✓        | —   | —       |
-| `created`    | `timestamp with time zone` | —        | —   | `now()` |
-| `last_login` | `timestamp with time zone` | ✓        | —   | —       |
-| `session_id` | `text`                     | ✓        | —   | —       |
+| Column                    | Type                       | Nullable | Key | Default |
+| ------------------------- | -------------------------- | -------- | --- | ------- |
+| `user_id`                 | `text`                     | —        | PK  | —       |
+| `email`                   | `text`                     | ✓        | —   | —       |
+| `first_name`              | `text`                     | ✓        | —   | —       |
+| `last_name`               | `text`                     | ✓        | —   | —       |
+| `created`                 | `timestamp with time zone` | —        | —   | `now()` |
+| `last_login`              | `timestamp with time zone` | ✓        | —   | —       |
+| `session_id`              | `text`                     | ✓        | —   | —       |
+| `current_relationship_id` | `text`                     | ✓        | —   | —       |
 
 ## The `project` JSONB document
 

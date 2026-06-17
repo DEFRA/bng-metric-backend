@@ -48,6 +48,20 @@ describe('parseRelationships', () => {
     })
   })
 
+  test('normalises a citizen (no org) to null org id/name', () => {
+    // Citizens have no organisation — the token leaves those fields empty:
+    // "relId:::0:Citizen:0". They must persist as null, not empty strings.
+    const claims = { relationships: [`${REL_A}:::0:Citizen:0`] }
+    expect(parseRelationships(claims)).toEqual([
+      {
+        relationshipId: REL_A,
+        orgId: null,
+        orgName: null,
+        relationship: 'Citizen'
+      }
+    ])
+  })
+
   test('reconstructs an organisation name that contains colons', () => {
     const claims = {
       relationships: [`${REL_A}:org-1:Acme: Holdings: Ltd:0:Employee:1`]
@@ -139,6 +153,17 @@ describe('currentOrgContext', () => {
     expect(currentOrgContext(claims)).toEqual({
       relationshipId: REL_B,
       orgId: 'org-2'
+    })
+  })
+
+  test('resolves a citizen current relationship to orgId null', () => {
+    const claims = {
+      currentRelationshipId: REL_A,
+      relationships: [`${REL_A}:::0:Citizen:0`]
+    }
+    expect(currentOrgContext(claims)).toEqual({
+      relationshipId: REL_A,
+      orgId: null
     })
   })
 

@@ -642,6 +642,15 @@
           "unique": false,
           "default": null,
           "references": null
+        },
+        {
+          "name": "current_relationship_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
         }
       ]
     }
