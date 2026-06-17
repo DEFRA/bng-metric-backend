@@ -1,7 +1,8 @@
 import Boom from '@hapi/boom'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
+import { visibleToUser } from '../../db/project-visibility.js'
 import {
   projects,
   baselineRedLine,
@@ -84,11 +85,17 @@ async function deleteExistingFeatureRows(tx, projectId, featureTables) {
   }
 }
 
-async function assertProjectExistsForUpdate(tx, projectId) {
+// Lock the project row for update — but only if it is visible to the requesting
+// user. `visibleToUser(sub)` scopes to ownership AND an approved (status 3) role
+// for the project's relationship, i.e. the user's CURRENT org context. A project
+// the user doesn't own (or holds no approved current-relationship role for) is
+// indistinguishable from a missing one: it returns 404 without writing, matching
+// the sibling write paths (features.js, habitats.js, projects.js PATCH).
+async function assertProjectExistsForUpdate(tx, projectId, sub) {
   const projectRows = await tx
     .select({ id: projects.id })
     .from(projects)
-    .where(eq(projects.id, projectId))
+    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
     .for('update')
     .limit(1)
   if (projectRows.length === 0) {
@@ -139,14 +146,14 @@ async function runPersistTransaction(
   projectId,
   document,
   geometries,
-  { projectDocumentKey, featureTables }
+  { projectDocumentKey, featureTables, sub }
 ) {
   await drizzle.transaction(async (tx) => {
     await tx.execute(
       sql.raw(`SET LOCAL lock_timeout = '${PERSIST_LOCK_TIMEOUT}'`)
     )
 
-    await assertProjectExistsForUpdate(tx, projectId)
+    await assertProjectExistsForUpdate(tx, projectId, sub)
     await deleteExistingFeatureRows(tx, projectId, featureTables)
     await persistGeometryLayers(tx, projectId, geometries, featureTables)
     await updateProjectDocumentSection(
@@ -180,6 +187,8 @@ function rethrowPersistError(err, uploadLabel) {
  * @param {object} context
  * @param {string} context.uploadId
  * @param {{ info: (msg: string) => void }} context.logger
+ * @param {string} context.sub verified token subject; the write is scoped to a
+ *   project visible to this user (ownership + approved current-relationship role)
  */
 async function persistBaseline(
   drizzle,
@@ -189,6 +198,7 @@ async function persistBaseline(
   {
     uploadId,
     logger,
+    sub,
     projectDocumentKey = 'baseline',
     uploadLabel = 'baseline',
     featureTables = FEATURE_TABLE_SETS[projectDocumentKey]
@@ -197,7 +207,8 @@ async function persistBaseline(
   try {
     await runPersistTransaction(drizzle, projectId, document, geometries, {
       projectDocumentKey,
-      featureTables
+      featureTables,
+      sub
     })
   } catch (err) {
     rethrowPersistError(err, uploadLabel)
