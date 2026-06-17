@@ -49,8 +49,8 @@ vi.mock('../validation/baseline/geopackage.js', () => ({
   readBaselineGeoPackage: vi.fn()
 }))
 
-vi.mock('../validation/baseline/extract-baseline.js', () => ({
-  extractBaseline: vi.fn()
+vi.mock('../validation/baseline/extract-habitat-data.js', () => ({
+  extractHabitatData: vi.fn()
 }))
 
 vi.mock('../validation/baseline/assign-feature-ids.js', () => ({
@@ -88,8 +88,8 @@ const { validateGpkg, readBaselineGeoPackage } =
   await import('../validation/baseline/geopackage.js')
 const { assignFeatureIds } =
   await import('../validation/baseline/assign-feature-ids.js')
-const { extractBaseline } =
-  await import('../validation/baseline/extract-baseline.js')
+const { extractHabitatData } =
+  await import('../validation/baseline/extract-habitat-data.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
 const { calculateHabitatSizes } =
@@ -180,7 +180,7 @@ function setupHappyPathMocks() {
   })
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
   vi.mocked(calculateHabitatSizes).mockResolvedValue(EMPTY_HABITAT_SIZES)
-  vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+  vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
 }
 
 function makeBaselineRequest({ drizzle, payload = null } = {}) {
@@ -307,7 +307,11 @@ describe('validateBaseline handler — pipeline calls', () => {
       h
     )
     expect(readBaselineGeoPackage).toHaveBeenCalled()
-    expect(validateBaselineLayers).toHaveBeenCalledWith(STUB_LAYERS, undefined)
+    expect(validateBaselineLayers).toHaveBeenCalledWith(
+      STUB_LAYERS,
+      undefined,
+      'baseline'
+    )
   })
 })
 
@@ -383,11 +387,12 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
+    expect(extractHabitatData).toHaveBeenCalledWith(STUB_LAYERS, {
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES
+      habitatSizes: EMPTY_HABITAT_SIZES,
+      variant: 'baseline'
     })
     expect(log.transactionCalls).toBe(1)
   })
@@ -451,11 +456,12 @@ describe('validatePostIntervention handler persistence', () => {
 
     await validatePostIntervention.handler(request, h)
 
-    expect(extractBaseline).toHaveBeenCalledWith(STUB_LAYERS, {
+    expect(extractHabitatData).toHaveBeenCalledWith(STUB_LAYERS, {
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES
+      habitatSizes: EMPTY_HABITAT_SIZES,
+      variant: 'postIntervention'
     })
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
@@ -473,11 +479,11 @@ describe('validateBaseline handler persistence guard rails', () => {
     h = makeH()
     setupHappyPathMocks()
   })
-  it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
+  it('does not call extractHabitatData or open a transaction when no projectId is supplied', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({ drizzle, payload: null })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(0)
   })
 
@@ -492,7 +498,7 @@ describe('validateBaseline handler persistence guard rails', () => {
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(0)
   })
 

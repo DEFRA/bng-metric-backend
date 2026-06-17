@@ -56,7 +56,7 @@ that, catching two different kinds of drift:
 | **Coverage tests** — `src/validation/project-coverage.test.js` (in-process) and `integration-tests/data-dictionary-coverage.test.js` (real read-back) | `npm test` / `npm run test:integration` | the **code persists a field the schema does not declare** |
 | **Freshness check** — regenerate + `git diff`                                                                                                         | the `pr-validator` CI job               | the **committed docs do not match the schema**            |
 
-The coverage tests drive the real construction code (`extractBaseline` +
+The coverage tests drive the real construction code (`extractHabitatData` +
 enrichment, the `recompute*` edit functions, and the live HTTP upload/edit paths)
 and assert that every persisted key is declared in the Joi schema. They protect
 against the schema silently falling behind the code — which matters because the
