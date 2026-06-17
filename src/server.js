@@ -16,6 +16,12 @@ async function createServer() {
     host: config.get('host'),
     port: config.get('port'),
     routes: {
+      // No routes.payload.maxBytes by design: uploads bypass Hapi (browser →
+      // CDP Uploader → S3) and routes here only take small JSON, so Hapi's
+      // ~1 MB default is the right limit. The upload size cap
+      // (UPLOAD_MAX_FILE_SIZE_BYTES, default 100 MB) is sent to the CDP Uploader
+      // on initiate and re-checked by the S3 download guard
+      // (services/s3/download-file.js → HTTP 413).
       validate: {
         options: {
           abortEarly: false

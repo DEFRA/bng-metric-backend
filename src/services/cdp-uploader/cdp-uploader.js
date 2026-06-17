@@ -46,6 +46,7 @@ export function getCdpUploaderUrl() {
 export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/initiate`
+  const maxFileSize = config.get('upload.maxFileSizeBytes')
 
   // cdp-uploader joins s3Path + '/' + uploadId + '/' + fileId, so any trailing
   // slash on s3Path produces a double slash in the resulting s3Key.
@@ -64,7 +65,10 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
         redirect,
         s3Bucket,
         s3Path: normalisedS3Path,
-        metadata
+        metadata,
+        // CDP Uploader rejects files larger than this at source (HTTP 413 on
+        // the upload POST) before they ever reach S3.
+        maxFileSize
       }),
       headers: {
         'Content-Type': 'application/json'

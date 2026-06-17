@@ -176,6 +176,14 @@ const config = convict({
       env: 'CDP_UPLOADER_BUCKET'
     }
   },
+  upload: {
+    maxFileSizeBytes: {
+      doc: 'Maximum upload file size in bytes. Sent to the CDP Uploader on initiate so oversized files are rejected at source, and enforced again by the S3 download guard. Defaults to 100 MB.',
+      format: Number,
+      default: 104857600,
+      env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
+    }
+  },
   aws: {
     region: {
       doc: 'AWS region',

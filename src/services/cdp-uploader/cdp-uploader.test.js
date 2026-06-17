@@ -26,6 +26,7 @@ const UPLOAD_ID = 'abc-123'
 const REDIRECT = '/projects/1/upload-received'
 const FILENAME = 'survey.gpkg'
 const UPLOADED_FILE_SIZE = 204800
+const MAX_FILE_SIZE_BYTES = 104857600
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -61,7 +62,9 @@ describe('getCdpUploaderUrl', () => {
 
 describe('initiateUpload', () => {
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'upload.maxFileSizeBytes' ? MAX_FILE_SIZE_BYTES : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -92,7 +95,8 @@ describe('initiateUpload', () => {
         payload: JSON.stringify({
           redirect: REDIRECT,
           s3Bucket: S3_BUCKET,
-          s3Path: 'baseline'
+          s3Path: 'baseline',
+          maxFileSize: MAX_FILE_SIZE_BYTES
         }),
         headers: { 'Content-Type': 'application/json' },
         json: true
