@@ -1,4 +1,5 @@
 import { persistSession } from '../db/persist-session.js'
+import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 
 /**
  * @openapi
@@ -29,7 +30,7 @@ const postAuthSession = {
   },
   handler: async (request, h) => {
     await persistSession(request.drizzle, request.auth.credentials)
-    return h.response().code(204)
+    return h.response().code(HTTP_STATUS.NO_CONTENT)
   }
 }
 

@@ -50,7 +50,7 @@ async function resolveVerifier(options) {
 }
 
 function bearerToken(authorization) {
-  if (!authorization || !authorization.startsWith(BEARER_PREFIX)) {
+  if (!authorization?.startsWith(BEARER_PREFIX)) {
     return null
   }
   return authorization.slice(BEARER_PREFIX.length).trim()
@@ -63,7 +63,7 @@ function defraJwtScheme(_server, options) {
     if (!verifierPromise) {
       // Reset on failure so a transient discovery outage can be retried.
       verifierPromise = resolveVerifier(options).catch((error) => {
-        verifierPromise = undefined
+        verifierPromise = null
         throw error
       })
     }

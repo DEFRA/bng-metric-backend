@@ -66,7 +66,7 @@ function parseRelationship(entry) {
   }
   const nameParts = parts.slice(
     RELATIONSHIP_LEADING_FIELDS,
-    parts.length - RELATIONSHIP_TRAILING_FIELDS
+    -RELATIONSHIP_TRAILING_FIELDS
   )
   return {
     relationshipId: parts[0],
@@ -77,7 +77,7 @@ function parseRelationship(entry) {
     orgName: nameParts.join(':') || null,
     // The `relationship` descriptor (Citizen | Employee | Agent) sits
     // second-from-last (before relationshipLoa).
-    relationship: parts[parts.length - 2] || null
+    relationship: parts.at(-2) || null
   }
 }
 
@@ -103,13 +103,13 @@ function parseRole(entry) {
   if (parts.length < ROLE_MIN_FIELDS) {
     return null
   }
-  const status = parseStatus(parts[parts.length - 1])
+  const status = parseStatus(parts.at(-1))
   if (status === null) {
     return null
   }
   return {
     relationshipId: parts[0],
-    name: parts.slice(1, parts.length - 1).join(':'),
+    name: parts.slice(1, -1).join(':'),
     status
   }
 }

@@ -84,6 +84,12 @@ describe('parseRelationships', () => {
     expect(parseRelationships({})).toEqual([])
     expect(parseRelationships(null)).toEqual([])
   })
+
+  test('drops non-string entries', () => {
+    expect(
+      parseRelationships({ relationships: [42, relString(REL_A, 'o', 'n')] })
+    ).toHaveLength(1)
+  })
 })
 
 describe('parseRoles', () => {
@@ -107,8 +113,9 @@ describe('parseRoles', () => {
     ])
   })
 
-  test('drops malformed entries and tolerates a missing claim', () => {
+  test('drops malformed and non-string entries and tolerates a missing claim', () => {
     expect(parseRoles({ roles: ['bad'] })).toEqual([])
+    expect(parseRoles({ roles: [42] })).toEqual([])
     expect(parseRoles({})).toEqual([])
   })
 
