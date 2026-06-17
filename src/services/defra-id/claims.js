@@ -43,6 +43,9 @@ const RELATIONSHIP_LEADING_FIELDS = 2
 const RELATIONSHIP_TRAILING_FIELDS = 3
 const RELATIONSHIP_MIN_FIELDS =
   RELATIONSHIP_LEADING_FIELDS + RELATIONSHIP_TRAILING_FIELDS + 1
+// The relationship descriptor (Citizen | Employee | Agent) is the
+// second-from-last field (before relationshipLoa) — index -2 from the end.
+const RELATIONSHIP_DESCRIPTOR_INDEX = -2
 // A role is relationshipId : name : status — name reconstructed from the middle.
 const ROLE_MIN_FIELDS = 3
 
@@ -77,7 +80,7 @@ function parseRelationship(entry) {
     orgName: nameParts.join(':') || null,
     // The `relationship` descriptor (Citizen | Employee | Agent) sits
     // second-from-last (before relationshipLoa).
-    relationship: parts.at(-2) || null
+    relationship: parts.at(RELATIONSHIP_DESCRIPTOR_INDEX) || null
   }
 }
 
