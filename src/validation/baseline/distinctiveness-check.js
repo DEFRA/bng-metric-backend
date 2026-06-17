@@ -1,5 +1,11 @@
 import { ERROR_CODES, makeError } from './errors.js'
-import { PROP_KEYS, buildHabitatLookupKey, pickProp } from './properties.js'
+import {
+  EXTRACT_VARIANT,
+  PROP_KEYS,
+  buildHabitatLookupKey,
+  featureKeysForVariant,
+  pickProp
+} from './properties.js'
 import {
   distinctivenessScores,
   getDistinctiveness
@@ -50,15 +56,24 @@ function formatList(prefix, count, sample) {
  * Unknown habitat types — those not present in the reference table — are
  * passed through; the schema check upstream is responsible for catching them.
  *
+ * The High/Very-High exclusion is a whole-service scope limit, so it applies to
+ * the post-intervention document too. `variant` selects whether habitat types
+ * are read from the Baseline* or Proposed* columns; it defaults to baseline.
+ *
  * @param {object} layers Output of readBaselineGeoPackage
+ * @param {string} [variant] one of EXTRACT_VARIANT; defaults to baseline
  * @returns {{ code: string, message: string, details: object }|null}
  */
-export function checkBaselineDistinctiveness(layers) {
+export function checkHabitatDistinctiveness(
+  layers,
+  variant = EXTRACT_VARIANT.BASELINE
+) {
+  const keys = featureKeysForVariant(variant)
   const features = layers?.areas ?? []
   const offenders = []
   features.forEach((feature, idx) => {
     const props = feature?.properties ?? {}
-    const habitatType = buildHabitatLookupKey(props)
+    const habitatType = buildHabitatLookupKey(props, keys)
     const band = getDistinctiveness(habitatType)
     if (band && OUT_OF_SCOPE_BANDS.has(band)) {
       const rawFid = pickProp(props, PROP_KEYS.fid)

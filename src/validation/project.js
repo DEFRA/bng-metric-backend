@@ -26,6 +26,64 @@ const SAFE_FILENAME_RE = /^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'
 
+// Survey / provenance / planning metadata columns shared by the Habitats,
+// Hedgerows and Rivers layers. Promoted to named fields by BMD-498. Returned as
+// a fresh object each call because Joi schema objects are stateful and must not
+// be shared between parent schemas.
+const metadataSchemaKeys = () => ({
+  siteName: Joi.string()
+    .allow(null, '')
+    .description('Site name from the GeoPackage (Site Name column).'),
+  surveyDate: Joi.string()
+    .allow(null, '')
+    .description(
+      'Survey date from the GeoPackage (Survey Date column), as stored in the source file.'
+    ),
+  surveyDetails: Joi.string()
+    .allow(null, '')
+    .description('Free-text survey details from the GeoPackage.'),
+  comment: Joi.string()
+    .allow(null, '')
+    .description(
+      'Free-text comment from the GeoPackage (Comment / Comments column).'
+    ),
+  mappedBy: Joi.string()
+    .allow(null, '')
+    .description('Name of the surveyor who mapped the feature (Mapped by).'),
+  company: Joi.string()
+    .allow(null, '')
+    .description('Company responsible for the survey (Company column).'),
+  baseMap: Joi.string()
+    .allow(null, '')
+    .description('Base map used during mapping (Base Map column).'),
+  location: Joi.string()
+    .allow(null, '')
+    .description('Free-text location description from the GeoPackage.'),
+  spatialRiskCategory: Joi.string()
+    .allow(null, '')
+    .description('Spatial risk category from the GeoPackage.'),
+  habitatCreatedInAdvanceYears: Joi.string()
+    .allow(null, '')
+    .description(
+      'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
+    ),
+  delayInStartingHabitatCreationYears: Joi.string()
+    .allow(null, '')
+    .description(
+      'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
+    ),
+  rawDistinctiveness: Joi.string()
+    .allow(null, '')
+    .description(
+      'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine.'
+    )
+})
+
+const STRATEGIC_SIGNIFICANCE_DESCRIPTION =
+  'Strategic significance category from the GeoPackage.'
+
+const RETENTION_CATEGORY_DESCRIPTION = 'Retention category from the GeoPackage.'
+
 const siteSchema = Joi.object({
   name: Joi.string().description('Free-text name of the development site.'),
   grid_ref: Joi.string().description(
@@ -89,6 +147,14 @@ const redLineSchema = Joi.object({
     .description(
       'UUID assigned on import; join key to the bng.baseline_red_line geometry row.'
     ),
+  siteName: Joi.string()
+    .allow(null, '')
+    .description('Site name from the GeoPackage Red Line Boundary layer.'),
+  area: Joi.number()
+    .allow(null)
+    .description(
+      'Site area as recorded in the GeoPackage Red Line Boundary layer (Area column).'
+    ),
   properties: Joi.object()
     .unknown(true)
     .description(
@@ -134,10 +200,10 @@ const habitatSchema = Joi.object({
     ),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description('Strategic significance category from the GeoPackage.'),
+    .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
   retentionCategory: Joi.string()
     .allow(null, '')
-    .description('Retention category from the GeoPackage.'),
+    .description(RETENTION_CATEGORY_DESCRIPTION),
   area: Joi.number()
     .allow(null)
     .description(
@@ -157,6 +223,7 @@ const habitatSchema = Joi.object({
     .description(
       'Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals.'
     ),
+  ...metadataSchemaKeys(),
   properties: Joi.object()
     .unknown(true)
     .description(
@@ -219,6 +286,13 @@ function linearFeatureSchema({
       .required()
       .description(statusDescription),
     units: Joi.number().allow(null).description(unitsDescription),
+    strategicSignificance: Joi.string()
+      .allow(null, '')
+      .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
+    retentionCategory: Joi.string()
+      .allow(null, '')
+      .description(RETENTION_CATEGORY_DESCRIPTION),
+    ...metadataSchemaKeys(),
     ...beforeProperties,
     properties: Joi.object().unknown(true).description(propertiesDescription)
   }).description(rootDescription)
@@ -258,6 +332,9 @@ const watercourseHabitatSchema = linearFeatureSchema({
   unitsDescription:
     'Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428).',
   beforeProperties: {
+    enhancementType: Joi.string()
+      .allow(null, '')
+      .description('Enhancement type from the GeoPackage Rivers layer.'),
     waterEncroachmentMultiplier: Joi.number()
       .allow(null)
       .description(

@@ -41,8 +41,8 @@ vi.mock('../validation/baseline/geopackage.js', () => ({
   readBaselineGeoPackage: vi.fn()
 }))
 
-vi.mock('../validation/baseline/extract-baseline.js', () => ({
-  extractBaseline: vi.fn()
+vi.mock('../validation/baseline/extract-habitat-data.js', () => ({
+  extractHabitatData: vi.fn()
 }))
 
 vi.mock('../validation/baseline/index.js', () => ({
@@ -64,8 +64,8 @@ const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
 const { validateGpkg, readBaselineGeoPackage } =
   await import('../validation/baseline/geopackage.js')
-const { extractBaseline } =
-  await import('../validation/baseline/extract-baseline.js')
+const { extractHabitatData } =
+  await import('../validation/baseline/extract-habitat-data.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
 const { calculateHabitatSizes } =
@@ -85,7 +85,7 @@ function setupHappyPathMocks() {
     valid: true,
     errors: []
   })
-  vi.mocked(extractBaseline).mockReturnValue(STUB_EXTRACTED)
+  vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
   vi.mocked(calculateHabitatSizes).mockResolvedValue({
     areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
     hedgerows: { individualMetres: [], totalMetres: 0 },
@@ -119,7 +119,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).toHaveBeenCalledWith(
+    expect(extractHabitatData).toHaveBeenCalledWith(
       STUB_LAYERS,
       expect.objectContaining({ uploadId: UPLOAD_ID })
     )
@@ -204,7 +204,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     )
   })
 
-  it('passes habitatSizes into extractBaseline as meta', async () => {
+  it('passes habitatSizes into extractHabitatData as meta', async () => {
     const sizes = {
       areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
       hedgerows: { individualMetres: [], totalMetres: 0 },
@@ -218,7 +218,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       makeH()
     )
 
-    expect(extractBaseline).toHaveBeenCalledWith(
+    expect(extractHabitatData).toHaveBeenCalledWith(
       STUB_LAYERS,
       expect.objectContaining({ habitatSizes: sizes })
     )
@@ -234,11 +234,11 @@ describe('validateBaseline handler persistence — guard rails', () => {
     setupHappyPathMocks()
   })
 
-  it('does not call extractBaseline or open a transaction when no projectId is supplied', async () => {
+  it('does not call extractHabitatData or open a transaction when no projectId is supplied', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({ drizzle, payload: null })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(0)
   })
 
@@ -253,7 +253,7 @@ describe('validateBaseline handler persistence — guard rails', () => {
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(extractBaseline).not.toHaveBeenCalled()
+    expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(0)
   })
 
@@ -535,7 +535,7 @@ describe('validateBaseline handler — document schema validation', () => {
   })
 
   it('returns INVALID_FILE_METADATA when filename exceeds the allowed length', async () => {
-    vi.mocked(extractBaseline).mockReturnValue({
+    vi.mocked(extractHabitatData).mockReturnValue({
       document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
       geometries: STUB_EXTRACTED.geometries
     })
@@ -555,7 +555,7 @@ describe('validateBaseline handler — document schema validation', () => {
   })
 
   it('does not open a transaction when document schema validation fails', async () => {
-    vi.mocked(extractBaseline).mockReturnValue({
+    vi.mocked(extractHabitatData).mockReturnValue({
       document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
       geometries: STUB_EXTRACTED.geometries
     })

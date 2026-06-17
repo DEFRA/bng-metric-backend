@@ -20,7 +20,7 @@ vi.mock('./postgis/index.js', () => ({
   }))
 }))
 vi.mock('./distinctiveness-check.js', () => ({
-  checkBaselineDistinctiveness: vi.fn(() => null)
+  checkHabitatDistinctiveness: vi.fn(() => null)
 }))
 
 const BASELINE_WIRE_MKDTEMP_PREFIX = 'bng-baseline-wire-test-'
@@ -71,14 +71,14 @@ describe('validateBaselineLayers wired to Postgres', () => {
   let validateBaselineLayers
   let readBaselineGeoPackage
   let validateBaselineLayersPostgis
-  let checkBaselineDistinctiveness
+  let checkHabitatDistinctiveness
 
   beforeEach(async () => {
     vi.clearAllMocks()
     ;({ validateBaselineLayers } = await import('./index.js'))
     ;({ readBaselineGeoPackage } = await import('./geopackage.js'))
     ;({ validateBaselineLayersPostgis } = await import('./postgis/index.js'))
-    ;({ checkBaselineDistinctiveness } =
+    ;({ checkHabitatDistinctiveness } =
       await import('./distinctiveness-check.js'))
   })
 
@@ -104,7 +104,7 @@ describe('validateBaselineLayers wired to Postgres', () => {
       valid: false,
       errors: [{ code: ERROR_CODES.PARCEL_OVERLAPS, message: 'overlap' }]
     })
-    vi.mocked(checkBaselineDistinctiveness).mockReturnValueOnce({
+    vi.mocked(checkHabitatDistinctiveness).mockReturnValueOnce({
       code: ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,
       message: 'out of scope',
       details: { count: 1, sample: [] }
@@ -126,7 +126,7 @@ describe('validateBaselineLayers wired to Postgres', () => {
       valid: true,
       errors: []
     })
-    vi.mocked(checkBaselineDistinctiveness).mockReturnValueOnce({
+    vi.mocked(checkHabitatDistinctiveness).mockReturnValueOnce({
       code: ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE,
       message: 'out of scope',
       details: { count: 1, sample: [] }

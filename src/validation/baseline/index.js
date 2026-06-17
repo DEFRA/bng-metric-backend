@@ -1,4 +1,4 @@
-import { checkBaselineDistinctiveness } from './distinctiveness-check.js'
+import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readBaselineGeoPackage } from './geopackage.js'
 import { validateBaselineLayersPostgis } from './postgis/index.js'
@@ -13,9 +13,9 @@ import { validateBaselineLayersPostgis } from './postgis/index.js'
  * @param {import('pg').Pool} pool
  * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string }> }>}
  */
-export async function validateBaselineFile(filePath, pool) {
+export async function validateBaselineFile(filePath, pool, variant) {
   const layers = readBaselineGeoPackage(filePath)
-  return validateBaselineLayers(layers, pool)
+  return validateBaselineLayers(layers, pool, variant)
 }
 
 /**
@@ -23,8 +23,10 @@ export async function validateBaselineFile(filePath, pool) {
  *
  * @param {object} layers Output of readBaselineGeoPackage
  * @param {import('pg').Pool} pool
+ * @param {string} [variant] one of EXTRACT_VARIANT; selects Baseline* vs
+ *   Proposed* columns for the distinctiveness scope check. Defaults to baseline.
  */
-export async function validateBaselineLayers(layers, pool) {
+export async function validateBaselineLayers(layers, pool, variant) {
   if (!pool) {
     throw new Error('validateBaselineLayers requires a pg pool')
   }
@@ -32,7 +34,7 @@ export async function validateBaselineLayers(layers, pool) {
   // JS-side checks that don't need PostGIS. Surface ahead of geometry errors so
   // the user sees blocking policy/data-quality issues first.
   const dataQualityErrors = [
-    checkBaselineDistinctiveness(layers),
+    checkHabitatDistinctiveness(layers, variant),
     checkDuplicateHabitatRefs(layers)
   ].filter(Boolean)
   if (dataQualityErrors.length === 0) {
