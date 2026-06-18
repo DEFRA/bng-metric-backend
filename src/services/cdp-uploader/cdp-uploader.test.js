@@ -402,10 +402,23 @@ describe('waitForUploadReady when upload becomes ready', () => {
 describe('waitForUploadReady failures', () => {
   beforeEach(stubLocalUploaderUrl)
 
-  it('should throw UploadFailedError when uploadStatus is "rejected"', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
-      payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 1 }
-    })
+  // The real CDP Uploader reports a virus-rejected single-file upload as the
+  // upload COMPLETING — top-level uploadStatus 'ready' — with
+  // numberOfRejectedFiles > 0 and the reason on the per-file errorMessage. There
+  // is no top-level 'rejected' status, and the infected file has no s3Key.
+  const virusRejectedPayload = {
+    uploadStatus: 'ready',
+    numberOfRejectedFiles: 1,
+    form: {
+      file: {
+        fileStatus: 'rejected',
+        errorMessage: 'The selected file contains a virus'
+      }
+    }
+  }
+
+  it('should throw UploadFailedError when a file is rejected (ready + numberOfRejectedFiles > 0)', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
 
     await expect(
       waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
@@ -413,18 +426,7 @@ describe('waitForUploadReady failures', () => {
   })
 
   it('carries the rejection reason on the UploadFailedError', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
-      payload: {
-        uploadStatus: 'rejected',
-        numberOfRejectedFiles: 1,
-        form: {
-          file: {
-            fileStatus: 'rejected',
-            errorMessage: 'The selected file contains a virus'
-          }
-        }
-      }
-    })
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
 
     const error = await waitForUploadReady(UPLOAD_ID, {
       pollIntervalMs: 0
@@ -432,6 +434,18 @@ describe('waitForUploadReady failures', () => {
 
     expect(error).toBeInstanceOf(UploadFailedError)
     expect(error.errorMessage).toBe('The selected file contains a virus')
+  })
+
+  it('still throws UploadFailedError on a legacy top-level "rejected" status', async () => {
+    // Defensive fallback: TERMINAL_FAILURE_STATUSES still catches a top-level
+    // 'rejected' status should an uploader version ever emit one.
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 0 }
+    })
+
+    await expect(
+      waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
+    ).rejects.toThrow(UploadFailedError)
   })
 
   it('should throw UploadTimeoutError when the deadline is exceeded', async () => {
