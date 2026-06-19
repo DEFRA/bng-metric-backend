@@ -347,6 +347,40 @@ describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
     await s.stop()
   })
 
+  test('surfaces a proxy CONNECT rejection (the real CDP failure) including the proxy status', async () => {
+    // Mirrors undici's shape when the proxy rejects the HTTPS CONNECT: the outer
+    // "fetch failed" wraps a cancelled error whose code is the NUMBER 0, and the
+    // real reason (the proxy status) lives in that error's own cause. The old
+    // `code ?? message` summary logged a bare "0" and hid all of this.
+    const cancelled = new Error('Request was cancelled.')
+    cancelled.code = 0
+    cancelled.cause = new Error(
+      'Proxy response (403) !== 200 when HTTP Tunneling'
+    )
+    cancelled.cause.code = 'UND_ERR_ABORTED'
+    const fetchError = new TypeError('fetch failed')
+    fetchError.cause = cancelled
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(() => Promise.reject(fetchError))
+    )
+    const errorSpy = vi.spyOn(createLogger(), 'error')
+
+    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
+    const res = await injectTo(s, await mint({ sub: 'x' }))
+
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+    const failure = errorSpy.mock.calls.find(
+      ([, msg]) => typeof msg === 'string' && msg.includes('resolution failed')
+    )
+    expect(failure).toBeDefined()
+    // The proxy status must now appear instead of an opaque "0".
+    expect(failure[1]).toContain('Proxy response (403)')
+    expect(failure[1]).toContain('UND_ERR_ABORTED')
+    errorSpy.mockRestore()
+    await s.stop()
+  })
+
   test('summarises a cause that carries only a message', async () => {
     const err = new Error('outer')
     err.cause = { message: 'inner detail' }
