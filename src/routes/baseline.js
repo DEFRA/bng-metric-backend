@@ -19,12 +19,8 @@ import {
   validateGpkg,
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
-import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
-import { extractHabitatData } from '../validation/baseline/extract-habitat-data.js'
-import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
-import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
-import { persistBaseline } from '../services/baseline/persist-baseline.js'
+import { saveBaselineForProject } from '../services/baseline/save-baseline-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -141,78 +137,6 @@ function validateUploadMetadata(
   })
 }
 
-/**
- * Sizes, extracts, validates against the Joi schema, and persists the baseline
- * document for a known-valid set of layers. Returns a Hapi response on any
- * recoverable error, or `null` on success.
- */
-async function saveBaselineForProject(
-  drizzle,
-  pgPool,
-  projectId,
-  layers,
-  context,
-  h,
-  config = BASELINE_VALIDATION_CONFIG
-) {
-  const { uploadId, sub, filename, fileSize } = context
-  const layersWithIds = assignFeatureIds(layers)
-
-  let habitatSizes
-  try {
-    habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
-  } catch (err) {
-    logger.error(
-      `${config.routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
-    )
-    return h
-      .response({
-        valid: false,
-        errors: [
-          makeError(
-            ERROR_CODES.SIZING_FAILED,
-            'Unable to calculate habitat sizes'
-          )
-        ]
-      })
-      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  }
-
-  const { document, geometries } = extractHabitatData(layersWithIds, {
-    uploadId,
-    filename,
-    fileSize,
-    habitatSizes,
-    // Baseline reads the Baseline* columns; post-intervention reads Proposed*.
-    variant: config.projectDocumentKey
-  })
-
-  enrichBaselineDocumentWithUnits(document, logger)
-  const { error: schemaError } = habitatDataSchema.validate(document, {
-    allowUnknown: true
-  })
-  if (schemaError) {
-    logger.info(
-      `${config.routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
-    )
-    return h.response({
-      valid: false,
-      errors: [
-        makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)
-      ]
-    })
-  }
-
-  await persistBaseline(drizzle, projectId, document, geometries, {
-    uploadId,
-    logger,
-    sub,
-    projectDocumentKey: config.projectDocumentKey,
-    uploadLabel: config.uploadLabel
-  })
-  return null
-}
-
 async function runFullValidation(
   buffer,
   drizzle,
@@ -250,8 +174,7 @@ async function runFullValidation(
     await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
     if (projectId) {
       const errorResponse = await saveBaselineForProject(
-        drizzle,
-        pgPool,
+        { drizzle, pgPool, logger },
         projectId,
         layers,
         { uploadId, sub, filename, fileSize },

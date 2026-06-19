@@ -11,17 +11,14 @@ import {
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
 import { stripConditionPrefix } from './condition.js'
 import { summarizeFeatureSetUnitsTotals } from '../features/feature-set-units.js'
+import {
+  SQ_METRES_PER_HECTARE,
+  METRES_PER_KM,
+  NO_OP_LOGGER,
+  enrichCollectionIfNonEmpty
+} from './enrich-units-shared.js'
 
 const LOG_ENRICH_PREFIX = 'enrichBaseline: '
-
-/** @type {{ warn: (msg: string) => void }} */
-const NO_OP_LOGGER = { warn: () => {} }
-
-/** `area` on persisted baselines is PostGIS size in m², rounded to the nearest integer. */
-const SQ_METRES_PER_HECTARE = 10_000
-
-/** Linear feature sizes are stored in metres; the engine expects kilometres. */
-const METRES_PER_KM = 1000
 
 /**
  * Engine entry point wrapper around stripConditionPrefix that guarantees a
@@ -41,19 +38,24 @@ export function normalizeConditionForEngine(condition) {
  */
 export function* engineHabitatTypeCandidates(habitat) {
   const type = typeof habitat.type === 'string' ? habitat.type.trim() : ''
-  if (!type) {
-    return
-  }
-  yield type
+  if (type) {
+    yield type
 
-  const broad =
-    typeof habitat.broadType === 'string' ? habitat.broadType.trim() : ''
+    const broad =
+      typeof habitat.broadType === 'string' ? habitat.broadType.trim() : ''
 
-  if (broad) {
-    const prefix = `${broad} - `
-    if (!type.startsWith(prefix)) {
-      yield `${broad} - ${type}`
+    if (broad) {
+      const prefix = `${broad} - `
+      if (type.startsWith(prefix)) {
+        // type already includes the broad-type prefix
+      } else {
+        yield `${broad} - ${type}`
+      }
+    } else {
+      // no broad type — only the raw habitat type was yielded above
     }
+  } else {
+    // empty type — generator yields nothing
   }
 }
 
@@ -125,33 +127,36 @@ function enrichFeatureWithEngineCalculation(
     assignBaselineUnitFields(feature, result, mapExtraFields(result))
     feature.status = HABITAT_STATUS.COMPLETE
   } catch (error) {
-    if (!(error instanceof BaselineLookupError)) {
+    if (error instanceof BaselineLookupError) {
+      feature.status = HABITAT_STATUS.INCOMPLETE
+      const featureId = feature.featureId ?? 'unknown'
+      logger.warn(
+        `${LOG_ENRICH_PREFIX}${layerLabel} featureId ${featureId} could not be calculated: ${error.message}`
+      )
+    } else {
       throw error
     }
-    feature.status = HABITAT_STATUS.INCOMPLETE
-    const featureId = feature.featureId ?? 'unknown'
-    logger.warn(
-      `${LOG_ENRICH_PREFIX}${layerLabel} featureId ${featureId} could not be calculated: ${error.message}`
-    )
   }
 }
 
-function calculateAreaHabitatWithCandidates(sizeHa, habitat, condition) {
+export function calculateAreaHabitatWithCandidates(sizeHa, habitat, condition) {
   let lastError = null
   for (const engineType of engineHabitatTypeCandidates(habitat)) {
     try {
       return calculateAreaHabitatBaseline(sizeHa, engineType, condition)
     } catch (error) {
-      if (!(error instanceof BaselineLookupError)) {
+      if (error instanceof BaselineLookupError) {
+        lastError = error
+      } else {
         throw error
       }
-      lastError = error
     }
   }
   if (lastError) {
     throw lastError
+  } else {
+    throw new BaselineLookupError('Habitat type is empty or unrecognised')
   }
-  throw new BaselineLookupError('Habitat type is empty or unrecognised')
 }
 
 function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
@@ -159,20 +164,20 @@ function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
   const { area } = habitat
 
   if (
-    !condition ||
-    typeof area !== 'number' ||
-    !Number.isFinite(area) ||
-    area <= 0
+    condition &&
+    typeof area === 'number' &&
+    Number.isFinite(area) &&
+    area > 0
   ) {
-    return
+    const sizeHa = area / SQ_METRES_PER_HECTARE
+    enrichFeatureWithEngineCalculation(
+      () => calculateAreaHabitatWithCandidates(sizeHa, habitat, condition),
+      habitat,
+      { logger, layerLabel: 'Habitat parcel' }
+    )
+  } else {
+    // condition or area missing / invalid — skip enrichment for this feature
   }
-
-  const sizeHa = area / SQ_METRES_PER_HECTARE
-  enrichFeatureWithEngineCalculation(
-    () => calculateAreaHabitatWithCandidates(sizeHa, habitat, condition),
-    habitat,
-    { logger, layerLabel: 'Habitat parcel' }
-  )
 }
 
 /**
@@ -183,8 +188,9 @@ function formatUnrecognisedEncroachmentValue(value) {
   if (typeof value === 'object') {
     // null is handled upstream by isRecognisedEncroachmentValue, so value is a non-null object here
     return JSON.stringify(value)
+  } else {
+    return String(value) // NOSONAR S6551 — typeof guard above proves value is a primitive
   }
-  return String(value) // NOSONAR S6551 — typeof guard above proves value is a primitive
 }
 
 /**
@@ -197,11 +203,12 @@ function formatUnrecognisedEncroachmentValue(value) {
 function coerceEncroachmentForBaseline(value, lookupMap, label, logger) {
   if (isRecognisedEncroachmentValue(value, lookupMap)) {
     return typeof value === 'string' ? value : null
+  } else {
+    logger.warn(
+      `${LOG_ENRICH_PREFIX}unrecognised ${label} "${formatUnrecognisedEncroachmentValue(value)}" — defaulting encroachment multiplier to ${DEFAULT_ENCROACHMENT_MULTIPLIER}`
+    )
+    return null
   }
-  logger.warn(
-    `${LOG_ENRICH_PREFIX}unrecognised ${label} "${formatUnrecognisedEncroachmentValue(value)}" — defaulting encroachment multiplier to ${DEFAULT_ENCROACHMENT_MULTIPLIER}`
-  )
-  return null
 }
 
 /**
@@ -209,7 +216,7 @@ function coerceEncroachmentForBaseline(value, lookupMap, label, logger) {
  * @param {{ warn: (msg: string) => void }} logger
  * @returns {{ watercourseEncroachment: string | null, riparianEncroachment: string | null }}
  */
-function resolvedWatercourseEncroachments(feature, logger) {
+export function resolvedWatercourseEncroachments(feature, logger) {
   return {
     watercourseEncroachment: coerceEncroachmentForBaseline(
       feature.watercourseEncroachment,
@@ -244,16 +251,16 @@ function enrichLinearFeatureWithUnits(
   { calculate, logger = NO_OP_LOGGER, layerLabel, mapExtraFields = () => ({}) }
 ) {
   const condition = normalizeConditionForEngine(feature.condition)
-  if (!isLinearFeatureReadyForEnrichment(feature, condition)) {
-    return
+  if (isLinearFeatureReadyForEnrichment(feature, condition)) {
+    const lengthKm = setLengthAndGetKm(feature)
+    enrichFeatureWithEngineCalculation(
+      () => calculate(lengthKm, feature.type, condition, { feature, logger }),
+      feature,
+      { logger, layerLabel, mapExtraFields }
+    )
+  } else {
+    // feature not ready for enrichment (missing type, condition, or size)
   }
-
-  const lengthKm = setLengthAndGetKm(feature)
-  enrichFeatureWithEngineCalculation(
-    () => calculate(lengthKm, feature.type, condition, { feature, logger }),
-    feature,
-    { logger, layerLabel, mapExtraFields }
-  )
 }
 
 function createWatercourseEnrichmentConfig(logger) {
@@ -297,32 +304,31 @@ export function enrichBaselineDocumentWithUnits(
   baselineDocument,
   logger = NO_OP_LOGGER
 ) {
-  const habitats = baselineDocument?.habitats
-  if (Array.isArray(habitats) && habitats.length > 0) {
-    for (const habitat of habitats) {
-      enrichHabitatParcelWithUnits(habitat, logger)
-    }
-  }
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.habitats,
+    enrichHabitatParcelWithUnits,
+    logger
+  )
 
-  const hedgerows = baselineDocument?.hedgerows
-  if (Array.isArray(hedgerows) && hedgerows.length > 0) {
-    for (const hedgerow of hedgerows) {
-      enrichLinearFeatureWithUnits(hedgerow, {
-        logger,
-        layerLabel: 'Hedgerow',
-        calculate: (lengthKm, type, condition) =>
-          calculateHedgerowBaseline(lengthKm, type, condition)
-      })
-    }
+  const hedgerowConfig = {
+    logger,
+    layerLabel: 'Hedgerow',
+    calculate: (lengthKm, type, condition) =>
+      calculateHedgerowBaseline(lengthKm, type, condition)
   }
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.hedgerows,
+    (hedgerow) => enrichLinearFeatureWithUnits(hedgerow, hedgerowConfig),
+    logger
+  )
 
-  const watercourses = baselineDocument?.watercourses
-  if (Array.isArray(watercourses) && watercourses.length > 0) {
-    const watercourseConfig = createWatercourseEnrichmentConfig(logger)
-    for (const watercourse of watercourses) {
-      enrichLinearFeatureWithUnits(watercourse, watercourseConfig)
-    }
-  }
+  const watercourseConfig = createWatercourseEnrichmentConfig(logger)
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.watercourses,
+    (watercourse) =>
+      enrichLinearFeatureWithUnits(watercourse, watercourseConfig),
+    logger
+  )
 
   summarizeFeatureSetUnitsTotals(baselineDocument)
   return baselineDocument

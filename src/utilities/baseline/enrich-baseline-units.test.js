@@ -461,15 +461,15 @@ describe('enrichBaselineDocumentWithUnits', () => {
   })
 
   it('applies encroachment multipliers when present on the watercourse record', () => {
-    // 1000 m = 1 km × 8 (V.High) × 3 (Good) × 0.8 (Minor) × 0.98 (1. Minor/No Encroachment) × 1 = 18.816
+    // 1000 m = 1 km × 8 (V.High) × 3 (Good) × 0.8 (2. Minor) × 0.98 (3. Minor/ No Encroachment) × 1 = 18.816
     const document = {
       watercourses: [
         {
           type: 'Priority habitat',
           condition: 'Good',
           sizeMetres: 1000,
-          watercourseEncroachment: 'Minor',
-          riparianEncroachment: '1. Minor/No Encroachment'
+          watercourseEncroachment: '2. Minor',
+          riparianEncroachment: '3. Minor/ No Encroachment'
         }
       ]
     }

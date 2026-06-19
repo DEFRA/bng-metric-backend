@@ -22,6 +22,12 @@ import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
 import {
+  postInterventionDataSchema,
+  postInterventionHabitatSchema,
+  postInterventionLinearHabitatSchema,
+  postInterventionWatercourseSchema
+} from '../validation/project-post-intervention-schema.js'
+import {
   projectSchema,
   habitatDataSchema,
   baselineUnitsTotalsSchema,
@@ -30,10 +36,43 @@ import {
   watercourseHabitatSchema
 } from '../validation/project.js'
 
+const HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY = {
+  baseline: habitatDataSchema,
+  postIntervention: postInterventionDataSchema
+}
+
 const FEATURE_SCHEMA_BY_LAYER = {
   habitats: habitatSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
+}
+
+const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
+  habitats: postInterventionHabitatSchema,
+  hedgerows: postInterventionLinearHabitatSchema,
+  watercourses: postInterventionWatercourseSchema
+}
+
+function habitatDataSchemaFor(documentKey) {
+  const schema = HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY[documentKey]
+  if (!schema) {
+    throw Boom.badImplementation(
+      `persist: unknown habitat document key "${documentKey}"`
+    )
+  }
+  return schema
+}
+
+function featureSchemaFor(documentKey, layer) {
+  const schemas =
+    documentKey === 'postIntervention'
+      ? POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER
+      : FEATURE_SCHEMA_BY_LAYER
+  const featureSchema = schemas[layer]
+  if (!featureSchema) {
+    throw Boom.badImplementation(`persist: unknown feature layer "${layer}"`)
+  }
+  return featureSchema
 }
 
 function assertFragmentValid(schema, value, label) {
@@ -102,7 +141,11 @@ async function setProjectHabitatData(
   habitatData,
   documentKey = 'baseline'
 ) {
-  assertFragmentValid(habitatDataSchema, habitatData, `project.${documentKey}`)
+  assertFragmentValid(
+    habitatDataSchemaFor(documentKey),
+    habitatData,
+    `project.${documentKey}`
+  )
   await exec
     .update(projects)
     .set({ project: jsonbSet(projects.project, [documentKey], habitatData) })
@@ -132,12 +175,8 @@ async function setProjectFeature(
   id,
   { documentKey = 'baseline', layer, index, feature, unitsTotals }
 ) {
-  const featureSchema = FEATURE_SCHEMA_BY_LAYER[layer]
-  if (!featureSchema) {
-    throw Boom.badImplementation(`persist: unknown feature layer "${layer}"`)
-  }
   assertFragmentValid(
-    featureSchema,
+    featureSchemaFor(documentKey, layer),
     feature,
     `${documentKey}.${layer}[${index}]`
   )

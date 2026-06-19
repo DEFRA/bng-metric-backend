@@ -79,14 +79,68 @@ function resolveLinearConditionScore(
 }
 
 /**
- * Strip a leading numeric prefix from an encroachment label
- * (e.g. "1. Major/Moderate" → "Major/Moderate").
+ * @param {string} char
+ * @returns {boolean}
+ */
+function isWhitespaceChar(char) {
+  return (
+    char === ' ' ||
+    char === '\t' ||
+    char === '\n' ||
+    char === '\r' ||
+    char === '\f' ||
+    char === '\v'
+  )
+}
+
+/**
+ * Strip a leading "N. " numeric list prefix without regex backtracking.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function stripLeadingNumericPrefix(value) {
+  let index = 0
+  while (index < value.length && value[index] >= '0' && value[index] <= '9') {
+    index += 1
+  }
+  if (index === 0 || index >= value.length || value[index] !== '.') {
+    return value
+  }
+  index += 1
+  while (index < value.length && isWhitespaceChar(value[index])) {
+    index += 1
+  }
+  return value.slice(index)
+}
+
+/**
+ * Collapse whitespace around "/" separators without regex backtracking.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+function collapseSlashSpacing(value) {
+  if (!value.includes('/')) {
+    return value
+  }
+  return value
+    .split('/')
+    .map((part) => part.trim())
+    .join('/')
+}
+
+/**
+ * Normalise an encroachment label from GeoPackage exports before lookup.
+ * Strips a leading numeric prefix (e.g. "2. Minor" → "Minor") and collapses
+ * spaces around "/" (e.g. "3. Minor/ No Encroachment" → "Minor/No Encroachment").
+ * Used for both watercourse and riparian encroachment multipliers.
  *
  * @param {string} value
  * @returns {string}
  */
 function normaliseEncroachmentLabel(value) {
-  return value.trim().replace(/^\d+\.\s+/u, '')
+  return collapseSlashSpacing(stripLeadingNumericPrefix(value.trim()))
 }
 
 /**
@@ -204,8 +258,8 @@ export function calculateHedgerowBaseline(lengthKm, hedgeType, condition) {
  * @param {number} lengthKm - Length in kilometres
  * @param {string} watercourseType - Watercourse type (e.g. "Priority habitat")
  * @param {string} condition - Condition band (e.g. "Good", "Moderate")
- * @param {string | null} [watercourseEncroachment] - Encroachment into watercourse (e.g. "Minor")
- * @param {string | null} [riparianEncroachment] - Encroachment into riparian zone (e.g. "1. Minor/No Encroachment"); leading numeric prefix is stripped automatically
+ * @param {string | null} [watercourseEncroachment] - Encroachment into watercourse (e.g. "2. Minor"); numeric prefix and spaced slashes are normalised before lookup
+ * @param {string | null} [riparianEncroachment] - Encroachment into riparian zone (e.g. "3. Minor/ No Encroachment"); numeric prefix and spaced slashes are normalised before lookup
  * @returns {{ units: number, distinctiveness: string, distinctivenessScore: number, conditionScore: number, waterEncroachmentMultiplier: number, riparianEncroachmentMultiplier: number, strategicSignificanceScore: number }}
  * @throws {TypeError} If length is invalid
  * @throws {BaselineLookupError} If any lookup key is not found in the reference tables

@@ -18,6 +18,7 @@ import {
   habitatDataSchema,
   habitatSchema,
   linearHabitatSchema,
+  postInterventionDataSchema,
   projectSchema
 } from './project.js'
 import { schemaPaths, undeclaredPaths } from './data-dictionary-paths.js'
@@ -27,7 +28,10 @@ import {
   recomputeHedgerow
 } from './baseline/unit-calculation.js'
 import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
-import { STUB_EXTRACTED } from '../routes/baseline.test-fixtures.js'
+import {
+  STUB_EXTRACTED,
+  STUB_POST_INTERVENTION_EXTRACTED
+} from '../routes/baseline.test-fixtures.js'
 
 const BNG_SRID = 27700
 const ONE_HECTARE_SQM = 10_000
@@ -313,6 +317,15 @@ describe('project JSONB data-dictionary coverage', () => {
     expect(undeclaredPaths(STUB_EXTRACTED.document, habitatDataSchema)).toEqual(
       []
     )
+  })
+
+  it('the canonical extracted-post-intervention fixture matches the schema', () => {
+    expect(
+      undeclaredPaths(
+        STUB_POST_INTERVENTION_EXTRACTED.document,
+        postInterventionDataSchema
+      )
+    ).toEqual([])
   })
 
   it('projectSchema describes a documentable tree (sanity)', () => {

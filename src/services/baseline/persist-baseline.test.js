@@ -9,6 +9,7 @@ import {
   SUB,
   FEATURE_ID_HAB,
   STUB_EXTRACTED,
+  STUB_POST_INTERVENTION_EXTRACTED,
   SAMPLE_GEOM,
   makeDrizzle
 } from '../../routes/baseline.test-fixtures.js'
@@ -65,8 +66,8 @@ describe('persistBaseline', () => {
     await persistBaseline(
       drizzle,
       PROJECT_ID,
-      STUB_EXTRACTED.document,
-      STUB_EXTRACTED.geometries,
+      STUB_POST_INTERVENTION_EXTRACTED.document,
+      STUB_POST_INTERVENTION_EXTRACTED.geometries,
       {
         uploadId: UPLOAD_ID,
         logger,
