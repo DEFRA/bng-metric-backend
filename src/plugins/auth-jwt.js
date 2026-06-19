@@ -34,32 +34,34 @@ const BEARER_PREFIX = 'Bearer '
 // token/JWKS rejection apart from an underlying network/TLS failure, which
 // surfaces from the same jwtVerify() call when the lazy JWKS fetch fails.
 const JOSE_ERROR_PREFIX = 'ERR_J'
+// Cap the cause-chain walk so a cyclic `cause` can never loop forever.
+const MAX_CAUSE_DEPTH = 5
 
-// Flatten an Error (plus one level of its `cause`) into a log-safe object. A
-// failed global fetch() throws `TypeError: fetch failed`, whose .code is
-// undefined and whose real detail (ENOTFOUND, ECONNREFUSED,
-// UNABLE_TO_VERIFY_LEAF_SIGNATURE, …) sits on error.cause.
-function describeError(error) {
-  const described = {
-    name: error.name,
-    code: error.code ?? null,
-    message: error.message
-  }
-  if (error.cause) {
-    described.cause = { code: error.cause.code, message: error.cause.message }
-  }
-  return described
+// Render one Error in the chain. The real reason for a failed fetch/proxy/TLS
+// error often sits in its message and nested cause, not its `code` (e.g. undici
+// wraps a rejected proxy CONNECT as a cancelled error whose code is the NUMBER
+// 0), so only show a code when it is truthy and never let it hide the message.
+function describeLink(error) {
+  const code = error.code ? ` [${error.code}]` : ''
+  return `${error.name ?? 'Error'}${code}: ${error.message}`
 }
 
-// A one-line summary that survives even when structured log fields are dropped:
-// the diagnostic codes go straight into the message string.
-function summariseError(described) {
-  const root = described.code ?? described.name
-  if (!described.cause) {
-    return `${root}: ${described.message}`
+// Walk error.cause into a readable one-line chain that survives a log pipeline
+// which drops unmapped structured fields — the diagnostic detail goes into the
+// message itself, not just the structured `err`. This is what turns an opaque
+// "fetch failed (cause: 0)" into e.g. "TypeError: fetch failed <- Error:
+// Request was cancelled. <- Error [UND_ERR_ABORTED]: Proxy response (403) !==
+// 200 when HTTP Tunneling", which names the proxy as the culprit.
+function summariseError(error) {
+  const links = []
+  let current = error
+  let depth = 0
+  while (current && depth < MAX_CAUSE_DEPTH) {
+    links.push(describeLink(current))
+    current = current.cause
+    depth += 1
   }
-  const cause = described.cause.code ?? described.cause.message
-  return `${root}: ${described.message} (cause: ${cause})`
+  return links.join(' <- ')
 }
 
 // A jose error means the token itself was rejected (bad signature, wrong
@@ -148,7 +150,7 @@ function defraJwtScheme(_server, options) {
         verifierPromise = null
         logger.error(
           { err: error, discoveryUrl: options.discoveryUrl },
-          `OIDC discovery/JWKS resolution failed — ${summariseError(describeError(error))}`
+          `OIDC discovery/JWKS resolution failed — ${summariseError(error)}`
         )
         throw error
       })
@@ -182,7 +184,7 @@ function defraJwtScheme(_server, options) {
         const category = classifyVerifyError(error)
         request.logger?.warn(
           { err: error, category },
-          `JWT verification failed [${category}] — ${summariseError(describeError(error))}`
+          `JWT verification failed [${category}] — ${summariseError(error)}`
         )
         throw Boom.unauthorized('Invalid bearer token', 'Bearer')
       }
