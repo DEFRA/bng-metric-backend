@@ -1,10 +1,12 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Boom from '@hapi/boom'
+import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 import {
   PROJECT_ID,
+  SUB,
   FEATURE_ID_HAB,
   STUB_EXTRACTED,
   SAMPLE_GEOM,
@@ -111,7 +113,33 @@ describe('persistBaseline', () => {
     expect(log.executes).toHaveLength(6)
   })
 
-  it('throws 404 when the project does not exist', async () => {
+  it('scopes the project lock to a project visible to the requesting user', async () => {
+    const { drizzle, log } = makeDrizzle()
+
+    await persistBaseline(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      STUB_EXTRACTED.geometries,
+      { uploadId: UPLOAD_ID, logger, sub: SUB }
+    )
+
+    expect(log.projectWhere).toHaveLength(1)
+    const { sql: lockSql, params } = new PgDialect().sqlToQuery(
+      log.projectWhere[0]
+    )
+    // The FOR UPDATE lock must enforce RBAC visibility (ownership + an approved
+    // role for the current relationship), not just match the project id — so a
+    // user cannot overwrite another org's baseline by supplying its UUID.
+    expect(lockSql).toContain('bng.roles')
+    expect(lockSql).toContain('status')
+    expect(params).toContain(SUB)
+    expect(params).toContain(PROJECT_ID)
+  })
+
+  it('throws 404 when the project is not visible to the user', async () => {
+    // visibleToUser scoping means an unowned / non-approved project returns no
+    // row from the locked SELECT — indistinguishable from a missing project.
     const { drizzle } = makeDrizzle({ projectExists: false })
 
     await expect(

@@ -10,15 +10,22 @@ import {
   assertCdpUploaderReachable,
   assertLocalStackPipelineReady
 } from './helpers/upload-fixtures.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const BUCKET = 'baseline-files'
 
+// A project seeded for these tests has a null relationship → visible to its
+// owner (the token subject), so a simple no-relationship token is enough.
+const seedUserId = `it-${randomUUID()}`
+let headers
+
 async function uploadFixture(server, fixtureName) {
   const initiated = await server.inject({
     method: 'POST',
     url: '/upload/initiate',
+    headers,
     payload: { redirect: '/done', s3Bucket: BUCKET, s3Path: 'baseline/' }
   })
   expect(initiated.statusCode).toBe(HTTP_OK)
@@ -29,17 +36,18 @@ async function uploadFixture(server, fixtureName) {
   })
   await waitForUploadStatus(server, uploadId, {
     target: 'ready',
-    timeoutMs: 20_000
+    timeoutMs: 20_000,
+    headers
   })
   return uploadId
 }
 
 async function assertHabitatSizesPersisted(server, dbClient) {
-  const userId = `it-${randomUUID()}`
   const created = await server.inject({
     method: 'POST',
     url: '/projects/new',
-    payload: { project: { name: 'Habitat sizes test' }, userId }
+    headers,
+    payload: { project: { name: 'Habitat sizes test' } }
   })
   expect(created.statusCode).toBe(HTTP_OK)
   const { id: projectId } = created.result
@@ -48,6 +56,7 @@ async function assertHabitatSizesPersisted(server, dbClient) {
   const res = await server.inject({
     method: 'POST',
     url: `/baseline/validate/${uploadId}`,
+    headers,
     payload: { projectId }
   })
   expect(res.statusCode).toBe(HTTP_OK)
@@ -108,6 +117,7 @@ describe('POST /baseline/validate/{uploadId}', () => {
     await assertLocalStackPipelineReady()
     server = await startServer()
     dbClient = await connect()
+    headers = authHeaders(await mintToken({ sub: seedUserId }))
   })
 
   afterAll(async () => {
@@ -123,7 +133,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
   it('returns 400 for a non-UUID uploadId', async () => {
     const res = await server.inject({
       method: 'POST',
-      url: '/baseline/validate/not-a-uuid'
+      url: '/baseline/validate/not-a-uuid',
+      headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
@@ -132,7 +143,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
     const uploadId = await uploadFixture(server, 'baseline-complete.gpkg')
     const res = await server.inject({
       method: 'POST',
-      url: `/baseline/validate/${uploadId}`
+      url: `/baseline/validate/${uploadId}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.valid).toBe(true)
@@ -147,7 +159,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
     const uploadId = await uploadFixture(server, 'not-a-valid-geopackage.gpkg')
     const res = await server.inject({
       method: 'POST',
-      url: `/baseline/validate/${uploadId}`
+      url: `/baseline/validate/${uploadId}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.valid).toBe(false)
@@ -158,7 +171,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
     const uploadId = await uploadFixture(server, 'baseline-no-rlb.gpkg')
     const res = await server.inject({
       method: 'POST',
-      url: `/baseline/validate/${uploadId}`
+      url: `/baseline/validate/${uploadId}`,
+      headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.valid).toBe(false)

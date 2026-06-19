@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/baseline/errors.js'
@@ -9,6 +10,7 @@ import {
 import {
   UPLOAD_ID,
   PROJECT_ID,
+  SUB,
   MOCK_BUCKET,
   MOCK_KEY,
   MOCK_FILENAME,
@@ -183,11 +185,12 @@ function setupHappyPathMocks() {
   vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
 }
 
-function makeBaselineRequest({ drizzle, payload = null } = {}) {
+function makeBaselineRequest({ drizzle, payload = null, sub = SUB } = {}) {
   return {
     params: { uploadId: UPLOAD_ID },
     payload,
-    drizzle
+    drizzle,
+    auth: { credentials: { sub } }
   }
 }
 
@@ -524,6 +527,21 @@ describe('validateBaseline handler persistence guard rails', () => {
     expect(log.executes).toHaveLength(1)
     expect(log.updates).toHaveLength(0)
   })
+
+  it('scopes persistence to the authenticated user — threads the token sub into the project lock', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID },
+      sub: 'specific-user-sub'
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.projectWhere).toHaveLength(1)
+    // The lock predicate must carry THIS user's sub (visibleToUser), so the
+    // write can only touch a project the signed-in user may act on.
+    const { params } = new PgDialect().sqlToQuery(log.projectWhere[0])
+    expect(params).toContain('specific-user-sub')
+  })
 })
 
 describe('validateBaseline handler persistence — lock contention and rollback', () => {
@@ -576,7 +594,11 @@ describe('validateBaseline handler persistence — lock contention and rollback'
 })
 
 describe('validateBaseline handler upload error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -642,7 +664,11 @@ describe('validateBaseline handler upload error handling', () => {
 })
 
 describe('validateBaseline handler download error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -713,7 +739,11 @@ describe('validateBaseline handler download error handling', () => {
 })
 
 describe('validateBaseline handler full validation error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {

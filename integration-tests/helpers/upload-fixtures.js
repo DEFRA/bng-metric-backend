@@ -54,14 +54,15 @@ async function uploadViaCdpUploader({ uploadUrl, filePath, contentType }) {
 async function waitForUploadStatus(
   server,
   uploadId,
-  { target = 'ready', timeoutMs = 15_000 } = {}
+  { target = 'ready', timeoutMs = 15_000, headers } = {}
 ) {
   const deadline = Date.now() + timeoutMs
   let lastBody
   while (Date.now() < deadline) {
     const res = await server.inject({
       method: 'GET',
-      url: `/upload/${uploadId}/status`
+      url: `/upload/${uploadId}/status`,
+      headers
     })
     lastBody = res.result
     if (lastBody?.uploadStatus === target) {

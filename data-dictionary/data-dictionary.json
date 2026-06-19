@@ -419,6 +419,24 @@
           "references": null
         },
         {
+          "name": "org_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "relationship_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
           "name": "bng_project_version",
           "type": "integer",
           "nullable": false,
@@ -443,6 +461,195 @@
           "primaryKey": false,
           "unique": false,
           "default": "now()",
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.relationships",
+      "description": "The organisations a user is related to, taken from their Defra ID token and upserted on each login (one row per user's relationship).",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": "users.user_id"
+        },
+        {
+          "name": "relationship_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "org_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "org_name",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "relationship",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "last_updated",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.roles",
+      "description": "The roles and their approval status a user holds per organisation relationship, upserted from the Defra ID token on each login; drives project access control.",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": "users.user_id"
+        },
+        {
+          "name": "relationship_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "status",
+          "type": "smallint",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "last_updated",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.users",
+      "description": "One row per authenticated Defra ID user, upserted from the verified token on each login (identity and last sign-in).",
+      "columns": [
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "first_name",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "last_name",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "created",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        },
+        {
+          "name": "last_login",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "session_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "current_relationship_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
           "references": null
         }
       ]

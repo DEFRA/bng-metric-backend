@@ -19,6 +19,8 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+const AUTH = { credentials: { sub: 'test-user-001' } }
+
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
 const HABITAT_1_ID = '11111111-2222-3333-4444-555555555555'
@@ -123,6 +125,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -168,6 +171,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -197,6 +201,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: { broadType: '', habitatType: '', condition: '' }
       },
@@ -250,6 +255,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -285,6 +291,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -309,6 +316,7 @@ describe('updatePostInterventionAreaHabitat handler', () => {
     const result = await updatePostInterventionAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -348,6 +356,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: {
             projectId: UNKNOWN_PROJECT_ID,
             featureId: HABITAT_1_ID
@@ -370,6 +379,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: UNKNOWN_HABITAT_ID },
           payload: {
             broadType: 'Grassland',
@@ -408,6 +418,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: {
             broadType: 'Grassland',
@@ -432,6 +443,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: {
             broadType: 'Grassland',
@@ -459,6 +471,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: { broadType: null, habitatType: null, condition: null }
         },

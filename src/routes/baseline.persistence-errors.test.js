@@ -4,6 +4,7 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import {
   UPLOAD_ID,
   PROJECT_ID,
+  SUB,
   MOCK_BUCKET,
   MOCK_KEY,
   MOCK_BUFFER,
@@ -93,11 +94,12 @@ function setupHappyPathMocks() {
   })
 }
 
-function makeBaselineRequest({ drizzle, payload = null } = {}) {
+function makeBaselineRequest({ drizzle, payload = null, sub = SUB } = {}) {
   return {
     params: { uploadId: UPLOAD_ID },
     payload,
-    drizzle
+    drizzle,
+    auth: { credentials: { sub } }
   }
 }
 
@@ -324,7 +326,11 @@ describe('validateBaseline handler persistence — lock contention and rollback'
 })
 
 describe('validateBaseline handler upload error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -390,7 +396,11 @@ describe('validateBaseline handler upload error handling', () => {
 })
 
 describe('validateBaseline handler download error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -461,7 +471,11 @@ describe('validateBaseline handler download error handling', () => {
 })
 
 describe('validateBaseline handler full validation error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {

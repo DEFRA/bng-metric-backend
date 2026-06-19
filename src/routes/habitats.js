@@ -1,8 +1,9 @@
 import Boom from '@hapi/boom'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
@@ -118,12 +119,14 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
     method: 'PUT',
     path,
     options: {
+      auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
         payload: featureEditPayload
       }
     },
     handler: async (request, _h) => {
+      const { sub } = request.auth.credentials
       const { projectId, featureId } = request.params
       const { broadType, habitatType, condition } = request.payload
 
@@ -135,7 +138,8 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             broadType,
             habitatType,
             condition,
-            documentKey
+            documentKey,
+            sub
           })
         )
       } catch (err) {
@@ -163,7 +167,7 @@ const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
 
 async function runUpdate(
   tx,
-  { projectId, featureId, broadType, habitatType, condition, documentKey }
+  { projectId, featureId, broadType, habitatType, condition, documentKey, sub }
 ) {
   // Cap the wait on the project row lock so a stuck or pathologically slow
   // concurrent edit can't hang this request indefinitely.
@@ -177,7 +181,7 @@ async function runUpdate(
   const [row] = await tx
     .select()
     .from(projects)
-    .where(eq(projects.id, projectId))
+    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
     .for('update')
     .limit(1)
   if (!row) {
