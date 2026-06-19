@@ -346,4 +346,27 @@ describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
     errorSpy.mockRestore()
     await s.stop()
   })
+
+  test('summarises a cause that carries only a message', async () => {
+    const err = new Error('outer')
+    err.cause = { message: 'inner detail' }
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => {
+        throw err
+      })
+    )
+    const errorSpy = vi.spyOn(createLogger(), 'error')
+
+    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
+    const res = await injectTo(s, await mint({ sub: 'x' }))
+
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+    const failure = errorSpy.mock.calls.find(
+      ([, msg]) => typeof msg === 'string' && msg.includes('inner detail')
+    )
+    expect(failure).toBeDefined()
+    errorSpy.mockRestore()
+    await s.stop()
+  })
 })

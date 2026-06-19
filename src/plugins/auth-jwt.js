@@ -41,17 +41,12 @@ const JOSE_ERROR_PREFIX = 'ERR_J'
 // UNABLE_TO_VERIFY_LEAF_SIGNATURE, …) sits on error.cause.
 function describeError(error) {
   const described = {
-    name: error?.name ?? null,
-    code: error?.code ?? null,
-    message: error?.message ?? String(error)
+    name: error.name,
+    code: error.code ?? null,
+    message: error.message
   }
-  const cause = error?.cause
-  if (cause) {
-    described.cause = {
-      name: cause.name ?? null,
-      code: cause.code ?? null,
-      message: cause.message ?? String(cause)
-    }
+  if (error.cause) {
+    described.cause = { code: error.cause.code, message: error.cause.message }
   }
   return described
 }
@@ -59,13 +54,12 @@ function describeError(error) {
 // A one-line summary that survives even when structured log fields are dropped:
 // the diagnostic codes go straight into the message string.
 function summariseError(described) {
-  const root = described.code ?? described.name ?? 'no-code'
+  const root = described.code ?? described.name
   if (!described.cause) {
     return `${root}: ${described.message}`
   }
-  const causeCode =
-    described.cause.code ?? described.cause.name ?? described.cause.message
-  return `${root}: ${described.message} (cause: ${causeCode})`
+  const cause = described.cause.code ?? described.cause.message
+  return `${root}: ${described.message} (cause: ${cause})`
 }
 
 // A jose error means the token itself was rejected (bad signature, wrong
@@ -74,7 +68,7 @@ function summariseError(described) {
 // IdP, not a problem with the token.
 function classifyVerifyError(error) {
   const isJoseError =
-    typeof error?.code === 'string' && error.code.startsWith(JOSE_ERROR_PREFIX)
+    typeof error.code === 'string' && error.code.startsWith(JOSE_ERROR_PREFIX)
   return isJoseError ? 'token-rejected' : 'idp-unreachable'
 }
 
