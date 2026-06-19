@@ -12,10 +12,65 @@
 //
 // Audience is optional: the cdp-defra-id-stub does not append the client id as
 // `aud` the way live B2C does, so we only enforce audience when configured.
+//
+// Diagnostics: discovery and the JWKS are fetched over the network, and in a CDP
+// container that egress must traverse the platform proxy and trust its CA. When
+// it fails, the useful detail lives on error.cause (a bare `fetch failed` has no
+// .code), so we flatten the cause and put the codes straight into the LOG
+// MESSAGE — which survives a pipeline that drops unmapped structured fields. We
+// classify the failure (idp-unreachable vs token-rejected) and log a one-off
+// line on successful discovery, so a single deploy's logs reveal which stage
+// (discovery, JWKS fetch, or token verification) actually failed.
 import Boom from '@hapi/boom'
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from 'jose'
+import { HttpsProxyAgent } from 'https-proxy-agent'
+
+import { createLogger } from '../common/helpers/logging/logger.js'
+
+const logger = createLogger()
 
 const BEARER_PREFIX = 'Bearer '
+// jose namespaces its own error codes 'ERR_J…'. We use that to tell a genuine
+// token/JWKS rejection apart from an underlying network/TLS failure, which
+// surfaces from the same jwtVerify() call when the lazy JWKS fetch fails.
+const JOSE_ERROR_PREFIX = 'ERR_J'
+
+// Flatten an Error (plus one level of its `cause`) into a log-safe object. A
+// failed global fetch() throws `TypeError: fetch failed`, whose .code is
+// undefined and whose real detail (ENOTFOUND, ECONNREFUSED,
+// UNABLE_TO_VERIFY_LEAF_SIGNATURE, …) sits on error.cause.
+function describeError(error) {
+  const described = {
+    name: error.name,
+    code: error.code ?? null,
+    message: error.message
+  }
+  if (error.cause) {
+    described.cause = { code: error.cause.code, message: error.cause.message }
+  }
+  return described
+}
+
+// A one-line summary that survives even when structured log fields are dropped:
+// the diagnostic codes go straight into the message string.
+function summariseError(described) {
+  const root = described.code ?? described.name
+  if (!described.cause) {
+    return `${root}: ${described.message}`
+  }
+  const cause = described.cause.code ?? described.cause.message
+  return `${root}: ${described.message} (cause: ${cause})`
+}
+
+// A jose error means the token itself was rejected (bad signature, wrong
+// issuer/audience, expired, no matching key). Anything else thrown from
+// jwtVerify is the lazy JWKS fetch failing — i.e. we could not reach/trust the
+// IdP, not a problem with the token.
+function classifyVerifyError(error) {
+  const isJoseError =
+    typeof error.code === 'string' && error.code.startsWith(JOSE_ERROR_PREFIX)
+  return isJoseError ? 'token-rejected' : 'idp-unreachable'
+}
 
 async function fetchDiscovery(discoveryUrl) {
   const response = await fetch(discoveryUrl)
@@ -43,9 +98,24 @@ async function resolveVerifier(options) {
   }
 
   const discovery = await fetchDiscovery(options.discoveryUrl)
+  const issuer = options.issuer || discovery.issuer || undefined
+  // jose fetches the JWKS with node:https.get, which — unlike the global fetch()
+  // used for discovery — does NOT pick up the undici/global-agent proxy: jose
+  // reads `https.get` off a namespace import that never sees global-agent's
+  // monkey-patch, so the call uses the original, unproxied https.get. In a CDP
+  // container (no direct egress) that JWKS fetch fails instantly. Pass an
+  // explicit proxy agent so it tunnels through the platform proxy — this is what
+  // createRemoteJWKSet's `agent` option is documented for.
+  const agent = options.httpProxy
+    ? new HttpsProxyAgent(options.httpProxy)
+    : undefined
+  logger.info(
+    { jwksUri: discovery.jwks_uri, issuer, jwksProxied: Boolean(agent) },
+    `OIDC discovery resolved from ${options.discoveryUrl}`
+  )
   return {
-    keySet: createRemoteJWKSet(new URL(discovery.jwks_uri)),
-    issuer: options.issuer || discovery.issuer || undefined
+    keySet: createRemoteJWKSet(new URL(discovery.jwks_uri), { agent }),
+    issuer
   }
 }
 
@@ -56,14 +126,30 @@ function bearerToken(authorization) {
   return authorization.slice(BEARER_PREFIX.length).trim()
 }
 
+function buildVerifyOptions(verifier, options) {
+  const verifyOptions = {}
+  if (verifier.issuer) {
+    verifyOptions.issuer = verifier.issuer
+  }
+  if (options.audience) {
+    verifyOptions.audience = options.audience
+  }
+  return verifyOptions
+}
+
 function defraJwtScheme(_server, options) {
   let verifierPromise
 
   const getVerifier = () => {
     if (!verifierPromise) {
-      // Reset on failure so a transient discovery outage can be retried.
+      // Reset on failure so a transient discovery outage can be retried, and log
+      // the full cause: this is the "can't reach / can't trust the IdP" path.
       verifierPromise = resolveVerifier(options).catch((error) => {
         verifierPromise = null
+        logger.error(
+          { err: error, discoveryUrl: options.discoveryUrl },
+          `OIDC discovery/JWKS resolution failed — ${summariseError(describeError(error))}`
+        )
         throw error
       })
     }
@@ -77,21 +163,26 @@ function defraJwtScheme(_server, options) {
         throw Boom.unauthorized('Missing bearer token', 'Bearer')
       }
 
+      let verifier
       try {
-        const { keySet, issuer } = await getVerifier()
-        const verifyOptions = {}
-        if (issuer) {
-          verifyOptions.issuer = issuer
-        }
-        if (options.audience) {
-          verifyOptions.audience = options.audience
-        }
-        const { payload } = await jwtVerify(token, keySet, verifyOptions)
+        verifier = await getVerifier()
+      } catch {
+        // Already logged with the full cause in getVerifier above.
+        throw Boom.unauthorized('Invalid bearer token', 'Bearer')
+      }
+
+      try {
+        const { payload } = await jwtVerify(
+          token,
+          verifier.keySet,
+          buildVerifyOptions(verifier, options)
+        )
         return h.authenticated({ credentials: payload })
       } catch (error) {
+        const category = classifyVerifyError(error)
         request.logger?.warn(
-          { reason: error.code ?? error.message },
-          'JWT verification failed'
+          { err: error, category },
+          `JWT verification failed [${category}] — ${summariseError(describeError(error))}`
         )
         throw Boom.unauthorized('Invalid bearer token', 'Bearer')
       }
@@ -103,6 +194,18 @@ const authJwt = {
   plugin: {
     name: 'auth-jwt',
     register(server, options) {
+      // Log the resolved egress config at startup so a misconfig is visible at
+      // boot, not only on the first failed login.
+      logger.info(
+        {
+          discoveryUrl: options.discoveryUrl,
+          usingLocalJwks: Boolean(options.localJwks),
+          audienceEnforced: Boolean(options.audience),
+          issuerPinned: Boolean(options.issuer),
+          httpProxyConfigured: Boolean(options.httpProxy)
+        },
+        'defra-jwt auth strategy registered'
+      )
       server.auth.scheme('defra-jwt', defraJwtScheme)
       server.auth.strategy('defra-jwt', 'defra-jwt', options)
     }
