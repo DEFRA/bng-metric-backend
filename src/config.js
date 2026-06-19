@@ -10,6 +10,14 @@ const isDevelopment = process.env.NODE_ENV === 'development'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
 const localStack = 'http://localhost:4566'
 
+// Shared HMAC secret for verifying frontend-forwarded id_tokens. The baked-in
+// dev default lets the frontend and backend boot and interoperate locally with
+// zero setup; production rejects it (see validateAuthForwardSecret below). It
+// MUST be identical in both apps. Kept in sync with the frontend's default.
+const MIN_SECRET_LENGTH = 16
+const FORWARD_SECRET_DEV_DEFAULT =
+  'local-dev-only-auth-forward-secret-change-me'
+
 if (isDevelopment) {
   configDotenv()
 }
@@ -130,7 +138,13 @@ const config = convict({
       doc: 'Log paths to redact',
       format: Array,
       default: isProduction
-        ? ['req.headers.authorization', 'req.headers.cookie', 'res.headers']
+        ? [
+            'req.headers.authorization',
+            'req.headers.cookie',
+            'req.headers["x-defra-id-token"]',
+            'req.headers["x-defra-id-signature"]',
+            'res.headers'
+          ]
         : ['req', 'res', 'responseTime']
     }
   },
@@ -192,29 +206,35 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
-  oidc: {
-    discoveryUrl: {
-      doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',
-      format: String,
-      default:
-        'http://localhost:3200/cdp-defra-id-stub/.well-known/openid-configuration',
-      env: 'OIDC_DISCOVERY_URL'
-    },
-    audience: {
-      doc: 'Expected JWT audience (the OIDC client id). Left empty against the cdp-defra-id-stub, whose tokens do not carry the client id as `aud` the way live B2C does; audience is only enforced when this is set.',
-      format: String,
-      default: '',
-      env: 'OIDC_AUDIENCE'
-    },
-    issuer: {
-      doc: 'Expected JWT issuer. Empty means derive it from the discovery document.',
-      format: String,
-      default: '',
-      env: 'OIDC_ISSUER'
-    }
+  authForwardSecret: {
+    doc: 'Shared HMAC secret for verifying frontend-forwarded id_tokens. Must be identical in the frontend and backend. Never hardcoded or logged.',
+    format: String,
+    nullable: false,
+    default: FORWARD_SECRET_DEV_DEFAULT,
+    sensitive: true,
+    env: 'AUTH_FORWARD_SECRET'
   }
 })
 
 config.validate({ allowed: 'strict' })
+
+// Fail fast in production if the shared HMAC secret is missing, trivially short,
+// or left at the baked-in dev default — a misconfigured secret means every
+// backend request is unverifiable. In dev/test the dev default is accepted so
+// the app boots with no extra setup. The value itself is never logged.
+function validateAuthForwardSecret() {
+  if (!isProduction) {
+    return
+  }
+  const secret = config.get('authForwardSecret')
+  const tooShort = !secret || secret.trim().length < MIN_SECRET_LENGTH
+  if (tooShort || secret === FORWARD_SECRET_DEV_DEFAULT) {
+    throw new Error(
+      'AUTH_FORWARD_SECRET must be set to a strong, non-default value in production'
+    )
+  }
+}
+
+validateAuthForwardSecret()
 
 export { config }

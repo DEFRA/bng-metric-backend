@@ -193,6 +193,34 @@ the [.github/example.dependabot.yml](.github/example.dependabot.yml) to `.github
 
 Instructions for setting up SonarCloud can be found in [sonar-project.properties](./sonar-project.properties)
 
+## Authentication (forwarded-token HMAC)
+
+The backend runs in a private subnet and makes **zero** outbound network calls to
+authenticate a request — no OIDC discovery, no JWKS fetch. The frontend (which
+has already verified the Defra ID `id_token` at login) forwards it to the backend
+on every request over two headers:
+
+| Header                 | Value                                                                      |
+| ---------------------- | -------------------------------------------------------------------------- |
+| `x-defra-id-token`     | standard base64 of the compact `id_token` JWT (`header.payload.signature`) |
+| `x-defra-id-signature` | lowercase-hex HMAC-SHA256 of the `x-defra-id-token` value                  |
+
+The `defra-jwt` Hapi auth scheme ([`src/plugins/auth-jwt.js`](./src/plugins/auth-jwt.js))
+recomputes the HMAC with a constant-time compare (`node:crypto.timingSafeEqual`),
+decodes the token's claims (no signature verification, no network), and enforces
+`exp`/`nbf` locally with a 60-second clock-skew grace. Any failure returns a
+clean `401`, never a `500`, and only a coarse failure category is logged — never
+the token, claims, secret, or signature.
+
+`AUTH_FORWARD_SECRET` is the shared HMAC key. It **must be identical** in the
+frontend and backend, comes only from the environment, and is validated at
+startup (the app fails fast if it is missing or trivially short). A placeholder
+lives in [`.env.template`](./.env.template); set a real long random value in your
+local `.env` (which is git-ignored) and in the deployed environment config.
+
+See [`docs/auth-route-policy.md`](./docs/auth-route-policy.md) for the
+secure-by-default route policy.
+
 ## Security: Secret scanning
 
 This repo scans for secrets at three independent layers — a real credential has to slip past all three to reach `main`:

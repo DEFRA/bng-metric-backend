@@ -1,74 +1,84 @@
-import { describe, test, expect, beforeAll, afterEach, vi } from 'vitest'
+import { describe, test, expect, beforeAll, vi } from 'vitest'
 import Hapi from '@hapi/hapi'
-import {
-  SignJWT,
-  exportJWK,
-  generateKeyPair,
-  createLocalJWKSet,
-  createRemoteJWKSet
-} from 'jose'
-
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import * as crypto from 'node:crypto'
+import { SignJWT, generateKeyPair } from 'jose'
 
 import { authJwt } from './auth-jwt.js'
-import { createLogger } from '../common/helpers/logging/logger.js'
 
-// Keep every jose primitive real, but let the remote-JWKS (discovery) path run
-// without network I/O: only createRemoteJWKSet is mocked, pointed at a local key
-// set by the discovery tests.
-vi.mock('jose', async (importOriginal) => {
+// Wrap node:crypto so the constant-time compare can be asserted: the wrapper
+// records each call on a spy then ALWAYS delegates to the real timingSafeEqual,
+// so verification still works even though clearMocks resets the spy between
+// tests. State lives in vi.hoisted so it is initialised before the hoisted
+// vi.mock factory runs.
+const { timingSafeEqualSpy } = vi.hoisted(() => ({
+  timingSafeEqualSpy: vi.fn()
+}))
+vi.mock('node:crypto', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, createRemoteJWKSet: vi.fn() }
+  return {
+    ...actual,
+    timingSafeEqual: (a, b) => {
+      timingSafeEqualSpy(a, b)
+      return actual.timingSafeEqual(a, b)
+    }
+  }
 })
 
-const ISSUER = 'https://test-issuer.example'
-const AUDIENCE = 'test-client'
+const SECRET = 'unit-test-auth-forward-secret'
 const KID = 'test-key'
 const HTTP_OK = 200
 const HTTP_UNAUTHORIZED = 401
 const ONE_MINUTE_SECONDS = 60
+const CLOCK_SKEW_SECONDS = 60
+const HMAC_ALGORITHM = 'sha256'
+
+const HEADER_TOKEN = 'x-defra-id-token'
+const HEADER_SIGNATURE = 'x-defra-id-signature'
 
 let privateKey
-let publicJwks
 let server
 
 function nowSeconds() {
   return Math.floor(Date.now() / 1000)
 }
 
-async function mint(
-  claims = {},
-  { issuer = ISSUER, audience = AUDIENCE, exp = '1h' } = {}
-) {
-  return new SignJWT({ ...claims })
+// Mint a real compact JWT. The backend never verifies the signature, but minting
+// with a real key produces a well-formed token with valid claims to decode.
+async function mint(claims = {}, { exp = '1h', nbf } = {}) {
+  let builder = new SignJWT({ ...claims })
     .setProtectedHeader({ alg: 'RS256', kid: KID })
     .setIssuedAt()
-    .setIssuer(issuer)
-    .setAudience(audience)
     .setSubject(claims.sub ?? 'user-1')
     .setExpirationTime(exp)
-    .sign(privateKey)
+  if (nbf !== undefined) {
+    builder = builder.setNotBefore(nbf)
+  }
+  return builder.sign(privateKey)
 }
 
-function inject(token) {
-  const headers = token ? { authorization: `Bearer ${token}` } : {}
+// Build the forwarded-auth headers the frontend would send: base64 token plus
+// the lowercase-hex HMAC-SHA256 of that token value keyed by the shared secret.
+function buildAuthHeaders(token, secret = SECRET) {
+  const tokenBase64 = Buffer.from(token).toString('base64')
+  const signature = crypto
+    .createHmac(HMAC_ALGORITHM, secret)
+    .update(tokenBase64)
+    .digest('hex')
+  return { [HEADER_TOKEN]: tokenBase64, [HEADER_SIGNATURE]: signature }
+}
+
+function inject(headers = {}) {
   return server.inject({ method: 'GET', url: '/protected', headers })
 }
 
 beforeAll(async () => {
   const keyPair = await generateKeyPair('RS256')
   privateKey = keyPair.privateKey
-  const jwk = await exportJWK(keyPair.publicKey)
-  jwk.kid = KID
-  jwk.alg = 'RS256'
-  jwk.use = 'sig'
-  const jwks = { keys: [jwk] }
-  publicJwks = jwks
 
   server = Hapi.server()
   await server.register({
     plugin: authJwt.plugin,
-    options: { localJwks: jwks, issuer: ISSUER, audience: AUDIENCE }
+    options: { authForwardSecret: SECRET }
   })
   server.route({
     method: 'GET',
@@ -79,328 +89,124 @@ beforeAll(async () => {
   await server.initialize()
 })
 
-describe('defra-jwt strategy', () => {
-  test('401 when no Authorization header is present', async () => {
-    const res = await inject()
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-  })
-
-  test('401 when the Authorization header is not a Bearer token', async () => {
-    const res = await server.inject({
-      method: 'GET',
-      url: '/protected',
-      headers: { authorization: 'Token abc' }
-    })
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-  })
-
-  test('200 with a valid token; credentials are the verified payload', async () => {
-    const res = await inject(await mint({ sub: 'user-42' }))
+describe('defra-jwt strategy (forwarded HMAC)', () => {
+  test('200 with a valid forwarded token; credentials are the decoded payload', async () => {
+    const token = await mint({ sub: 'user-42' })
+    const res = await inject(buildAuthHeaders(token))
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.sub).toBe('user-42')
   })
 
-  test('401 for a token from the wrong issuer', async () => {
-    const res = await inject(
-      await mint({ sub: 'x' }, { issuer: 'https://evil' })
-    )
+  test('401 when both forwarded headers are missing', async () => {
+    const res = await inject()
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 
-  test('401 for a token with the wrong audience', async () => {
-    const res = await inject(await mint({ sub: 'x' }, { audience: 'other' }))
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-  })
-
-  test('401 for an expired token', async () => {
-    const res = await inject(
-      await mint({ sub: 'x' }, { exp: nowSeconds() - ONE_MINUTE_SECONDS })
-    )
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-  })
-
-  test('401 for a garbage token', async () => {
-    const res = await inject('not.a.jwt')
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-  })
-})
-
-describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
-  const DISCOVERY_URL = 'https://idp.example/.well-known/openid-configuration'
-  const JWKS_URI = 'https://idp.example/jwks'
-
-  async function buildServer(options) {
-    const s = Hapi.server()
-    await s.register({ plugin: authJwt.plugin, options })
-    s.route({
-      method: 'GET',
-      path: '/protected',
-      options: { auth: 'defra-jwt' },
-      handler: (request) => ({ sub: request.auth.credentials.sub })
-    })
-    await s.initialize()
-    return s
-  }
-
-  function injectTo(s, token) {
-    return s.inject({
-      method: 'GET',
-      url: '/protected',
-      headers: { authorization: `Bearer ${token}` }
-    })
-  }
-
-  afterEach(() => {
-    vi.unstubAllGlobals()
-    vi.mocked(createRemoteJWKSet).mockReset()
-  })
-
-  test('discovers the JWKS and verifies a token against it', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ jwks_uri: JWKS_URI, issuer: ISSUER })
-      }))
-    )
-    vi.mocked(createRemoteJWKSet).mockReturnValue(createLocalJWKSet(publicJwks))
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'remote-user' }))
-
-    expect(global.fetch).toHaveBeenCalledWith(DISCOVERY_URL)
-    // No proxy configured here, so the JWKS fetch runs without an agent.
-    expect(createRemoteJWKSet).toHaveBeenCalledWith(new URL(JWKS_URI), {
-      agent: undefined
-    })
-    expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.sub).toBe('remote-user')
-    await s.stop()
-  })
-
-  test('routes the JWKS fetch through an https proxy agent when httpProxy is set', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ jwks_uri: JWKS_URI, issuer: ISSUER })
-      }))
-    )
-    vi.mocked(createRemoteJWKSet).mockReturnValue(createLocalJWKSet(publicJwks))
-
-    const s = await buildServer({
-      discoveryUrl: DISCOVERY_URL,
-      httpProxy: 'http://proxy.example:3128'
-    })
-    const res = await injectTo(s, await mint({ sub: 'proxied-user' }))
-
-    expect(res.statusCode).toBe(HTTP_OK)
-    const [, jwksOptions] = vi.mocked(createRemoteJWKSet).mock.calls.at(-1)
-    expect(jwksOptions.agent).toBeInstanceOf(HttpsProxyAgent)
-    expect(jwksOptions.agent.proxy.hostname).toBe('proxy.example')
-    expect(jwksOptions.agent.proxy.port).toBe('3128')
-    await s.stop()
-  })
-
-  test('401 and resets the cached verifier so discovery is retried after a failure', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: false, status: 503 }))
-    )
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
+  test('401 when the token header is missing', async () => {
     const token = await mint({ sub: 'x' })
-
-    const first = await injectTo(s, token)
-    const second = await injectTo(s, token)
-
-    expect(first.statusCode).toBe(HTTP_UNAUTHORIZED)
-    expect(second.statusCode).toBe(HTTP_UNAUTHORIZED)
-    // The verifier promise is cleared on failure, so each request re-discovers.
-    expect(global.fetch).toHaveBeenCalledTimes(2)
-    await s.stop()
+    const headers = buildAuthHeaders(token)
+    delete headers[HEADER_TOKEN]
+    const res = await inject(headers)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 
-  test('accepts a localJwks supplied as a JSON string', async () => {
-    const s = await buildServer({
-      localJwks: JSON.stringify(publicJwks),
-      issuer: ISSUER,
-      audience: AUDIENCE
-    })
-    const res = await injectTo(s, await mint({ sub: 'string-jwks-user' }))
+  test('401 when the signature header is missing', async () => {
+    const token = await mint({ sub: 'x' })
+    const headers = buildAuthHeaders(token)
+    delete headers[HEADER_SIGNATURE]
+    const res = await inject(headers)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
 
+  test('401 when the signature is computed with the wrong secret', async () => {
+    const token = await mint({ sub: 'x' })
+    const headers = buildAuthHeaders(token, 'a-different-secret-entirely')
+    const res = await inject(headers)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  test('401 when the token is tampered with after the signature is computed', async () => {
+    const token = await mint({ sub: 'x' })
+    const headers = buildAuthHeaders(token)
+    // Re-base64 a different token but keep the original signature: a mismatch.
+    const otherToken = await mint({ sub: 'attacker' })
+    headers[HEADER_TOKEN] = Buffer.from(otherToken).toString('base64')
+    const res = await inject(headers)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  test('401 when the signature length differs from the computed HMAC', async () => {
+    const token = await mint({ sub: 'x' })
+    const headers = buildAuthHeaders(token)
+    // A too-short hex signature: lengths differ, so the compare must fail safely.
+    headers[HEADER_SIGNATURE] = 'abcd'
+    const res = await inject(headers)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  test('401 for an expired token (beyond the clock-skew grace)', async () => {
+    const token = await mint(
+      { sub: 'x' },
+      { exp: nowSeconds() - (CLOCK_SKEW_SECONDS + ONE_MINUTE_SECONDS) }
+    )
+    const res = await inject(buildAuthHeaders(token))
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  test('401 for a token that is not yet valid (nbf beyond the clock-skew grace)', async () => {
+    const future = nowSeconds() + CLOCK_SKEW_SECONDS + ONE_MINUTE_SECONDS
+    const token = await mint({ sub: 'x' }, { nbf: future })
+    const res = await inject(buildAuthHeaders(token))
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  test('200 for a token that expired within the clock-skew grace window', async () => {
+    const token = await mint(
+      { sub: 'skew-user' },
+      { exp: nowSeconds() - Math.floor(CLOCK_SKEW_SECONDS / 2) }
+    )
+    const res = await inject(buildAuthHeaders(token))
     expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.sub).toBe('string-jwks-user')
-    await s.stop()
+    expect(res.result.sub).toBe('skew-user')
   })
 
-  test('verifies on signature alone when neither issuer nor audience is pinned', async () => {
-    const s = await buildServer({ localJwks: publicJwks })
-    const res = await injectTo(s, await mint({ sub: 'unpinned-user' }))
-
-    expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.sub).toBe('unpinned-user')
-    await s.stop()
-  })
-
-  test('logs a one-off "discovery resolved" line carrying the jwks uri', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ jwks_uri: JWKS_URI, issuer: ISSUER })
-      }))
-    )
-    vi.mocked(createRemoteJWKSet).mockReturnValue(createLocalJWKSet(publicJwks))
-    const infoSpy = vi.spyOn(createLogger(), 'info')
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    await injectTo(s, await mint({ sub: 'remote-user' }))
-
-    const resolved = infoSpy.mock.calls.find(
-      ([, msg]) =>
-        typeof msg === 'string' && msg.includes('OIDC discovery resolved')
-    )
-    expect(resolved).toBeDefined()
-    expect(resolved[0]).toMatchObject({ jwksUri: JWKS_URI })
-    infoSpy.mockRestore()
-    await s.stop()
-  })
-
-  test('logs the resolution failure with the http status in the message', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({ ok: false, status: 503 }))
-    )
-    const errorSpy = vi.spyOn(createLogger(), 'error')
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'x' }))
-
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-    const failure = errorSpy.mock.calls.find(
-      ([, msg]) =>
-        typeof msg === 'string' &&
-        msg.includes('OIDC discovery/JWKS resolution failed')
-    )
-    expect(failure).toBeDefined()
-    expect(failure[1]).toContain('503')
-    errorSpy.mockRestore()
-    await s.stop()
-  })
-
-  test('401s and classifies a JWKS-fetch network failure as idp-unreachable (not a token rejection)', async () => {
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => ({
-        ok: true,
-        json: async () => ({ jwks_uri: JWKS_URI, issuer: ISSUER })
-      }))
-    )
-    // The lazy JWKS fetch fails at verify time the way a real fetch() does: a
-    // bare "fetch failed" whose underlying code lives on error.cause.
-    const networkError = new Error('fetch failed')
-    networkError.cause = {
-      code: 'ENOTFOUND',
-      message: 'getaddrinfo ENOTFOUND idp.example'
-    }
-    vi.mocked(createRemoteJWKSet).mockReturnValue(async () => {
-      throw networkError
+  test('401 when the token header is not valid base64-encoded JWT', async () => {
+    // Sign over a header value that decodes to a non-JWT string.
+    const tokenBase64 = Buffer.from('not-a-jwt-at-all').toString('base64')
+    const signature = crypto
+      .createHmac(HMAC_ALGORITHM, SECRET)
+      .update(tokenBase64)
+      .digest('hex')
+    const res = await inject({
+      [HEADER_TOKEN]: tokenBase64,
+      [HEADER_SIGNATURE]: signature
     })
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'x' }))
-
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-    await s.stop()
   })
 
-  test('surfaces the underlying cause code (e.g. ENOTFOUND) when discovery fails instantly', async () => {
-    // The real-world CDP symptom: a request egressing direct (not via the proxy)
-    // throws `TypeError: fetch failed` whose .code is undefined — the useful code
-    // is on error.cause. The previous logging collapsed this to "fetch failed".
-    const fetchError = new TypeError('fetch failed')
-    fetchError.cause = {
-      code: 'ENOTFOUND',
-      message: 'getaddrinfo ENOTFOUND idp.example'
-    }
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw fetchError
-      })
-    )
-    const errorSpy = vi.spyOn(createLogger(), 'error')
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'x' }))
-
+  test('401 when the token decodes to something with three dots but invalid JWT payload', async () => {
+    // header.payload.sig shape but payload is not valid base64url JSON.
+    const compact = 'aaa.bbb.ccc'
+    const tokenBase64 = Buffer.from(compact).toString('base64')
+    const signature = crypto
+      .createHmac(HMAC_ALGORITHM, SECRET)
+      .update(tokenBase64)
+      .digest('hex')
+    const res = await inject({
+      [HEADER_TOKEN]: tokenBase64,
+      [HEADER_SIGNATURE]: signature
+    })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-    const failure = errorSpy.mock.calls.find(
-      ([, msg]) =>
-        typeof msg === 'string' &&
-        msg.includes('OIDC discovery/JWKS resolution failed')
-    )
-    expect(failure).toBeDefined()
-    expect(failure[1]).toContain('ENOTFOUND')
-    errorSpy.mockRestore()
-    await s.stop()
   })
 
-  test('surfaces a proxy CONNECT rejection (the real CDP failure) including the proxy status', async () => {
-    // Mirrors undici's shape when the proxy rejects the HTTPS CONNECT: the outer
-    // "fetch failed" wraps a cancelled error whose code is the NUMBER 0, and the
-    // real reason (the proxy status) lives in that error's own cause. The old
-    // `code ?? message` summary logged a bare "0" and hid all of this.
-    const cancelled = new Error('Request was cancelled.')
-    cancelled.code = 0
-    cancelled.cause = new Error(
-      'Proxy response (403) !== 200 when HTTP Tunneling'
-    )
-    cancelled.cause.code = 'UND_ERR_ABORTED'
-    const fetchError = new TypeError('fetch failed')
-    fetchError.cause = cancelled
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(() => Promise.reject(fetchError))
-    )
-    const errorSpy = vi.spyOn(createLogger(), 'error')
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'x' }))
-
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-    const failure = errorSpy.mock.calls.find(
-      ([, msg]) => typeof msg === 'string' && msg.includes('resolution failed')
-    )
-    expect(failure).toBeDefined()
-    // The proxy status must now appear instead of an opaque "0".
-    expect(failure[1]).toContain('Proxy response (403)')
-    expect(failure[1]).toContain('UND_ERR_ABORTED')
-    errorSpy.mockRestore()
-    await s.stop()
-  })
-
-  test('summarises a cause that carries only a message', async () => {
-    const err = new Error('outer')
-    err.cause = { message: 'inner detail' }
-    vi.stubGlobal(
-      'fetch',
-      vi.fn(async () => {
-        throw err
-      })
-    )
-    const errorSpy = vi.spyOn(createLogger(), 'error')
-
-    const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
-    const res = await injectTo(s, await mint({ sub: 'x' }))
-
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
-    const failure = errorSpy.mock.calls.find(
-      ([, msg]) => typeof msg === 'string' && msg.includes('inner detail')
-    )
-    expect(failure).toBeDefined()
-    errorSpy.mockRestore()
-    await s.stop()
+  test('uses node:crypto timingSafeEqual for the signature comparison', async () => {
+    timingSafeEqualSpy.mockClear()
+    const token = await mint({ sub: 'timing-user' })
+    const res = await inject(buildAuthHeaders(token))
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(timingSafeEqualSpy).toHaveBeenCalled()
+    // Both buffers passed to the constant-time compare must be equal length.
+    const [computedBuf, suppliedBuf] = timingSafeEqualSpy.mock.calls.at(-1)
+    expect(computedBuf.length).toBe(suppliedBuf.length)
   })
 })

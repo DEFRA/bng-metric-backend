@@ -15,8 +15,14 @@ deliberate, visible decision — forgetting to add auth fails **closed**, not op
 server.auth.default('defra-jwt')
 ```
 
-`defra-jwt` independently verifies the forwarded id_token against the provider's
-JWKS (zero-trust — the backend never trusts frontend-parsed claims). See
+`defra-jwt` authenticates the forwarded id_token **locally, with no network
+calls** — the backend runs in a private subnet. The frontend (which has already
+verified the id_token at login) forwards it over two headers: `x-defra-id-token`
+(base64 of the compact JWT) and `x-defra-id-signature` (lowercase-hex
+HMAC-SHA256 of that header value, keyed by the shared `AUTH_FORWARD_SECRET`). The
+scheme recomputes the HMAC with a constant-time compare, decodes the token's
+claims, and enforces `exp`/`nbf` with a small clock-skew grace. `AUTH_FORWARD_SECRET`
+must be identical in the frontend and backend, and is never logged. See
 [the frontend authenticated-user-journey doc](../../bng-metric-frontend/docs/authenticated-user-journey.md)
 for the end-to-end flow.
 

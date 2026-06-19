@@ -1,193 +1,144 @@
-// Hapi auth scheme + strategy ('defra-jwt') that independently verifies the
-// Defra ID id_token forwarded by the frontend (zero-trust: the backend never
-// trusts the frontend's parsed claims). On success the verified JWT payload
-// becomes request.auth.credentials; on any failure it returns a clean 401
-// (Boom.unauthorized), distinct from a 400 validation error.
+// Hapi auth scheme + strategy ('defra-jwt') that authenticates requests the
+// frontend forwards. The frontend sits in front of Defra ID, verifies the
+// id_token at login, and forwards it to the backend over two headers:
 //
-// Key source is swappable:
-//   - Normal run: resolve jwks_uri + issuer from the OIDC discovery document
-//     and verify against a remote JWKS (jose.createRemoteJWKSet).
-//   - Tests / injected key set: pass `localJwks` (a JWKS object or JSON string)
-//     and the scheme uses jose.createLocalJWKSet, skipping discovery entirely.
+//   x-defra-id-token     base64 of the compact id_token JWT (header.payload.sig)
+//   x-defra-id-signature lowercase-hex HMAC-SHA256 of that header value, keyed
+//                        by the shared AUTH_FORWARD_SECRET
 //
-// Audience is optional: the cdp-defra-id-stub does not append the client id as
-// `aud` the way live B2C does, so we only enforce audience when configured.
-//
-// Diagnostics: discovery and the JWKS are fetched over the network, and in a CDP
-// container that egress must traverse the platform proxy and trust its CA. When
-// it fails, the useful detail lives on error.cause (a bare `fetch failed` has no
-// .code), so we flatten the cause and put the codes straight into the LOG
-// MESSAGE — which survives a pipeline that drops unmapped structured fields. We
-// classify the failure (idp-unreachable vs token-rejected) and log a one-off
-// line on successful discovery, so a single deploy's logs reveal which stage
-// (discovery, JWKS fetch, or token verification) actually failed.
+// The backend lives in a private subnet and makes ZERO network calls: it does
+// NOT verify the JWT signature against a JWKS, run OIDC discovery, or reach the
+// IdP at all. Trust is established by the shared-secret HMAC over the forwarded
+// token (only the frontend holds the secret), and the token's own exp/nbf are
+// enforced locally with a small clock-skew grace. The decoded JWT payload then
+// becomes request.auth.credentials; any failure returns a clean 401
+// (Boom.unauthorized), never a 500. We log only a short failure category and
+// NEVER the token, claims, secret, or signature.
 import Boom from '@hapi/boom'
-import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from 'jose'
-import { HttpsProxyAgent } from 'https-proxy-agent'
+import { decodeJwt } from 'jose'
+import * as crypto from 'node:crypto'
 
 import { createLogger } from '../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
-const BEARER_PREFIX = 'Bearer '
-// jose namespaces its own error codes 'ERR_J…'. We use that to tell a genuine
-// token/JWKS rejection apart from an underlying network/TLS failure, which
-// surfaces from the same jwtVerify() call when the lazy JWKS fetch fails.
-const JOSE_ERROR_PREFIX = 'ERR_J'
-// Cap the cause-chain walk so a cyclic `cause` can never loop forever.
-const MAX_CAUSE_DEPTH = 5
+const HEADER_TOKEN = 'x-defra-id-token'
+const HEADER_SIGNATURE = 'x-defra-id-signature'
+const HMAC_ALGORITHM = 'sha256'
+const HEX_ENCODING = 'hex'
+const BASE64_ENCODING = 'base64'
+const UTF8_ENCODING = 'utf8'
+// A compact JWT is header.payload.signature — three dot-separated segments.
+const JWT_SEGMENT_COUNT = 3
+const MILLISECONDS_PER_SECOND = 1000
+// Allow a small grace either side of exp/nbf to tolerate clock drift between the
+// frontend, the backend, and the IdP that issued the token.
+const CLOCK_SKEW_SECONDS = 60
 
-// Render one Error in the chain. The real reason for a failed fetch/proxy/TLS
-// error often sits in its message and nested cause, not its `code` (e.g. undici
-// wraps a rejected proxy CONNECT as a cancelled error whose code is the NUMBER
-// 0), so only show a code when it is truthy and never let it hide the message.
-function describeLink(error) {
-  const code = error.code ? ` [${error.code}]` : ''
-  return `${error.name ?? 'Error'}${code}: ${error.message}`
+// Failure categories used for logging. They are deliberately coarse: they tell
+// an operator WHICH stage rejected the request without ever revealing the token.
+const CATEGORY_MISSING_HEADERS = 'missing-headers'
+const CATEGORY_BAD_SIGNATURE = 'bad-signature'
+const CATEGORY_MALFORMED = 'malformed'
+const CATEGORY_EXPIRED = 'expired'
+
+function nowSeconds() {
+  return Math.floor(Date.now() / MILLISECONDS_PER_SECOND)
 }
 
-// Walk error.cause into a readable one-line chain that survives a log pipeline
-// which drops unmapped structured fields — the diagnostic detail goes into the
-// message itself, not just the structured `err`. This is what turns an opaque
-// "fetch failed (cause: 0)" into e.g. "TypeError: fetch failed <- Error:
-// Request was cancelled. <- Error [UND_ERR_ABORTED]: Proxy response (403) !==
-// 200 when HTTP Tunneling", which names the proxy as the culprit.
-function summariseError(error) {
-  const links = []
-  let current = error
-  let depth = 0
-  while (current && depth < MAX_CAUSE_DEPTH) {
-    links.push(describeLink(current))
-    current = current.cause
-    depth += 1
+// Constant-time HMAC verification. We recompute the HMAC over the EXACT
+// x-defra-id-token header value and compare it to the supplied signature using
+// timingSafeEqual on equal-length Buffers. A length mismatch short-circuits to a
+// failure (timingSafeEqual throws on unequal lengths), so we check it first.
+function verifyHmac(secret, tokenBase64, signatureHex) {
+  const computed = crypto
+    .createHmac(HMAC_ALGORITHM, secret)
+    .update(tokenBase64)
+    .digest(HEX_ENCODING)
+  const computedBuf = Buffer.from(computed, HEX_ENCODING)
+  const suppliedBuf = Buffer.from(signatureHex, HEX_ENCODING)
+  if (computedBuf.length !== suppliedBuf.length) {
+    return false
   }
-  return links.join(' <- ')
+  return crypto.timingSafeEqual(computedBuf, suppliedBuf)
 }
 
-// A jose error means the token itself was rejected (bad signature, wrong
-// issuer/audience, expired, no matching key). Anything else thrown from
-// jwtVerify is the lazy JWKS fetch failing — i.e. we could not reach/trust the
-// IdP, not a problem with the token.
-function classifyVerifyError(error) {
-  const isJoseError =
-    typeof error.code === 'string' && error.code.startsWith(JOSE_ERROR_PREFIX)
-  return isJoseError ? 'token-rejected' : 'idp-unreachable'
-}
-
-async function fetchDiscovery(discoveryUrl) {
-  const response = await fetch(discoveryUrl)
-  if (!response.ok) {
-    throw new Error(
-      `OIDC discovery request to ${discoveryUrl} failed: ${response.status}`
-    )
-  }
-  return response.json()
-}
-
-// Resolve the verification key set + expected issuer once, lazily, and cache the
-// promise so registration never blocks on network I/O and discovery runs at most
-// once per process.
-async function resolveVerifier(options) {
-  if (options.localJwks) {
-    const jwks =
-      typeof options.localJwks === 'string'
-        ? JSON.parse(options.localJwks)
-        : options.localJwks
-    return {
-      keySet: createLocalJWKSet(jwks),
-      issuer: options.issuer || undefined
-    }
-  }
-
-  const discovery = await fetchDiscovery(options.discoveryUrl)
-  const issuer = options.issuer || discovery.issuer || undefined
-  // jose fetches the JWKS with node:https.get, which — unlike the global fetch()
-  // used for discovery — does NOT pick up the undici/global-agent proxy: jose
-  // reads `https.get` off a namespace import that never sees global-agent's
-  // monkey-patch, so the call uses the original, unproxied https.get. In a CDP
-  // container (no direct egress) that JWKS fetch fails instantly. Pass an
-  // explicit proxy agent so it tunnels through the platform proxy — this is what
-  // createRemoteJWKSet's `agent` option is documented for.
-  const agent = options.httpProxy
-    ? new HttpsProxyAgent(options.httpProxy)
-    : undefined
-  logger.info(
-    { jwksUri: discovery.jwks_uri, issuer, jwksProxied: Boolean(agent) },
-    `OIDC discovery resolved from ${options.discoveryUrl}`
+// Decode the base64 header value back to the compact JWT string and confirm it
+// has the three segments of a compact JWT. Returns the JWT string, or throws if
+// the value is not decodable base64 or not a compact JWT.
+function decodeToken(tokenBase64) {
+  const compactJwt = Buffer.from(tokenBase64, BASE64_ENCODING).toString(
+    UTF8_ENCODING
   )
-  return {
-    keySet: createRemoteJWKSet(new URL(discovery.jwks_uri), { agent }),
-    issuer
+  const segments = compactJwt.split('.')
+  if (segments.length !== JWT_SEGMENT_COUNT || segments.some((s) => !s)) {
+    throw new Error('Token is not a compact JWT')
   }
+  return compactJwt
 }
 
-function bearerToken(authorization) {
-  if (!authorization?.startsWith(BEARER_PREFIX)) {
-    return null
+// Enforce the token's own time bounds locally (no network). exp must be in the
+// future allowing for clock skew; nbf, if present, must be in the past allowing
+// for clock skew. Throws if the token is expired or not yet valid.
+function enforceExpiry(claims) {
+  const now = nowSeconds()
+  if (
+    typeof claims.exp !== 'number' ||
+    now >= claims.exp + CLOCK_SKEW_SECONDS
+  ) {
+    throw new Error('Token expired')
   }
-  return authorization.slice(BEARER_PREFIX.length).trim()
-}
-
-function buildVerifyOptions(verifier, options) {
-  const verifyOptions = {}
-  if (verifier.issuer) {
-    verifyOptions.issuer = verifier.issuer
+  if (typeof claims.nbf === 'number' && now < claims.nbf - CLOCK_SKEW_SECONDS) {
+    throw new Error('Token not yet valid')
   }
-  if (options.audience) {
-    verifyOptions.audience = options.audience
-  }
-  return verifyOptions
 }
 
 function defraJwtScheme(_server, options) {
-  let verifierPromise
-
-  const getVerifier = () => {
-    if (!verifierPromise) {
-      // Reset on failure so a transient discovery outage can be retried, and log
-      // the full cause: this is the "can't reach / can't trust the IdP" path.
-      verifierPromise = resolveVerifier(options).catch((error) => {
-        verifierPromise = null
-        logger.error(
-          { err: error, discoveryUrl: options.discoveryUrl },
-          `OIDC discovery/JWKS resolution failed — ${summariseError(error)}`
-        )
-        throw error
-      })
-    }
-    return verifierPromise
-  }
+  const secret = options.authForwardSecret
 
   return {
-    authenticate: async (request, h) => {
-      const token = bearerToken(request.headers.authorization)
-      if (!token) {
-        throw Boom.unauthorized('Missing bearer token', 'Bearer')
+    authenticate: (request, h) => {
+      const tokenBase64 = request.headers[HEADER_TOKEN]
+      const signatureHex = request.headers[HEADER_SIGNATURE]
+
+      if (!tokenBase64 || !signatureHex) {
+        logger.warn(
+          { category: CATEGORY_MISSING_HEADERS },
+          'Rejected request: missing forwarded-auth headers'
+        )
+        throw Boom.unauthorized('Missing authentication headers')
       }
 
-      let verifier
+      if (!verifyHmac(secret, tokenBase64, signatureHex)) {
+        logger.warn(
+          { category: CATEGORY_BAD_SIGNATURE },
+          'Rejected request: HMAC signature mismatch'
+        )
+        throw Boom.unauthorized('Invalid authentication signature')
+      }
+
+      let claims
       try {
-        verifier = await getVerifier()
+        claims = decodeJwt(decodeToken(tokenBase64))
       } catch {
-        // Already logged with the full cause in getVerifier above.
-        throw Boom.unauthorized('Invalid bearer token', 'Bearer')
+        logger.warn(
+          { category: CATEGORY_MALFORMED },
+          'Rejected request: malformed forwarded token'
+        )
+        throw Boom.unauthorized('Malformed token')
       }
 
       try {
-        const { payload } = await jwtVerify(
-          token,
-          verifier.keySet,
-          buildVerifyOptions(verifier, options)
+        enforceExpiry(claims)
+      } catch {
+        logger.warn(
+          { category: CATEGORY_EXPIRED },
+          'Rejected request: token expired or not yet valid'
         )
-        return h.authenticated({ credentials: payload })
-      } catch (error) {
-        const category = classifyVerifyError(error)
-        request.logger?.warn(
-          { err: error, category },
-          `JWT verification failed [${category}] — ${summariseError(error)}`
-        )
-        throw Boom.unauthorized('Invalid bearer token', 'Bearer')
+        throw Boom.unauthorized('Token expired or not yet valid')
       }
+
+      return h.authenticated({ credentials: claims })
     }
   }
 }
@@ -196,17 +147,9 @@ const authJwt = {
   plugin: {
     name: 'auth-jwt',
     register(server, options) {
-      // Log the resolved egress config at startup so a misconfig is visible at
-      // boot, not only on the first failed login.
       logger.info(
-        {
-          discoveryUrl: options.discoveryUrl,
-          usingLocalJwks: Boolean(options.localJwks),
-          audienceEnforced: Boolean(options.audience),
-          issuerPinned: Boolean(options.issuer),
-          httpProxyConfigured: Boolean(options.httpProxy)
-        },
-        'defra-jwt auth strategy registered'
+        { clockSkewSeconds: CLOCK_SKEW_SECONDS },
+        'defra-jwt auth strategy registered (local HMAC verification, no network)'
       )
       server.auth.scheme('defra-jwt', defraJwtScheme)
       server.auth.strategy('defra-jwt', 'defra-jwt', options)

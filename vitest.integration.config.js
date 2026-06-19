@@ -25,7 +25,13 @@ export default defineConfig({
       AWS_ACCESS_KEY_ID: 'test',
       AWS_SECRET_ACCESS_KEY: 'test',
       AWS_REGION: 'eu-west-2',
-      AWS_DEFAULT_REGION: 'eu-west-2'
+      AWS_DEFAULT_REGION: 'eu-west-2',
+      // Shared HMAC secret for the 'defra-jwt' scheme. Must be set before
+      // src/config.js is imported (its startup check fails fast on a missing or
+      // trivial secret) and must match the secret the test auth helpers use to
+      // sign the x-defra-id-* headers. Kept in sync with TEST_AUTH_FORWARD_SECRET
+      // in integration-tests/helpers/auth-tokens.js.
+      AUTH_FORWARD_SECRET: 'integration-test-auth-forward-secret'
     },
     coverage: {
       enabled: false,

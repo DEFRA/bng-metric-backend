@@ -3,7 +3,17 @@ import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { createServer } from '../src/server.js'
+// src/config.js (imported transitively by createServer) fails fast if
+// AUTH_FORWARD_SECRET is missing. This script only inspects the route table — it
+// never authenticates — so a non-trivial fixture is enough to let the server
+// boot. Set it before the dynamic import so config.js validates. Never a real
+// secret.
+const ROUTE_CHECK_AUTH_SECRET = 'route-coverage-check-secret'
+if (!process.env.AUTH_FORWARD_SECRET) {
+  process.env.AUTH_FORWARD_SECRET = ROUTE_CHECK_AUTH_SECRET
+}
+
+const { createServer } = await import('../src/server.js')
 
 const projectRoot = path.resolve(
   path.dirname(fileURLToPath(import.meta.url)),

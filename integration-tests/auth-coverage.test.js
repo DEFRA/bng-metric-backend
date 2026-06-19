@@ -1,6 +1,6 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { startServer, stopServer } from './helpers/server.js'
-import { mintToken, authHeaders } from './helpers/auth-tokens.js'
+import { mintToken, buildAuthHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
@@ -59,8 +59,9 @@ let token
 
 beforeAll(async () => {
   server = await startServer()
-  // startServer() runs initTestJwks(), so a minted token verifies against the
-  // server's local JWKS. Used to prove the default ACCEPTS a valid token.
+  // startServer() runs initTestJwks(), so a minted token plus matching HMAC
+  // headers (see buildAuthHeaders) authenticates against the shared secret. Used
+  // to prove the default ACCEPTS a valid token.
   token = await mintToken()
 })
 
@@ -186,7 +187,7 @@ describe('auth coverage (secure by default)', () => {
     const res = await server.inject({
       method: 'GET',
       url: '/upload/not-a-uuid/status',
-      headers: authHeaders(token)
+      headers: buildAuthHeaders(token, process.env.AUTH_FORWARD_SECRET)
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })

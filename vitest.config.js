@@ -6,6 +6,12 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
+    // src/config.js fails fast at import if AUTH_FORWARD_SECRET is missing or
+    // trivial. Set a non-trivial test fixture before any module loads so unit
+    // tests importing the config can run. Never a real secret.
+    env: {
+      AUTH_FORWARD_SECRET: 'unit-test-auth-forward-secret'
+    },
     include: [
       'src/**/*.test.js',
       'scripts/**/*.test.js',

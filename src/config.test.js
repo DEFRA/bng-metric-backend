@@ -21,6 +21,8 @@ describe('#config', () => {
     expect(config.get('log.redact')).toEqual([
       'req.headers.authorization',
       'req.headers.cookie',
+      'req.headers["x-defra-id-token"]',
+      'req.headers["x-defra-id-signature"]',
       'res.headers'
     ])
     expect(config.get('isMetricsEnabled')).toBe(true)

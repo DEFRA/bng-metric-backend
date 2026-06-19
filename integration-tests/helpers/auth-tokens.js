@@ -1,35 +1,38 @@
-import { SignJWT, exportJWK, generateKeyPair } from 'jose'
+import { SignJWT, generateKeyPair } from 'jose'
+import { createHmac } from 'node:crypto'
 
-// Per-run RS256 key pair whose PUBLIC JWK is handed to the backend via the
-// OIDC_LOCAL_JWKS env var (read by src/server.js → auth-jwt scheme), so the
-// 'defra-jwt' strategy verifies test-minted tokens with createLocalJWKSet and
-// never touches the network / discovery. Issuer + audience are pinned so the
-// scheme enforces them and minted tokens must match.
-const ISSUER = 'https://bng-integration-tests.local'
-const AUDIENCE = 'bng-integration-client'
+// The backend 'defra-jwt' scheme no longer verifies the JWT signature against a
+// JWKS — it trusts the shared-secret HMAC over the forwarded token and reads the
+// claims locally. We still mint a real RS256 JWT so the token is a valid compact
+// JWT with the right claim shape; the private key is only used to produce that
+// well-formed token, never verified by the backend.
 const KID = 'integration-test-key'
 const DEFAULT_TOKEN_TTL = '1h'
+const HMAC_ALGORITHM = 'sha256'
+const HEX_ENCODING = 'hex'
+const BASE64_ENCODING = 'base64'
+const HEADER_TOKEN = 'x-defra-id-token'
+const HEADER_SIGNATURE = 'x-defra-id-signature'
+// Shared HMAC secret used by both the minted headers and the backend's scheme.
+// Long enough to satisfy the backend's startup non-trivial-length check.
+const TEST_AUTH_FORWARD_SECRET = 'integration-test-auth-forward-secret'
 
 let privateKey
 let initPromise
 
 /**
- * Generate the key pair (once) and publish the public JWK + issuer + audience
- * into the environment. MUST be awaited before createServer() so the auth
- * scheme is registered with the local key set.
+ * Generate the signing key pair (once) and publish the shared HMAC secret into
+ * the environment. MUST be awaited before createServer() so the auth scheme is
+ * registered with the same secret used to sign the forwarded headers.
  */
 function initTestJwks() {
   if (!initPromise) {
     initPromise = (async () => {
       const keyPair = await generateKeyPair('RS256')
       privateKey = keyPair.privateKey
-      const jwk = await exportJWK(keyPair.publicKey)
-      jwk.kid = KID
-      jwk.alg = 'RS256'
-      jwk.use = 'sig'
-      process.env.OIDC_LOCAL_JWKS = JSON.stringify({ keys: [jwk] })
-      process.env.OIDC_ISSUER = ISSUER
-      process.env.OIDC_AUDIENCE = AUDIENCE
+      if (!process.env.AUTH_FORWARD_SECRET) {
+        process.env.AUTH_FORWARD_SECRET = TEST_AUTH_FORWARD_SECRET
+      }
     })()
   }
   return initPromise
@@ -47,16 +50,44 @@ async function mintToken(claims = {}) {
   return new SignJWT({ ...claims })
     .setProtectedHeader({ alg: 'RS256', kid: KID })
     .setIssuedAt()
-    .setIssuer(ISSUER)
-    .setAudience(AUDIENCE)
     .setSubject(claims.sub ?? 'integration-user')
     .setExpirationTime(DEFAULT_TOKEN_TTL)
     .sign(privateKey)
 }
 
-/** Build the Authorization header object for a Bearer token. */
-function authHeaders(token) {
-  return { authorization: `Bearer ${token}` }
+/**
+ * Build the forwarded-auth headers for a compact JWT: the base64 token header
+ * and the lowercase-hex HMAC-SHA256 signature over that header value.
+ * @param {string} token compact JWT string
+ * @param {string} secret shared HMAC secret (defaults to the test secret)
+ */
+function buildAuthHeaders(token, secret = currentSecret()) {
+  const tokenBase64 = Buffer.from(token).toString(BASE64_ENCODING)
+  const signature = createHmac(HMAC_ALGORITHM, secret)
+    .update(tokenBase64)
+    .digest(HEX_ENCODING)
+  return {
+    [HEADER_TOKEN]: tokenBase64,
+    [HEADER_SIGNATURE]: signature
+  }
 }
 
-export { initTestJwks, mintToken, authHeaders, ISSUER, AUDIENCE }
+function currentSecret() {
+  return process.env.AUTH_FORWARD_SECRET ?? TEST_AUTH_FORWARD_SECRET
+}
+
+/**
+ * Build the forwarded-auth header object for a minted token. Indirection point
+ * kept so existing tests keep calling `authHeaders(token)`.
+ */
+function authHeaders(token) {
+  return buildAuthHeaders(token)
+}
+
+export {
+  initTestJwks,
+  mintToken,
+  authHeaders,
+  buildAuthHeaders,
+  TEST_AUTH_FORWARD_SECRET
+}

@@ -66,7 +66,9 @@ async function createServer() {
     pulse,
     {
       plugin: authJwt.plugin,
-      options: resolveOidcAuthOptions()
+      options: {
+        authForwardSecret: config.get('authForwardSecret')
+      }
     }
   ])
 
@@ -83,23 +85,6 @@ async function createServer() {
   await server.register([router])
 
   return server
-}
-
-// Resolve JWT-verification options. process.env is read at call time (not via
-// convict, which captures env at import) so integration tests can inject a local
-// key set + issuer/audience after import, before createServer() runs.
-function resolveOidcAuthOptions() {
-  return {
-    discoveryUrl:
-      process.env.OIDC_DISCOVERY_URL || config.get('oidc.discoveryUrl'),
-    audience:
-      process.env.OIDC_AUDIENCE || config.get('oidc.audience') || undefined,
-    issuer: process.env.OIDC_ISSUER || config.get('oidc.issuer') || undefined,
-    localJwks: process.env.OIDC_LOCAL_JWKS || undefined,
-    // jose's JWKS fetch needs an explicit proxy agent in CDP — it bypasses the
-    // undici/global-agent proxy used elsewhere. See plugins/auth-jwt.js.
-    httpProxy: process.env.HTTP_PROXY || config.get('httpProxy') || undefined
-  }
 }
 
 export { createServer }
