@@ -10,6 +10,7 @@ import {
   assertLocalStackPipelineReady,
   CDP_UPLOADER_URL
 } from './helpers/upload-fixtures.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
@@ -20,11 +21,15 @@ const CDP_UPLOADER_URL_KEY = 'cdpUploader.url'
 const READY_TIMEOUT_MS = 20_000
 
 let server
+let headers
 
 beforeAll(async () => {
   await assertCdpUploaderReachable()
   await assertLocalStackPipelineReady()
   server = await startServer()
+  // Upload endpoints now require a verified bearer token (secure by default).
+  // They check authentication, not RBAC, so any valid token is sufficient.
+  headers = authHeaders(await mintToken())
 })
 
 afterAll(async () => {
@@ -36,6 +41,7 @@ describe('POST /upload/initiate', () => {
     const res = await server.inject({
       method: 'POST',
       url: UPLOAD_INITIATE_URL,
+      headers,
       payload: {
         redirect: '/projects/test/upload-received',
         s3Bucket: BUCKET,
@@ -53,6 +59,7 @@ describe('POST /upload/initiate', () => {
     const res = await server.inject({
       method: 'POST',
       url: UPLOAD_INITIATE_URL,
+      headers,
       payload: { redirect: '/done' }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
@@ -66,6 +73,7 @@ describe('POST /upload/initiate', () => {
       const res = await server.inject({
         method: 'POST',
         url: UPLOAD_INITIATE_URL,
+        headers,
         payload: { redirect: '/done', s3Bucket: BUCKET }
       })
       expect(res.statusCode).toBe(HTTP_BAD_GATEWAY)
@@ -79,7 +87,8 @@ describe('GET /upload/{uploadId}/status', () => {
   it('returns 400 for a non-UUID uploadId', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: '/upload/not-a-uuid/status'
+      url: '/upload/not-a-uuid/status',
+      headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
@@ -88,6 +97,7 @@ describe('GET /upload/{uploadId}/status', () => {
     const initiated = await server.inject({
       method: 'POST',
       url: UPLOAD_INITIATE_URL,
+      headers,
       payload: {
         redirect: '/done',
         s3Bucket: BUCKET,
@@ -104,7 +114,8 @@ describe('GET /upload/{uploadId}/status', () => {
 
     const finalStatus = await waitForUploadStatus(server, uploadId, {
       target: 'ready',
-      timeoutMs: READY_TIMEOUT_MS
+      timeoutMs: READY_TIMEOUT_MS,
+      headers
     })
     expect(finalStatus.uploadStatus).toBe('ready')
     expect(finalStatus.numberOfRejectedFiles).toBe(0)

@@ -1,5 +1,5 @@
 import { describe, test, expect, vi } from 'vitest'
-import { asc, desc, eq, sql } from 'drizzle-orm'
+import { asc, desc, sql } from 'drizzle-orm'
 import { getUserProjects } from './users.js'
 import { projects } from '../db/schema/index.js'
 
@@ -52,16 +52,18 @@ function createMockDrizzle(rows) {
   }
 }
 
-function makeRequest(userId, query = {}) {
+// The user is taken from the verified token (`sub`), not the path param.
+function makeRequest(sub, query = {}) {
   return {
     drizzle: createMockDrizzle(mockUserProjects),
-    params: { userId },
+    auth: { credentials: { sub } },
+    params: { userId: sub },
     query: { sort: 'updated_at', order: 'desc', ...query }
   }
 }
 
 describe('#getUserProjects', () => {
-  test('Should return all projects for a given userId', async () => {
+  test('Should return the projects visible to the token subject', async () => {
     const request = makeRequest(TEST_USER_ID)
 
     const result = await getUserProjects.handler(request, {})
@@ -71,11 +73,12 @@ describe('#getUserProjects', () => {
     expect(result).toEqual(mockUserProjects)
   })
 
-  test('Should return empty array when no projects found for userId', async () => {
+  test('Should return empty array when no projects are visible', async () => {
     const drizzle = createMockDrizzle([])
     drizzle._chain.orderBy.mockResolvedValue([])
     const request = {
       drizzle,
+      auth: { credentials: { sub: UNKNOWN_USER_ID } },
       params: { userId: UNKNOWN_USER_ID },
       query: { sort: 'updated_at', order: 'desc' }
     }
@@ -85,14 +88,14 @@ describe('#getUserProjects', () => {
     expect(result).toEqual([])
   })
 
-  test('Should filter projects by the correct userId', async () => {
+  test('Should scope the query with the visibility predicate (once)', async () => {
     const request = makeRequest(TEST_USER_ID)
 
     await getUserProjects.handler(request, {})
 
-    expect(request.drizzle._chain.where).toHaveBeenCalledWith(
-      eq(projects.userId, TEST_USER_ID)
-    )
+    // Filtering semantics (owner + approved role / legacy null) are covered by
+    // the integration tests against real Postgres.
+    expect(request.drizzle._chain.where).toHaveBeenCalledTimes(1)
   })
 
   test('Should include updatedAt in returned projects', async () => {
@@ -131,15 +134,14 @@ describe('#getUserProjects', () => {
 describe('#getUserProjects params validation', () => {
   const schema = getUserProjects.options.validate.params
 
-  test('Should accept a valid UUID', () => {
+  test('Should accept a UUID', () => {
     const { error } = schema.validate({ userId: TEST_USER_ID })
     expect(error).toBeUndefined()
   })
 
-  test('Should reject a non-UUID string', () => {
+  test('Should accept a non-UUID string (Defra sub is not a UUID)', () => {
     const { error } = schema.validate({ userId: 'colin-test-003' })
-    expect(error).toBeDefined()
-    expect(error.message).toContain('"userId" must be a valid GUID')
+    expect(error).toBeUndefined()
   })
 
   test('Should reject an empty userId', () => {

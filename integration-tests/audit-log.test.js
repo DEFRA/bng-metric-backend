@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const EXPECTED_AUDIT_ROWS = 2
@@ -12,11 +13,13 @@ describe('audit_log reflects submit + rename', () => {
   let server
   let dbClient
   let projectId
+  let headers
   const userId = `it-${randomUUID()}`
 
   beforeAll(async () => {
     server = await startServer()
     dbClient = await connect()
+    headers = authHeaders(await mintToken({ sub: userId }))
   })
 
   afterAll(async () => {
@@ -36,7 +39,8 @@ describe('audit_log reflects submit + rename', () => {
     const created = await server.inject({
       method: 'POST',
       url: '/projects/new',
-      payload: { project: { name: ORIGINAL_NAME }, userId }
+      headers,
+      payload: { project: { name: ORIGINAL_NAME } }
     })
     expect(created.statusCode).toBe(HTTP_OK)
     projectId = created.result.id
@@ -45,6 +49,7 @@ describe('audit_log reflects submit + rename', () => {
     const renamed = await server.inject({
       method: 'PATCH',
       url: `/projects/${projectId}`,
+      headers,
       payload: { project: { name: RENAMED_NAME } }
     })
     expect(renamed.statusCode).toBe(HTTP_OK)

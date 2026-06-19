@@ -160,7 +160,7 @@ async function saveBaselineForProject(
   h,
   config = BASELINE_VALIDATION_CONFIG
 ) {
-  const { uploadId, filename, fileSize } = context
+  const { uploadId, sub, filename, fileSize } = context
   const layersWithIds = assignFeatureIds(layers)
 
   let habitatSizes
@@ -211,6 +211,7 @@ async function saveBaselineForProject(
   await persistBaseline(drizzle, projectId, document, geometries, {
     uploadId,
     logger,
+    sub,
     projectDocumentKey: config.projectDocumentKey,
     uploadLabel: config.uploadLabel
   })
@@ -225,7 +226,7 @@ async function runFullValidation(
   h,
   config = BASELINE_VALIDATION_CONFIG
 ) {
-  const { uploadId, projectId, filename, fileSize } = context
+  const { uploadId, projectId, sub, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(
     path.join(os.tmpdir(), BASELINE_UPLOAD_TEMP_PREFIX)
   )
@@ -258,7 +259,7 @@ async function runFullValidation(
         pgPool,
         projectId,
         layers,
-        { uploadId, filename, fileSize },
+        { uploadId, sub, filename, fileSize },
         h,
         config
       )
@@ -449,6 +450,8 @@ function createValidateGeoPackageRoute(config) {
     handler: async (request, h) => {
       const { uploadId } = request.params
       const projectId = request.payload?.projectId ?? null
+      // Persisting to a project is scoped to this user's current org context.
+      const { sub } = request.auth.credentials
 
       const { bucket, key, filename, fileSize } = await resolveUploadLocation(
         uploadId,
@@ -487,7 +490,7 @@ function createValidateGeoPackageRoute(config) {
         buffer,
         request.drizzle,
         request.pg,
-        { uploadId, projectId, filename, fileSize },
+        { uploadId, projectId, sub, filename, fileSize },
         h,
         config
       )

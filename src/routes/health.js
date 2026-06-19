@@ -20,6 +20,9 @@
 const health = {
   method: 'GET',
   path: '/health',
+  // Public (PUBLIC_ROUTES): CDP liveness/readiness probes call this
+  // unauthenticated. See docs/auth-route-policy.md.
+  options: { auth: false },
   handler: (_request, h) => h.response({ message: 'success' })
 }
 

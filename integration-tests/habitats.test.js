@@ -3,19 +3,24 @@ import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
+const HTTP_UNAUTHORIZED = 401
 const HTTP_NOT_FOUND = 404
 const ONE_HECTARE_IN_SQUARE_METRES = 10_000
 
 let server
 let dbClient
+let headers
 const userId = `it-${randomUUID()}`
 
 beforeAll(async () => {
   server = await startServer()
   dbClient = await connect()
+  // Seeded projects have a null relationship → visible to their owner (sub).
+  headers = authHeaders(await mintToken({ sub: userId }))
   await truncateTestData(dbClient)
 })
 
@@ -62,6 +67,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     const projectId = await seedProjectWithHabitats([habitat])
 
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/${projectId}/habitats/${habitat.featureId}`,
       payload: {
@@ -103,6 +109,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     const projectId = await seedProjectWithHabitats([habitat])
 
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/${projectId}/habitats/${habitat.featureId}`,
       payload: {
@@ -122,6 +129,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
 
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/${randomUUID()}/habitats/${randomUUID()}`,
       payload: {
@@ -137,6 +145,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     const projectId = await seedProjectWithHabitats([habitatFixture()])
 
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/${projectId}/habitats/${randomUUID()}`,
       payload: {
@@ -150,6 +159,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
 
   it('returns 400 when projectId is not a UUID', async () => {
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/not-a-uuid/habitats/${randomUUID()}`,
       payload: { broadType: null, habitatType: null, condition: null }
@@ -159,10 +169,24 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
 
   it('returns 400 when featureId is not a UUID', async () => {
     const res = await server.inject({
+      headers,
       method: 'PUT',
       url: `/projects/${randomUUID()}/habitats/not-a-uuid`,
       payload: { broadType: null, habitatType: null, condition: null }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+
+  it('returns 401 without a bearer token', async () => {
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${randomUUID()}/habitats/${randomUUID()}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
 })

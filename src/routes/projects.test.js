@@ -14,6 +14,11 @@ const USER_003 = 'test-user-003'
 const NEW_PROJECT_NAME = 'New Wetland Project'
 const RENAMED_NAME = 'Renamed Project'
 
+// Verified-token credentials as they reach the handler via request.auth.
+const credsFor = (sub, extra = {}) => ({
+  auth: { credentials: { sub, ...extra } }
+})
+
 const mockProjects = [
   {
     id: PROJECT_1_ID,
@@ -57,19 +62,20 @@ function createMockDrizzle(rows) {
 }
 
 describe('#getProjects', () => {
-  test('Should return all projects', async () => {
+  test('Should return the projects visible to the user', async () => {
     const drizzle = createMockDrizzle(mockProjects)
-    const request = { drizzle }
+    const request = { drizzle, ...credsFor(USER_001) }
 
     const result = await getProjects.handler(request, {})
 
     expect(drizzle.select).toHaveBeenCalled()
+    expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual(mockProjects)
   })
 
-  test('Should return empty array when no projects exist', async () => {
+  test('Should return empty array when no projects are visible', async () => {
     const drizzle = createMockDrizzle([])
-    const request = { drizzle }
+    const request = { drizzle, ...credsFor(USER_001) }
 
     const result = await getProjects.handler(request, {})
 
@@ -100,10 +106,8 @@ describe('#createProject', () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const request = {
       drizzle,
-      payload: {
-        project: { name: NEW_PROJECT_NAME },
-        userId: USER_003
-      }
+      ...credsFor(USER_003),
+      payload: { project: { name: NEW_PROJECT_NAME } }
     }
 
     const result = await createProject.handler(request, {})
@@ -112,21 +116,44 @@ describe('#createProject', () => {
     expect(result).toEqual(newProject)
   })
 
-  test('Should pass only project and userId to drizzle', async () => {
+  test('Should derive userId from the token and stamp org context', async () => {
     const drizzle = createMockDrizzleInsert(newProject)
-    const payload = {
-      project: { name: NEW_PROJECT_NAME },
-      userId: USER_003
+    const request = {
+      drizzle,
+      ...credsFor(USER_003, {
+        currentRelationshipId: 'rel-9',
+        relationships: ['rel-9:org-9:Acme Ltd:0:Employee:1']
+      }),
+      payload: { project: { name: NEW_PROJECT_NAME } }
     }
-    const request = { drizzle, payload }
 
     await createProject.handler(request, {})
 
     const valuesSpy = drizzle.insert().values
     const insertedValues = valuesSpy.mock.calls[0][0]
     expect(insertedValues).toEqual({
-      project: payload.project,
-      userId: payload.userId
+      project: { name: NEW_PROJECT_NAME },
+      userId: USER_003,
+      orgId: 'org-9',
+      relationshipId: 'rel-9'
+    })
+  })
+
+  test('Should stamp null org context when the token has no current relationship', async () => {
+    const drizzle = createMockDrizzleInsert(newProject)
+    const request = {
+      drizzle,
+      ...credsFor(USER_003),
+      payload: { project: { name: NEW_PROJECT_NAME } }
+    }
+
+    await createProject.handler(request, {})
+
+    const insertedValues = drizzle.insert().values.mock.calls[0][0]
+    expect(insertedValues).toMatchObject({
+      userId: USER_003,
+      orgId: null,
+      relationshipId: null
     })
   })
 })
@@ -134,40 +161,28 @@ describe('#createProject', () => {
 describe('#createProject validation', () => {
   const schema = createProject.options.validate.payload
 
-  test('Should pass with valid payload using userId', async () => {
+  test('Should pass with a valid project and no userId in the body', async () => {
+    const { error } = schema.validate({ project: { name: 'Test Project' } })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should reject a userId supplied in the body (identity comes from the token)', async () => {
     const { error } = schema.validate({
       project: { name: 'Test Project' },
       userId: USER_001
     })
-    expect(error).toBeUndefined()
-  })
-
-  test('Should pass with valid payload using user_id (renamed to userId)', async () => {
-    const { error, value } = schema.validate({
-      project: { name: 'Test Project' },
-      user_id: USER_001
-    })
-    expect(error).toBeUndefined()
-    expect(value.userId).toBe(USER_001)
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"userId" is not allowed')
   })
 
   test('Should fail when project is missing', async () => {
-    const { error } = schema.validate({ userId: USER_001 })
+    const { error } = schema.validate({})
     expect(error).toBeDefined()
     expect(error.message).toContain('"project" is required')
   })
 
-  test('Should fail when user_id and userId are both missing', async () => {
-    const { error } = schema.validate({ project: { name: 'Test Project' } })
-    expect(error).toBeDefined()
-    expect(error.message).toContain('"userId" is required')
-  })
-
   test('Should fail when project is not an object', async () => {
-    const { error } = schema.validate({
-      project: 'not-an-object',
-      userId: USER_001
-    })
+    const { error } = schema.validate({ project: 'not-an-object' })
     expect(error).toBeDefined()
     expect(error.message).toContain('"project" must be of type object')
   })
@@ -178,6 +193,7 @@ describe('#getProject', () => {
     const drizzle = createMockDrizzle([mockProjects[0]])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { id: PROJECT_1_ID }
     }
 
@@ -188,10 +204,11 @@ describe('#getProject', () => {
     expect(result).toEqual(mockProjects[0])
   })
 
-  test('Should throw 404 when project not found', async () => {
+  test('Should throw 404 when project not found or not visible', async () => {
     const drizzle = createMockDrizzle([])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { id: UNKNOWN_PROJECT_ID }
     }
 
@@ -258,6 +275,7 @@ describe('#getHabitat', () => {
     const drizzle = createMockDrizzle([projectWithHabitats])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { projectId: PROJECT_1_ID, featureId: HABITAT_1_ID }
     }
 
@@ -267,10 +285,11 @@ describe('#getHabitat', () => {
     expect(result.type).toBe('Grassland - Modified grassland')
   })
 
-  test('Throws 404 when the project is not found', async () => {
+  test('Throws 404 when the project is not found or not visible', async () => {
     const drizzle = createMockDrizzle([])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { projectId: UNKNOWN_PROJECT_ID, featureId: HABITAT_1_ID }
     }
     await expect(getHabitat.handler(request, {})).rejects.toThrow(
@@ -284,6 +303,7 @@ describe('#getHabitat', () => {
     ])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { projectId: PROJECT_1_ID, featureId: HABITAT_1_ID }
     }
     await expect(getHabitat.handler(request, {})).rejects.toThrow(
@@ -295,6 +315,7 @@ describe('#getHabitat', () => {
     const drizzle = createMockDrizzle([projectWithHabitats])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { projectId: PROJECT_1_ID, featureId: UNKNOWN_HABITAT_ID }
     }
     await expect(getHabitat.handler(request, {})).rejects.toThrow(
@@ -360,6 +381,7 @@ describe('#updateProject', () => {
     const drizzle = createMockDrizzleUpdate([updatedProject])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { id: PROJECT_1_ID },
       payload: {
         project: { name: RENAMED_NAME }
@@ -376,10 +398,11 @@ describe('#updateProject', () => {
     expect(result).toEqual(updatedProject)
   })
 
-  test('Should throw 404 when project to update is not found', async () => {
+  test('Should throw 404 when project to update is not found or not visible', async () => {
     const drizzle = createMockDrizzleUpdate([])
     const request = {
       drizzle,
+      ...credsFor(USER_001),
       params: { id: UNKNOWN_PROJECT_ID },
       payload: {
         project: { name: RENAMED_NAME }

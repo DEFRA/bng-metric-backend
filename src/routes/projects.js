@@ -1,8 +1,10 @@
 import Boom from '@hapi/boom'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { insertProject, setProjectName } from '../db/persist-project.js'
+import { visibleToUser } from '../db/project-visibility.js'
+import { currentOrgContext } from '../services/defra-id/claims.js'
 import { projectSchema } from '../validation/project.js'
 
 /**
@@ -11,16 +13,26 @@ import { projectSchema } from '../validation/project.js'
  *   get:
  *     tags:
  *       - Projects
- *     summary: List all projects
+ *     summary: List the requesting user's visible projects
+ *     description: |
+ *       Returns only projects the authenticated user owns whose latest role for
+ *       the project's relationship is approved (status 3), plus their legacy
+ *       projects with no relationship.
+ *     security:
+ *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Returns an array of projects
+ *         description: Returns an array of the user's visible projects
+ *       401:
+ *         description: Missing or invalid bearer token
  *
  * /projects/{id}:
  *   get:
  *     tags:
  *       - Projects
  *     summary: Get a project by ID
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -31,12 +43,16 @@ import { projectSchema } from '../validation/project.js'
  *     responses:
  *       200:
  *         description: Returns the project
+ *       401:
+ *         description: Missing or invalid bearer token
  *       404:
- *         description: Project not found
+ *         description: Project not found or not visible to the user
  *   patch:
  *     tags:
  *       - Projects
  *     summary: Update a project name
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: id
@@ -63,14 +79,18 @@ import { projectSchema } from '../validation/project.js'
  *     responses:
  *       200:
  *         description: Returns the updated project
+ *       401:
+ *         description: Missing or invalid bearer token
  *       404:
- *         description: Project not found
+ *         description: Project not found or not visible to the user
  *
  * /projects/{projectId}/habitats/{featureId}:
  *   get:
  *     tags:
  *       - Projects
  *     summary: Get a single habitat document from a project's baseline
+ *     security:
+ *       - bearerAuth: []
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -87,6 +107,8 @@ import { projectSchema } from '../validation/project.js'
  *     responses:
  *       200:
  *         description: Returns the habitat document
+ *       401:
+ *         description: Missing or invalid bearer token
  *       404:
  *         description: Project or habitat not found
  *
@@ -95,6 +117,11 @@ import { projectSchema } from '../validation/project.js'
  *     tags:
  *       - Projects
  *     summary: Create a new project
+ *     description: |
+ *       The owner, org id and relationship id are derived from the verified
+ *       Bearer token — the request body carries only the project document.
+ *     security:
+ *       - bearerAuth: []
  *     requestBody:
  *       required: true
  *       content:
@@ -103,21 +130,27 @@ import { projectSchema } from '../validation/project.js'
  *             type: object
  *             required:
  *               - project
- *               - userId
  *             properties:
  *               project:
  *                 type: object
- *               userId:
- *                 type: string
  *     responses:
  *       200:
  *         description: Returns the created project
+ *       401:
+ *         description: Missing or invalid bearer token
  */
 const getProjects = {
   method: 'GET',
   path: '/projects',
+  options: {
+    auth: 'defra-jwt'
+  },
   handler: async (request, _h) => {
-    const rows = await request.drizzle.select().from(projects)
+    const { sub } = request.auth.credentials
+    const rows = await request.drizzle
+      .select()
+      .from(projects)
+      .where(visibleToUser(sub))
     return rows
   }
 }
@@ -126,6 +159,7 @@ const getProject = {
   method: 'GET',
   path: '/projects/{id}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({
         id: Joi.string().uuid().required()
@@ -133,11 +167,12 @@ const getProject = {
     }
   },
   handler: async (request, _h) => {
+    const { sub } = request.auth.credentials
     const { id } = request.params
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(eq(projects.id, id))
+      .where(and(eq(projects.id, id), visibleToUser(sub)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${id} not found`)
@@ -151,16 +186,23 @@ const createProject = {
   method: 'POST',
   path: '/projects/new',
   options: {
+    auth: 'defra-jwt',
     validate: {
       payload: Joi.object({
-        project: projectSchema.required(),
-        userId: Joi.string().required()
-      }).rename('user_id', 'userId', { ignoreUndefined: true })
+        project: projectSchema.required()
+      })
     }
   },
   handler: async (request, _h) => {
-    const { project, userId } = request.payload
-    return insertProject(request.drizzle, { project, userId })
+    const claims = request.auth.credentials
+    const { project } = request.payload
+    const { relationshipId, orgId } = currentOrgContext(claims)
+    return insertProject(request.drizzle, {
+      project,
+      userId: claims.sub,
+      orgId,
+      relationshipId
+    })
   }
 }
 
@@ -168,6 +210,7 @@ const getHabitat = {
   method: 'GET',
   path: '/projects/{projectId}/habitats/{featureId}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({
         projectId: Joi.string().uuid().required(),
@@ -176,11 +219,12 @@ const getHabitat = {
     }
   },
   handler: async (request, _h) => {
+    const { sub } = request.auth.credentials
     const { projectId, featureId } = request.params
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(eq(projects.id, projectId))
+      .where(and(eq(projects.id, projectId), visibleToUser(sub)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${projectId} not found`)
@@ -201,6 +245,7 @@ const updateProject = {
   method: 'PATCH',
   path: '/projects/{id}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({
         id: Joi.string().uuid().required()
@@ -213,11 +258,17 @@ const updateProject = {
     }
   },
   handler: async (request, _h) => {
+    const { sub } = request.auth.credentials
     const { id } = request.params
     const {
       project: { name }
     } = request.payload
-    const row = await setProjectName(request.drizzle, id, name)
+    const row = await setProjectName(
+      request.drizzle,
+      id,
+      name,
+      and(eq(projects.id, id), visibleToUser(sub))
+    )
     if (!row) {
       throw Boom.notFound(`Project ${id} not found`)
     }
