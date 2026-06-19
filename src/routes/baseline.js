@@ -37,10 +37,6 @@ import {
 
 const logger = createLogger()
 
-// CDP Uploader reports a virus rejection via the file's errorMessage (e.g.
-// "The selected file contains a virus"); match it to categorise the metric.
-const VIRUS_REJECTION_PATTERN = /virus/i
-
 /** Prefix for ephemeral GeoPackage staging directories under os.tmpdir(). */
 const BASELINE_UPLOAD_TEMP_PREFIX = 'baseline-'
 
@@ -77,14 +73,13 @@ async function resolveUploadLocation(
       throw Boom.gatewayTimeout('Upload did not complete in time')
     }
     if (err instanceof UploadFailedError) {
+      // A rejected upload (virus, wrong type, …) returns 422. The virus *metric*
+      // is emitted from the /upload/{uploadId}/status route — the chokepoint the
+      // frontend actually polls — not here: the frontend never calls validate for
+      // a rejected upload, so this branch is unreachable in the real flow.
       logger.error(
         `${config.routeName}: upload was rejected for uploadId ${uploadId}: ${err.message}`
       )
-      if (VIRUS_REJECTION_PATTERN.test(err.errorMessage ?? '')) {
-        await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-          category: VALIDATION_CATEGORY.virus
-        })
-      }
       throw Boom.badData('Upload was rejected')
     }
     logger.error(

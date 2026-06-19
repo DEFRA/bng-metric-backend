@@ -1,10 +1,19 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, beforeEach } from 'vitest'
 import {
   initiateUpload as initiateUploadService,
   getUploadStatus
 } from '../services/cdp-uploader/cdp-uploader.js'
+import { metricsCounter } from '../common/helpers/metrics.js'
+import {
+  GEOPACKAGE_METRIC,
+  VALIDATION_CATEGORY
+} from '../common/helpers/metric-names.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js')
+vi.mock('../common/helpers/metrics.js', () => ({
+  metricsCounter: vi.fn(),
+  metricsByteSize: vi.fn()
+}))
 
 const { initiateUpload, uploadStatus } = await import('./upload.js')
 
@@ -73,18 +82,20 @@ describe('POST /upload/initiate', () => {
 })
 
 describe('GET /upload/{uploadId}/status', () => {
+  beforeEach(() => {
+    vi.clearAllMocks()
+  })
+
+  const makeStatusRequest = () => ({ params: { uploadId: UPLOAD_ID } })
+  const makeStatusH = () => ({ response: vi.fn().mockReturnThis() })
+
   it('should return the upload status', async () => {
     vi.mocked(getUploadStatus).mockResolvedValue({
       uploadStatus: 'ready'
     })
 
-    const request = {
-      params: { uploadId: UPLOAD_ID }
-    }
-
-    const mockH = {
-      response: vi.fn().mockReturnThis()
-    }
+    const request = makeStatusRequest()
+    const mockH = makeStatusH()
 
     await uploadStatus.handler(request, mockH)
 
@@ -92,5 +103,48 @@ describe('GET /upload/{uploadId}/status', () => {
     expect(mockH.response).toHaveBeenCalledWith({
       uploadStatus: 'ready'
     })
+  })
+
+  it('emits a virus failure metric when the upload is rejected for a virus', async () => {
+    // The real CDP Uploader reports a virus as the upload COMPLETING
+    // (uploadStatus 'ready') with numberOfRejectedFiles > 0 and the reason on the
+    // per-file errorMessage — there is no top-level 'rejected' status.
+    vi.mocked(getUploadStatus).mockResolvedValue({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 1,
+      errorMessage: 'The selected file contains a virus'
+    })
+
+    await uploadStatus.handler(makeStatusRequest(), makeStatusH())
+
+    expect(metricsCounter).toHaveBeenCalledWith(
+      GEOPACKAGE_METRIC.validationFailed,
+      1,
+      { category: VALIDATION_CATEGORY.virus }
+    )
+  })
+
+  it('does not emit a virus metric for a clean ready upload', async () => {
+    vi.mocked(getUploadStatus).mockResolvedValue({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 0,
+      errorMessage: null
+    })
+
+    await uploadStatus.handler(makeStatusRequest(), makeStatusH())
+
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+
+  it('does not emit a virus metric for a non-virus rejection', async () => {
+    vi.mocked(getUploadStatus).mockResolvedValue({
+      uploadStatus: 'ready',
+      numberOfRejectedFiles: 1,
+      errorMessage: 'The selected file type is not allowed'
+    })
+
+    await uploadStatus.handler(makeStatusRequest(), makeStatusH())
+
+    expect(metricsCounter).not.toHaveBeenCalled()
   })
 })

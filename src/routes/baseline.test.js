@@ -834,35 +834,9 @@ describe('validateBaseline handler — metrics', () => {
     )
   })
 
-  it('emits a virus failure when the upload is rejected for a virus', async () => {
-    vi.mocked(waitForUploadReady).mockRejectedValue(
-      new UploadFailedError('rejected', 'The selected file contains a virus')
-    )
-
-    await validateBaseline
-      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
-      .catch(() => {})
-
-    expect(metricsCounter).toHaveBeenCalledWith(
-      GEOPACKAGE_METRIC.validationFailed,
-      1,
-      { category: VALIDATION_CATEGORY.virus }
-    )
-  })
-
-  it('does not emit a virus failure for a non-virus rejection', async () => {
-    vi.mocked(waitForUploadReady).mockRejectedValue(
-      new UploadFailedError('rejected', 'Some other reason')
-    )
-
-    await validateBaseline
-      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
-      .catch(() => {})
-
-    expect(metricsCounter).not.toHaveBeenCalledWith(
-      GEOPACKAGE_METRIC.validationFailed,
-      1,
-      { category: VALIDATION_CATEGORY.virus }
-    )
-  })
+  // NOTE: the virus *metric* is asserted in routes/upload.test.js — it is emitted
+  // from the /upload/{uploadId}/status route, the chokepoint the frontend polls.
+  // The validate route is never called for a rejected upload, so it no longer
+  // emits the virus metric (it still returns 422 — see the UploadFailedError
+  // handling tests above).
 })

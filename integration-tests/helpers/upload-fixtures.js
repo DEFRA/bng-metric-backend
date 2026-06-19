@@ -68,7 +68,13 @@ async function waitForUploadStatus(
     if (lastBody?.uploadStatus === target) {
       return lastBody
     }
-    if (lastBody?.uploadStatus === 'rejected') {
+    // The real uploader reports a rejection (virus, wrong type, …) as 'ready'
+    // with numberOfRejectedFiles > 0, not a top-level 'rejected' status — short
+    // circuit on either so a rejection test does not wait out the full timeout.
+    if (
+      lastBody?.uploadStatus === 'rejected' ||
+      lastBody?.numberOfRejectedFiles > 0
+    ) {
       return lastBody
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))
