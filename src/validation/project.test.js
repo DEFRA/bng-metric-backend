@@ -3,7 +3,8 @@ import {
   habitatDataSchema,
   projectSchema,
   siteSchema,
-  unitsSchema
+  unitsSchema,
+  postInterventionDataSchema
 } from './project.js'
 import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
 
@@ -86,6 +87,38 @@ describe('#projectSchema', () => {
         hedgerowsTotal: 0,
         watercoursesTotal: 0
       }
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should allow redLine with siteName and area from the GeoPackage', () => {
+    const { error } = habitatDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      redLine: {
+        featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        siteName: 'Meadow Farm',
+        area: 12345,
+        properties: {}
+      },
+      habitats: [],
+      hedgerows: [],
+      watercourses: []
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should allow redLine siteName as empty string and null area', () => {
+    const { error } = habitatDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      redLine: {
+        featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        siteName: '',
+        area: null,
+        properties: {}
+      },
+      habitats: [],
+      hedgerows: [],
+      watercourses: []
     })
     expect(error).toBeUndefined()
   })
@@ -258,5 +291,172 @@ describe('#habitatDataSchema', () => {
     expect(error.message).toMatch(
       /"watercourses\[0\]\.watercoursEncroachment" is not allowed/
     )
+  })
+})
+
+describe('#postInterventionDataSchema', () => {
+  const validPostIntervention = {
+    uploadId: 'e1a22345-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+    importedAt: '2026-05-08T00:00:00.000Z',
+    redLine: null,
+    habitats: [
+      {
+        featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+        ref: 'H2-1',
+        area: 7850,
+        sizeSquareMetres: 7850.14,
+        units: 3.14,
+        status: 'Complete',
+        baseline: {
+          type: 'Modified grassland',
+          broadType: 'Grassland',
+          condition: 'Moderate',
+          conditionScore: 2,
+          distinctiveness: 'Low',
+          distinctivenessScore: 2,
+          strategicSignificance: 'Low',
+          retentionCategory: 'Lost'
+        },
+        proposed: {
+          type: 'Developed land; sealed surface',
+          broadType: 'Urban',
+          condition: 'N/A - Other',
+          conditionScore: null,
+          distinctiveness: 'Low',
+          distinctivenessScore: 2,
+          strategicSignificance: 'Low',
+          advanceYears: 0,
+          delayYears: 0
+        },
+        properties: {}
+      }
+    ],
+    hedgerows: [],
+    watercourses: []
+  }
+
+  test('Should validate a valid post-intervention document', () => {
+    const { error } = postInterventionDataSchema.validate(validPostIntervention)
+    expect(error).toBeUndefined()
+  })
+
+  test('Should require status on habitat records', () => {
+    const doc = structuredClone(validPostIntervention)
+    delete doc.habitats[0].status
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"habitats\[0\]\.status" is required/)
+  })
+
+  test('Should reject top-level type field on habitat records', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].type = 'Grassland'
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"habitats\[0\]\.type" is not allowed/)
+  })
+
+  test('Should reject top-level condition field on habitat records', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].condition = 'Good'
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+  })
+
+  test('Should validate a valid watercourse with encroachments in both sub-objects', () => {
+    const doc = {
+      ...validPostIntervention,
+      habitats: [],
+      watercourses: [
+        {
+          featureId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
+          ref: 'WC1',
+          length: 120,
+          sizeMetres: 120.5,
+          units: 0.8,
+          status: 'Complete',
+          baseline: {
+            type: 'Chalk stream',
+            condition: 'Good',
+            conditionScore: 3,
+            distinctiveness: 'High',
+            distinctivenessScore: 6,
+            riparianEncroachment: 'None',
+            watercourseEncroachment: 'None',
+            strategicSignificance: 'Low'
+          },
+          proposed: {
+            type: 'Modified watercourse',
+            condition: 'Moderate',
+            conditionScore: 2,
+            distinctiveness: 'Medium',
+            distinctivenessScore: 4,
+            advanceYears: 0,
+            delayYears: 0,
+            riparianEncroachment: 'Minor',
+            watercourseEncroachment: 'Minor',
+            strategicSignificance: 'Medium'
+          },
+          properties: {}
+        }
+      ]
+    }
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeUndefined()
+  })
+
+  test('Should validate a valid hedgerow with nested sub-objects', () => {
+    const doc = {
+      ...validPostIntervention,
+      habitats: [],
+      hedgerows: [
+        {
+          featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          ref: 'HW1',
+          length: 200,
+          sizeMetres: 200.3,
+          units: 1.2,
+          status: 'Complete',
+          baseline: {
+            type: 'Native species-rich hedgerow',
+            condition: 'Good',
+            conditionScore: 3,
+            distinctiveness: 'High',
+            distinctivenessScore: 6
+          },
+          proposed: {
+            type: 'Native hedge with trees - rare species',
+            condition: 'Moderate',
+            conditionScore: 2,
+            distinctiveness: 'High',
+            distinctivenessScore: 6,
+            advanceYears: 1,
+            delayYears: 0
+          },
+          properties: {}
+        }
+      ]
+    }
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeUndefined()
+  })
+
+  test('projectSchema accepts postIntervention with nested structure', () => {
+    const { error } = projectSchema.validate({
+      name: 'Test Project',
+      postIntervention: validPostIntervention
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('projectSchema rejects postIntervention habitat with flat type field', () => {
+    const { error } = projectSchema.validate({
+      name: 'Test Project',
+      postIntervention: {
+        ...validPostIntervention,
+        habitats: [{ ...validPostIntervention.habitats[0], type: 'Grassland' }]
+      }
+    })
+    expect(error).toBeDefined()
   })
 })

@@ -64,6 +64,63 @@ function defaultHabitats() {
   ]
 }
 
+function defaultPostInterventionHabitats() {
+  return [
+    {
+      featureId: HABITAT_1_ID,
+      ref: 'A1',
+      area: 10_000,
+      sizeSquareMetres: 10_000,
+      units: null,
+      status: 'Incomplete',
+      baseline: {
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Poor',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null
+      },
+      proposed: {
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Poor',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null,
+        advanceYears: 0,
+        delayYears: 0
+      }
+    },
+    {
+      featureId: HABITAT_2_ID,
+      ref: 'A2',
+      area: 5000,
+      sizeSquareMetres: 5000,
+      units: null,
+      status: 'Incomplete',
+      baseline: {
+        type: 'Cereal crops',
+        broadType: 'Cropland',
+        condition: 'Condition Assessment N/A',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null
+      },
+      proposed: {
+        type: 'Cereal crops',
+        broadType: 'Cropland',
+        condition: 'Condition Assessment N/A',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null,
+        advanceYears: 0,
+        delayYears: 0
+      }
+    }
+  ]
+}
+
 // Mirrors the drizzle .select().from().where().for('update').limit() chain the
 // route uses to read the project row under a transaction-scoped row lock.
 // `lockError` simulates the 55P03 the driver raises when SET LOCAL lock_timeout
@@ -308,8 +365,8 @@ describe('updateAreaHabitat handler — happy path', () => {
 })
 
 describe('updatePostInterventionAreaHabitat handler', () => {
-  test('persists edits to project.postIntervention', async () => {
-    const habitats = defaultHabitats()
+  test('persists edits into the proposed sub-object of project.postIntervention', async () => {
+    const habitats = defaultPostInterventionHabitats()
     const projectRow = makeProjectRow(habitats, 'postIntervention')
     const drizzle = makeDrizzle(projectRow)
 
@@ -327,13 +384,19 @@ describe('updatePostInterventionAreaHabitat handler', () => {
       {}
     )
 
+    // Edits are written to the proposed sub-object, not top-level fields
     expect(result).toMatchObject({
       featureId: HABITAT_1_ID,
-      broadType: 'Grassland',
-      type: 'Lowland meadows',
-      condition: 'Good',
+      proposed: expect.objectContaining({
+        broadType: 'Grassland',
+        type: 'Lowland meadows',
+        condition: 'Good'
+      }),
       status: 'Complete'
     })
+    // top-level type/condition should NOT be set on post-intervention features
+    expect(result).not.toHaveProperty('type')
+    expect(result).not.toHaveProperty('condition')
 
     expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),

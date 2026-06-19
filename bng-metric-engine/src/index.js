@@ -26,3 +26,4 @@ export {
   isRecognisedEncroachmentValue
 } from './linear-baseline.js'
 export { resolveDistinctiveness } from './multipliers.js'
+export { MAX_YEARS, MAX_YEARS_PLUS, MIN_YEARS } from './validate.js'

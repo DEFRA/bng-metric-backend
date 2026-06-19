@@ -39,9 +39,14 @@ const APPLY_RESULT = Object.freeze({
 function blankToNull(value) {
   if (value === null || value === undefined) {
     return null
+  } else {
+    const trimmed = typeof value === 'string' ? value.trim() : value
+    if (trimmed === '') {
+      return null
+    } else {
+      return trimmed
+    }
   }
-  const trimmed = typeof value === 'string' ? value.trim() : value
-  return trimmed === '' ? null : trimmed
 }
 
 function normalizeEdits(edits = {}) {
@@ -60,18 +65,18 @@ function recomputeForType(type, existing, edits) {
       condition: edits.condition,
       sizeSquareMetres: existing.sizeSquareMetres ?? null
     })
-  }
-  if (type === 'hedgerow') {
+  } else if (type === 'hedgerow') {
     return recomputeHedgerow({
       habitatType: edits.habitatType,
       condition: edits.condition,
       sizeMetres: existing.sizeMetres ?? null
     })
+  } else {
+    return null
   }
-  return null
 }
 
-function mergeFeature(type, existing, edits, derived) {
+function mergeBaselineFeature(type, existing, edits, derived) {
   const base = {
     ...existing,
     condition: edits.condition,
@@ -82,16 +87,39 @@ function mergeFeature(type, existing, edits, derived) {
     status: derived.status
   }
   if (type === 'habitat') {
-    return {
-      ...base,
-      broadType: edits.broadType,
-      type: edits.habitatType
-    }
+    return { ...base, broadType: edits.broadType, type: edits.habitatType }
+  } else {
+    return { ...base, type: edits.habitatType }
   }
-  // hedgerow (and future watercourse) — single habitat-type field, no broad.
+}
+
+function mergePostInterventionFeature(type, existing, edits, derived) {
+  const updatedProposed = {
+    ...existing.proposed,
+    condition: edits.condition,
+    distinctiveness: derived.distinctiveness,
+    distinctivenessScore: derived.distinctivenessScore,
+    conditionScore: derived.conditionScore
+  }
+  if (type === 'habitat') {
+    updatedProposed.broadType = edits.broadType
+    updatedProposed.type = edits.habitatType
+  } else {
+    updatedProposed.type = edits.habitatType
+  }
   return {
-    ...base,
-    type: edits.habitatType
+    ...existing,
+    units: derived.units,
+    status: derived.status,
+    proposed: updatedProposed
+  }
+}
+
+function mergeFeature(type, existing, edits, derived, documentKey) {
+  if (documentKey === 'postIntervention') {
+    return mergePostInterventionFeature(type, existing, edits, derived)
+  } else {
+    return mergeBaselineFeature(type, existing, edits, derived)
   }
 }
 
@@ -101,7 +129,7 @@ function spliceFeatureInFeatureSet(
   index,
   updatedFeature
 ) {
-  const layer = featureSet[layerKey] ?? []
+  const layer = featureSet[layerKey]
   const updatedLayer = layer.slice()
   updatedLayer[index] = updatedFeature
   return {
@@ -139,45 +167,45 @@ function applyFeatureUpdate(
   const found = findFeature(featureSet, featureId)
   if (!found) {
     return { status: APPLY_RESULT.FEATURE_NOT_FOUND }
-  }
-  if (expectedType && found.type !== expectedType) {
+  } else if (expectedType && found.type !== expectedType) {
     return { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
-  }
+  } else {
+    const derived = recomputeForType(found.type, found.feature, normalizedEdits)
+    if (derived) {
+      const updatedFeature = mergeFeature(
+        found.type,
+        found.feature,
+        normalizedEdits,
+        derived,
+        documentKey
+      )
+      const index = featureSet[found.key].findIndex(
+        (f) => f?.featureId === featureId
+      )
+      const updatedFeatureSet = spliceFeatureInFeatureSet(
+        featureSet,
+        found.key,
+        index,
+        updatedFeature
+      )
+      summarizeFeatureSetUnitsTotals(updatedFeatureSet)
 
-  const derived = recomputeForType(found.type, found.feature, normalizedEdits)
-  if (!derived) {
-    return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
-  }
-
-  const updatedFeature = mergeFeature(
-    found.type,
-    found.feature,
-    normalizedEdits,
-    derived
-  )
-  const index = featureSet[found.key].findIndex(
-    (f) => f?.featureId === featureId
-  )
-  const updatedFeatureSet = spliceFeatureInFeatureSet(
-    featureSet,
-    found.key,
-    index,
-    updatedFeature
-  )
-  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-
-  // `layer` / `index` / `unitsTotals` let callers persist surgically via
-  // persist-project.js (jsonb_set the one feature + the totals) rather than
-  // rewriting the whole document. `project` is retained for callers/tests that
-  // want the fully-rebuilt document.
-  return {
-    status: APPLY_RESULT.OK,
-    type: found.type,
-    layer: found.key,
-    index,
-    feature: updatedFeature,
-    unitsTotals: updatedFeatureSet.units,
-    project: { ...project, [documentKey]: updatedFeatureSet }
+      // `layer` / `index` / `unitsTotals` let callers persist surgically via
+      // persist-project.js (jsonb_set the one feature + the totals) rather than
+      // rewriting the whole document. `project` is retained for callers/tests that
+      // want the fully-rebuilt document.
+      return {
+        status: APPLY_RESULT.OK,
+        type: found.type,
+        layer: found.key,
+        index,
+        feature: updatedFeature,
+        unitsTotals: updatedFeatureSet.units,
+        project: { ...project, [documentKey]: updatedFeatureSet }
+      }
+    } else {
+      return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+    }
   }
 }
 

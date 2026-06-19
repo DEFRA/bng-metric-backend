@@ -1,6 +1,19 @@
 // Property keys as written by Natural England QGIS templates. Lookups are
 // case-insensitive (see pickProp) because some real-world files use
 // underscored variants ("parcel_ref") or different casing.
+export const PROPOSED_PROP_KEYS = {
+  habitatType: ['Proposed Habitat Type'],
+  broadHabitat: ['Proposed Broad Habitat Type'],
+  hedgerowType: ['Proposed Hedge Type'],
+  riverType: ['Proposed River Type'],
+  condition: ['Proposed Condition'],
+  strategicSignificance: ['Proposed Strategic Significance'],
+  watercourseEncroachment: ['Proposed Encroachment into Watercourse'],
+  riparianEncroachment: ['Proposed Encroachment into riparian zone'],
+  advanceYears: ['Habitat created in advance/years'],
+  delayYears: ['Delay in starting habitat creation/years']
+}
+
 export const PROP_KEYS = {
   parcelRef: ['Parcel Ref', 'Parcel_Ref', 'parcel_ref'],
   habitatType: ['Baseline Habitat Type', 'Baseline_Habitat_Type'],

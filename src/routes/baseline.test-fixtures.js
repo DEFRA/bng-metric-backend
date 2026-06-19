@@ -24,6 +24,11 @@ const HTTP_413 = 413
 
 const BNG_SRID = 27700
 
+const STUB_AREA_HABITAT_TYPE = 'Lowland meadows'
+const STUB_HEDGEROW_TYPE = 'Species-rich native hedgerow'
+const STUB_RIPARIAN_ENCROACHMENT = 'No Encroachment/No Encroachment'
+const STUB_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
+
 const STUB_LAYERS = {
   redline: [],
   areas: [],
@@ -46,7 +51,7 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_HAB,
         ref: 'P1',
-        type: 'Lowland meadows',
+        type: STUB_AREA_HABITAT_TYPE,
         broadType: 'Grassland',
         condition: 'Good',
         status: 'Complete',
@@ -57,7 +62,7 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_HEDGE,
         ref: 'H1',
-        type: 'Species-rich native hedgerow',
+        type: STUB_HEDGEROW_TYPE,
         condition: 'Good',
         status: 'Complete',
         sizeMetres: 20
@@ -69,8 +74,8 @@ const STUB_EXTRACTED = {
         ref: 'W1',
         type: 'Ditches',
         condition: 'Moderate',
-        riparianEncroachment: 'No Encroachment/No Encroachment',
-        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+        watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT,
         status: 'Complete',
         sizeMetres: 30
       }
@@ -112,6 +117,83 @@ const STUB_EXTRACTED = {
       }
     ]
   }
+}
+
+const STUB_POST_INTERVENTION_EXTRACTED = {
+  document: {
+    uploadId: UPLOAD_ID,
+    importedAt: '2026-05-08T00:00:00.000Z',
+    redLine: { featureId: FEATURE_ID_RED, properties: {} },
+    habitats: [
+      {
+        featureId: FEATURE_ID_HAB,
+        ref: 'P1',
+        area: 10,
+        sizeSquareMetres: 10,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: STUB_AREA_HABITAT_TYPE,
+          broadType: 'Grassland',
+          condition: 'Good'
+        },
+        proposed: {
+          type: STUB_AREA_HABITAT_TYPE,
+          broadType: 'Grassland',
+          condition: 'Good'
+        },
+        properties: {}
+      }
+    ],
+    hedgerows: [
+      {
+        featureId: FEATURE_ID_HEDGE,
+        ref: 'H1',
+        length: 20,
+        sizeMetres: 20,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: STUB_HEDGEROW_TYPE,
+          condition: 'Good'
+        },
+        proposed: {
+          type: STUB_HEDGEROW_TYPE,
+          condition: 'Good'
+        },
+        properties: {}
+      }
+    ],
+    watercourses: [
+      {
+        featureId: FEATURE_ID_WATER,
+        ref: 'W1',
+        length: 30,
+        sizeMetres: 30,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: 'Ditches',
+          condition: 'Moderate',
+          riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+          watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT
+        },
+        proposed: {
+          type: 'Ditches',
+          condition: 'Moderate',
+          riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+          watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT
+        },
+        properties: {}
+      }
+    ],
+    habitatSizes: {
+      areaHabitats: { totalSquareMetres: 10 },
+      hedgerows: { totalMetres: 20 },
+      watercourses: { totalMetres: 30 }
+    }
+  },
+  geometries: STUB_EXTRACTED.geometries
 }
 
 function makeH() {
@@ -222,6 +304,7 @@ export {
   HTTP_413,
   STUB_LAYERS,
   STUB_EXTRACTED,
+  STUB_POST_INTERVENTION_EXTRACTED,
   SAMPLE_GEOM,
   SAMPLE_LINE,
   makeH,

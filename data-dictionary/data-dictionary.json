@@ -775,7 +775,7 @@
       "enumValues": [],
       "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._-]*\\.gpkg$/i"],
       "openMap": false,
-      "description": "Original filename of the uploaded baseline GeoPackage. Constrained to a safe `*.gpkg` pattern."
+      "description": "Original filename of the uploaded GeoPackage. Constrained to a safe `*.gpkg` pattern."
     },
     {
       "path": "baseline.fileSize",
@@ -797,7 +797,7 @@
       "enumValues": [],
       "constraints": ["ISO 8601 date"],
       "openMap": false,
-      "description": "ISO 8601 timestamp of when the baseline was imported."
+      "description": "ISO 8601 timestamp of when the data was imported."
     },
     {
       "path": "baseline.redLine",
@@ -1985,7 +1985,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Imported baseline state: features, sizes and unit totals. Written by the baseline upload flow."
+      "description": "Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes and unit totals."
     },
     {
       "path": "postIntervention.uploadId",
@@ -2007,7 +2007,7 @@
       "enumValues": [],
       "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._-]*\\.gpkg$/i"],
       "openMap": false,
-      "description": "Original filename of the uploaded baseline GeoPackage. Constrained to a safe `*.gpkg` pattern."
+      "description": "Original filename of the uploaded GeoPackage. Constrained to a safe `*.gpkg` pattern."
     },
     {
       "path": "postIntervention.fileSize",
@@ -2029,7 +2029,7 @@
       "enumValues": [],
       "constraints": ["ISO 8601 date"],
       "openMap": false,
-      "description": "ISO 8601 timestamp of when the baseline was imported."
+      "description": "ISO 8601 timestamp of when the data was imported."
     },
     {
       "path": "postIntervention.redLine",
@@ -2095,7 +2095,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Area (polygon) habitat parcels in the baseline."
+      "description": "Post-intervention area (polygon) habitat parcels."
     },
     {
       "path": "postIntervention.habitats[]",
@@ -2106,7 +2106,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "An area (polygon) habitat parcel."
+      "description": "A post-intervention area (polygon) habitat parcel with nested baseline and proposed sub-objects."
     },
     {
       "path": "postIntervention.habitats[].featureId",
@@ -2131,94 +2131,6 @@
       "description": "Parcel reference from the GeoPackage (Parcel Ref column)."
     },
     {
-      "path": "postIntervention.habitats[].type",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Baseline habitat type, e.g. 'Lowland meadows'."
-    },
-    {
-      "path": "postIntervention.habitats[].broadType",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Baseline broad habitat type, e.g. 'Grassland'."
-    },
-    {
-      "path": "postIntervention.habitats[].distinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
-    },
-    {
-      "path": "postIntervention.habitats[].distinctivenessScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
-    },
-    {
-      "path": "postIntervention.habitats[].condition",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Baseline condition assessment, e.g. 'Good'."
-    },
-    {
-      "path": "postIntervention.habitats[].conditionScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits."
-    },
-    {
-      "path": "postIntervention.habitats[].strategicSignificance",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.habitats[].retentionCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Retention category from the GeoPackage."
-    },
-    {
       "path": "postIntervention.habitats[].area",
       "type": "number",
       "required": false,
@@ -2227,7 +2139,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Parcel area in square metres, measured in PostGIS and rounded to the nearest integer. This is the value fed to the unit calculation."
+      "description": "Parcel area in square metres, rounded to the nearest integer."
     },
     {
       "path": "postIntervention.habitats[].sizeSquareMetres",
@@ -2241,17 +2153,6 @@
       "description": "Exact parcel area in square metres as measured in PostGIS."
     },
     {
-      "path": "postIntervention.habitats[].status",
-      "type": "string",
-      "required": true,
-      "nullable": false,
-      "emptyStringAllowed": false,
-      "enumValues": ["Complete", "Incomplete"],
-      "constraints": [],
-      "openMap": false,
-      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
-    },
-    {
       "path": "postIntervention.habitats[].units",
       "type": "number",
       "required": false,
@@ -2260,10 +2161,32 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
+      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values."
     },
     {
-      "path": "postIntervention.habitats[].siteName",
+      "path": "postIntervention.habitats[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when proposed broad type, type and condition are all set."
+    },
+    {
+      "path": "postIntervention.habitats[].baseline",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline habitat values extracted from the Baseline * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.habitats[].baseline.type",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2271,10 +2194,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site name from the GeoPackage (Site Name column)."
+      "description": "Baseline habitat type from the GeoPackage Baseline Habitat Type column."
     },
     {
-      "path": "postIntervention.habitats[].surveyDate",
+      "path": "postIntervention.habitats[].baseline.broadType",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2282,10 +2205,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Survey date from the GeoPackage (Survey Date column), as stored in the source file."
+      "description": "Baseline broad habitat type."
     },
     {
-      "path": "postIntervention.habitats[].surveyDetails",
+      "path": "postIntervention.habitats[].baseline.condition",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2293,10 +2216,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text survey details from the GeoPackage."
+      "description": "Baseline condition assessment stripped of list-index prefix."
     },
     {
-      "path": "postIntervention.habitats[].comment",
+      "path": "postIntervention.habitats[].baseline.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.habitats[].baseline.distinctiveness",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2304,10 +2238,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Distinctiveness band resolved by bng-metric-engine."
     },
     {
-      "path": "postIntervention.habitats[].mappedBy",
+      "path": "postIntervention.habitats[].baseline.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.habitats[].baseline.strategicSignificance",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2315,10 +2260,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Name of the surveyor who mapped the feature (Mapped by)."
+      "description": "Baseline Strategic Significance from the GeoPackage."
     },
     {
-      "path": "postIntervention.habitats[].company",
+      "path": "postIntervention.habitats[].baseline.retentionCategory",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2326,10 +2271,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Company responsible for the survey (Company column)."
+      "description": "Retention Category from the GeoPackage."
     },
     {
-      "path": "postIntervention.habitats[].baseMap",
+      "path": "postIntervention.habitats[].proposed",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed habitat values extracted from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.type",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2337,10 +2293,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Base map used during mapping (Base Map column)."
+      "description": "Proposed habitat type from the GeoPackage Proposed Habitat Type column."
     },
     {
-      "path": "postIntervention.habitats[].location",
+      "path": "postIntervention.habitats[].proposed.broadType",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2348,10 +2304,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Proposed broad habitat type."
     },
     {
-      "path": "postIntervention.habitats[].spatialRiskCategory",
+      "path": "postIntervention.habitats[].proposed.condition",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2359,10 +2315,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Spatial risk category from the GeoPackage."
+      "description": "Baseline condition assessment stripped of list-index prefix."
     },
     {
-      "path": "postIntervention.habitats[].habitatCreatedInAdvanceYears",
+      "path": "postIntervention.habitats[].proposed.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.distinctiveness",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2370,10 +2337,43 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
+      "description": "Distinctiveness band resolved by bng-metric-engine."
     },
     {
-      "path": "postIntervention.habitats[].delayInStartingHabitatCreationYears",
+      "path": "postIntervention.habitats[].proposed.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.advanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.delayYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.strategicSignificance",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2381,18 +2381,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
-    },
-    {
-      "path": "postIntervention.habitats[].rawDistinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Proposed Strategic Significance from the GeoPackage."
     },
     {
       "path": "postIntervention.habitats[].properties",
@@ -2414,7 +2403,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Hedgerow (linear) features in the baseline."
+      "description": "Post-intervention hedgerow (linear) features."
     },
     {
       "path": "postIntervention.hedgerows[]",
@@ -2425,7 +2414,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "A hedgerow (linear) feature."
+      "description": "A post-intervention hedgerow (linear) feature."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -2447,62 +2436,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Feature reference from the GeoPackage (Parcel Ref column)."
-    },
-    {
-      "path": "postIntervention.hedgerows[].type",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Hedgerow type (Baseline Hedge Type column)."
-    },
-    {
-      "path": "postIntervention.hedgerows[].condition",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Hedgerow condition assessment."
-    },
-    {
-      "path": "postIntervention.hedgerows[].distinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the hedgerow type."
-    },
-    {
-      "path": "postIntervention.hedgerows[].distinctivenessScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
-    },
-    {
-      "path": "postIntervention.hedgerows[].conditionScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine."
+      "description": "Feature reference from the GeoPackage."
     },
     {
       "path": "postIntervention.hedgerows[].length",
@@ -2513,7 +2447,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+      "description": "Length in metres (PostGIS size, rounded)."
     },
     {
       "path": "postIntervention.hedgerows[].sizeMetres",
@@ -2527,17 +2461,6 @@
       "description": "Length in metres as measured in PostGIS."
     },
     {
-      "path": "postIntervention.hedgerows[].status",
-      "type": "string",
-      "required": true,
-      "nullable": false,
-      "emptyStringAllowed": false,
-      "enumValues": ["Complete", "Incomplete"],
-      "constraints": [],
-      "openMap": false,
-      "description": "'Complete' when type and condition are both set; otherwise 'Incomplete'."
-    },
-    {
       "path": "postIntervention.hedgerows[].units",
       "type": "number",
       "required": false,
@@ -2546,10 +2469,32 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428)."
+      "description": "Post-intervention biodiversity units, calculated from proposed values."
     },
     {
-      "path": "postIntervention.hedgerows[].strategicSignificance",
+      "path": "postIntervention.hedgerows[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when proposed type and condition are both set."
+    },
+    {
+      "path": "postIntervention.hedgerows[].baseline",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline hedgerow values from the Baseline * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.hedgerows[].baseline.type",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2557,10 +2502,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline hedgerow type from Baseline Hedge Type column."
     },
     {
-      "path": "postIntervention.hedgerows[].retentionCategory",
+      "path": "postIntervention.hedgerows[].baseline.condition",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2568,10 +2513,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Retention category from the GeoPackage."
+      "description": "Baseline condition assessment stripped of list-index prefix."
     },
     {
-      "path": "postIntervention.hedgerows[].siteName",
+      "path": "postIntervention.hedgerows[].baseline.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.hedgerows[].baseline.distinctiveness",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2579,10 +2535,32 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site name from the GeoPackage (Site Name column)."
+      "description": "Distinctiveness band resolved by bng-metric-engine."
     },
     {
-      "path": "postIntervention.hedgerows[].surveyDate",
+      "path": "postIntervention.hedgerows[].baseline.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed hedgerow values from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.type",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2590,10 +2568,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Survey date from the GeoPackage (Survey Date column), as stored in the source file."
+      "description": "Proposed hedgerow type from Proposed Hedge Type column."
     },
     {
-      "path": "postIntervention.hedgerows[].surveyDetails",
+      "path": "postIntervention.hedgerows[].proposed.condition",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2601,10 +2579,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text survey details from the GeoPackage."
+      "description": "Baseline condition assessment stripped of list-index prefix."
     },
     {
-      "path": "postIntervention.hedgerows[].comment",
+      "path": "postIntervention.hedgerows[].proposed.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.distinctiveness",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2612,95 +2601,40 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Distinctiveness band resolved by bng-metric-engine."
     },
     {
-      "path": "postIntervention.hedgerows[].mappedBy",
-      "type": "string",
+      "path": "postIntervention.hedgerows[].proposed.distinctivenessScore",
+      "type": "number",
       "required": false,
       "nullable": true,
-      "emptyStringAllowed": true,
+      "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Name of the surveyor who mapped the feature (Mapped by)."
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
     },
     {
-      "path": "postIntervention.hedgerows[].company",
-      "type": "string",
+      "path": "postIntervention.hedgerows[].proposed.advanceYears",
+      "type": "number",
       "required": false,
       "nullable": true,
-      "emptyStringAllowed": true,
+      "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Company responsible for the survey (Company column)."
+      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
-      "path": "postIntervention.hedgerows[].baseMap",
-      "type": "string",
+      "path": "postIntervention.hedgerows[].proposed.delayYears",
+      "type": "number",
       "required": false,
       "nullable": true,
-      "emptyStringAllowed": true,
+      "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Base map used during mapping (Base Map column)."
-    },
-    {
-      "path": "postIntervention.hedgerows[].location",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.hedgerows[].spatialRiskCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Spatial risk category from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.hedgerows[].habitatCreatedInAdvanceYears",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
-    },
-    {
-      "path": "postIntervention.hedgerows[].delayInStartingHabitatCreationYears",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
-    },
-    {
-      "path": "postIntervention.hedgerows[].rawDistinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
       "path": "postIntervention.hedgerows[].properties",
@@ -2722,7 +2656,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Watercourse (linear) features in the baseline."
+      "description": "Post-intervention watercourse (linear) features."
     },
     {
       "path": "postIntervention.watercourses[]",
@@ -2733,7 +2667,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "A watercourse (linear) feature."
+      "description": "A post-intervention watercourse (linear) feature."
     },
     {
       "path": "postIntervention.watercourses[].featureId",
@@ -2755,84 +2689,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Feature reference from the GeoPackage (Parcel Ref column)."
-    },
-    {
-      "path": "postIntervention.watercourses[].type",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Watercourse type (Baseline River Type column)."
-    },
-    {
-      "path": "postIntervention.watercourses[].condition",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Watercourse condition assessment."
-    },
-    {
-      "path": "postIntervention.watercourses[].riparianEncroachment",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Riparian-zone encroachment category from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.watercourses[].watercourseEncroachment",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Watercourse encroachment category from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.watercourses[].distinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the watercourse type."
-    },
-    {
-      "path": "postIntervention.watercourses[].distinctivenessScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
-    },
-    {
-      "path": "postIntervention.watercourses[].conditionScore",
-      "type": "number",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine."
+      "description": "Feature reference from the GeoPackage."
     },
     {
       "path": "postIntervention.watercourses[].length",
@@ -2843,7 +2700,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+      "description": "Length in metres (PostGIS size, rounded)."
     },
     {
       "path": "postIntervention.watercourses[].sizeMetres",
@@ -2857,17 +2714,6 @@
       "description": "Length in metres as measured in PostGIS."
     },
     {
-      "path": "postIntervention.watercourses[].status",
-      "type": "string",
-      "required": true,
-      "nullable": false,
-      "emptyStringAllowed": false,
-      "enumValues": ["Complete", "Incomplete"],
-      "constraints": [],
-      "openMap": false,
-      "description": "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'."
-    },
-    {
       "path": "postIntervention.watercourses[].units",
       "type": "number",
       "required": false,
@@ -2876,10 +2722,32 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428)."
+      "description": "Post-intervention biodiversity units, calculated from proposed values."
     },
     {
-      "path": "postIntervention.watercourses[].strategicSignificance",
+      "path": "postIntervention.watercourses[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when all proposed fields including encroachments are set."
+    },
+    {
+      "path": "postIntervention.watercourses[].baseline",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline watercourse values from the Baseline * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.watercourses[].baseline.type",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2887,10 +2755,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline watercourse type from Baseline River Type column."
     },
     {
-      "path": "postIntervention.watercourses[].retentionCategory",
+      "path": "postIntervention.watercourses[].baseline.condition",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2898,10 +2766,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Retention category from the GeoPackage."
+      "description": "Baseline condition assessment stripped of list-index prefix."
     },
     {
-      "path": "postIntervention.watercourses[].siteName",
+      "path": "postIntervention.watercourses[].baseline.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.watercourses[].baseline.distinctiveness",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2909,10 +2788,21 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site name from the GeoPackage (Site Name column)."
+      "description": "Distinctiveness band resolved by bng-metric-engine."
     },
     {
-      "path": "postIntervention.watercourses[].surveyDate",
+      "path": "postIntervention.watercourses[].baseline.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.watercourses[].baseline.riparianEncroachment",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2920,10 +2810,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Survey date from the GeoPackage (Survey Date column), as stored in the source file."
+      "description": "Riparian-zone encroachment category."
     },
     {
-      "path": "postIntervention.watercourses[].surveyDetails",
+      "path": "postIntervention.watercourses[].baseline.watercourseEncroachment",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2931,10 +2821,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text survey details from the GeoPackage."
+      "description": "Watercourse encroachment category."
     },
     {
-      "path": "postIntervention.watercourses[].comment",
+      "path": "postIntervention.watercourses[].baseline.strategicSignificance",
       "type": "string",
       "required": false,
       "nullable": true,
@@ -2942,109 +2832,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Strategic Significance from the GeoPackage."
     },
     {
-      "path": "postIntervention.watercourses[].mappedBy",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Name of the surveyor who mapped the feature (Mapped by)."
-    },
-    {
-      "path": "postIntervention.watercourses[].company",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Company responsible for the survey (Company column)."
-    },
-    {
-      "path": "postIntervention.watercourses[].baseMap",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Base map used during mapping (Base Map column)."
-    },
-    {
-      "path": "postIntervention.watercourses[].location",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.watercourses[].spatialRiskCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Spatial risk category from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.watercourses[].habitatCreatedInAdvanceYears",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
-    },
-    {
-      "path": "postIntervention.watercourses[].delayInStartingHabitatCreationYears",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
-    },
-    {
-      "path": "postIntervention.watercourses[].rawDistinctiveness",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
-    },
-    {
-      "path": "postIntervention.watercourses[].enhancementType",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Enhancement type from the GeoPackage Rivers layer."
-    },
-    {
-      "path": "postIntervention.watercourses[].waterEncroachmentMultiplier",
+      "path": "postIntervention.watercourses[].baseline.waterEncroachmentMultiplier",
       "type": "number",
       "required": false,
       "nullable": true,
@@ -3055,7 +2846,150 @@
       "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
     },
     {
-      "path": "postIntervention.watercourses[].riparianEncroachmentMultiplier",
+      "path": "postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Riparian-encroachment multiplier applied by bng-metric-engine when computing units."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed watercourse values from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed watercourse type from Proposed River Type column."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline condition assessment stripped of list-index prefix."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.advanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.delayYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.riparianEncroachment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Riparian-zone encroachment category."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.watercourseEncroachment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse encroachment category."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic Significance from the GeoPackage."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.waterEncroachmentMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.riparianEncroachmentMultiplier",
       "type": "number",
       "required": false,
       "nullable": true,

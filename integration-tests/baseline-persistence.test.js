@@ -334,9 +334,11 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     expect(updateRes.result).toEqual(
       expect.objectContaining({
         featureId: habitat.featureId,
-        broadType: 'Grassland',
-        type: 'Lowland meadows',
-        condition: 'Good',
+        proposed: expect.objectContaining({
+          broadType: 'Grassland',
+          type: 'Lowland meadows',
+          condition: 'Good'
+        }),
         status: 'Complete'
       })
     )

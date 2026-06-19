@@ -117,6 +117,64 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
     })
     expect(JSON.stringify(project)).toBe(before)
   })
+
+  test('treats whitespace-only edit strings as null', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: '   ',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.broadType).toBeNull()
+  })
+
+  test('passes through a non-string, non-null edit value unchanged', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 42,
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.broadType).toBe(42)
+  })
+
+  test('handles a habitat feature with no sizeSquareMetres property', () => {
+    const project = projectFixture()
+    delete project.baseline.habitats[0].sizeSquareMetres
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.units).toBeDefined()
+  })
+
+  test('handles a hedgerow feature with no sizeMetres property', () => {
+    const project = projectFixture()
+    delete project.baseline.hedgerows[0].sizeMetres
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow', condition: 'Good' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.units).toBeDefined()
+  })
 })
 
 describe('applyFeatureUpdate — hedgerow dispatch', () => {
@@ -212,5 +270,158 @@ describe('applyFeatureUpdate — error outcomes', () => {
     })
     expect(result.status).toBe(APPLY_RESULT.UNSUPPORTED_TYPE)
     expect(result.type).toBe('watercourse')
+  })
+})
+
+function postInterventionProjectFixture() {
+  return {
+    name: 'PI Fixture',
+    postIntervention: {
+      habitats: [
+        {
+          featureId: HABITAT_ID,
+          ref: 'H1-1',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: null,
+          status: 'Incomplete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Moderate',
+            conditionScore: null,
+            distinctiveness: null,
+            distinctivenessScore: null
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            conditionScore: null,
+            distinctiveness: null,
+            distinctivenessScore: null,
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      hedgerows: [
+        {
+          featureId: HEDGEROW_ID,
+          ref: 'HW1',
+          sizeMetres: 500,
+          units: null,
+          status: 'Incomplete',
+          baseline: {
+            type: 'Species-rich native hedgerow',
+            condition: 'Moderate',
+            conditionScore: null,
+            distinctiveness: null,
+            distinctivenessScore: null
+          },
+          proposed: {
+            type: null,
+            condition: null,
+            conditionScore: null,
+            distinctiveness: null,
+            distinctivenessScore: null,
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      watercourses: [],
+      units: {
+        totalUnits: 0,
+        habitatsTotal: 0,
+        hedgerowsTotal: 0,
+        watercoursesTotal: 0
+      }
+    }
+  }
+}
+
+describe('applyFeatureUpdate — postIntervention documentKey', () => {
+  test('writes edits into the proposed sub-object, not top-level fields', () => {
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    const feature = result.feature
+    // proposed side should be updated
+    expect(feature.proposed.type).toBe('Lowland meadows')
+    expect(feature.proposed.broadType).toBe('Grassland')
+    expect(feature.proposed.condition).toBe('Good')
+    expect(typeof feature.proposed.distinctiveness).toBe('string')
+    expect(typeof feature.proposed.conditionScore).toBe('number')
+    // top-level units and status should be updated
+    expect(typeof feature.units).toBe('number')
+    expect(feature.status).toBe('Complete')
+    // top-level type/condition should NOT be set
+    expect(feature).not.toHaveProperty('type')
+    expect(feature).not.toHaveProperty('condition')
+    expect(feature).not.toHaveProperty('distinctiveness')
+  })
+
+  test('preserves baseline sub-object unchanged', () => {
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.feature.baseline).toEqual(
+      expect.objectContaining({
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Moderate'
+      })
+    )
+  })
+
+  test('refreshes postIntervention.units totals', () => {
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.project.postIntervention.units.habitatsTotal).toBeGreaterThan(
+      0
+    )
+    expect(result.unitsTotals).toEqual(result.project.postIntervention.units)
+  })
+
+  test('writes hedgerow type into proposed.type, not a top-level field', () => {
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HEDGEROW_ID,
+      edits: {
+        habitatType: 'Native hedgerow',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.type).toBe('hedgerow')
+    expect(result.feature.proposed.type).toBe('Native hedgerow')
+    expect(result.feature.proposed.condition).toBe('Good')
+    expect(result.feature).not.toHaveProperty('type')
+    expect(result.feature).not.toHaveProperty('condition')
   })
 })
