@@ -23,6 +23,7 @@
 // (discovery, JWKS fetch, or token verification) actually failed.
 import Boom from '@hapi/boom'
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from 'jose'
+import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import { createLogger } from '../common/helpers/logging/logger.js'
 
@@ -104,12 +105,22 @@ async function resolveVerifier(options) {
 
   const discovery = await fetchDiscovery(options.discoveryUrl)
   const issuer = options.issuer || discovery.issuer || undefined
+  // jose fetches the JWKS with node:https.get, which — unlike the global fetch()
+  // used for discovery — does NOT pick up the undici/global-agent proxy: jose
+  // reads `https.get` off a namespace import that never sees global-agent's
+  // monkey-patch, so the call uses the original, unproxied https.get. In a CDP
+  // container (no direct egress) that JWKS fetch fails instantly. Pass an
+  // explicit proxy agent so it tunnels through the platform proxy — this is what
+  // createRemoteJWKSet's `agent` option is documented for.
+  const agent = options.httpProxy
+    ? new HttpsProxyAgent(options.httpProxy)
+    : undefined
   logger.info(
-    { jwksUri: discovery.jwks_uri, issuer },
+    { jwksUri: discovery.jwks_uri, issuer, jwksProxied: Boolean(agent) },
     `OIDC discovery resolved from ${options.discoveryUrl}`
   )
   return {
-    keySet: createRemoteJWKSet(new URL(discovery.jwks_uri)),
+    keySet: createRemoteJWKSet(new URL(discovery.jwks_uri), { agent }),
     issuer
   }
 }
@@ -197,7 +208,7 @@ const authJwt = {
           usingLocalJwks: Boolean(options.localJwks),
           audienceEnforced: Boolean(options.audience),
           issuerPinned: Boolean(options.issuer),
-          httpProxyConfigured: Boolean(process.env.HTTP_PROXY)
+          httpProxyConfigured: Boolean(options.httpProxy)
         },
         'defra-jwt auth strategy registered'
       )

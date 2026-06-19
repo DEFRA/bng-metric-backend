@@ -8,6 +8,8 @@ import {
   createRemoteJWKSet
 } from 'jose'
 
+import { HttpsProxyAgent } from 'https-proxy-agent'
+
 import { authJwt } from './auth-jwt.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 
@@ -167,9 +169,36 @@ describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
     const res = await injectTo(s, await mint({ sub: 'remote-user' }))
 
     expect(global.fetch).toHaveBeenCalledWith(DISCOVERY_URL)
-    expect(createRemoteJWKSet).toHaveBeenCalledWith(new URL(JWKS_URI))
+    // No proxy configured here, so the JWKS fetch runs without an agent.
+    expect(createRemoteJWKSet).toHaveBeenCalledWith(new URL(JWKS_URI), {
+      agent: undefined
+    })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.sub).toBe('remote-user')
+    await s.stop()
+  })
+
+  test('routes the JWKS fetch through an https proxy agent when httpProxy is set', async () => {
+    vi.stubGlobal(
+      'fetch',
+      vi.fn(async () => ({
+        ok: true,
+        json: async () => ({ jwks_uri: JWKS_URI, issuer: ISSUER })
+      }))
+    )
+    vi.mocked(createRemoteJWKSet).mockReturnValue(createLocalJWKSet(publicJwks))
+
+    const s = await buildServer({
+      discoveryUrl: DISCOVERY_URL,
+      httpProxy: 'http://proxy.example:3128'
+    })
+    const res = await injectTo(s, await mint({ sub: 'proxied-user' }))
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const [, jwksOptions] = vi.mocked(createRemoteJWKSet).mock.calls.at(-1)
+    expect(jwksOptions.agent).toBeInstanceOf(HttpsProxyAgent)
+    expect(jwksOptions.agent.proxy.hostname).toBe('proxy.example')
+    expect(jwksOptions.agent.proxy.port).toBe('3128')
     await s.stop()
   })
 
