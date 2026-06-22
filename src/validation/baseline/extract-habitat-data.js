@@ -294,11 +294,9 @@ function embedLinearFeatureSizes(documents, sizeEntries) {
  * @returns {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }}
  */
 function summarizeTreeSizes(treeDocuments) {
-  // Unknown tree types contribute to the total but not the urban/rural split.
-  const splitByType = new Map([
-    [URBAN_TREE_TYPE, 0],
-    [RURAL_TREE_TYPE, 0]
-  ])
+  // Sizes are summed per tree type; only the urban/rural buckets are read back,
+  // so any unknown type still counts toward the total but not the split.
+  const sizeByType = new Map()
   let totalSquareMetres = 0
   for (const tree of treeDocuments) {
     const size = tree.sizeSquareMetres
@@ -306,14 +304,12 @@ function summarizeTreeSizes(treeDocuments) {
       continue
     }
     totalSquareMetres += size
-    if (splitByType.has(tree.type)) {
-      splitByType.set(tree.type, splitByType.get(tree.type) + size)
-    }
+    sizeByType.set(tree.type, (sizeByType.get(tree.type) ?? 0) + size)
   }
   return {
     totalSquareMetres,
-    urbanSquareMetres: splitByType.get(URBAN_TREE_TYPE),
-    ruralSquareMetres: splitByType.get(RURAL_TREE_TYPE)
+    urbanSquareMetres: sizeByType.get(URBAN_TREE_TYPE) ?? 0,
+    ruralSquareMetres: sizeByType.get(RURAL_TREE_TYPE) ?? 0
   }
 }
 
