@@ -439,7 +439,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0].length).toBe(500)
+    const hedgerowLengthMetres = document.hedgerows[0].length
+    expect(hedgerowLengthMetres).toBe(500)
     expect(document.hedgerows[0].distinctiveness).toBe('High')
     expect(document.hedgerows[0].distinctivenessScore).toBe(6)
     expect(document.hedgerows[0].conditionScore).toBe(3)
@@ -459,7 +460,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0].length).toBe(501)
+    const hedgerowLengthMetres = document.hedgerows[0].length
+    expect(hedgerowLengthMetres).toBe(501)
     // 501 m = 0.501 km × 6 × 3 × 1 = 9.018
     expect(document.hedgerows[0].units).toBeCloseTo(9.018)
   })
@@ -476,7 +478,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0].length).toBe(1000)
+    const watercourseLengthMetres = document.watercourses[0].length
+    expect(watercourseLengthMetres).toBe(1000)
     expect(document.watercourses[0].distinctiveness).toBe('V.High')
     expect(document.watercourses[0].conditionScore).toBe(3)
     expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
@@ -496,7 +499,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0].length).toBe(1000)
+    const watercourseLengthMetres = document.watercourses[0].length
+    expect(watercourseLengthMetres).toBe(1000)
     // 1000 m = 1 km × 8 × 3 × 1 = 24 units (rounding down)
     expect(document.watercourses[0].units).toBeCloseTo(24)
   })
