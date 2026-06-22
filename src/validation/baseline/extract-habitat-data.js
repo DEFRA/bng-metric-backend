@@ -294,22 +294,27 @@ function embedLinearFeatureSizes(documents, sizeEntries) {
  * @returns {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }}
  */
 function summarizeTreeSizes(treeDocuments) {
+  // Unknown tree types contribute to the total but not the urban/rural split.
+  const splitByType = new Map([
+    [URBAN_TREE_TYPE, 0],
+    [RURAL_TREE_TYPE, 0]
+  ])
   let totalSquareMetres = 0
-  let urbanSquareMetres = 0
-  let ruralSquareMetres = 0
   for (const tree of treeDocuments) {
     const size = tree.sizeSquareMetres
     if (typeof size !== 'number' || !Number.isFinite(size)) {
       continue
     }
     totalSquareMetres += size
-    if (tree.type === URBAN_TREE_TYPE) {
-      urbanSquareMetres += size
-    } else if (tree.type === RURAL_TREE_TYPE) {
-      ruralSquareMetres += size
+    if (splitByType.has(tree.type)) {
+      splitByType.set(tree.type, splitByType.get(tree.type) + size)
     }
   }
-  return { totalSquareMetres, urbanSquareMetres, ruralSquareMetres }
+  return {
+    totalSquareMetres,
+    urbanSquareMetres: splitByType.get(URBAN_TREE_TYPE),
+    ruralSquareMetres: splitByType.get(RURAL_TREE_TYPE)
+  }
 }
 
 /**
