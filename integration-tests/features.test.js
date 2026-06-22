@@ -214,7 +214,10 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       totalUnits: 24,
       habitatsTotal: 24,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesRuralTotal: 0,
+      treesUrbanTotal: 0
     })
   })
 
