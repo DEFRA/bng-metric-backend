@@ -85,7 +85,62 @@ describe('#projectSchema', () => {
         totalUnits: 0.04,
         habitatsTotal: 0.04,
         hedgerowsTotal: 0,
-        watercoursesTotal: 0
+        watercoursesTotal: 0,
+        treesTotal: 0,
+        treesUrbanTotal: 0,
+        treesRuralTotal: 0
+      }
+    })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should allow baseline individual tree rows, tree size totals and site size', () => {
+    const { error } = habitatDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      redLine: null,
+      habitats: [],
+      trees: [
+        {
+          featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
+          ref: 'T001',
+          type: 'Urban tree',
+          broadType: 'Individual trees',
+          treeSize: 'Medium',
+          treeSpecies: 'Street tree',
+          ruralOrUrban: 'Urban',
+          count: 1,
+          condition: 'Good',
+          distinctiveness: 'Medium',
+          distinctivenessScore: 4,
+          conditionScore: 3,
+          area: 163,
+          sizeSquareMetres: 163,
+          status: 'Complete',
+          units: 0.1956
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        // Total area size = parcels (10000) + trees (163); Site = parcels only.
+        areaHabitats: { totalSquareMetres: 10163 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 163,
+          urbanSquareMetres: 163,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 10000 }
+      },
+      units: {
+        totalUnits: 0.1956,
+        habitatsTotal: 0,
+        hedgerowsTotal: 0,
+        watercoursesTotal: 0,
+        treesTotal: 0.1956,
+        treesUrbanTotal: 0.1956,
+        treesRuralTotal: 0
       }
     })
     expect(error).toBeUndefined()

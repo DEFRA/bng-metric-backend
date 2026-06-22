@@ -1,12 +1,26 @@
 import { randomUUID } from 'node:crypto'
 
+import {
+  getIndividualTreeAreaHectares,
+  BaselineLookupError
+} from 'bng-metric-engine'
+
 import { PROP_KEYS, featureKeysForVariant, pickProp } from './properties.js'
 import {
   areaStatus,
   hedgerowStatus,
   watercourseStatus
 } from '../../services/baseline/calculate-habitat-statuses.js'
+import {
+  INDIVIDUAL_TREES_BROAD_HABITAT,
+  URBAN_TREE_TYPE,
+  RURAL_TREE_TYPE,
+  treeHabitatTypeFromRuralUrban
+} from './tree-constants.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
+
+/** Individual trees store area in hectares; persisted sizes are in m². */
+const SQ_METRES_PER_HECTARE = 10_000
 
 /**
  * @param {number | null | undefined} sizeSquareMetres
@@ -82,6 +96,68 @@ function buildHabitat(feature, keys) {
     properties: props
   }
   document.status = areaStatus(document)
+  const geometryRow = {
+    featureId,
+    ref,
+    geometry: feature.nativeGeometry,
+    srid: feature.nativeSrid
+  }
+  return { document, geometryRow }
+}
+
+/**
+ * Resolve the notional m² area for an individual tree of the given size. Trees
+ * are points, so the area is a fixed per-size lookup (bng-metric-engine) rather
+ * than a PostGIS measurement. Returns null for a missing/unrecognised size.
+ *
+ * @param {unknown} treeSize
+ * @returns {{ sizeSquareMetres: number, area: number } | { sizeSquareMetres: null, area: null }}
+ */
+function treeAreaFields(treeSize) {
+  try {
+    // The per-size reference areas in m² are whole numbers (e.g. 0.0163 ha →
+    // 163 m²); rounding removes floating-point noise without losing precision.
+    const sizeSquareMetres = Math.round(
+      getIndividualTreeAreaHectares(treeSize) * SQ_METRES_PER_HECTARE
+    )
+    return { sizeSquareMetres, area: sizeSquareMetres }
+  } catch (error) {
+    if (error instanceof BaselineLookupError) {
+      return { sizeSquareMetres: null, area: null }
+    }
+    throw error
+  }
+}
+
+function buildTree(feature, keys) {
+  const featureId = feature.featureId ?? randomUUID()
+  const props = feature.properties ?? {}
+  const ref = pickProp(props, keys.treeRef)
+  const treeSize = pickProp(props, keys.treeSize)
+  const ruralOrUrban = pickProp(props, keys.ruralOrUrbanTree)
+
+  const document = {
+    featureId,
+    ref,
+    // Trees are treated as an area habitat: broad "Individual trees" with an
+    // urban/rural habitat type that the engine reference data is keyed on.
+    type: treeHabitatTypeFromRuralUrban(ruralOrUrban),
+    broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
+    treeSize,
+    treeSpecies: pickProp(props, keys.treeType),
+    ruralOrUrban,
+    count: pickProp(props, PROP_KEYS.treeCount),
+    condition: stripConditionPrefix(pickProp(props, keys.condition)),
+    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
+    ...pickProps(props, METADATA_PROPS),
+    properties: props
+  }
+  const { sizeSquareMetres, area } = treeAreaFields(treeSize)
+  document.sizeSquareMetres = sizeSquareMetres
+  document.area = area
+  document.status = areaStatus(document)
+
   const geometryRow = {
     featureId,
     ref,
@@ -210,13 +286,47 @@ function embedLinearFeatureSizes(documents, sizeEntries) {
 }
 
 /**
+ * Sum the notional tree areas (already embedded on each tree document by
+ * buildTree), both overall and grouped by urban/rural habitat type — the
+ * grouped totals the story requires the system to store per habitat type.
+ *
+ * @param {object[]} treeDocuments
+ * @returns {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }}
+ */
+function summarizeTreeSizes(treeDocuments) {
+  let totalSquareMetres = 0
+  let urbanSquareMetres = 0
+  let ruralSquareMetres = 0
+  for (const tree of treeDocuments) {
+    const size = tree.sizeSquareMetres
+    if (typeof size !== 'number' || !Number.isFinite(size)) {
+      continue
+    }
+    totalSquareMetres += size
+    if (tree.type === URBAN_TREE_TYPE) {
+      urbanSquareMetres += size
+    } else if (tree.type === RURAL_TREE_TYPE) {
+      ruralSquareMetres += size
+    }
+  }
+  return { totalSquareMetres, urbanSquareMetres, ruralSquareMetres }
+}
+
+/**
  * @param {object} habitats
  * @param {object} hedgerows
  * @param {object} watercourses
+ * @param {object} trees
  * @param {object} habitatSizes
  * @returns {object}
  */
-function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
+function embedHabitatSizes(
+  habitats,
+  hedgerows,
+  watercourses,
+  trees,
+  habitatSizes
+) {
   const {
     areaHabitats,
     hedgerows: hedgerowSizes,
@@ -239,10 +349,23 @@ function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
   embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
   embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
 
+  const treeSizes = summarizeTreeSizes(trees.documents)
+
   return {
-    areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
+    // "Total area size": area-habitat parcels plus individual trees. Trees are a
+    // special area habitat, so their notional area is summed into the headline
+    // area-habitats size shown on the habitat list.
+    areaHabitats: {
+      totalSquareMetres:
+        areaHabitats.totalSquareMetres + treeSizes.totalSquareMetres
+    },
     hedgerows: { totalMetres: hedgerowSizes.totalMetres },
-    watercourses: { totalMetres: wcSizes.totalMetres }
+    watercourses: { totalMetres: wcSizes.totalMetres },
+    trees: treeSizes,
+    // "Site" size: habitat parcel area EXCLUDING special habitats (currently
+    // individual trees). This is the figure compared against the red line
+    // boundary area, so the notional tree areas must not inflate it.
+    site: { totalSquareMetres: areaHabitats.totalSquareMetres }
   }
 }
 
@@ -290,6 +413,7 @@ export function extractHabitatData(layers, meta = {}) {
     buildWatercourse,
     keys
   )
+  const trees = splitFeatures(layers.trees ?? [], buildTree, keys)
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
@@ -300,6 +424,7 @@ export function extractHabitatData(layers, meta = {}) {
       habitats,
       hedgerows,
       watercourses,
+      trees,
       meta.habitatSizes
     )
   }
@@ -314,13 +439,15 @@ export function extractHabitatData(layers, meta = {}) {
       habitats: habitats.documents,
       hedgerows: hedgerows.documents,
       watercourses: watercourses.documents,
+      trees: trees.documents,
       habitatSizes: habitatSizesSummary
     },
     geometries: {
       redLine: redLine.geometryRow,
       habitats: habitats.geometries,
       hedgerows: hedgerows.geometries,
-      watercourses: watercourses.geometries
+      watercourses: watercourses.geometries,
+      trees: trees.geometries
     }
   }
 }

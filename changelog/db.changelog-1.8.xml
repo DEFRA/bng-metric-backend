@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="23" author="bng-team">
+        <comment>
+            Create bng.baseline_trees, the point-geometry table for individual
+            trees (Urban Trees layer), mirroring the other baseline feature
+            tables.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_trees (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiPoint, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_trees_project_id
+                ON bng.baseline_trees (project_id);
+
+            CREATE INDEX idx_baseline_trees_geom
+                ON bng.baseline_trees USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_trees;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="24" author="bng-team">
+        <comment>
+            Create bng.post_intervention_trees, mirroring bng.baseline_trees for
+            the post-intervention upload.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_trees (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiPoint, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_trees_project_id
+                ON bng.post_intervention_trees (project_id);
+
+            CREATE INDEX idx_post_intervention_trees_geom
+                ON bng.post_intervention_trees USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_trees;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

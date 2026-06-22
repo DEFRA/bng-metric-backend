@@ -64,6 +64,22 @@ export const PROP_KEYS = {
   ],
   // Rivers layer only.
   enhancementType: ['Enhancement Type', 'Enhancement_Type'],
+  // Urban Trees layer. `ref`, condition, strategic significance, retention and
+  // metadata reuse the shared keys above; these are tree-specific columns.
+  treeRef: ['Tree Ref', 'Tree_Ref', 'tree_ref'],
+  treeSize: ['Baseline Tree Size', 'Baseline_Tree_Size'],
+  treeType: ['Baseline Tree Type', 'Baseline_Tree_Type'],
+  ruralOrUrbanTree: [
+    'Baseline Rural or Urban Tree',
+    'Baseline_Rural_or_Urban_Tree'
+  ],
+  treeCount: ['Count'],
+  proposedTreeSize: ['Proposed Tree Size', 'Proposed_Tree_Size'],
+  proposedTreeType: ['Proposed Tree Type', 'Proposed_Tree_Type'],
+  proposedRuralOrUrbanTree: [
+    'Proposed Rural or Urban Tree',
+    'Proposed_Rural_or_Urban_Tree'
+  ],
   // Proposed (post-intervention) counterparts of the baseline-prefixed columns.
   // The NE template carries the proposed design in these columns; the
   // post-intervention save path reads them instead of the Baseline* columns
@@ -139,7 +155,13 @@ export function featureKeysForVariant(variant = EXTRACT_VARIANT.BASELINE) {
       : PROP_KEYS.riparianEncroachment,
     rawDistinctiveness: proposed
       ? PROP_KEYS.proposedDistinctiveness
-      : PROP_KEYS.baselineDistinctiveness
+      : PROP_KEYS.baselineDistinctiveness,
+    treeRef: PROP_KEYS.treeRef,
+    treeSize: proposed ? PROP_KEYS.proposedTreeSize : PROP_KEYS.treeSize,
+    treeType: proposed ? PROP_KEYS.proposedTreeType : PROP_KEYS.treeType,
+    ruralOrUrbanTree: proposed
+      ? PROP_KEYS.proposedRuralOrUrbanTree
+      : PROP_KEYS.ruralOrUrbanTree
   }
 }
 

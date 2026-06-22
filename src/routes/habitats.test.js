@@ -335,7 +335,10 @@ describe('updateAreaHabitat handler — happy path', () => {
           totalUnits: 26,
           habitatsTotal: 26,
           hedgerowsTotal: 0,
-          watercoursesTotal: 0
+          watercoursesTotal: 0,
+          treesTotal: 0,
+          treesUrbanTotal: 0,
+          treesRuralTotal: 0
         }
       })
     )

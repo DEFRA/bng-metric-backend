@@ -72,6 +72,8 @@ const TABLE_DESCRIPTIONS = {
     'The mapped line of each baseline hedgerow imported from the uploaded GeoPackage.',
   'bng.baseline_watercourses':
     'The mapped line of each baseline watercourse imported from the uploaded GeoPackage.',
+  'bng.baseline_trees':
+    'The mapped point of each baseline individual tree imported from the uploaded GeoPackage.',
   'bng.post_intervention_red_line':
     'The single red-line boundary outlining the extent of the post-intervention (proposed) site.',
   'bng.post_intervention_habitats':
@@ -80,6 +82,8 @@ const TABLE_DESCRIPTIONS = {
     'The mapped line of each post-intervention (proposed) hedgerow imported from the uploaded GeoPackage.',
   'bng.post_intervention_watercourses':
     'The mapped line of each post-intervention (proposed) watercourse imported from the uploaded GeoPackage.',
+  'bng.post_intervention_trees':
+    'The mapped point of each post-intervention (proposed) individual tree imported from the uploaded GeoPackage.',
   'bng.users':
     'One row per authenticated Defra ID user, upserted from the verified token on each login (identity and last sign-in).',
   'bng.relationships':

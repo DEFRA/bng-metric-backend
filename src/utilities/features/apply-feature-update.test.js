@@ -87,7 +87,10 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       totalUnits: 24,
       habitatsTotal: 24,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 

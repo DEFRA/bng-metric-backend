@@ -9,10 +9,12 @@ import {
   baselineHabitats,
   baselineHedgerows,
   baselineWatercourses,
+  baselineTrees,
   postInterventionRedLine,
   postInterventionHabitats,
   postInterventionHedgerows,
-  postInterventionWatercourses
+  postInterventionWatercourses,
+  postInterventionTrees
 } from '../../db/schema/index.js'
 import { setProjectHabitatData } from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
@@ -27,14 +29,16 @@ const BASELINE_FEATURE_TABLES = Object.freeze({
   redLine: baselineRedLine,
   habitats: baselineHabitats,
   hedgerows: baselineHedgerows,
-  watercourses: baselineWatercourses
+  watercourses: baselineWatercourses,
+  trees: baselineTrees
 })
 
 const POST_INTERVENTION_FEATURE_TABLES = Object.freeze({
   redLine: postInterventionRedLine,
   habitats: postInterventionHabitats,
   hedgerows: postInterventionHedgerows,
-  watercourses: postInterventionWatercourses
+  watercourses: postInterventionWatercourses,
+  trees: postInterventionTrees
 })
 
 const FEATURE_TABLE_SETS = Object.freeze({
@@ -129,6 +133,12 @@ async function persistGeometryLayers(tx, projectId, geometries, featureTables) {
     featureTables.watercourses,
     projectId,
     geometries.watercourses
+  )
+  await insertGeometryRowsBatched(
+    tx,
+    featureTables.trees,
+    projectId,
+    geometries.trees ?? []
   )
 }
 

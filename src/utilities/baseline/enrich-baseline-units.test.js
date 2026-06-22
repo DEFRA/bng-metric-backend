@@ -146,7 +146,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 0,
       habitatsTotal: 0,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 
@@ -171,7 +174,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 4,
       habitatsTotal: 4,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 
@@ -196,8 +202,40 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 4,
       habitatsTotal: 4,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
+  })
+
+  it('enriches individual trees via the area-habitat calculation and totals them by type', () => {
+    const document = {
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        {
+          featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          type: 'Urban tree',
+          broadType: 'Individual trees',
+          condition: 'Good',
+          area: 163
+        }
+      ]
+    }
+    enrichBaselineDocumentWithUnits(document)
+    const tree = document.trees[0]
+    expect(tree.distinctiveness).toBe('Medium')
+    expect(tree.distinctivenessScore).toBe(4)
+    expect(tree.conditionScore).toBe(3)
+    // 0.0163 ha × distinctiveness 4 × condition 3 × strategic significance 1
+    expect(tree.units).toBeCloseTo(0.1956, 4)
+    expect(tree.status).toBe('Complete')
+    expect(document.units.treesTotal).toBeCloseTo(0.1956, 4)
+    expect(document.units.treesUrbanTotal).toBeCloseTo(0.1956, 4)
+    expect(document.units.treesRuralTotal).toBe(0)
+    expect(document.units.totalUnits).toBeCloseTo(0.1956, 4)
   })
 
   it('skips enrichment when baseline type, condition, or area is missing', () => {
@@ -365,7 +403,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 0,
       habitatsTotal: 0,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
     expect(enrichBaselineDocumentWithUnits(document)).toBe(document)
   })

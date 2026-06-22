@@ -209,7 +209,8 @@ function makeBaselineRequest({ drizzle, payload = null, sub = SUB } = {}) {
 }
 
 // One SET LOCAL lock_timeout + one INSERT per non-empty geometry layer
-// (red line, habitats, hedgerows, watercourses) on the stub data.
+// (red line, habitats, hedgerows, watercourses) on the stub data. The stub
+// carries no individual trees, so the trees table is deleted but not inserted.
 const HAPPY_PATH_EXECUTE_COUNT = 5
 
 const EMPTY_HABITAT_SIZES = {
@@ -424,14 +425,14 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     expect(log.selectCalls).toBe(1)
   })
 
-  it('deletes prior baseline rows from all four feature tables before inserting', async () => {
+  it('deletes prior baseline rows from all five feature tables before inserting', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({
       drizzle,
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(log.deletes).toHaveLength(4)
+    expect(log.deletes).toHaveLength(5)
   })
 
   it('inserts geometry rows for each non-empty layer', async () => {
@@ -482,7 +483,7 @@ describe('validatePostIntervention handler persistence', () => {
     expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
-    expect(log.deletes).toHaveLength(4)
+    expect(log.deletes).toHaveLength(5)
     expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
     expect(log.updates).toHaveLength(1)
   })

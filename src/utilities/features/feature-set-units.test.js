@@ -36,7 +36,10 @@ describe('summarizeFeatureSetUnitsTotals', () => {
       totalUnits: 103,
       habitatsTotal: 4,
       hedgerowsTotal: 99,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 
@@ -51,7 +54,34 @@ describe('summarizeFeatureSetUnitsTotals', () => {
       totalUnits: 0,
       habitatsTotal: 0,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
+    })
+  })
+
+  it('totals individual tree units overall and by urban/rural type', () => {
+    const featureSet = {
+      habitats: [{ units: 2 }],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        { type: 'Urban tree', units: 0.2 },
+        { type: 'Urban tree', units: 0.3 },
+        { type: 'Rural tree', units: 0.5 },
+        { type: 'Rural tree', units: null }
+      ]
+    }
+    summarizeFeatureSetUnitsTotals(featureSet)
+    expect(featureSet.units).toEqual({
+      totalUnits: 3,
+      habitatsTotal: 2,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0,
+      treesTotal: 1,
+      treesUrbanTotal: 0.5,
+      treesRuralTotal: 0.5
     })
   })
 })

@@ -23,7 +23,9 @@ export const habitatSizesSummarySchema = Joi.object({
   areaHabitats: Joi.object({
     totalSquareMetres: Joi.number()
       .required()
-      .description('Total area of all habitat parcels, in square metres.')
+      .description(
+        'Total area-habitat size in m². On the baseline this is the headline "Area habitats" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats.'
+      )
   }).required(),
   hedgerows: Joi.object({
     totalMetres: Joi.number()
@@ -34,7 +36,29 @@ export const habitatSizesSummarySchema = Joi.object({
     totalMetres: Joi.number()
       .required()
       .description('Total length of all watercourses, in metres.')
-  }).required()
+  }).required(),
+  trees: Joi.object({
+    totalSquareMetres: Joi.number()
+      .required()
+      .description('Total notional area of all individual trees, in m².'),
+    urbanSquareMetres: Joi.number()
+      .required()
+      .description('Total notional area of urban trees, in m².'),
+    ruralSquareMetres: Joi.number()
+      .required()
+      .description('Total notional area of rural trees, in m².')
+  }).description(
+    'Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention).'
+  ),
+  site: Joi.object({
+    totalSquareMetres: Joi.number()
+      .required()
+      .description(
+        'Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB.'
+      )
+  }).description(
+    'Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees.'
+  )
 })
   .allow(null)
   .description(
@@ -53,7 +77,16 @@ export const baselineUnitsTotalsSchema = Joi.object({
     .description('Sum of baseline units across all hedgerows.'),
   watercoursesTotal: Joi.number()
     .required()
-    .description('Sum of baseline units across all watercourses.')
+    .description('Sum of baseline units across all watercourses.'),
+  treesTotal: Joi.number()
+    .required()
+    .description('Sum of baseline units across all individual trees.'),
+  treesUrbanTotal: Joi.number()
+    .required()
+    .description('Sum of baseline units across urban trees.'),
+  treesRuralTotal: Joi.number()
+    .required()
+    .description('Sum of baseline units across rural trees.')
 }).description('Baseline biodiversity unit totals, summed across features.')
 
 export const redLineSchema = Joi.object({
