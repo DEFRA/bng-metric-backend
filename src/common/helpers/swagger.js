@@ -22,15 +22,20 @@ export const swagger = {
   plugin: {
     name: 'swagger',
     register(server) {
+      // These docs routes are public (auth: false) — the server sets a
+      // secure-by-default auth strategy, and the API docs UI must load without a
+      // bearer token. Only registered at all when USE_SWAGGER is enabled.
       server.route({
         method: 'GET',
         path: '/swagger.json',
+        options: { auth: false },
         handler: (_request, h) => h.response(spec)
       })
 
       server.route({
         method: 'GET',
         path: '/docs/{param*}',
+        options: { auth: false },
         handler: {
           directory: {
             path: swaggerUiDistPath,
@@ -42,6 +47,7 @@ export const swagger = {
       server.route({
         method: 'GET',
         path: '/docs',
+        options: { auth: false },
         handler: (_request, h) => h.redirect('/docs/index.html')
       })
 
@@ -49,6 +55,7 @@ export const swagger = {
       server.route({
         method: 'GET',
         path: '/docs/swagger-initializer.js',
+        options: { auth: false },
         handler: (_request, h) =>
           h
             .response(

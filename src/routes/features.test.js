@@ -21,6 +21,8 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+const AUTH = { credentials: { sub: 'test-user-001' } }
+
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
 const HEDGEROW_ID = 'bb0e8400-e29b-41d4-a716-446655440002'
@@ -124,6 +126,7 @@ describe('#getFeature', () => {
     const drizzle = getFeatureMockDrizzle([makeProject()])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
     }
     const result = await getFeature.handler(request, {})
@@ -134,6 +137,7 @@ describe('#getFeature', () => {
     const drizzle = getFeatureMockDrizzle([makeProject()])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID }
     }
     const result = await getFeature.handler(request, {})
@@ -144,6 +148,7 @@ describe('#getFeature', () => {
     const drizzle = getFeatureMockDrizzle([])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: UNKNOWN_PROJECT_ID, featureId: HABITAT_ID }
     }
     await expect(getFeature.handler(request, {})).rejects.toThrow(
@@ -155,6 +160,7 @@ describe('#getFeature', () => {
     const drizzle = getFeatureMockDrizzle([makeProject()])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: UNKNOWN_FEATURE_ID }
     }
     await expect(getFeature.handler(request, {})).rejects.toThrow(
@@ -168,6 +174,7 @@ describe('#getFeature', () => {
     ])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
     }
     await expect(getFeature.handler(request, {})).rejects.toThrow(
@@ -181,6 +188,7 @@ describe('#getPostInterventionFeature', () => {
     const drizzle = getFeatureMockDrizzle([projectWithPostIntervention])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID }
     }
     const result = await getPostInterventionFeature.handler(request, {})
@@ -191,6 +199,7 @@ describe('#getPostInterventionFeature', () => {
     const drizzle = getFeatureMockDrizzle([makeProject()])
     const request = {
       drizzle,
+      auth: AUTH,
       params: { projectId: PROJECT_ID, featureId: HABITAT_ID }
     }
     await expect(
@@ -244,6 +253,7 @@ describe('updateFeature handler - area habitat dispatch', () => {
     const result = await updateFeature.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
         payload: {
           broadType: 'Grassland',
@@ -274,6 +284,7 @@ describe('updateFeature handler - area habitat dispatch', () => {
     await updateFeature.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
         payload: {
           broadType: 'Grassland',
@@ -308,6 +319,7 @@ describe('updateFeature handler - hedgerow dispatch', () => {
     const result = await updateFeature.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
         payload: {
           habitatType: 'Native hedgerow',
@@ -336,6 +348,7 @@ describe('updateFeature handler - hedgerow dispatch', () => {
     await updateFeature.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
         payload: { habitatType: 'Native hedgerow', condition: 'Good' }
       },
@@ -364,6 +377,7 @@ describe('updateFeature handler - error cases', () => {
       updateFeature.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: UNKNOWN_PROJECT_ID, featureId: HABITAT_ID },
           payload: { habitatType: 'Native hedgerow', condition: 'Good' }
         },
@@ -378,6 +392,7 @@ describe('updateFeature handler - error cases', () => {
       updateFeature.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: UNKNOWN_FEATURE_ID },
           payload: { habitatType: 'Native hedgerow', condition: 'Good' }
         },
@@ -392,6 +407,7 @@ describe('updateFeature handler - error cases', () => {
       updateFeature.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
           payload: { habitatType: 'River', condition: 'Good' }
         },
@@ -412,6 +428,7 @@ describe('updateFeature handler - error cases', () => {
       updateFeature.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
           payload: { habitatType: 'Lowland meadows', condition: 'Good' }
         },

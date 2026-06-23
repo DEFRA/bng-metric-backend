@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/baseline/errors.js'
@@ -9,6 +10,7 @@ import {
 import {
   UPLOAD_ID,
   PROJECT_ID,
+  SUB,
   MOCK_BUCKET,
   MOCK_KEY,
   MOCK_FILENAME,
@@ -23,6 +25,7 @@ import {
   HTTP_413,
   STUB_LAYERS,
   STUB_EXTRACTED,
+  STUB_POST_INTERVENTION_EXTRACTED,
   makeH,
   makeDrizzle
 } from './baseline.test-fixtures.js'
@@ -51,6 +54,14 @@ vi.mock('../validation/baseline/geopackage.js', () => ({
 
 vi.mock('../validation/baseline/extract-habitat-data.js', () => ({
   extractHabitatData: vi.fn()
+}))
+
+vi.mock('../validation/baseline/extract-post-intervention.js', () => ({
+  extractPostIntervention: vi.fn()
+}))
+
+vi.mock('../utilities/baseline/enrich-post-intervention-units.js', () => ({
+  enrichPostInterventionDocumentWithUnits: vi.fn()
 }))
 
 vi.mock('../validation/baseline/assign-feature-ids.js', () => ({
@@ -90,6 +101,8 @@ const { assignFeatureIds } =
   await import('../validation/baseline/assign-feature-ids.js')
 const { extractHabitatData } =
   await import('../validation/baseline/extract-habitat-data.js')
+const { extractPostIntervention } =
+  await import('../validation/baseline/extract-post-intervention.js')
 const { validateBaselineLayers } =
   await import('../validation/baseline/index.js')
 const { calculateHabitatSizes } =
@@ -181,13 +194,17 @@ function setupHappyPathMocks() {
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
   vi.mocked(calculateHabitatSizes).mockResolvedValue(EMPTY_HABITAT_SIZES)
   vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
+  vi.mocked(extractPostIntervention).mockReturnValue(
+    STUB_POST_INTERVENTION_EXTRACTED
+  )
 }
 
-function makeBaselineRequest({ drizzle, payload = null } = {}) {
+function makeBaselineRequest({ drizzle, payload = null, sub = SUB } = {}) {
   return {
     params: { uploadId: UPLOAD_ID },
     payload,
-    drizzle
+    drizzle,
+    auth: { credentials: { sub } }
   }
 }
 
@@ -456,13 +473,13 @@ describe('validatePostIntervention handler persistence', () => {
 
     await validatePostIntervention.handler(request, h)
 
-    expect(extractHabitatData).toHaveBeenCalledWith(STUB_LAYERS, {
+    expect(extractPostIntervention).toHaveBeenCalledWith(STUB_LAYERS, {
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES,
-      variant: 'postIntervention'
+      habitatSizes: EMPTY_HABITAT_SIZES
     })
+    expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
     expect(log.deletes).toHaveLength(4)
@@ -524,6 +541,21 @@ describe('validateBaseline handler persistence guard rails', () => {
     expect(log.executes).toHaveLength(1)
     expect(log.updates).toHaveLength(0)
   })
+
+  it('scopes persistence to the authenticated user — threads the token sub into the project lock', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const request = makeBaselineRequest({
+      drizzle,
+      payload: { projectId: PROJECT_ID },
+      sub: 'specific-user-sub'
+    })
+    await validateBaseline.handler(request, h)
+    expect(log.projectWhere).toHaveLength(1)
+    // The lock predicate must carry THIS user's sub (visibleToUser), so the
+    // write can only touch a project the signed-in user may act on.
+    const { params } = new PgDialect().sqlToQuery(log.projectWhere[0])
+    expect(params).toContain('specific-user-sub')
+  })
 })
 
 describe('validateBaseline handler persistence — lock contention and rollback', () => {
@@ -576,7 +608,11 @@ describe('validateBaseline handler persistence — lock contention and rollback'
 })
 
 describe('validateBaseline handler upload error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -642,7 +678,11 @@ describe('validateBaseline handler upload error handling', () => {
 })
 
 describe('validateBaseline handler download error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -713,7 +753,11 @@ describe('validateBaseline handler download error handling', () => {
 })
 
 describe('validateBaseline handler full validation error handling', () => {
-  const request = { params: { uploadId: UPLOAD_ID }, payload: null }
+  const request = {
+    params: { uploadId: UPLOAD_ID },
+    payload: null,
+    auth: { credentials: { sub: SUB } }
+  }
   let h
 
   beforeEach(() => {
@@ -804,35 +848,9 @@ describe('validateBaseline handler — metrics', () => {
     )
   })
 
-  it('emits a virus failure when the upload is rejected for a virus', async () => {
-    vi.mocked(waitForUploadReady).mockRejectedValue(
-      new UploadFailedError('rejected', 'The selected file contains a virus')
-    )
-
-    await validateBaseline
-      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
-      .catch(() => {})
-
-    expect(metricsCounter).toHaveBeenCalledWith(
-      GEOPACKAGE_METRIC.validationFailed,
-      1,
-      { category: VALIDATION_CATEGORY.virus }
-    )
-  })
-
-  it('does not emit a virus failure for a non-virus rejection', async () => {
-    vi.mocked(waitForUploadReady).mockRejectedValue(
-      new UploadFailedError('rejected', 'Some other reason')
-    )
-
-    await validateBaseline
-      .handler(makeBaselineRequest({ drizzle: drizzleHarness.drizzle }), h)
-      .catch(() => {})
-
-    expect(metricsCounter).not.toHaveBeenCalledWith(
-      GEOPACKAGE_METRIC.validationFailed,
-      1,
-      { category: VALIDATION_CATEGORY.virus }
-    )
-  })
+  // NOTE: the virus *metric* is asserted in routes/upload.test.js — it is emitted
+  // from the /upload/{uploadId}/status route, the chokepoint the frontend polls.
+  // The validate route is never called for a rejected upload, so it no longer
+  // emits the virus metric (it still returns 422 — see the UploadFailedError
+  // handling tests above).
 })

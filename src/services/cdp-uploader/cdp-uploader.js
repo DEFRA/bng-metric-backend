@@ -46,6 +46,7 @@ export function getCdpUploaderUrl() {
 export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/initiate`
+  const maxFileSize = config.get('upload.maxFileSizeBytes')
 
   // cdp-uploader joins s3Path + '/' + uploadId + '/' + fileId, so any trailing
   // slash on s3Path produces a double slash in the resulting s3Key.
@@ -64,7 +65,10 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
         redirect,
         s3Bucket,
         s3Path: normalisedS3Path,
-        metadata
+        metadata,
+        // CDP Uploader rejects files larger than this at source (HTTP 413 on
+        // the upload POST) before they ever reach S3.
+        maxFileSize
       }),
       headers: {
         'Content-Type': 'application/json'
@@ -97,10 +101,14 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
 }
 
 /**
- * Statuses CDP Uploader returns when the upload has permanently failed.
- * A connection / network error from getUploadStatus also produces an 'error'
- * uploadStatus but additionally sets a `error` field — those are transient
- * and should be retried, so we check that field separately below.
+ * Legacy top-level statuses that mean the upload permanently failed. In practice
+ * the real CDP Uploader does NOT expose a top-level 'rejected' status for a virus
+ * — it reports the upload as 'ready' with numberOfRejectedFiles > 0 and the
+ * reason on the per-file errorMessage (see waitForUploadReady). This set is kept
+ * as a defensive fallback should an uploader version ever surface one. A
+ * connection / network error from getUploadStatus also produces an 'error'
+ * uploadStatus but additionally sets an `error` field — those are transient and
+ * should be retried, so we check that field separately below.
  */
 const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
 
@@ -134,18 +142,26 @@ export async function waitForUploadReady(
       `waitForUploadReady - uploadId: ${uploadId}, attempt: ${attempt}, status: ${uploadStatus}`
     )
 
-    if (uploadStatus === 'ready') {
-      return getUploadedFileS3Location(uploadId)
-    }
-
-    // statusResult.error means getUploadStatus hit a connection problem —
-    // transient, keep retrying. An explicit terminal status with no error
-    // field is a permanent rejection, fail immediately.
-    if (!statusResult.error && TERMINAL_FAILURE_STATUSES.has(uploadStatus)) {
+    // A virus / rejected file surfaces as the upload COMPLETING — uploadStatus
+    // becomes 'ready' — with numberOfRejectedFiles > 0 and the reason on the
+    // per-file errorMessage; the rejected file is never copied to S3, so it has
+    // no s3Key. Detect that (and the legacy top-level 'rejected' fallback) BEFORE
+    // the 'ready' branch, which would otherwise try to resolve a non-existent S3
+    // location and throw a generic, mis-classified error. statusResult.error
+    // means getUploadStatus hit a transient connection problem — keep retrying.
+    if (
+      !statusResult.error &&
+      (statusResult.numberOfRejectedFiles > 0 ||
+        TERMINAL_FAILURE_STATUSES.has(uploadStatus))
+    ) {
       throw new UploadFailedError(
         `Upload ${uploadId} was rejected by CDP Uploader`,
         statusResult.errorMessage ?? null
       )
+    }
+
+    if (uploadStatus === 'ready') {
+      return getUploadedFileS3Location(uploadId)
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))

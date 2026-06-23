@@ -2,6 +2,7 @@ import { vi } from 'vitest'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
+const SUB = 'defra-id-sub-abc123'
 const FEATURE_ID_RED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const FEATURE_ID_HAB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const FEATURE_ID_HEDGE = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
@@ -22,6 +23,11 @@ const HTTP_504 = 504
 const HTTP_413 = 413
 
 const BNG_SRID = 27700
+
+const STUB_AREA_HABITAT_TYPE = 'Lowland meadows'
+const STUB_HEDGEROW_TYPE = 'Species-rich native hedgerow'
+const STUB_RIPARIAN_ENCROACHMENT = 'No Encroachment/No Encroachment'
+const STUB_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
 
 const STUB_LAYERS = {
   redline: [],
@@ -45,7 +51,7 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_HAB,
         ref: 'P1',
-        type: 'Lowland meadows',
+        type: STUB_AREA_HABITAT_TYPE,
         broadType: 'Grassland',
         condition: 'Good',
         status: 'Complete',
@@ -56,7 +62,7 @@ const STUB_EXTRACTED = {
       {
         featureId: FEATURE_ID_HEDGE,
         ref: 'H1',
-        type: 'Species-rich native hedgerow',
+        type: STUB_HEDGEROW_TYPE,
         condition: 'Good',
         status: 'Complete',
         sizeMetres: 20
@@ -68,8 +74,8 @@ const STUB_EXTRACTED = {
         ref: 'W1',
         type: 'Ditches',
         condition: 'Moderate',
-        riparianEncroachment: 'No Encroachment/No Encroachment',
-        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+        watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT,
         status: 'Complete',
         sizeMetres: 30
       }
@@ -113,6 +119,83 @@ const STUB_EXTRACTED = {
   }
 }
 
+const STUB_POST_INTERVENTION_EXTRACTED = {
+  document: {
+    uploadId: UPLOAD_ID,
+    importedAt: '2026-05-08T00:00:00.000Z',
+    redLine: { featureId: FEATURE_ID_RED, properties: {} },
+    habitats: [
+      {
+        featureId: FEATURE_ID_HAB,
+        ref: 'P1',
+        area: 10,
+        sizeSquareMetres: 10,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: STUB_AREA_HABITAT_TYPE,
+          broadType: 'Grassland',
+          condition: 'Good'
+        },
+        proposed: {
+          type: STUB_AREA_HABITAT_TYPE,
+          broadType: 'Grassland',
+          condition: 'Good'
+        },
+        properties: {}
+      }
+    ],
+    hedgerows: [
+      {
+        featureId: FEATURE_ID_HEDGE,
+        ref: 'H1',
+        length: 20,
+        sizeMetres: 20,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: STUB_HEDGEROW_TYPE,
+          condition: 'Good'
+        },
+        proposed: {
+          type: STUB_HEDGEROW_TYPE,
+          condition: 'Good'
+        },
+        properties: {}
+      }
+    ],
+    watercourses: [
+      {
+        featureId: FEATURE_ID_WATER,
+        ref: 'W1',
+        length: 30,
+        sizeMetres: 30,
+        units: null,
+        status: 'Complete',
+        baseline: {
+          type: 'Ditches',
+          condition: 'Moderate',
+          riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+          watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT
+        },
+        proposed: {
+          type: 'Ditches',
+          condition: 'Moderate',
+          riparianEncroachment: STUB_RIPARIAN_ENCROACHMENT,
+          watercourseEncroachment: STUB_WATERCOURSE_ENCROACHMENT
+        },
+        properties: {}
+      }
+    ],
+    habitatSizes: {
+      areaHabitats: { totalSquareMetres: 10 },
+      hedgerows: { totalMetres: 20 },
+      watercourses: { totalMetres: 30 }
+    }
+  },
+  geometries: STUB_EXTRACTED.geometries
+}
+
 function makeH() {
   return {
     response: vi.fn().mockReturnThis(),
@@ -127,11 +210,16 @@ function makeH() {
 // same project — the mock no-ops every step and returns `rows`, unless
 // `lockError` is set, in which case `.limit()` rejects with that error
 // (simulates the 55P03 the driver would raise after lock_timeout fires).
-function projectLookupChain(rows, lockError) {
+function projectLookupChain(rows, lockError, onWhere) {
   const result = lockError ? Promise.reject(lockError) : Promise.resolve(rows)
   const limitStep = { limit: () => result }
   const forStep = { for: () => limitStep }
-  const whereStep = { where: () => forStep }
+  const whereStep = {
+    where: (condition) => {
+      onWhere?.(condition)
+      return forStep
+    }
+  }
   return { from: () => whereStep }
 }
 
@@ -149,7 +237,10 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
     selectCalls: 0,
     deletes: [],
     executes: [],
-    updates: []
+    updates: [],
+    // The condition passed to the project-lock SELECT .where(...) — lets tests
+    // assert the write is scoped to a project visible to the requesting user.
+    projectWhere: []
   }
 
   const tx = {
@@ -157,7 +248,8 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
       log.selectCalls += 1
       return projectLookupChain(
         projectExists ? [{ id: PROJECT_ID }] : [],
-        lockError
+        lockError,
+        (condition) => log.projectWhere.push(condition)
       )
     }),
     delete: vi.fn((table) => ({
@@ -193,6 +285,7 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
 export {
   UPLOAD_ID,
   PROJECT_ID,
+  SUB,
   FEATURE_ID_RED,
   FEATURE_ID_HAB,
   FEATURE_ID_HEDGE,
@@ -211,6 +304,7 @@ export {
   HTTP_413,
   STUB_LAYERS,
   STUB_EXTRACTED,
+  STUB_POST_INTERVENTION_EXTRACTED,
   SAMPLE_GEOM,
   SAMPLE_LINE,
   makeH,

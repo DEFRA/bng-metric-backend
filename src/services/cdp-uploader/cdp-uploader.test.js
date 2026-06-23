@@ -26,6 +26,7 @@ const UPLOAD_ID = 'abc-123'
 const REDIRECT = '/projects/1/upload-received'
 const FILENAME = 'survey.gpkg'
 const UPLOADED_FILE_SIZE = 204800
+const MAX_FILE_SIZE_BYTES = 104857600
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -61,7 +62,9 @@ describe('getCdpUploaderUrl', () => {
 
 describe('initiateUpload', () => {
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockReturnValue(null)
+    vi.spyOn(config, 'get').mockImplementation((key) =>
+      key === 'upload.maxFileSizeBytes' ? MAX_FILE_SIZE_BYTES : null
+    )
     delete process.env.ENVIRONMENT
   })
 
@@ -92,7 +95,8 @@ describe('initiateUpload', () => {
         payload: JSON.stringify({
           redirect: REDIRECT,
           s3Bucket: S3_BUCKET,
-          s3Path: 'baseline'
+          s3Path: 'baseline',
+          maxFileSize: MAX_FILE_SIZE_BYTES
         }),
         headers: { 'Content-Type': 'application/json' },
         json: true
@@ -398,10 +402,23 @@ describe('waitForUploadReady when upload becomes ready', () => {
 describe('waitForUploadReady failures', () => {
   beforeEach(stubLocalUploaderUrl)
 
-  it('should throw UploadFailedError when uploadStatus is "rejected"', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
-      payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 1 }
-    })
+  // The real CDP Uploader reports a virus-rejected single-file upload as the
+  // upload COMPLETING — top-level uploadStatus 'ready' — with
+  // numberOfRejectedFiles > 0 and the reason on the per-file errorMessage. There
+  // is no top-level 'rejected' status, and the infected file has no s3Key.
+  const virusRejectedPayload = {
+    uploadStatus: 'ready',
+    numberOfRejectedFiles: 1,
+    form: {
+      file: {
+        fileStatus: 'rejected',
+        errorMessage: 'The selected file contains a virus'
+      }
+    }
+  }
+
+  it('should throw UploadFailedError when a file is rejected (ready + numberOfRejectedFiles > 0)', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
 
     await expect(
       waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
@@ -409,18 +426,7 @@ describe('waitForUploadReady failures', () => {
   })
 
   it('carries the rejection reason on the UploadFailedError', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
-      payload: {
-        uploadStatus: 'rejected',
-        numberOfRejectedFiles: 1,
-        form: {
-          file: {
-            fileStatus: 'rejected',
-            errorMessage: 'The selected file contains a virus'
-          }
-        }
-      }
-    })
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
 
     const error = await waitForUploadReady(UPLOAD_ID, {
       pollIntervalMs: 0
@@ -428,6 +434,18 @@ describe('waitForUploadReady failures', () => {
 
     expect(error).toBeInstanceOf(UploadFailedError)
     expect(error.errorMessage).toBe('The selected file contains a virus')
+  })
+
+  it('still throws UploadFailedError on a legacy top-level "rejected" status', async () => {
+    // Defensive fallback: TERMINAL_FAILURE_STATUSES still catches a top-level
+    // 'rejected' status should an uploader version ever emit one.
+    vi.mocked(Wreck.get).mockResolvedValue({
+      payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 0 }
+    })
+
+    await expect(
+      waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
+    ).rejects.toThrow(UploadFailedError)
   })
 
   it('should throw UploadTimeoutError when the deadline is exceeded', async () => {

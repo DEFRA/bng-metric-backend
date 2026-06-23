@@ -195,9 +195,14 @@ import {
  *       200:
  *         description: Returns a map of band to guidance text
  */
+// All /reference/* routes are public (PUBLIC_ROUTES): static lookup data
+// (habitat types, conditions, trading rules) bundled into the engine at build
+// time, with no per-user scope. They opt out of the server's secure-by-default
+// auth strategy with `auth: false`. See docs/auth-route-policy.md.
 const getBroadHabitats = {
   method: 'GET',
   path: '/reference/broad-habitats',
+  options: { auth: false },
   handler: (_request, _h) => getAreaBroadHabitats()
 }
 
@@ -205,6 +210,7 @@ const getHabitatTypes = {
   method: 'GET',
   path: '/reference/habitat-types',
   options: {
+    auth: false,
     validate: {
       query: Joi.object({
         broad: Joi.string().trim().min(1).required()
@@ -220,6 +226,7 @@ const getHabitatTypes = {
 const getHabitatTypesByBroad = {
   method: 'GET',
   path: '/reference/habitat-types-by-broad',
+  options: { auth: false },
   handler: (_request, _h) => getAreaHabitatTypesByBroad()
 }
 
@@ -233,6 +240,7 @@ const getConditions = {
   method: 'GET',
   path: '/reference/conditions',
   options: {
+    auth: false,
     validate: {
       query: Joi.object({
         habitatType: Joi.string().trim().min(1).required(),
@@ -251,12 +259,14 @@ const getConditions = {
 const getHedgerowTypes = {
   method: 'GET',
   path: '/reference/hedgerow-types',
+  options: { auth: false },
   handler: (_request, _h) => getHedgerowHabitatTypes()
 }
 
 const getWatercourseTypes = {
   method: 'GET',
   path: '/reference/watercourse-types',
+  options: { auth: false },
   handler: (_request, _h) => getWatercourseHabitatTypes()
 }
 
@@ -265,6 +275,7 @@ const getWatercourseTypes = {
 const getWatercourseEncroachments = {
   method: 'GET',
   path: '/reference/watercourse-encroachments',
+  options: { auth: false },
   handler: (_request, _h) => ({
     watercourse: getWatercourseEncroachmentOptions(),
     riparian: getRiparianEncroachmentOptions()
@@ -281,6 +292,7 @@ const getTradingRules = {
   method: 'GET',
   path: '/reference/trading-rules',
   options: {
+    auth: false,
     validate: {
       query: Joi.object({
         featureType: Joi.string()

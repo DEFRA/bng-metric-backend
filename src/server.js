@@ -3,6 +3,7 @@ import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { postgres } from './plugins/postgres.js'
+import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
@@ -44,7 +45,8 @@ async function createServer() {
   // secureContext  - loads CA certificates from environment config
   // postgres       - connection pool for PostgreSQL (must be after secureContext)
   // pulse          - provides shutdown handlers
-  // router         - routes used in the app
+  // authJwt        - 'defra-jwt' scheme/strategy (must be registered BEFORE the
+  //                  default is set and before the router adds routes)
   await server.register([
     requestLogger,
     requestTracing,
@@ -62,10 +64,42 @@ async function createServer() {
       }
     },
     pulse,
-    router
+    {
+      plugin: authJwt.plugin,
+      options: resolveOidcAuthOptions()
+    }
   ])
 
+  // Secure by default: every route requires the 'defra-jwt' strategy unless it
+  // explicitly opts out with `auth: false`. Set here — at the root realm, after
+  // the strategy is registered but BEFORE the router adds any routes — so the
+  // default applies to all of them. A new route is therefore protected by
+  // omission; forgetting to add auth fails closed, not open. The small set of
+  // intentionally public routes (/health, /reference/*) opt out with
+  // `auth: false` and are pinned by integration-tests/auth-coverage.test.js.
+  // See docs/auth-route-policy.md.
+  server.auth.default('defra-jwt')
+
+  await server.register([router])
+
   return server
+}
+
+// Resolve JWT-verification options. process.env is read at call time (not via
+// convict, which captures env at import) so integration tests can inject a local
+// key set + issuer/audience after import, before createServer() runs.
+function resolveOidcAuthOptions() {
+  return {
+    discoveryUrl:
+      process.env.OIDC_DISCOVERY_URL || config.get('oidc.discoveryUrl'),
+    audience:
+      process.env.OIDC_AUDIENCE || config.get('oidc.audience') || undefined,
+    issuer: process.env.OIDC_ISSUER || config.get('oidc.issuer') || undefined,
+    localJwks: process.env.OIDC_LOCAL_JWKS || undefined,
+    // jose's JWKS fetch needs an explicit proxy agent in CDP — it bypasses the
+    // undici/global-agent proxy used elsewhere. See plugins/auth-jwt.js.
+    httpProxy: process.env.HTTP_PROXY || config.get('httpProxy') || undefined
+  }
 }
 
 export { createServer }

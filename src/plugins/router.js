@@ -3,6 +3,7 @@ import inert from '@hapi/inert'
 import { config } from '../config.js'
 import { health } from '../routes/health.js'
 import { dbInfo } from '../routes/db-info.js'
+import { postAuthSession } from '../routes/auth.js'
 import {
   getProjects,
   getProject,
@@ -43,7 +44,7 @@ const router = {
     register: async (server, _options) => {
       server.route([
         health,
-        dbInfo,
+        postAuthSession,
         getProjects,
         getProject,
         getHabitat,
@@ -68,6 +69,13 @@ const router = {
         getWatercourseEncroachments,
         getTradingRules
       ])
+
+      // /db-info is a DB-introspection diagnostic — keep it out of the
+      // production route table entirely (it is removed, not just access-gated).
+      // See docs/auth-route-policy.md.
+      if (config.get('cdpEnvironment') !== 'prod') {
+        server.route(dbInfo)
+      }
 
       // Swagger API documentation (opt-in via USE_SWAGGER env var)
       if (config.get('useSwagger')) {

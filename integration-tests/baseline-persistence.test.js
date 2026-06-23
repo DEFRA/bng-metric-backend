@@ -11,6 +11,7 @@ import {
   assertCdpUploaderReachable,
   assertLocalStackPipelineReady
 } from './helpers/upload-fixtures.js'
+import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
 const HTTP_NOT_FOUND = 404
@@ -22,6 +23,7 @@ const UNKNOWN_PROJECT_ID = '00000000-0000-4000-8000-000000000000'
 
 let server
 let dbClient
+let headers
 const userId = `it-${randomUUID()}`
 
 beforeAll(async () => {
@@ -29,6 +31,8 @@ beforeAll(async () => {
   await assertLocalStackPipelineReady()
   server = await startServer()
   dbClient = await connect()
+  // Created projects have a null relationship → visible to their owner (sub).
+  headers = authHeaders(await mintToken({ sub: userId }))
   await truncateTestData(dbClient)
 })
 
@@ -45,7 +49,8 @@ async function createProject(name) {
   const res = await server.inject({
     method: 'POST',
     url: '/projects/new',
-    payload: { project: { name }, userId }
+    headers,
+    payload: { project: { name } }
   })
   expect(res.statusCode).toBe(HTTP_OK)
   return res.result
@@ -55,6 +60,7 @@ async function uploadFixture(fixtureName) {
   const initiated = await server.inject({
     method: 'POST',
     url: '/upload/initiate',
+    headers,
     payload: { redirect: '/done', s3Bucket: BUCKET, s3Path: 'baseline/' }
   })
   expect(initiated.statusCode).toBe(HTTP_OK)
@@ -65,7 +71,8 @@ async function uploadFixture(fixtureName) {
   })
   await waitForUploadStatus(server, uploadId, {
     target: 'ready',
-    timeoutMs: 20_000
+    timeoutMs: 20_000,
+    headers
   })
   return uploadId
 }
@@ -74,6 +81,7 @@ async function callValidate(uploadId, payload) {
   return server.inject({
     method: 'POST',
     url: `/baseline/validate/${uploadId}`,
+    headers,
     payload
   })
 }
@@ -82,6 +90,7 @@ async function callPostInterventionValidate(uploadId, payload) {
   return server.inject({
     method: 'POST',
     url: `/post-intervention/validate/${uploadId}`,
+    headers,
     payload
   })
 }
@@ -302,7 +311,8 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const habitat = stored.postIntervention.habitats.find((h) => h.ref === 'H2')
     const featureRes = await server.inject({
       method: 'GET',
-      url: `/projects/${project.id}/post-intervention/features/${habitat.featureId}`
+      url: `/projects/${project.id}/post-intervention/features/${habitat.featureId}`,
+      headers
     })
     expect(featureRes.statusCode).toBe(HTTP_OK)
     expect(featureRes.result).toEqual({
@@ -313,6 +323,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const updateRes = await server.inject({
       method: 'PUT',
       url: `/projects/${project.id}/post-intervention/habitats/${habitat.featureId}`,
+      headers,
       payload: {
         broadType: 'Grassland',
         habitatType: 'Lowland meadows',
@@ -323,9 +334,11 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     expect(updateRes.result).toEqual(
       expect.objectContaining({
         featureId: habitat.featureId,
-        broadType: 'Grassland',
-        type: 'Lowland meadows',
-        condition: 'Good',
+        proposed: expect.objectContaining({
+          broadType: 'Grassland',
+          type: 'Lowland meadows',
+          condition: 'Good'
+        }),
         status: 'Complete'
       })
     )

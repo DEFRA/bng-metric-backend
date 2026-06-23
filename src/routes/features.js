@@ -1,8 +1,9 @@
 import Boom from '@hapi/boom'
-import { eq, sql } from 'drizzle-orm'
+import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
@@ -77,16 +78,18 @@ function createGetFeatureRoute({ path, documentKey }) {
     method: 'GET',
     path,
     options: {
+      auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams
       }
     },
     handler: async (request, _h) => {
+      const { sub } = request.auth.credentials
       const { projectId, featureId } = request.params
       const rows = await request.drizzle
         .select()
         .from(projects)
-        .where(eq(projects.id, projectId))
+        .where(and(eq(projects.id, projectId), visibleToUser(sub)))
 
       if (rows.length === 0) {
         throw Boom.notFound(`Project ${projectId} not found`)
@@ -162,12 +165,14 @@ const updateFeature = {
   method: 'PUT',
   path: '/projects/{projectId}/features/{featureId}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: projectFeatureIdParams,
       payload: featureEditPayload
     }
   },
   handler: async (request, _h) => {
+    const { sub } = request.auth.credentials
     const { projectId, featureId } = request.params
 
     try {
@@ -175,7 +180,8 @@ const updateFeature = {
         runFeatureUpdate(tx, {
           projectId,
           featureId,
-          edits: request.payload
+          edits: request.payload,
+          sub
         })
       )
     } catch (err) {
@@ -190,13 +196,13 @@ const updateFeature = {
   }
 }
 
-async function runFeatureUpdate(tx, { projectId, featureId, edits }) {
+async function runFeatureUpdate(tx, { projectId, featureId, edits, sub }) {
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
   const [row] = await tx
     .select()
     .from(projects)
-    .where(eq(projects.id, projectId))
+    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
     .for('update')
     .limit(1)
   if (!row) {

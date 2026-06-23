@@ -4,7 +4,9 @@ import {
   insertProject,
   setProjectName,
   setProjectBaseline,
-  setBaselineFeature
+  setBaselineFeature,
+  setProjectHabitatData,
+  setProjectFeature
 } from './persist-project.js'
 
 const FEATURE_ID = '11111111-1111-1111-1111-111111111111'
@@ -141,6 +143,90 @@ describe('setBaselineFeature', () => {
         unitsTotals: { totalUnits: 1 }
       })
     ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+const validPostInterventionHabitat = {
+  featureId: FEATURE_ID,
+  ref: 'H1',
+  area: 100,
+  sizeSquareMetres: 100,
+  units: 1,
+  status: 'Complete',
+  baseline: {
+    type: 'Modified grassland',
+    broadType: 'Grassland',
+    condition: 'Moderate'
+  },
+  proposed: {
+    type: 'Lowland meadows',
+    broadType: 'Grassland',
+    condition: 'Good'
+  },
+  properties: {}
+}
+
+describe('setProjectHabitatData', () => {
+  test('writes post-intervention document with nested baseline/proposed fields', async () => {
+    const db = makeDb()
+    await setProjectHabitatData(
+      db,
+      PROJECT_ID,
+      {
+        importedAt: '2026-01-01T00:00:00.000Z',
+        habitats: [validPostInterventionHabitat],
+        hedgerows: [],
+        watercourses: []
+      },
+      'postIntervention'
+    )
+    expect(db._update).toHaveBeenCalledTimes(1)
+  })
+
+  test('rejects flat habitat fields on post-intervention document', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectHabitatData(
+        db,
+        PROJECT_ID,
+        {
+          importedAt: '2026-01-01T00:00:00.000Z',
+          habitats: [{ ...validPostInterventionHabitat, type: 'Grassland' }],
+          hedgerows: [],
+          watercourses: []
+        },
+        'postIntervention'
+      )
+    ).rejects.toThrow(/"habitats\[0\]\.type" is not allowed/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+describe('setProjectFeature — postIntervention', () => {
+  test('writes when the nested feature and totals are valid', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: validPostInterventionHabitat,
+      unitsTotals: validUnitsTotals
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
+  })
+
+  test('rejects flat habitat fields on post-intervention feature save', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: { ...validPostInterventionHabitat, type: 'Grassland' },
+        unitsTotals: validUnitsTotals
+      })
+    ).rejects.toThrow(/"type" is not allowed/)
     expect(db._update).not.toHaveBeenCalled()
   })
 })

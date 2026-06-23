@@ -22,6 +22,12 @@ import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
 import {
+  postInterventionDataSchema,
+  postInterventionHabitatSchema,
+  postInterventionLinearHabitatSchema,
+  postInterventionWatercourseSchema
+} from '../validation/project-post-intervention-schema.js'
+import {
   projectSchema,
   habitatDataSchema,
   baselineUnitsTotalsSchema,
@@ -30,10 +36,43 @@ import {
   watercourseHabitatSchema
 } from '../validation/project.js'
 
+const HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY = {
+  baseline: habitatDataSchema,
+  postIntervention: postInterventionDataSchema
+}
+
 const FEATURE_SCHEMA_BY_LAYER = {
   habitats: habitatSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
+}
+
+const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
+  habitats: postInterventionHabitatSchema,
+  hedgerows: postInterventionLinearHabitatSchema,
+  watercourses: postInterventionWatercourseSchema
+}
+
+function habitatDataSchemaFor(documentKey) {
+  const schema = HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY[documentKey]
+  if (!schema) {
+    throw Boom.badImplementation(
+      `persist: unknown habitat document key "${documentKey}"`
+    )
+  }
+  return schema
+}
+
+function featureSchemaFor(documentKey, layer) {
+  const schemas =
+    documentKey === 'postIntervention'
+      ? POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER
+      : FEATURE_SCHEMA_BY_LAYER
+  const featureSchema = schemas[layer]
+  if (!featureSchema) {
+    throw Boom.badImplementation(`persist: unknown feature layer "${layer}"`)
+  }
+  return featureSchema
 }
 
 function assertFragmentValid(schema, value, label) {
@@ -58,27 +97,36 @@ function jsonbSet(target, path, value) {
 
 /**
  * Insert a new project document (POST /projects/new). Validates the whole
- * document against projectSchema. Returns the inserted row.
+ * document against projectSchema. The org context (orgId/relationshipId) is
+ * stamped from the creator's verified token by the route — they default to null
+ * for callers/tests that don't supply them. Returns the inserted row.
  */
-async function insertProject(db, { project, userId }) {
+async function insertProject(
+  db,
+  { project, userId, orgId = null, relationshipId = null }
+) {
   assertFragmentValid(projectSchema, project, 'project')
   const [row] = await db
     .insert(projects)
-    .values({ project, userId })
+    .values({ project, userId, orgId, relationshipId })
     .returning()
   return row
 }
 
 /**
  * Patch project.name only (PATCH /projects/{id}). Returns the updated row, or
- * null when no project matches the id.
+ * null when no project matches `where`.
+ *
+ * `where` defaults to matching the id alone; routes pass a stricter condition
+ * (id AND RBAC visibility) so a non-visible project updates nothing and the
+ * route returns 404 — without leaking existence.
  */
-async function setProjectName(exec, id, name) {
+async function setProjectName(exec, id, name, where = eq(projects.id, id)) {
   assertFragmentValid(projectSchema.extract('name'), name, 'project.name')
   const [row] = await exec
     .update(projects)
     .set({ project: jsonbSet(projects.project, ['name'], name) })
-    .where(eq(projects.id, id))
+    .where(where)
     .returning()
   return row ?? null
 }
@@ -93,7 +141,11 @@ async function setProjectHabitatData(
   habitatData,
   documentKey = 'baseline'
 ) {
-  assertFragmentValid(habitatDataSchema, habitatData, `project.${documentKey}`)
+  assertFragmentValid(
+    habitatDataSchemaFor(documentKey),
+    habitatData,
+    `project.${documentKey}`
+  )
   await exec
     .update(projects)
     .set({ project: jsonbSet(projects.project, [documentKey], habitatData) })
@@ -123,12 +175,8 @@ async function setProjectFeature(
   id,
   { documentKey = 'baseline', layer, index, feature, unitsTotals }
 ) {
-  const featureSchema = FEATURE_SCHEMA_BY_LAYER[layer]
-  if (!featureSchema) {
-    throw Boom.badImplementation(`persist: unknown feature layer "${layer}"`)
-  }
   assertFragmentValid(
-    featureSchema,
+    featureSchemaFor(documentKey, layer),
     feature,
     `${documentKey}.${layer}[${index}]`
   )

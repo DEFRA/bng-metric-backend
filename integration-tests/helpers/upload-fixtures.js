@@ -54,20 +54,27 @@ async function uploadViaCdpUploader({ uploadUrl, filePath, contentType }) {
 async function waitForUploadStatus(
   server,
   uploadId,
-  { target = 'ready', timeoutMs = 15_000 } = {}
+  { target = 'ready', timeoutMs = 15_000, headers } = {}
 ) {
   const deadline = Date.now() + timeoutMs
   let lastBody
   while (Date.now() < deadline) {
     const res = await server.inject({
       method: 'GET',
-      url: `/upload/${uploadId}/status`
+      url: `/upload/${uploadId}/status`,
+      headers
     })
     lastBody = res.result
     if (lastBody?.uploadStatus === target) {
       return lastBody
     }
-    if (lastBody?.uploadStatus === 'rejected') {
+    // The real uploader reports a rejection (virus, wrong type, …) as 'ready'
+    // with numberOfRejectedFiles > 0, not a top-level 'rejected' status — short
+    // circuit on either so a rejection test does not wait out the full timeout.
+    if (
+      lastBody?.uploadStatus === 'rejected' ||
+      lastBody?.numberOfRejectedFiles > 0
+    ) {
       return lastBody
     }
     await new Promise((resolve) => setTimeout(resolve, POLL_INTERVAL_MS))

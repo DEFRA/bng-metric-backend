@@ -19,6 +19,8 @@ beforeEach(() => {
   vi.clearAllMocks()
 })
 
+const AUTH = { credentials: { sub: 'test-user-001' } }
+
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
 const HABITAT_1_ID = '11111111-2222-3333-4444-555555555555'
@@ -58,6 +60,63 @@ function defaultHabitats() {
       distinctivenessScore: 2,
       condition: 'Condition Assessment N/A',
       sizeSquareMetres: 5000
+    }
+  ]
+}
+
+function defaultPostInterventionHabitats() {
+  return [
+    {
+      featureId: HABITAT_1_ID,
+      ref: 'A1',
+      area: 10_000,
+      sizeSquareMetres: 10_000,
+      units: null,
+      status: 'Incomplete',
+      baseline: {
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Poor',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null
+      },
+      proposed: {
+        type: 'Modified grassland',
+        broadType: 'Grassland',
+        condition: 'Poor',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null,
+        advanceYears: 0,
+        delayYears: 0
+      }
+    },
+    {
+      featureId: HABITAT_2_ID,
+      ref: 'A2',
+      area: 5000,
+      sizeSquareMetres: 5000,
+      units: null,
+      status: 'Incomplete',
+      baseline: {
+        type: 'Cereal crops',
+        broadType: 'Cropland',
+        condition: 'Condition Assessment N/A',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null
+      },
+      proposed: {
+        type: 'Cereal crops',
+        broadType: 'Cropland',
+        condition: 'Condition Assessment N/A',
+        conditionScore: null,
+        distinctiveness: null,
+        distinctivenessScore: null,
+        advanceYears: 0,
+        delayYears: 0
+      }
     }
   ]
 }
@@ -123,6 +182,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -168,6 +228,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -197,6 +258,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: { broadType: '', habitatType: '', condition: '' }
       },
@@ -250,6 +312,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -285,6 +348,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     const result = await updateAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -301,14 +365,15 @@ describe('updateAreaHabitat handler — happy path', () => {
 })
 
 describe('updatePostInterventionAreaHabitat handler', () => {
-  test('persists edits to project.postIntervention', async () => {
-    const habitats = defaultHabitats()
+  test('persists edits into the proposed sub-object of project.postIntervention', async () => {
+    const habitats = defaultPostInterventionHabitats()
     const projectRow = makeProjectRow(habitats, 'postIntervention')
     const drizzle = makeDrizzle(projectRow)
 
     const result = await updatePostInterventionAreaHabitat.handler(
       {
         drizzle,
+        auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
@@ -319,13 +384,19 @@ describe('updatePostInterventionAreaHabitat handler', () => {
       {}
     )
 
+    // Edits are written to the proposed sub-object, not top-level fields
     expect(result).toMatchObject({
       featureId: HABITAT_1_ID,
-      broadType: 'Grassland',
-      type: 'Lowland meadows',
-      condition: 'Good',
+      proposed: expect.objectContaining({
+        broadType: 'Grassland',
+        type: 'Lowland meadows',
+        condition: 'Good'
+      }),
       status: 'Complete'
     })
+    // top-level type/condition should NOT be set on post-intervention features
+    expect(result).not.toHaveProperty('type')
+    expect(result).not.toHaveProperty('condition')
 
     expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
@@ -348,6 +419,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: {
             projectId: UNKNOWN_PROJECT_ID,
             featureId: HABITAT_1_ID
@@ -370,6 +442,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: UNKNOWN_HABITAT_ID },
           payload: {
             broadType: 'Grassland',
@@ -408,6 +481,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: {
             broadType: 'Grassland',
@@ -432,6 +506,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: {
             broadType: 'Grassland',
@@ -459,6 +534,7 @@ describe('updateAreaHabitat handler error cases', () => {
       updateAreaHabitat.handler(
         {
           drizzle,
+          auth: AUTH,
           params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
           payload: { broadType: null, habitatType: null, condition: null }
         },

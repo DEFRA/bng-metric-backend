@@ -19,12 +19,8 @@ import {
   validateGpkg,
   readBaselineGeoPackage
 } from '../validation/baseline/geopackage.js'
-import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
-import { extractHabitatData } from '../validation/baseline/extract-habitat-data.js'
-import { assignFeatureIds } from '../validation/baseline/assign-feature-ids.js'
 import { validateBaselineLayers } from '../validation/baseline/index.js'
-import { calculateHabitatSizes } from '../services/baseline/calculate-habitat-sizes.js'
-import { persistBaseline } from '../services/baseline/persist-baseline.js'
+import { saveBaselineForProject } from '../services/baseline/save-baseline-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/baseline/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -36,10 +32,6 @@ import {
 } from '../common/helpers/metric-names.js'
 
 const logger = createLogger()
-
-// CDP Uploader reports a virus rejection via the file's errorMessage (e.g.
-// "The selected file contains a virus"); match it to categorise the metric.
-const VIRUS_REJECTION_PATTERN = /virus/i
 
 /** Prefix for ephemeral GeoPackage staging directories under os.tmpdir(). */
 const BASELINE_UPLOAD_TEMP_PREFIX = 'baseline-'
@@ -77,14 +69,13 @@ async function resolveUploadLocation(
       throw Boom.gatewayTimeout('Upload did not complete in time')
     }
     if (err instanceof UploadFailedError) {
+      // A rejected upload (virus, wrong type, …) returns 422. The virus *metric*
+      // is emitted from the /upload/{uploadId}/status route — the chokepoint the
+      // frontend actually polls — not here: the frontend never calls validate for
+      // a rejected upload, so this branch is unreachable in the real flow.
       logger.error(
         `${config.routeName}: upload was rejected for uploadId ${uploadId}: ${err.message}`
       )
-      if (VIRUS_REJECTION_PATTERN.test(err.errorMessage ?? '')) {
-        await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-          category: VALIDATION_CATEGORY.virus
-        })
-      }
       throw Boom.badData('Upload was rejected')
     }
     logger.error(
@@ -146,77 +137,6 @@ function validateUploadMetadata(
   })
 }
 
-/**
- * Sizes, extracts, validates against the Joi schema, and persists the baseline
- * document for a known-valid set of layers. Returns a Hapi response on any
- * recoverable error, or `null` on success.
- */
-async function saveBaselineForProject(
-  drizzle,
-  pgPool,
-  projectId,
-  layers,
-  context,
-  h,
-  config = BASELINE_VALIDATION_CONFIG
-) {
-  const { uploadId, filename, fileSize } = context
-  const layersWithIds = assignFeatureIds(layers)
-
-  let habitatSizes
-  try {
-    habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
-  } catch (err) {
-    logger.error(
-      `${config.routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
-    )
-    return h
-      .response({
-        valid: false,
-        errors: [
-          makeError(
-            ERROR_CODES.SIZING_FAILED,
-            'Unable to calculate habitat sizes'
-          )
-        ]
-      })
-      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  }
-
-  const { document, geometries } = extractHabitatData(layersWithIds, {
-    uploadId,
-    filename,
-    fileSize,
-    habitatSizes,
-    // Baseline reads the Baseline* columns; post-intervention reads Proposed*.
-    variant: config.projectDocumentKey
-  })
-
-  enrichBaselineDocumentWithUnits(document, logger)
-  const { error: schemaError } = habitatDataSchema.validate(document, {
-    allowUnknown: true
-  })
-  if (schemaError) {
-    logger.info(
-      `${config.routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
-    )
-    return h.response({
-      valid: false,
-      errors: [
-        makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)
-      ]
-    })
-  }
-
-  await persistBaseline(drizzle, projectId, document, geometries, {
-    uploadId,
-    logger,
-    projectDocumentKey: config.projectDocumentKey,
-    uploadLabel: config.uploadLabel
-  })
-  return null
-}
-
 async function runFullValidation(
   buffer,
   drizzle,
@@ -225,7 +145,7 @@ async function runFullValidation(
   h,
   config = BASELINE_VALIDATION_CONFIG
 ) {
-  const { uploadId, projectId, filename, fileSize } = context
+  const { uploadId, projectId, sub, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(
     path.join(os.tmpdir(), BASELINE_UPLOAD_TEMP_PREFIX)
   )
@@ -254,11 +174,10 @@ async function runFullValidation(
     await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
     if (projectId) {
       const errorResponse = await saveBaselineForProject(
-        drizzle,
-        pgPool,
+        { drizzle, pgPool, logger },
         projectId,
         layers,
-        { uploadId, filename, fileSize },
+        { uploadId, sub, filename, fileSize },
         h,
         config
       )
@@ -449,6 +368,8 @@ function createValidateGeoPackageRoute(config) {
     handler: async (request, h) => {
       const { uploadId } = request.params
       const projectId = request.payload?.projectId ?? null
+      // Persisting to a project is scoped to this user's current org context.
+      const { sub } = request.auth.credentials
 
       const { bucket, key, filename, fileSize } = await resolveUploadLocation(
         uploadId,
@@ -487,7 +408,7 @@ function createValidateGeoPackageRoute(config) {
         buffer,
         request.drizzle,
         request.pg,
-        { uploadId, projectId, filename, fileSize },
+        { uploadId, projectId, sub, filename, fileSize },
         h,
         config
       )

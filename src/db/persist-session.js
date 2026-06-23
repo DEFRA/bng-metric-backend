@@ -1,0 +1,113 @@
+// The single sanctioned path for writing the bng.users / bng.relationships /
+// bng.roles tables. Called from POST /auth/session with the VERIFIED token
+// payload (never the frontend's parsed claims).
+//
+// Everything happens in one transaction so a login can never leave a user with
+// half their relationships/roles applied. Every row is UPSERTed — we never
+// delete — so a relationship/role removed at the IdP arrives as a status update
+// (6/7) on the next login rather than vanishing. `sql\`excluded.<col>\`` is used
+// in every `set` (not the JS value) so concurrent logins for the same user
+// converge on the row the database actually wrote.
+//
+// PII safety: this module must NOT log `claims` or any token contents (email,
+// names). Callers log at most the `sub`.
+import { sql } from 'drizzle-orm'
+
+import { users, relationships, roles } from './schema/index.js'
+import { parseRelationships, parseRoles } from '../services/defra-id/claims.js'
+
+function userValues(claims) {
+  return {
+    userId: claims.sub,
+    email: claims.email ?? null,
+    firstName: claims.firstName ?? claims.given_name ?? null,
+    lastName: claims.lastName ?? claims.family_name ?? null,
+    lastLogin: sql`now()`,
+    sessionId: claims.sessionId ?? claims.sid ?? null,
+    // The org context the user is currently acting in. Identifies which of the
+    // user's relationships/roles is the active one (an Agent can hold several).
+    currentRelationshipId: claims.currentRelationshipId ?? null
+  }
+}
+
+async function upsertUser(tx, claims) {
+  await tx
+    .insert(users)
+    .values(userValues(claims))
+    .onConflictDoUpdate({
+      target: users.userId,
+      set: {
+        email: sql`excluded.email`,
+        firstName: sql`excluded.first_name`,
+        lastName: sql`excluded.last_name`,
+        lastLogin: sql`now()`,
+        sessionId: sql`excluded.session_id`,
+        currentRelationshipId: sql`excluded.current_relationship_id`
+        // `created` deliberately omitted — it stays at its original value.
+      }
+    })
+}
+
+async function upsertRelationships(tx, userId, rels) {
+  for (const rel of rels) {
+    await tx
+      .insert(relationships)
+      .values({
+        userId,
+        relationshipId: rel.relationshipId,
+        orgId: rel.orgId ?? null,
+        orgName: rel.orgName ?? null,
+        relationship: rel.relationship ?? null
+      })
+      .onConflictDoUpdate({
+        target: [relationships.userId, relationships.relationshipId],
+        set: {
+          orgId: sql`excluded.org_id`,
+          orgName: sql`excluded.org_name`,
+          relationship: sql`excluded.relationship`,
+          lastUpdated: sql`now()`
+        }
+      })
+  }
+}
+
+async function upsertRoles(tx, userId, userRoles) {
+  for (const role of userRoles) {
+    await tx
+      .insert(roles)
+      .values({
+        userId,
+        relationshipId: role.relationshipId,
+        name: role.name,
+        status: role.status
+      })
+      .onConflictDoUpdate({
+        target: [roles.userId, roles.relationshipId, roles.name],
+        set: {
+          status: sql`excluded.status`,
+          lastUpdated: sql`now()`
+        }
+      })
+  }
+}
+
+/**
+ * Persist the logged-in user's identity, org relationships and roles in one
+ * atomic transaction. Idempotent: a repeat login upserts in place (no dupes,
+ * status / last_login refreshed).
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
+ * @param {object} claims verified Defra ID token payload (must carry `sub`)
+ */
+async function persistSession(drizzle, claims) {
+  const rels = parseRelationships(claims)
+  const userRoles = parseRoles(claims)
+
+  await drizzle.transaction(async (tx) => {
+    await upsertUser(tx, claims)
+    await upsertRelationships(tx, claims.sub, rels)
+    await upsertRoles(tx, claims.sub, userRoles)
+  })
+}
+
+export { persistSession }

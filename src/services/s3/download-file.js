@@ -1,5 +1,6 @@
 import { GetObjectCommand } from '@aws-sdk/client-s3'
 
+import { config } from '../../config.js'
 import { createS3Client } from './s3-client.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 
@@ -8,8 +9,12 @@ const logger = createLogger()
 /** Default download timeout in milliseconds (30 seconds). */
 const DEFAULT_TIMEOUT_MS = 30_000
 
-/** Maximum file size in bytes that will be downloaded (100 MB). */
-const MAX_FILE_SIZE_BYTES = 104857600
+/**
+ * Maximum file size in bytes that will be downloaded. Shares the configured
+ * upload limit (UPLOAD_MAX_FILE_SIZE_BYTES, default 100 MB) so this backstop
+ * stays in step with the limit sent to the CDP Uploader.
+ */
+const MAX_FILE_SIZE_BYTES = config.get('upload.maxFileSizeBytes')
 
 /**
  * Download a file from S3 and return its contents as a Buffer.
