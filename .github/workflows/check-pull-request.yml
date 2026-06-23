@@ -26,7 +26,7 @@ jobs:
       AWS_DEFAULT_REGION: eu-west-2
     services:
       postgres:
-        image: postgis/postgis:16-3.5
+        image: postgis/postgis:16-3.5@sha256:b33f597940e56d9388447c96214cf1b906f10a1c462149dcb79666b1acf012e7
         env:
           POSTGRES_USER: dev
           POSTGRES_PASSWORD: dev
@@ -39,11 +39,11 @@ jobs:
           --health-timeout=5s
           --health-retries=5
       redis:
-        image: redis:7.2.3-alpine3.18
+        image: redis:7.2.3-alpine3.18@sha256:3ce533b2b057f74b235d1d8697ae08b1b6ff0a5e16827ea6a377b6365693c7ed
         ports:
           - 6379:6379
       localstack:
-        image: localstack/localstack:3.0.2
+        image: localstack/localstack:3.0.2@sha256:e606c4421419030b12d63a59f1211f57f5b0fbf7e9ce769e6250ee62ff4f9293
         env:
           SERVICES: s3,sqs,sns,firehose
           DEBUG: '0'
@@ -58,10 +58,10 @@ jobs:
           --health-retries=10
     steps:
       - name: Check out repository
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Set up Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -149,7 +149,7 @@ jobs:
 
       - name: Upload integration coverage report
         if: always()
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6
         with:
           name: integration-coverage
           path: coverage/integration/
@@ -164,10 +164,10 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout code
-        uses: actions/checkout@v5
+        uses: actions/checkout@93cb6efe18208431cddfb8368fd83d5badbf9bfd # v5
 
       - name: Test code and Create Test Coverage Reports
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@48b55a011bda9f5d6aeb4c2d9c7362e8dae4041e # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -193,7 +193,7 @@ jobs:
 
       - name: SonarCloud Scan
         if: github.actor != 'dependabot[bot]'
-        uses: SonarSource/sonarqube-scan-action@v8.0.0 #  (or check latest version on https://github.com/marketplace/actions/official-sonarqube-scan)
+        uses: SonarSource/sonarqube-scan-action@59db25f34e16620e48ab4bb9e4a5dce155cb5432 # v8.0.0
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
