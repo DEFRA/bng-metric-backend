@@ -7,6 +7,7 @@ export {
   HEDGEROW_CONDITION_SCORES,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
   HEDGEROW_DISTINCTIVENESS_SCORES,
+  INDIVIDUAL_TREE_AREA_HECTARES,
   TIME_TO_TARGET_CREATION,
   TIME_TO_TARGET_ENHANCEMENT,
   TIME_TO_TARGET_MULTIPLIER,
@@ -20,6 +21,7 @@ export {
 export { BaselineLookupError } from './errors.js'
 export { roundToSigFigs, MAX_SIG_FIGS } from './utils.js'
 export { calculateAreaHabitatBaseline } from './baseline.js'
+export { getIndividualTreeAreaHectares } from './tree.js'
 export {
   calculateHedgerowBaseline,
   calculateWatercourseBaseline,

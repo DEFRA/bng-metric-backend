@@ -64,6 +64,22 @@ export const PROP_KEYS = {
   ],
   // Rivers layer only.
   enhancementType: ['Enhancement Type', 'Enhancement_Type'],
+  // Urban Trees layer. `ref`, condition, strategic significance, retention and
+  // metadata reuse the shared keys above; these are tree-specific columns.
+  treeRef: ['Tree Ref', 'Tree_Ref', 'tree_ref'],
+  treeSize: ['Baseline Tree Size', 'Baseline_Tree_Size'],
+  treeType: ['Baseline Tree Type', 'Baseline_Tree_Type'],
+  ruralOrUrbanTree: [
+    'Baseline Rural or Urban Tree',
+    'Baseline_Rural_or_Urban_Tree'
+  ],
+  treeCount: ['Count'],
+  proposedTreeSize: ['Proposed Tree Size', 'Proposed_Tree_Size'],
+  proposedTreeType: ['Proposed Tree Type', 'Proposed_Tree_Type'],
+  proposedRuralOrUrbanTree: [
+    'Proposed Rural or Urban Tree',
+    'Proposed_Rural_or_Urban_Tree'
+  ],
   // Proposed (post-intervention) counterparts of the baseline-prefixed columns.
   // The NE template carries the proposed design in these columns; the
   // post-intervention save path reads them instead of the Baseline* columns
@@ -103,6 +119,36 @@ export const EXTRACT_VARIANT = {
   POST_INTERVENTION: 'postIntervention'
 }
 
+// Logical fields read from a single shared column regardless of variant.
+const SHARED_FEATURE_KEYS = ['parcelRef', 'treeRef']
+
+// Logical fields whose source column differs between the baseline and
+// post-intervention (proposed) documents, mapped to their [baseline, proposed]
+// PROP_KEYS entries.
+const VARIANT_FEATURE_KEYS = {
+  habitatType: ['habitatType', 'proposedHabitatType'],
+  broadHabitat: ['broadHabitat', 'proposedBroadHabitat'],
+  hedgerowType: ['hedgerowType', 'proposedHedgerowType'],
+  riverType: ['riverType', 'proposedRiverType'],
+  condition: ['condition', 'proposedCondition'],
+  strategicSignificance: [
+    'strategicSignificance',
+    'proposedStrategicSignificance'
+  ],
+  watercourseEncroachment: [
+    'watercourseEncroachment',
+    'proposedWatercourseEncroachment'
+  ],
+  riparianEncroachment: [
+    'riparianEncroachment',
+    'proposedRiparianEncroachment'
+  ],
+  rawDistinctiveness: ['baselineDistinctiveness', 'proposedDistinctiveness'],
+  treeSize: ['treeSize', 'proposedTreeSize'],
+  treeType: ['treeType', 'proposedTreeType'],
+  ruralOrUrbanTree: ['ruralOrUrbanTree', 'proposedRuralOrUrbanTree']
+}
+
 /**
  * Resolve the logical attribute fields whose source column differs between the
  * baseline and post-intervention (proposed) documents. Fields not listed here
@@ -115,32 +161,16 @@ export const EXTRACT_VARIANT = {
  */
 export function featureKeysForVariant(variant = EXTRACT_VARIANT.BASELINE) {
   const proposed = variant === EXTRACT_VARIANT.POST_INTERVENTION
-  return {
-    parcelRef: PROP_KEYS.parcelRef,
-    habitatType: proposed
-      ? PROP_KEYS.proposedHabitatType
-      : PROP_KEYS.habitatType,
-    broadHabitat: proposed
-      ? PROP_KEYS.proposedBroadHabitat
-      : PROP_KEYS.broadHabitat,
-    hedgerowType: proposed
-      ? PROP_KEYS.proposedHedgerowType
-      : PROP_KEYS.hedgerowType,
-    riverType: proposed ? PROP_KEYS.proposedRiverType : PROP_KEYS.riverType,
-    condition: proposed ? PROP_KEYS.proposedCondition : PROP_KEYS.condition,
-    strategicSignificance: proposed
-      ? PROP_KEYS.proposedStrategicSignificance
-      : PROP_KEYS.strategicSignificance,
-    watercourseEncroachment: proposed
-      ? PROP_KEYS.proposedWatercourseEncroachment
-      : PROP_KEYS.watercourseEncroachment,
-    riparianEncroachment: proposed
-      ? PROP_KEYS.proposedRiparianEncroachment
-      : PROP_KEYS.riparianEncroachment,
-    rawDistinctiveness: proposed
-      ? PROP_KEYS.proposedDistinctiveness
-      : PROP_KEYS.baselineDistinctiveness
+  const keys = {}
+  for (const field of SHARED_FEATURE_KEYS) {
+    keys[field] = PROP_KEYS[field]
   }
+  for (const [field, [baselineKey, proposedKey]] of Object.entries(
+    VARIANT_FEATURE_KEYS
+  )) {
+    keys[field] = PROP_KEYS[proposed ? proposedKey : baselineKey]
+  }
+  return keys
 }
 
 export function pickProp(properties, candidates) {

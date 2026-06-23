@@ -163,6 +163,77 @@ const habitatSchema = Joi.object({
     )
 }).description('An area (polygon) habitat parcel.')
 
+// An individual tree (Urban Trees layer). Treated as a special area habitat, so
+// it reuses habitatSchema's derived block (distinctiveness, condition scores,
+// units, status, metadata) verbatim — only the parcel-specific descriptions are
+// overridden and the tree-specific source columns appended. Deriving from
+// habitatSchema avoids duplicating the shared field definitions.
+const treeSchema = habitatSchema
+  .append({
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        'UUID assigned on import; join key to the bng.baseline_trees geometry row.'
+      ),
+    ref: Joi.string()
+      .allow(null, '')
+      .description('Tree reference from the GeoPackage (Tree Ref column).'),
+    type: Joi.string()
+      .allow(null, '')
+      .description(
+        "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
+      ),
+    broadType: Joi.string()
+      .allow(null, '')
+      .description("Always 'Individual trees' for tree features."),
+    distinctiveness: Joi.string()
+      .allow(null, '')
+      .description(
+        'Distinctiveness band resolved by bng-metric-engine from the tree habitat type. Trees are Medium distinctiveness.'
+      ),
+    area: Joi.number()
+      .allow(null)
+      .description(
+        'Notional tree area in square metres (per-size reference value), rounded. This is the value fed to the unit calculation.'
+      ),
+    sizeSquareMetres: Joi.number()
+      .allow(null)
+      .description('Notional tree area in square metres (per-size reference).'),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        'Baseline biodiversity units for the tree, from bng-metric-engine using the area-habitat calculation.'
+      ),
+    properties: Joi.object()
+      .unknown(true)
+      .description(
+        'Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer.'
+      ),
+    // Tree-specific source columns not present on parcels.
+    treeSize: Joi.string()
+      .allow(null, '')
+      .description(
+        "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
+      ),
+    treeSpecies: Joi.string()
+      .allow(null, '')
+      .description(
+        'Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column).'
+      ),
+    ruralOrUrban: Joi.string()
+      .allow(null, '')
+      .description(
+        'Raw Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban").'
+      ),
+    count: Joi.number()
+      .allow(null)
+      .description(
+        'Count column from the GeoPackage. Recorded for reference; each tree is treated as a single tree (one row) for area and units.'
+      )
+  })
+  .description('An individual tree feature (point).')
+
 // Hedgerows and watercourses share the same linear-feature shape. This factory
 // keeps their field order and prose identical while letting each supply its own
 // descriptions and module-specific fields. Field order is significant — it
@@ -289,6 +360,9 @@ const habitatDataSchema = Joi.object({
   habitats: Joi.array()
     .items(habitatSchema)
     .description('Area (polygon) habitat parcels in the baseline.'),
+  trees: Joi.array()
+    .items(treeSchema)
+    .description('Individual tree (point) features in the baseline.'),
   hedgerows: Joi.array()
     .items(linearHabitatSchema)
     .description('Hedgerow (linear) features in the baseline.'),
@@ -320,6 +394,7 @@ export {
   baselineUnitsTotalsSchema,
   habitatDataSchema,
   habitatSchema,
+  treeSchema,
   linearHabitatSchema,
   watercourseHabitatSchema,
   postInterventionDataSchema

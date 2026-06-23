@@ -296,7 +296,9 @@ function createWatercourseEnrichmentConfig(logger) {
  * `status: 'Incomplete'` and a warning is logged. Always sets
  * `baselineDocument.units` totals afterward.
  *
- * @param {{ habitats?: object[], hedgerows?: object[], watercourses?: object[] }} baselineDocument
+ * Individual trees are enriched on the same path as area-habitat parcels.
+ *
+ * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} baselineDocument
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {typeof baselineDocument}
  */
@@ -304,8 +306,17 @@ export function enrichBaselineDocumentWithUnits(
   baselineDocument,
   logger = NO_OP_LOGGER
 ) {
+  // Area-habitat parcels and individual trees enrich on the same path: a tree is
+  // a special area habitat whose notional area (set on import from the per-size
+  // reference) feeds the area-habitat unit calculation, with the engine resolving
+  // "Individual trees - Urban/Rural tree" from its broad/habitat type.
   enrichCollectionIfNonEmpty(
     baselineDocument?.habitats,
+    enrichHabitatParcelWithUnits,
+    logger
+  )
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.trees,
     enrichHabitatParcelWithUnits,
     logger
   )

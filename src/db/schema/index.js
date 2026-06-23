@@ -9,8 +9,10 @@ export {
   baselineHabitats,
   baselineHedgerows,
   baselineWatercourses,
+  baselineTrees,
   postInterventionRedLine,
   postInterventionHabitats,
   postInterventionHedgerows,
-  postInterventionWatercourses
+  postInterventionWatercourses,
+  postInterventionTrees
 } from './baseline-features.js'

@@ -52,7 +52,7 @@ describe('persistBaseline', () => {
 
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
-    expect(log.deletes).toHaveLength(4)
+    expect(log.deletes).toHaveLength(5)
     expect(log.executes).toHaveLength(5)
     expect(log.updates).toHaveLength(1)
     expect(logger.info).toHaveBeenCalledWith(

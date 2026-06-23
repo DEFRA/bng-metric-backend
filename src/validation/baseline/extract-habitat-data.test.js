@@ -71,13 +71,15 @@ describe('extractHabitatData — top-level shape', () => {
           habitats: [],
           hedgerows: [],
           watercourses: [],
+          trees: [],
           habitatSizes: null
         }),
         geometries: {
           redLine: null,
           habitats: [],
           hedgerows: [],
-          watercourses: []
+          watercourses: [],
+          trees: []
         }
       })
     )
@@ -117,6 +119,131 @@ describe('extractHabitatData — top-level shape', () => {
 
     expect(out.document.filename).toBeNull()
     expect(out.document.fileSize).toBeNull()
+  })
+})
+
+const SAMPLE_POINT = { type: 'Point', coordinates: [0, 0] }
+
+describe('extractHabitatData — individual trees', () => {
+  function treeFeature(properties) {
+    return feature(properties, SAMPLE_POINT)
+  }
+
+  it('builds tree documents with habitat type, broad type and per-size area', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T001',
+          'Baseline Tree Size': 'Medium',
+          'Baseline Tree Type': 'Street tree',
+          'Baseline Condition': 'Good',
+          'Baseline Rural or Urban Tree': 'Urban',
+          Count: 1
+        })
+      ]
+    })
+
+    expect(out.document.trees).toHaveLength(1)
+    const tree = out.document.trees[0]
+    expect(tree.ref).toBe('T001')
+    expect(tree.type).toBe('Urban tree')
+    expect(tree.broadType).toBe('Individual trees')
+    expect(tree.treeSize).toBe('Medium')
+    expect(tree.treeSpecies).toBe('Street tree')
+    expect(tree.ruralOrUrban).toBe('Urban')
+    // 0.0163 ha → 163 m²
+    expect(tree.sizeSquareMetres).toBe(163)
+    expect(tree.area).toBe(163)
+    expect(tree.status).toBe('Complete')
+    expect(tree.featureId).toMatch(UUID_REGEX)
+  })
+
+  it('leaves area null and status Incomplete for an unrecognised tree size', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T002',
+          'Baseline Tree Size': 'Enormous',
+          'Baseline Rural or Urban Tree': 'Rural',
+          'Baseline Condition': 'Moderate'
+        })
+      ]
+    })
+
+    const tree = out.document.trees[0]
+    expect(tree.type).toBe('Rural tree')
+    expect(tree.sizeSquareMetres).toBeNull()
+    expect(tree.area).toBeNull()
+  })
+
+  it('produces a parallel tree geometry row carrying native geometry and srid', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({ 'Tree Ref': 'T003', 'Baseline Tree Size': 'Small' })
+      ]
+    })
+
+    expect(out.geometries.trees).toHaveLength(1)
+    expect(out.geometries.trees[0]).toMatchObject({
+      ref: 'T003',
+      geometry: SAMPLE_POINT,
+      srid: BNG_SRID
+    })
+    expect(out.geometries.trees[0].featureId).toBe(
+      out.document.trees[0].featureId
+    )
+  })
+
+  it('summarises tree sizes overall and by urban/rural and rolls into the total area size', () => {
+    const habitatSizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 10_000 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractHabitatData(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        trees: [
+          treeFeature({
+            'Baseline Tree Size': 'Medium',
+            'Baseline Rural or Urban Tree': 'Urban'
+          }),
+          treeFeature({
+            'Baseline Tree Size': 'Small',
+            'Baseline Rural or Urban Tree': 'Rural'
+          })
+        ]
+      },
+      { habitatSizes }
+    )
+
+    // Medium 163 m² + Small 41 m²
+    expect(out.document.habitatSizes.trees).toEqual({
+      totalSquareMetres: 204,
+      urbanSquareMetres: 163,
+      ruralSquareMetres: 41
+    })
+    // Total area size = parcels (10000) + trees (204); Site stays parcels-only
+    // (excludes special tree habitats).
+    expect(out.document.habitatSizes.areaHabitats.totalSquareMetres).toBe(
+      10_204
+    )
+    expect(out.document.habitatSizes.site.totalSquareMetres).toBe(10_000)
   })
 })
 
@@ -169,7 +296,13 @@ describe('extractHabitatData — habitatSizes embedding', () => {
     expect(out.document.habitatSizes).toEqual({
       areaHabitats: { totalSquareMetres: HABITAT_SQM },
       hedgerows: { totalMetres: HEDGEROW_M },
-      watercourses: { totalMetres: 0 }
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 0,
+        urbanSquareMetres: 0,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: HABITAT_SQM }
     })
 
     // Geometry half is untouched

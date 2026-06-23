@@ -146,7 +146,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 0,
       habitatsTotal: 0,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 
@@ -171,7 +174,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 4,
       habitatsTotal: 4,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
   })
 
@@ -196,8 +202,40 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 4,
       habitatsTotal: 4,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
+  })
+
+  it('enriches individual trees via the area-habitat calculation and totals them by type', () => {
+    const document = {
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        {
+          featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          type: 'Urban tree',
+          broadType: 'Individual trees',
+          condition: 'Good',
+          area: 163
+        }
+      ]
+    }
+    enrichBaselineDocumentWithUnits(document)
+    const tree = document.trees[0]
+    expect(tree.distinctiveness).toBe('Medium')
+    expect(tree.distinctivenessScore).toBe(4)
+    expect(tree.conditionScore).toBe(3)
+    // 0.0163 ha × distinctiveness 4 × condition 3 × strategic significance 1
+    expect(tree.units).toBeCloseTo(0.1956, 4)
+    expect(tree.status).toBe('Complete')
+    expect(document.units.treesTotal).toBeCloseTo(0.1956, 4)
+    expect(document.units.treesUrbanTotal).toBeCloseTo(0.1956, 4)
+    expect(document.units.treesRuralTotal).toBe(0)
+    expect(document.units.totalUnits).toBeCloseTo(0.1956, 4)
   })
 
   it('skips enrichment when baseline type, condition, or area is missing', () => {
@@ -365,7 +403,10 @@ describe('enrichBaselineDocumentWithUnits', () => {
       totalUnits: 0,
       habitatsTotal: 0,
       hedgerowsTotal: 0,
-      watercoursesTotal: 0
+      watercoursesTotal: 0,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
     })
     expect(enrichBaselineDocumentWithUnits(document)).toBe(document)
   })
@@ -398,7 +439,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0].length).toBe(500)
+    const hedgerowLengthMetres = document.hedgerows[0].length
+    expect(hedgerowLengthMetres).toBe(500)
     expect(document.hedgerows[0].distinctiveness).toBe('High')
     expect(document.hedgerows[0].distinctivenessScore).toBe(6)
     expect(document.hedgerows[0].conditionScore).toBe(3)
@@ -418,7 +460,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0].length).toBe(501)
+    const hedgerowLengthMetres = document.hedgerows[0].length
+    expect(hedgerowLengthMetres).toBe(501)
     // 501 m = 0.501 km × 6 × 3 × 1 = 9.018
     expect(document.hedgerows[0].units).toBeCloseTo(9.018)
   })
@@ -435,7 +478,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0].length).toBe(1000)
+    const watercourseLengthMetres = document.watercourses[0].length
+    expect(watercourseLengthMetres).toBe(1000)
     expect(document.watercourses[0].distinctiveness).toBe('V.High')
     expect(document.watercourses[0].conditionScore).toBe(3)
     expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
@@ -455,7 +499,8 @@ describe('enrichBaselineDocumentWithUnits', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0].length).toBe(1000)
+    const watercourseLengthMetres = document.watercourses[0].length
+    expect(watercourseLengthMetres).toBe(1000)
     // 1000 m = 1 km × 8 × 3 × 1 = 24 units (rounding down)
     expect(document.watercourses[0].units).toBeCloseTo(24)
   })

@@ -71,6 +71,12 @@ async function assertHabitatSizesPersisted(server, dbClient) {
   const habitatSizes = rows[0].habitat_sizes
   expect(habitatSizes).toEqual({
     areaHabitats: { totalSquareMetres: expect.any(Number) },
+    site: { totalSquareMetres: expect.any(Number) },
+    trees: {
+      totalSquareMetres: expect.any(Number),
+      ruralSquareMetres: expect.any(Number),
+      urbanSquareMetres: expect.any(Number)
+    },
     hedgerows: { totalMetres: expect.any(Number) },
     watercourses: { totalMetres: expect.any(Number) }
   })

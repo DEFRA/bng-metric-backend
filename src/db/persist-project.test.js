@@ -16,7 +16,10 @@ const validUnitsTotals = {
   totalUnits: 0,
   habitatsTotal: 0,
   hedgerowsTotal: 0,
-  watercoursesTotal: 0
+  watercoursesTotal: 0,
+  treesTotal: 0,
+  treesUrbanTotal: 0,
+  treesRuralTotal: 0
 }
 const validHabitat = { featureId: FEATURE_ID, status: 'Complete' }
 

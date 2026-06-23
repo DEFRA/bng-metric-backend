@@ -187,6 +187,48 @@
       ]
     },
     {
+      "name": "bng.baseline_trees",
+      "description": "The mapped point of each baseline individual tree imported from the uploaded GeoPackage.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiPoint, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
       "name": "bng.baseline_watercourses",
       "description": "The mapped line of each baseline watercourse imported from the uploaded GeoPackage.",
       "columns": [
@@ -337,6 +379,48 @@
         {
           "name": "geom",
           "type": "geometry(MultiPolygon, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
+      "name": "bng.post_intervention_trees",
+      "description": "The mapped point of each post-intervention (proposed) individual tree imported from the uploaded GeoPackage.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiPoint, 27700)",
           "nullable": false,
           "primaryKey": false,
           "unique": false,
@@ -1174,6 +1258,369 @@
       "description": "Raw attribute columns copied verbatim from the GeoPackage Habitats layer."
     },
     {
+      "path": "baseline.trees",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Individual tree (point) features in the baseline."
+    },
+    {
+      "path": "baseline.trees[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "An individual tree feature (point)."
+    },
+    {
+      "path": "baseline.trees[].distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+    },
+    {
+      "path": "baseline.trees[].condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline condition assessment, e.g. 'Good'."
+    },
+    {
+      "path": "baseline.trees[].conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits."
+    },
+    {
+      "path": "baseline.trees[].strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category from the GeoPackage."
+    },
+    {
+      "path": "baseline.trees[].retentionCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Retention category from the GeoPackage."
+    },
+    {
+      "path": "baseline.trees[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+    },
+    {
+      "path": "baseline.trees[].siteName",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site name from the GeoPackage (Site Name column)."
+    },
+    {
+      "path": "baseline.trees[].surveyDate",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Survey date from the GeoPackage (Survey Date column), as stored in the source file."
+    },
+    {
+      "path": "baseline.trees[].surveyDetails",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text survey details from the GeoPackage."
+    },
+    {
+      "path": "baseline.trees[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+    },
+    {
+      "path": "baseline.trees[].mappedBy",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Name of the surveyor who mapped the feature (Mapped by)."
+    },
+    {
+      "path": "baseline.trees[].company",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Company responsible for the survey (Company column)."
+    },
+    {
+      "path": "baseline.trees[].baseMap",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Base map used during mapping (Base Map column)."
+    },
+    {
+      "path": "baseline.trees[].location",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text location description from the GeoPackage."
+    },
+    {
+      "path": "baseline.trees[].spatialRiskCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Spatial risk category from the GeoPackage."
+    },
+    {
+      "path": "baseline.trees[].habitatCreatedInAdvanceYears",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
+    },
+    {
+      "path": "baseline.trees[].delayInStartingHabitatCreationYears",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
+    },
+    {
+      "path": "baseline.trees[].rawDistinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+    },
+    {
+      "path": "baseline.trees[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "UUID assigned on import; join key to the bng.baseline_trees geometry row."
+    },
+    {
+      "path": "baseline.trees[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Tree reference from the GeoPackage (Tree Ref column)."
+    },
+    {
+      "path": "baseline.trees[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
+    },
+    {
+      "path": "baseline.trees[].broadType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Always 'Individual trees' for tree features."
+    },
+    {
+      "path": "baseline.trees[].distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-metric-engine from the tree habitat type. Trees are Medium distinctiveness."
+    },
+    {
+      "path": "baseline.trees[].area",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Notional tree area in square metres (per-size reference value), rounded. This is the value fed to the unit calculation."
+    },
+    {
+      "path": "baseline.trees[].sizeSquareMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Notional tree area in square metres (per-size reference)."
+    },
+    {
+      "path": "baseline.trees[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity units for the tree, from bng-metric-engine using the area-habitat calculation."
+    },
+    {
+      "path": "baseline.trees[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer."
+    },
+    {
+      "path": "baseline.trees[].treeSize",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
+    },
+    {
+      "path": "baseline.trees[].treeSpecies",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column)."
+    },
+    {
+      "path": "baseline.trees[].ruralOrUrban",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Raw Rural or Urban Tree value as written in the GeoPackage (e.g. \"Urban\")."
+    },
+    {
+      "path": "baseline.trees[].count",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Count column from the GeoPackage. Recorded for reference; each tree is treated as a single tree (one row) for area and units."
+    },
+    {
       "path": "baseline.hedgerows",
       "type": "array<object>",
       "required": false,
@@ -1875,7 +2322,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total area of all habitat parcels, in square metres."
+      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats."
     },
     {
       "path": "baseline.habitatSizes.hedgerows",
@@ -1920,6 +2367,72 @@
       "constraints": [],
       "openMap": false,
       "description": "Total length of all watercourses, in metres."
+    },
+    {
+      "path": "baseline.habitatSizes.trees",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention)."
+    },
+    {
+      "path": "baseline.habitatSizes.trees.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of all individual trees, in m²."
+    },
+    {
+      "path": "baseline.habitatSizes.trees.urbanSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of urban trees, in m²."
+    },
+    {
+      "path": "baseline.habitatSizes.trees.ruralSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of rural trees, in m²."
+    },
+    {
+      "path": "baseline.habitatSizes.site",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees."
+    },
+    {
+      "path": "baseline.habitatSizes.site.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
     },
     {
       "path": "baseline.units",
@@ -1975,6 +2488,39 @@
       "constraints": [],
       "openMap": false,
       "description": "Sum of baseline units across all watercourses."
+    },
+    {
+      "path": "baseline.units.treesTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across all individual trees."
+    },
+    {
+      "path": "baseline.units.treesUrbanTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across urban trees."
+    },
+    {
+      "path": "baseline.units.treesRuralTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across rural trees."
     },
     {
       "path": "postIntervention",
@@ -3041,7 +3587,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total area of all habitat parcels, in square metres."
+      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats."
     },
     {
       "path": "postIntervention.habitatSizes.hedgerows",
@@ -3086,6 +3632,72 @@
       "constraints": [],
       "openMap": false,
       "description": "Total length of all watercourses, in metres."
+    },
+    {
+      "path": "postIntervention.habitatSizes.trees",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention)."
+    },
+    {
+      "path": "postIntervention.habitatSizes.trees.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of all individual trees, in m²."
+    },
+    {
+      "path": "postIntervention.habitatSizes.trees.urbanSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of urban trees, in m²."
+    },
+    {
+      "path": "postIntervention.habitatSizes.trees.ruralSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total notional area of rural trees, in m²."
+    },
+    {
+      "path": "postIntervention.habitatSizes.site",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees."
+    },
+    {
+      "path": "postIntervention.habitatSizes.site.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
     },
     {
       "path": "postIntervention.units",
@@ -3141,6 +3753,39 @@
       "constraints": [],
       "openMap": false,
       "description": "Sum of baseline units across all watercourses."
+    },
+    {
+      "path": "postIntervention.units.treesTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across all individual trees."
+    },
+    {
+      "path": "postIntervention.units.treesUrbanTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across urban trees."
+    },
+    {
+      "path": "postIntervention.units.treesRuralTotal",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across rural trees."
     }
   ]
 }

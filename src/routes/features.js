@@ -37,7 +37,7 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
  *               properties:
  *                 type:
  *                   type: string
- *                   enum: [habitat, hedgerow, watercourse]
+ *                   enum: [habitat, tree, hedgerow, watercourse]
  *                 feature:
  *                   type: object
  *       404:
@@ -67,7 +67,7 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
  *               properties:
  *                 type:
  *                   type: string
- *                   enum: [habitat, hedgerow, watercourse]
+ *                   enum: [habitat, tree, hedgerow, watercourse]
  *                 feature:
  *                   type: object
  *       404:
