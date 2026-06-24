@@ -29,6 +29,7 @@ import {
 } from '../validation/project-post-intervention-schema.js'
 import {
   projectSchema,
+  projectDetailsSchema,
   habitatDataSchema,
   baselineUnitsTotalsSchema,
   habitatSchema,
@@ -202,11 +203,22 @@ async function setBaselineFeature(exec, id, params) {
   await setProjectFeature(exec, id, { ...params, documentKey: 'baseline' })
 }
 
+async function setProjectDetails(exec, id, details) {
+  assertFragmentValid(projectDetailsSchema, details, 'project.details')
+  const [row] = await exec
+    .update(projects)
+    .set({ project: jsonbSet(projects.project, ['details'], details) })
+    .where(eq(projects.id, id))
+    .returning()
+  return row ?? null
+}
+
 export {
   insertProject,
   setProjectName,
   setProjectHabitatData,
   setProjectBaseline,
   setProjectFeature,
-  setBaselineFeature
+  setBaselineFeature,
+  setProjectDetails
 }

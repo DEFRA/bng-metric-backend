@@ -829,6 +829,105 @@
       "description": "Project-level watercourse biodiversity unit total."
     },
     {
+      "path": "details",
+      "type": "object",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Project details entered by the user."
+    },
+    {
+      "path": "details.localPlanningAuthority",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Local Planning Authority name."
+    },
+    {
+      "path": "details.surveyCompleters",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Names of survey completer(s)."
+    },
+    {
+      "path": "details.surveyCompletionDate",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Survey completion date in DD/MM/YYYY format."
+    },
+    {
+      "path": "details.developmentType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["Small site", "Large site"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Development type classification."
+    },
+    {
+      "path": "details.nsips",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["Yes", "No"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the project is a National Significant Infrastructure Project."
+    },
+    {
+      "path": "details.surveyCompletedBy",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Name of the person who completed the survey."
+    },
+    {
+      "path": "details.dateOfSurvey",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Date of survey in DD/MM/YYYY format."
+    },
+    {
+      "path": "details.applicant",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Applicant name."
+    },
+    {
       "path": "baseline",
       "type": "object",
       "required": false,

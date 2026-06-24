@@ -354,6 +354,37 @@ const watercourseHabitatSchema = linearFeatureSchema({
   rootDescription: 'A watercourse (linear) feature.'
 })
 
+const projectDetailsSchema = Joi.object({
+  localPlanningAuthority: Joi.string()
+    .allow(null, '')
+    .description('Local Planning Authority name.'),
+  surveyCompleters: Joi.string()
+    .allow(null, '')
+    .description('Names of survey completer(s).'),
+  surveyCompletionDate: Joi.string()
+    .allow(null, '')
+    .description('Survey completion date in DD/MM/YYYY format.'),
+  developmentType: Joi.string()
+    .valid('Small site', 'Large site')
+    .allow(null)
+    .description('Development type classification.'),
+  nsips: Joi.string()
+    .valid('Yes', 'No')
+    .allow(null)
+    .description(
+      'Whether the project is a National Significant Infrastructure Project.'
+    ),
+  surveyCompletedBy: Joi.string()
+    .allow(null, '')
+    .description('Name of the person who completed the survey.'),
+  dateOfSurvey: Joi.string()
+    .allow(null, '')
+    .description('Date of survey in DD/MM/YYYY format.'),
+  applicant: Joi.string().allow(null, '').description('Applicant name.')
+})
+  .allow(null)
+  .description('Project details entered by the user.')
+
 const habitatDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
   redLine: redLineSchema,
@@ -381,6 +412,7 @@ const projectSchema = Joi.object({
   ),
   site: siteSchema,
   units: unitsSchema,
+  details: projectDetailsSchema,
   baseline: habitatDataSchema,
   postIntervention: postInterventionDataSchema
 }).description(
@@ -389,6 +421,7 @@ const projectSchema = Joi.object({
 
 export {
   projectSchema,
+  projectDetailsSchema,
   siteSchema,
   unitsSchema,
   baselineUnitsTotalsSchema,
