@@ -1,10 +1,5 @@
 import { randomUUID } from 'node:crypto'
 
-import {
-  getIndividualTreeAreaHectares,
-  BaselineLookupError
-} from 'bng-metric-engine'
-
 import { PROP_KEYS, featureKeysForVariant, pickProp } from './properties.js'
 import {
   areaStatus,
@@ -13,14 +8,10 @@ import {
 } from '../../services/baseline/calculate-habitat-statuses.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
-  URBAN_TREE_TYPE,
-  RURAL_TREE_TYPE,
   treeHabitatTypeFromRuralUrban
 } from './tree-constants.js'
+import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
-
-/** Individual trees store area in hectares; persisted sizes are in m². */
-const SQ_METRES_PER_HECTARE = 10_000
 
 /**
  * @param {number | null | undefined} sizeSquareMetres
@@ -103,30 +94,6 @@ function buildHabitat(feature, keys) {
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
-}
-
-/**
- * Resolve the notional m² area for an individual tree of the given size. Trees
- * are points, so the area is a fixed per-size lookup (bng-metric-engine) rather
- * than a PostGIS measurement. Returns null for a missing/unrecognised size.
- *
- * @param {unknown} treeSize
- * @returns {{ sizeSquareMetres: number, area: number } | { sizeSquareMetres: null, area: null }}
- */
-function treeAreaFields(treeSize) {
-  try {
-    // The per-size reference areas in m² are whole numbers (e.g. 0.0163 ha →
-    // 163 m²); rounding removes floating-point noise without losing precision.
-    const sizeSquareMetres = Math.round(
-      getIndividualTreeAreaHectares(treeSize) * SQ_METRES_PER_HECTARE
-    )
-    return { sizeSquareMetres, area: sizeSquareMetres }
-  } catch (error) {
-    if (error instanceof BaselineLookupError) {
-      return { sizeSquareMetres: null, area: null }
-    }
-    throw error
-  }
 }
 
 function buildTree(feature, keys) {
@@ -286,34 +253,6 @@ function embedLinearFeatureSizes(documents, sizeEntries) {
 }
 
 /**
- * Sum the notional tree areas (already embedded on each tree document by
- * buildTree), both overall and grouped by urban/rural habitat type — the
- * grouped totals the story requires the system to store per habitat type.
- *
- * @param {object[]} treeDocuments
- * @returns {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }}
- */
-function summarizeTreeSizes(treeDocuments) {
-  // Sizes are summed per tree type; only the urban/rural buckets are read back,
-  // so any unknown type still counts toward the total but not the split.
-  const sizeByType = new Map()
-  let totalSquareMetres = 0
-  for (const tree of treeDocuments) {
-    const size = tree.sizeSquareMetres
-    if (typeof size !== 'number' || !Number.isFinite(size)) {
-      continue
-    }
-    totalSquareMetres += size
-    sizeByType.set(tree.type, (sizeByType.get(tree.type) ?? 0) + size)
-  }
-  return {
-    totalSquareMetres,
-    urbanSquareMetres: sizeByType.get(URBAN_TREE_TYPE) ?? 0,
-    ruralSquareMetres: sizeByType.get(RURAL_TREE_TYPE) ?? 0
-  }
-}
-
-/**
  * @param {object} habitats
  * @param {object} hedgerows
  * @param {object} watercourses
@@ -350,7 +289,7 @@ function embedHabitatSizes(
   embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
   embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
 
-  const treeSizes = summarizeTreeSizes(trees.documents)
+  const treeSizes = summarizeTreeSizes(trees.documents, (tree) => tree.type)
 
   return {
     // "Total area size": area-habitat parcels plus individual trees. Trees are a

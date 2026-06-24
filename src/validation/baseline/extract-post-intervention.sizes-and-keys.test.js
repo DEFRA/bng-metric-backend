@@ -43,9 +43,17 @@ describe('extractPostIntervention — habitatSizes embedding', () => {
     expect(out.document.habitats[0].sizeSquareMetres).toBe(HABITAT_SQM)
     expect(out.document.habitats[0].area).toBe(HABITAT_SQM)
     expect(out.document.habitatSizes).toEqual({
+      // No trees in this fixture, so the area-habitats total equals the parcel
+      // total and the site total (which excludes trees) matches it.
       areaHabitats: { totalSquareMetres: HABITAT_SQM },
       hedgerows: { totalMetres: 0 },
-      watercourses: { totalMetres: 0 }
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 0,
+        urbanSquareMetres: 0,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: HABITAT_SQM }
     })
   })
 

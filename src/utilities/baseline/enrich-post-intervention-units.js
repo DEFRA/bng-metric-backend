@@ -46,11 +46,10 @@ function hasPositiveLinearSize(sizeMetres) {
 }
 
 /**
- * @param {object} habitat
+ * @param {unknown} area
  * @returns {boolean}
  */
-function hasValidAreaHabitatSize(habitat) {
-  const { area } = habitat
+function isPositiveFiniteArea(area) {
   return typeof area === 'number' && Number.isFinite(area) && area > 0
 }
 
@@ -120,9 +119,12 @@ function handleEnrichmentError(error, feature, side, warn) {
 function enrichPostInterventionAreaSide(habitat, side, logger) {
   const subObject = habitat[side]
   const condition = normalizeConditionForEngine(subObject?.condition)
+  // Parcels share one PostGIS area across both sides (top-level `area`); trees
+  // carry a per-side notional area, so prefer the sub-object's own area.
+  const area = subObject?.area ?? habitat.area
 
-  if (condition && hasValidAreaHabitatSize(habitat)) {
-    const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
+  if (condition && isPositiveFiniteArea(area)) {
+    const sizeHa = area / SQ_METRES_PER_HECTARE
     const habitatProxy = {
       type: subObject?.type,
       broadType: subObject?.broadType
@@ -267,7 +269,7 @@ function enrichPostInterventionWatercourseWithUnits(watercourse, logger) {
  * encroachment multipliers). Always sets `postInterventionDocument.units` totals
  * afterward.
  *
- * @param {{ habitats?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
+ * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {typeof postInterventionDocument}
  */
@@ -277,6 +279,13 @@ export function enrichPostInterventionDocumentWithUnits(
 ) {
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.habitats,
+    enrichPostInterventionAreaHabitat,
+    logger
+  )
+  // Individual trees are a special area habitat: they enrich on the same
+  // baseline/proposed area path, with each side using its own notional area.
+  enrichCollectionIfNonEmpty(
+    postInterventionDocument?.trees,
     enrichPostInterventionAreaHabitat,
     logger
   )

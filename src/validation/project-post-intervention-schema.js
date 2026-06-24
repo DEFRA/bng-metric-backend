@@ -142,6 +142,119 @@ const postInterventionHabitatSchema = Joi.object({
 )
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Individual tree sub-schemas
+// ──────────────────────────────────────────────────────────────────────────────
+
+// Fields shared by both tree sides. Trees are points, so each side carries its
+// own notional area (derived from that side's tree-size band) on top of the
+// distinctiveness/condition block reused from the area-habitat sub-objects.
+function treeSideCommonFields() {
+  return {
+    type: Joi.string()
+      .allow(null, '')
+      .description(
+        "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
+      ),
+    broadType: Joi.string()
+      .allow(null, '')
+      .description("Always 'Individual trees' for tree features."),
+    ...baselineCommonFields(),
+    strategicSignificance: Joi.string()
+      .allow(null, '')
+      .description('Strategic Significance from the GeoPackage.'),
+    treeSize: Joi.string()
+      .allow(null, '')
+      .description(
+        "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
+      ),
+    treeSpecies: Joi.string()
+      .allow(null, '')
+      .description('Tree species/type free text (Tree Type column).'),
+    ruralOrUrban: Joi.string()
+      .allow(null, '')
+      .description(
+        'Raw Rural or Urban Tree value as written in the GeoPackage.'
+      ),
+    sizeSquareMetres: Joi.number()
+      .allow(null)
+      .description('Notional tree area in square metres (per-size reference).'),
+    area: Joi.number()
+      .allow(null)
+      .description('Notional tree area in square metres, rounded.')
+  }
+}
+
+const postInterventionTreeBaselineSubSchema = Joi.object({
+  ...treeSideCommonFields(),
+  retentionCategory: Joi.string()
+    .allow(null, '')
+    .description('Retention Category from the GeoPackage.')
+}).description(
+  'Baseline individual-tree values from the Baseline * GeoPackage columns.'
+)
+
+const postInterventionTreeProposedSubSchema = Joi.object({
+  ...treeSideCommonFields(),
+  advanceYears: Joi.number()
+    .allow(null)
+    .description(
+      'Habitat created in advance (years) from the GeoPackage; null when N/A.'
+    ),
+  delayYears: Joi.number()
+    .allow(null)
+    .description(
+      'Delay in starting habitat creation (years) from the GeoPackage; null when N/A.'
+    )
+}).description(
+  'Proposed individual-tree values from the Proposed * GeoPackage columns.'
+)
+
+const postInterventionTreeSchema = Joi.object({
+  featureId: Joi.string()
+    .uuid()
+    .required()
+    .description(
+      'UUID assigned on import; join key to the bng.post_intervention_trees geometry row.'
+    ),
+  ref: Joi.string()
+    .allow(null, '')
+    .description('Tree reference from the GeoPackage (Tree Ref column).'),
+  area: Joi.number()
+    .allow(null)
+    .description(
+      'Notional tree area in square metres (proposed side), rounded.'
+    ),
+  sizeSquareMetres: Joi.number()
+    .allow(null)
+    .description('Notional tree area in square metres (proposed side).'),
+  units: Joi.number()
+    .allow(null)
+    .description(
+      'Post-intervention biodiversity units for the tree, calculated from proposed values.'
+    ),
+  status: Joi.string()
+    .valid('Complete', 'Incomplete')
+    .required()
+    .description(
+      "'Complete' when proposed broad type, type and condition are all set."
+    ),
+  count: Joi.number()
+    .allow(null)
+    .description(
+      'Count column from the GeoPackage; each tree is treated as a single tree (one row).'
+    ),
+  baseline: postInterventionTreeBaselineSubSchema,
+  proposed: postInterventionTreeProposedSubSchema,
+  properties: Joi.object()
+    .unknown(true)
+    .description(
+      'Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer.'
+    )
+}).description(
+  'A post-intervention individual tree (point) with nested baseline and proposed sub-objects.'
+)
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Hedgerow sub-schemas
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -289,6 +402,9 @@ const postInterventionDataSchema = Joi.object({
   habitats: Joi.array()
     .items(postInterventionHabitatSchema)
     .description('Post-intervention area (polygon) habitat parcels.'),
+  trees: Joi.array()
+    .items(postInterventionTreeSchema)
+    .description('Post-intervention individual tree (point) features.'),
   hedgerows: Joi.array()
     .items(postInterventionLinearHabitatSchema)
     .description('Post-intervention hedgerow (linear) features.'),
@@ -304,6 +420,7 @@ const postInterventionDataSchema = Joi.object({
 export {
   postInterventionDataSchema,
   postInterventionHabitatSchema,
+  postInterventionTreeSchema,
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
 }

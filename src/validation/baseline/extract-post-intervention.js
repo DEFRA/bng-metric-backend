@@ -8,7 +8,30 @@ import {
   postInterventionHedgerowStatus,
   postInterventionWatercourseStatus
 } from '../../services/baseline/calculate-habitat-statuses.js'
+import {
+  INDIVIDUAL_TREES_BROAD_HABITAT,
+  treeHabitatTypeFromRuralUrban
+} from './tree-constants.js'
+import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
+
+// Tree columns differ between the baseline and proposed sides exactly like the
+// other habitat columns: the baseline sub-object reads the "Baseline *" tree
+// columns, the proposed sub-object the "Proposed *" tree columns.
+const BASELINE_TREE_KEYS = {
+  treeSize: PROP_KEYS.treeSize,
+  treeType: PROP_KEYS.treeType,
+  ruralOrUrbanTree: PROP_KEYS.ruralOrUrbanTree,
+  condition: PROP_KEYS.condition,
+  strategicSignificance: PROP_KEYS.strategicSignificance
+}
+const PROPOSED_TREE_KEYS = {
+  treeSize: PROP_KEYS.proposedTreeSize,
+  treeType: PROP_KEYS.proposedTreeType,
+  ruralOrUrbanTree: PROP_KEYS.proposedRuralOrUrbanTree,
+  condition: PROPOSED_PROP_KEYS.condition,
+  strategicSignificance: PROPOSED_PROP_KEYS.strategicSignificance
+}
 
 /** GeoPackage literal when advance/delay columns do not apply (Lost features). */
 const GPKG_NOT_APPLICABLE = 'N/A'
@@ -209,6 +232,81 @@ function buildPostInterventionHabitat(feature) {
   )
 }
 
+/**
+ * Build one side (baseline or proposed) of a post-intervention individual tree.
+ * Trees are points, so each side carries its own notional area derived from that
+ * side's tree-size band (the baseline and proposed sizes can differ).
+ *
+ * @param {object} props
+ * @param {{ treeSize: string[], treeType: string[], ruralOrUrbanTree: string[], condition: string[], strategicSignificance: string[] }} keys
+ * @returns {object}
+ */
+function buildTreeSide(props, keys) {
+  const treeSize = pickProp(props, keys.treeSize)
+  const ruralOrUrban = pickProp(props, keys.ruralOrUrbanTree)
+  const { sizeSquareMetres, area } = treeAreaFields(treeSize)
+  return {
+    type: treeHabitatTypeFromRuralUrban(ruralOrUrban),
+    broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
+    condition: stripConditionPrefix(pickProp(props, keys.condition)),
+    conditionScore: null,
+    distinctiveness: null,
+    distinctivenessScore: null,
+    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    treeSize,
+    treeSpecies: pickProp(props, keys.treeType),
+    ruralOrUrban,
+    sizeSquareMetres,
+    area
+  }
+}
+
+function buildTreeBaselineSubObject(props) {
+  return {
+    ...buildTreeSide(props, BASELINE_TREE_KEYS),
+    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory)
+  }
+}
+
+function buildTreeProposedSubObject(props) {
+  return {
+    ...buildTreeSide(props, PROPOSED_TREE_KEYS),
+    ...buildAdvanceDelayFields(props)
+  }
+}
+
+/**
+ * Build a post-intervention individual tree. Mirrors the baseline tree shape but
+ * splits the attributes into baseline/proposed sub-objects like the other
+ * post-intervention features. Top-level `area`/`sizeSquareMetres`/`units` reflect
+ * the proposed side, consistent with the area-habitat parcels.
+ *
+ * @param {object} feature
+ */
+function buildPostInterventionTree(feature) {
+  const { featureId, props } = initParsedFeature(feature)
+  const ref = pickProp(props, PROP_KEYS.treeRef)
+  const proposed = buildTreeProposedSubObject(props)
+  const baseline = buildTreeBaselineSubObject(props)
+  const document = {
+    featureId,
+    ref,
+    area: proposed.area,
+    sizeSquareMetres: proposed.sizeSquareMetres,
+    units: null,
+    status: null,
+    count: pickProp(props, PROP_KEYS.treeCount),
+    baseline,
+    proposed,
+    properties: props
+  }
+  document.status = postInterventionAreaStatus(document)
+  return {
+    document,
+    geometryRow: buildGeometryRow(feature, featureId, ref)
+  }
+}
+
 function buildPostInterventionHedgerow(feature) {
   return buildPostInterventionFeature(
     feature,
@@ -341,10 +439,17 @@ function embedLinearFeatureSizes(documents, sizeEntries) {
  * @param {object} habitats
  * @param {object} hedgerows
  * @param {object} watercourses
+ * @param {object} trees
  * @param {object} habitatSizes
  * @returns {object}
  */
-function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
+function embedHabitatSizes(
+  habitats,
+  hedgerows,
+  watercourses,
+  trees,
+  habitatSizes
+) {
   const {
     areaHabitats,
     hedgerows: hedgerowSizes,
@@ -367,10 +472,26 @@ function embedHabitatSizes(habitats, hedgerows, watercourses, habitatSizes) {
   embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
   embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
 
+  // Trees use the proposed-side notional area embedded by buildPostInterventionTree.
+  const treeSizes = summarizeTreeSizes(
+    trees.documents,
+    (tree) => tree.proposed?.type
+  )
+
   return {
-    areaHabitats: { totalSquareMetres: areaHabitats.totalSquareMetres },
+    // "Total area size": area-habitat parcels plus individual trees (a special
+    // area habitat whose notional area is summed into the headline figure).
+    areaHabitats: {
+      totalSquareMetres:
+        areaHabitats.totalSquareMetres + treeSizes.totalSquareMetres
+    },
     hedgerows: { totalMetres: hedgerowSizes.totalMetres },
-    watercourses: { totalMetres: wcSizes.totalMetres }
+    watercourses: { totalMetres: wcSizes.totalMetres },
+    trees: treeSizes,
+    // "Site" size: parcel area EXCLUDING special habitats (currently individual
+    // trees), so the notional tree areas must not inflate the figure compared
+    // against the red line boundary.
+    site: { totalSquareMetres: areaHabitats.totalSquareMetres }
   }
 }
 
@@ -403,6 +524,7 @@ function buildRedLine(features) {
  * @param {object[]} layers.areas
  * @param {object[]} layers.hedgerows
  * @param {object[]} layers.watercourses
+ * @param {object[]} [layers.trees]
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
  * @param {string} [meta.filename]
@@ -425,9 +547,16 @@ export function extractPostIntervention(layers, meta = {}) {
     layers.watercourses ?? [],
     buildPostInterventionWatercourse
   )
+  const trees = splitFeatures(layers.trees ?? [], buildPostInterventionTree)
 
   const habitatSizesSummary = meta.habitatSizes
-    ? embedHabitatSizes(habitats, hedgerows, watercourses, meta.habitatSizes)
+    ? embedHabitatSizes(
+        habitats,
+        hedgerows,
+        watercourses,
+        trees,
+        meta.habitatSizes
+      )
     : null
 
   return {
@@ -440,13 +569,15 @@ export function extractPostIntervention(layers, meta = {}) {
       habitats: habitats.documents,
       hedgerows: hedgerows.documents,
       watercourses: watercourses.documents,
+      trees: trees.documents,
       habitatSizes: habitatSizesSummary
     },
     geometries: {
       redLine: redLine.geometryRow,
       habitats: habitats.geometries,
       hedgerows: hedgerows.geometries,
-      watercourses: watercourses.geometries
+      watercourses: watercourses.geometries,
+      trees: trees.geometries
     }
   }
 }

@@ -278,8 +278,16 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       expect.objectContaining({
         areaHabitats: expect.any(Object),
         hedgerows: expect.any(Object),
-        watercourses: expect.any(Object)
+        watercourses: expect.any(Object),
+        trees: expect.any(Object),
+        site: expect.any(Object)
       })
+    )
+    // Trees are imported on the post-intervention path too (this fixture carries
+    // none, so the array and its geometry table are empty but present).
+    expect(Array.isArray(stored.postIntervention.trees)).toBe(true)
+    expect(await countLayer('post_intervention_trees', project.id)).toBe(
+      stored.postIntervention.trees.length
     )
     expect(stored.postIntervention.units).toEqual(
       expect.objectContaining({

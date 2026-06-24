@@ -500,3 +500,91 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('unknown'))
   })
 })
+
+// Per-size reference areas in m²: Small 41, Medium 163.
+const SMALL_TREE_SQM = 41
+const MEDIUM_TREE_SQM = 163
+
+function makeTree(overrides = {}) {
+  return {
+    featureId: FEAT_ID,
+    ref: 'T1',
+    area: MEDIUM_TREE_SQM,
+    sizeSquareMetres: MEDIUM_TREE_SQM,
+    units: null,
+    status: 'Incomplete',
+    count: 1,
+    baseline: {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null,
+      strategicSignificance: null,
+      retentionCategory: 'Retained',
+      treeSize: 'Small',
+      treeSpecies: 'Oak',
+      ruralOrUrban: 'Urban',
+      sizeSquareMetres: SMALL_TREE_SQM,
+      area: SMALL_TREE_SQM
+    },
+    proposed: {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null,
+      strategicSignificance: null,
+      treeSize: 'Medium',
+      treeSpecies: 'Oak',
+      ruralOrUrban: 'Urban',
+      sizeSquareMetres: MEDIUM_TREE_SQM,
+      area: MEDIUM_TREE_SQM,
+      advanceYears: 0,
+      delayYears: 0
+    },
+    properties: {},
+    ...overrides
+  }
+}
+
+describe('enrichPostInterventionDocumentWithUnits — individual trees', () => {
+  it('enriches both sides using each side’s own area and totals trees by type', () => {
+    const doc = {
+      habitats: [],
+      trees: [makeTree()],
+      hedgerows: [],
+      watercourses: []
+    }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    const tree = doc.trees[0]
+    // Proposed side drives top-level units, computed from the proposed area
+    // (Medium = 163 m² = 0.0163 ha): 0.0163 × distinctiveness 4 × condition 3.
+    expect(tree.proposed.distinctiveness).toBe('Medium')
+    expect(tree.proposed.conditionScore).toBe(3)
+    expect(tree.units).toBeCloseTo(0.1956, 4)
+    expect(tree.status).toBe('Complete')
+
+    // Baseline side enriches from the baseline area (Small = 41 m²): 0.0041 × 4 × 3.
+    expect(tree.baseline.distinctiveness).toBe('Medium')
+    expect(tree.baseline.conditionScore).toBe(3)
+
+    expect(doc.units.treesTotal).toBeCloseTo(0.1956, 4)
+    expect(doc.units.treesUrbanTotal).toBeCloseTo(0.1956, 4)
+    expect(doc.units.treesRuralTotal).toBe(0)
+  })
+
+  it('leaves units unset and status Incomplete when proposed type is missing', () => {
+    const tree = makeTree()
+    tree.proposed.type = null
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.trees[0].units).toBeNull()
+    expect(doc.trees[0].status).toBe('Incomplete')
+    expect(doc.units.treesTotal).toBe(0)
+  })
+})
