@@ -1,0 +1,119 @@
+{
+  "Species-rich native hedgerow with trees - associated with bank or ditch": {
+    "Good": 20,
+    "Fairly Good": "Not Possible",
+    "Moderate": 10,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Species-rich native hedgerow with trees": {
+    "Good": 20,
+    "Fairly Good": "Not Possible",
+    "Moderate": 10,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Species-rich native hedgerow - associated with bank or ditch": {
+    "Good": 12,
+    "Fairly Good": "Not Possible",
+    "Moderate": 5,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Native hedgerow with trees - associated with bank or ditch": {
+    "Good": 20,
+    "Fairly Good": "Not Possible",
+    "Moderate": 10,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Species-rich native hedgerow": {
+    "Good": 12,
+    "Fairly Good": "Not Possible",
+    "Moderate": 5,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Native hedgerow - associated with bank or ditch": {
+    "Good": 12,
+    "Fairly Good": "Not Possible",
+    "Moderate": 5,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Native hedgerow with trees": {
+    "Good": 20,
+    "Fairly Good": "Not Possible",
+    "Moderate": 10,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Ecologically valuable line of trees": {
+    "Good": "30+",
+    "Fairly Good": "Not Possible",
+    "Moderate": 20,
+    "Fairly Poor": "Not Possible",
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Ecologically valuable line of trees - associated with bank or ditch": {
+    "Good": "30+",
+    "Fairly Good": "Not Possible",
+    "Moderate": 20,
+    "Fairly Poor": "Not Possible",
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Native hedgerow": {
+    "Good": 12,
+    "Fairly Good": "Not Possible",
+    "Moderate": 5,
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Line of trees": {
+    "Good": "30+",
+    "Fairly Good": "Not Possible",
+    "Moderate": 20,
+    "Fairly Poor": "Not Possible",
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Line of trees - associated with bank or ditch": {
+    "Good": "30+",
+    "Fairly Good": "Not Possible",
+    "Moderate": 20,
+    "Fairly Poor": "Not Possible",
+    "Poor": 5,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  },
+  "Non-native and ornamental hedgerow": {
+    "Good": "Not Possible",
+    "Fairly Good": "Not Possible",
+    "Moderate": "Not Possible",
+    "Fairly Poor": "Not Possible",
+    "Poor": 1,
+    "Condition Assessment N/A": "Not Possible",
+    "N/A - Other": "Not Possible"
+  }
+}

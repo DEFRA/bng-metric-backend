@@ -1,5 +1,10 @@
-import { BaselineLookupError } from './errors.js'
 import { roundToSigFigs } from './utils.js'
+import {
+  resolveEncroachmentMultiplier,
+  resolveLinearConditionScore,
+  resolveLinearDistinctiveness,
+  validateLinearLength
+} from './linear-resolvers.js'
 import {
   HEDGEROW_CONDITION_SCORES,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
@@ -13,195 +18,6 @@ import {
 
 /** Metric uses 1 for baseline */
 const BASELINE_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
-
-/**
- * @param {string} habitatType
- * @param {Record<string, string>} categoryMap
- * @param {Record<string, { Score: number }>} scoresMap
- * @param {string} label - e.g. "hedgerow" or "watercourse"
- * @returns {{ distinctiveness: string, distinctivenessScore: number }}
- */
-function resolveLinearDistinctiveness(
-  habitatType,
-  categoryMap,
-  scoresMap,
-  label
-) {
-  if (!habitatType || typeof habitatType !== 'string') {
-    throw new BaselineLookupError(`${label} type must be a non-empty string`)
-  }
-  const distinctiveness = categoryMap[habitatType]
-  if (!distinctiveness) {
-    throw new BaselineLookupError(
-      `Distinctiveness not found for ${label} type: ${habitatType}`
-    )
-  }
-  const scoreRow = scoresMap[distinctiveness]
-  if (!scoreRow || typeof scoreRow.Score !== 'number') {
-    throw new BaselineLookupError(
-      `Distinctiveness score not found for band: ${distinctiveness}`
-    )
-  }
-  return { distinctiveness, distinctivenessScore: scoreRow.Score }
-}
-
-/**
- * @param {string} habitatType
- * @param {string} condition
- * @param {Record<string, Record<string, number | string>>} conditionScoresByType
- * @param {string} label - e.g. "hedgerow" or "watercourse"
- * @returns {number}
- */
-function resolveLinearConditionScore(
-  habitatType,
-  condition,
-  conditionScoresByType,
-  label
-) {
-  if (!condition || typeof condition !== 'string') {
-    throw new BaselineLookupError(
-      `${label} condition must be a non-empty string`
-    )
-  }
-  const typeScores = conditionScoresByType[habitatType]
-  if (!typeScores) {
-    throw new BaselineLookupError(
-      `Condition scores not found for ${label} type: ${habitatType}`
-    )
-  }
-  const score = typeScores[condition]
-  if (typeof score !== 'number') {
-    throw new BaselineLookupError(
-      `Condition score not found for ${label} condition: ${condition}`
-    )
-  }
-  return score
-}
-
-/**
- * @param {string} char
- * @returns {boolean}
- */
-function isWhitespaceChar(char) {
-  return (
-    char === ' ' ||
-    char === '\t' ||
-    char === '\n' ||
-    char === '\r' ||
-    char === '\f' ||
-    char === '\v'
-  )
-}
-
-/**
- * Strip a leading "N. " numeric list prefix without regex backtracking.
- *
- * @param {string} value
- * @returns {string}
- */
-function stripLeadingNumericPrefix(value) {
-  let index = 0
-  while (index < value.length && value[index] >= '0' && value[index] <= '9') {
-    index += 1
-  }
-  if (index === 0 || index >= value.length || value[index] !== '.') {
-    return value
-  }
-  index += 1
-  while (index < value.length && isWhitespaceChar(value[index])) {
-    index += 1
-  }
-  return value.slice(index)
-}
-
-/**
- * Collapse whitespace around "/" separators without regex backtracking.
- *
- * @param {string} value
- * @returns {string}
- */
-function collapseSlashSpacing(value) {
-  if (!value.includes('/')) {
-    return value
-  }
-  return value
-    .split('/')
-    .map((part) => part.trim())
-    .join('/')
-}
-
-/**
- * Normalise an encroachment label from GeoPackage exports before lookup.
- * Strips a leading numeric prefix (e.g. "2. Minor" → "Minor") and collapses
- * spaces around "/" (e.g. "3. Minor/ No Encroachment" → "Minor/No Encroachment").
- * Used for both watercourse and riparian encroachment multipliers.
- *
- * @param {string} value
- * @returns {string}
- */
-function normaliseEncroachmentLabel(value) {
-  return collapseSlashSpacing(stripLeadingNumericPrefix(value.trim()))
-}
-
-/**
- * Whether an encroachment value is absent or maps to a known multiplier.
- * Null, undefined, and empty string are treated as recognised (multiplier 1).
- *
- * @param {unknown} value
- * @param {Record<string, number>} lookupMap
- * @returns {boolean}
- */
-export function isRecognisedEncroachmentValue(value, lookupMap) {
-  if (value == null || value === '') {
-    return true
-  }
-  if (typeof value !== 'string') {
-    return false
-  }
-  return typeof lookupMap[normaliseEncroachmentLabel(value)] === 'number'
-}
-
-/**
- * Look up an encroachment multiplier, stripping any leading numeric prefix
- * (e.g. "1. Major/Moderate" → "Major/Moderate") before the lookup.
- * Returns 1 when value is null / undefined / empty string.
- *
- * @param {string | null | undefined} value
- * @param {Record<string, number>} lookupMap
- * @param {string} label - used in error messages
- * @returns {number}
- */
-function resolveEncroachmentMultiplier(value, lookupMap, label) {
-  if (value == null || value === '') {
-    return 1
-  }
-  if (typeof value !== 'string') {
-    throw new BaselineLookupError(`${label} must be a string`)
-  }
-  const multiplier = lookupMap[normaliseEncroachmentLabel(value)]
-  if (typeof multiplier !== 'number') {
-    throw new BaselineLookupError(
-      `Encroachment multiplier not found for ${label}: ${value}`
-    )
-  }
-  return multiplier
-}
-
-/**
- * @param {number} lengthKm
- * @param {string} label
- */
-function validateLinearLength(lengthKm, label) {
-  if (
-    typeof lengthKm !== 'number' ||
-    !Number.isFinite(lengthKm) ||
-    lengthKm <= 0
-  ) {
-    throw new TypeError(
-      `${label} length must be a positive finite number (km), got: ${lengthKm}`
-    )
-  }
-}
 
 /**
  * Get hedgerow baseline biodiversity units for a given length, hedge type,
@@ -258,8 +74,8 @@ export function calculateHedgerowBaseline(lengthKm, hedgeType, condition) {
  * @param {number} lengthKm - Length in kilometres
  * @param {string} watercourseType - Watercourse type (e.g. "Priority habitat")
  * @param {string} condition - Condition band (e.g. "Good", "Moderate")
- * @param {string | null} [watercourseEncroachment] - Encroachment into watercourse (e.g. "2. Minor"); numeric prefix and spaced slashes are normalised before lookup
- * @param {string | null} [riparianEncroachment] - Encroachment into riparian zone (e.g. "3. Minor/ No Encroachment"); numeric prefix and spaced slashes are normalised before lookup
+ * @param {string | null} [watercourseEncroachment] - Encroachment into watercourse (e.g. "Minor")
+ * @param {string | null} [riparianEncroachment] - Encroachment into riparian zone (e.g. "1. Minor/No Encroachment"); leading numeric prefix is stripped automatically
  * @returns {{ units: number, distinctiveness: string, distinctivenessScore: number, conditionScore: number, waterEncroachmentMultiplier: number, riparianEncroachmentMultiplier: number, strategicSignificanceScore: number }}
  * @throws {TypeError} If length is invalid
  * @throws {BaselineLookupError} If any lookup key is not found in the reference tables

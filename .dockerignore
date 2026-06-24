@@ -2,3 +2,4 @@ node_modules
 Dockerfile
 coverage
 **/*.test.js
+bng-metric-engine/scripts

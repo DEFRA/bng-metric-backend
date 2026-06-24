@@ -1,130 +1,22 @@
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
-import { randomUUID } from 'node:crypto'
+import { describe, expect, it } from 'vitest'
 
-import { startServer, stopServer } from './helpers/server.js'
-import { connect } from './helpers/db.js'
-import { truncateTestData } from './helpers/db-cleanup.js'
+import { HTTP_OK, HTTP_NOT_FOUND } from './helpers/http-status.js'
 import {
-  fixturePath,
-  uploadViaCdpUploader,
-  waitForUploadStatus,
-  assertCdpUploaderReachable,
-  assertLocalStackPipelineReady
-} from './helpers/upload-fixtures.js'
-import { mintToken, authHeaders } from './helpers/auth-tokens.js'
+  BNG_SRID,
+  FIXTURE,
+  NULL_AREA_CONDITION_FIXTURE,
+  callValidate,
+  countLayer,
+  createProject,
+  fetchLayerRows,
+  fetchProject,
+  registerPersistenceTestHooks,
+  uploadFixture
+} from './helpers/persistence-test-setup.js'
 
-const HTTP_OK = 200
-const HTTP_NOT_FOUND = 404
-const BNG_SRID = 27700
-const BUCKET = 'baseline-files'
-const FIXTURE = 'baseline-complete.gpkg'
-const NULL_AREA_CONDITION_FIXTURE = 'baseline-null-area-condition.gpkg'
 const UNKNOWN_PROJECT_ID = '00000000-0000-4000-8000-000000000000'
 
-let server
-let dbClient
-let headers
-const userId = `it-${randomUUID()}`
-
-beforeAll(async () => {
-  await assertCdpUploaderReachable()
-  await assertLocalStackPipelineReady()
-  server = await startServer()
-  dbClient = await connect()
-  // Created projects have a null relationship → visible to their owner (sub).
-  headers = authHeaders(await mintToken({ sub: userId }))
-  await truncateTestData(dbClient)
-})
-
-afterEach(async () => {
-  await truncateTestData(dbClient)
-})
-
-afterAll(async () => {
-  await dbClient.end()
-  await stopServer(server)
-})
-
-async function createProject(name) {
-  const res = await server.inject({
-    method: 'POST',
-    url: '/projects/new',
-    headers,
-    payload: { project: { name } }
-  })
-  expect(res.statusCode).toBe(HTTP_OK)
-  return res.result
-}
-
-async function uploadFixture(fixtureName) {
-  const initiated = await server.inject({
-    method: 'POST',
-    url: '/upload/initiate',
-    headers,
-    payload: { redirect: '/done', s3Bucket: BUCKET, s3Path: 'baseline/' }
-  })
-  expect(initiated.statusCode).toBe(HTTP_OK)
-  const { uploadId, uploadUrl } = initiated.result
-  await uploadViaCdpUploader({
-    uploadUrl,
-    filePath: fixturePath(fixtureName)
-  })
-  await waitForUploadStatus(server, uploadId, {
-    target: 'ready',
-    timeoutMs: 20_000,
-    headers
-  })
-  return uploadId
-}
-
-async function callValidate(uploadId, payload) {
-  return server.inject({
-    method: 'POST',
-    url: `/baseline/validate/${uploadId}`,
-    headers,
-    payload
-  })
-}
-
-async function callPostInterventionValidate(uploadId, payload) {
-  return server.inject({
-    method: 'POST',
-    url: `/post-intervention/validate/${uploadId}`,
-    headers,
-    payload
-  })
-}
-
-async function fetchProject(id) {
-  const { rows } = await dbClient.query(
-    'SELECT project FROM bng.projects WHERE id = $1',
-    [id]
-  )
-  return rows[0]?.project
-}
-
-async function countLayer(table, projectId) {
-  const { rows } = await dbClient.query(
-    `SELECT COUNT(*)::int AS c FROM bng.${table} WHERE project_id = $1`,
-    [projectId]
-  )
-  return rows[0].c
-}
-
-// `ref` is intentionally omitted from the SELECT — bng.baseline_red_line has no
-// ref column (only one red line per project, so a per-feature ref would be
-// meaningless), and none of the assertions consume it anyway.
-async function fetchLayerRows(table, projectId) {
-  const { rows } = await dbClient.query(
-    `SELECT id, ST_SRID(geom) AS srid, ST_IsValid(geom) AS is_valid,
-            GeometryType(geom) AS geom_type
-       FROM bng.${table}
-      WHERE project_id = $1
-      ORDER BY id`,
-    [projectId]
-  )
-  return rows
-}
+registerPersistenceTestHooks()
 
 describe('POST /baseline/validate/{uploadId} — persistence (document + red line)', () => {
   it('persists the unpacked baseline against the project', async () => {
@@ -136,7 +28,6 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toEqual({ valid: true, errors: [] })
 
-    // JSONB document carries the baseline block
     const stored = await fetchProject(project.id)
     expect(stored.baseline).toBeDefined()
     expect(stored.baseline.uploadId).toBe(uploadId)
@@ -209,8 +100,6 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
           condition: expect.anything()
         })
       )
-      // distinctiveness is derived; allow null for habitat types that don't
-      // appear in the lookup (real-world data isn't always pristine).
       expect(habitat).toHaveProperty('distinctiveness')
       expect(habitat).toHaveProperty('strategicSignificance')
       expect(habitat).toHaveProperty('retentionCategory')
@@ -361,6 +250,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
   })
 })
 
+
 describe('POST /baseline/validate/{uploadId} - persistence (per-layer feature rows)', () => {
   it('inserts one habitat row per habitat in 27700 with valid geometry, matched to the JSONB by featureId', async () => {
     const project = await createProject('Integration test — habitats')
@@ -390,7 +280,6 @@ describe('POST /baseline/validate/{uploadId} - persistence (per-layer feature ro
 
     for (const table of ['baseline_hedgerows', 'baseline_watercourses']) {
       const rows = await fetchLayerRows(table, project.id)
-      // Fixture may or may not contain these layers — assert shape only when present.
       for (const row of rows) {
         expect(row.srid).toBe(BNG_SRID)
         expect(row.is_valid).toBe(true)
@@ -439,7 +328,6 @@ describe('POST /baseline/validate/{uploadId} — re-upload behaviour', () => {
       secondStored.baseline.habitats.map((h) => h.featureId)
     )
 
-    // No overlap — every habitat got a fresh UUID on the second import.
     for (const id of secondIds) {
       expect(firstIds.has(id)).toBe(false)
     }
@@ -480,8 +368,6 @@ describe('POST /baseline/validate/{uploadId} — with a projectId that does not 
 
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
 
-    // No project means we can't filter by project_id; assert the unknown id
-    // also has no rows (which it shouldn't, since the transaction rolled back).
     for (const table of [
       'baseline_red_line',
       'baseline_habitats',

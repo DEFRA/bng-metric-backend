@@ -19,6 +19,7 @@ import {
   recomputeAreaHabitat,
   recomputeHedgerow
 } from '../../validation/baseline/unit-calculation.js'
+import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
 
 import { summarizeFeatureSetUnitsTotals } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
@@ -57,13 +58,20 @@ function normalizeEdits(edits = {}) {
   }
 }
 
-function recomputeForType(type, existing, edits) {
+function recomputeForType(type, existing, edits, documentKey) {
   if (type === 'habitat') {
+    if (documentKey === 'postIntervention') {
+      return recomputePostInterventionAreaHabitat(existing, {
+        broadType: edits.broadType,
+        habitatType: edits.habitatType,
+        condition: edits.condition
+      })
+    }
     return recomputeAreaHabitat({
       broadType: edits.broadType,
       habitatType: edits.habitatType,
       condition: edits.condition,
-      sizeSquareMetres: existing.sizeSquareMetres ?? null
+      sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
     })
   } else if (type === 'hedgerow') {
     return recomputeHedgerow({
@@ -100,6 +108,12 @@ function mergePostInterventionFeature(type, existing, edits, derived) {
     distinctiveness: derived.distinctiveness,
     distinctivenessScore: derived.distinctivenessScore,
     conditionScore: derived.conditionScore
+  }
+  if (derived.timeMultiplier != null) {
+    updatedProposed.timeMultiplier = derived.timeMultiplier
+  }
+  if (derived.difficultyMultiplier != null) {
+    updatedProposed.difficultyMultiplier = derived.difficultyMultiplier
   }
   if (type === 'habitat') {
     updatedProposed.broadType = edits.broadType
@@ -170,15 +184,25 @@ function applyFeatureUpdate(
   } else if (expectedType && found.type !== expectedType) {
     return { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
   } else {
-    const derived = recomputeForType(found.type, found.feature, normalizedEdits)
+    const derived = recomputeForType(
+      found.type,
+      found.feature,
+      normalizedEdits,
+      documentKey
+    )
     if (derived) {
-      const updatedFeature = mergeFeature(
-        found.type,
-        found.feature,
-        normalizedEdits,
-        derived,
-        documentKey
-      )
+      const updatedFeature =
+        documentKey === 'postIntervention' &&
+        found.type === 'habitat' &&
+        derived.updatedFeature
+          ? derived.updatedFeature
+          : mergeFeature(
+              found.type,
+              found.feature,
+              normalizedEdits,
+              derived,
+              documentKey
+            )
       const index = featureSet[found.key].findIndex(
         (f) => f?.featureId === featureId
       )
