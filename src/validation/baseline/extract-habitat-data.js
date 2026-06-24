@@ -11,21 +11,12 @@ import {
   treeHabitatTypeFromRuralUrban
 } from './tree-constants.js'
 import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
+import {
+  embedParcelSizes,
+  buildHabitatSizesSummary,
+  buildExtractResult
+} from './extract-shared.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
-
-/**
- * @param {number | null | undefined} sizeSquareMetres
- * @returns {number | null}
- */
-function areaFromSizeSquareMetres(sizeSquareMetres) {
-  if (
-    typeof sizeSquareMetres !== 'number' ||
-    !Number.isFinite(sizeSquareMetres)
-  ) {
-    return null
-  }
-  return Math.round(sizeSquareMetres)
-}
 
 // Survey / provenance / planning metadata columns common to the Habitats,
 // Hedgerows and Rivers layers. These are single shared columns (no
@@ -267,46 +258,19 @@ function embedHabitatSizes(
   trees,
   habitatSizes
 ) {
-  const {
-    areaHabitats,
-    hedgerows: hedgerowSizes,
-    watercourses: wcSizes
-  } = habitatSizes
-
-  const areaSizesByFeatureId = new Map(
-    areaHabitats.individualSquareMetres.map((entry) => [
-      entry.featureId,
-      entry.sizeSquareMetres
-    ])
+  embedParcelSizes(habitats.documents, habitatSizes.areaHabitats)
+  embedLinearFeatureSizes(
+    hedgerows.documents,
+    habitatSizes.hedgerows.individualMetres
   )
-  for (const document of habitats.documents) {
-    const sizeSquareMetres =
-      areaSizesByFeatureId.get(document.featureId) ?? null
-    document.sizeSquareMetres = sizeSquareMetres
-    document.area = areaFromSizeSquareMetres(sizeSquareMetres)
-  }
+  embedLinearFeatureSizes(
+    watercourses.documents,
+    habitatSizes.watercourses.individualMetres
+  )
 
-  embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
-  embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
-
+  // Baseline trees carry their urban/rural habitat type on the top-level `type`.
   const treeSizes = summarizeTreeSizes(trees.documents, (tree) => tree.type)
-
-  return {
-    // "Total area size": area-habitat parcels plus individual trees. Trees are a
-    // special area habitat, so their notional area is summed into the headline
-    // area-habitats size shown on the habitat list.
-    areaHabitats: {
-      totalSquareMetres:
-        areaHabitats.totalSquareMetres + treeSizes.totalSquareMetres
-    },
-    hedgerows: { totalMetres: hedgerowSizes.totalMetres },
-    watercourses: { totalMetres: wcSizes.totalMetres },
-    trees: treeSizes,
-    // "Site" size: habitat parcel area EXCLUDING special habitats (currently
-    // individual trees). This is the figure compared against the red line
-    // boundary area, so the notional tree areas must not inflate it.
-    site: { totalSquareMetres: areaHabitats.totalSquareMetres }
-  }
+  return buildHabitatSizesSummary(habitatSizes, treeSizes)
 }
 
 /**
@@ -369,25 +333,9 @@ export function extractHabitatData(layers, meta = {}) {
     )
   }
 
-  return {
-    document: {
-      uploadId: meta.uploadId ?? null,
-      filename: meta.filename ?? null,
-      fileSize: meta.fileSize ?? null,
-      importedAt: meta.importedAt ?? new Date().toISOString(),
-      redLine: redLine.document,
-      habitats: habitats.documents,
-      hedgerows: hedgerows.documents,
-      watercourses: watercourses.documents,
-      trees: trees.documents,
-      habitatSizes: habitatSizesSummary
-    },
-    geometries: {
-      redLine: redLine.geometryRow,
-      habitats: habitats.geometries,
-      hedgerows: hedgerows.geometries,
-      watercourses: watercourses.geometries,
-      trees: trees.geometries
-    }
-  }
+  return buildExtractResult(
+    meta,
+    { redLine, habitats, hedgerows, watercourses, trees },
+    habitatSizesSummary
+  )
 }

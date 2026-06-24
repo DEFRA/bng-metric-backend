@@ -60,6 +60,37 @@ function proposedCommonFields() {
   }
 }
 
+// Top-level fields shared by every post-intervention area-type feature
+// (polygon parcels and individual trees): the join key, ref, area/size, units
+// and status. `proposed`/`baseline` sub-objects and `properties` are appended
+// per feature type.
+function postInterventionAreaFeatureFields({
+  geometryRow,
+  refDescription,
+  areaDescription,
+  sizeDescription,
+  unitsDescription
+}) {
+  return {
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
+      ),
+    ref: Joi.string().allow(null, '').description(refDescription),
+    area: Joi.number().allow(null).description(areaDescription),
+    sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),
+    units: Joi.number().allow(null).description(unitsDescription),
+    status: Joi.string()
+      .valid('Complete', 'Incomplete')
+      .required()
+      .description(
+        "'Complete' when proposed broad type, type and condition are all set."
+      )
+  }
+}
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Area habitat sub-schemas
 // ──────────────────────────────────────────────────────────────────────────────
@@ -102,34 +133,16 @@ const postInterventionHabitatProposedSubSchema = Joi.object({
 )
 
 const postInterventionHabitatSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_habitats geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Parcel reference from the GeoPackage (Parcel Ref column).'),
-  area: Joi.number()
-    .allow(null)
-    .description(
-      'Parcel area in square metres, rounded to the nearest integer.'
-    ),
-  sizeSquareMetres: Joi.number()
-    .allow(null)
-    .description('Exact parcel area in square metres as measured in PostGIS.'),
-  units: Joi.number()
-    .allow(null)
-    .description(
+  ...postInterventionAreaFeatureFields({
+    geometryRow: 'bng.baseline_habitats',
+    refDescription: 'Parcel reference from the GeoPackage (Parcel Ref column).',
+    areaDescription:
+      'Parcel area in square metres, rounded to the nearest integer.',
+    sizeDescription:
+      'Exact parcel area in square metres as measured in PostGIS.',
+    unitsDescription:
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
-    ),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description(
-      "'Complete' when proposed broad type, type and condition are all set."
-    ),
+  }),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()
@@ -210,34 +223,15 @@ const postInterventionTreeProposedSubSchema = Joi.object({
 )
 
 const postInterventionTreeSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.post_intervention_trees geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Tree reference from the GeoPackage (Tree Ref column).'),
-  area: Joi.number()
-    .allow(null)
-    .description(
-      'Notional tree area in square metres (proposed side), rounded.'
-    ),
-  sizeSquareMetres: Joi.number()
-    .allow(null)
-    .description('Notional tree area in square metres (proposed side).'),
-  units: Joi.number()
-    .allow(null)
-    .description(
+  ...postInterventionAreaFeatureFields({
+    geometryRow: 'bng.post_intervention_trees',
+    refDescription: 'Tree reference from the GeoPackage (Tree Ref column).',
+    areaDescription:
+      'Notional tree area in square metres (proposed side), rounded.',
+    sizeDescription: 'Notional tree area in square metres (proposed side).',
+    unitsDescription:
       'Post-intervention biodiversity units for the tree, calculated from proposed values.'
-    ),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description(
-      "'Complete' when proposed broad type, type and condition are all set."
-    ),
+  }),
   count: Joi.number()
     .allow(null)
     .description(

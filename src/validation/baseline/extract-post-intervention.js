@@ -13,6 +13,11 @@ import {
   treeHabitatTypeFromRuralUrban
 } from './tree-constants.js'
 import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
+import {
+  embedParcelSizes,
+  buildHabitatSizesSummary,
+  buildExtractResult
+} from './extract-shared.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
 
 // Tree columns differ between the baseline and proposed sides exactly like the
@@ -74,21 +79,6 @@ function buildAdvanceDelayFields(props, advanceDelayKeys = PROPOSED_PROP_KEYS) {
   return {
     advanceYears: parseProposedAdvanceDelayYears(rawAdvance),
     delayYears: parseProposedAdvanceDelayYears(rawDelay)
-  }
-}
-
-/**
- * @param {number | null | undefined} sizeSquareMetres
- * @returns {number | null}
- */
-function areaFromSizeSquareMetres(sizeSquareMetres) {
-  if (
-    typeof sizeSquareMetres !== 'number' ||
-    !Number.isFinite(sizeSquareMetres)
-  ) {
-    return null
-  } else {
-    return Math.round(sizeSquareMetres)
   }
 }
 
@@ -450,49 +440,23 @@ function embedHabitatSizes(
   trees,
   habitatSizes
 ) {
-  const {
-    areaHabitats,
-    hedgerows: hedgerowSizes,
-    watercourses: wcSizes
-  } = habitatSizes
-
-  const areaSizesByFeatureId = new Map(
-    areaHabitats.individualSquareMetres.map((entry) => [
-      entry.featureId,
-      entry.sizeSquareMetres
-    ])
+  embedParcelSizes(habitats.documents, habitatSizes.areaHabitats)
+  embedLinearFeatureSizes(
+    hedgerows.documents,
+    habitatSizes.hedgerows.individualMetres
   )
-  for (const document of habitats.documents) {
-    const sizeSquareMetres =
-      areaSizesByFeatureId.get(document.featureId) ?? null
-    document.sizeSquareMetres = sizeSquareMetres
-    document.area = areaFromSizeSquareMetres(sizeSquareMetres)
-  }
+  embedLinearFeatureSizes(
+    watercourses.documents,
+    habitatSizes.watercourses.individualMetres
+  )
 
-  embedLinearFeatureSizes(hedgerows.documents, hedgerowSizes.individualMetres)
-  embedLinearFeatureSizes(watercourses.documents, wcSizes.individualMetres)
-
-  // Trees use the proposed-side notional area embedded by buildPostInterventionTree.
+  // Post-intervention trees carry their urban/rural type on the proposed side;
+  // the proposed-side notional area was embedded by buildPostInterventionTree.
   const treeSizes = summarizeTreeSizes(
     trees.documents,
     (tree) => tree.proposed?.type
   )
-
-  return {
-    // "Total area size": area-habitat parcels plus individual trees (a special
-    // area habitat whose notional area is summed into the headline figure).
-    areaHabitats: {
-      totalSquareMetres:
-        areaHabitats.totalSquareMetres + treeSizes.totalSquareMetres
-    },
-    hedgerows: { totalMetres: hedgerowSizes.totalMetres },
-    watercourses: { totalMetres: wcSizes.totalMetres },
-    trees: treeSizes,
-    // "Site" size: parcel area EXCLUDING special habitats (currently individual
-    // trees), so the notional tree areas must not inflate the figure compared
-    // against the red line boundary.
-    site: { totalSquareMetres: areaHabitats.totalSquareMetres }
-  }
+  return buildHabitatSizesSummary(habitatSizes, treeSizes)
 }
 
 function buildRedLine(features) {
@@ -559,25 +523,9 @@ export function extractPostIntervention(layers, meta = {}) {
       )
     : null
 
-  return {
-    document: {
-      uploadId: meta.uploadId ?? null,
-      filename: meta.filename ?? null,
-      fileSize: meta.fileSize ?? null,
-      importedAt: meta.importedAt ?? new Date().toISOString(),
-      redLine: redLine.document,
-      habitats: habitats.documents,
-      hedgerows: hedgerows.documents,
-      watercourses: watercourses.documents,
-      trees: trees.documents,
-      habitatSizes: habitatSizesSummary
-    },
-    geometries: {
-      redLine: redLine.geometryRow,
-      habitats: habitats.geometries,
-      hedgerows: hedgerows.geometries,
-      watercourses: watercourses.geometries,
-      trees: trees.geometries
-    }
-  }
+  return buildExtractResult(
+    meta,
+    { redLine, habitats, hedgerows, watercourses, trees },
+    habitatSizesSummary
+  )
 }
