@@ -120,9 +120,15 @@ function handleEnrichmentError(error, feature, side, warn) {
 function enrichPostInterventionAreaSide(habitat, side, logger, featureLabel) {
   const subObject = habitat[side]
   const condition = normalizeConditionForEngine(subObject?.condition)
-  // Parcels share one PostGIS area across both sides (top-level `area`); trees
-  // carry a per-side notional area, so prefer the sub-object's own area.
-  const area = subObject?.area ?? habitat.area
+  // Parcels share one PostGIS area across both sides (top-level `area`) and have
+  // no per-side `area` key, so they fall through to it. Trees carry a per-side
+  // notional `area` that may be null (unknown tree-size band); distinguish
+  // "key absent" (parcel → use top-level) from "key present but null" (tree with
+  // unknown size → stay null and skip enrichment) rather than letting `??` treat
+  // the null as nullish and substitute the proposed-side area.
+  const area = Object.hasOwn(subObject ?? {}, 'area')
+    ? subObject.area
+    : habitat.area
 
   if (condition && isPositiveFiniteArea(area)) {
     const sizeHa = area / SQ_METRES_PER_HECTARE

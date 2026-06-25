@@ -603,4 +603,24 @@ describe('enrichPostInterventionDocumentWithUnits — individual trees', () => {
       expect.stringContaining('Habitat parcel')
     )
   })
+
+  it('does not enrich a tree side whose own area is null with the proposed-side area', () => {
+    // Unknown baseline tree-size band → treeAreaFields returns area: null. The
+    // proposed side still has its Medium (163 m²) area. The baseline side must be
+    // skipped, not silently enriched from the proposed area.
+    const tree = makeTree()
+    tree.baseline.treeSize = 'Unknown size band'
+    tree.baseline.sizeSquareMetres = null
+    tree.baseline.area = null
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    // Proposed side still enriches normally.
+    expect(doc.trees[0].proposed.distinctiveness).toBe('Medium')
+    expect(typeof doc.trees[0].units).toBe('number')
+    // Baseline side stays unenriched because its own area is unknown.
+    expect(doc.trees[0].baseline.distinctiveness).toBeNull()
+    expect(doc.trees[0].baseline.conditionScore).toBeNull()
+    expect(doc.trees[0].baseline.distinctivenessScore).toBeNull()
+  })
 })
