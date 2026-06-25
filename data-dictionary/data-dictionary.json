@@ -2861,7 +2861,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline condition assessment stripped of list-index prefix."
+      "description": "Proposed condition assessment stripped of list-index prefix."
     },
     {
       "path": "postIntervention.habitats[].proposed.conditionScore",
@@ -3235,7 +3235,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline condition assessment stripped of list-index prefix."
+      "description": "Proposed condition assessment stripped of list-index prefix."
     },
     {
       "path": "postIntervention.trees[].proposed.conditionScore",
@@ -3554,7 +3554,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline condition assessment stripped of list-index prefix."
+      "description": "Proposed condition assessment stripped of list-index prefix."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.conditionScore",
@@ -3862,7 +3862,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline condition assessment stripped of list-index prefix."
+      "description": "Proposed condition assessment stripped of list-index prefix."
     },
     {
       "path": "postIntervention.watercourses[].proposed.conditionScore",

@@ -47,6 +47,11 @@ function baselineCommonFields() {
 function proposedCommonFields() {
   return {
     ...baselineCommonFields(),
+    condition: Joi.string()
+      .allow(null, '')
+      .description(
+        'Proposed condition assessment stripped of list-index prefix.'
+      ),
     advanceYears: Joi.number()
       .allow(null)
       .description(
@@ -208,6 +213,11 @@ const postInterventionTreeBaselineSubSchema = Joi.object({
 
 const postInterventionTreeProposedSubSchema = Joi.object({
   ...treeSideCommonFields(),
+  condition: Joi.string()
+    .allow(null, '')
+    .description(
+      'Proposed condition assessment stripped of list-index prefix.'
+    ),
   advanceYears: Joi.number()
     .allow(null)
     .description(
