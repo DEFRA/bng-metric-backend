@@ -587,4 +587,20 @@ describe('enrichPostInterventionDocumentWithUnits — individual trees', () => {
     expect(doc.trees[0].status).toBe('Incomplete')
     expect(doc.units.treesTotal).toBe(0)
   })
+
+  it('labels a tree enrichment failure as "Individual tree", not "Habitat parcel"', () => {
+    const tree = makeTree()
+    tree.baseline.type = 'Unrecognised baseline type'
+    tree.baseline.broadType = 'Unknown'
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionDocumentWithUnits(doc, logger)
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Individual tree featureId')
+    )
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('Habitat parcel')
+    )
+  })
 })

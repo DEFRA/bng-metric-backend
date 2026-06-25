@@ -115,8 +115,9 @@ function handleEnrichmentError(error, feature, side, warn) {
  * @param {object} habitat
  * @param {'baseline' | 'proposed'} side
  * @param {{ warn: (msg: string) => void }} logger
+ * @param {string} featureLabel - human label for log triage (e.g. 'Habitat parcel', 'Individual tree')
  */
-function enrichPostInterventionAreaSide(habitat, side, logger) {
+function enrichPostInterventionAreaSide(habitat, side, logger, featureLabel) {
   const subObject = habitat[side]
   const condition = normalizeConditionForEngine(subObject?.condition)
   // Parcels share one PostGIS area across both sides (top-level `area`); trees
@@ -145,7 +146,7 @@ function enrichPostInterventionAreaSide(habitat, side, logger) {
     } catch (error) {
       handleEnrichmentError(error, habitat, side, (message) => {
         logger.warn(
-          `${LOG_ENRICH_PI_PREFIX}Habitat parcel featureId ${habitat.featureId ?? 'unknown'} ${side} side: ${message}`
+          `${LOG_ENRICH_PI_PREFIX}${featureLabel} featureId ${habitat.featureId ?? 'unknown'} ${side} side: ${message}`
         )
       })
     }
@@ -199,9 +200,9 @@ function enrichPostInterventionLinearSide(feature, side, config) {
   }
 }
 
-function enrichPostInterventionAreaHabitat(habitat, logger) {
-  enrichPostInterventionAreaSide(habitat, 'proposed', logger)
-  enrichPostInterventionAreaSide(habitat, 'baseline', logger)
+function enrichPostInterventionAreaHabitat(habitat, logger, featureLabel) {
+  enrichPostInterventionAreaSide(habitat, 'proposed', logger, featureLabel)
+  enrichPostInterventionAreaSide(habitat, 'baseline', logger, featureLabel)
 }
 
 function enrichPostInterventionHedgerowWithUnits(hedgerow, logger) {
@@ -279,14 +280,16 @@ export function enrichPostInterventionDocumentWithUnits(
 ) {
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.habitats,
-    enrichPostInterventionAreaHabitat,
+    (habitat, log) =>
+      enrichPostInterventionAreaHabitat(habitat, log, 'Habitat parcel'),
     logger
   )
   // Individual trees are a special area habitat: they enrich on the same
   // baseline/proposed area path, with each side using its own notional area.
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.trees,
-    enrichPostInterventionAreaHabitat,
+    (tree, log) =>
+      enrichPostInterventionAreaHabitat(tree, log, 'Individual tree'),
     logger
   )
   enrichCollectionIfNonEmpty(

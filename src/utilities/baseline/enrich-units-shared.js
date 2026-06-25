@@ -4,8 +4,10 @@
  * between the two enrichment modules.
  */
 
-/** PostGIS areas are in square metres; the engine expects hectares. */
-export const SQ_METRES_PER_HECTARE = 10_000
+// PostGIS areas are in square metres; the engine expects hectares. Re-exported
+// from tree-sizes.js (the single source of truth) so the enrichment modules can
+// keep importing it from here without a second definition that could drift.
+export { SQ_METRES_PER_HECTARE } from '../../validation/baseline/tree-sizes.js'
 
 /** Linear feature sizes are stored in metres; the engine expects kilometres. */
 export const METRES_PER_KM = 1000
