@@ -85,7 +85,7 @@ describe('area habitat — Retained', () => {
     expect(logger.warn).toHaveBeenCalled()
   })
 
-  it('re-throws unexpected errors from the retained area habitat engine', () => {
+  it('marks the feature Incomplete when the retained area habitat engine throws an unexpected error', () => {
     const doc = makeDoc({ habitats: [makeAreaHabitat()] })
     const unexpected = new TypeError('engine unavailable')
     vi.spyOn(
@@ -94,9 +94,14 @@ describe('area habitat — Retained', () => {
     ).mockImplementationOnce(() => {
       throw unexpected
     })
+    const logger = { warn: vi.fn() }
 
-    expect(() => enrichPostInterventionDocumentWithUnits(doc)).toThrow(
-      unexpected
+    expect(() =>
+      enrichPostInterventionDocumentWithUnits(doc, logger)
+    ).not.toThrow()
+    expect(doc.habitats[0].status).toBe('Incomplete')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('engine unavailable')
     )
   })
 })
@@ -119,6 +124,23 @@ describe('area habitat — Lost', () => {
     const proposed = doc.habitats[0].proposed
     expect(typeof proposed.timeMultiplier).toBe('number')
     expect(typeof proposed.difficultyMultiplier).toBe('number')
+  })
+
+  it('calculates units (Complete) when advance/delay years are N/A (null)', () => {
+    const base = makeLostHabitat()
+    const doc = makeDoc({
+      habitats: [
+        {
+          ...base,
+          proposed: { ...base.proposed, advanceYears: null, delayYears: null }
+        }
+      ]
+    })
+
+    expect(() => enrichPostInterventionDocumentWithUnits(doc)).not.toThrow()
+    const hab = doc.habitats[0]
+    expect(hab.status).toBe('Complete')
+    expect(typeof hab.units).toBe('number')
   })
 
   it('marks Incomplete when proposed condition is missing', () => {
@@ -181,7 +203,7 @@ describe('area habitat — Enhanced', () => {
     expect(doc.habitats[0].status).toBe('Incomplete')
   })
 
-  it('re-throws unexpected errors from the enhanced area habitat engine', () => {
+  it('marks the feature Incomplete when the enhanced area habitat engine throws an unexpected error', () => {
     const doc = makeDoc({ habitats: [makeEnhancedHabitat()] })
     const unexpected = new TypeError('engine unavailable')
     vi.spyOn(
@@ -190,9 +212,14 @@ describe('area habitat — Enhanced', () => {
     ).mockImplementationOnce(() => {
       throw unexpected
     })
+    const logger = { warn: vi.fn() }
 
-    expect(() => enrichPostInterventionDocumentWithUnits(doc)).toThrow(
-      unexpected
+    expect(() =>
+      enrichPostInterventionDocumentWithUnits(doc, logger)
+    ).not.toThrow()
+    expect(doc.habitats[0].status).toBe('Incomplete')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('engine unavailable')
     )
   })
 
@@ -263,5 +290,27 @@ describe('area habitat — invalid size', () => {
     enrichPostInterventionDocumentWithUnits(doc)
 
     expect(doc.habitats[0].units).toBeNull()
+  })
+})
+
+describe('post-intervention upload resilience', () => {
+  it('continues enriching remaining features when one feature throws a non-lookup engine error', () => {
+    const doc = makeDoc({ habitats: [makeAreaHabitat(), makeAreaHabitat()] })
+    const unexpected = new TypeError('engine unavailable')
+    vi.spyOn(
+      bngMetricEngine,
+      'calculateRetainedAreaHabitatPostIntervention'
+    ).mockImplementationOnce(() => {
+      throw unexpected
+    })
+    const logger = { warn: vi.fn() }
+
+    expect(() =>
+      enrichPostInterventionDocumentWithUnits(doc, logger)
+    ).not.toThrow()
+    expect(doc.habitats[0].status).toBe('Incomplete')
+    expect(doc.habitats[1].status).toBe('Complete')
+    expect(typeof doc.habitats[1].units).toBe('number')
+    expect(doc.units.totalUnits).toBeGreaterThan(0)
   })
 })

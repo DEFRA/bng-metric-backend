@@ -22,10 +22,11 @@ import {
   WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER
 } from './reference-constants.js'
 
-// Metric uses 1 for post-intervention
-const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
+const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1 // Metric uses 1 for post-intervention
 const WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL = 'watercourse encroachment'
 const RIPARIAN_ENCROACHMENT_LOOKUP_LABEL = 'riparian encroachment'
+const WATERCOURSE_RESOLVER_LABEL = 'watercourse'
+const POOR_CONDITION = 'Poor'
 
 /**
  * Resolve time and difficulty multipliers for an enhanced watercourse, handling
@@ -63,7 +64,7 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   const crossWatercourseType =
     baselineWatercourseType !== postInterventionWatercourseType
 
-  if (distinctivenessEnhancement && baselineCondition === 'Poor') {
+  if (distinctivenessEnhancement && baselineCondition === POOR_CONDITION) {
     return {
       timeMultiplier: getWatercourseCreationTimeMultiplier(
         postInterventionWatercourseType,
@@ -79,7 +80,6 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
       )
     }
   }
-
   if (distinctivenessEnhancement && crossWatercourseType) {
     return {
       timeMultiplier: getWatercourseCreationTimeMultiplier(
@@ -90,7 +90,7 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
       ),
       difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
         postInterventionWatercourseType,
-        'Poor',
+        POOR_CONDITION,
         postInterventionCondition,
         advanceYears,
         delayYears
@@ -99,7 +99,7 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   }
 
   const timeStartCondition = distinctivenessEnhancement
-    ? 'Poor'
+    ? POOR_CONDITION
     : baselineCondition
   return {
     timeMultiplier: getWatercourseEnhancementTimeMultiplier(
@@ -144,13 +144,13 @@ export function calculateRetainedWatercoursePostIntervention(
       watercourseType,
       WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
       WATERCOURSE_DISTINCTIVENESS_SCORES,
-      'watercourse'
+      WATERCOURSE_RESOLVER_LABEL
     )
   const conditionScore = resolveLinearConditionScore(
     watercourseType,
     condition,
     WATERCOURSE_CONDITION_SCORES,
-    'watercourse'
+    WATERCOURSE_RESOLVER_LABEL
   )
   const waterEncroachmentMultiplier = resolveEncroachmentMultiplier(
     watercourseEncroachment,
@@ -214,13 +214,13 @@ export function calculateCreatedWatercoursePostIntervention(
       watercourseType,
       WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
       WATERCOURSE_DISTINCTIVENESS_SCORES,
-      'watercourse'
+      WATERCOURSE_RESOLVER_LABEL
     )
   const conditionScore = resolveLinearConditionScore(
     watercourseType,
     condition,
     WATERCOURSE_CONDITION_SCORES,
-    'watercourse'
+    WATERCOURSE_RESOLVER_LABEL
   )
   const waterEncroachmentMultiplier = resolveRequiredEncroachmentMultiplier(
     watercourseEncroachment,
@@ -324,7 +324,7 @@ function resolveEnhancedWatercourseScores(
       baselineWatercourseType,
       WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
       WATERCOURSE_DISTINCTIVENESS_SCORES,
-      'watercourse'
+      WATERCOURSE_RESOLVER_LABEL
     )
   const {
     distinctiveness: postInterventionDistinctiveness,
@@ -333,19 +333,19 @@ function resolveEnhancedWatercourseScores(
     postInterventionWatercourseType,
     WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
     WATERCOURSE_DISTINCTIVENESS_SCORES,
-    'watercourse'
+    WATERCOURSE_RESOLVER_LABEL
   )
   const baselineConditionScore = resolveLinearConditionScore(
     baselineWatercourseType,
     baselineCondition,
     WATERCOURSE_CONDITION_SCORES,
-    'watercourse'
+    WATERCOURSE_RESOLVER_LABEL
   )
   const postInterventionConditionScore = resolveLinearConditionScore(
     postInterventionWatercourseType,
     postInterventionCondition,
     WATERCOURSE_CONDITION_SCORES,
-    'watercourse'
+    WATERCOURSE_RESOLVER_LABEL
   )
   return {
     baselineDistinctivenessScore,
@@ -359,7 +359,6 @@ function resolveEnhancedWatercourseScores(
 /**
  * Compute enhanced watercourse units from resolved scores, lengths, and multipliers.
  *
- * @param {object} params
  * @param {number} params.baselineLengthKm
  * @param {number} params.postInterventionLengthKm
  * @param {number} params.baselineDistinctivenessScore

@@ -7,7 +7,8 @@ import {
   makeCreatedHedgerow,
   makeDoc,
   makeEnhancedHedgerow,
-  makeHedgerow
+  makeHedgerow,
+  makeLostHedgerow
 } from './enrich-post-intervention-units.fixtures.js'
 
 describe('hedgerow — Retained', () => {
@@ -198,6 +199,47 @@ describe('hedgerow — Enhanced', () => {
   })
 })
 
+describe('hedgerow — Lost', () => {
+  it('marks Complete with 0 units and does not warn about unrecognised category', () => {
+    const doc = makeDoc({ hedgerows: [makeLostHedgerow()] })
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionDocumentWithUnits(doc, logger)
+
+    const hedge = doc.hedgerows[0]
+    expect(hedge.units).toBe(0)
+    expect(hedge.status).toBe('Complete')
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('unrecognised retention category')
+    )
+  })
+
+  it('contributes 0 to the rolled-up hedgerow totals', () => {
+    const doc = makeDoc({ hedgerows: [makeLostHedgerow()] })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.units.hedgerowsTotal).toBe(0)
+  })
+})
+
+describe('hedgerow — Complete-never-null invariant', () => {
+  it('downgrades a Complete feature to Incomplete when units cannot be calculated', () => {
+    const base = makeHedgerow()
+    const doc = makeDoc({
+      hedgerows: [
+        {
+          ...base,
+          status: 'Complete',
+          baseline: { ...base.baseline, retentionCategory: 'Partial' }
+        }
+      ]
+    })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.hedgerows[0].units).toBeNull()
+    expect(doc.hedgerows[0].status).toBe('Incomplete')
+  })
+})
+
 describe('hedgerow — unknown retention category', () => {
   it('skips proposed enrichment for an unrecognised category string', () => {
     const base = makeHedgerow()
@@ -218,7 +260,7 @@ describe('hedgerow — unknown retention category', () => {
     )
   })
 
-  it('re-throws unexpected errors from the linear feature engine', () => {
+  it('marks the feature Incomplete when the linear feature engine throws an unexpected error', () => {
     const doc = makeDoc({ hedgerows: [makeHedgerow()] })
     const unexpected = new TypeError('engine unavailable')
     vi.spyOn(
@@ -227,9 +269,14 @@ describe('hedgerow — unknown retention category', () => {
     ).mockImplementationOnce(() => {
       throw unexpected
     })
+    const logger = { warn: vi.fn() }
 
-    expect(() => enrichPostInterventionDocumentWithUnits(doc)).toThrow(
-      unexpected
+    expect(() =>
+      enrichPostInterventionDocumentWithUnits(doc, logger)
+    ).not.toThrow()
+    expect(doc.hedgerows[0].status).toBe('Incomplete')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('engine unavailable')
     )
   })
 

@@ -16,7 +16,10 @@ import {
   hasPositiveLinearSize,
   normaliseRetentionCategory,
   applyProposedWatercourseResult,
-  handleProposedEnrichmentError,
+  finalizePostInterventionFeatureStatus,
+  handleLostLinearCategory,
+  runProposedCalculation,
+  skipUnrecognisedRetentionCategory,
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -179,6 +182,100 @@ function buildEnhancedWatercourseCalculate(
 }
 
 /**
+ * @param {object} watercourse
+ * @returns {{
+ *   baseline: object,
+ *   proposed: object,
+ *   category: string | null,
+ *   baselineCondition: string,
+ *   proposedCondition: string,
+ *   advanceYears: number,
+ *   delayYears: number,
+ *   lengthKm: number
+ * }}
+ */
+function prepareWatercourseProposedContext(watercourse) {
+  watercourse.length = Math.round(watercourse.sizeMetres)
+  const baseline = watercourse.baseline ?? {}
+  const proposed = watercourse.proposed ?? {}
+  return {
+    baseline,
+    proposed,
+    category: normaliseRetentionCategory(baseline.retentionCategory),
+    baselineCondition: normalizeConditionForEngine(baseline.condition),
+    proposedCondition: normalizeConditionForEngine(proposed.condition),
+    advanceYears: proposed.advanceYears ?? 0,
+    delayYears: proposed.delayYears ?? 0,
+    lengthKm: watercourse.length / METRES_PER_KM
+  }
+}
+
+/**
+ * @param {object} watercourse
+ * @param {ReturnType<typeof prepareWatercourseProposedContext>} ctx
+ * @param {Map<string, number> | undefined} baselineLengthByRef
+ * @param {{ warn: (msg: string) => void }} logger
+ * @returns {(() => object) | null}
+ */
+function resolveWatercourseProposedCalculate(
+  watercourse,
+  ctx,
+  baselineLengthByRef,
+  logger
+) {
+  const {
+    baseline,
+    proposed,
+    category,
+    baselineCondition,
+    proposedCondition,
+    advanceYears,
+    delayYears,
+    lengthKm
+  } = ctx
+
+  if (category === RETENTION_RETAINED) {
+    return buildRetainedWatercourseCalculate(
+      watercourse,
+      baseline,
+      baselineCondition,
+      lengthKm,
+      logger
+    )
+  }
+  if (category === RETENTION_CREATED) {
+    return buildCreatedWatercourseCalculate(
+      watercourse,
+      proposed,
+      proposedCondition,
+      lengthKm,
+      advanceYears,
+      delayYears,
+      logger
+    )
+  }
+  if (category === RETENTION_ENHANCED) {
+    return buildEnhancedWatercourseCalculate(
+      watercourse,
+      baseline,
+      proposed,
+      baselineCondition,
+      proposedCondition,
+      lengthKm,
+      { advanceYears, delayYears, baselineLengthByRef, logger }
+    )
+  }
+  skipUnrecognisedRetentionCategory(
+    watercourse,
+    category,
+    baseline.retentionCategory,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
+  return null
+}
+
+/**
  * Calculate and apply post-intervention units for the proposed side of a
  * watercourse, dispatching on `baseline.retentionCategory`.
  *
@@ -191,6 +288,11 @@ export function enrichPostInterventionWatercourseProposedSide(
   baselineLengthByRef,
   logger
 ) {
+  const baseline = watercourse.baseline ?? {}
+  const category = normaliseRetentionCategory(baseline.retentionCategory)
+  if (handleLostLinearCategory(watercourse, category)) {
+    return
+  }
   if (!hasPositiveLinearSize(watercourse.sizeMetres)) {
     skipProposedEnrichment(
       watercourse,
@@ -200,66 +302,20 @@ export function enrichPostInterventionWatercourseProposedSide(
     )
     return
   }
-  const baseline = watercourse.baseline ?? {}
-  const proposed = watercourse.proposed ?? {}
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
-  const baselineCondition = normalizeConditionForEngine(baseline.condition)
-  const proposedCondition = normalizeConditionForEngine(proposed.condition)
-  const { advanceYears = 0, delayYears = 0 } = proposed
-  watercourse.length = Math.round(watercourse.sizeMetres)
-  const lengthKm = watercourse.length / METRES_PER_KM
-  let calculate
-  if (category === RETENTION_RETAINED) {
-    calculate = buildRetainedWatercourseCalculate(
-      watercourse,
-      baseline,
-      baselineCondition,
-      lengthKm,
-      logger
-    )
-  } else if (category === RETENTION_CREATED) {
-    calculate = buildCreatedWatercourseCalculate(
-      watercourse,
-      proposed,
-      proposedCondition,
-      lengthKm,
-      advanceYears,
-      delayYears,
-      logger
-    )
-  } else if (category === RETENTION_ENHANCED) {
-    calculate = buildEnhancedWatercourseCalculate(
-      watercourse,
-      baseline,
-      proposed,
-      baselineCondition,
-      proposedCondition,
-      lengthKm,
-      { advanceYears, delayYears, baselineLengthByRef, logger }
-    )
-  } else {
-    skipProposedEnrichment(
-      watercourse,
-      WATERCOURSE_PROPOSED_LABEL,
-      `unrecognised retention category "${category ?? baseline.retentionCategory}"`,
-      logger
-    )
-    return
-  }
-  if (calculate === null) {
-    return
-  }
-
-  try {
-    applyProposedWatercourseResult(watercourse, calculate())
-  } catch (err) {
-    handleProposedEnrichmentError(
-      err,
-      watercourse,
-      WATERCOURSE_PROPOSED_LABEL,
-      logger
-    )
-  }
+  const ctx = prepareWatercourseProposedContext(watercourse)
+  const calculate = resolveWatercourseProposedCalculate(
+    watercourse,
+    ctx,
+    baselineLengthByRef,
+    logger
+  )
+  runProposedCalculation(
+    watercourse,
+    calculate,
+    applyProposedWatercourseResult,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
 }
 
 /**
@@ -278,6 +334,7 @@ export function enrichPostInterventionWatercourseWithUnits(
     baselineLengthByRef,
     logger
   )
+  finalizePostInterventionFeatureStatus(watercourse)
 }
 
 // Export for potential test coverage

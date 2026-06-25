@@ -18,8 +18,8 @@ import {
   HEDGEROW_DISTINCTIVENESS_SCORES
 } from './reference-constants.js'
 
-// Metric uses 1 for post-intervention
-const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
+const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1 // Metric uses 1 for post-intervention
+const HEDGEROW_RESOLVER_LABEL = 'hedgerow'
 
 /**
  * Enhancement-through-distinctiveness from a Poor baseline uses creation
@@ -139,13 +139,13 @@ export function calculateRetainedHedgerowPostIntervention(
       hedgeType,
       HEDGEROW_DISTINCTIVENESS_CATEGORIES,
       HEDGEROW_DISTINCTIVENESS_SCORES,
-      'hedgerow'
+      HEDGEROW_RESOLVER_LABEL
     )
   const conditionScore = resolveLinearConditionScore(
     hedgeType,
     condition,
     HEDGEROW_CONDITION_SCORES,
-    'hedgerow'
+    HEDGEROW_RESOLVER_LABEL
   )
   const strategicSignificanceScore =
     POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
@@ -193,13 +193,13 @@ export function calculateCreatedHedgerowPostIntervention(
       hedgeType,
       HEDGEROW_DISTINCTIVENESS_CATEGORIES,
       HEDGEROW_DISTINCTIVENESS_SCORES,
-      'hedgerow'
+      HEDGEROW_RESOLVER_LABEL
     )
   const conditionScore = resolveLinearConditionScore(
     hedgeType,
     condition,
     HEDGEROW_CONDITION_SCORES,
-    'hedgerow'
+    HEDGEROW_RESOLVER_LABEL
   )
   const strategicSignificanceScore =
     POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
@@ -262,7 +262,7 @@ function resolveEnhancedHedgerowScores(
       baselineHedgeType,
       HEDGEROW_DISTINCTIVENESS_CATEGORIES,
       HEDGEROW_DISTINCTIVENESS_SCORES,
-      'hedgerow'
+      HEDGEROW_RESOLVER_LABEL
     )
 
   const {
@@ -272,21 +272,21 @@ function resolveEnhancedHedgerowScores(
     postInterventionHedgeType,
     HEDGEROW_DISTINCTIVENESS_CATEGORIES,
     HEDGEROW_DISTINCTIVENESS_SCORES,
-    'hedgerow'
+    HEDGEROW_RESOLVER_LABEL
   )
 
   const baselineConditionScore = resolveLinearConditionScore(
     baselineHedgeType,
     baselineCondition,
     HEDGEROW_CONDITION_SCORES,
-    'hedgerow'
+    HEDGEROW_RESOLVER_LABEL
   )
 
   const postInterventionConditionScore = resolveLinearConditionScore(
     postInterventionHedgeType,
     postInterventionCondition,
     HEDGEROW_CONDITION_SCORES,
-    'hedgerow'
+    HEDGEROW_RESOLVER_LABEL
   )
 
   return {

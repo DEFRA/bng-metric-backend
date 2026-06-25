@@ -7,6 +7,7 @@ import {
   makeCreatedWatercourse,
   makeDoc,
   makeEnhancedWatercourse,
+  makeLostWatercourse,
   makeWatercourse
 } from './enrich-post-intervention-units.fixtures.js'
 
@@ -214,6 +215,47 @@ describe('watercourse — Enhanced', () => {
   })
 })
 
+describe('watercourse — Lost', () => {
+  it('marks Complete with 0 units and does not warn about unrecognised category', () => {
+    const doc = makeDoc({ watercourses: [makeLostWatercourse()] })
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionDocumentWithUnits(doc, logger)
+
+    const wc = doc.watercourses[0]
+    expect(wc.units).toBe(0)
+    expect(wc.status).toBe('Complete')
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('unrecognised retention category')
+    )
+  })
+
+  it('contributes 0 to the rolled-up watercourse totals', () => {
+    const doc = makeDoc({ watercourses: [makeLostWatercourse()] })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.units.watercoursesTotal).toBe(0)
+  })
+})
+
+describe('watercourse — Complete-never-null invariant', () => {
+  it('downgrades a Complete feature to Incomplete when units cannot be calculated', () => {
+    const base = makeWatercourse()
+    const doc = makeDoc({
+      watercourses: [
+        {
+          ...base,
+          status: 'Complete',
+          baseline: { ...base.baseline, retentionCategory: 'Partial' }
+        }
+      ]
+    })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.watercourses[0].units).toBeNull()
+    expect(doc.watercourses[0].status).toBe('Incomplete')
+  })
+})
+
 describe('watercourse — unknown retention category', () => {
   it('skips proposed enrichment for an unrecognised category string', () => {
     const base = makeWatercourse()
@@ -234,7 +276,7 @@ describe('watercourse — unknown retention category', () => {
     )
   })
 
-  it('re-throws unexpected errors from the watercourse engine', () => {
+  it('marks the feature Incomplete when the watercourse engine throws an unexpected error', () => {
     const doc = makeDoc({ watercourses: [makeWatercourse()] })
     const unexpected = new TypeError('engine unavailable')
     vi.spyOn(
@@ -243,9 +285,14 @@ describe('watercourse — unknown retention category', () => {
     ).mockImplementationOnce(() => {
       throw unexpected
     })
+    const logger = { warn: vi.fn() }
 
-    expect(() => enrichPostInterventionDocumentWithUnits(doc)).toThrow(
-      unexpected
+    expect(() =>
+      enrichPostInterventionDocumentWithUnits(doc, logger)
+    ).not.toThrow()
+    expect(doc.watercourses[0].status).toBe('Incomplete')
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('engine unavailable')
     )
   })
 })

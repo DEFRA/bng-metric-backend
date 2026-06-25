@@ -138,6 +138,19 @@ export function makeCreatedHedgerow() {
   })
 }
 
+export function makeLostHedgerow() {
+  return makeHedgerow({
+    baseline: {
+      type: HEDGE_TYPE_HIGH,
+      retentionCategory: 'Lost',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null
+    }
+  })
+}
+
 export function makeEnhancedHedgerow() {
   return makeHedgerow({
     baseline: {
@@ -165,6 +178,8 @@ export function makeEnhancedHedgerow() {
 // ---------------------------------------------------------------------------
 
 export const WC_TYPE = 'Priority habitat'
+const WC_RIPARIAN_ENCROACHMENT_MINOR = '3. Minor/ No Encroachment'
+const WC_WATERCOURSE_ENCROACHMENT_MINOR = '2. Minor'
 
 export function makeWatercourse(overrides = {}) {
   return {
@@ -181,8 +196,8 @@ export function makeWatercourse(overrides = {}) {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      riparianEncroachment: '3. Minor/ No Encroachment',
-      watercourseEncroachment: '2. Minor',
+      riparianEncroachment: WC_RIPARIAN_ENCROACHMENT_MINOR,
+      watercourseEncroachment: WC_WATERCOURSE_ENCROACHMENT_MINOR,
       strategicSignificance: null
     },
     proposed: {
@@ -193,8 +208,8 @@ export function makeWatercourse(overrides = {}) {
       distinctivenessScore: null,
       advanceYears: 0,
       delayYears: 0,
-      riparianEncroachment: '3. Minor/ No Encroachment',
-      watercourseEncroachment: '2. Minor',
+      riparianEncroachment: WC_RIPARIAN_ENCROACHMENT_MINOR,
+      watercourseEncroachment: WC_WATERCOURSE_ENCROACHMENT_MINOR,
       strategicSignificance: null
     },
     properties: {},
@@ -225,6 +240,22 @@ export function makeCreatedWatercourse() {
       delayYears: 0,
       riparianEncroachment: 'No Encroachment/No Encroachment',
       watercourseEncroachment: 'No Encroachment',
+      strategicSignificance: null
+    }
+  })
+}
+
+export function makeLostWatercourse() {
+  return makeWatercourse({
+    baseline: {
+      type: WC_TYPE,
+      retentionCategory: 'Lost',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null,
+      riparianEncroachment: WC_RIPARIAN_ENCROACHMENT_MINOR,
+      watercourseEncroachment: WC_WATERCOURSE_ENCROACHMENT_MINOR,
       strategicSignificance: null
     }
   })

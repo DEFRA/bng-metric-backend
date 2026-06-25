@@ -15,7 +15,9 @@ import {
   hasValidAreaHabitatSize,
   normaliseRetentionCategory,
   applyProposedResult,
-  handleProposedEnrichmentError,
+  finalizePostInterventionFeatureStatus,
+  runProposedCalculation,
+  skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
   RETENTION_LOST,
@@ -251,6 +253,62 @@ function buildEnhancedAreaCalculate(
 }
 
 /**
+ * @param {object} habitat
+ * @param {{ warn: (msg: string) => void }} logger
+ * @returns {(() => object) | null}
+ */
+function resolveAreaProposedCalculate(habitat, logger) {
+  const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
+  const baseline = habitat.baseline ?? {}
+  const proposed = habitat.proposed ?? {}
+  const baselineCondition = normalizeConditionForEngine(baseline.condition)
+  const proposedCondition = normalizeConditionForEngine(proposed.condition)
+  const advanceYears = proposed.advanceYears ?? 0
+  const delayYears = proposed.delayYears ?? 0
+  const category = normaliseRetentionCategory(baseline.retentionCategory)
+
+  if (category === RETENTION_RETAINED) {
+    return buildRetainedAreaCalculate(
+      habitat,
+      baseline,
+      baselineCondition,
+      sizeHa,
+      logger
+    )
+  }
+  if (category === RETENTION_LOST || category === RETENTION_CREATED) {
+    return buildCreatedAreaCalculate(
+      habitat,
+      proposed,
+      proposedCondition,
+      sizeHa,
+      advanceYears,
+      delayYears,
+      logger
+    )
+  }
+  if (category === RETENTION_ENHANCED) {
+    return buildEnhancedAreaCalculate(
+      habitat,
+      baseline,
+      proposed,
+      baselineCondition,
+      proposedCondition,
+      sizeHa,
+      { advanceYears, delayYears, logger }
+    )
+  }
+  skipUnrecognisedRetentionCategory(
+    habitat,
+    category,
+    baseline.retentionCategory,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
+  return null
+}
+
+/**
  * Calculate and apply post-intervention units for the proposed side of an
  * area habitat, dispatching on `baseline.retentionCategory`.
  *
@@ -261,61 +319,14 @@ export function enrichPostInterventionAreaProposedSide(habitat, logger) {
   if (!hasValidAreaHabitatSize(habitat)) {
     return
   }
-  const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
-  const baseline = habitat.baseline ?? {}
-  const proposed = habitat.proposed ?? {}
-  const baselineCondition = normalizeConditionForEngine(baseline.condition)
-  const proposedCondition = normalizeConditionForEngine(proposed.condition)
-  const { advanceYears = 0, delayYears = 0 } = proposed
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
-
-  let calculate
-  if (category === RETENTION_RETAINED) {
-    calculate = buildRetainedAreaCalculate(
-      habitat,
-      baseline,
-      baselineCondition,
-      sizeHa,
-      logger
-    )
-  } else if (category === RETENTION_LOST || category === RETENTION_CREATED) {
-    calculate = buildCreatedAreaCalculate(
-      habitat,
-      proposed,
-      proposedCondition,
-      sizeHa,
-      advanceYears,
-      delayYears,
-      logger
-    )
-  } else if (category === RETENTION_ENHANCED) {
-    calculate = buildEnhancedAreaCalculate(
-      habitat,
-      baseline,
-      proposed,
-      baselineCondition,
-      proposedCondition,
-      sizeHa,
-      { advanceYears, delayYears, logger }
-    )
-  } else {
-    skipProposedEnrichment(
-      habitat,
-      AREA_PROPOSED_LABEL,
-      `unrecognised retention category "${category ?? baseline.retentionCategory}"`,
-      logger
-    )
-    return
-  }
-  if (calculate === null) {
-    return
-  }
-
-  try {
-    applyProposedResult(habitat, calculate())
-  } catch (err) {
-    handleProposedEnrichmentError(err, habitat, AREA_PROPOSED_LABEL, logger)
-  }
+  const calculate = resolveAreaProposedCalculate(habitat, logger)
+  runProposedCalculation(
+    habitat,
+    calculate,
+    applyProposedResult,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
 }
 
 /**
@@ -325,4 +336,5 @@ export function enrichPostInterventionAreaProposedSide(habitat, logger) {
 export function enrichPostInterventionAreaHabitat(habitat, logger) {
   enrichPostInterventionAreaBaselineSide(habitat, logger)
   enrichPostInterventionAreaProposedSide(habitat, logger)
+  finalizePostInterventionFeatureStatus(habitat)
 }

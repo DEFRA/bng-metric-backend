@@ -1,7 +1,6 @@
 // Shared constants, guards, and result-application helpers used across the
 // post-intervention enrichment sub-modules.
 
-import { BaselineLookupError } from 'bng-metric-engine'
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
 
 export const LOG_ENRICH_PI_PREFIX = 'enrichPostIntervention: '
@@ -132,6 +131,31 @@ export function normaliseRetentionCategory(value) {
 // ---------------------------------------------------------------------------
 
 /**
+ * A Lost linear feature (hedgerow/watercourse) has no post-intervention habitat
+ * where the baseline feature is removed, so it contributes 0 units and is
+ * Complete. Area Lost parcels differ: they carry a proposed habitat and are
+ * dispatched to the Created calculator instead.
+ *
+ * @param {object} feature
+ */
+export function applyLostLinearResult(feature) {
+  feature.units = 0
+  feature.status = HABITAT_STATUS.COMPLETE
+}
+
+/**
+ * Enforce the invariant that a Complete feature always has numeric units: if
+ * the proposed side could not calculate units, leave the feature Incomplete.
+ *
+ * @param {object} feature
+ */
+export function finalizePostInterventionFeatureStatus(feature) {
+  if (typeof feature.units !== 'number' || !Number.isFinite(feature.units)) {
+    feature.status = HABITAT_STATUS.INCOMPLETE
+  }
+}
+
+/**
  * Apply a retained/created/enhanced engine result to the proposed sub-object.
  * Handles both standard result shapes (retained/created: `distinctiveness` etc.)
  * and enhanced shapes (`postInterventionDistinctiveness` etc.).
@@ -180,20 +204,79 @@ export function applyProposedWatercourseResult(watercourse, result) {
 }
 
 /**
+ * @param {object} feature
+ * @param {string | null} category
+ * @returns {boolean} true when Lost was handled
+ */
+export function handleLostLinearCategory(feature, category) {
+  if (category === RETENTION_LOST) {
+    applyLostLinearResult(feature)
+    return true
+  }
+  return false
+}
+
+/**
+ * @param {object} feature
+ * @param {string | null} category
+ * @param {string | null | undefined} rawRetentionCategory
+ * @param {string} context
+ * @param {{ warn: (msg: string) => void }} logger
+ */
+export function skipUnrecognisedRetentionCategory(
+  feature,
+  category,
+  rawRetentionCategory,
+  context,
+  logger
+) {
+  skipProposedEnrichment(
+    feature,
+    context,
+    `unrecognised retention category "${category ?? rawRetentionCategory}"`,
+    logger
+  )
+}
+
+/**
+ * @param {object} feature
+ * @param {(() => object) | null} calculate
+ * @param {(feature: object, result: object) => void} applyResult
+ * @param {string} context
+ * @param {{ warn: (msg: string) => void }} logger
+ */
+export function runProposedCalculation(
+  feature,
+  calculate,
+  applyResult,
+  context,
+  logger
+) {
+  if (calculate === null) {
+    return
+  }
+  try {
+    applyResult(feature, calculate())
+  } catch (err) {
+    handleProposedEnrichmentError(err, feature, context, logger)
+  }
+}
+
+/**
+ * Degrade a single feature gracefully when the engine cannot calculate its
+ * units: mark it Incomplete and log a warning rather than re-throwing, so one
+ * bad feature never aborts the whole post-intervention upload.
+ *
  * @param {Error} error
  * @param {object} feature
  * @param {string} context
  * @param {{ warn: (msg: string) => void }} logger
  */
 export function handleProposedEnrichmentError(error, feature, context, logger) {
-  if (error instanceof BaselineLookupError) {
-    feature.status = HABITAT_STATUS.INCOMPLETE
-    logger.warn(
-      `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: ${error.message}`
-    )
-  } else {
-    throw error
-  }
+  feature.status = HABITAT_STATUS.INCOMPLETE
+  logger.warn(
+    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: ${error.message}`
+  )
 }
 
 /**

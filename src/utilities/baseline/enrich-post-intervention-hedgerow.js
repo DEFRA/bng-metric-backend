@@ -14,7 +14,10 @@ import {
   hasPositiveLinearSize,
   normaliseRetentionCategory,
   applyProposedResult,
-  handleProposedEnrichmentError,
+  finalizePostInterventionFeatureStatus,
+  handleLostLinearCategory,
+  runProposedCalculation,
+  skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
   RETENTION_CREATED,
@@ -199,6 +202,100 @@ function buildEnhancedHedgerowCalculate(
 }
 
 /**
+ * @param {object} hedgerow
+ * @returns {{
+ *   baseline: object,
+ *   proposed: object,
+ *   category: string | null,
+ *   baselineCondition: string,
+ *   proposedCondition: string,
+ *   advanceYears: number,
+ *   delayYears: number,
+ *   lengthKm: number
+ * }}
+ */
+function prepareHedgerowProposedContext(hedgerow) {
+  hedgerow.length = Math.round(hedgerow.sizeMetres)
+  const baseline = hedgerow.baseline ?? {}
+  const proposed = hedgerow.proposed ?? {}
+  return {
+    baseline,
+    proposed,
+    category: normaliseRetentionCategory(baseline.retentionCategory),
+    baselineCondition: normalizeConditionForEngine(baseline.condition),
+    proposedCondition: normalizeConditionForEngine(proposed.condition),
+    advanceYears: proposed.advanceYears ?? 0,
+    delayYears: proposed.delayYears ?? 0,
+    lengthKm: hedgerow.length / METRES_PER_KM
+  }
+}
+
+/**
+ * @param {object} hedgerow
+ * @param {ReturnType<typeof prepareHedgerowProposedContext>} ctx
+ * @param {{ warn: (msg: string) => void }} logger
+ * @param {Map<string, number> | undefined} baselineLengthByRef
+ * @returns {(() => object) | null}
+ */
+function resolveHedgerowProposedCalculate(
+  hedgerow,
+  ctx,
+  logger,
+  baselineLengthByRef
+) {
+  const {
+    baseline,
+    proposed,
+    category,
+    baselineCondition,
+    proposedCondition,
+    advanceYears,
+    delayYears,
+    lengthKm
+  } = ctx
+
+  if (category === RETENTION_RETAINED) {
+    return buildRetainedHedgerowCalculate(
+      hedgerow,
+      baseline,
+      baselineCondition,
+      lengthKm,
+      logger
+    )
+  }
+  if (category === RETENTION_CREATED) {
+    return buildCreatedHedgerowCalculate(
+      hedgerow,
+      proposed,
+      proposedCondition,
+      lengthKm,
+      advanceYears,
+      delayYears,
+      logger
+    )
+  }
+  if (category === RETENTION_ENHANCED) {
+    return buildEnhancedHedgerowCalculate(
+      hedgerow,
+      baseline,
+      proposed,
+      baselineCondition,
+      proposedCondition,
+      lengthKm,
+      { advanceYears, delayYears, baselineLengthByRef, logger }
+    )
+  }
+  skipUnrecognisedRetentionCategory(
+    hedgerow,
+    category,
+    baseline.retentionCategory,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
+  return null
+}
+
+/**
  * Calculate and apply post-intervention units for the proposed side of a
  * hedgerow, dispatching on `baseline.retentionCategory`.
  *
@@ -211,6 +308,11 @@ export function enrichPostInterventionHedgerowProposedSide(
   logger,
   baselineLengthByRef
 ) {
+  const baseline = hedgerow.baseline ?? {}
+  const category = normaliseRetentionCategory(baseline.retentionCategory)
+  if (handleLostLinearCategory(hedgerow, category)) {
+    return
+  }
   if (!hasPositiveLinearSize(hedgerow.sizeMetres)) {
     skipProposedEnrichment(
       hedgerow,
@@ -220,66 +322,20 @@ export function enrichPostInterventionHedgerowProposedSide(
     )
     return
   }
-  const baseline = hedgerow.baseline ?? {}
-  const proposed = hedgerow.proposed ?? {}
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
-  const baselineCondition = normalizeConditionForEngine(baseline.condition)
-  const proposedCondition = normalizeConditionForEngine(proposed.condition)
-  const { advanceYears = 0, delayYears = 0 } = proposed
-  hedgerow.length = Math.round(hedgerow.sizeMetres)
-  const lengthKm = hedgerow.length / METRES_PER_KM
-  let calculate
-  if (category === RETENTION_RETAINED) {
-    calculate = buildRetainedHedgerowCalculate(
-      hedgerow,
-      baseline,
-      baselineCondition,
-      lengthKm,
-      logger
-    )
-  } else if (category === RETENTION_CREATED) {
-    calculate = buildCreatedHedgerowCalculate(
-      hedgerow,
-      proposed,
-      proposedCondition,
-      lengthKm,
-      advanceYears,
-      delayYears,
-      logger
-    )
-  } else if (category === RETENTION_ENHANCED) {
-    calculate = buildEnhancedHedgerowCalculate(
-      hedgerow,
-      baseline,
-      proposed,
-      baselineCondition,
-      proposedCondition,
-      lengthKm,
-      { advanceYears, delayYears, baselineLengthByRef, logger }
-    )
-  } else {
-    skipProposedEnrichment(
-      hedgerow,
-      HEDGEROW_PROPOSED_LABEL,
-      `unrecognised retention category "${category ?? baseline.retentionCategory}"`,
-      logger
-    )
-    return
-  }
-  if (calculate === null) {
-    return
-  }
-
-  try {
-    applyProposedResult(hedgerow, calculate())
-  } catch (err) {
-    handleProposedEnrichmentError(
-      err,
-      hedgerow,
-      HEDGEROW_PROPOSED_LABEL,
-      logger
-    )
-  }
+  const ctx = prepareHedgerowProposedContext(hedgerow)
+  const calculate = resolveHedgerowProposedCalculate(
+    hedgerow,
+    ctx,
+    logger,
+    baselineLengthByRef
+  )
+  runProposedCalculation(
+    hedgerow,
+    calculate,
+    applyProposedResult,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
 }
 
 /**
@@ -298,6 +354,7 @@ export function enrichPostInterventionHedgerowWithUnits(
     logger,
     baselineLengthByRef
   )
+  finalizePostInterventionFeatureStatus(hedgerow)
 }
 
 // Re-export so the enrich-baseline-side helper is accessible from tests or sub-modules
