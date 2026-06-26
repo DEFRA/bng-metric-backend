@@ -500,3 +500,127 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('unknown'))
   })
 })
+
+// Per-size reference areas in m²: Small 41, Medium 163.
+const SMALL_TREE_SQM = 41
+const MEDIUM_TREE_SQM = 163
+
+function makeTree(overrides = {}) {
+  return {
+    featureId: FEAT_ID,
+    ref: 'T1',
+    area: MEDIUM_TREE_SQM,
+    sizeSquareMetres: MEDIUM_TREE_SQM,
+    units: null,
+    status: 'Incomplete',
+    count: 1,
+    baseline: {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null,
+      strategicSignificance: null,
+      retentionCategory: 'Retained',
+      treeSize: 'Small',
+      treeSpecies: 'Oak',
+      ruralOrUrban: 'Urban',
+      sizeSquareMetres: SMALL_TREE_SQM,
+      area: SMALL_TREE_SQM
+    },
+    proposed: {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Good',
+      conditionScore: null,
+      distinctiveness: null,
+      distinctivenessScore: null,
+      strategicSignificance: null,
+      treeSize: 'Medium',
+      treeSpecies: 'Oak',
+      ruralOrUrban: 'Urban',
+      sizeSquareMetres: MEDIUM_TREE_SQM,
+      area: MEDIUM_TREE_SQM,
+      advanceYears: 0,
+      delayYears: 0
+    },
+    properties: {},
+    ...overrides
+  }
+}
+
+describe('enrichPostInterventionDocumentWithUnits — individual trees', () => {
+  it('enriches both sides using each side’s own area and totals trees by type', () => {
+    const doc = {
+      habitats: [],
+      trees: [makeTree()],
+      hedgerows: [],
+      watercourses: []
+    }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    const tree = doc.trees[0]
+    // Proposed side drives top-level units, computed from the proposed area
+    // (Medium = 163 m² = 0.0163 ha): 0.0163 × distinctiveness 4 × condition 3.
+    expect(tree.proposed.distinctiveness).toBe('Medium')
+    expect(tree.proposed.conditionScore).toBe(3)
+    expect(tree.units).toBeCloseTo(0.1956, 4)
+    expect(tree.status).toBe('Complete')
+
+    // Baseline side enriches from the baseline area (Small = 41 m²): 0.0041 × 4 × 3.
+    expect(tree.baseline.distinctiveness).toBe('Medium')
+    expect(tree.baseline.conditionScore).toBe(3)
+
+    expect(doc.units.treesTotal).toBeCloseTo(0.1956, 4)
+    expect(doc.units.treesUrbanTotal).toBeCloseTo(0.1956, 4)
+    expect(doc.units.treesRuralTotal).toBe(0)
+  })
+
+  it('leaves units unset and status Incomplete when proposed type is missing', () => {
+    const tree = makeTree()
+    tree.proposed.type = null
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.trees[0].units).toBeNull()
+    expect(doc.trees[0].status).toBe('Incomplete')
+    expect(doc.units.treesTotal).toBe(0)
+  })
+
+  it('labels a tree enrichment failure as "Individual tree", not "Habitat parcel"', () => {
+    const tree = makeTree()
+    tree.baseline.type = 'Unrecognised baseline type'
+    tree.baseline.broadType = 'Unknown'
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionDocumentWithUnits(doc, logger)
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Individual tree featureId')
+    )
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('Habitat parcel')
+    )
+  })
+
+  it('does not enrich a tree side whose own area is null with the proposed-side area', () => {
+    // Unknown baseline tree-size band → treeAreaFields returns area: null. The
+    // proposed side still has its Medium (163 m²) area. The baseline side must be
+    // skipped, not silently enriched from the proposed area.
+    const tree = makeTree()
+    tree.baseline.treeSize = 'Unknown size band'
+    tree.baseline.sizeSquareMetres = null
+    tree.baseline.area = null
+    const doc = { habitats: [], trees: [tree], hedgerows: [], watercourses: [] }
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    // Proposed side still enriches normally.
+    expect(doc.trees[0].proposed.distinctiveness).toBe('Medium')
+    expect(typeof doc.trees[0].units).toBe('number')
+    // Baseline side stays unenriched because its own area is unknown.
+    expect(doc.trees[0].baseline.distinctiveness).toBeNull()
+    expect(doc.trees[0].baseline.conditionScore).toBeNull()
+    expect(doc.trees[0].baseline.distinctivenessScore).toBeNull()
+  })
+})

@@ -84,4 +84,26 @@ describe('summarizeFeatureSetUnitsTotals', () => {
       treesRuralTotal: 0.5
     })
   })
+
+  it('buckets post-intervention trees by their proposed-side type', () => {
+    const featureSet = {
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        { units: 0.2, proposed: { type: 'Urban tree' } },
+        { units: 0.5, proposed: { type: 'Rural tree' } }
+      ]
+    }
+    summarizeFeatureSetUnitsTotals(featureSet)
+    expect(featureSet.units).toEqual({
+      totalUnits: 0.7,
+      habitatsTotal: 0,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0,
+      treesTotal: 0.7,
+      treesUrbanTotal: 0.2,
+      treesRuralTotal: 0.5
+    })
+  })
 })

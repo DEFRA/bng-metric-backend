@@ -46,11 +46,10 @@ function hasPositiveLinearSize(sizeMetres) {
 }
 
 /**
- * @param {object} habitat
+ * @param {unknown} area
  * @returns {boolean}
  */
-function hasValidAreaHabitatSize(habitat) {
-  const { area } = habitat
+function isPositiveFiniteArea(area) {
   return typeof area === 'number' && Number.isFinite(area) && area > 0
 }
 
@@ -116,13 +115,23 @@ function handleEnrichmentError(error, feature, side, warn) {
  * @param {object} habitat
  * @param {'baseline' | 'proposed'} side
  * @param {{ warn: (msg: string) => void }} logger
+ * @param {string} featureLabel - human label for log triage (e.g. 'Habitat parcel', 'Individual tree')
  */
-function enrichPostInterventionAreaSide(habitat, side, logger) {
+function enrichPostInterventionAreaSide(habitat, side, logger, featureLabel) {
   const subObject = habitat[side]
   const condition = normalizeConditionForEngine(subObject?.condition)
+  // Parcels share one PostGIS area across both sides (top-level `area`) and have
+  // no per-side `area` key, so they fall through to it. Trees carry a per-side
+  // notional `area` that may be null (unknown tree-size band); distinguish
+  // "key absent" (parcel → use top-level) from "key present but null" (tree with
+  // unknown size → stay null and skip enrichment) rather than letting `??` treat
+  // the null as nullish and substitute the proposed-side area.
+  const area = Object.hasOwn(subObject ?? {}, 'area')
+    ? subObject.area
+    : habitat.area
 
-  if (condition && hasValidAreaHabitatSize(habitat)) {
-    const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
+  if (condition && isPositiveFiniteArea(area)) {
+    const sizeHa = area / SQ_METRES_PER_HECTARE
     const habitatProxy = {
       type: subObject?.type,
       broadType: subObject?.broadType
@@ -143,7 +152,7 @@ function enrichPostInterventionAreaSide(habitat, side, logger) {
     } catch (error) {
       handleEnrichmentError(error, habitat, side, (message) => {
         logger.warn(
-          `${LOG_ENRICH_PI_PREFIX}Habitat parcel featureId ${habitat.featureId ?? 'unknown'} ${side} side: ${message}`
+          `${LOG_ENRICH_PI_PREFIX}${featureLabel} featureId ${habitat.featureId ?? 'unknown'} ${side} side: ${message}`
         )
       })
     }
@@ -197,9 +206,9 @@ function enrichPostInterventionLinearSide(feature, side, config) {
   }
 }
 
-function enrichPostInterventionAreaHabitat(habitat, logger) {
-  enrichPostInterventionAreaSide(habitat, 'proposed', logger)
-  enrichPostInterventionAreaSide(habitat, 'baseline', logger)
+function enrichPostInterventionAreaHabitat(habitat, logger, featureLabel) {
+  enrichPostInterventionAreaSide(habitat, 'proposed', logger, featureLabel)
+  enrichPostInterventionAreaSide(habitat, 'baseline', logger, featureLabel)
 }
 
 function enrichPostInterventionHedgerowWithUnits(hedgerow, logger) {
@@ -267,7 +276,7 @@ function enrichPostInterventionWatercourseWithUnits(watercourse, logger) {
  * encroachment multipliers). Always sets `postInterventionDocument.units` totals
  * afterward.
  *
- * @param {{ habitats?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
+ * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {typeof postInterventionDocument}
  */
@@ -277,7 +286,16 @@ export function enrichPostInterventionDocumentWithUnits(
 ) {
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.habitats,
-    enrichPostInterventionAreaHabitat,
+    (habitat, log) =>
+      enrichPostInterventionAreaHabitat(habitat, log, 'Habitat parcel'),
+    logger
+  )
+  // Individual trees are a special area habitat: they enrich on the same
+  // baseline/proposed area path, with each side using its own notional area.
+  enrichCollectionIfNonEmpty(
+    postInterventionDocument?.trees,
+    (tree, log) =>
+      enrichPostInterventionAreaHabitat(tree, log, 'Individual tree'),
     logger
   )
   enrichCollectionIfNonEmpty(

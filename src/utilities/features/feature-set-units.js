@@ -24,6 +24,18 @@ export function sumFeatureUnits(features) {
 }
 
 /**
+ * Resolve a tree's urban/rural habitat type. The baseline document stores it on
+ * the top-level `type`; the post-intervention document stores it on the
+ * `proposed` sub-object (top-level `type` is absent there).
+ *
+ * @param {object} tree
+ * @returns {string | null}
+ */
+function treeTypeOf(tree) {
+  return tree?.type ?? tree?.proposed?.type ?? null
+}
+
+/**
  * @param {object[] | undefined} trees
  * @param {string} treeType
  * @returns {object[]}
@@ -32,7 +44,7 @@ function treesOfType(trees, treeType) {
   if (!Array.isArray(trees)) {
     return []
   }
-  return trees.filter((tree) => tree?.type === treeType)
+  return trees.filter((tree) => treeTypeOf(tree) === treeType)
 }
 
 /**

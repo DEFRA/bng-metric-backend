@@ -27,13 +27,15 @@ describe('extractPostIntervention — top-level shape', () => {
           habitats: [],
           hedgerows: [],
           watercourses: [],
+          trees: [],
           habitatSizes: null
         }),
         geometries: {
           redLine: null,
           habitats: [],
           hedgerows: [],
-          watercourses: []
+          watercourses: [],
+          trees: []
         }
       })
     )
@@ -442,5 +444,195 @@ describe('extractPostIntervention — watercourse nested structure', () => {
     })
 
     expect(out.document.watercourses[0].status).toBe('Incomplete')
+  })
+})
+
+const SAMPLE_POINT = { type: 'Point', coordinates: [0, 0] }
+
+// Per-size reference areas in m² (from bng-metric-engine individual-tree-area):
+// Small 41, Medium 163, Large 366, Very large 765.
+const SMALL_TREE_SQM = 41
+const MEDIUM_TREE_SQM = 163
+
+function treeFeature(properties) {
+  return feature(properties, SAMPLE_POINT)
+}
+
+describe('extractPostIntervention — individual tree nested structure', () => {
+  it('splits baseline and proposed tree columns into per-side sub-objects with their own area', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Baseline Tree Size': 'Small',
+          'Baseline Tree Type': 'Oak',
+          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Condition': '2. Moderate',
+          'Proposed Tree Size': 'Medium',
+          'Proposed Tree Type': 'Oak',
+          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Condition': '2. Moderate',
+          Count: 1
+        })
+      ]
+    })
+
+    const tree = out.document.trees[0]
+    expect(tree.baseline).toEqual(
+      expect.objectContaining({
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        condition: 'Moderate',
+        treeSize: 'Small',
+        treeSpecies: 'Oak',
+        ruralOrUrban: 'Urban',
+        sizeSquareMetres: SMALL_TREE_SQM,
+        area: SMALL_TREE_SQM
+      })
+    )
+    expect(tree.proposed).toEqual(
+      expect.objectContaining({
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Medium',
+        sizeSquareMetres: MEDIUM_TREE_SQM,
+        area: MEDIUM_TREE_SQM,
+        advanceYears: 0,
+        delayYears: 0
+      })
+    )
+    // Top-level area/size reflect the proposed side, like the area-habitat parcels.
+    expect(tree.area).toBe(MEDIUM_TREE_SQM)
+    expect(tree.sizeSquareMetres).toBe(MEDIUM_TREE_SQM)
+    expect(tree.count).toBe(1)
+    expect(tree).not.toHaveProperty('type')
+    expect(tree).not.toHaveProperty('treeSize')
+  })
+
+  it('is Complete when the proposed side has broad type, type and condition', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Proposed Tree Size': 'Medium',
+          'Proposed Rural or Urban Tree': 'Rural',
+          'Proposed Condition': 'Moderate'
+        })
+      ]
+    })
+
+    expect(out.document.trees[0].status).toBe('Complete')
+  })
+
+  it('is Incomplete when the proposed rural/urban type is missing', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Proposed Tree Size': 'Medium',
+          'Proposed Condition': 'Moderate'
+        })
+      ]
+    })
+
+    expect(out.document.trees[0].status).toBe('Incomplete')
+  })
+
+  it('sums tree areas into areaHabitats and the urban/rural split, excluding them from site', () => {
+    const PARCEL_TOTAL_SQM = 5000
+    const habitatSizes = {
+      areaHabitats: {
+        totalSquareMetres: PARCEL_TOTAL_SQM,
+        individualSquareMetres: []
+      },
+      hedgerows: { totalMetres: 0, individualMetres: [] },
+      watercourses: { totalMetres: 0, individualMetres: [] }
+    }
+    const out = extractPostIntervention(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        trees: [
+          treeFeature({
+            'Tree Ref': 'T-urban',
+            'Proposed Tree Size': 'Medium',
+            'Proposed Rural or Urban Tree': 'Urban',
+            'Proposed Condition': 'Moderate'
+          }),
+          treeFeature({
+            'Tree Ref': 'T-rural',
+            'Proposed Tree Size': 'Small',
+            'Proposed Rural or Urban Tree': 'Rural',
+            'Proposed Condition': 'Moderate'
+          })
+        ]
+      },
+      { habitatSizes }
+    )
+
+    expect(out.document.habitatSizes.trees).toEqual({
+      totalSquareMetres: MEDIUM_TREE_SQM + SMALL_TREE_SQM,
+      urbanSquareMetres: MEDIUM_TREE_SQM,
+      ruralSquareMetres: SMALL_TREE_SQM
+    })
+    expect(out.document.habitatSizes.areaHabitats.totalSquareMetres).toBe(
+      PARCEL_TOTAL_SQM + MEDIUM_TREE_SQM + SMALL_TREE_SQM
+    )
+    expect(out.document.habitatSizes.site.totalSquareMetres).toBe(
+      PARCEL_TOTAL_SQM
+    )
+  })
+
+  it('produces trees that satisfy the post-intervention schema', () => {
+    const out = extractPostIntervention(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        trees: [
+          treeFeature({
+            'Tree Ref': 'T1',
+            'Baseline Tree Size': 'Large',
+            'Baseline Rural or Urban Tree': 'Rural',
+            'Baseline Condition': 'Moderate',
+            'Proposed Tree Size': 'Large',
+            'Proposed Rural or Urban Tree': 'Rural',
+            'Proposed Condition': 'Moderate'
+          })
+        ]
+      },
+      {
+        habitatSizes: {
+          areaHabitats: { totalSquareMetres: 0, individualSquareMetres: [] },
+          hedgerows: { totalMetres: 0, individualMetres: [] },
+          watercourses: { totalMetres: 0, individualMetres: [] }
+        }
+      }
+    )
+
+    const { error } = postInterventionDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: out.document.trees,
+      habitatSizes: out.document.habitatSizes
+    })
+    expect(error).toBeUndefined()
   })
 })
