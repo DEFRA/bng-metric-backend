@@ -265,7 +265,7 @@ export function calculateCreatedWatercoursePostIntervention(
  * @param {{ watercourseEncroachment?: string | null, riparianEncroachment?: string | null, advanceYears?: number, delayYears?: number }} [options] - Post-intervention encroachment and timing
  * @returns {{ units: number, postInterventionDistinctiveness: string, postInterventionDistinctivenessScore: number, postInterventionConditionScore: number, postInterventionWaterEncroachmentMultiplier: number, postInterventionRiparianEncroachmentMultiplier: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number }}
  * @throws {TypeError} If either length is invalid
- * @throws {PostInterventionLookupError} If watercourse type, condition, or encroachment is not found in the reference tables
+ * @throws {BaselineLookupError} If watercourse type, condition, or encroachment is not found in the reference tables
  */
 export function calculateEnhancedWatercoursePostIntervention(
   baselineLengthKm,

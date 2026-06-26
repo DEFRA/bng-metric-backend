@@ -134,7 +134,7 @@ const HEDGEROW_PI_CONFIG = {
  * @param {string} condition - Condition band (e.g. "Good", "Moderate")
  * @returns {{ units: number, distinctiveness: string, distinctivenessScore: number, conditionScore: number, strategicSignificanceScore: number }}
  * @throws {TypeError} If length is invalid
- * @throws {PostInterventionLookupError} If hedgeType or condition is not found in the reference tables
+ * @throws {BaselineLookupError} If hedgeType or condition is not found in the reference tables
  * @example
  * const result = calculateHedgerowBaseline(0.5, 'Native hedgerow', 'Good')
  * // { units: 3, distinctiveness: 'Low', distinctivenessScore: 2, conditionScore: 3, strategicSignificanceScore: 1 }
@@ -193,7 +193,7 @@ export function calculateCreatedHedgerowPostIntervention(
  * @param {{ advanceYears?: number, delayYears?: number }} [options] - Advance and delay years
  * @returns {{ units: number, postInterventionDistinctiveness: string, postInterventionDistinctivenessScore: number, postInterventionConditionScore: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number }}
  * @throws {TypeError} If either length is invalid
- * @throws {PostInterventionLookupError} If hedgeType or condition is not found in the reference tables
+ * @throws {BaselineLookupError} If hedgeType or condition is not found in the reference tables
  */
 export function calculateEnhancedHedgerowPostIntervention(
   baselineLengthKm,

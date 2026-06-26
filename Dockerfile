@@ -44,7 +44,6 @@ COPY --chown=node:node --from=development /home/node/bng-metric-engine ./bng-met
 RUN npm pkg delete scripts.postinstall && npm prune --omit=dev
 
 COPY --chown=node:node --from=development /home/node/src ./src/
-COPY --chown=node:node --from=development /home/node/bng-metric-engine/src ./bng-metric-engine/src/
 
 ARG PORT
 ENV PORT=${PORT}
