@@ -4,15 +4,10 @@ import {
   getWatercourseEnhancementDifficultyMultiplier,
   getWatercourseEnhancementTimeMultiplier
 } from './linear-watercourse-multipliers.js'
-import { roundToSigFigs } from './utils.js'
 import {
   isDistinctivenessEnhancement,
   resolveEncroachmentMultiplier,
-  resolveEnhancedLinearLengths,
-  resolveLinearConditionScore,
-  resolveLinearDistinctiveness,
-  resolveRequiredEncroachmentMultiplier,
-  validateLinearLength
+  resolveRequiredEncroachmentMultiplier
 } from './linear-resolvers.js'
 import {
   WATERCOURSE_CONDITION_SCORES,
@@ -21,8 +16,12 @@ import {
   WATERCOURSE_ENCROACHMENT_MULTIPLIER,
   WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER
 } from './reference-constants.js'
+import {
+  calculateCreatedLinearPostIntervention,
+  calculateEnhancedLinearPostIntervention,
+  calculateRetainedLinearPostIntervention
+} from './linear-post-intervention.js'
 
-const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1 // Metric uses 1 for post-intervention
 const WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL = 'watercourse encroachment'
 const RIPARIAN_ENCROACHMENT_LOOKUP_LABEL = 'riparian encroachment'
 const WATERCOURSE_RESOLVER_LABEL = 'watercourse'
@@ -36,10 +35,10 @@ const POOR_CONDITION = 'Poor'
  * @param {{
  *   baselineDistinctivenessScore: number,
  *   postInterventionDistinctivenessScore: number,
- *   baselineWatercourseType: string,
- *   postInterventionWatercourseType: string,
+ *   baselineType: string,
+ *   postType: string,
  *   baselineCondition: string,
- *   postInterventionCondition: string,
+ *   postCondition: string,
  *   advanceYears: number,
  *   delayYears: number
  * }} enhancementContext
@@ -49,10 +48,10 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   const {
     baselineDistinctivenessScore,
     postInterventionDistinctivenessScore,
-    baselineWatercourseType,
-    postInterventionWatercourseType,
+    baselineType,
+    postType,
     baselineCondition,
-    postInterventionCondition,
+    postCondition,
     advanceYears,
     delayYears
   } = enhancementContext
@@ -61,20 +60,19 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
     baselineDistinctivenessScore,
     postInterventionDistinctivenessScore
   )
-  const crossWatercourseType =
-    baselineWatercourseType !== postInterventionWatercourseType
+  const crossWatercourseType = baselineType !== postType
 
   if (distinctivenessEnhancement && baselineCondition === POOR_CONDITION) {
     return {
       timeMultiplier: getWatercourseCreationTimeMultiplier(
-        postInterventionWatercourseType,
-        postInterventionCondition,
+        postType,
+        postCondition,
         advanceYears,
         delayYears
       ),
       difficultyMultiplier: getWatercourseCreationDifficultyMultiplier(
-        postInterventionWatercourseType,
-        postInterventionCondition,
+        postType,
+        postCondition,
         advanceYears,
         delayYears
       )
@@ -83,15 +81,15 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   if (distinctivenessEnhancement && crossWatercourseType) {
     return {
       timeMultiplier: getWatercourseCreationTimeMultiplier(
-        postInterventionWatercourseType,
-        postInterventionCondition,
+        postType,
+        postCondition,
         advanceYears,
         delayYears
       ),
       difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
-        postInterventionWatercourseType,
+        postType,
         POOR_CONDITION,
-        postInterventionCondition,
+        postCondition,
         advanceYears,
         delayYears
       )
@@ -103,20 +101,96 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
     : baselineCondition
   return {
     timeMultiplier: getWatercourseEnhancementTimeMultiplier(
-      postInterventionWatercourseType,
+      postType,
       timeStartCondition,
-      postInterventionCondition,
+      postCondition,
       advanceYears,
       delayYears
     ),
     difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
-      postInterventionWatercourseType,
+      postType,
       timeStartCondition,
-      postInterventionCondition,
+      postCondition,
       advanceYears,
       delayYears
     )
   }
+}
+
+/**
+ * Resolve retained/created encroachment multipliers into ordered unit factors
+ * and the matching return fields. Created uses required lookups; retained
+ * treats null / empty as no encroachment (multiplier 1).
+ *
+ * @param {{ watercourseEncroachment: string | null, riparianEncroachment: string | null }} encroachment
+ * @param {{ required: boolean }} options
+ * @returns {{ factors: number[], fields: { waterEncroachmentMultiplier: number, riparianEncroachmentMultiplier: number } }}
+ */
+function resolveWatercourseEncroachmentFactors(encroachment, { required }) {
+  const resolve = required
+    ? resolveRequiredEncroachmentMultiplier
+    : resolveEncroachmentMultiplier
+  const waterEncroachmentMultiplier = resolve(
+    encroachment.watercourseEncroachment,
+    WATERCOURSE_ENCROACHMENT_MULTIPLIER,
+    WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL
+  )
+  const riparianEncroachmentMultiplier = resolve(
+    encroachment.riparianEncroachment,
+    WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
+    RIPARIAN_ENCROACHMENT_LOOKUP_LABEL
+  )
+  return {
+    factors: [waterEncroachmentMultiplier, riparianEncroachmentMultiplier],
+    fields: { waterEncroachmentMultiplier, riparianEncroachmentMultiplier }
+  }
+}
+
+/**
+ * Resolve enhanced post-intervention encroachment multipliers into ordered unit
+ * factors and the matching `postIntervention*` return fields.
+ *
+ * @param {{ watercourseEncroachment: string | null, riparianEncroachment: string | null }} encroachment
+ * @returns {{ factors: number[], fields: { postInterventionWaterEncroachmentMultiplier: number, postInterventionRiparianEncroachmentMultiplier: number } }}
+ */
+function resolveEnhancedWatercourseEncroachmentFactors(encroachment) {
+  const postInterventionWaterEncroachmentMultiplier =
+    resolveEncroachmentMultiplier(
+      encroachment.watercourseEncroachment,
+      WATERCOURSE_ENCROACHMENT_MULTIPLIER,
+      WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL
+    )
+  const postInterventionRiparianEncroachmentMultiplier =
+    resolveEncroachmentMultiplier(
+      encroachment.riparianEncroachment,
+      WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
+      RIPARIAN_ENCROACHMENT_LOOKUP_LABEL
+    )
+  return {
+    factors: [
+      postInterventionWaterEncroachmentMultiplier,
+      postInterventionRiparianEncroachmentMultiplier
+    ],
+    fields: {
+      postInterventionWaterEncroachmentMultiplier,
+      postInterventionRiparianEncroachmentMultiplier
+    }
+  }
+}
+
+/** @type {import('./linear-post-intervention.js').LinearPostInterventionConfig} */
+const WATERCOURSE_PI_CONFIG = {
+  label: 'Watercourse',
+  resolverLabel: WATERCOURSE_RESOLVER_LABEL,
+  distinctivenessCategories: WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
+  distinctivenessScores: WATERCOURSE_DISTINCTIVENESS_SCORES,
+  conditionScores: WATERCOURSE_CONDITION_SCORES,
+  getCreationTimeMultiplier: getWatercourseCreationTimeMultiplier,
+  getCreationDifficultyMultiplier: getWatercourseCreationDifficultyMultiplier,
+  resolveEnhancementMultipliers: resolveWatercourseEnhancementMultipliers,
+  resolveEncroachmentFactors: resolveWatercourseEncroachmentFactors,
+  resolveEnhancedEncroachmentFactors:
+    resolveEnhancedWatercourseEncroachmentFactors
 }
 
 /**
@@ -137,52 +211,12 @@ export function calculateRetainedWatercoursePostIntervention(
   watercourseEncroachment = null,
   riparianEncroachment = null
 ) {
-  validateLinearLength(lengthKm, 'Watercourse')
-
-  const { distinctiveness, distinctivenessScore } =
-    resolveLinearDistinctiveness(
-      watercourseType,
-      WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
-      WATERCOURSE_DISTINCTIVENESS_SCORES,
-      WATERCOURSE_RESOLVER_LABEL
-    )
-  const conditionScore = resolveLinearConditionScore(
-    watercourseType,
+  return calculateRetainedLinearPostIntervention(WATERCOURSE_PI_CONFIG, {
+    lengthKm,
+    type: watercourseType,
     condition,
-    WATERCOURSE_CONDITION_SCORES,
-    WATERCOURSE_RESOLVER_LABEL
-  )
-  const waterEncroachmentMultiplier = resolveEncroachmentMultiplier(
-    watercourseEncroachment,
-    WATERCOURSE_ENCROACHMENT_MULTIPLIER,
-    WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL
-  )
-  const riparianEncroachmentMultiplier = resolveEncroachmentMultiplier(
-    riparianEncroachment,
-    WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
-    RIPARIAN_ENCROACHMENT_LOOKUP_LABEL
-  )
-  const strategicSignificanceScore =
-    POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-
-  const units = roundToSigFigs(
-    lengthKm *
-      distinctivenessScore *
-      conditionScore *
-      waterEncroachmentMultiplier *
-      riparianEncroachmentMultiplier *
-      strategicSignificanceScore
-  )
-
-  return {
-    units,
-    distinctiveness,
-    distinctivenessScore,
-    conditionScore,
-    waterEncroachmentMultiplier,
-    riparianEncroachmentMultiplier,
-    strategicSignificanceScore
-  }
+    encroachment: { watercourseEncroachment, riparianEncroachment }
+  })
 }
 
 /**
@@ -207,203 +241,14 @@ export function calculateCreatedWatercoursePostIntervention(
   advanceYears = 0,
   delayYears = 0
 ) {
-  validateLinearLength(lengthKm, 'Watercourse')
-
-  const { distinctiveness, distinctivenessScore } =
-    resolveLinearDistinctiveness(
-      watercourseType,
-      WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
-      WATERCOURSE_DISTINCTIVENESS_SCORES,
-      WATERCOURSE_RESOLVER_LABEL
-    )
-  const conditionScore = resolveLinearConditionScore(
-    watercourseType,
-    condition,
-    WATERCOURSE_CONDITION_SCORES,
-    WATERCOURSE_RESOLVER_LABEL
-  )
-  const waterEncroachmentMultiplier = resolveRequiredEncroachmentMultiplier(
-    watercourseEncroachment,
-    WATERCOURSE_ENCROACHMENT_MULTIPLIER,
-    WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL
-  )
-  const riparianEncroachmentMultiplier = resolveRequiredEncroachmentMultiplier(
-    riparianEncroachment,
-    WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
-    RIPARIAN_ENCROACHMENT_LOOKUP_LABEL
-  )
-  const strategicSignificanceScore =
-    POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-  const timeMultiplier = getWatercourseCreationTimeMultiplier(
-    watercourseType,
+  return calculateCreatedLinearPostIntervention(WATERCOURSE_PI_CONFIG, {
+    lengthKm,
+    type: watercourseType,
     condition,
     advanceYears,
-    delayYears
-  )
-  const difficultyMultiplier = getWatercourseCreationDifficultyMultiplier(
-    watercourseType,
-    condition,
-    advanceYears,
-    delayYears
-  )
-
-  const units = roundToSigFigs(
-    lengthKm *
-      distinctivenessScore *
-      conditionScore *
-      waterEncroachmentMultiplier *
-      riparianEncroachmentMultiplier *
-      strategicSignificanceScore *
-      timeMultiplier *
-      difficultyMultiplier
-  )
-
-  return {
-    units,
-    distinctiveness,
-    distinctivenessScore,
-    conditionScore,
-    waterEncroachmentMultiplier,
-    riparianEncroachmentMultiplier,
-    strategicSignificanceScore,
-    timeMultiplier,
-    difficultyMultiplier
-  }
-}
-
-/**
- * Resolve post-intervention encroachment multipliers from raw values.
- *
- * @param {string | null | undefined} watercourseEncroachment
- * @param {string | null | undefined} riparianEncroachment
- * @returns {{ postInterventionWaterEncroachmentMultiplier: number, postInterventionRiparianEncroachmentMultiplier: number }}
- */
-function resolveEnhancedWatercourseEncroachmentMultipliers(
-  watercourseEncroachment,
-  riparianEncroachment
-) {
-  return {
-    postInterventionWaterEncroachmentMultiplier: resolveEncroachmentMultiplier(
-      watercourseEncroachment,
-      WATERCOURSE_ENCROACHMENT_MULTIPLIER,
-      WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL
-    ),
-    postInterventionRiparianEncroachmentMultiplier:
-      resolveEncroachmentMultiplier(
-        riparianEncroachment,
-        WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
-        RIPARIAN_ENCROACHMENT_LOOKUP_LABEL
-      )
-  }
-}
-
-/**
- * Resolve baseline and post-intervention distinctiveness and condition scores
- * for an enhanced watercourse.
- *
- * @param {string} baselineWatercourseType
- * @param {string} postInterventionWatercourseType
- * @param {string} baselineCondition
- * @param {string} postInterventionCondition
- * @returns {{
- *   baselineDistinctivenessScore: number,
- *   postInterventionDistinctiveness: string,
- *   postInterventionDistinctivenessScore: number,
- *   baselineConditionScore: number,
- *   postInterventionConditionScore: number
- * }}
- */
-function resolveEnhancedWatercourseScores(
-  baselineWatercourseType,
-  postInterventionWatercourseType,
-  baselineCondition,
-  postInterventionCondition
-) {
-  const { distinctivenessScore: baselineDistinctivenessScore } =
-    resolveLinearDistinctiveness(
-      baselineWatercourseType,
-      WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
-      WATERCOURSE_DISTINCTIVENESS_SCORES,
-      WATERCOURSE_RESOLVER_LABEL
-    )
-  const {
-    distinctiveness: postInterventionDistinctiveness,
-    distinctivenessScore: postInterventionDistinctivenessScore
-  } = resolveLinearDistinctiveness(
-    postInterventionWatercourseType,
-    WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
-    WATERCOURSE_DISTINCTIVENESS_SCORES,
-    WATERCOURSE_RESOLVER_LABEL
-  )
-  const baselineConditionScore = resolveLinearConditionScore(
-    baselineWatercourseType,
-    baselineCondition,
-    WATERCOURSE_CONDITION_SCORES,
-    WATERCOURSE_RESOLVER_LABEL
-  )
-  const postInterventionConditionScore = resolveLinearConditionScore(
-    postInterventionWatercourseType,
-    postInterventionCondition,
-    WATERCOURSE_CONDITION_SCORES,
-    WATERCOURSE_RESOLVER_LABEL
-  )
-  return {
-    baselineDistinctivenessScore,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore
-  }
-}
-
-/**
- * Compute enhanced watercourse units from resolved scores, lengths, and multipliers.
- *
- * @param {number} params.baselineLengthKm
- * @param {number} params.postInterventionLengthKm
- * @param {number} params.baselineDistinctivenessScore
- * @param {number} params.postInterventionDistinctivenessScore
- * @param {number} params.baselineConditionScore
- * @param {number} params.postInterventionConditionScore
- * @param {number} params.timeMultiplier
- * @param {number} params.difficultyMultiplier
- * @param {number} params.postInterventionWaterEncroachmentMultiplier
- * @param {number} params.postInterventionRiparianEncroachmentMultiplier
- * @returns {number}
- */
-function computeEnhancedWatercourseUnits({
-  baselineLengthKm,
-  postInterventionLengthKm,
-  baselineDistinctivenessScore,
-  postInterventionDistinctivenessScore,
-  baselineConditionScore,
-  postInterventionConditionScore,
-  timeMultiplier,
-  difficultyMultiplier,
-  postInterventionWaterEncroachmentMultiplier,
-  postInterventionRiparianEncroachmentMultiplier
-}) {
-  const {
-    postInterventionLengthKm: postLengthKm,
-    baselineLengthKm: baseLengthKm
-  } = resolveEnhancedLinearLengths(baselineLengthKm, postInterventionLengthKm)
-
-  const postInterventionValue =
-    postLengthKm *
-    postInterventionDistinctivenessScore *
-    postInterventionConditionScore
-  const baselineValue =
-    baseLengthKm * baselineDistinctivenessScore * baselineConditionScore
-  const riskMultiplier = timeMultiplier * difficultyMultiplier
-  const strategicSignificanceFactor =
-    POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER *
-    postInterventionWaterEncroachmentMultiplier *
-    postInterventionRiparianEncroachmentMultiplier
-
-  return roundToSigFigs(
-    ((postInterventionValue - baselineValue) * riskMultiplier + baselineValue) *
-      strategicSignificanceFactor
-  )
+    delayYears,
+    encroachment: { watercourseEncroachment, riparianEncroachment }
+  })
 }
 
 /**
@@ -436,64 +281,18 @@ export function calculateEnhancedWatercoursePostIntervention(
     delayYears = 0
   } = {}
 ) {
-  validateLinearLength(baselineLengthKm, 'Watercourse baseline')
-  validateLinearLength(
-    postInterventionLengthKm,
-    'Watercourse post-intervention'
-  )
-  const {
-    baselineDistinctivenessScore,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore
-  } = resolveEnhancedWatercourseScores(
-    baselineWatercourseType,
-    postInterventionWatercourseType,
-    baselineCondition,
-    postInterventionCondition
-  )
-  const {
-    postInterventionWaterEncroachmentMultiplier,
-    postInterventionRiparianEncroachmentMultiplier
-  } = resolveEnhancedWatercourseEncroachmentMultipliers(
-    postInterventionWatercourseEncroachment,
-    postInterventionRiparianEncroachment
-  )
-  const { timeMultiplier, difficultyMultiplier } =
-    resolveWatercourseEnhancementMultipliers({
-      baselineDistinctivenessScore,
-      postInterventionDistinctivenessScore,
-      baselineWatercourseType,
-      postInterventionWatercourseType,
-      baselineCondition,
-      postInterventionCondition,
-      advanceYears,
-      delayYears
-    })
-  const units = computeEnhancedWatercourseUnits({
+  return calculateEnhancedLinearPostIntervention(WATERCOURSE_PI_CONFIG, {
     baselineLengthKm,
     postInterventionLengthKm,
-    baselineDistinctivenessScore,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore,
-    timeMultiplier,
-    difficultyMultiplier,
-    postInterventionWaterEncroachmentMultiplier,
-    postInterventionRiparianEncroachmentMultiplier
+    baselineType: baselineWatercourseType,
+    postType: postInterventionWatercourseType,
+    baselineCondition,
+    postCondition: postInterventionCondition,
+    advanceYears,
+    delayYears,
+    encroachment: {
+      watercourseEncroachment: postInterventionWatercourseEncroachment,
+      riparianEncroachment: postInterventionRiparianEncroachment
+    }
   })
-
-  return {
-    units,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    postInterventionConditionScore,
-    postInterventionWaterEncroachmentMultiplier,
-    postInterventionRiparianEncroachmentMultiplier,
-    strategicSignificanceScore:
-      POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER,
-    timeMultiplier,
-    difficultyMultiplier
-  }
 }

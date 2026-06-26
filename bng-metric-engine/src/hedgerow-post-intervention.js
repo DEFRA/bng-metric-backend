@@ -4,22 +4,20 @@ import {
   getHedgerowEnhancementDifficultyMultiplier,
   getHedgerowEnhancementTimeMultiplier
 } from './linear-hedgerow-multipliers.js'
-import { roundToSigFigs } from './utils.js'
-import {
-  isDistinctivenessEnhancement,
-  resolveEnhancedLinearLengths,
-  resolveLinearConditionScore,
-  resolveLinearDistinctiveness,
-  validateLinearLength
-} from './linear-resolvers.js'
+import { isDistinctivenessEnhancement } from './linear-resolvers.js'
 import {
   HEDGEROW_CONDITION_SCORES,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
   HEDGEROW_DISTINCTIVENESS_SCORES
 } from './reference-constants.js'
+import {
+  calculateCreatedLinearPostIntervention,
+  calculateEnhancedLinearPostIntervention,
+  calculateRetainedLinearPostIntervention
+} from './linear-post-intervention.js'
 
-const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1 // Metric uses 1 for post-intervention
 const HEDGEROW_RESOLVER_LABEL = 'hedgerow'
+const POOR_CONDITION = 'Poor'
 
 /**
  * Enhancement-through-distinctiveness from a Poor baseline uses creation
@@ -41,7 +39,7 @@ function resolveHedgerowEnhancementTimeStartCondition(
       postInterventionDistinctivenessScore
     )
   ) {
-    return 'Poor'
+    return POOR_CONDITION
   }
   return baselineCondition
 }
@@ -49,41 +47,43 @@ function resolveHedgerowEnhancementTimeStartCondition(
 /**
  * Resolve time and difficulty multipliers for an enhanced hedgerow.
  *
- * @param {number} baselineDistinctivenessScore
- * @param {number} postInterventionDistinctivenessScore
- * @param {string} postInterventionHedgeType
- * @param {string} baselineCondition
- * @param {string} postInterventionCondition
- * @param {number} advanceYears
- * @param {number} delayYears
+ * @param {{
+ *   baselineDistinctivenessScore: number,
+ *   postInterventionDistinctivenessScore: number,
+ *   postType: string,
+ *   baselineCondition: string,
+ *   postCondition: string,
+ *   advanceYears: number,
+ *   delayYears: number
+ * }} enhancementContext
  * @returns {{ timeMultiplier: number, difficultyMultiplier: number }}
  */
-function resolveHedgerowEnhancementMultipliers(
+function resolveHedgerowEnhancementMultipliers({
   baselineDistinctivenessScore,
   postInterventionDistinctivenessScore,
-  postInterventionHedgeType,
+  postType,
   baselineCondition,
-  postInterventionCondition,
+  postCondition,
   advanceYears,
   delayYears
-) {
+}) {
   if (
     isDistinctivenessEnhancement(
       baselineDistinctivenessScore,
       postInterventionDistinctivenessScore
     ) &&
-    baselineCondition === 'Poor'
+    baselineCondition === POOR_CONDITION
   ) {
     return {
       timeMultiplier: getHedgerowCreationTimeMultiplier(
-        postInterventionHedgeType,
-        postInterventionCondition,
+        postType,
+        postCondition,
         advanceYears,
         delayYears
       ),
       difficultyMultiplier: getHedgerowCreationDifficultyMultiplier(
-        postInterventionHedgeType,
-        postInterventionCondition,
+        postType,
+        postCondition,
         advanceYears,
         delayYears
       )
@@ -97,20 +97,32 @@ function resolveHedgerowEnhancementMultipliers(
   )
   return {
     timeMultiplier: getHedgerowEnhancementTimeMultiplier(
-      postInterventionHedgeType,
+      postType,
       timeStartCondition,
-      postInterventionCondition,
+      postCondition,
       advanceYears,
       delayYears
     ),
     difficultyMultiplier: getHedgerowEnhancementDifficultyMultiplier(
-      postInterventionHedgeType,
+      postType,
       timeStartCondition,
-      postInterventionCondition,
+      postCondition,
       advanceYears,
       delayYears
     )
   }
+}
+
+/** @type {import('./linear-post-intervention.js').LinearPostInterventionConfig} */
+const HEDGEROW_PI_CONFIG = {
+  label: 'Hedgerow',
+  resolverLabel: HEDGEROW_RESOLVER_LABEL,
+  distinctivenessCategories: HEDGEROW_DISTINCTIVENESS_CATEGORIES,
+  distinctivenessScores: HEDGEROW_DISTINCTIVENESS_SCORES,
+  conditionScores: HEDGEROW_CONDITION_SCORES,
+  getCreationTimeMultiplier: getHedgerowCreationTimeMultiplier,
+  getCreationDifficultyMultiplier: getHedgerowCreationDifficultyMultiplier,
+  resolveEnhancementMultipliers: resolveHedgerowEnhancementMultipliers
 }
 
 /**
@@ -132,38 +144,11 @@ export function calculateRetainedHedgerowPostIntervention(
   hedgeType,
   condition
 ) {
-  validateLinearLength(lengthKm, 'Hedgerow')
-
-  const { distinctiveness, distinctivenessScore } =
-    resolveLinearDistinctiveness(
-      hedgeType,
-      HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-      HEDGEROW_DISTINCTIVENESS_SCORES,
-      HEDGEROW_RESOLVER_LABEL
-    )
-  const conditionScore = resolveLinearConditionScore(
-    hedgeType,
-    condition,
-    HEDGEROW_CONDITION_SCORES,
-    HEDGEROW_RESOLVER_LABEL
-  )
-  const strategicSignificanceScore =
-    POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-
-  const units = roundToSigFigs(
-    lengthKm *
-      distinctivenessScore *
-      conditionScore *
-      strategicSignificanceScore
-  )
-
-  return {
-    units,
-    distinctiveness,
-    distinctivenessScore,
-    conditionScore,
-    strategicSignificanceScore
-  }
+  return calculateRetainedLinearPostIntervention(HEDGEROW_PI_CONFIG, {
+    lengthKm,
+    type: hedgeType,
+    condition
+  })
 }
 
 /**
@@ -186,159 +171,13 @@ export function calculateCreatedHedgerowPostIntervention(
   advanceYears,
   delayYears
 ) {
-  validateLinearLength(lengthKm, 'Hedgerow')
-
-  const { distinctiveness, distinctivenessScore } =
-    resolveLinearDistinctiveness(
-      hedgeType,
-      HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-      HEDGEROW_DISTINCTIVENESS_SCORES,
-      HEDGEROW_RESOLVER_LABEL
-    )
-  const conditionScore = resolveLinearConditionScore(
-    hedgeType,
-    condition,
-    HEDGEROW_CONDITION_SCORES,
-    HEDGEROW_RESOLVER_LABEL
-  )
-  const strategicSignificanceScore =
-    POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-  const timeMultiplier = getHedgerowCreationTimeMultiplier(
-    hedgeType,
+  return calculateCreatedLinearPostIntervention(HEDGEROW_PI_CONFIG, {
+    lengthKm,
+    type: hedgeType,
     condition,
     advanceYears,
     delayYears
-  )
-  const difficultyMultiplier = getHedgerowCreationDifficultyMultiplier(
-    hedgeType,
-    condition,
-    advanceYears,
-    delayYears
-  )
-
-  const units = roundToSigFigs(
-    lengthKm *
-      distinctivenessScore *
-      conditionScore *
-      strategicSignificanceScore *
-      timeMultiplier *
-      difficultyMultiplier
-  )
-
-  return {
-    units,
-    distinctiveness,
-    distinctivenessScore,
-    conditionScore,
-    strategicSignificanceScore,
-    timeMultiplier,
-    difficultyMultiplier
-  }
-}
-
-/**
- * Resolve baseline and post-intervention distinctiveness and condition scores.
- *
- * @param {string} baselineHedgeType
- * @param {string} postInterventionHedgeType
- * @param {string} baselineCondition
- * @param {string} postInterventionCondition
- * @returns {{
- *   baselineDistinctivenessScore: number,
- *   postInterventionDistinctiveness: string,
- *   postInterventionDistinctivenessScore: number,
- *   baselineConditionScore: number,
- *   postInterventionConditionScore: number
- * }}
- */
-function resolveEnhancedHedgerowScores(
-  baselineHedgeType,
-  postInterventionHedgeType,
-  baselineCondition,
-  postInterventionCondition
-) {
-  const { distinctivenessScore: baselineDistinctivenessScore } =
-    resolveLinearDistinctiveness(
-      baselineHedgeType,
-      HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-      HEDGEROW_DISTINCTIVENESS_SCORES,
-      HEDGEROW_RESOLVER_LABEL
-    )
-
-  const {
-    distinctiveness: postInterventionDistinctiveness,
-    distinctivenessScore: postInterventionDistinctivenessScore
-  } = resolveLinearDistinctiveness(
-    postInterventionHedgeType,
-    HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-    HEDGEROW_DISTINCTIVENESS_SCORES,
-    HEDGEROW_RESOLVER_LABEL
-  )
-
-  const baselineConditionScore = resolveLinearConditionScore(
-    baselineHedgeType,
-    baselineCondition,
-    HEDGEROW_CONDITION_SCORES,
-    HEDGEROW_RESOLVER_LABEL
-  )
-
-  const postInterventionConditionScore = resolveLinearConditionScore(
-    postInterventionHedgeType,
-    postInterventionCondition,
-    HEDGEROW_CONDITION_SCORES,
-    HEDGEROW_RESOLVER_LABEL
-  )
-
-  return {
-    baselineDistinctivenessScore,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore
-  }
-}
-
-/**
- * Compute enhanced hedgerow units from resolved scores, lengths, and multipliers.
- *
- * @param {object} params
- * @param {number} params.baselineLengthKm
- * @param {number} params.postInterventionLengthKm
- * @param {number} params.baselineDistinctivenessScore
- * @param {number} params.postInterventionDistinctivenessScore
- * @param {number} params.baselineConditionScore
- * @param {number} params.postInterventionConditionScore
- * @param {number} params.timeMultiplier
- * @param {number} params.difficultyMultiplier
- * @returns {number}
- */
-function computeEnhancedHedgerowUnits({
-  baselineLengthKm,
-  postInterventionLengthKm,
-  baselineDistinctivenessScore,
-  postInterventionDistinctivenessScore,
-  baselineConditionScore,
-  postInterventionConditionScore,
-  timeMultiplier,
-  difficultyMultiplier
-}) {
-  const {
-    postInterventionLengthKm: postLengthKm,
-    baselineLengthKm: baseLengthKm
-  } = resolveEnhancedLinearLengths(baselineLengthKm, postInterventionLengthKm)
-
-  const postInterventionValue =
-    postLengthKm *
-    postInterventionDistinctivenessScore *
-    postInterventionConditionScore
-  const baselineValue =
-    baseLengthKm * baselineDistinctivenessScore * baselineConditionScore
-  const riskMultiplier = timeMultiplier * difficultyMultiplier
-
-  return roundToSigFigs(
-    ((postInterventionValue - baselineValue) * riskMultiplier + baselineValue) *
-      POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-  )
+  })
 }
 
 /**
@@ -365,52 +204,14 @@ export function calculateEnhancedHedgerowPostIntervention(
   postInterventionCondition,
   { advanceYears = 0, delayYears = 0 } = {}
 ) {
-  validateLinearLength(baselineLengthKm, 'Hedgerow baseline')
-  validateLinearLength(postInterventionLengthKm, 'Hedgerow post-intervention')
-
-  const {
-    baselineDistinctivenessScore,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore
-  } = resolveEnhancedHedgerowScores(
-    baselineHedgeType,
-    postInterventionHedgeType,
-    baselineCondition,
-    postInterventionCondition
-  )
-
-  const { timeMultiplier, difficultyMultiplier } =
-    resolveHedgerowEnhancementMultipliers(
-      baselineDistinctivenessScore,
-      postInterventionDistinctivenessScore,
-      postInterventionHedgeType,
-      baselineCondition,
-      postInterventionCondition,
-      advanceYears,
-      delayYears
-    )
-
-  const units = computeEnhancedHedgerowUnits({
+  return calculateEnhancedLinearPostIntervention(HEDGEROW_PI_CONFIG, {
     baselineLengthKm,
     postInterventionLengthKm,
-    baselineDistinctivenessScore,
-    postInterventionDistinctivenessScore,
-    baselineConditionScore,
-    postInterventionConditionScore,
-    timeMultiplier,
-    difficultyMultiplier
+    baselineType: baselineHedgeType,
+    postType: postInterventionHedgeType,
+    baselineCondition,
+    postCondition: postInterventionCondition,
+    advanceYears,
+    delayYears
   })
-
-  return {
-    units,
-    postInterventionDistinctiveness,
-    postInterventionDistinctivenessScore,
-    postInterventionConditionScore,
-    strategicSignificanceScore:
-      POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER,
-    timeMultiplier,
-    difficultyMultiplier
-  }
 }
