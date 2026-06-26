@@ -462,7 +462,7 @@ function getLinearEnhancementDifficultyMultiplier(
     cfg.label
   )
   const validatedAdvanceYears = validateYears(advanceYears)
-  validateYears(delayYears)
+  const validatedDelayYears = validateYears(delayYears)
 
   const referenceYears = normaliseReferenceYears(
     lookupLinearEnhancementTimeToTarget(
@@ -473,7 +473,13 @@ function getLinearEnhancementDifficultyMultiplier(
     )
   )
 
-  if (advanceMeetsTimeToTarget(validatedAdvanceYears, String(referenceYears))) {
+  // Delay lengthens the effective time to target; advance must compensate for both.
+  const computedYears = applyDelayAdvanceAndClamp(
+    referenceYears,
+    validatedAdvanceYears,
+    validatedDelayYears
+  )
+  if (computedYears === 0) {
     return DIFFICULTY_MULTIPLIER[LOW_DIFFICULTY]
   }
   return lookupLinearDifficultyMultiplier(cfg, linearType, ENHANCEMENT)

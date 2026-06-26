@@ -10,6 +10,7 @@ import {
 // Statutory multiplier constants — extracted to avoid magic number literals
 const MULTIPLIER_30_YRS = 0.8368287006
 const MULTIPLIER_10_YRS = 0.898632125
+const MULTIPLIER_2_YRS = 0.931225
 const DIFFICULTY_LOW = 1
 const DISTINCTIVENESS_LOW = 'Low'
 const DISTINCTIVENESS_MEDIUM = 'Medium'
@@ -195,5 +196,36 @@ describe('calculateEnhancedHedgerowPostIntervention', () => {
         { advanceYears: 0, delayYears: 0 }
       )
     ).toThrow(BaselineLookupError)
+  })
+
+  it('pins statutory unit calculation for Species-rich native hedgerow Moderate → Good', () => {
+    // Verified against BNG metric statutory tool (hedgerow worksheet):
+    //   Enhancement time-to-target (Moderate → Good) = 2 years
+    //   TIME_TO_TARGET_MULTIPLIER["2"]               = 0.931225
+    //   Difficulty                                   = Low (1.0)
+    //   Distinctiveness score (Medium)               = 4
+    //   Condition scores: Moderate = 2, Good = 3
+    //   Strategic significance                       = 1
+    //
+    //   postValue     = 1.0 × 4 × 3 = 12
+    //   baselineValue = 1.0 × 4 × 2 = 8
+    //   units = ((12 - 8) × 0.931225 × 1.0 + 8) × 1 = 11.7249
+    const result = calculateEnhancedHedgerowPostIntervention(
+      1.0,
+      1.0,
+      'Species-rich native hedgerow',
+      'Species-rich native hedgerow',
+      'Moderate',
+      'Good',
+      { advanceYears: 0, delayYears: 0 }
+    )
+    expect(result.units).toBe(11.7249)
+    expect(result.timeMultiplier).toBe(MULTIPLIER_2_YRS)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.postInterventionDistinctivenessScore).toBe(
+      DISTINCTIVENESS_SCORE_MEDIUM
+    )
+    expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
+    expect(result.strategicSignificanceScore).toBe(STRATEGIC_SIGNIFICANCE)
   })
 })

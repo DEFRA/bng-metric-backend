@@ -260,4 +260,39 @@ describe('getWatercourseEnhancementDifficultyMultiplier', () => {
       )
     ).toThrow(BaselineLookupError)
   })
+
+  it('accounts for delayYears when determining Low difficulty threshold', () => {
+    // Priority habitat Moderate → Good has a statutory reference time-to-target
+    // of 4 years. Advancing by 4 years (delay=0) meets the target → Low.
+    // Adding a 2-year delay raises the effective target to 6 years, so advance=4
+    // no longer meets it → Enhancement difficulty (Medium, 0.67).
+    expect(
+      getWatercourseEnhancementDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        GOOD,
+        4,
+        0
+      )
+    ).toBe(DIFFICULTY_LOW)
+    expect(
+      getWatercourseEnhancementDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        GOOD,
+        4,
+        2
+      )
+    ).toBe(DIFFICULTY_MEDIUM)
+    // advance=6 with delay=2: effective years = 4+2-6 = 0 → Low again
+    expect(
+      getWatercourseEnhancementDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        GOOD,
+        6,
+        2
+      )
+    ).toBe(DIFFICULTY_LOW)
+  })
 })
