@@ -362,6 +362,7 @@ const projectDetailsSchema = Joi.object({
     .allow(null, '')
     .description('Names of survey completer(s).'),
   surveyCompletionDate: Joi.string()
+    .pattern(/^\d{2}\/\d{2}\/\d{4}$/)
     .allow(null, '')
     .description('Survey completion date in DD/MM/YYYY format.'),
   developmentType: Joi.string()
@@ -374,16 +375,8 @@ const projectDetailsSchema = Joi.object({
     .description(
       'Whether the project is a National Significant Infrastructure Project.'
     ),
-  surveyCompletedBy: Joi.string()
-    .allow(null, '')
-    .description('Name of the person who completed the survey.'),
-  dateOfSurvey: Joi.string()
-    .allow(null, '')
-    .description('Date of survey in DD/MM/YYYY format.'),
   applicant: Joi.string().allow(null, '').description('Applicant name.')
-})
-  .allow(null)
-  .description('Project details entered by the user.')
+}).description('Project details entered by the user.')
 
 const habitatDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
@@ -412,7 +405,7 @@ const projectSchema = Joi.object({
   ),
   site: siteSchema,
   units: unitsSchema,
-  details: projectDetailsSchema,
+  details: projectDetailsSchema.allow(null),
   baseline: habitatDataSchema,
   postIntervention: postInterventionDataSchema
 }).description(

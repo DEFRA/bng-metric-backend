@@ -868,7 +868,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["pattern /^\\d{2}\\/\\d{2}\\/\\d{4}$/"],
       "openMap": false,
       "description": "Survey completion date in DD/MM/YYYY format."
     },
@@ -893,28 +893,6 @@
       "constraints": [],
       "openMap": false,
       "description": "Whether the project is a National Significant Infrastructure Project."
-    },
-    {
-      "path": "details.surveyCompletedBy",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Name of the person who completed the survey."
-    },
-    {
-      "path": "details.dateOfSurvey",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Date of survey in DD/MM/YYYY format."
     },
     {
       "path": "details.applicant",

@@ -10,8 +10,6 @@ const sampleDetails = {
   surveyCompletionDate: '01/06/2025',
   developmentType: 'Small site',
   nsips: 'No',
-  surveyCompletedBy: 'Jane Smith',
-  dateOfSurvey: '15/05/2025',
   applicant: 'Acme Developments Ltd'
 }
 
@@ -167,6 +165,29 @@ describe('#updateProjectDetails validation', () => {
     const { error } = payloadSchema.validate({ nsips: 'Maybe' })
     expect(error).toBeDefined()
     expect(error.message).toContain('"nsips" must be one of')
+  })
+
+  test('fails when surveyCompletionDate is not in DD/MM/YYYY format', () => {
+    const { error } = payloadSchema.validate({
+      surveyCompletionDate: '2025-06-01'
+    })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"surveyCompletionDate"')
+  })
+
+  test('accepts null surveyCompletionDate', () => {
+    const { error } = payloadSchema.validate({ surveyCompletionDate: null })
+    expect(error).toBeUndefined()
+  })
+
+  test('accepts empty string surveyCompletionDate', () => {
+    const { error } = payloadSchema.validate({ surveyCompletionDate: '' })
+    expect(error).toBeUndefined()
+  })
+
+  test('rejects a null payload', () => {
+    const { error } = payloadSchema.validate(null)
+    expect(error).toBeDefined()
   })
 
   test('fails when id param is not a UUID', () => {
