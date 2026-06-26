@@ -203,6 +203,14 @@ function makeH() {
   }
 }
 
+// Simple .select().from().where().limit() chain (no .for()) used by queries
+// that run outside a transaction. Always resolves to an empty array.
+function simpleSelectChain() {
+  const limitStep = { limit: () => Promise.resolve([]) }
+  const whereStep = { where: () => limitStep }
+  return { from: () => whereStep }
+}
+
 // Drizzle's .select().from().where().for().limit() chain. Built bottom-up so
 // each step is a single-level arrow rather than nested inline, keeping the
 // arrows under S2004's 4-deep limit. The .for('update') step (paired with
@@ -272,7 +280,11 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
     }))
   }
 
+  // A simple no-.for() chain used by fetchBaselineWatercourseLengthByRef, which
+  // queries the project outside of a transaction. Resolves to an empty array so
+  // the baseline watercourse map is empty by default.
   const drizzle = {
+    select: vi.fn(() => simpleSelectChain()),
     transaction: vi.fn(async (cb) => {
       log.transactionCalls += 1
       return cb(tx)

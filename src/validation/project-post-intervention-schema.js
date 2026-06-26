@@ -18,6 +18,7 @@ import {
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'
+const RETENTION_CATEGORY_DESCRIPTION = 'Retention Category from the GeoPackage.'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared sub-object factories
@@ -61,6 +62,16 @@ function proposedCommonFields() {
       .allow(null)
       .description(
         'Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features).'
+      ),
+    timeMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Time multiplier from bng-metric-engine; set for Created and Enhanced features.'
+      ),
+    difficultyMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features.'
       )
   }
 }
@@ -115,7 +126,7 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
     .description('Baseline Strategic Significance from the GeoPackage.'),
   retentionCategory: Joi.string()
     .allow(null, '')
-    .description('Retention Category from the GeoPackage.')
+    .description(RETENTION_CATEGORY_DESCRIPTION)
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
@@ -266,6 +277,9 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline hedgerow type from Baseline Hedge Type column.'),
+  retentionCategory: Joi.string()
+    .allow(null, '')
+    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields()
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
@@ -344,6 +358,9 @@ const postInterventionWatercourseBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline watercourse type from Baseline River Type column.'),
+  retentionCategory: Joi.string()
+    .allow(null, '')
+    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields(),
   ...watercourseEncroachmentFields
 }).description(

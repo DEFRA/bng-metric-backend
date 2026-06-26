@@ -292,6 +292,7 @@ function postInterventionProjectFixture() {
             type: 'Modified grassland',
             broadType: 'Grassland',
             condition: 'Moderate',
+            retentionCategory: 'Retained',
             conditionScore: null,
             distinctiveness: null,
             distinctivenessScore: null
@@ -373,7 +374,7 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(feature).not.toHaveProperty('distinctiveness')
   })
 
-  test('preserves baseline sub-object unchanged', () => {
+  test('enriches baseline sub-object with informational scores', () => {
     const result = applyFeatureUpdate(postInterventionProjectFixture(), {
       featureId: HABITAT_ID,
       edits: {
@@ -384,13 +385,10 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
       documentKey: 'postIntervention'
     })
 
-    expect(result.feature.baseline).toEqual(
-      expect.objectContaining({
-        type: 'Modified grassland',
-        broadType: 'Grassland',
-        condition: 'Moderate'
-      })
-    )
+    expect(result.feature.baseline.type).toBe('Modified grassland')
+    expect(result.feature.baseline.condition).toBe('Moderate')
+    expect(result.feature.baseline.distinctiveness).toBeTruthy()
+    expect(typeof result.feature.baseline.conditionScore).toBe('number')
   })
 
   test('refreshes postIntervention.units totals', () => {
