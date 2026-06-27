@@ -2795,7 +2795,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when proposed broad type, type and condition are all set."
+      "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "postIntervention.habitats[].baseline",
@@ -3125,7 +3125,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when proposed broad type, type and condition are all set."
+      "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "postIntervention.trees[].count",
@@ -3576,7 +3576,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when proposed type and condition are both set."
+      "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "postIntervention.hedgerows[].baseline",
@@ -3862,7 +3862,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when all proposed fields including encroachments are set."
+      "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "postIntervention.watercourses[].baseline",

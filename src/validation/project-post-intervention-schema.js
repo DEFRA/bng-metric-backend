@@ -19,6 +19,12 @@ import {
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'
 const RETENTION_CATEGORY_DESCRIPTION = 'Retention Category from the GeoPackage.'
+const POST_INTERVENTION_STATUS_DESCRIPTION =
+  "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+const POST_INTERVENTION_STATUS_VALUES = Object.freeze([
+  'Complete',
+  'Incomplete'
+])
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared sub-object factories
@@ -76,6 +82,39 @@ function proposedCommonFields() {
   }
 }
 
+// Top-level fields shared by every post-intervention linear feature
+// (hedgerows and watercourses): the join key, ref, length/size, units and
+// status. `proposed`/`baseline` sub-objects and `properties` are appended
+// per feature type.
+function postInterventionLinearFeatureFields({ geometryRow }) {
+  return {
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
+      ),
+    ref: Joi.string()
+      .allow(null, '')
+      .description('Feature reference from the GeoPackage.'),
+    length: Joi.number()
+      .allow(null)
+      .description('Length in metres (PostGIS size, rounded).'),
+    sizeMetres: Joi.number()
+      .allow(null)
+      .description('Length in metres as measured in PostGIS.'),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        'Post-intervention biodiversity units, calculated from proposed values.'
+      ),
+    status: Joi.string()
+      .valid(...POST_INTERVENTION_STATUS_VALUES)
+      .required()
+      .description(POST_INTERVENTION_STATUS_DESCRIPTION)
+  }
+}
+
 // Top-level fields shared by every post-intervention area-type feature
 // (polygon parcels and individual trees): the join key, ref, area/size, units
 // and status. `proposed`/`baseline` sub-objects and `properties` are appended
@@ -99,11 +138,9 @@ function postInterventionAreaFeatureFields({
     sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),
     units: Joi.number().allow(null).description(unitsDescription),
     status: Joi.string()
-      .valid('Complete', 'Incomplete')
+      .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
-      .description(
-        "'Complete' when proposed broad type, type and condition are all set."
-      )
+      .description(POST_INTERVENTION_STATUS_DESCRIPTION)
   }
 }
 
@@ -286,30 +323,9 @@ const postInterventionLinearProposedSubSchema = Joi.object({
 )
 
 const postInterventionLinearHabitatSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_hedgerows geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Feature reference from the GeoPackage.'),
-  length: Joi.number()
-    .allow(null)
-    .description('Length in metres (PostGIS size, rounded).'),
-  sizeMetres: Joi.number()
-    .allow(null)
-    .description('Length in metres as measured in PostGIS.'),
-  units: Joi.number()
-    .allow(null)
-    .description(
-      'Post-intervention biodiversity units, calculated from proposed values.'
-    ),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description("'Complete' when proposed type and condition are both set."),
+  ...postInterventionLinearFeatureFields({
+    geometryRow: 'bng.baseline_hedgerows'
+  }),
   baseline: postInterventionLinearBaselineSubSchema,
   proposed: postInterventionLinearProposedSubSchema,
   properties: Joi.object()
@@ -369,32 +385,9 @@ const postInterventionWatercourseProposedSubSchema = Joi.object({
 )
 
 const postInterventionWatercourseSchema = Joi.object({
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_watercourses geometry row.'
-    ),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Feature reference from the GeoPackage.'),
-  length: Joi.number()
-    .allow(null)
-    .description('Length in metres (PostGIS size, rounded).'),
-  sizeMetres: Joi.number()
-    .allow(null)
-    .description('Length in metres as measured in PostGIS.'),
-  units: Joi.number()
-    .allow(null)
-    .description(
-      'Post-intervention biodiversity units, calculated from proposed values.'
-    ),
-  status: Joi.string()
-    .valid('Complete', 'Incomplete')
-    .required()
-    .description(
-      "'Complete' when all proposed fields including encroachments are set."
-    ),
+  ...postInterventionLinearFeatureFields({
+    geometryRow: 'bng.baseline_watercourses'
+  }),
   baseline: postInterventionWatercourseBaselineSubSchema,
   proposed: postInterventionWatercourseProposedSubSchema,
   properties: Joi.object()

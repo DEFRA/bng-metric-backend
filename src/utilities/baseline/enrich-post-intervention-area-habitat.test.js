@@ -280,6 +280,7 @@ describe('area habitat — unknown retention category', () => {
     enrichPostInterventionDocumentWithUnits(doc)
 
     expect(doc.habitats[0].units).toBeNull()
+    expect(doc.habitats[0].status).toBe('Incomplete')
   })
 })
 
@@ -290,6 +291,19 @@ describe('area habitat — invalid size', () => {
     enrichPostInterventionDocumentWithUnits(doc)
 
     expect(doc.habitats[0].units).toBeNull()
+    expect(doc.habitats[0].status).toBe('Incomplete')
+  })
+
+  it('marks Incomplete when import status was Complete but units cannot be calculated', () => {
+    const base = makeAreaHabitat({
+      status: 'Complete',
+      baseline: { ...makeAreaHabitat().baseline, retentionCategory: 'Partial' }
+    })
+    const doc = makeDoc({ habitats: [base] })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    expect(doc.habitats[0].units).toBeNull()
+    expect(doc.habitats[0].status).toBe('Incomplete')
   })
 })
 

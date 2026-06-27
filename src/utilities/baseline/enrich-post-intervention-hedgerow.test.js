@@ -255,6 +255,7 @@ describe('hedgerow — unknown retention category', () => {
     enrichPostInterventionDocumentWithUnits(doc, logger)
 
     expect(doc.hedgerows[0].units).toBeNull()
+    expect(doc.hedgerows[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('unrecognised retention category')
     )
