@@ -216,6 +216,24 @@ describe('extractPostIntervention — habitat status', () => {
     expect(out.document.habitats[0].status).toBe('Complete')
   })
 
+  it('is Incomplete when proposed condition is N/A', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Proposed Broad Habitat Type': 'Grassland',
+          'Proposed Habitat Type': 'Lowland meadows',
+          'Proposed Condition': 'N/A'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].status).toBe('Incomplete')
+  })
+
   it('is Incomplete when proposed type is missing', () => {
     const out = extractPostIntervention({
       redline: [],
@@ -299,6 +317,7 @@ describe('extractPostIntervention — hedgerow nested structure', () => {
 
     expect(out.document.hedgerows[0].proposed.advanceYears).toBeNull()
     expect(out.document.hedgerows[0].proposed.delayYears).toBeNull()
+    expect(out.document.hedgerows[0].status).toBe('Incomplete')
 
     const { error } = postInterventionDataSchema.validate({
       importedAt: '2026-01-01T00:00:00.000Z',

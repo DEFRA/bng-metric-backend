@@ -271,6 +271,7 @@ describe('watercourse — unknown retention category', () => {
     enrichPostInterventionDocumentWithUnits(doc, logger)
 
     expect(doc.watercourses[0].units).toBeNull()
+    expect(doc.watercourses[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
       expect.stringContaining('unrecognised retention category')
     )

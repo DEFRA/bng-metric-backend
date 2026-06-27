@@ -1,3 +1,5 @@
+import { isPresentEngineString } from '../../utilities/baseline/is-present-engine-string.js'
+
 export const HABITAT_STATUS = {
   COMPLETE: 'Complete',
   INCOMPLETE: 'Incomplete'
@@ -10,9 +12,10 @@ export const HABITAT_STATUS = {
  * @returns {'Complete'|'Incomplete'}
  */
 export function postInterventionAreaStatus(doc) {
-  return doc.proposed?.broadType &&
-    doc.proposed?.type &&
-    doc.proposed?.condition
+  const proposed = doc.proposed ?? {}
+  return isPresentEngineString(proposed.broadType) &&
+    isPresentEngineString(proposed.type) &&
+    isPresentEngineString(proposed.condition)
     ? HABITAT_STATUS.COMPLETE
     : HABITAT_STATUS.INCOMPLETE
 }
@@ -24,7 +27,9 @@ export function postInterventionAreaStatus(doc) {
  * @returns {'Complete'|'Incomplete'}
  */
 export function postInterventionHedgerowStatus(doc) {
-  return doc.proposed?.type && doc.proposed?.condition
+  const proposed = doc.proposed ?? {}
+  return isPresentEngineString(proposed.type) &&
+    isPresentEngineString(proposed.condition)
     ? HABITAT_STATUS.COMPLETE
     : HABITAT_STATUS.INCOMPLETE
 }
@@ -37,10 +42,11 @@ export function postInterventionHedgerowStatus(doc) {
  * @returns {'Complete'|'Incomplete'}
  */
 export function postInterventionWatercourseStatus(doc) {
-  return doc.proposed?.type &&
-    doc.proposed?.condition &&
-    doc.proposed?.riparianEncroachment &&
-    doc.proposed?.watercourseEncroachment
+  const proposed = doc.proposed ?? {}
+  return isPresentEngineString(proposed.type) &&
+    isPresentEngineString(proposed.condition) &&
+    isPresentEngineString(proposed.riparianEncroachment) &&
+    isPresentEngineString(proposed.watercourseEncroachment)
     ? HABITAT_STATUS.COMPLETE
     : HABITAT_STATUS.INCOMPLETE
 }

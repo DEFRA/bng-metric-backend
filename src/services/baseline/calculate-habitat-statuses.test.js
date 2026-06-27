@@ -81,6 +81,18 @@ describe('postInterventionAreaStatus', () => {
       })
     ).toBe('Complete')
   })
+
+  it('returns Incomplete when a proposed field is N/A', () => {
+    expect(
+      postInterventionAreaStatus({
+        proposed: {
+          broadType: 'Grassland',
+          type: 'Lowland meadows',
+          condition: 'N/A'
+        }
+      })
+    ).toBe('Incomplete')
+  })
 })
 
 describe('postInterventionHedgerowStatus', () => {
@@ -90,6 +102,14 @@ describe('postInterventionHedgerowStatus', () => {
         proposed: { type: 'Native hedgerow', condition: 'Good' }
       })
     ).toBe('Complete')
+  })
+
+  it('returns Incomplete when proposed type or condition is N/A', () => {
+    expect(
+      postInterventionHedgerowStatus({
+        proposed: { type: 'N/A', condition: 'N/A' }
+      })
+    ).toBe('Incomplete')
   })
 })
 
@@ -105,5 +125,18 @@ describe('postInterventionWatercourseStatus', () => {
         }
       })
     ).toBe('Complete')
+  })
+
+  it('returns Incomplete when an encroachment field is N/A', () => {
+    expect(
+      postInterventionWatercourseStatus({
+        proposed: {
+          type: 'Ditches',
+          condition: 'Good',
+          riparianEncroachment: 'N/A',
+          watercourseEncroachment: 'Minor'
+        }
+      })
+    ).toBe('Incomplete')
   })
 })

@@ -53,6 +53,17 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       })
     )
 
+    for (const feature of [
+      ...stored.postIntervention.habitats,
+      ...stored.postIntervention.hedgerows,
+      ...stored.postIntervention.watercourses
+    ]) {
+      expect(['Complete', 'Incomplete']).toContain(feature.status)
+      if (feature.status === 'Complete') {
+        expect(typeof feature.units).toBe('number')
+      }
+    }
+
     expect(await countLayer('baseline_habitats', project.id)).toBe(0)
     expect(await countLayer('post_intervention_red_line', project.id)).toBe(1)
     const postInterventionRows = await fetchLayerRows(
