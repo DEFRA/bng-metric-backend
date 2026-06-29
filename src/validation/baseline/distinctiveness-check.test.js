@@ -194,6 +194,144 @@ describe('checkHabitatDistinctiveness — real GeoPackage column layout', () => 
   })
 })
 
+describe('checkHabitatDistinctiveness — hedgerow and watercourse layers', () => {
+  // BMD-352 originally scanned only the area layer, so V.High/High hedgerows
+  // and watercourses slipped into the service. All three families must be
+  // gated against their own reference vocabulary.
+  it('rejects a Very High distinctiveness watercourse (Priority habitat river)', () => {
+    const layers = {
+      watercourses: [
+        {
+          properties: {
+            'Baseline River Type': 'Priority habitat', // V.High
+            'Parcel Ref': 'WC-1',
+            fid: 5
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers)
+    expect(err).not.toBeNull()
+    expect(err.code).toBe(ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)
+    expect(err.details.sample[0]).toEqual({
+      idx: 0,
+      fid: '5',
+      feature_ref: 'WC-1',
+      habitat_type: 'Priority habitat',
+      distinctiveness: 'V.High'
+    })
+  })
+
+  it('rejects a High distinctiveness watercourse (Other rivers and streams)', () => {
+    const layers = {
+      watercourses: [
+        {
+          properties: {
+            Baseline_River_Type: 'Other rivers and streams', // High
+            Parcel_Ref: 'WC-2'
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers)
+    expect(err.details.sample[0].distinctiveness).toBe('High')
+    expect(err.details.sample[0].feature_ref).toBe('WC-2')
+  })
+
+  it('returns null for an in-scope watercourse (Ditches)', () => {
+    const layers = {
+      watercourses: [
+        { properties: { 'Baseline River Type': 'Ditches' } } // Medium
+      ]
+    }
+    expect(checkHabitatDistinctiveness(layers)).toBeNull()
+  })
+
+  it('rejects a Very High distinctiveness hedgerow', () => {
+    const layers = {
+      hedgerows: [
+        {
+          properties: {
+            'Baseline Hedge Type':
+              'Species-rich native hedgerow with trees - associated with bank or ditch', // V.High
+            'Parcel Ref': 'HR-1',
+            fid: 9
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers)
+    expect(err).not.toBeNull()
+    expect(err.details.sample[0].distinctiveness).toBe('V.High')
+    expect(err.details.sample[0].feature_ref).toBe('HR-1')
+  })
+
+  it('returns null for an in-scope hedgerow (Native hedgerow)', () => {
+    const layers = {
+      hedgerows: [
+        { properties: { 'Baseline Hedge Type': 'Native hedgerow' } } // Low
+      ]
+    }
+    expect(checkHabitatDistinctiveness(layers)).toBeNull()
+  })
+
+  it('aggregates offenders across area, hedgerow and watercourse layers', () => {
+    const layers = {
+      areas: [area(HABITAT_HIGH, { 'Parcel Ref': 'PR-1' })],
+      hedgerows: [
+        {
+          properties: {
+            'Baseline Hedge Type': 'Species-rich native hedgerow with trees', // High
+            'Parcel Ref': 'HR-1'
+          }
+        }
+      ],
+      watercourses: [
+        {
+          properties: {
+            'Baseline River Type': 'Priority habitat', // V.High
+            'Parcel Ref': 'WC-1'
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers)
+    expect(err.details.count).toBe(3)
+    expect(err.details.sample.map((s) => s.feature_ref)).toEqual([
+      'PR-1',
+      'HR-1',
+      'WC-1'
+    ])
+  })
+
+  it('reads Proposed columns for hedgerows and watercourses under postIntervention', () => {
+    const layers = {
+      hedgerows: [
+        {
+          properties: {
+            'Baseline Hedge Type': 'Native hedgerow', // Low, must be ignored
+            'Proposed Hedge Type': 'Species-rich native hedgerow with trees' // High
+          }
+        }
+      ],
+      watercourses: [
+        {
+          properties: {
+            'Baseline River Type': 'Ditches', // Medium, must be ignored
+            'Proposed River Type': 'Priority habitat' // V.High
+          }
+        }
+      ]
+    }
+    const err = checkHabitatDistinctiveness(layers, 'postIntervention')
+    expect(err.details.count).toBe(2)
+    expect(err.details.sample.map((s) => s.distinctiveness)).toEqual([
+      'High',
+      'V.High'
+    ])
+  })
+})
+
 describe('checkHabitatDistinctiveness — post-intervention variant', () => {
   // The High/Very-High exclusion is a whole-service scope limit, so for the
   // post-intervention document the check must read the Proposed* columns and
