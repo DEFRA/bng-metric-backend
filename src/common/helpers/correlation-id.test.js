@@ -18,8 +18,12 @@ describe('#sessionCorrelationId', () => {
     expect(sessionCorrelationId({ sid: 'sid' })).toBe('sid')
   })
 
-  test('Should fall back to the cid claim', () => {
-    expect(sessionCorrelationId({ cid: 'cid' })).toBe('cid')
+  test('Should fall back to sid when sessionId is blank', () => {
+    expect(sessionCorrelationId({ sessionId: '   ', sid: 'sid' })).toBe('sid')
+  })
+
+  test('Should not use cid as a session correlation id', () => {
+    expect(sessionCorrelationId({ cid: 'cid' })).toBeNull()
   })
 
   test('Should ignore empty correlation ids', () => {

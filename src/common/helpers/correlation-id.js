@@ -6,13 +6,18 @@ function getCorrelationId() {
   return storage.getStore()?.get('correlationId')
 }
 
-function sessionCorrelationId(credentials) {
-  const correlationId =
-    credentials?.sessionId ?? credentials?.sid ?? credentials?.cid
-  if (typeof correlationId !== 'string') {
+function normaliseCorrelationId(value) {
+  if (typeof value !== 'string') {
     return null
   }
-  return correlationId.trim() || null
+  return value.trim() || null
+}
+
+function sessionCorrelationId(credentials) {
+  return (
+    normaliseCorrelationId(credentials?.sessionId) ??
+    normaliseCorrelationId(credentials?.sid)
+  )
 }
 
 function setCorrelationId(correlationId) {
