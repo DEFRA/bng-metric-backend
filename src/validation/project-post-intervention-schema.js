@@ -238,6 +238,19 @@ const postInterventionTreeProposedSubSchema = Joi.object({
     .allow(null)
     .description(
       'Delay in starting habitat creation (years) from the GeoPackage; null when N/A.'
+    ),
+  // Trees enrich via the area-habitat path, so a Created or Enhanced tree
+  // carries the same engine multipliers as an area parcel. Allow them here too,
+  // otherwise persistence rejects any non-retained tree.
+  timeMultiplier: Joi.number()
+    .allow(null)
+    .description(
+      'Time multiplier from bng-metric-engine; set for Created and Enhanced trees.'
+    ),
+  difficultyMultiplier: Joi.number()
+    .allow(null)
+    .description(
+      'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced trees.'
     )
 }).description(
   'Proposed individual-tree values from the Proposed * GeoPackage columns.'

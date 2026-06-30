@@ -3381,6 +3381,28 @@
       "description": "Delay in starting habitat creation (years) from the GeoPackage; null when N/A."
     },
     {
+      "path": "postIntervention.trees[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced trees."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced trees."
+    },
+    {
       "path": "postIntervention.trees[].properties",
       "type": "object",
       "required": false,
