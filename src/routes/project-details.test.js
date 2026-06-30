@@ -3,6 +3,7 @@ import { getProjectDetails, updateProjectDetails } from './project-details.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
+const SUB = 'user-subject-123'
 
 const sampleDetails = {
   localPlanningAuthority: 'South Downs National Park',
@@ -27,14 +28,17 @@ function createMockDrizzleSelect(rows) {
   }
 }
 
-function createMockDrizzleUpdate(rows) {
-  const returning = vi.fn().mockResolvedValue(rows)
-  const where = vi.fn().mockReturnValue({ returning })
-  const set = vi.fn().mockReturnValue({ where })
-  return {
-    update: vi.fn().mockReturnValue({ set }),
-    _chain: { set, where, returning }
-  }
+function createMockDrizzle({ selectRows, updateRows = [] } = {}) {
+  const selectWhere = vi.fn().mockResolvedValue(selectRows ?? [])
+  const from = vi.fn().mockReturnValue({ where: selectWhere })
+  const select = vi.fn().mockReturnValue({ from })
+
+  const returning = vi.fn().mockResolvedValue(updateRows)
+  const updateWhere = vi.fn().mockReturnValue({ returning })
+  const set = vi.fn().mockReturnValue({ where: updateWhere })
+  const update = vi.fn().mockReturnValue({ set })
+
+  return { select, update, _set: set }
 }
 
 describe('#getProjectDetails', () => {
@@ -43,7 +47,11 @@ describe('#getProjectDetails', () => {
       { id: PROJECT_ID, project: { details: sampleDetails } }
     ])
     const result = await getProjectDetails.handler(
-      { drizzle, params: { id: PROJECT_ID } },
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        auth: { credentials: { sub: SUB } }
+      },
       {}
     )
     expect(result).toEqual(sampleDetails)
@@ -54,7 +62,11 @@ describe('#getProjectDetails', () => {
       { id: PROJECT_ID, project: { name: 'No details yet' } }
     ])
     const result = await getProjectDetails.handler(
-      { drizzle, params: { id: PROJECT_ID } },
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        auth: { credentials: { sub: SUB } }
+      },
       {}
     )
     expect(result).toEqual({})
@@ -63,7 +75,11 @@ describe('#getProjectDetails', () => {
   test('returns {} when project is null', async () => {
     const drizzle = createMockDrizzleSelect([{ id: PROJECT_ID, project: null }])
     const result = await getProjectDetails.handler(
-      { drizzle, params: { id: PROJECT_ID } },
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        auth: { credentials: { sub: SUB } }
+      },
       {}
     )
     expect(result).toEqual({})
@@ -73,7 +89,11 @@ describe('#getProjectDetails', () => {
     const drizzle = createMockDrizzleSelect([])
     await expect(
       getProjectDetails.handler(
-        { drizzle, params: { id: UNKNOWN_PROJECT_ID } },
+        {
+          drizzle,
+          params: { id: UNKNOWN_PROJECT_ID },
+          auth: { credentials: { sub: SUB } }
+        },
         {}
       )
     ).rejects.toThrow(`Project ${UNKNOWN_PROJECT_ID} not found`)
@@ -102,37 +122,55 @@ describe('#getProjectDetails validation', () => {
 })
 
 describe('#updateProjectDetails', () => {
-  test('persists details and returns them', async () => {
-    const updatedRow = {
-      id: PROJECT_ID,
-      project: { details: sampleDetails }
+  test('merges payload onto existing details and returns result', async () => {
+    const existing = {
+      localPlanningAuthority: 'Old LPA',
+      developmentType: 'Large site'
     }
-    const drizzle = createMockDrizzleUpdate([updatedRow])
+    const drizzle = createMockDrizzle({
+      selectRows: [{ id: PROJECT_ID, project: { details: existing } }],
+      updateRows: [{ id: PROJECT_ID, project: { details: sampleDetails } }]
+    })
     const result = await updateProjectDetails.handler(
-      { drizzle, params: { id: PROJECT_ID }, payload: sampleDetails },
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        payload: sampleDetails,
+        auth: { credentials: { sub: SUB } }
+      },
       {}
     )
     expect(drizzle.update).toHaveBeenCalled()
-    expect(drizzle._chain.set).toHaveBeenCalledWith({
-      project: expect.anything()
-    })
-    expect(result).toEqual(sampleDetails)
+    expect(drizzle._set).toHaveBeenCalledWith({ project: expect.anything() })
+    expect(result).toEqual({ ...existing, ...sampleDetails })
   })
 
-  test('returns {} when row has no details after update', async () => {
-    const drizzle = createMockDrizzleUpdate([{ id: PROJECT_ID, project: {} }])
+  test('returns empty payload when project has no existing details', async () => {
+    const drizzle = createMockDrizzle({
+      selectRows: [{ id: PROJECT_ID, project: {} }]
+    })
     const result = await updateProjectDetails.handler(
-      { drizzle, params: { id: PROJECT_ID }, payload: {} },
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        payload: {},
+        auth: { credentials: { sub: SUB } }
+      },
       {}
     )
     expect(result).toEqual({})
   })
 
   test('throws 404 when project not found', async () => {
-    const drizzle = createMockDrizzleUpdate([])
+    const drizzle = createMockDrizzle({ selectRows: [] })
     await expect(
       updateProjectDetails.handler(
-        { drizzle, params: { id: UNKNOWN_PROJECT_ID }, payload: sampleDetails },
+        {
+          drizzle,
+          params: { id: UNKNOWN_PROJECT_ID },
+          payload: sampleDetails,
+          auth: { credentials: { sub: SUB } }
+        },
         {}
       )
     ).rejects.toThrow(`Project ${UNKNOWN_PROJECT_ID} not found`)

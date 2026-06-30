@@ -203,12 +203,25 @@ async function setBaselineFeature(exec, id, params) {
   await setProjectFeature(exec, id, { ...params, documentKey: 'baseline' })
 }
 
-async function setProjectDetails(exec, id, details) {
+/**
+ * Replace project.details only (PATCH /project-details/{id}). Returns the
+ * updated row, or null when no project matches `where`.
+ *
+ * `where` defaults to matching the id alone; routes pass a stricter condition
+ * (id AND RBAC visibility) so a non-visible project updates nothing and the
+ * route returns 404 — without leaking existence.
+ */
+async function setProjectDetails(
+  exec,
+  id,
+  details,
+  where = eq(projects.id, id)
+) {
   assertFragmentValid(projectDetailsSchema, details, 'project.details')
   const [row] = await exec
     .update(projects)
     .set({ project: jsonbSet(projects.project, ['details'], details) })
-    .where(eq(projects.id, id))
+    .where(where)
     .returning()
   return row ?? null
 }

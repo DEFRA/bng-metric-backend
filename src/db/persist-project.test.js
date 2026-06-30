@@ -6,7 +6,8 @@ import {
   setProjectBaseline,
   setBaselineFeature,
   setProjectHabitatData,
-  setProjectFeature
+  setProjectFeature,
+  setProjectDetails
 } from './persist-project.js'
 
 const FEATURE_ID = '11111111-1111-1111-1111-111111111111'
@@ -202,6 +203,33 @@ describe('setProjectHabitatData', () => {
         'postIntervention'
       )
     ).rejects.toThrow(/"habitats\[0\]\.type" is not allowed/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+const validDetails = {
+  localPlanningAuthority: 'South Downs National Park',
+  developmentType: 'Small site'
+}
+
+describe('setProjectDetails', () => {
+  test('writes and returns the row for valid details', async () => {
+    const db = makeDb([{ id: PROJECT_ID, project: { details: validDetails } }])
+    const row = await setProjectDetails(db, PROJECT_ID, validDetails)
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expect(row).toEqual({ id: PROJECT_ID, project: { details: validDetails } })
+  })
+
+  test('returns null when no project matches', async () => {
+    const db = makeDb([])
+    expect(await setProjectDetails(db, PROJECT_ID, {})).toBeNull()
+  })
+
+  test('throws and does not write for invalid details', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectDetails(db, PROJECT_ID, { developmentType: 'Bad' })
+    ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
 })

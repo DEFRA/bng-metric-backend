@@ -1,25 +1,28 @@
 import Boom from '@hapi/boom'
-import { eq } from 'drizzle-orm'
+import { and, eq } from 'drizzle-orm'
 import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectDetails } from '../db/persist-project.js'
+import { visibleToUser } from '../db/project-visibility.js'
 import { projectDetailsSchema } from '../validation/project.js'
 
 const getProjectDetails = {
   method: 'GET',
   path: '/project-details/{id}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({ id: Joi.string().uuid().required() })
     }
   },
   handler: async (request, _h) => {
     const { id } = request.params
+    const { sub } = request.auth.credentials
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(eq(projects.id, id))
+      .where(and(eq(projects.id, id), visibleToUser(sub)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${id} not found`)
@@ -33,6 +36,7 @@ const updateProjectDetails = {
   method: 'PATCH',
   path: '/project-details/{id}',
   options: {
+    auth: 'defra-jwt',
     validate: {
       params: Joi.object({ id: Joi.string().uuid().required() }),
       payload: projectDetailsSchema.required()
@@ -40,11 +44,21 @@ const updateProjectDetails = {
   },
   handler: async (request, _h) => {
     const { id } = request.params
-    const row = await setProjectDetails(request.drizzle, id, request.payload)
-    if (!row) {
+    const { sub } = request.auth.credentials
+    const where = and(eq(projects.id, id), visibleToUser(sub))
+
+    const [existing] = await request.drizzle
+      .select()
+      .from(projects)
+      .where(where)
+
+    if (!existing) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    return row.project?.details ?? {}
+
+    const merged = { ...existing.project?.details, ...request.payload }
+    await setProjectDetails(request.drizzle, id, merged, where)
+    return merged
   }
 }
 
