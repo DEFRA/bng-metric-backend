@@ -8,12 +8,12 @@ Lookup tables used by `bng-metric-engine` for unit calculations and habitat/cond
 
 These tables mirror the reference data embedded in the published Statutory Metric calculation tool (Excel / associated guidance), not project-specific GeoPackage attributes. Habitat type strings must match the tool’s **Habitat Type** labels (e.g. `Grassland - Modified grassland`).
 
-| Field           | Value                                                                                                                                                                                                                                                    |
-| --------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Metric version  | Statutory Biodiversity Metric 4.0                                                                                                                                                                                                                        |
-| Tool / workbook | [Biodiversity Metric and SSM - GIS Data Standard, XLSZ, 75.3kB](https://publications.naturalengland.org.uk/file/5715290378469376) and [GIS Import Tool, XLSB, 5.1 MB](https://publications.naturalengland.org.uk/file/6705047204003840) dated 2023-11-28 |
-| Extracted on    | 2026-02-11                                                                                                                                                                                                                                               |
-| Extracted by    | Equal Experts BNG Metric Team                                                                                                                                                                                                                            |
+| Field           | Value                                                                                                                                                                                                                                                                                                            |
+| --------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Metric version  | Statutory Biodiversity Metric 4.0                                                                                                                                                                                                                                                                                |
+| Tool / workbook | [Biodiversity Metric 4.0 Calculation Tool (macro-disabled), XLSX, 5.5 MB](https://publications.naturalengland.org.uk/file/6196272290332672) — sheets `G-6 Hedgerow Data` and `G-7 WaterC' Data` for linear habitat temporal/difficulty tables; other tables from the same workbook and GIS import tool as before |
+| Extracted on    | 2026-06-05                                                                                                                                                                                                                                                                                                       |
+| Extracted by    | Equal Experts BNG Metric Team                                                                                                                                                                                                                                                                                    |
 
 ## Files
 
@@ -29,8 +29,14 @@ These tables mirror the reference data embedded in the published Statutory Metri
 | `hedgerow-condition-scores.json`                    | `HEDGEROW_CONDITION_SCORES`                    | Condition band → numeric score per hedgerow type         |
 | `hedgerow-distinctiveness-categories.json`          | `HEDGEROW_DISTINCTIVENESS_CATEGORIES`          | Hedgerow type → distinctiveness band                     |
 | `hedgerow-distinctiveness-scores.json`              | `HEDGEROW_DISTINCTIVENESS_SCORES`              | Distinctiveness band → score (hedgerow)                  |
+| `hedgerow-difficulty.json`                          | `HEDGEROW_DIFFICULTY`                          | Hedgerow type → creation/enhancement difficulty band     |
+| `hedgerow-time-to-target-creation.json`             | `HEDGEROW_TIME_TO_TARGET_CREATION`             | Years to target condition, hedgerow (creation)           |
+| `hedgerow-time-to-target-enhancement.json`          | `HEDGEROW_TIME_TO_TARGET_ENHANCEMENT`          | Years to target condition, hedgerow (enhancement)        |
 | `time-to-target-multiplier.json`                    | `TIME_TO_TARGET_MULTIPLIER`                    | Time-to-target years → multiplier                        |
 | `watercourse-condition-scores.json`                 | `WATERCOURSE_CONDITION_SCORES`                 | Condition band → numeric score per watercourse type      |
+| `watercourse-difficulty.json`                       | `WATERCOURSE_DIFFICULTY`                       | Watercourse type → creation/enhancement difficulty band  |
+| `watercourse-time-to-target-creation.json`          | `WATERCOURSE_TIME_TO_TARGET_CREATION`          | Years to target condition, watercourse (creation)        |
+| `watercourse-time-to-target-enhancement.json`       | `WATERCOURSE_TIME_TO_TARGET_ENHANCEMENT`       | Years to target condition, watercourse (enhancement)     |
 | `watercourse-distinctiveness-categories.json`       | `WATERCOURSE_DISTINCTIVENESS_CATEGORIES`       | Watercourse type → distinctiveness band                  |
 | `watercourse-distinctiveness-scores.json`           | `WATERCOURSE_DISTINCTIVENESS_SCORES`           | Distinctiveness band → score (watercourse)               |
 | `watercourse-encroachment-multiplier.json`          | `WATERCOURSE_ENCROACHMENT_MULTIPLIER`          | Watercourse encroachment band → multiplier               |

@@ -19,7 +19,8 @@ COPY --chown=node:node bng-metric-engine/package.json ./bng-metric-engine/
 # scripts/ is not in this image, and the hooks are not needed inside the container.
 RUN npm pkg delete scripts.postinstall && npm install
 COPY --chown=node:node ./src ./src
-COPY --chown=node:node ./bng-metric-engine ./bng-metric-engine
+# Engine runtime is src/ only; scripts/ are dev/CLI helpers and are not deployed.
+COPY --chown=node:node ./bng-metric-engine/src ./bng-metric-engine/src
 
 CMD [ "npm", "run", "docker:dev" ]
 

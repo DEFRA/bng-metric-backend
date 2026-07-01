@@ -1,0 +1,22 @@
+{
+  "Priority habitat": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Other rivers and streams": {
+    "Creation": "High",
+    "Enhancement": "Medium"
+  },
+  "Ditches": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Canals": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  },
+  "Culvert": {
+    "Creation": "Low",
+    "Enhancement": "Medium"
+  }
+}

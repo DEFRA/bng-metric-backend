@@ -3,11 +3,7 @@ import {
   validateHabitat,
   validateCondition,
   validateYears,
-  validateHabitatChange,
-  MAX_YEARS_PLUS,
-  MAX_YEARS,
-  MIN_YEARS,
-  OVER_MAX_YEARS
+  validateHabitatChange
 } from './validate.js'
 import {
   CONDITION_SCORES,
@@ -19,8 +15,16 @@ import {
   TIME_TO_TARGET_ENHANCEMENT,
   TIME_TO_TARGET_MULTIPLIER
 } from './reference-constants.js'
+import {
+  advanceMeetsTimeToTarget,
+  applyDelayAdvanceAndClamp,
+  normaliseReferenceYears,
+  toTimeToTargetBucketKey
+} from './linear-time-target-utils.js'
 
 const NOT_POSSIBLE = 'Not Possible'
+export const CREATION = 'Creation'
+export const ENHANCEMENT = 'Enhancement'
 
 /**
  * Resolve the statutory distinctiveness band label (e.g. "Low", "V.Low") and its
@@ -122,7 +126,7 @@ function lookupRawTimeToTarget(
   endCondition
 ) {
   const rawValue =
-    creationOrEnhancement === 'Creation'
+    creationOrEnhancement === CREATION
       ? lookupCreationTimeToTarget(habitat, endCondition)
       : lookupEnhancementTimeToTarget(
           habitat,
@@ -135,69 +139,9 @@ function lookupRawTimeToTarget(
 }
 
 /**
- * @param {number | string} timeToTargetValue - Reference table years or legacy "30+"
- * @returns {number}
- */
-function normaliseReferenceYears(timeToTargetValue) {
-  if (timeToTargetValue === MAX_YEARS_PLUS) {
-    return MAX_YEARS
-  }
-  if (typeof timeToTargetValue !== 'number') {
-    throw new TypeError(
-      `Reference time to target must be a number or "${MAX_YEARS_PLUS}", got: ${timeToTargetValue}`
-    )
-  }
-  return timeToTargetValue
-}
-
-/**
- * @param {number} years - The number of years to compute
- * @param {number} validatedAdvanceYears - The number of years to advance the project
- * @param {number} validatedDelayYears - The number of years to delay the project
- * @returns {number} The computed years, clamped to the minimum and maximum years
- */
-function applyDelayAdvanceAndClamp(
-  years,
-  validatedAdvanceYears,
-  validatedDelayYears
-) {
-  const computed = years + validatedDelayYears - validatedAdvanceYears
-
-  if (computed < MIN_YEARS) {
-    return MIN_YEARS
-  }
-  if (computed > MAX_YEARS) {
-    return MAX_YEARS + 1
-  }
-  return computed
-}
-
-/**
- * @param {number} years
- * @returns {string}
- */
-function toTimeToTargetBucketKey(years) {
-  if (years > MAX_YEARS) {
-    return OVER_MAX_YEARS
-  }
-  return String(years)
-}
-
-/**
- * @param {number} advanceYears - The number of years to advance the project
- * @param {string} timeToTargetKey - The time to target bucket key (e.g. "5", ">30")
- * @returns {boolean} True if the advance years meet the time to target, false otherwise
- */
-function advanceMeetsTimeToTarget(advanceYears, timeToTargetKey) {
-  const targetYears =
-    timeToTargetKey === OVER_MAX_YEARS ? MAX_YEARS + 1 : Number(timeToTargetKey)
-  return advanceYears >= targetYears
-}
-
-/**
  * Get the time to target value for a given habitat and creation/enhancement type
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
- * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement"
+ * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement" (CREATION or ENHANCEMENT)
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
  * @param {number} advanceYears - The number of years to advance the project
@@ -236,7 +180,7 @@ function getTimeToTargetValue(
 /**
  * Get the time multiplier for a given habitat and creation/enhancement type
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
- * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement"
+ * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement" (CREATION or ENHANCEMENT)
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
  * @param {number} advanceYears - The number of years to advance the project
@@ -295,7 +239,7 @@ function validateEnhancementStartCondition(
   startCondition
 ) {
   if (
-    creationOrEnhancement === 'Enhancement' &&
+    creationOrEnhancement === ENHANCEMENT &&
     (!startCondition || typeof startCondition !== 'string')
   ) {
     throw new Error(
@@ -353,7 +297,7 @@ function resolveDifficultyDesc(
  * @param {string} [startCondition]
  * @param {number} validatedAdvanceYears
  * @param {number} validatedDelayYears
- * @returns {'Creation' | 'Enhancement'}
+ * @returns {CREATION | ENHANCEMENT}
  */
 function resolveDifficultyChangeType(
   habitat,
@@ -362,8 +306,8 @@ function resolveDifficultyChangeType(
   validatedAdvanceYears,
   validatedDelayYears
 ) {
-  if (creationOrEnhancement !== 'Creation') {
-    return creationOrEnhancement
+  if (creationOrEnhancement === ENHANCEMENT) {
+    return ENHANCEMENT
   }
 
   const poorTargetYears = getTimeToTargetValue(
@@ -376,14 +320,14 @@ function resolveDifficultyChangeType(
   )
 
   return advanceMeetsTimeToTarget(validatedAdvanceYears, poorTargetYears)
-    ? 'Enhancement'
-    : 'Creation'
+    ? ENHANCEMENT
+    : CREATION
 }
 
 /**
  * Get the difficulty multiplier for a given habitat and creation/enhancement type
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
- * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement"
+ * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement" (CREATION or ENHANCEMENT)
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
  * @param {number} advanceYears - The number of years to advance the project

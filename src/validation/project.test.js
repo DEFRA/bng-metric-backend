@@ -496,6 +496,64 @@ describe('#postInterventionDataSchema', () => {
     expect(error).toBeUndefined()
   })
 
+  test('Should validate a Created individual tree carrying proposed time/difficulty multipliers', () => {
+    // Regression: trees enrich via the area-habitat path, so a Created or
+    // Enhanced tree gets proposed.timeMultiplier / difficultyMultiplier from the
+    // engine. The tree proposed schema must allow them or persistence 500s on
+    // any non-retained tree.
+    const doc = {
+      ...validPostIntervention,
+      habitats: [],
+      trees: [
+        {
+          featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+          ref: 'T003',
+          area: 41,
+          sizeSquareMetres: 41,
+          units: 0.05,
+          status: 'Complete',
+          count: 1,
+          baseline: {
+            type: 'Urban tree',
+            broadType: 'Individual trees',
+            condition: 'Good',
+            conditionScore: 3,
+            distinctiveness: 'Medium',
+            distinctivenessScore: 4,
+            strategicSignificance: 'Low',
+            treeSize: 'Small',
+            treeSpecies: 'Street tree',
+            ruralOrUrban: 'Urban',
+            sizeSquareMetres: 41,
+            area: 41,
+            retentionCategory: 'Created'
+          },
+          proposed: {
+            type: 'Urban tree',
+            broadType: 'Individual trees',
+            condition: 'Good',
+            conditionScore: 3,
+            distinctiveness: 'Medium',
+            distinctivenessScore: 4,
+            strategicSignificance: 'Low',
+            treeSize: 'Small',
+            treeSpecies: 'Street tree',
+            ruralOrUrban: 'Urban',
+            sizeSquareMetres: 41,
+            area: 41,
+            advanceYears: 0,
+            delayYears: 0,
+            timeMultiplier: 0.965,
+            difficultyMultiplier: 1
+          },
+          properties: {}
+        }
+      ]
+    }
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeUndefined()
+  })
+
   test('projectSchema accepts postIntervention with nested structure', () => {
     const { error } = projectSchema.validate({
       name: 'Test Project',
