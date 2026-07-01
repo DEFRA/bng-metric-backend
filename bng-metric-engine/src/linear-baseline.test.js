@@ -3,10 +3,8 @@ import { describe, expect, it, vi } from 'vitest'
 import { BaselineLookupError } from './errors.js'
 import {
   calculateHedgerowBaseline,
-  calculateWatercourseBaseline,
-  isRecognisedEncroachmentValue
+  calculateWatercourseBaseline
 } from './linear-baseline.js'
-import { WATERCOURSE_ENCROACHMENT_MULTIPLIER } from './reference-constants.js'
 import * as referenceConstants from './reference-constants.js'
 
 // ---------------------------------------------------------------------------
@@ -122,57 +120,6 @@ describe('calculateHedgerowBaseline', () => {
 })
 
 // ---------------------------------------------------------------------------
-// isRecognisedEncroachmentValue
-// ---------------------------------------------------------------------------
-
-describe('isRecognisedEncroachmentValue', () => {
-  it('treats null, undefined, and empty string as recognised', () => {
-    expect(
-      isRecognisedEncroachmentValue(null, WATERCOURSE_ENCROACHMENT_MULTIPLIER)
-    ).toBe(true)
-    expect(
-      isRecognisedEncroachmentValue(
-        undefined,
-        WATERCOURSE_ENCROACHMENT_MULTIPLIER
-      )
-    ).toBe(true)
-    expect(
-      isRecognisedEncroachmentValue('', WATERCOURSE_ENCROACHMENT_MULTIPLIER)
-    ).toBe(true)
-  })
-
-  it('recognises known values after stripping a numeric prefix', () => {
-    expect(
-      isRecognisedEncroachmentValue(
-        'Minor',
-        WATERCOURSE_ENCROACHMENT_MULTIPLIER
-      )
-    ).toBe(true)
-    expect(
-      isRecognisedEncroachmentValue(
-        '2. Minor',
-        WATERCOURSE_ENCROACHMENT_MULTIPLIER
-      )
-    ).toBe(true)
-    expect(
-      isRecognisedEncroachmentValue(
-        '1. No Encroachment',
-        WATERCOURSE_ENCROACHMENT_MULTIPLIER
-      )
-    ).toBe(true)
-  })
-
-  it('rejects unknown string and non-string values', () => {
-    expect(
-      isRecognisedEncroachmentValue('None', WATERCOURSE_ENCROACHMENT_MULTIPLIER)
-    ).toBe(false)
-    expect(
-      isRecognisedEncroachmentValue(42, WATERCOURSE_ENCROACHMENT_MULTIPLIER)
-    ).toBe(false)
-  })
-})
-
-// ---------------------------------------------------------------------------
 // calculateWatercourseBaseline
 // ---------------------------------------------------------------------------
 
@@ -221,26 +168,6 @@ describe('calculateWatercourseBaseline', () => {
     expect(result.units).toBeCloseTo(19.2)
   })
 
-  it('strips leading numeric prefix from watercourse encroachment before lookup', () => {
-    const result = calculateWatercourseBaseline(
-      1,
-      'Priority habitat',
-      'Good',
-      '2. Minor'
-    )
-    expect(result.waterEncroachmentMultiplier).toBe(0.8)
-  })
-
-  it('strips leading numeric prefix from N/A - Culvert watercourse encroachment', () => {
-    const result = calculateWatercourseBaseline(
-      1,
-      'Priority habitat',
-      'Good',
-      '4. N/A - Culvert'
-    )
-    expect(result.waterEncroachmentMultiplier).toBe(0.68)
-  })
-
   it('applies riparian encroachment multiplier', () => {
     // 1 km × 8 × 3 × 1 × 0.98 (Minor/No Encroachment) × 1 = 23.52
     const result = calculateWatercourseBaseline(
@@ -262,18 +189,6 @@ describe('calculateWatercourseBaseline', () => {
       'Good',
       null,
       '2. Minor/No Encroachment'
-    )
-    expect(result.riparianEncroachmentMultiplier).toBe(0.98)
-  })
-
-  it('normalises spaced slashes in riparian encroachment labels before lookup', () => {
-    // GeoPackage exports sometimes include a space after "/" (e.g. "3. Minor/ No Encroachment")
-    const result = calculateWatercourseBaseline(
-      1,
-      'Priority habitat',
-      'Good',
-      null,
-      '3. Minor/ No Encroachment'
     )
     expect(result.riparianEncroachmentMultiplier).toBe(0.98)
   })

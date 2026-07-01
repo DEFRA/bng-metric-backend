@@ -1,6 +1,10 @@
+import { eq } from 'drizzle-orm'
+
 import { assignFeatureIds } from '../../validation/baseline/assign-feature-ids.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
+import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baseline-linear-length-by-ref.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
+import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baseline/re-enrich-stored-post-intervention.js'
 import { extractHabitatData } from '../../validation/baseline/extract-habitat-data.js'
 import { extractPostIntervention } from '../../validation/baseline/extract-post-intervention.js'
 import { ERROR_CODES, makeError } from '../../validation/baseline/errors.js'
@@ -9,6 +13,7 @@ import {
   postInterventionDataSchema
 } from '../../validation/project.js'
 import { HTTP_STATUS } from '../../common/helpers/http/status-codes.js'
+import { projects } from '../../db/schema/index.js'
 import { calculateHabitatSizes } from './calculate-habitat-sizes.js'
 import { persistBaseline } from './persist-baseline.js'
 
@@ -28,6 +33,28 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
     documentSchema: postInterventionDataSchema
   })
 })
+
+/**
+ * Build a Map<parcelRef, lengthKm> from the project's stored baseline linear
+ * features. Returns an empty Map when the project has no baseline or no
+ * hedgerows/watercourses.
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
+ * @param {string} projectId
+ * @returns {Promise<Map<string, number>>}
+ */
+async function fetchBaselineLinearLengthByRef(drizzle, projectId) {
+  const [row] = await drizzle
+    .select({ project: projects.project })
+    .from(projects)
+    .where(eq(projects.id, projectId))
+    .limit(1)
+  const baseline = row?.project?.baseline
+  return buildBaselineLinearLengthByRef(
+    baseline?.hedgerows ?? [],
+    baseline?.watercourses ?? []
+  )
+}
 
 /**
  * @param {object} config
@@ -91,7 +118,15 @@ export async function saveBaselineForProject(
   const meta = { uploadId, filename, fileSize, habitatSizes }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
 
-  handlers.enrichDocument(document, logger)
+  let enrichOptions = {}
+  if (config.projectDocumentKey === 'postIntervention') {
+    const baselineLengthByRef = await fetchBaselineLinearLengthByRef(
+      drizzle,
+      projectId
+    )
+    enrichOptions = { baselineLengthByRef }
+  }
+  handlers.enrichDocument(document, logger, enrichOptions)
 
   const { error: schemaError } = handlers.documentSchema.validate(document, {
     allowUnknown: true
@@ -114,6 +149,9 @@ export async function saveBaselineForProject(
       projectDocumentKey: config.projectDocumentKey,
       uploadLabel: config.uploadLabel
     })
+    if (config.projectDocumentKey === 'baseline') {
+      await reEnrichStoredPostInterventionIfPresent(drizzle, projectId, logger)
+    }
     return null
   }
 }

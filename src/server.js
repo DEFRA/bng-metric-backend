@@ -9,6 +9,7 @@ import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
+import { requestCorrelation } from './common/helpers/correlation-id.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
 
 async function createServer() {
@@ -42,6 +43,7 @@ async function createServer() {
   // Hapi Plugins:
   // requestLogger  - automatically logs incoming requests
   // requestTracing - trace header logging and propagation
+  // requestCorrelation - prefers the verified Defra ID session id for logged-in logs
   // secureContext  - loads CA certificates from environment config
   // postgres       - connection pool for PostgreSQL (must be after secureContext)
   // pulse          - provides shutdown handlers
@@ -50,6 +52,7 @@ async function createServer() {
   await server.register([
     requestLogger,
     requestTracing,
+    requestCorrelation,
     secureContext,
     {
       plugin: postgres.plugin,
