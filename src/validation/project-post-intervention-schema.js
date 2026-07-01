@@ -18,6 +18,7 @@ import {
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'
+const RETENTION_CATEGORY_DESCRIPTION = 'Retention Category from the GeoPackage.'
 
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared sub-object factories
@@ -61,6 +62,16 @@ function proposedCommonFields() {
       .allow(null)
       .description(
         'Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features).'
+      ),
+    timeMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Time multiplier from bng-metric-engine; set for Created and Enhanced features.'
+      ),
+    difficultyMultiplier: Joi.number()
+      .allow(null)
+      .description(
+        'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features.'
       )
   }
 }
@@ -115,7 +126,7 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
     .description('Baseline Strategic Significance from the GeoPackage.'),
   retentionCategory: Joi.string()
     .allow(null, '')
-    .description('Retention Category from the GeoPackage.')
+    .description(RETENTION_CATEGORY_DESCRIPTION)
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
@@ -213,21 +224,12 @@ const postInterventionTreeBaselineSubSchema = Joi.object({
 
 const postInterventionTreeProposedSubSchema = Joi.object({
   ...treeSideCommonFields(),
-  condition: Joi.string()
-    .allow(null, '')
-    .description(
-      'Proposed condition assessment stripped of list-index prefix.'
-    ),
-  advanceYears: Joi.number()
-    .allow(null)
-    .description(
-      'Habitat created in advance (years) from the GeoPackage; null when N/A.'
-    ),
-  delayYears: Joi.number()
-    .allow(null)
-    .description(
-      'Delay in starting habitat creation (years) from the GeoPackage; null when N/A.'
-    )
+  // Trees enrich via the area-habitat path, so a Created or Enhanced tree
+  // carries the same proposed-side fields (condition, advance/delay years and
+  // the engine time/difficulty multipliers) as an area parcel. Reuse the shared
+  // factory so any future engine field flows to trees automatically — omitting
+  // one previously caused persistence to reject non-retained trees.
+  ...proposedCommonFields()
 }).description(
   'Proposed individual-tree values from the Proposed * GeoPackage columns.'
 )
@@ -266,6 +268,9 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline hedgerow type from Baseline Hedge Type column.'),
+  retentionCategory: Joi.string()
+    .allow(null, '')
+    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields()
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
@@ -344,6 +349,9 @@ const postInterventionWatercourseBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline watercourse type from Baseline River Type column.'),
+  retentionCategory: Joi.string()
+    .allow(null, '')
+    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields(),
   ...watercourseEncroachmentFields
 }).description(

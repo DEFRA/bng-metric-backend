@@ -167,6 +167,7 @@ function buildAreaProposedSubObject(props) {
 function buildLinearBaselineSubObject(props, typeKey) {
   return {
     type: pickProp(props, typeKey),
+    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     conditionScore: null,
     distinctiveness: null,
@@ -366,6 +367,7 @@ function buildPostInterventionWatercourse(feature) {
         status: null,
         baseline: {
           type: pickProp(props, PROP_KEYS.riverType),
+          retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
           condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
           conditionScore: null,
           distinctiveness: null,

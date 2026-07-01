@@ -1,0 +1,613 @@
+{
+  "Species-rich native hedgerow with trees - associated with bank or ditch": {
+    "Poor": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": 6,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Species-rich native hedgerow with trees": {
+    "Poor": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": 6,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Species-rich native hedgerow - associated with bank or ditch": {
+    "Poor": {
+      "Good": 5,
+      "Fairly Good": "Not Possible",
+      "Moderate": 3,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 2,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Native hedgerow with trees - associated with bank or ditch": {
+    "Poor": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": 6,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Species-rich native hedgerow": {
+    "Poor": {
+      "Good": 5,
+      "Fairly Good": "Not Possible",
+      "Moderate": 3,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 2,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Native hedgerow - associated with bank or ditch": {
+    "Poor": {
+      "Good": 5,
+      "Fairly Good": "Not Possible",
+      "Moderate": 3,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 2,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Native hedgerow with trees": {
+    "Poor": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": 6,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Ecologically valuable line of trees": {
+    "Poor": {
+      "Good": 30,
+      "Fairly Good": "Not Possible",
+      "Moderate": 20,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Ecologically valuable line of trees - associated with bank or ditch": {
+    "Poor": {
+      "Good": 30,
+      "Fairly Good": "Not Possible",
+      "Moderate": 20,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Native hedgerow": {
+    "Poor": {
+      "Good": 5,
+      "Fairly Good": "Not Possible",
+      "Moderate": 3,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 2,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Line of trees": {
+    "Poor": {
+      "Good": 30,
+      "Fairly Good": "Not Possible",
+      "Moderate": 20,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Line of trees - associated with bank or ditch": {
+    "Poor": {
+      "Good": 30,
+      "Fairly Good": "Not Possible",
+      "Moderate": 20,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 10,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Non-native and ornamental hedgerow": {
+    "Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": "Not Possible",
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  }
+}

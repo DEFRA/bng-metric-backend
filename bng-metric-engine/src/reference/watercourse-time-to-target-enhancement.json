@@ -1,0 +1,237 @@
+{
+  "Priority habitat": {
+    "Poor": {
+      "Good": 8,
+      "Fairly Good": 6,
+      "Moderate": 4,
+      "Fairly Poor": 2,
+      "Poor": 1,
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": 6,
+      "Fairly Good": 4,
+      "Moderate": 2,
+      "Fairly Poor": 1,
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": 2,
+      "Moderate": 1,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": 2,
+      "Fairly Good": 1,
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": 1,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Other rivers and streams": {
+    "Poor": {
+      "Good": 8,
+      "Fairly Good": 6,
+      "Moderate": 4,
+      "Fairly Poor": 2,
+      "Poor": 1,
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": 6,
+      "Fairly Good": 4,
+      "Moderate": 2,
+      "Fairly Poor": 1,
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": 2,
+      "Moderate": 1,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": 2,
+      "Fairly Good": 1,
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": 1,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Ditches": {
+    "Poor": {
+      "Good": 8,
+      "Fairly Good": 6,
+      "Moderate": 4,
+      "Fairly Poor": 2,
+      "Poor": 1,
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": 6,
+      "Fairly Good": 4,
+      "Moderate": 2,
+      "Fairly Poor": 1,
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": 2,
+      "Moderate": 1,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": 2,
+      "Fairly Good": 1,
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": 1,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Canals": {
+    "Poor": {
+      "Good": 8,
+      "Fairly Good": 6,
+      "Moderate": 4,
+      "Fairly Poor": 2,
+      "Poor": 1,
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": 6,
+      "Fairly Good": 4,
+      "Moderate": 2,
+      "Fairly Poor": 1,
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": 2,
+      "Moderate": 1,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": 2,
+      "Fairly Good": 1,
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": 1,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  },
+  "Culvert": {
+    "Poor": {
+      "Good": 8,
+      "Fairly Good": 6,
+      "Moderate": 4,
+      "Fairly Poor": 2,
+      "Poor": 1,
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Poor": {
+      "Good": 6,
+      "Fairly Good": 4,
+      "Moderate": 2,
+      "Fairly Poor": 1,
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Moderate": {
+      "Good": 4,
+      "Fairly Good": 2,
+      "Moderate": 1,
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Fairly Good": {
+      "Good": 2,
+      "Fairly Good": 1,
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    },
+    "Good": {
+      "Good": 1,
+      "Fairly Good": "Not Possible",
+      "Moderate": "Not Possible",
+      "Fairly Poor": "Not Possible",
+      "Poor": "Not Possible",
+      "Condition Assessment N/A": "Not Possible",
+      "N/A - Other": "Not Possible"
+    }
+  }
+}
