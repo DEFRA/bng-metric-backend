@@ -3367,7 +3367,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when N/A."
+      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
@@ -3378,7 +3378,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when N/A."
+      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
       "path": "postIntervention.trees[].proposed.timeMultiplier",
@@ -3389,7 +3389,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced trees."
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.trees[].proposed.difficultyMultiplier",
@@ -3400,7 +3400,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced trees."
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.trees[].properties",

@@ -224,34 +224,12 @@ const postInterventionTreeBaselineSubSchema = Joi.object({
 
 const postInterventionTreeProposedSubSchema = Joi.object({
   ...treeSideCommonFields(),
-  condition: Joi.string()
-    .allow(null, '')
-    .description(
-      'Proposed condition assessment stripped of list-index prefix.'
-    ),
-  advanceYears: Joi.number()
-    .allow(null)
-    .description(
-      'Habitat created in advance (years) from the GeoPackage; null when N/A.'
-    ),
-  delayYears: Joi.number()
-    .allow(null)
-    .description(
-      'Delay in starting habitat creation (years) from the GeoPackage; null when N/A.'
-    ),
   // Trees enrich via the area-habitat path, so a Created or Enhanced tree
-  // carries the same engine multipliers as an area parcel. Allow them here too,
-  // otherwise persistence rejects any non-retained tree.
-  timeMultiplier: Joi.number()
-    .allow(null)
-    .description(
-      'Time multiplier from bng-metric-engine; set for Created and Enhanced trees.'
-    ),
-  difficultyMultiplier: Joi.number()
-    .allow(null)
-    .description(
-      'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced trees.'
-    )
+  // carries the same proposed-side fields (condition, advance/delay years and
+  // the engine time/difficulty multipliers) as an area parcel. Reuse the shared
+  // factory so any future engine field flows to trees automatically — omitting
+  // one previously caused persistence to reject non-retained trees.
+  ...proposedCommonFields()
 }).description(
   'Proposed individual-tree values from the Proposed * GeoPackage columns.'
 )
