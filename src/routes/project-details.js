@@ -9,7 +9,7 @@ import { projectDetailsSchema } from '../validation/project.js'
 
 const getProjectDetails = {
   method: 'GET',
-  path: '/project-details/{id}',
+  path: '/projects/{id}/details',
   options: {
     auth: 'defra-jwt',
     validate: {
@@ -34,7 +34,7 @@ const getProjectDetails = {
 
 const updateProjectDetails = {
   method: 'PATCH',
-  path: '/project-details/{id}',
+  path: '/projects/{id}/details',
   options: {
     auth: 'defra-jwt',
     validate: {
@@ -57,8 +57,11 @@ const updateProjectDetails = {
     }
 
     const merged = { ...existing.project?.details, ...request.payload }
-    await setProjectDetails(request.drizzle, id, merged, where)
-    return merged
+    const saved = await setProjectDetails(request.drizzle, id, merged, where)
+    if (!saved) {
+      throw Boom.notFound(`Project ${id} not found`)
+    }
+    return saved.project?.details ?? merged
   }
 }
 

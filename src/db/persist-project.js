@@ -204,7 +204,7 @@ async function setBaselineFeature(exec, id, params) {
 }
 
 /**
- * Replace project.details only (PATCH /project-details/{id}). Returns the
+ * Replace project.details only (PATCH /projects/{id}/details). Returns the
  * updated row, or null when no project matches `where`.
  *
  * `where` defaults to matching the id alone; routes pass a stricter condition

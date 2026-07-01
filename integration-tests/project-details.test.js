@@ -42,12 +42,21 @@ async function createProject(name = 'Test Project') {
   return res.result
 }
 
-describe('GET /project-details/{id}', () => {
+async function patchDetails(id, payload, hdrs = headers) {
+  return server.inject({
+    method: 'PATCH',
+    url: `/projects/${id}/details`,
+    headers: hdrs,
+    payload
+  })
+}
+
+describe('GET /projects/{id}/details', () => {
   it('returns {} when the project has no details set', async () => {
     const project = await createProject('No details yet')
     const res = await server.inject({
       method: 'GET',
-      url: `/project-details/${project.id}`,
+      url: `/projects/${project.id}/details`,
       headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
@@ -61,16 +70,11 @@ describe('GET /project-details/{id}', () => {
       developmentType: 'Small site'
     }
 
-    await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers,
-      payload: details
-    })
+    await patchDetails(project.id, details)
 
     const res = await server.inject({
       method: 'GET',
-      url: `/project-details/${project.id}`,
+      url: `/projects/${project.id}/details`,
       headers
     })
     expect(res.statusCode).toBe(HTTP_OK)
@@ -80,7 +84,7 @@ describe('GET /project-details/{id}', () => {
   it('returns 404 for an unknown UUID', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: `/project-details/${randomUUID()}`,
+      url: `/projects/${randomUUID()}/details`,
       headers
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
@@ -89,7 +93,7 @@ describe('GET /project-details/{id}', () => {
   it('returns 400 for a non-UUID id', async () => {
     const res = await server.inject({
       method: 'GET',
-      url: '/project-details/not-a-uuid',
+      url: '/projects/not-a-uuid/details',
       headers
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
@@ -99,7 +103,7 @@ describe('GET /project-details/{id}', () => {
     const project = await createProject()
     const res = await server.inject({
       method: 'GET',
-      url: `/project-details/${project.id}`
+      url: `/projects/${project.id}/details`
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
@@ -111,14 +115,14 @@ describe('GET /project-details/{id}', () => {
     )
     const res = await server.inject({
       method: 'GET',
-      url: `/project-details/${project.id}`,
+      url: `/projects/${project.id}/details`,
       headers: otherHeaders
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
 })
 
-describe('PATCH /project-details/{id}', () => {
+describe('PATCH /projects/{id}/details', () => {
   it('persists details and returns the merged result', async () => {
     const project = await createProject('Patchable')
     const payload = {
@@ -126,12 +130,7 @@ describe('PATCH /project-details/{id}', () => {
       developmentType: 'Large site',
       nsips: 'Yes'
     }
-    const res = await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers,
-      payload
-    })
+    const res = await patchDetails(project.id, payload)
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toMatchObject(payload)
   })
@@ -139,22 +138,12 @@ describe('PATCH /project-details/{id}', () => {
   it('merges partial updates without erasing existing fields', async () => {
     const project = await createProject('Merge test')
 
-    await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers,
-      payload: {
-        localPlanningAuthority: 'First LPA',
-        developmentType: 'Small site'
-      }
+    await patchDetails(project.id, {
+      localPlanningAuthority: 'First LPA',
+      developmentType: 'Small site'
     })
 
-    const res = await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers,
-      payload: { nsips: 'No' }
-    })
+    const res = await patchDetails(project.id, { nsips: 'No' })
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.localPlanningAuthority).toBe('First LPA')
     expect(res.result.developmentType).toBe('Small site')
@@ -162,22 +151,16 @@ describe('PATCH /project-details/{id}', () => {
   })
 
   it('returns 404 for an unknown UUID', async () => {
-    const res = await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${randomUUID()}`,
-      headers,
-      payload: { localPlanningAuthority: 'LPA' }
+    const res = await patchDetails(randomUUID(), {
+      localPlanningAuthority: 'LPA'
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
 
   it('returns 400 for an invalid enum value', async () => {
     const project = await createProject()
-    const res = await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers,
-      payload: { developmentType: 'Massive site' }
+    const res = await patchDetails(project.id, {
+      developmentType: 'Massive site'
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
@@ -186,7 +169,7 @@ describe('PATCH /project-details/{id}', () => {
     const project = await createProject()
     const res = await server.inject({
       method: 'PATCH',
-      url: `/project-details/${project.id}`,
+      url: `/projects/${project.id}/details`,
       payload: { localPlanningAuthority: 'LPA' }
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
@@ -197,12 +180,11 @@ describe('PATCH /project-details/{id}', () => {
     const otherHeaders = authHeaders(
       await mintToken({ sub: `other-${randomUUID()}` })
     )
-    const res = await server.inject({
-      method: 'PATCH',
-      url: `/project-details/${project.id}`,
-      headers: otherHeaders,
-      payload: { localPlanningAuthority: 'Hijacked LPA' }
-    })
+    const res = await patchDetails(
+      project.id,
+      { localPlanningAuthority: 'Hijacked LPA' },
+      otherHeaders
+    )
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
 })

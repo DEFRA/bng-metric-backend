@@ -147,7 +147,8 @@ describe('#updateProjectDetails', () => {
 
   test('returns empty payload when project has no existing details', async () => {
     const drizzle = createMockDrizzle({
-      selectRows: [{ id: PROJECT_ID, project: {} }]
+      selectRows: [{ id: PROJECT_ID, project: {} }],
+      updateRows: [{ id: PROJECT_ID, project: { details: {} } }]
     })
     const result = await updateProjectDetails.handler(
       {
@@ -159,6 +160,23 @@ describe('#updateProjectDetails', () => {
       {}
     )
     expect(result).toEqual({})
+  })
+
+  test('throws 404 when project is deleted between select and update', async () => {
+    const drizzle = createMockDrizzle({
+      selectRows: [{ id: PROJECT_ID, project: {} }]
+    })
+    await expect(
+      updateProjectDetails.handler(
+        {
+          drizzle,
+          params: { id: PROJECT_ID },
+          payload: sampleDetails,
+          auth: { credentials: { sub: SUB } }
+        },
+        {}
+      )
+    ).rejects.toThrow(`Project ${PROJECT_ID} not found`)
   })
 
   test('throws 404 when project not found', async () => {
