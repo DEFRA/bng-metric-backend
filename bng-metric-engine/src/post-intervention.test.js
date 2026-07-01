@@ -1,0 +1,135 @@
+import { describe, expect, it } from 'vitest'
+
+import { BaselineLookupError } from './errors.js'
+import {
+  calculateCreatedAreaHabitatPostIntervention,
+  calculateEnhancedAreaHabitatPostIntervention,
+  calculateRetainedAreaHabitatPostIntervention
+} from './post-intervention.js'
+
+const H = 'Grassland - Modified grassland'
+
+// Statutory multiplier constants — extracted to avoid magic number literals
+const MULTIPLIER_4_YRS = 0.8671800006
+const MULTIPLIER_ENHANCEMENT = 0.7002822742
+const MULTIPLIER_HIGH_DIST_ENHANCEMENT = 0.343
+const DIFFICULTY_LOW = 1
+const DIFFICULTY_CREATION = 0.33
+const DISTINCTIVENESS_LOW = 'Low'
+const DISTINCTIVENESS_HIGH = 'High'
+const DISTINCTIVENESS_SCORE_LOW = 2
+const DISTINCTIVENESS_SCORE_HIGH = 6
+const CONDITION_SCORE_MODERATE = 2
+const CONDITION_SCORE_GOOD = 3
+const STRATEGIC_SIGNIFICANCE = 1
+
+describe('calculateRetainedAreaHabitatPostIntervention', () => {
+  it('returns correct units for a Low distinctiveness habitat in Moderate condition', () => {
+    const result = calculateRetainedAreaHabitatPostIntervention(
+      100,
+      H,
+      'Moderate'
+    )
+    expect(result.units).toBe(400)
+    expect(result.distinctiveness).toBe(DISTINCTIVENESS_LOW)
+    expect(result.distinctivenessScore).toBe(DISTINCTIVENESS_SCORE_LOW)
+    expect(result.conditionScore).toBe(CONDITION_SCORE_MODERATE)
+    expect(result.strategicSignificanceScore).toBe(STRATEGIC_SIGNIFICANCE)
+  })
+
+  it('throws for zero size', () => {
+    expect(() =>
+      calculateRetainedAreaHabitatPostIntervention(0, H, 'Moderate')
+    ).toThrow('Size must be a finite number greater than 0')
+  })
+
+  it('throws BaselineLookupError for an unrecognised habitat type', () => {
+    expect(() =>
+      calculateRetainedAreaHabitatPostIntervention(
+        1,
+        'Not a valid habitat',
+        'Moderate'
+      )
+    ).toThrow(BaselineLookupError)
+  })
+})
+
+describe('calculateCreatedAreaHabitatPostIntervention', () => {
+  it('calculates units for Grassland creation in Moderate condition', () => {
+    const result = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      H,
+      'Moderate',
+      0,
+      0
+    )
+    expect(result.units).toBeCloseTo(3.468)
+    expect(result.distinctiveness).toBe(DISTINCTIVENESS_LOW)
+    expect(result.distinctivenessScore).toBe(DISTINCTIVENESS_SCORE_LOW)
+    expect(result.conditionScore).toBe(CONDITION_SCORE_MODERATE)
+    expect(result.timeMultiplier).toBe(MULTIPLIER_4_YRS)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+  })
+})
+
+describe('calculateEnhancedAreaHabitatPostIntervention', () => {
+  it('calculates units for Lower to Moderate enhancement', () => {
+    const result = calculateEnhancedAreaHabitatPostIntervention(
+      1,
+      H,
+      H,
+      'Lower',
+      'Moderate',
+      0,
+      0
+    )
+    expect(result.units).toBeCloseTo(3.4)
+    expect(result.postInterventionDistinctiveness).toBe(DISTINCTIVENESS_LOW)
+    expect(result.postInterventionDistinctivenessScore).toBe(
+      DISTINCTIVENESS_SCORE_LOW
+    )
+    expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_MODERATE)
+    expect(result.timeMultiplier).toBe(MULTIPLIER_ENHANCEMENT)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+  })
+
+  it('uses Lower time-to-target start when enhancing to higher distinctiveness habitat', () => {
+    const result = calculateEnhancedAreaHabitatPostIntervention(
+      1,
+      H,
+      'Grassland - Lowland calcareous grassland',
+      'Moderate',
+      'Good',
+      0,
+      0
+    )
+    expect(result.units).toBeCloseTo(5.585)
+    expect(result.postInterventionDistinctiveness).toBe(DISTINCTIVENESS_HIGH)
+    expect(result.postInterventionDistinctivenessScore).toBe(
+      DISTINCTIVENESS_SCORE_HIGH
+    )
+    expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
+    expect(result.timeMultiplier).toBeCloseTo(MULTIPLIER_HIGH_DIST_ENHANCEMENT)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_CREATION)
+  })
+
+  it('calculates units for Moderate to Good enhancement', () => {
+    const result = calculateEnhancedAreaHabitatPostIntervention(
+      1,
+      H,
+      H,
+      'Moderate',
+      'Good',
+      0,
+      0
+    )
+    expect(result.units).toBeCloseTo(5.4)
+    expect(result.postInterventionDistinctiveness).toBe(DISTINCTIVENESS_LOW)
+    expect(result.postInterventionDistinctivenessScore).toBe(
+      DISTINCTIVENESS_SCORE_LOW
+    )
+    expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
+    expect(result.timeMultiplier).toBe(MULTIPLIER_ENHANCEMENT)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+  })
+})

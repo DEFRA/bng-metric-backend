@@ -1,6 +1,7 @@
 import { ecsFormat } from '@elastic/ecs-pino-format'
 import { config } from '../../../config.js'
 import { getTraceId } from '@defra/hapi-tracing'
+import { getCorrelationId } from '../correlation-id.js'
 
 const logConfig = config.get('log')
 const serviceName = config.get('serviceName')
@@ -28,7 +29,7 @@ export const loggerOptions = {
   nesting: true,
   mixin() {
     const mixinValues = {}
-    const traceId = getTraceId()
+    const traceId = getCorrelationId() ?? getTraceId()
     if (traceId) {
       mixinValues.trace = { id: traceId }
     }
