@@ -2919,6 +2919,28 @@
       "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
+      "path": "postIntervention.habitats[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
       "path": "postIntervention.habitats[].proposed.strategicSignificance",
       "type": "string",
       "required": false,
@@ -3345,7 +3367,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when N/A."
+      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
@@ -3356,7 +3378,29 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when N/A."
+      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.trees[].properties",
@@ -3478,6 +3522,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline hedgerow type from Baseline Hedge Type column."
+    },
+    {
+      "path": "postIntervention.hedgerows[].baseline.retentionCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Retention Category from the GeoPackage."
     },
     {
       "path": "postIntervention.hedgerows[].baseline.condition",
@@ -3612,6 +3667,28 @@
       "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
     },
     {
+      "path": "postIntervention.hedgerows[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
       "path": "postIntervention.hedgerows[].properties",
       "type": "object",
       "required": false,
@@ -3731,6 +3808,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline watercourse type from Baseline River Type column."
+    },
+    {
+      "path": "postIntervention.watercourses[].baseline.retentionCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Retention Category from the GeoPackage."
     },
     {
       "path": "postIntervention.watercourses[].baseline.condition",
@@ -3918,6 +4006,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.riparianEncroachment",

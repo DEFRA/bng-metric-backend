@@ -77,6 +77,7 @@ function defaultPostInterventionHabitats() {
         type: 'Modified grassland',
         broadType: 'Grassland',
         condition: 'Poor',
+        retentionCategory: 'Retained',
         conditionScore: null,
         distinctiveness: null,
         distinctivenessScore: null

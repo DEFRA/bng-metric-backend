@@ -18,6 +18,7 @@ import { extractHabitatData } from '../../validation/baseline/extract-habitat-da
 import { extractPostIntervention } from '../../validation/baseline/extract-post-intervention.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
+import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baseline/re-enrich-stored-post-intervention.js'
 import {
   habitatDataSchema,
   postInterventionDataSchema
@@ -49,6 +50,15 @@ vi.mock('../../utilities/baseline/enrich-baseline-units.js', () => ({
 vi.mock('../../utilities/baseline/enrich-post-intervention-units.js', () => ({
   enrichPostInterventionDocumentWithUnits: vi.fn()
 }))
+
+vi.mock(
+  '../../utilities/baseline/re-enrich-stored-post-intervention.js',
+  () => ({
+    reEnrichStoredPostInterventionIfPresent: vi
+      .fn()
+      .mockResolvedValue(undefined)
+  })
+)
 
 vi.mock('../../validation/project.js', () => ({
   habitatDataSchema: { validate: vi.fn() },
@@ -145,6 +155,11 @@ describe('saveBaselineForProject', () => {
         projectDocumentKey: 'baseline'
       })
     )
+    expect(reEnrichStoredPostInterventionIfPresent).toHaveBeenCalledWith(
+      deps.drizzle,
+      PROJECT_ID,
+      logger
+    )
   })
 
   it('returns a 500 response when habitat sizing fails', async () => {
@@ -198,6 +213,28 @@ describe('saveBaselineForProject', () => {
   })
 
   it('returns null after a successful post-intervention extract, enrich, validate and persist', async () => {
+    const baselineWatercourses = [{ ref: 'R1', sizeMetres: 1000 }]
+    const { drizzle } = makeDrizzle()
+    drizzle.select = vi.fn(() => ({
+      from: vi.fn(() => ({
+        where: vi.fn(() => ({
+          limit: vi.fn(() =>
+            Promise.resolve([
+              {
+                project: {
+                  baseline: {
+                    watercourses: baselineWatercourses,
+                    hedgerows: []
+                  }
+                }
+              }
+            ])
+          )
+        }))
+      }))
+    }))
+    deps = { drizzle, pgPool: {}, logger }
+
     const result = await saveBaselineForProject(
       deps,
       PROJECT_ID,
@@ -217,7 +254,13 @@ describe('saveBaselineForProject', () => {
       STUB_LAYERS,
       expect.objectContaining({ uploadId: UPLOAD_ID })
     )
-    expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalled()
+    expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledWith(
+      { habitats: [] },
+      logger,
+      expect.objectContaining({
+        baselineLengthByRef: expect.any(Map)
+      })
+    )
     expect(persistBaseline).toHaveBeenCalledWith(
       deps.drizzle,
       PROJECT_ID,

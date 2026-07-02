@@ -13,11 +13,20 @@ import {
 const H = 'Grassland - Modified grassland'
 const H_30PLUS = 'Grassland - Lowland dry acid grassland'
 
+// Statutory multiplier constants — extracted to avoid magic number literals
+const MULTIPLIER_4_YRS = 0.8671800006
+const MULTIPLIER_OVER_30_YRS = 0.3197967361
+const DIFFICULTY_LOW = 1
+const DIFFICULTY_MEDIUM = 0.67
+const DIFFICULTY_CREATION = 0.33
+const CONDITION_SCORE_MODERATE = 2
+const DISTINCTIVENESS_SCORE_LOW = 2
+
 describe('resolveDistinctiveness', () => {
   it('returns band label and score for a habitat', () => {
     expect(resolveDistinctiveness(H)).toEqual({
       distinctiveness: 'Low',
-      distinctivenessScore: 2
+      distinctivenessScore: DISTINCTIVENESS_SCORE_LOW
     })
   })
 
@@ -78,7 +87,7 @@ describe('resolveDistinctiveness', () => {
 
 describe('getConditionMultiplier', () => {
   it('returns multiplier for valid habitat and condition', () => {
-    expect(getConditionMultiplier(H, 'Moderate')).toBe(2)
+    expect(getConditionMultiplier(H, 'Moderate')).toBe(CONDITION_SCORE_MODERATE)
   })
 
   it('throws for Not Possible condition value', () => {
@@ -194,7 +203,7 @@ describe('getTimeToTargetValue', () => {
 describe('getTimeMultiplier', () => {
   it('returns multiplier from time-to-target value', () => {
     const m = getTimeMultiplier(H, 'Creation', undefined, 'Moderate', 0, 0)
-    expect(m).toBe(0.867)
+    expect(m).toBe(MULTIPLIER_4_YRS)
   })
 
   it('throws when start condition missing for Enhancement', () => {
@@ -205,7 +214,7 @@ describe('getTimeMultiplier', () => {
 
   it('uses >30 multiplier bucket when time key exceeds 30', () => {
     const m = getTimeMultiplier(H_30PLUS, 'Creation', undefined, 'Good', 0, 2)
-    expect(m).toBe(0.32)
+    expect(m).toBe(MULTIPLIER_OVER_30_YRS)
   })
 
   it('throws when time multiplier table has no entry for computed key', () => {
@@ -233,16 +242,20 @@ describe('getTimeMultiplier', () => {
 describe('getDifficultyMultiplier', () => {
   it('returns Low difficulty when advance meets time-to-target', () => {
     expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 10, 0)).toBe(
-      1
+      DIFFICULTY_LOW
     )
   })
 
   it('returns habitat difficulty when advance is below time-to-target', () => {
-    expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 0, 0)).toBe(1)
+    expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 0, 0)).toBe(
+      DIFFICULTY_LOW
+    )
   })
 
   it('reclassifies Creation as Enhancement for difficulty when advance clears poor target', () => {
-    expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 1, 0)).toBe(1)
+    expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 1, 0)).toBe(
+      DIFFICULTY_LOW
+    )
   })
 
   it('uses Enhancement difficulty band without Creation poor-target reclassification', () => {
@@ -254,9 +267,9 @@ describe('getDifficultyMultiplier', () => {
 
     expect(
       getDifficultyMultiplier(H, 'Enhancement', 'Lower', 'Moderate', 0, 0)
-    ).toBe(0.67)
+    ).toBe(DIFFICULTY_MEDIUM)
     expect(getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 0, 0)).toBe(
-      0.33
+      DIFFICULTY_CREATION
     )
 
     spy.mockRestore()

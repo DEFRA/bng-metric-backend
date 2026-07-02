@@ -55,7 +55,7 @@ describe('audit_log reflects submit + rename', () => {
     expect(renamed.statusCode).toBe(HTTP_OK)
 
     const { rows } = await dbClient.query(
-      `SELECT operation, project->>'name' AS name
+      `SELECT operation, project->>'name' AS name, user_id, bng_project_version, audited_at
          FROM bng.audit_log
         WHERE project_id = $1
         ORDER BY audited_at`,
@@ -64,13 +64,28 @@ describe('audit_log reflects submit + rename', () => {
 
     expect(rows).toHaveLength(EXPECTED_AUDIT_ROWS)
     const [insertRow, updateRow] = rows
+
+    // Each snapshot captures the acting user, the operation, and the project name.
     expect(insertRow).toMatchObject({
       operation: 'INSERT',
-      name: ORIGINAL_NAME
+      name: ORIGINAL_NAME,
+      user_id: userId
     })
     expect(updateRow).toMatchObject({
       operation: 'UPDATE',
-      name: RENAMED_NAME
+      name: RENAMED_NAME,
+      user_id: userId
     })
+
+    // Each snapshot also records the project version (integer) and an audit
+    // timestamp; the UPDATE is recorded no earlier than the INSERT.
+    for (const row of rows) {
+      expect(Number.isInteger(row.bng_project_version)).toBe(true)
+      expect(row.bng_project_version).toBeGreaterThanOrEqual(1)
+      expect(row.audited_at).toBeInstanceOf(Date)
+    }
+    expect(updateRow.audited_at.getTime()).toBeGreaterThanOrEqual(
+      insertRow.audited_at.getTime()
+    )
   })
 })
