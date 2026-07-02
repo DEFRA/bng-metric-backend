@@ -20,11 +20,14 @@ import {
   BaselineLookupError,
   calculateAreaHabitatBaseline,
   calculateHedgerowBaseline,
+  calculateWatercourseBaseline,
   resolveDistinctiveness
 } from 'bng-metric-engine'
 import {
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
-  hedgerowDistinctivenessScores
+  hedgerowDistinctivenessScores,
+  WATERCOURSE_DISTINCTIVENESS_CATEGORIES,
+  watercourseDistinctivenessScores
 } from './reference/habitat-reference.js'
 
 const SQUARE_METRES_PER_HECTARE = 10_000
@@ -56,6 +59,18 @@ function lookupHedgerowDistinctiveness(habitatType) {
     return null
   }
   const score = hedgerowDistinctivenessScores[band]?.score
+  if (typeof score !== 'number') {
+    return null
+  }
+  return { distinctiveness: band, distinctivenessScore: score }
+}
+
+function lookupWatercourseDistinctiveness(habitatType) {
+  const band = WATERCOURSE_DISTINCTIVENESS_CATEGORIES[habitatType]
+  if (!band) {
+    return null
+  }
+  const score = watercourseDistinctivenessScores[band]?.score
   if (typeof score !== 'number') {
     return null
   }
@@ -170,4 +185,83 @@ function recomputeHedgerow({ habitatType, condition, sizeMetres }) {
   }
 }
 
-export { HABITAT_STATUS, recomputeAreaHabitat, recomputeHedgerow }
+/**
+ * Recompute the derived fields of a watercourse habitat after a dropdown edit.
+ *
+ * Units require all four dropdowns (habitat type, condition, watercourse
+ * encroachment, riparian encroachment) plus a positive length; any missing
+ * value returns the canonical incomplete shape with zero units — matching the
+ * BMD-597 Save rules (Scenario A complete / Scenario B incomplete). The
+ * distinctiveness band is still resolved from the habitat type alone so the
+ * saved feature carries it even for an incomplete row.
+ *
+ * The shape matches `recomputeAreaHabitat` so `applyFeatureUpdate` can splice
+ * the result into the watercourses layer without per-type branching. Extra
+ * watercourse-only fields (`waterEncroachmentMultiplier`,
+ * `riparianEncroachmentMultiplier`) ride along for parity with the enrich path.
+ *
+ * @param {object} params
+ * @param {string|null|undefined} params.habitatType
+ * @param {string|null|undefined} params.condition
+ * @param {string|null|undefined} params.watercourseEncroachment
+ * @param {string|null|undefined} params.riparianEncroachment
+ * @param {number|null|undefined} params.sizeMetres
+ */
+function recomputeWatercourse({
+  habitatType,
+  condition,
+  watercourseEncroachment,
+  riparianEncroachment,
+  sizeMetres
+}) {
+  if (!habitatType) {
+    return buildIncomplete(null)
+  }
+  const distinct = lookupWatercourseDistinctiveness(habitatType)
+  if (!distinct) {
+    return buildIncomplete(null)
+  }
+  if (
+    !condition ||
+    !watercourseEncroachment ||
+    !riparianEncroachment ||
+    !isPositiveNumber(sizeMetres)
+  ) {
+    return buildIncomplete(distinct)
+  }
+
+  try {
+    const lengthKm = sizeMetres / METRES_PER_KILOMETRE
+    const result = calculateWatercourseBaseline(
+      lengthKm,
+      habitatType,
+      condition,
+      watercourseEncroachment,
+      riparianEncroachment
+    )
+    return {
+      distinctiveness: result.distinctiveness,
+      distinctivenessScore: result.distinctivenessScore,
+      conditionScore: result.conditionScore,
+      units: result.units,
+      status: HABITAT_STATUS.COMPLETE,
+      waterEncroachmentMultiplier: result.waterEncroachmentMultiplier,
+      riparianEncroachmentMultiplier: result.riparianEncroachmentMultiplier
+    }
+  } catch (err) {
+    // Engine rejects one of the (habitat, condition, encroachment) values as
+    // unrecognised — treat as an incomplete mid-flight selection: keep the
+    // resolved distinctiveness but drop condition score and units.
+    if (err instanceof BaselineLookupError) {
+      return buildIncomplete(distinct)
+    }
+    throw err
+  }
+}
+
+export {
+  HABITAT_STATUS,
+  recomputeAreaHabitat,
+  recomputeHedgerow,
+  recomputeWatercourse
+}

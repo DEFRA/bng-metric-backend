@@ -257,22 +257,113 @@ describe('applyFeatureUpdate — error outcomes', () => {
     expect(result.status).toBe(APPLY_RESULT.OK)
   })
 
-  test('returns UNSUPPORTED_TYPE for a watercourse featureId', () => {
+  test('returns UNSUPPORTED_TYPE for a post-intervention watercourse featureId', () => {
+    // Post-intervention watercourse editing is out of scope for BMD-597 — the
+    // baseline path is supported (see the watercourse dispatch suite below).
+    const project = postInterventionProjectFixture()
+    project.postIntervention.watercourses = [
+      {
+        featureId: WATERCOURSE_ID,
+        ref: 'W1',
+        sizeMetres: 1000,
+        proposed: { type: 'Other rivers and streams' }
+      }
+    ]
+    const result = applyFeatureUpdate(project, {
+      featureId: WATERCOURSE_ID,
+      edits: { habitatType: 'Other rivers and streams', condition: 'Moderate' },
+      documentKey: 'postIntervention'
+    })
+    expect(result.status).toBe(APPLY_RESULT.UNSUPPORTED_TYPE)
+    expect(result.type).toBe('watercourse')
+  })
+})
+
+describe('applyFeatureUpdate — watercourse dispatch', () => {
+  function watercourseProjectFixture() {
     const project = projectFixture()
     project.baseline.watercourses = [
       {
         featureId: WATERCOURSE_ID,
         ref: 'W1',
-        type: 'River',
-        sizeMetres: 200
+        type: null,
+        condition: null,
+        watercourseEncroachment: null,
+        riparianEncroachment: null,
+        sizeMetres: 1000
       }
     ]
-    const result = applyFeatureUpdate(project, {
+    return project
+  }
+
+  test('persists the watercourse shape, encroachments and units when Complete', () => {
+    const result = applyFeatureUpdate(watercourseProjectFixture(), {
       featureId: WATERCOURSE_ID,
-      edits: { habitatType: 'River', condition: 'Good' }
+      edits: {
+        habitatType: 'Other rivers and streams',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: 'Minor/Minor'
+      }
     })
-    expect(result.status).toBe(APPLY_RESULT.UNSUPPORTED_TYPE)
+    expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.type).toBe('watercourse')
+    expect(result.layer).toBe('watercourses')
+    // High (6) × Moderate (2) × 1 km × 0.8 × 0.95 = 9.12
+    expect(result.feature).toMatchObject({
+      type: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      distinctiveness: 'High',
+      distinctivenessScore: 6,
+      units: 9.12,
+      status: 'Complete'
+    })
+    expect(result.unitsTotals.watercoursesTotal).toBe(9.12)
+  })
+
+  test('saves zero units and Incomplete when an encroachment is unselected (Scenario B)', () => {
+    const result = applyFeatureUpdate(watercourseProjectFixture(), {
+      featureId: WATERCOURSE_ID,
+      edits: {
+        habitatType: 'Other rivers and streams',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: ''
+      }
+    })
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      type: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: null,
+      distinctiveness: 'High',
+      units: 0,
+      status: 'Incomplete'
+    })
+    expect(result.unitsTotals.watercoursesTotal).toBe(0)
+  })
+
+  test('offers the culvert encroachment values and computes units for a culvert', () => {
+    const result = applyFeatureUpdate(watercourseProjectFixture(), {
+      featureId: WATERCOURSE_ID,
+      edits: {
+        habitatType: 'Culvert',
+        condition: 'Poor',
+        watercourseEncroachment: 'N/A - Culvert',
+        riparianEncroachment: 'N/A - Culvert'
+      }
+    })
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    // Low (2) × Poor (1) × 1 km × 0.68 × 1 = 1.36
+    expect(result.feature).toMatchObject({
+      type: 'Culvert',
+      distinctiveness: 'Low',
+      units: 1.36,
+      status: 'Complete'
+    })
   })
 })
 

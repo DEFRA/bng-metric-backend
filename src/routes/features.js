@@ -129,9 +129,10 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       selections, recomputes distinctiveness / condition score / units /
  *       status, refreshes the project-level units totals, then returns
  *       `{ type, feature }`. The feature type is discovered from the data,
- *       so a single endpoint handles habitats and hedgerows. Watercourse
- *       editing is not yet supported and returns 400 until the engine
- *       publishes watercourse scoring.
+ *       so a single endpoint handles habitats, hedgerows and watercourses.
+ *       Watercourse edits also persist the watercourse/riparian encroachment
+ *       selections and recompute units from the engine's encroachment
+ *       multipliers (BMD-597).
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -151,11 +152,17 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *               condition:
  *                 type: string
  *                 nullable: true
+ *               watercourseEncroachment:
+ *                 type: string
+ *                 nullable: true
+ *               riparianEncroachment:
+ *                 type: string
+ *                 nullable: true
  *     responses:
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Feature type is not editable via this endpoint (e.g. watercourse)
+ *         description: Feature type is not editable via this endpoint (e.g. an individual tree)
  *       404:
  *         description: Project or feature not found
  *       409:
