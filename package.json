@@ -82,7 +82,7 @@
   },
   "devDependencies": {
     "@babel/core": "7.29.7",
-    "@babel/preset-env": "7.28.5",
+    "@babel/preset-env": "8.0.2",
     "@types/node": "24.11.1",
     "@vitest/coverage-v8": "4.1.8",
     "autoprefixer": "10.5.0",
