@@ -24,8 +24,23 @@ export { calculateAreaHabitatBaseline } from './baseline.js'
 export { getIndividualTreeAreaHectares } from './tree.js'
 export {
   calculateHedgerowBaseline,
-  calculateWatercourseBaseline,
-  isRecognisedEncroachmentValue
+  calculateWatercourseBaseline
 } from './linear-baseline.js'
+export {
+  calculateRetainedAreaHabitatPostIntervention,
+  calculateCreatedAreaHabitatPostIntervention,
+  calculateEnhancedAreaHabitatPostIntervention
+} from './post-intervention.js'
+export {
+  calculateRetainedHedgerowPostIntervention,
+  calculateCreatedHedgerowPostIntervention,
+  calculateEnhancedHedgerowPostIntervention
+} from './hedgerow-post-intervention.js'
+export {
+  calculateRetainedWatercoursePostIntervention,
+  calculateCreatedWatercoursePostIntervention,
+  calculateEnhancedWatercoursePostIntervention
+} from './watercourse-post-intervention.js'
+export { isRecognisedEncroachmentValue } from './linear-resolvers.js'
 export { resolveDistinctiveness } from './multipliers.js'
 export { MAX_YEARS, MAX_YEARS_PLUS, MIN_YEARS } from './validate.js'
