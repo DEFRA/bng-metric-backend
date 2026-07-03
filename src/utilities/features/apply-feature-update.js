@@ -17,7 +17,8 @@
 
 import {
   recomputeAreaHabitat,
-  recomputeHedgerow
+  recomputeHedgerow,
+  recomputeWatercourse
 } from '../../validation/baseline/unit-calculation.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
 
@@ -54,7 +55,9 @@ function normalizeEdits(edits = {}) {
   return {
     broadType: blankToNull(edits.broadType),
     habitatType: blankToNull(edits.habitatType),
-    condition: blankToNull(edits.condition)
+    condition: blankToNull(edits.condition),
+    watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
+    riparianEncroachment: blankToNull(edits.riparianEncroachment)
   }
 }
 
@@ -79,6 +82,19 @@ function recomputeForType(type, existing, edits, documentKey) {
       condition: edits.condition,
       sizeMetres: existing.sizeMetres ?? null
     })
+  } else if (type === 'watercourse') {
+    // Post-intervention watercourse editing is out of scope; only the baseline
+    // document recomputes a watercourse here (BMD-597).
+    if (documentKey === 'postIntervention') {
+      return null
+    }
+    return recomputeWatercourse({
+      habitatType: edits.habitatType,
+      condition: edits.condition,
+      watercourseEncroachment: edits.watercourseEncroachment,
+      riparianEncroachment: edits.riparianEncroachment,
+      sizeMetres: existing.sizeMetres ?? null
+    })
   } else {
     return null
   }
@@ -96,6 +112,16 @@ function mergeBaselineFeature(type, existing, edits, derived) {
   }
   if (type === 'habitat') {
     return { ...base, broadType: edits.broadType, type: edits.habitatType }
+  } else if (type === 'watercourse') {
+    return {
+      ...base,
+      type: edits.habitatType,
+      watercourseEncroachment: edits.watercourseEncroachment,
+      riparianEncroachment: edits.riparianEncroachment,
+      waterEncroachmentMultiplier: derived.waterEncroachmentMultiplier ?? null,
+      riparianEncroachmentMultiplier:
+        derived.riparianEncroachmentMultiplier ?? null
+    }
   } else {
     return { ...base, type: edits.habitatType }
   }
