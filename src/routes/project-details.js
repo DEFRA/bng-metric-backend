@@ -47,21 +47,16 @@ const updateProjectDetails = {
     const { sub } = request.auth.credentials
     const where = and(eq(projects.id, id), visibleToUser(sub))
 
-    const [existing] = await request.drizzle
-      .select()
-      .from(projects)
-      .where(where)
-
-    if (!existing) {
-      throw Boom.notFound(`Project ${id} not found`)
-    }
-
-    const merged = { ...existing.project?.details, ...request.payload }
-    const saved = await setProjectDetails(request.drizzle, id, merged, where)
+    const saved = await setProjectDetails(
+      request.drizzle,
+      id,
+      request.payload,
+      where
+    )
     if (!saved) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    return saved.project?.details ?? merged
+    return saved.project?.details ?? {}
   }
 }
 

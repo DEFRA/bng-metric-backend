@@ -28,17 +28,13 @@ function createMockDrizzleSelect(rows) {
   }
 }
 
-function createMockDrizzle({ selectRows, updateRows = [] } = {}) {
-  const selectWhere = vi.fn().mockResolvedValue(selectRows ?? [])
-  const from = vi.fn().mockReturnValue({ where: selectWhere })
-  const select = vi.fn().mockReturnValue({ from })
-
+function createMockDrizzle(updateRows = []) {
   const returning = vi.fn().mockResolvedValue(updateRows)
   const updateWhere = vi.fn().mockReturnValue({ returning })
   const set = vi.fn().mockReturnValue({ where: updateWhere })
   const update = vi.fn().mockReturnValue({ set })
 
-  return { select, update, _set: set }
+  return { update, _set: set }
 }
 
 describe('#getProjectDetails', () => {
@@ -122,34 +118,31 @@ describe('#getProjectDetails validation', () => {
 })
 
 describe('#updateProjectDetails', () => {
-  test('merges payload onto existing details and returns result', async () => {
-    const existing = {
-      localPlanningAuthority: 'Old LPA',
-      developmentType: 'Large site'
-    }
-    const drizzle = createMockDrizzle({
-      selectRows: [{ id: PROJECT_ID, project: { details: existing } }],
-      updateRows: [{ id: PROJECT_ID, project: { details: sampleDetails } }]
-    })
+  test('returns the persisted details including fields retained by the DB merge', async () => {
+    const payload = { localPlanningAuthority: 'New LPA' }
+    const persisted = { ...sampleDetails, localPlanningAuthority: 'New LPA' }
+    const drizzle = createMockDrizzle([
+      { id: PROJECT_ID, project: { details: persisted } }
+    ])
     const result = await updateProjectDetails.handler(
       {
         drizzle,
         params: { id: PROJECT_ID },
-        payload: sampleDetails,
+        payload,
         auth: { credentials: { sub: SUB } }
       },
       {}
     )
     expect(drizzle.update).toHaveBeenCalled()
     expect(drizzle._set).toHaveBeenCalledWith({ project: expect.anything() })
-    expect(result).toEqual({ ...existing, ...sampleDetails })
+    expect(result).toEqual(persisted)
+    expect(result.developmentType).toBe(sampleDetails.developmentType)
   })
 
-  test('returns empty payload when project has no existing details', async () => {
-    const drizzle = createMockDrizzle({
-      selectRows: [{ id: PROJECT_ID, project: {} }],
-      updateRows: [{ id: PROJECT_ID, project: { details: {} } }]
-    })
+  test('returns {} when project has no existing details', async () => {
+    const drizzle = createMockDrizzle([
+      { id: PROJECT_ID, project: { details: {} } }
+    ])
     const result = await updateProjectDetails.handler(
       {
         drizzle,
@@ -162,25 +155,8 @@ describe('#updateProjectDetails', () => {
     expect(result).toEqual({})
   })
 
-  test('throws 404 when project is deleted between select and update', async () => {
-    const drizzle = createMockDrizzle({
-      selectRows: [{ id: PROJECT_ID, project: {} }]
-    })
-    await expect(
-      updateProjectDetails.handler(
-        {
-          drizzle,
-          params: { id: PROJECT_ID },
-          payload: sampleDetails,
-          auth: { credentials: { sub: SUB } }
-        },
-        {}
-      )
-    ).rejects.toThrow(`Project ${PROJECT_ID} not found`)
-  })
-
-  test('throws 404 when project not found', async () => {
-    const drizzle = createMockDrizzle({ selectRows: [] })
+  test('throws 404 when project not found or not visible', async () => {
+    const drizzle = createMockDrizzle()
     await expect(
       updateProjectDetails.handler(
         {
