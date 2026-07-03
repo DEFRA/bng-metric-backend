@@ -346,6 +346,30 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     expect(result.unitsTotals.watercoursesTotal).toBe(0)
   })
 
+  test('handles a watercourse feature with no sizeMetres property', () => {
+    const project = watercourseProjectFixture()
+    delete project.baseline.watercourses[0].sizeMetres
+
+    const result = applyFeatureUpdate(project, {
+      featureId: WATERCOURSE_ID,
+      edits: {
+        habitatType: 'Other rivers and streams',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: 'Minor/Minor'
+      }
+    })
+
+    // No size → cannot compute units, but the row still saves as Incomplete
+    // with its distinctiveness resolved.
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      distinctiveness: 'High',
+      units: 0,
+      status: 'Incomplete'
+    })
+  })
+
   test('offers the culvert encroachment values and computes units for a culvert', () => {
     const result = applyFeatureUpdate(watercourseProjectFixture(), {
       featureId: WATERCOURSE_ID,
