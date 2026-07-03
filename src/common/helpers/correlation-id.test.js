@@ -14,12 +14,34 @@ describe('#sessionCorrelationId', () => {
     )
   })
 
+  test('Should fall back to the Defra ID correlationId claim', () => {
+    expect(
+      sessionCorrelationId({ correlationId: 'correlation-id', sid: 'sid' })
+    ).toBe('correlation-id')
+  })
+
   test('Should fall back to the sid claim', () => {
     expect(sessionCorrelationId({ sid: 'sid' })).toBe('sid')
   })
 
+  test('Should fall back to correlationId when sessionId is blank', () => {
+    expect(
+      sessionCorrelationId({
+        sessionId: '   ',
+        correlationId: 'correlation-id',
+        sid: 'sid'
+      })
+    ).toBe('correlation-id')
+  })
+
   test('Should fall back to sid when sessionId is blank', () => {
     expect(sessionCorrelationId({ sessionId: '   ', sid: 'sid' })).toBe('sid')
+  })
+
+  test('Should fall back to sid when correlationId is blank', () => {
+    expect(sessionCorrelationId({ correlationId: '   ', sid: 'sid' })).toBe(
+      'sid'
+    )
   })
 
   test('Should not use cid as a session correlation id', () => {

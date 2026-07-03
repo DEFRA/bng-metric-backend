@@ -16,6 +16,7 @@ function normaliseCorrelationId(value) {
 function sessionCorrelationId(credentials) {
   return (
     normaliseCorrelationId(credentials?.sessionId) ??
+    normaliseCorrelationId(credentials?.correlationId) ??
     normaliseCorrelationId(credentials?.sid)
   )
 }
