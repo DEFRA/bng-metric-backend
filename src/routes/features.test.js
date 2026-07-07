@@ -49,8 +49,11 @@ const sampleHedgerow = {
 const sampleWatercourse = {
   featureId: WATERCOURSE_ID,
   ref: 'W1',
-  type: 'River',
-  sizeMetres: 200
+  type: null,
+  condition: null,
+  watercourseEncroachment: null,
+  riparianEncroachment: null,
+  sizeMetres: 1000
 }
 
 function makeProject(habitats = [sampleHabitat]) {
@@ -401,21 +404,66 @@ describe('updateFeature handler - error cases', () => {
     ).rejects.toThrow(/Feature .* not found/)
   })
 
-  test('throws 400 when the featureId points at a watercourse (not yet editable)', async () => {
+  test('saves a watercourse edit with its encroachment fields and recomputed units', async () => {
     const drizzle = makeTxDrizzle(makeProject())
-    await expect(
-      updateFeature.handler(
-        {
-          drizzle,
-          auth: AUTH,
-          params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
-          payload: { habitatType: 'River', condition: 'Good' }
-        },
-        {}
-      )
-    ).rejects.toMatchObject({
-      isBoom: true,
-      output: { statusCode: 400 }
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Other rivers and streams',
+          condition: 'Moderate',
+          watercourseEncroachment: 'Minor',
+          riparianEncroachment: 'Minor/Minor'
+        }
+      },
+      {}
+    )
+
+    expect(result.type).toBe('watercourse')
+    // High (6) × Moderate (2) × 1 km × 0.8 × 0.95 = 9.12
+    expect(result.feature).toMatchObject({
+      featureId: WATERCOURSE_ID,
+      type: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      distinctiveness: 'High',
+      status: 'Complete',
+      units: 9.12
+    })
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'watercourses',
+        unitsTotals: expect.objectContaining({ watercoursesTotal: 9.12 })
+      })
+    )
+  })
+
+  test('saves zero units and Incomplete status when a watercourse encroachment is unselected', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Other rivers and streams',
+          condition: 'Moderate',
+          watercourseEncroachment: '',
+          riparianEncroachment: ''
+        }
+      },
+      {}
+    )
+
+    expect(result.feature).toMatchObject({
+      type: 'Other rivers and streams',
+      status: 'Incomplete',
+      units: 0
     })
   })
 
