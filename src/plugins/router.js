@@ -27,6 +27,10 @@ import {
 } from '../routes/baseline.js'
 import { getUserProjects } from '../routes/users.js'
 import {
+  getProjectDetails,
+  updateProjectDetails
+} from '../routes/project-details.js'
+import {
   getBroadHabitats,
   getHabitatTypes,
   getHabitatTypesByBroad,
@@ -60,6 +64,8 @@ const router = {
         validateBaseline,
         validatePostIntervention,
         getUserProjects,
+        getProjectDetails,
+        updateProjectDetails,
         getBroadHabitats,
         getHabitatTypes,
         getHabitatTypesByBroad,
