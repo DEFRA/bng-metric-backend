@@ -28,6 +28,16 @@ function setCorrelationId(correlationId) {
   }
 }
 
+function bindCorrelationId(request, correlationId) {
+  if (!correlationId || typeof request.logger?.child !== 'function') {
+    return
+  }
+
+  request.logger = request.logger.child({
+    session: { id: correlationId }
+  })
+}
+
 function wrapCycle(request, cycle, store) {
   const requestCycle = request[cycle].bind(request)
   request[cycle] = () => storage.run(store, requestCycle)
@@ -46,7 +56,9 @@ const requestCorrelation = {
       })
 
       server.ext('onPostAuth', (request, h) => {
-        setCorrelationId(sessionCorrelationId(request.auth?.credentials))
+        const correlationId = sessionCorrelationId(request.auth?.credentials)
+        setCorrelationId(correlationId)
+        bindCorrelationId(request, correlationId)
 
         return h.continue
       })
