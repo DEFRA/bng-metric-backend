@@ -29,6 +29,7 @@ import {
 } from '../validation/project-post-intervention-schema.js'
 import {
   projectSchema,
+  projectDetailsSchema,
   habitatDataSchema,
   baselineUnitsTotalsSchema,
   habitatSchema,
@@ -202,11 +203,34 @@ async function setBaselineFeature(exec, id, params) {
   await setProjectFeature(exec, id, { ...params, documentKey: 'baseline' })
 }
 
+/**
+ * Merge patch into project.details atomically (PATCH /projects/{id}/details).
+ * Uses a single UPDATE with a COALESCE || jsonb expression so concurrent
+ * writes cannot silently overwrite each other. Returns the updated row, or
+ * null when no project matches `where`.
+ *
+ * `where` defaults to matching the id alone; routes pass a stricter condition
+ * (id AND RBAC visibility) so a non-visible project updates nothing and the
+ * route returns 404 — without leaking existence.
+ */
+async function setProjectDetails(exec, id, patch, where = eq(projects.id, id)) {
+  assertFragmentValid(projectDetailsSchema, patch, 'project.details')
+  const [row] = await exec
+    .update(projects)
+    .set({
+      project: sql`jsonb_set(${projects.project}, '{details}', COALESCE(${projects.project}->'details', '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb)`
+    })
+    .where(where)
+    .returning()
+  return row ?? null
+}
+
 export {
   insertProject,
   setProjectName,
   setProjectHabitatData,
   setProjectBaseline,
   setProjectFeature,
-  setBaselineFeature
+  setBaselineFeature,
+  setProjectDetails
 }

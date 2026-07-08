@@ -2,7 +2,8 @@ import { describe, test, expect } from 'vitest'
 import {
   HABITAT_STATUS,
   recomputeAreaHabitat,
-  recomputeHedgerow
+  recomputeHedgerow,
+  recomputeWatercourse
 } from './unit-calculation.js'
 
 describe('recomputeAreaHabitat', () => {
@@ -245,6 +246,136 @@ describe('recomputeHedgerow', () => {
     const zeroSize = recomputeHedgerow({
       habitatType: 'Native hedgerow',
       condition: 'Good',
+      sizeMetres: 0
+    })
+    expect(zeroSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
+    expect(zeroSize.units).toBe(0)
+  })
+})
+
+describe('recomputeWatercourse', () => {
+  // Uses real bng-metric-engine data (BMD-597). "Other rivers and streams" is
+  // High (6); "Culvert" is Low (2). Units require all four dropdowns plus a
+  // positive length.
+
+  test('Complete + computed units when all inputs are valid', () => {
+    // 1000 m = 1 km; High (6) × Moderate (2) × 1 km × 0.8 × 0.95 × 1 SS = 9.12
+    const result = recomputeWatercourse({
+      habitatType: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      sizeMetres: 1000
+    })
+    expect(result).toEqual({
+      distinctiveness: 'High',
+      distinctivenessScore: 6,
+      conditionScore: 2,
+      units: 9.12,
+      status: HABITAT_STATUS.COMPLETE,
+      waterEncroachmentMultiplier: 0.8,
+      riparianEncroachmentMultiplier: 0.95
+    })
+  })
+
+  test('Complete for a culvert using the "N/A - Culvert" encroachment values', () => {
+    // High-street culvert: Low (2) × Poor (1) × 1 km × 0.68 × 1 = 1.36
+    const result = recomputeWatercourse({
+      habitatType: 'Culvert',
+      condition: 'Poor',
+      watercourseEncroachment: 'N/A - Culvert',
+      riparianEncroachment: 'N/A - Culvert',
+      sizeMetres: 1000
+    })
+    expect(result.status).toBe(HABITAT_STATUS.COMPLETE)
+    expect(result.units).toBe(1.36)
+    expect(result.distinctiveness).toBe('Low')
+  })
+
+  test('Incomplete + 0 units when habitat type is missing', () => {
+    const result = recomputeWatercourse({
+      habitatType: null,
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      sizeMetres: 1000
+    })
+    expect(result).toMatchObject({
+      distinctiveness: null,
+      distinctivenessScore: null,
+      conditionScore: null,
+      units: 0,
+      status: HABITAT_STATUS.INCOMPLETE
+    })
+  })
+
+  test('Incomplete + 0 units when habitat type is unknown', () => {
+    const result = recomputeWatercourse({
+      habitatType: 'Unknown type',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      sizeMetres: 1000
+    })
+    expect(result.distinctiveness).toBeNull()
+    expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
+    expect(result.units).toBe(0)
+  })
+
+  test.each([
+    ['condition', { condition: null }],
+    ['watercourse encroachment', { watercourseEncroachment: null }],
+    ['riparian encroachment', { riparianEncroachment: null }]
+  ])(
+    'Incomplete but keeps distinctiveness when %s is missing (Scenario B)',
+    (_label, override) => {
+      const result = recomputeWatercourse({
+        habitatType: 'Other rivers and streams',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: 'Minor/Minor',
+        sizeMetres: 1000,
+        ...override
+      })
+      expect(result).toMatchObject({
+        distinctiveness: 'High',
+        distinctivenessScore: 6,
+        conditionScore: null,
+        units: 0,
+        status: HABITAT_STATUS.INCOMPLETE
+      })
+    }
+  )
+
+  test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
+    const result = recomputeWatercourse({
+      habitatType: 'Other rivers and streams',
+      condition: 'Not a real condition',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      sizeMetres: 1000
+    })
+    expect(result.conditionScore).toBeNull()
+    expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
+    expect(result.units).toBe(0)
+  })
+
+  test('Incomplete when size is missing or zero', () => {
+    const noSize = recomputeWatercourse({
+      habitatType: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
+      sizeMetres: null
+    })
+    expect(noSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
+    expect(noSize.units).toBe(0)
+
+    const zeroSize = recomputeWatercourse({
+      habitatType: 'Other rivers and streams',
+      condition: 'Moderate',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor',
       sizeMetres: 0
     })
     expect(zeroSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
