@@ -1,8 +1,10 @@
 import Hapi from '@hapi/hapi'
 import hapiPino from 'hapi-pino'
+import pino from 'pino'
 import { PassThrough } from 'node:stream'
-import { describe, expect, test, vi } from 'vitest'
+import { describe, expect, test } from 'vitest'
 
+import { loggerOptions } from './logging/logger-options.js'
 import {
   getCorrelationId,
   requestCorrelation,
@@ -27,6 +29,10 @@ function captureLogStream() {
   })
 
   return { stream, logs }
+}
+
+function logMessage(log) {
+  return log.message ?? log.msg
 }
 
 describe('#sessionCorrelationId', () => {
@@ -98,37 +104,7 @@ describe('#requestCorrelation', () => {
     expect(response.result).toEqual({ correlationId: 'session-id' })
   })
 
-  test('Should bind the verified session id to the existing request logger as session.id', async () => {
-    const server = Hapi.server()
-    const logger = { child: vi.fn().mockReturnValue('session-logger') }
-
-    server.ext('onRequest', (request, h) => {
-      request.logger = logger
-      return h.continue
-    })
-    server.auth.scheme('test-auth', () => ({
-      authenticate: (_request, h) =>
-        h.authenticated({ credentials: { sessionId: 'session-id' } })
-    }))
-    server.auth.strategy('test-auth', 'test-auth')
-    server.auth.default('test-auth')
-    await server.register(requestCorrelation)
-
-    server.route({
-      method: 'GET',
-      path: '/',
-      handler: (request) => ({ logger: request.logger })
-    })
-
-    const response = await server.inject('/')
-
-    expect(logger.child).toHaveBeenCalledWith({
-      session: { id: 'session-id' }
-    })
-    expect(response.result).toEqual({ logger: 'session-logger' })
-  })
-
-  test('Should emit session.id on the hapi-pino response log', async () => {
+  test('Should prefix the hapi-pino response log message with the session id', async () => {
     const { stream, logs } = captureLogStream()
     const server = Hapi.server()
 
@@ -139,12 +115,21 @@ describe('#requestCorrelation', () => {
     server.auth.strategy('test-auth', 'test-auth')
     server.auth.default('test-auth')
 
+    const logger = pino(
+      {
+        hooks: loggerOptions.hooks,
+        mixin: loggerOptions.mixin,
+        level: 'info'
+      },
+      stream
+    )
+
     await server.register({
       plugin: hapiPino,
       options: {
-        stream,
+        instance: logger,
         logEvents: ['response'],
-        level: 'info'
+        logRequestComplete: true
       }
     })
     await server.register(requestCorrelation)
@@ -158,10 +143,13 @@ describe('#requestCorrelation', () => {
     await server.inject('/')
     await new Promise((resolve) => setImmediate(resolve))
 
-    const responseLog = logs.find((log) => log.msg?.startsWith('[response]'))
+    const responseLog = logs.find((log) =>
+      logMessage(log)?.includes('[response]')
+    )
 
-    expect(responseLog).toMatchObject({
-      session: { id: 'session-id' }
-    })
+    expect(logMessage(responseLog)?.startsWith('[session.id=session-id]')).toBe(
+      true
+    )
+    expect(responseLog).not.toHaveProperty('session')
   })
 })
