@@ -2,7 +2,7 @@ import { describe, test, expect, vi } from 'vitest'
 import { getTraceId } from '@defra/hapi-tracing'
 import { getCorrelationId } from '../correlation-id.js'
 
-import { loggerOptions } from './logger-options.js'
+import { loggerOptions, prefixMessageWithSessionId } from './logger-options.js'
 
 vi.mock('@defra/hapi-tracing', () => ({
   getTraceId: vi.fn()
@@ -17,54 +17,91 @@ function loggerWithBindings(bindings) {
 }
 
 describe('#loggerOptions', () => {
-  describe('#mixin', () => {
-    test('Should add trace id and session id when no bindings are available', () => {
-      getTraceId.mockReturnValue('test-trace-id')
-      getCorrelationId.mockReturnValue('test-correlation-id')
+  describe('#prefixMessageWithSessionId', () => {
+    test('Should prefix the first message string with the session id', () => {
+      const result = prefixMessageWithSessionId(
+        [{ route: '/test' }, 'Test message'],
+        'test-correlation-id'
+      )
 
-      const result = loggerOptions.mixin({}, 30, loggerWithBindings({}))
-
-      expect(result).toEqual({
-        trace: { id: 'test-trace-id' },
-        session: { id: 'test-correlation-id' }
-      })
+      expect(result).toEqual([
+        { route: '/test' },
+        '[session.id=test-correlation-id] Test message'
+      ])
     })
 
-    test('Should return trace id when no session id is available', () => {
+    test('Should add a message when no message string exists', () => {
+      const result = prefixMessageWithSessionId(
+        [{ route: '/test' }],
+        'test-correlation-id'
+      )
+
+      expect(result).toEqual([
+        { route: '/test' },
+        '[session.id=test-correlation-id]'
+      ])
+    })
+
+    test('Should not add a second session id prefix', () => {
+      const result = prefixMessageWithSessionId(
+        ['[session.id=test-correlation-id] Test message'],
+        'test-correlation-id'
+      )
+
+      expect(result).toEqual(['[session.id=test-correlation-id] Test message'])
+    })
+
+    test('Should return the original args when no session id is available', () => {
+      const args = ['Test message']
+
+      const result = prefixMessageWithSessionId(args, null)
+
+      expect(result).toBe(args)
+    })
+  })
+
+  describe('#hooks.logMethod', () => {
+    test('Should prefix log messages with the current session id', () => {
+      getCorrelationId.mockReturnValue('test-correlation-id')
+      const method = vi.fn()
+
+      loggerOptions.hooks.logMethod(['Test message'], method)
+
+      expect(method).toHaveBeenCalledWith(
+        '[session.id=test-correlation-id] Test message'
+      )
+    })
+
+    test('Should leave log messages unchanged when no session id is available', () => {
       getCorrelationId.mockReturnValue(null)
+      const method = vi.fn()
+
+      loggerOptions.hooks.logMethod(['Test message'], method)
+
+      expect(method).toHaveBeenCalledWith('Test message')
+    })
+  })
+
+  describe('#mixin', () => {
+    test('Should add trace id when no trace binding is available', () => {
       getTraceId.mockReturnValue('test-trace-id')
+      getCorrelationId.mockReturnValue('test-correlation-id')
 
       const result = loggerOptions.mixin({}, 30, loggerWithBindings({}))
 
       expect(result).toEqual({ trace: { id: 'test-trace-id' } })
     })
 
-    test('Should return session id when no trace id is available', () => {
-      getCorrelationId.mockReturnValue('test-correlation-id')
+    test('Should not add session id as a structured field', () => {
       getTraceId.mockReturnValue(null)
+      getCorrelationId.mockReturnValue('test-correlation-id')
 
       const result = loggerOptions.mixin({}, 30, loggerWithBindings({}))
-
-      expect(result).toEqual({ session: { id: 'test-correlation-id' } })
-    })
-
-    test('Should not overwrite existing trace or session bindings', () => {
-      getCorrelationId.mockReturnValue('test-correlation-id')
-      getTraceId.mockReturnValue('test-trace-id')
-
-      const result = loggerOptions.mixin(
-        {},
-        30,
-        loggerWithBindings({
-          trace: { id: 'bound-trace-id' },
-          session: { id: 'bound-session-id' }
-        })
-      )
 
       expect(result).toEqual({})
     })
 
-    test('Should still add session id when logger already has a trace binding', () => {
+    test('Should not overwrite an existing trace binding', () => {
       getCorrelationId.mockReturnValue('test-correlation-id')
       getTraceId.mockReturnValue('test-trace-id')
 
@@ -74,23 +111,10 @@ describe('#loggerOptions', () => {
         loggerWithBindings({ trace: { id: 'bound-trace-id' } })
       )
 
-      expect(result).toEqual({ session: { id: 'test-correlation-id' } })
+      expect(result).toEqual({})
     })
 
-    test('Should still add trace id when logger already has a session binding', () => {
-      getCorrelationId.mockReturnValue('test-correlation-id')
-      getTraceId.mockReturnValue('test-trace-id')
-
-      const result = loggerOptions.mixin(
-        {},
-        30,
-        loggerWithBindings({ session: { id: 'bound-session-id' } })
-      )
-
-      expect(result).toEqual({ trace: { id: 'test-trace-id' } })
-    })
-
-    test('Should return empty object when no trace id or session id', () => {
+    test('Should return empty object when no trace id is available', () => {
       getCorrelationId.mockReturnValue(null)
       getTraceId.mockReturnValue(null)
 

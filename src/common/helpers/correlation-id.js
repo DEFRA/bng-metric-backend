@@ -1,5 +1,7 @@
 import { AsyncLocalStorage } from 'node:async_hooks'
 
+import { sessionCorrelationIdSymbol } from './session-correlation-id-symbol.js'
+
 const storage = new AsyncLocalStorage()
 
 function getCorrelationId() {
@@ -28,16 +30,6 @@ function setCorrelationId(correlationId) {
   }
 }
 
-function bindCorrelationId(request, correlationId) {
-  if (!correlationId || typeof request.logger?.child !== 'function') {
-    return
-  }
-
-  request.logger = request.logger.child({
-    session: { id: correlationId }
-  })
-}
-
 function wrapCycle(request, cycle, store) {
   const requestCycle = request[cycle].bind(request)
   request[cycle] = () => storage.run(store, requestCycle)
@@ -58,7 +50,13 @@ const requestCorrelation = {
       server.ext('onPostAuth', (request, h) => {
         const correlationId = sessionCorrelationId(request.auth?.credentials)
         setCorrelationId(correlationId)
-        bindCorrelationId(request, correlationId)
+
+        if (correlationId && request.logger) {
+          // hapi-pino response logs run outside the ALS context. Store the id on a
+          // symbol so logger-options.js can prefix the message without emitting a
+          // structured session.id field that CDP may strip.
+          request.logger[sessionCorrelationIdSymbol] = correlationId
+        }
 
         return h.continue
       })
