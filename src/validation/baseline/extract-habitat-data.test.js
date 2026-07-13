@@ -657,7 +657,36 @@ describe('extractHabitatData — document hedgerows, watercourses, and missing-f
         type: 'Chalk stream',
         condition: 'Moderate',
         watercourseEncroachment: 'Minor',
-        riparianEncroachment: '1. Minor/No Encroachment'
+        riparianEncroachment: 'Minor/No Encroachment'
+      })
+    )
+  })
+
+  it('strips numeric prefix and normalises slash spacing in watercourse encroachment fields', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W2',
+            [RIVER_TYPE]: 'Other rivers and streams',
+            [CONDITION]: 'Moderate',
+            // GeoPackage riparian values carry "N. " list-index prefixes and a
+            // trailing space before "/" that must be normalised to canonical form
+            'Baseline Encroachment into Watercourse': 'Major',
+            'Baseline Encroachment into riparian zone': '1. Major/ Moderate'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    expect(out.document.watercourses[0]).toEqual(
+      expect.objectContaining({
+        watercourseEncroachment: 'Major',
+        riparianEncroachment: 'Major/Moderate'
       })
     )
   })

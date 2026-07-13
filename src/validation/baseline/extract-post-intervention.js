@@ -1,6 +1,10 @@
 import { randomUUID } from 'node:crypto'
 
-import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-metric-engine'
+import {
+  MAX_YEARS,
+  MAX_YEARS_PLUS,
+  normaliseEncroachmentLabel
+} from 'bng-metric-engine'
 
 import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from './properties.js'
 import {
@@ -328,6 +332,10 @@ function buildPostInterventionHedgerow(feature) {
  * @param {string[]} strategicKey
  * @returns {object}
  */
+function normaliseEncroachmentField(value) {
+  return typeof value === 'string' ? normaliseEncroachmentLabel(value) : value
+}
+
 function buildWatercourseEncroachmentFields(
   props,
   riparianKey,
@@ -335,8 +343,12 @@ function buildWatercourseEncroachmentFields(
   strategicKey
 ) {
   return {
-    riparianEncroachment: pickProp(props, riparianKey),
-    watercourseEncroachment: pickProp(props, watercourseKey),
+    riparianEncroachment: normaliseEncroachmentField(
+      pickProp(props, riparianKey)
+    ),
+    watercourseEncroachment: normaliseEncroachmentField(
+      pickProp(props, watercourseKey)
+    ),
     strategicSignificance: pickProp(props, strategicKey)
   }
 }
