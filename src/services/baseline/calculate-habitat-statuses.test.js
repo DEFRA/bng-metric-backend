@@ -111,6 +111,13 @@ describe('postInterventionHedgerowStatus', () => {
       })
     ).toBe('Incomplete')
   })
+
+  it.each([
+    { type: 'N/A', condition: 'Good' },
+    { type: 'Native hedgerow', condition: 'N/A' }
+  ])('returns Incomplete when only one proposed field is N/A', (proposed) => {
+    expect(postInterventionHedgerowStatus({ proposed })).toBe('Incomplete')
+  })
 })
 
 describe('postInterventionWatercourseStatus', () => {

@@ -3,27 +3,14 @@
 
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
 
+export { isPresentEngineString } from './is-present-engine-string.js'
+
 export const LOG_ENRICH_PI_PREFIX = 'enrichPostIntervention: '
 
 export const RETENTION_RETAINED = 'Retained'
 export const RETENTION_LOST = 'Lost'
 export const RETENTION_ENHANCED = 'Enhanced'
 export const RETENTION_CREATED = 'Created'
-
-// ---------------------------------------------------------------------------
-// Guards
-// ---------------------------------------------------------------------------
-
-/**
- * @param {unknown} value
- * @returns {boolean}
- */
-export function isPresentEngineString(value) {
-  if (typeof value !== 'string' || value === '') {
-    return false
-  }
-  return value.trim().toUpperCase() !== 'N/A'
-}
 
 /**
  * @param {unknown} sizeMetres
