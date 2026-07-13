@@ -12,10 +12,10 @@ import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
 } from './tree-constants.js'
-import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
+import { treeAreaFields } from './tree-sizes.js'
 import {
-  embedParcelSizes,
-  buildHabitatSizesSummary,
+  splitFeatures,
+  embedBaselineHabitatSizes,
   buildExtractResult
 } from './extract-shared.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
@@ -224,69 +224,6 @@ function buildRedLine(features) {
 }
 
 /**
- * Map an array of parsed GeoPackage features into parallel `documents` and
- * `geometries` arrays, splitting attribute data from geometry.
- *
- * @param {object[]} features
- * @param {(feature: object) => { document: object, geometryRow: object }} builder
- *   Per-feature transform, e.g. `buildHabitat` or a linear feature builder, that
- *   returns the JSONB-bound document and the matching PostGIS geometry row.
- */
-function splitFeatures(features, builder, keys) {
-  const documents = []
-  const geometries = []
-  for (const feature of features) {
-    const { document, geometryRow } = builder(feature, keys)
-    documents.push(document)
-    geometries.push(geometryRow)
-  }
-  return { documents, geometries }
-}
-
-/**
- * @param {object[]} documents
- * @param {Array<{ featureId: string, sizeMetres: number }>} sizeEntries
- */
-function embedLinearFeatureSizes(documents, sizeEntries) {
-  const sizesByFeatureId = new Map(
-    sizeEntries.map((entry) => [entry.featureId, entry.sizeMetres])
-  )
-  for (const document of documents) {
-    document.sizeMetres = sizesByFeatureId.get(document.featureId) ?? null
-  }
-}
-
-/**
- * @param {object} habitats
- * @param {object} hedgerows
- * @param {object} watercourses
- * @param {object} trees
- * @param {object} habitatSizes
- * @returns {object}
- */
-function embedHabitatSizes(
-  habitats,
-  hedgerows,
-  watercourses,
-  trees,
-  habitatSizes
-) {
-  embedParcelSizes(habitats.documents, habitatSizes.areaHabitats)
-  embedLinearFeatureSizes(
-    hedgerows.documents,
-    habitatSizes.hedgerows.individualMetres
-  )
-  embedLinearFeatureSizes(
-    watercourses.documents,
-    habitatSizes.watercourses.individualMetres
-  )
-
-  // Baseline trees carry their urban/rural habitat type on the top-level `type`.
-  const treeSizes = summarizeTreeSizes(trees.documents, (tree) => tree.type)
-  return buildHabitatSizesSummary(habitatSizes, treeSizes)
-}
-
-/**
  * Shape an already-parsed `layers` object (from readBaselineGeoPackage) into
  * (a) the JSONB document persisted onto bng.projects.project.baseline (attribute
  * data only, no geometry), and (b) the parallel geometry rows for the four
@@ -337,11 +274,8 @@ export function extractHabitatData(layers, meta = {}) {
   // secondary join. featureId is the join key between the sizes result and the documents.
   let habitatSizesSummary = null
   if (meta.habitatSizes) {
-    habitatSizesSummary = embedHabitatSizes(
-      habitats,
-      hedgerows,
-      watercourses,
-      trees,
+    habitatSizesSummary = embedBaselineHabitatSizes(
+      { habitats, hedgerows, watercourses, trees },
       meta.habitatSizes
     )
   }

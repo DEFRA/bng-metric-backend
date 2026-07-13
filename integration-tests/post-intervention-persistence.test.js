@@ -55,6 +55,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
 
     for (const feature of [
       ...stored.postIntervention.habitats,
+      ...stored.postIntervention.trees,
       ...stored.postIntervention.hedgerows,
       ...stored.postIntervention.watercourses
     ]) {
@@ -73,7 +74,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const docFeatureIds = stored.postIntervention.habitats.map(
       (h) => h.featureId
     )
-    expect(postInterventionRows.length).toBe(docFeatureIds.length)
+    expect(postInterventionRows).toHaveLength(docFeatureIds.length)
     expect(postInterventionRows.length).toBeGreaterThan(0)
     for (const row of postInterventionRows) {
       expect(row.srid).toBe(BNG_SRID)
@@ -180,7 +181,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       ...(stored.postIntervention?.hedgerows ?? [])
     ].filter((feature) => feature.baseline?.retentionCategory === 'Enhanced')
 
-    expect(enhancedAfter.length).toBe(enhancedBefore.length)
+    expect(enhancedAfter).toHaveLength(enhancedBefore.length)
     for (const feature of enhancedAfter) {
       expect(feature.status).toBe('Complete')
       expect(typeof feature.units).toBe('number')

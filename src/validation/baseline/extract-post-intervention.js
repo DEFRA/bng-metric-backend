@@ -16,10 +16,10 @@ import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
 } from './tree-constants.js'
-import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
+import { treeAreaFields } from './tree-sizes.js'
 import {
-  embedParcelSizes,
-  buildHabitatSizesSummary,
+  splitFeatures,
+  embedPostInterventionHabitatSizes,
   buildExtractResult
 } from './extract-shared.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
@@ -404,75 +404,6 @@ function buildPostInterventionWatercourse(feature) {
   )
 }
 
-/**
- * Split an array of parsed GeoPackage features into `documents` and `geometries`
- * using the supplied per-feature builder.
- *
- * @param {object[]} features
- * @param {(feature: object) => { document: object, geometryRow: object }} builder
- */
-function splitFeatures(features, builder) {
-  const documents = []
-  const geometries = []
-  for (const feature of features) {
-    const { document, geometryRow } = builder(feature)
-    documents.push(document)
-    geometries.push(geometryRow)
-  }
-  return { documents, geometries }
-}
-
-/**
- * @param {object[]} documents
- * @param {Array<{ featureId: string, sizeMetres: number }>} sizeEntries
- */
-function embedLinearFeatureSizes(documents, sizeEntries) {
-  const sizesByFeatureId = new Map(
-    sizeEntries.map((entry) => [entry.featureId, entry.sizeMetres])
-  )
-  for (const document of documents) {
-    document.sizeMetres = sizesByFeatureId.get(document.featureId) ?? null
-    document.length =
-      typeof document.sizeMetres === 'number'
-        ? Math.round(document.sizeMetres)
-        : null
-  }
-}
-
-/**
- * @param {object} habitats
- * @param {object} hedgerows
- * @param {object} watercourses
- * @param {object} trees
- * @param {object} habitatSizes
- * @returns {object}
- */
-function embedHabitatSizes(
-  habitats,
-  hedgerows,
-  watercourses,
-  trees,
-  habitatSizes
-) {
-  embedParcelSizes(habitats.documents, habitatSizes.areaHabitats)
-  embedLinearFeatureSizes(
-    hedgerows.documents,
-    habitatSizes.hedgerows.individualMetres
-  )
-  embedLinearFeatureSizes(
-    watercourses.documents,
-    habitatSizes.watercourses.individualMetres
-  )
-
-  // Post-intervention trees carry their urban/rural type on the proposed side;
-  // the proposed-side notional area was embedded by buildPostInterventionTree.
-  const treeSizes = summarizeTreeSizes(
-    trees.documents,
-    (tree) => tree.proposed?.type
-  )
-  return buildHabitatSizesSummary(habitatSizes, treeSizes)
-}
-
 function buildRedLine(features) {
   const feature = features?.[0]
   if (feature) {
@@ -528,11 +459,8 @@ export function extractPostIntervention(layers, meta = {}) {
   const trees = splitFeatures(layers.trees ?? [], buildPostInterventionTree)
 
   const habitatSizesSummary = meta.habitatSizes
-    ? embedHabitatSizes(
-        habitats,
-        hedgerows,
-        watercourses,
-        trees,
+    ? embedPostInterventionHabitatSizes(
+        { habitats, hedgerows, watercourses, trees },
         meta.habitatSizes
       )
     : null
