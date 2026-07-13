@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { normaliseEncroachmentLabel } from 'bng-metric-engine'
+
 import { PROP_KEYS, featureKeysForVariant, pickProp } from './properties.js'
 import {
   areaStatus,
@@ -171,7 +173,7 @@ function buildHedgerow(feature, keys) {
 }
 
 function buildWatercourse(feature, keys) {
-  return buildLinearFeature(
+  const { document, geometryRow } = buildLinearFeature(
     feature,
     keys,
     keys.riverType,
@@ -186,6 +188,17 @@ function buildWatercourse(feature, keys) {
     ],
     watercourseStatus
   )
+  if (typeof document.riparianEncroachment === 'string') {
+    document.riparianEncroachment = normaliseEncroachmentLabel(
+      document.riparianEncroachment
+    )
+  }
+  if (typeof document.watercourseEncroachment === 'string') {
+    document.watercourseEncroachment = normaliseEncroachmentLabel(
+      document.watercourseEncroachment
+    )
+  }
+  return { document, geometryRow }
 }
 
 function buildRedLine(features) {

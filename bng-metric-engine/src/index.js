@@ -41,6 +41,9 @@ export {
   calculateCreatedWatercoursePostIntervention,
   calculateEnhancedWatercoursePostIntervention
 } from './watercourse-post-intervention.js'
-export { isRecognisedEncroachmentValue } from './linear-resolvers.js'
+export {
+  isRecognisedEncroachmentValue,
+  normaliseEncroachmentLabel
+} from './linear-resolvers.js'
 export { resolveDistinctiveness } from './multipliers.js'
 export { MAX_YEARS, MAX_YEARS_PLUS, MIN_YEARS } from './validate.js'

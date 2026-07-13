@@ -423,6 +423,48 @@ describe('extractPostIntervention — watercourse nested structure', () => {
     expect(wc).not.toHaveProperty('watercourseEncroachment')
   })
 
+  it('strips numeric prefix and normalises slash spacing in both baseline and proposed encroachment fields', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'WC2',
+            'Baseline River Type': 'Other rivers and streams',
+            'Baseline Condition': 'Moderate',
+            // GeoPackage cells carry "N. " list-index prefixes
+            'Baseline Encroachment into riparian zone': '1. Major/ Moderate',
+            'Baseline Encroachment into Watercourse': '2. Major',
+            'Proposed River Type': 'Other rivers and streams',
+            'Proposed Condition': 'Good',
+            'Proposed Encroachment into riparian zone':
+              '1. Minor/No Encroachment',
+            'Proposed Encroachment into Watercourse': '3. Minor',
+            'Habitat created in advance/years': '0',
+            'Delay in starting habitat creation/years': '0'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    const wc = out.document.watercourses[0]
+    expect(wc.baseline).toEqual(
+      expect.objectContaining({
+        riparianEncroachment: 'Major/Moderate',
+        watercourseEncroachment: 'Major'
+      })
+    )
+    expect(wc.proposed).toEqual(
+      expect.objectContaining({
+        riparianEncroachment: 'Minor/No Encroachment',
+        watercourseEncroachment: 'Minor'
+      })
+    )
+  })
+
   it('sets watercourse status Complete when all proposed fields are present', () => {
     const out = extractPostIntervention({
       redline: [],
