@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="25" author="bng-team">
+        <comment>
+            Make bng.audit_log append-only. The table is written to only by the
+            write_audit_log trigger on bng.projects (one INSERT per project
+            insert/update); nothing ever legitimately updates or deletes an
+            audit row. Guard the table at the database level so no role can edit,
+            delete or bulk-wipe history: a BEFORE UPDATE OR DELETE row-level
+            trigger and a BEFORE TRUNCATE statement-level trigger both raise
+            insufficient_privilege. INSERT is left untouched, so the audit
+            trigger keeps recording. This holds for every role — including the
+            application role and the table owner — regardless of how table
+            privileges are granted; the only way past it is to drop or disable
+            the trigger, which is a deploy-time DDL action.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.reject_audit_log_mutation()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION
+                    'bng.audit_log is append-only; % is not permitted', TG_OP
+                    USING ERRCODE = 'insufficient_privilege';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER audit_log_reject_row_mutation
+                BEFORE UPDATE OR DELETE ON bng.audit_log
+                FOR EACH ROW
+                EXECUTE FUNCTION bng.reject_audit_log_mutation();
+
+            CREATE TRIGGER audit_log_reject_truncate
+                BEFORE TRUNCATE ON bng.audit_log
+                FOR EACH STATEMENT
+                EXECUTE FUNCTION bng.reject_audit_log_mutation();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS audit_log_reject_truncate ON bng.audit_log;
+            DROP TRIGGER IF EXISTS audit_log_reject_row_mutation ON bng.audit_log;
+            DROP FUNCTION IF EXISTS bng.reject_audit_log_mutation();
+        </rollback>
+    </changeSet>
+
+    <changeSet id="26" author="bng-team">
+        <comment>
+            Least-privilege backstop for the append-only guard: revoke the
+            mutating privileges on bng.audit_log from PUBLIC so no role inherits
+            them by default. Non-application ("read-only") roles must be granted
+            SELECT only; the application role needs SELECT, INSERT and never
+            UPDATE/DELETE/TRUNCATE. Per-role grants are provisioned by CDP
+            infrastructure outside this changelog (see docs/DATABASE.md — Audit
+            Log Immutability); this REVOKE ensures the default state is closed.
+            Rollback is intentionally empty: PUBLIC holds none of these
+            privileges by default, so there is nothing to restore.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            REVOKE UPDATE, DELETE, TRUNCATE ON bng.audit_log FROM PUBLIC;
+        </sql>
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>

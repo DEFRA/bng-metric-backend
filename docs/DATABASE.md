@@ -204,6 +204,55 @@ docker compose up postgres -d
 
 Then re-run Liquibase to apply all migrations from scratch.
 
+## Audit Log Immutability
+
+`bng.audit_log` is an **append-only** table. Rows are written only by the
+`write_audit_log` trigger on `bng.projects` (one `INSERT` per project
+insert/update); nothing in the application ever updates or deletes them.
+
+Two layers, both in `changelog/db.changelog-1.9.xml`, enforce this at the
+database level:
+
+1. **Guard triggers** — a `BEFORE UPDATE OR DELETE` (row-level) trigger and a
+   `BEFORE TRUNCATE` (statement-level) trigger call
+   `bng.reject_audit_log_mutation()`, which raises `insufficient_privilege`.
+   This rejects every edit, delete and bulk-wipe for **all** roles — including
+   the application role and the table owner — regardless of how database
+   privileges are provisioned. The only way past it is to drop or disable the
+   trigger, which is a deploy-time DDL action, not something an application
+   connection or a report user can perform. `INSERT` is untouched, so the audit
+   trigger keeps recording.
+2. **Least privilege** — `UPDATE`, `DELETE` and `TRUNCATE` on `bng.audit_log`
+   are revoked from `PUBLIC`, so no role inherits them by default.
+
+The guard is regression-tested by
+`integration-tests/audit-log-immutability.test.js`, which asserts `UPDATE`,
+`DELETE` and `TRUNCATE` against `bng.audit_log` are all rejected while `INSERT`
+still succeeds.
+
+### Role model (provisioned by CDP infrastructure)
+
+Per-role grants live outside this repo — CDP provisions the database roles, so
+the changelog cannot create them. The intended model is:
+
+| Role                    | Grants on `bng.audit_log` |
+| ----------------------- | ------------------------- |
+| Application (runtime)   | `SELECT`, `INSERT`        |
+| Reporting / analytics   | `SELECT`                  |
+| Migration / owner (DBA) | all (deploy-time only)    |
+
+**Remediation / follow-up:** ensure the CDP-provisioned application role is
+granted only `SELECT, INSERT` on `bng.audit_log` (never
+`UPDATE`/`DELETE`/`TRUNCATE`), and that any reporting role is granted `SELECT`
+only. The guard triggers above hold the line even if a role is over-granted, so
+this is defence in depth rather than the sole control.
+
+> Integration tests reset the throwaway test database by momentarily switching
+> the session into the `replica` replication role (see
+> `integration-tests/helpers/db-cleanup.js`), which suspends the guard triggers
+> for that superuser connection only. Production application connections do not
+> have this privilege.
+
 ## Publishing Schema Changes to CDP
 
 Schema migrations are published to the CDP platform separately from the application build:

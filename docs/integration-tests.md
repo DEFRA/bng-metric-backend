@@ -148,6 +148,7 @@ In-process means no port collisions, no readiness flakes, no `npm run dev` requi
 ```
 integration-tests/
 ├── audit-log.test.js                ← cross-route flow (POST + PATCH + audit_log trigger)
+├── audit-log-immutability.test.js   ← append-only guard: UPDATE/DELETE/TRUNCATE rejected
 ├── baseline.test.js                 ← POST /baseline/validate/{uploadId} (real GeoPackages)
 ├── db-info.test.js                  ← GET /db-info smoke
 ├── health.test.js                   ← GET /health smoke
@@ -256,4 +257,4 @@ The harness-level `scripts/test.mjs` (in `bng-metric-harness`) invokes `npm test
 - **"Route hits file not found"** — only happens if you run `test:integration:routes` without first running `test:integration:coverage`. Use `test:integration:full` to run both in order.
 - **Adding a route fails the push** — you also need to add `"METHOD /path"` to `integration-tests/route-manifest.json` and write at least one test that hits it. See [Adding a new endpoint](#adding-a-new-endpoint).
 - **Test hangs** — the postgres plugin verifies connectivity at register time and will hang if credentials are wrong. Check the env vars above against what `compose.yml` sets.
-- **Stale data** — most tests now use `truncateTestData` in `afterEach`. If a previous run failed before that ran and left rows behind, the next run's first `afterEach` will clean it. To clean manually: `psql -h localhost -U dev bng_metric_backend -c "TRUNCATE bng.audit_log, bng.projects RESTART IDENTITY CASCADE"`.
+- **Stale data** — most tests now use `truncateTestData` in `afterEach`. If a previous run failed before that ran and left rows behind, the next run's first `afterEach` will clean it. To clean manually, note that `bng.audit_log` is append-only — its guard triggers reject `TRUNCATE` — so suspend the guard for the session first: `psql -h localhost -U dev bng_metric_backend -c "SET session_replication_role='replica'; TRUNCATE bng.audit_log, bng.projects RESTART IDENTITY CASCADE;"` (needs the superuser the local Postgres runs as). See [Audit Log Immutability](DATABASE.md#audit-log-immutability).

@@ -2,6 +2,7 @@ import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
+import { truncateTestData } from './helpers/db-cleanup.js'
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_OK = 200
@@ -23,13 +24,11 @@ describe('audit_log reflects submit + rename', () => {
   })
 
   afterAll(async () => {
+    // audit_log is append-only (guard triggers), so this teardown cannot DELETE
+    // its rows directly; truncateTestData resets the throwaway DB by suspending
+    // the guard for its own connection.
     if (projectId) {
-      await dbClient.query('DELETE FROM bng.audit_log WHERE project_id = $1', [
-        projectId
-      ])
-      await dbClient.query('DELETE FROM bng.projects WHERE id = $1', [
-        projectId
-      ])
+      await truncateTestData(dbClient)
     }
     await dbClient.end()
     await stopServer(server)
