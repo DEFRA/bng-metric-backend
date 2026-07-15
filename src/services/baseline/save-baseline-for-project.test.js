@@ -213,6 +213,12 @@ describe('saveBaselineForProject', () => {
   })
 
   it('returns null after a successful post-intervention extract, enrich, validate and persist', async () => {
+    const baselineUnits = {
+      habitatsTotal: 6,
+      treesTotal: 2,
+      hedgerowsTotal: 4,
+      watercoursesTotal: 3
+    }
     const baselineWatercourses = [{ ref: 'R1', sizeMetres: 1000 }]
     const { drizzle } = makeDrizzle()
     drizzle.select = vi.fn(() => ({
@@ -224,7 +230,8 @@ describe('saveBaselineForProject', () => {
                 project: {
                   baseline: {
                     watercourses: baselineWatercourses,
-                    hedgerows: []
+                    hedgerows: [],
+                    units: baselineUnits
                   }
                 }
               }
@@ -258,7 +265,8 @@ describe('saveBaselineForProject', () => {
       { habitats: [] },
       logger,
       expect.objectContaining({
-        baselineLengthByRef: expect.any(Map)
+        baselineLengthByRef: expect.any(Map),
+        baselineUnits
       })
     )
     expect(persistBaseline).toHaveBeenCalledWith(

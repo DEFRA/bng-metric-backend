@@ -1,3 +1,5 @@
+import { calculatePostInterventionNetUnitChanges } from 'bng-metric-engine'
+
 import {
   URBAN_TREE_TYPE,
   RURAL_TREE_TYPE
@@ -78,4 +80,33 @@ export function summarizeFeatureSetUnitsTotals(featureSet) {
     treesRuralTotal
   }
   return featureSet
+}
+
+/**
+ * Adds net unit-change fields to post-intervention unit totals.
+ *
+ * Area habitats include individual trees, which are stored separately in the
+ * persisted totals but are part of the area-habitat metric module.
+ *
+ * @param {{ units?: object }} postInterventionDocument
+ * @param {object | undefined} baselineUnits
+ * @returns {typeof postInterventionDocument}
+ */
+export function addPostInterventionNetUnitChanges(
+  postInterventionDocument,
+  baselineUnits
+) {
+  if (!postInterventionDocument?.units || !baselineUnits) {
+    return postInterventionDocument
+  }
+
+  postInterventionDocument.units = {
+    ...postInterventionDocument.units,
+    ...calculatePostInterventionNetUnitChanges(
+      baselineUnits,
+      postInterventionDocument.units
+    )
+  }
+
+  return postInterventionDocument
 }

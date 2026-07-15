@@ -6,6 +6,7 @@ describe('bng-metric-engine public exports', () => {
   it('re-exports reference tables and baseline helpers', () => {
     expect(pkg.calculateAreaHabitatBaseline).toBeTypeOf('function')
     expect(pkg.getIndividualTreeAreaHectares).toBeTypeOf('function')
+    expect(pkg.calculatePostInterventionNetUnitChanges).toBeTypeOf('function')
     expect(pkg.INDIVIDUAL_TREE_AREA_HECTARES).toBeTypeOf('object')
     expect(pkg.calculateHedgerowBaseline).toBeTypeOf('function')
     expect(pkg.calculateWatercourseBaseline).toBeTypeOf('function')

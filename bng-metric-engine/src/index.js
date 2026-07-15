@@ -21,6 +21,7 @@ export {
 export { BaselineLookupError } from './errors.js'
 export { roundToSigFigs, MAX_SIG_FIGS } from './utils.js'
 export { calculateAreaHabitatBaseline } from './baseline.js'
+export { calculatePostInterventionNetUnitChanges } from './net-unit-change.js'
 export { getIndividualTreeAreaHectares } from './tree.js'
 export {
   calculateHedgerowBaseline,

@@ -86,7 +86,31 @@ export const baselineUnitsTotalsSchema = Joi.object({
     .description('Sum of baseline units across urban trees.'),
   treesRuralTotal: Joi.number()
     .required()
-    .description('Sum of baseline units across rural trees.')
+    .description('Sum of baseline units across rural trees.'),
+  habitatsNetUnitChange: Joi.number().description(
+    'Post-intervention only: total post-intervention area units minus total baseline area units.'
+  ),
+  habitatsNetUnitChangePercentage: Joi.number()
+    .allow(null)
+    .description(
+      'Post-intervention only: area net unit change as a percentage of baseline area units. Null when the baseline area total is zero or unavailable.'
+    ),
+  hedgerowsNetUnitChange: Joi.number().description(
+    'Post-intervention only: total post-intervention hedgerow units minus total baseline hedgerow units.'
+  ),
+  hedgerowsNetUnitChangePercentage: Joi.number()
+    .allow(null)
+    .description(
+      'Post-intervention only: hedgerow net unit change as a percentage of baseline hedgerow units. Null when the baseline hedgerow total is zero or unavailable.'
+    ),
+  watercoursesNetUnitChange: Joi.number().description(
+    'Post-intervention only: total post-intervention watercourse units minus total baseline watercourse units.'
+  ),
+  watercoursesNetUnitChangePercentage: Joi.number()
+    .allow(null)
+    .description(
+      'Post-intervention only: watercourse net unit change as a percentage of baseline watercourse units. Null when the baseline watercourse total is zero or unavailable.'
+    )
 }).description('Baseline biodiversity unit totals, summed across features.')
 
 export const redLineSchema = Joi.object({

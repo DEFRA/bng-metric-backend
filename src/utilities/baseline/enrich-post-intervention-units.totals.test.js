@@ -39,6 +39,34 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     })
   })
 
+  it('adds net unit changes when baseline units are provided', () => {
+    const doc = makeDoc()
+
+    enrichPostInterventionDocumentWithUnits(
+      doc,
+      { warn: vi.fn() },
+      {
+        baselineUnits: {
+          habitatsTotal: 6,
+          treesTotal: 2,
+          hedgerowsTotal: 4,
+          watercoursesTotal: 3
+        }
+      }
+    )
+
+    expect(doc.units).toEqual(
+      expect.objectContaining({
+        habitatsNetUnitChange: -8,
+        habitatsNetUnitChangePercentage: -100,
+        hedgerowsNetUnitChange: -4,
+        hedgerowsNetUnitChangePercentage: -100,
+        watercoursesNetUnitChange: -3,
+        watercoursesNetUnitChangePercentage: -100
+      })
+    )
+  })
+
   it('re-throws unexpected errors from the area habitat baseline engine', () => {
     const doc = makeDoc({ habitats: [makeAreaHabitat()] })
     const unexpected = new TypeError('engine unavailable')

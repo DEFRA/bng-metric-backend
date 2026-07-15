@@ -1,3 +1,4 @@
+import { calculatePostInterventionNetUnitChanges } from 'bng-metric-engine'
 import { describe, expect, it } from 'vitest'
 
 import { HTTP_OK } from './helpers/http-status.js'
@@ -150,6 +151,14 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       expect(typeof feature.units).toBe('number')
       expect(feature.units).toBeGreaterThan(0)
     }
+    expect(stored.postIntervention.units).toEqual(
+      expect.objectContaining(
+        calculatePostInterventionNetUnitChanges(
+          stored.baseline.units,
+          stored.postIntervention.units
+        )
+      )
+    )
   })
 
   it('re-enriches Enhanced linear features when baseline is uploaded after post-intervention', async () => {
@@ -187,5 +196,13 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       expect(typeof feature.units).toBe('number')
       expect(feature.units).toBeGreaterThan(0)
     }
+    expect(stored.postIntervention.units).toEqual(
+      expect.objectContaining(
+        calculatePostInterventionNetUnitChanges(
+          stored.baseline.units,
+          stored.postIntervention.units
+        )
+      )
+    )
   })
 })

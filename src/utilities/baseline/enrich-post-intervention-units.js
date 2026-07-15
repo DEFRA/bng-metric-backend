@@ -6,7 +6,10 @@
 // For Enhanced watercourses the caller must supply a pre-built Map<ref, lengthKm>
 // from the project's stored baseline watercourses — see the third argument.
 
-import { summarizeFeatureSetUnitsTotals } from '../features/feature-set-units.js'
+import {
+  addPostInterventionNetUnitChanges,
+  summarizeFeatureSetUnitsTotals
+} from '../features/feature-set-units.js'
 import {
   NO_OP_LOGGER,
   enrichCollectionIfNonEmpty
@@ -29,13 +32,13 @@ import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-interv
  *
  * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
- * @param {{ baselineLengthByRef?: Map<string, number> }} [options]
+ * @param {{ baselineLengthByRef?: Map<string, number>, baselineUnits?: object }} [options]
  * @returns {typeof postInterventionDocument}
  */
 export function enrichPostInterventionDocumentWithUnits(
   postInterventionDocument,
   logger = NO_OP_LOGGER,
-  { baselineLengthByRef } = {}
+  { baselineLengthByRef, baselineUnits } = {}
 ) {
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.habitats,
@@ -77,5 +80,6 @@ export function enrichPostInterventionDocumentWithUnits(
   }
 
   summarizeFeatureSetUnitsTotals(postInterventionDocument)
+  addPostInterventionNetUnitChanges(postInterventionDocument, baselineUnits)
   return postInterventionDocument
 }

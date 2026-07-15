@@ -394,6 +394,17 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
 function postInterventionProjectFixture() {
   return {
     name: 'PI Fixture',
+    baseline: {
+      units: {
+        totalUnits: 10,
+        habitatsTotal: 6,
+        hedgerowsTotal: 2,
+        watercoursesTotal: 1,
+        treesTotal: 1,
+        treesUrbanTotal: 1,
+        treesRuralTotal: 0
+      }
+    },
     postIntervention: {
       habitats: [
         {
@@ -521,6 +532,18 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
       0
     )
     expect(result.unitsTotals).toEqual(result.project.postIntervention.units)
+    expect(result.unitsTotals).toEqual(
+      expect.objectContaining({
+        habitatsNetUnitChange:
+          result.project.postIntervention.units.habitatsTotal - 7,
+        habitatsNetUnitChangePercentage:
+          ((result.project.postIntervention.units.habitatsTotal - 7) / 7) * 100,
+        hedgerowsNetUnitChange: -2,
+        hedgerowsNetUnitChangePercentage: -100,
+        watercoursesNetUnitChange: -1,
+        watercoursesNetUnitChangePercentage: -100
+      })
+    )
   })
 
   test('writes hedgerow type into proposed.type, not a top-level field', () => {
