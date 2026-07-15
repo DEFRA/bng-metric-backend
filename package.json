@@ -82,7 +82,7 @@
   },
   "devDependencies": {
     "@types/node": "26.1.0",
-    "@vitest/coverage-v8": "4.1.9",
+    "@vitest/coverage-v8": "4.1.10",
     "autoprefixer": "10.5.2",
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
@@ -97,6 +97,6 @@
   "overrides": {
     "@hapi/wreck": "18.1.2",
     "vitest": "4.1.9",
-    "@vitest/coverage-v8": "4.1.9"
+    "@vitest/coverage-v8": "4.1.10"
   }
 }
