@@ -128,6 +128,7 @@ const STUB_POST_INTERVENTION_EXTRACTED = {
       {
         featureId: FEATURE_ID_HAB,
         ref: 'P1',
+        retentionCategory: 'Retained',
         area: 10,
         sizeSquareMetres: 10,
         units: null,
@@ -149,6 +150,7 @@ const STUB_POST_INTERVENTION_EXTRACTED = {
       {
         featureId: FEATURE_ID_HEDGE,
         ref: 'H1',
+        retentionCategory: 'Retained',
         length: 20,
         sizeMetres: 20,
         units: null,
@@ -168,6 +170,7 @@ const STUB_POST_INTERVENTION_EXTRACTED = {
       {
         featureId: FEATURE_ID_WATER,
         ref: 'W1',
+        retentionCategory: 'Retained',
         length: 30,
         sizeMetres: 30,
         units: null,

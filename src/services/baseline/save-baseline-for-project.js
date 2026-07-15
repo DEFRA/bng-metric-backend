@@ -6,7 +6,10 @@ import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baselin
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
 import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baseline/re-enrich-stored-post-intervention.js'
 import { extractHabitatData } from '../../validation/baseline/extract-habitat-data.js'
-import { extractPostIntervention } from '../../validation/baseline/extract-post-intervention.js'
+import {
+  extractPostIntervention,
+  filterLostLinearPostInterventionLayers
+} from '../../validation/baseline/extract-post-intervention.js'
 import { ERROR_CODES, makeError } from '../../validation/baseline/errors.js'
 import {
   habitatDataSchema,
@@ -93,10 +96,14 @@ export async function saveBaselineForProject(
   const { drizzle, pgPool, logger } = deps
   const { uploadId, sub, filename, fileSize } = context
   const layersWithIds = assignFeatureIds(layers)
+  const layersForSizing =
+    config.projectDocumentKey === 'postIntervention'
+      ? filterLostLinearPostInterventionLayers(layersWithIds)
+      : layersWithIds
 
   let habitatSizes
   try {
-    habitatSizes = await calculateHabitatSizes(pgPool, layersWithIds)
+    habitatSizes = await calculateHabitatSizes(pgPool, layersForSizing)
   } catch (err) {
     logger.error(
       `${config.routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`

@@ -40,7 +40,8 @@ vi.mock('../../validation/baseline/extract-habitat-data.js', () => ({
 vi.mock('../../validation/baseline/extract-post-intervention.js', () => ({
   extractPostIntervention: vi
     .fn()
-    .mockReturnValue({ document: {}, geometries: {} })
+    .mockReturnValue({ document: {}, geometries: {} }),
+  filterLostLinearPostInterventionLayers: vi.fn((layers) => layers)
 }))
 
 vi.mock('../../utilities/baseline/enrich-baseline-units.js', () => ({

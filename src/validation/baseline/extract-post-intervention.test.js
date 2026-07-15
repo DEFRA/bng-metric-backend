@@ -78,15 +78,16 @@ describe('extractPostIntervention — habitat nested structure', () => {
     })
 
     const hab = out.document.habitats[0]
+    expect(hab.retentionCategory).toBe('Created')
     expect(hab.baseline).toEqual(
       expect.objectContaining({
         type: 'Modified grassland',
         broadType: 'Grassland',
         condition: 'Moderate',
-        strategicSignificance: 'Low significance',
-        retentionCategory: 'Lost'
+        strategicSignificance: 'Low significance'
       })
     )
+    expect(hab.baseline).not.toHaveProperty('retentionCategory')
     expect(hab.baseline.conditionScore).toBeNull()
     expect(hab.baseline.distinctiveness).toBeNull()
     expect(hab.baseline.distinctivenessScore).toBeNull()
@@ -146,7 +147,7 @@ describe('extractPostIntervention — habitat nested structure', () => {
     expect(hab).not.toHaveProperty('broadType')
     expect(hab).not.toHaveProperty('condition')
     expect(hab).not.toHaveProperty('strategicSignificance')
-    expect(hab).not.toHaveProperty('retentionCategory')
+    expect(hab.baseline).not.toHaveProperty('retentionCategory')
   })
 
   it('strips the "N. " condition prefix on both baseline and proposed conditions', () => {
@@ -293,7 +294,7 @@ describe('extractPostIntervention — hedgerow nested structure', () => {
     expect(hedge).not.toHaveProperty('condition')
   })
 
-  it('maps N/A advance/delay years to null for Lost hedgerows', () => {
+  it('excludes Lost hedgerows from the document and geometries', () => {
     const out = extractPostIntervention({
       redline: [],
       areas: [],
@@ -315,17 +316,8 @@ describe('extractPostIntervention — hedgerow nested structure', () => {
       watercourses: []
     })
 
-    expect(out.document.hedgerows[0].proposed.advanceYears).toBeNull()
-    expect(out.document.hedgerows[0].proposed.delayYears).toBeNull()
-    expect(out.document.hedgerows[0].status).toBe('Incomplete')
-
-    const { error } = postInterventionDataSchema.validate({
-      importedAt: '2026-01-01T00:00:00.000Z',
-      habitats: [],
-      hedgerows: out.document.hedgerows,
-      watercourses: []
-    })
-    expect(error).toBeUndefined()
+    expect(out.document.hedgerows).toEqual([])
+    expect(out.geometries.hedgerows).toEqual([])
   })
 
   it('sets hedgerow status Complete when proposed type and condition present', () => {
@@ -668,6 +660,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         trees: [
           treeFeature({
             'Tree Ref': 'T1',
+            'Retention Category': 'Retained',
             'Baseline Tree Size': 'Large',
             'Baseline Rural or Urban Tree': 'Rural',
             'Baseline Condition': 'Moderate',

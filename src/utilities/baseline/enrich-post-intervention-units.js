@@ -1,4 +1,4 @@
-// Post-intervention unit enrichment. Dispatches on `feature.baseline.retentionCategory`
+// Post-intervention unit enrichment. Dispatches on `feature.retentionCategory`
 // to call the correct bng-metric-engine post-intervention calculator. The baseline
 // sub-object is always enriched with the baseline engine (informational scores);
 // only the primary units calculation on the proposed side uses the new functions.
@@ -18,7 +18,7 @@ import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-interv
 /**
  * Mutates `postInterventionDocument`: for each feature, enriches the `proposed`
  * sub-object with units and scores from the appropriate post-intervention engine
- * function (selected by `baseline.retentionCategory`), and enriches the `baseline`
+ * function (selected by `retentionCategory`), and enriches the `baseline`
  * sub-object with informational distinctiveness/conditionScore. Always sets
  * `postInterventionDocument.units` totals afterward.
  *

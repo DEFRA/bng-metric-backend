@@ -9,6 +9,7 @@
  */
 import Joi from 'joi'
 
+import { RETENTION_CATEGORY_VALUES } from '../utilities/baseline/retention-category.js'
 import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
@@ -18,7 +19,8 @@ import {
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'
-const RETENTION_CATEGORY_DESCRIPTION = 'Retention Category from the GeoPackage.'
+const RETENTION_CATEGORY_DESCRIPTION =
+  'Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column.'
 const POST_INTERVENTION_STATUS_DESCRIPTION =
   "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
 const POST_INTERVENTION_STATUS_VALUES = Object.freeze([
@@ -29,6 +31,15 @@ const POST_INTERVENTION_STATUS_VALUES = Object.freeze([
 // ──────────────────────────────────────────────────────────────────────────────
 // Shared sub-object factories
 // ──────────────────────────────────────────────────────────────────────────────
+
+function retentionCategoryField() {
+  return {
+    retentionCategory: Joi.string()
+      .valid(...RETENTION_CATEGORY_VALUES)
+      .required()
+      .description(RETENTION_CATEGORY_DESCRIPTION)
+  }
+}
 
 function baselineCommonFields() {
   return {
@@ -88,6 +99,7 @@ function proposedCommonFields() {
 // per feature type.
 function postInterventionLinearFeatureFields({ geometryRow }) {
   return {
+    ...retentionCategoryField(),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -127,6 +139,7 @@ function postInterventionAreaFeatureFields({
   unitsDescription
 }) {
   return {
+    ...retentionCategoryField(),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -160,10 +173,7 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
   ...baselineCommonFields(),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description('Baseline Strategic Significance from the GeoPackage.'),
-  retentionCategory: Joi.string()
-    .allow(null, '')
-    .description(RETENTION_CATEGORY_DESCRIPTION)
+    .description('Baseline Strategic Significance from the GeoPackage.')
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
@@ -251,10 +261,7 @@ function treeSideCommonFields() {
 }
 
 const postInterventionTreeBaselineSubSchema = Joi.object({
-  ...treeSideCommonFields(),
-  retentionCategory: Joi.string()
-    .allow(null, '')
-    .description('Retention Category from the GeoPackage.')
+  ...treeSideCommonFields()
 }).description(
   'Baseline individual-tree values from the Baseline * GeoPackage columns.'
 )
@@ -305,9 +312,6 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline hedgerow type from Baseline Hedge Type column.'),
-  retentionCategory: Joi.string()
-    .allow(null, '')
-    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields()
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
@@ -365,9 +369,6 @@ const postInterventionWatercourseBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline watercourse type from Baseline River Type column.'),
-  retentionCategory: Joi.string()
-    .allow(null, '')
-    .description(RETENTION_CATEGORY_DESCRIPTION),
   ...baselineCommonFields(),
   ...watercourseEncroachmentFields
 }).description(

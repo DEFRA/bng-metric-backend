@@ -399,6 +399,7 @@ function postInterventionProjectFixture() {
         {
           featureId: HABITAT_ID,
           ref: 'H1-1',
+          retentionCategory: 'Retained',
           area: 10_000,
           sizeSquareMetres: 10_000,
           units: null,
@@ -407,7 +408,6 @@ function postInterventionProjectFixture() {
             type: 'Modified grassland',
             broadType: 'Grassland',
             condition: 'Moderate',
-            retentionCategory: 'Retained',
             conditionScore: null,
             distinctiveness: null,
             distinctivenessScore: null
@@ -428,6 +428,7 @@ function postInterventionProjectFixture() {
         {
           featureId: HEDGEROW_ID,
           ref: 'HW1',
+          retentionCategory: 'Retained',
           sizeMetres: 500,
           units: null,
           status: 'Incomplete',

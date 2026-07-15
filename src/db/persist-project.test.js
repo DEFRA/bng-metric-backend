@@ -154,6 +154,7 @@ describe('setBaselineFeature', () => {
 const validPostInterventionHabitat = {
   featureId: FEATURE_ID,
   ref: 'H1',
+  retentionCategory: 'Retained',
   area: 100,
   sizeSquareMetres: 100,
   units: 1,

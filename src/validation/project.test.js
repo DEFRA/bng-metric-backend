@@ -233,36 +233,33 @@ describe('#filename validation', () => {
     expect(error).toBeUndefined()
   })
 
-  test('Should reject wrong extension (extension spoofing via legitimate name)', () => {
-    // survey.exe has no .gpkg extension — must be rejected
-    const { error } = withFilename('survey.exe')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject RTL override character (extension spoofing)', () => {
-    // U+202E flips rendering so survey\u202Egpkg.exe displays as survey.exe.gpkg
-    const { error } = withFilename('survey\u202Egpkg.exe')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject path traversal sequences', () => {
-    const { error } = withFilename('../../../etc/passwd.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject newline (log injection)', () => {
-    const { error } = withFilename('survey\n.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject zero-width space (invisible-char duplicate)', () => {
-    // sur\u200Bvey.gpkg renders identically to survey.gpkg but is a different string
-    const { error } = withFilename('sur\u200Bvey.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject SQL injection characters', () => {
-    const { error } = withFilename("survey'; DROP TABLE projects; --.gpkg")
+  test.each([
+    {
+      description: 'wrong extension (extension spoofing via legitimate name)',
+      filename: 'survey.exe'
+    },
+    {
+      description: 'RTL override character (extension spoofing)',
+      filename: 'survey\u202Egpkg.exe'
+    },
+    {
+      description: 'path traversal sequences',
+      filename: '../../../etc/passwd.gpkg'
+    },
+    {
+      description: 'newline (log injection)',
+      filename: 'survey\n.gpkg'
+    },
+    {
+      description: 'zero-width space (invisible-char duplicate)',
+      filename: 'sur\u200Bvey.gpkg'
+    },
+    {
+      description: 'SQL injection characters',
+      filename: "survey'; DROP TABLE projects; --.gpkg"
+    }
+  ])('Should reject $description', ({ filename }) => {
+    const { error } = withFilename(filename)
     expect(error).toBeDefined()
   })
 })
@@ -358,6 +355,7 @@ describe('#postInterventionDataSchema', () => {
       {
         featureId: 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa',
         ref: 'H2-1',
+        retentionCategory: 'Created',
         area: 7850,
         sizeSquareMetres: 7850.14,
         units: 3.14,
@@ -369,8 +367,7 @@ describe('#postInterventionDataSchema', () => {
           conditionScore: 2,
           distinctiveness: 'Low',
           distinctivenessScore: 2,
-          strategicSignificance: 'Low',
-          retentionCategory: 'Lost'
+          strategicSignificance: 'Low'
         },
         proposed: {
           type: 'Developed land; sealed surface',
@@ -411,6 +408,37 @@ describe('#postInterventionDataSchema', () => {
     expect(error.message).toMatch(/"habitats\[0\]\.type" is not allowed/)
   })
 
+  // BMD-534: retentionCategory is assigned on import and cannot be edited
+  // post-upload, so a feature without a valid category must reject the whole
+  // file rather than persist an uneditable, uncalculable record.
+  test('Should require retentionCategory on habitat records', () => {
+    const doc = structuredClone(validPostIntervention)
+    delete doc.habitats[0].retentionCategory
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(
+      /"habitats\[0\]\.retentionCategory" is required/
+    )
+  })
+
+  test('Should reject a null retentionCategory on habitat records', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].retentionCategory = null
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(/"habitats\[0\]\.retentionCategory"/)
+  })
+
+  test('Should reject an unrecognised retentionCategory value', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].retentionCategory = 'Partial'
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error).toBeDefined()
+    expect(error.message).toMatch(
+      /"habitats\[0\]\.retentionCategory" must be one of/
+    )
+  })
+
   test('Should reject top-level condition field on habitat records', () => {
     const doc = structuredClone(validPostIntervention)
     doc.habitats[0].condition = 'Good'
@@ -426,6 +454,7 @@ describe('#postInterventionDataSchema', () => {
         {
           featureId: 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb',
           ref: 'WC1',
+          retentionCategory: 'Retained',
           length: 120,
           sizeMetres: 120.5,
           units: 0.8,
@@ -468,6 +497,7 @@ describe('#postInterventionDataSchema', () => {
         {
           featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
           ref: 'HW1',
+          retentionCategory: 'Retained',
           length: 200,
           sizeMetres: 200.3,
           units: 1.2,
@@ -508,6 +538,7 @@ describe('#postInterventionDataSchema', () => {
         {
           featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
           ref: 'T003',
+          retentionCategory: 'Created',
           area: 41,
           sizeSquareMetres: 41,
           units: 0.05,
@@ -525,8 +556,7 @@ describe('#postInterventionDataSchema', () => {
             treeSpecies: 'Street tree',
             ruralOrUrban: 'Urban',
             sizeSquareMetres: 41,
-            area: 41,
-            retentionCategory: 'Created'
+            area: 41
           },
           proposed: {
             type: 'Urban tree',
