@@ -233,36 +233,18 @@ describe('#filename validation', () => {
     expect(error).toBeUndefined()
   })
 
-  test('Should reject wrong extension (extension spoofing via legitimate name)', () => {
-    // survey.exe has no .gpkg extension — must be rejected
-    const { error } = withFilename('survey.exe')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject RTL override character (extension spoofing)', () => {
+  test.each([
+    // survey.exe has no .gpkg extension
+    ['wrong extension (extension spoofing via legitimate name)', 'survey.exe'],
     // U+202E flips rendering so survey\u202Egpkg.exe displays as survey.exe.gpkg
-    const { error } = withFilename('survey\u202Egpkg.exe')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject path traversal sequences', () => {
-    const { error } = withFilename('../../../etc/passwd.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject newline (log injection)', () => {
-    const { error } = withFilename('survey\n.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject zero-width space (invisible-char duplicate)', () => {
+    ['RTL override character (extension spoofing)', 'survey\u202Egpkg.exe'],
+    ['path traversal sequences', '../../../etc/passwd.gpkg'],
+    ['newline (log injection)', 'survey\n.gpkg'],
     // sur\u200Bvey.gpkg renders identically to survey.gpkg but is a different string
-    const { error } = withFilename('sur\u200Bvey.gpkg')
-    expect(error).toBeDefined()
-  })
-
-  test('Should reject SQL injection characters', () => {
-    const { error } = withFilename("survey'; DROP TABLE projects; --.gpkg")
+    ['zero-width space (invisible-char duplicate)', 'sur\u200Bvey.gpkg'],
+    ['SQL injection characters', "survey'; DROP TABLE projects; --.gpkg"]
+  ])('Should reject %s', (_description, filename) => {
+    const { error } = withFilename(filename)
     expect(error).toBeDefined()
   })
 })
