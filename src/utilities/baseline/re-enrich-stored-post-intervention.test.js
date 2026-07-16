@@ -32,7 +32,7 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
         {
           ref: 'R1',
           sizeMetres: 1000,
-          baseline: { retentionCategory: 'Enhanced' }
+          retentionCategory: 'Enhanced'
         }
       ]
     }

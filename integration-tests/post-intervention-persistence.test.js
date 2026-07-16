@@ -143,7 +143,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const enhancedLinear = [
       ...(stored.postIntervention.hedgerows ?? []),
       ...(stored.postIntervention.watercourses ?? [])
-    ].filter((feature) => feature.baseline?.retentionCategory === 'Enhanced')
+    ].filter((feature) => feature.retentionCategory === 'Enhanced')
 
     for (const feature of enhancedLinear) {
       expect(feature.status).toBe('Complete')
@@ -167,7 +167,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const enhancedBefore = [
       ...(stored.postIntervention?.watercourses ?? []),
       ...(stored.postIntervention?.hedgerows ?? [])
-    ].filter((feature) => feature.baseline?.retentionCategory === 'Enhanced')
+    ].filter((feature) => feature.retentionCategory === 'Enhanced')
 
     for (const feature of enhancedBefore) {
       expect(feature.status).toBe('Incomplete')
@@ -179,7 +179,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     const enhancedAfter = [
       ...(stored.postIntervention?.watercourses ?? []),
       ...(stored.postIntervention?.hedgerows ?? [])
-    ].filter((feature) => feature.baseline?.retentionCategory === 'Enhanced')
+    ].filter((feature) => feature.retentionCategory === 'Enhanced')
 
     expect(enhancedAfter).toHaveLength(enhancedBefore.length)
     for (const feature of enhancedAfter) {

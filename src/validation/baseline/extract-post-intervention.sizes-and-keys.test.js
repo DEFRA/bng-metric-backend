@@ -80,7 +80,7 @@ describe('extractPostIntervention — habitatSizes embedding', () => {
       { habitatSizes }
     )
 
-    expect(out.document.habitats[0].sizeSquareMetres).toBe(Number.NaN)
+    expect(out.document.habitats[0].sizeSquareMetres).toBeNaN()
     expect(out.document.habitats[0].area).toBeNull()
   })
 
@@ -110,8 +110,10 @@ describe('extractPostIntervention — habitatSizes embedding', () => {
       { habitatSizes }
     )
 
-    expect(out.document.hedgerows[0].sizeMetres).toBe(HEDGEROW_M)
-    expect(out.document.hedgerows[0].length).toBe(HEDGEROW_M)
+    expect(out.document.hedgerows[0]).toMatchObject({
+      sizeMetres: HEDGEROW_M,
+      length: HEDGEROW_M
+    })
   })
 
   it('embeds sizeMetres onto watercourse documents', () => {
@@ -223,7 +225,7 @@ describe('extractPostIntervention — graceful inputs', () => {
     expect(hab.proposed.broadType).toBeNull()
     expect(hab.proposed.condition).toBeNull()
     expect(hab.baseline.type).toBeNull()
-    expect(hab.baseline.retentionCategory).toBeNull()
+    expect(hab.retentionCategory).toBeNull()
   })
 
   it('treats a feature with no properties key as having empty properties', () => {

@@ -23,6 +23,10 @@ import {
   buildExtractResult
 } from './extract-shared.js'
 import { stripConditionPrefix } from '../../utilities/baseline/condition.js'
+import {
+  deriveRetentionCategory,
+  isLostLinearRetention
+} from '../../utilities/baseline/retention-category.js'
 
 // Tree columns differ between the baseline and proposed sides exactly like the
 // other habitat columns: the baseline sub-object reads the "Baseline *" tree
@@ -116,6 +120,14 @@ function parseProposedAdvanceDelayYears(rawValue) {
 }
 
 /**
+ * @param {object} props
+ * @returns {'Retained' | 'Created' | 'Enhanced' | null}
+ */
+function retentionCategoryFromProps(props) {
+  return deriveRetentionCategory(pickProp(props, PROP_KEYS.retentionCategory))
+}
+
+/**
  * Build the `baseline` sub-object for a post-intervention area habitat from raw
  * GeoPackage properties. Reads the "Baseline *" columns.
  *
@@ -130,8 +142,7 @@ function buildAreaBaselineSubObject(props) {
     conditionScore: null,
     distinctiveness: null,
     distinctivenessScore: null,
-    strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance),
-    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory)
+    strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance)
   }
 }
 
@@ -171,7 +182,6 @@ function buildAreaProposedSubObject(props) {
 function buildLinearBaselineSubObject(props, typeKey) {
   return {
     type: pickProp(props, typeKey),
-    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     conditionScore: null,
     distinctiveness: null,
@@ -215,6 +225,7 @@ function buildPostInterventionHabitat(feature) {
     (featureId, ref, props) => ({
       featureId,
       ref,
+      retentionCategory: retentionCategoryFromProps(props),
       area: null,
       sizeSquareMetres: null,
       units: null,
@@ -257,10 +268,7 @@ function buildTreeSide(props, keys) {
 }
 
 function buildTreeBaselineSubObject(props) {
-  return {
-    ...buildTreeSide(props, BASELINE_TREE_KEYS),
-    retentionCategory: pickProp(props, PROP_KEYS.retentionCategory)
-  }
+  return buildTreeSide(props, BASELINE_TREE_KEYS)
 }
 
 function buildTreeProposedSubObject(props) {
@@ -286,6 +294,7 @@ function buildPostInterventionTree(feature) {
   const document = {
     featureId,
     ref,
+    retentionCategory: retentionCategoryFromProps(props),
     area: proposed.area,
     sizeSquareMetres: proposed.sizeSquareMetres,
     units: null,
@@ -308,6 +317,7 @@ function buildPostInterventionHedgerow(feature) {
     (featureId, ref, props) => ({
       featureId,
       ref,
+      retentionCategory: retentionCategoryFromProps(props),
       length: null,
       sizeMetres: null,
       units: null,
@@ -373,13 +383,13 @@ function buildPostInterventionWatercourse(feature) {
       return {
         featureId,
         ref,
+        retentionCategory: retentionCategoryFromProps(props),
         length: null,
         sizeMetres: null,
         units: null,
         status: null,
         baseline: {
           type: pickProp(props, PROP_KEYS.riverType),
-          retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
           condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
           conditionScore: null,
           distinctiveness: null,
@@ -425,6 +435,31 @@ function buildRedLine(features) {
 }
 
 /**
+ * Drop hedgerows and watercourses whose GPKG Retention Category is Lost.
+ *
+ * @param {object[]} features
+ * @returns {object[]}
+ */
+function excludeLostLinearFeatures(features) {
+  return (features ?? []).filter((feature) => {
+    const props = feature.properties ?? {}
+    return !isLostLinearRetention(pickProp(props, PROP_KEYS.retentionCategory))
+  })
+}
+
+/**
+ * @param {object} layers
+ * @returns {object}
+ */
+export function filterLostLinearPostInterventionLayers(layers) {
+  return {
+    ...layers,
+    hedgerows: excludeLostLinearFeatures(layers.hedgerows),
+    watercourses: excludeLostLinearFeatures(layers.watercourses)
+  }
+}
+
+/**
  * Shape an already-parsed `layers` object into the post-intervention JSONB
  * document (nested baseline/proposed per feature) and parallel geometry rows.
  *
@@ -443,20 +478,24 @@ function buildRedLine(features) {
  * @returns {{ document: object, geometries: object }}
  */
 export function extractPostIntervention(layers, meta = {}) {
-  const redLine = buildRedLine(layers.redline)
+  const filteredLayers = filterLostLinearPostInterventionLayers(layers)
+  const redLine = buildRedLine(filteredLayers.redline)
   const habitats = splitFeatures(
-    layers.areas ?? [],
+    filteredLayers.areas ?? [],
     buildPostInterventionHabitat
   )
   const hedgerows = splitFeatures(
-    layers.hedgerows ?? [],
+    filteredLayers.hedgerows ?? [],
     buildPostInterventionHedgerow
   )
   const watercourses = splitFeatures(
-    layers.watercourses ?? [],
+    filteredLayers.watercourses ?? [],
     buildPostInterventionWatercourse
   )
-  const trees = splitFeatures(layers.trees ?? [], buildPostInterventionTree)
+  const trees = splitFeatures(
+    filteredLayers.trees ?? [],
+    buildPostInterventionTree
+  )
 
   const habitatSizesSummary = meta.habitatSizes
     ? embedPostInterventionHabitatSizes(

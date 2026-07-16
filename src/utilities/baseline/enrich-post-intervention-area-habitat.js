@@ -13,16 +13,15 @@ import {
 import { SQ_METRES_PER_HECTARE } from './enrich-units-shared.js'
 import {
   hasValidAreaHabitatSize,
-  normaliseRetentionCategory,
   applyProposedResult,
   finalizePostInterventionFeatureStatus,
   runProposedCalculation,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
-  RETENTION_LOST,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
+  resolveRetentionCategory,
   skipProposedEnrichment
 } from './enrich-post-intervention-shared.js'
 
@@ -265,7 +264,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
   const proposedCondition = normalizeConditionForEngine(proposed.condition)
   const advanceYears = proposed.advanceYears ?? 0
   const delayYears = proposed.delayYears ?? 0
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
+  const category = resolveRetentionCategory(habitat)
 
   if (category === RETENTION_RETAINED) {
     return buildRetainedAreaCalculate(
@@ -276,7 +275,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
       logger
     )
   }
-  if (category === RETENTION_LOST || category === RETENTION_CREATED) {
+  if (category === RETENTION_CREATED) {
     return buildCreatedAreaCalculate(
       habitat,
       proposed,
@@ -301,7 +300,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
   skipUnrecognisedRetentionCategory(
     habitat,
     category,
-    baseline.retentionCategory,
+    habitat.retentionCategory ?? baseline.retentionCategory,
     AREA_PROPOSED_LABEL,
     logger
   )
@@ -310,7 +309,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
 
 /**
  * Calculate and apply post-intervention units for the proposed side of an
- * area habitat, dispatching on `baseline.retentionCategory`.
+ * area habitat, dispatching on `retentionCategory`.
  *
  * @param {object} habitat
  * @param {{ warn: (msg: string) => void }} logger

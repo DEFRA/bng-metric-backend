@@ -106,7 +106,7 @@ describe('area habitat — Retained', () => {
   })
 })
 
-describe('area habitat — Lost', () => {
+describe('area habitat — GPKG Lost mapped to Created', () => {
   it('calculates units using proposed type/condition with time and difficulty multipliers', () => {
     const doc = makeDoc({ habitats: [makeLostHabitat()] })
     enrichPostInterventionDocumentWithUnits(doc)
@@ -257,7 +257,7 @@ describe('area habitat — unknown retention category', () => {
       habitats: [
         {
           ...base,
-          baseline: { ...base.baseline, retentionCategory: null }
+          retentionCategory: null
         }
       ]
     })
@@ -273,6 +273,7 @@ describe('area habitat — unknown retention category', () => {
       habitats: [
         {
           ...base,
+          retentionCategory: undefined,
           baseline: { ...base.baseline, retentionCategory: 'Partial' }
         }
       ]
@@ -297,6 +298,7 @@ describe('area habitat — invalid size', () => {
   it('marks Incomplete when import status was Complete but units cannot be calculated', () => {
     const base = makeAreaHabitat({
       status: 'Complete',
+      retentionCategory: undefined,
       baseline: { ...makeAreaHabitat().baseline, retentionCategory: 'Partial' }
     })
     const doc = makeDoc({ habitats: [base] })

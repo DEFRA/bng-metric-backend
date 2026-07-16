@@ -118,7 +118,7 @@ describe('watercourse — Created', () => {
       watercourses: [
         {
           ...base,
-          baseline: { ...base.baseline, retentionCategory: '1. Created' }
+          retentionCategory: 'Created'
         }
       ]
     })
@@ -215,7 +215,7 @@ describe('watercourse — Enhanced', () => {
   })
 })
 
-describe('watercourse — Lost', () => {
+describe('watercourse — legacy Lost linear', () => {
   it('marks Complete with 0 units and does not warn about unrecognised category', () => {
     const doc = makeDoc({ watercourses: [makeLostWatercourse()] })
     const logger = { warn: vi.fn() }
@@ -245,6 +245,7 @@ describe('watercourse — Complete-never-null invariant', () => {
         {
           ...base,
           status: 'Complete',
+          retentionCategory: undefined,
           baseline: { ...base.baseline, retentionCategory: 'Partial' }
         }
       ]
@@ -263,6 +264,7 @@ describe('watercourse — unknown retention category', () => {
       watercourses: [
         {
           ...base,
+          retentionCategory: undefined,
           baseline: { ...base.baseline, retentionCategory: 'Partial' }
         }
       ]
