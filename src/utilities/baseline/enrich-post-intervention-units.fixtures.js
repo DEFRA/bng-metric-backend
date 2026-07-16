@@ -13,6 +13,7 @@ export function makeAreaHabitat(overrides = {}) {
   return {
     featureId: FEAT_ID,
     ref: 'P1',
+    retentionCategory: 'Retained',
     area: 10000,
     sizeSquareMetres: 10000,
     units: null,
@@ -24,8 +25,7 @@ export function makeAreaHabitat(overrides = {}) {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      strategicSignificance: null,
-      retentionCategory: 'Retained'
+      strategicSignificance: null
     },
     proposed: {
       type: AREA_PROPOSED_TYPE,
@@ -43,8 +43,10 @@ export function makeAreaHabitat(overrides = {}) {
   }
 }
 
+/** GPKG Lost area habitats are persisted with top-level retentionCategory Created. */
 export function makeLostHabitat() {
   return makeAreaHabitat({
+    retentionCategory: 'Created',
     baseline: {
       type: null,
       broadType: null,
@@ -52,29 +54,19 @@ export function makeLostHabitat() {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      strategicSignificance: null,
-      retentionCategory: 'Lost'
+      strategicSignificance: null
     }
   })
 }
 
+/** Same persisted shape as GPKG Lost habitats (see makeLostHabitat). */
 export function makeCreatedAreaHabitat() {
-  return makeAreaHabitat({
-    baseline: {
-      type: null,
-      broadType: null,
-      condition: null,
-      conditionScore: null,
-      distinctiveness: null,
-      distinctivenessScore: null,
-      strategicSignificance: null,
-      retentionCategory: 'Created'
-    }
-  })
+  return makeLostHabitat()
 }
 
 export function makeEnhancedHabitat() {
   return makeAreaHabitat({
+    retentionCategory: 'Enhanced',
     baseline: {
       type: AREA_BASELINE_TYPE,
       broadType: AREA_BASELINE_BROAD,
@@ -82,8 +74,7 @@ export function makeEnhancedHabitat() {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      strategicSignificance: null,
-      retentionCategory: 'Enhanced'
+      strategicSignificance: null
     }
   })
 }
@@ -99,13 +90,13 @@ export function makeHedgerow(overrides = {}) {
   return {
     featureId: FEAT_ID,
     ref: 'HW1',
+    retentionCategory: 'Retained',
     length: null,
     sizeMetres: 1000,
     units: null,
     status: 'Incomplete',
     baseline: {
       type: HEDGE_TYPE_HIGH,
-      retentionCategory: 'Retained',
       condition: 'Good',
       conditionScore: null,
       distinctiveness: null,
@@ -127,9 +118,9 @@ export function makeHedgerow(overrides = {}) {
 
 export function makeCreatedHedgerow() {
   return makeHedgerow({
+    retentionCategory: 'Created',
     baseline: {
       type: null,
-      retentionCategory: 'Created',
       condition: null,
       conditionScore: null,
       distinctiveness: null,
@@ -138,8 +129,10 @@ export function makeCreatedHedgerow() {
   })
 }
 
+/** Legacy stored hedgerow imported before Lost-linear exclusion. */
 export function makeLostHedgerow() {
   return makeHedgerow({
+    retentionCategory: undefined,
     baseline: {
       type: HEDGE_TYPE_HIGH,
       retentionCategory: 'Lost',
@@ -153,9 +146,9 @@ export function makeLostHedgerow() {
 
 export function makeEnhancedHedgerow() {
   return makeHedgerow({
+    retentionCategory: 'Enhanced',
     baseline: {
       type: HEDGE_TYPE_MEDIUM,
-      retentionCategory: 'Enhanced',
       condition: 'Moderate',
       conditionScore: null,
       distinctiveness: null,
@@ -185,13 +178,13 @@ export function makeWatercourse(overrides = {}) {
   return {
     featureId: FEAT_ID,
     ref: 'R1',
+    retentionCategory: 'Retained',
     length: null,
     sizeMetres: 1000,
     units: null,
     status: 'Incomplete',
     baseline: {
       type: WC_TYPE,
-      retentionCategory: 'Retained',
       condition: 'Good',
       conditionScore: null,
       distinctiveness: null,
@@ -219,9 +212,9 @@ export function makeWatercourse(overrides = {}) {
 
 export function makeCreatedWatercourse() {
   return makeWatercourse({
+    retentionCategory: 'Created',
     baseline: {
       type: null,
-      retentionCategory: 'Created',
       condition: null,
       conditionScore: null,
       distinctiveness: null,
@@ -245,8 +238,10 @@ export function makeCreatedWatercourse() {
   })
 }
 
+/** Legacy stored watercourse imported before Lost-linear exclusion. */
 export function makeLostWatercourse() {
   return makeWatercourse({
+    retentionCategory: undefined,
     baseline: {
       type: WC_TYPE,
       retentionCategory: 'Lost',
@@ -263,9 +258,9 @@ export function makeLostWatercourse() {
 
 export function makeEnhancedWatercourse() {
   return makeWatercourse({
+    retentionCategory: 'Enhanced',
     baseline: {
       type: WC_TYPE,
-      retentionCategory: 'Enhanced',
       condition: 'Moderate',
       conditionScore: null,
       distinctiveness: null,

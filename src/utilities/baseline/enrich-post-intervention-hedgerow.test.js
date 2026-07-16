@@ -199,7 +199,7 @@ describe('hedgerow — Enhanced', () => {
   })
 })
 
-describe('hedgerow — Lost', () => {
+describe('hedgerow — legacy Lost linear', () => {
   it('marks Complete with 0 units and does not warn about unrecognised category', () => {
     const doc = makeDoc({ hedgerows: [makeLostHedgerow()] })
     const logger = { warn: vi.fn() }
@@ -229,6 +229,7 @@ describe('hedgerow — Complete-never-null invariant', () => {
         {
           ...base,
           status: 'Complete',
+          retentionCategory: undefined,
           baseline: { ...base.baseline, retentionCategory: 'Partial' }
         }
       ]
@@ -247,6 +248,7 @@ describe('hedgerow — unknown retention category', () => {
       hedgerows: [
         {
           ...base,
+          retentionCategory: undefined,
           baseline: { ...base.baseline, retentionCategory: 'Partial' }
         }
       ]

@@ -2732,6 +2732,17 @@
       "description": "A post-intervention area (polygon) habitat parcel with nested baseline and proposed sub-objects."
     },
     {
+      "path": "postIntervention.habitats[].retentionCategory",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Retained", "Created", "Enhanced"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
+    },
+    {
       "path": "postIntervention.habitats[].featureId",
       "type": "string",
       "required": true,
@@ -2884,17 +2895,6 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline Strategic Significance from the GeoPackage."
-    },
-    {
-      "path": "postIntervention.habitats[].baseline.retentionCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Retention Category from the GeoPackage."
     },
     {
       "path": "postIntervention.habitats[].proposed",
@@ -3060,6 +3060,17 @@
       "constraints": [],
       "openMap": false,
       "description": "A post-intervention individual tree (point) with nested baseline and proposed sub-objects."
+    },
+    {
+      "path": "postIntervention.trees[].retentionCategory",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Retained", "Created", "Enhanced"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
     },
     {
       "path": "postIntervention.trees[].featureId",
@@ -3282,17 +3293,6 @@
       "description": "Notional tree area in square metres, rounded."
     },
     {
-      "path": "postIntervention.trees[].baseline.retentionCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Retention Category from the GeoPackage."
-    },
-    {
       "path": "postIntervention.trees[].proposed",
       "type": "object",
       "required": false,
@@ -3513,6 +3513,17 @@
       "description": "A post-intervention hedgerow (linear) feature."
     },
     {
+      "path": "postIntervention.hedgerows[].retentionCategory",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Retained", "Created", "Enhanced"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
+    },
+    {
       "path": "postIntervention.hedgerows[].featureId",
       "type": "string",
       "required": true,
@@ -3599,17 +3610,6 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline hedgerow type from Baseline Hedge Type column."
-    },
-    {
-      "path": "postIntervention.hedgerows[].baseline.retentionCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Retention Category from the GeoPackage."
     },
     {
       "path": "postIntervention.hedgerows[].baseline.condition",
@@ -3799,6 +3799,17 @@
       "description": "A post-intervention watercourse (linear) feature."
     },
     {
+      "path": "postIntervention.watercourses[].retentionCategory",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Retained", "Created", "Enhanced"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
+    },
+    {
       "path": "postIntervention.watercourses[].featureId",
       "type": "string",
       "required": true,
@@ -3885,17 +3896,6 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline watercourse type from Baseline River Type column."
-    },
-    {
-      "path": "postIntervention.watercourses[].baseline.retentionCategory",
-      "type": "string",
-      "required": false,
-      "nullable": true,
-      "emptyStringAllowed": true,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Retention Category from the GeoPackage."
     },
     {
       "path": "postIntervention.watercourses[].baseline.condition",

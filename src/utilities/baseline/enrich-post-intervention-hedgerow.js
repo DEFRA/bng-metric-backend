@@ -12,7 +12,6 @@ import { METRES_PER_KM } from './enrich-units-shared.js'
 import {
   isPresentEngineString,
   hasPositiveLinearSize,
-  normaliseRetentionCategory,
   applyProposedResult,
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
@@ -22,6 +21,9 @@ import {
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
+  resolveRetentionCategory,
+  isLegacyLostLinear,
+  GPKG_RETENTION_LOST,
   skipProposedEnrichment
 } from './enrich-post-intervention-shared.js'
 
@@ -221,7 +223,7 @@ function prepareHedgerowProposedContext(hedgerow) {
   return {
     baseline,
     proposed,
-    category: normaliseRetentionCategory(baseline.retentionCategory),
+    category: resolveRetentionCategory(hedgerow),
     baselineCondition: normalizeConditionForEngine(baseline.condition),
     proposedCondition: normalizeConditionForEngine(proposed.condition),
     advanceYears: proposed.advanceYears ?? 0,
@@ -288,7 +290,7 @@ function resolveHedgerowProposedCalculate(
   skipUnrecognisedRetentionCategory(
     hedgerow,
     category,
-    baseline.retentionCategory,
+    hedgerow.retentionCategory ?? baseline.retentionCategory,
     HEDGEROW_PROPOSED_LABEL,
     logger
   )
@@ -297,7 +299,7 @@ function resolveHedgerowProposedCalculate(
 
 /**
  * Calculate and apply post-intervention units for the proposed side of a
- * hedgerow, dispatching on `baseline.retentionCategory`.
+ * hedgerow, dispatching on `retentionCategory`.
  *
  * @param {object} hedgerow
  * @param {{ warn: (msg: string) => void }} logger
@@ -308,9 +310,8 @@ export function enrichPostInterventionHedgerowProposedSide(
   logger,
   baselineLengthByRef
 ) {
-  const baseline = hedgerow.baseline ?? {}
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
-  if (handleLostLinearCategory(hedgerow, category)) {
+  if (isLegacyLostLinear(hedgerow)) {
+    handleLostLinearCategory(hedgerow, GPKG_RETENTION_LOST)
     return
   }
   if (!hasPositiveLinearSize(hedgerow.sizeMetres)) {

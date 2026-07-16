@@ -14,7 +14,6 @@ import { METRES_PER_KM } from './enrich-units-shared.js'
 import {
   isPresentEngineString,
   hasPositiveLinearSize,
-  normaliseRetentionCategory,
   applyProposedWatercourseResult,
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
@@ -23,6 +22,9 @@ import {
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
+  resolveRetentionCategory,
+  isLegacyLostLinear,
+  GPKG_RETENTION_LOST,
   skipProposedEnrichment
 } from './enrich-post-intervention-shared.js'
 import { enrichLinearBaselineSide } from './enrich-post-intervention-hedgerow.js'
@@ -201,7 +203,7 @@ function prepareWatercourseProposedContext(watercourse) {
   return {
     baseline,
     proposed,
-    category: normaliseRetentionCategory(baseline.retentionCategory),
+    category: resolveRetentionCategory(watercourse),
     baselineCondition: normalizeConditionForEngine(baseline.condition),
     proposedCondition: normalizeConditionForEngine(proposed.condition),
     advanceYears: proposed.advanceYears ?? 0,
@@ -268,7 +270,7 @@ function resolveWatercourseProposedCalculate(
   skipUnrecognisedRetentionCategory(
     watercourse,
     category,
-    baseline.retentionCategory,
+    watercourse.retentionCategory ?? baseline.retentionCategory,
     WATERCOURSE_PROPOSED_LABEL,
     logger
   )
@@ -277,7 +279,7 @@ function resolveWatercourseProposedCalculate(
 
 /**
  * Calculate and apply post-intervention units for the proposed side of a
- * watercourse, dispatching on `baseline.retentionCategory`.
+ * watercourse, dispatching on `retentionCategory`.
  *
  * @param {object} watercourse
  * @param {Map<string, number> | undefined} baselineLengthByRef
@@ -288,9 +290,8 @@ export function enrichPostInterventionWatercourseProposedSide(
   baselineLengthByRef,
   logger
 ) {
-  const baseline = watercourse.baseline ?? {}
-  const category = normaliseRetentionCategory(baseline.retentionCategory)
-  if (handleLostLinearCategory(watercourse, category)) {
+  if (isLegacyLostLinear(watercourse)) {
+    handleLostLinearCategory(watercourse, GPKG_RETENTION_LOST)
     return
   }
   if (!hasPositiveLinearSize(watercourse.sizeMetres)) {
