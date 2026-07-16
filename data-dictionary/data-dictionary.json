@@ -2600,6 +2600,72 @@
       "description": "Sum of baseline units across rural trees."
     },
     {
+      "path": "baseline.units.habitatsNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention area units minus total baseline area units."
+    },
+    {
+      "path": "baseline.units.habitatsNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: area net unit change as a percentage of baseline area units. Null when the baseline area total is zero or unavailable."
+    },
+    {
+      "path": "baseline.units.hedgerowsNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention hedgerow units minus total baseline hedgerow units."
+    },
+    {
+      "path": "baseline.units.hedgerowsNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: hedgerow net unit change as a percentage of baseline hedgerow units. Null when the baseline hedgerow total is zero or unavailable."
+    },
+    {
+      "path": "baseline.units.watercoursesNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention watercourse units minus total baseline watercourse units."
+    },
+    {
+      "path": "baseline.units.watercoursesNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: watercourse net unit change as a percentage of baseline watercourse units. Null when the baseline watercourse total is zero or unavailable."
+    },
+    {
       "path": "postIntervention",
       "type": "object",
       "required": false,
@@ -4402,6 +4468,72 @@
       "constraints": [],
       "openMap": false,
       "description": "Sum of baseline units across rural trees."
+    },
+    {
+      "path": "postIntervention.units.habitatsNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention area units minus total baseline area units."
+    },
+    {
+      "path": "postIntervention.units.habitatsNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: area net unit change as a percentage of baseline area units. Null when the baseline area total is zero or unavailable."
+    },
+    {
+      "path": "postIntervention.units.hedgerowsNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention hedgerow units minus total baseline hedgerow units."
+    },
+    {
+      "path": "postIntervention.units.hedgerowsNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: hedgerow net unit change as a percentage of baseline hedgerow units. Null when the baseline hedgerow total is zero or unavailable."
+    },
+    {
+      "path": "postIntervention.units.watercoursesNetUnitChange",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: total post-intervention watercourse units minus total baseline watercourse units."
+    },
+    {
+      "path": "postIntervention.units.watercoursesNetUnitChangePercentage",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention only: watercourse net unit change as a percentage of baseline watercourse units. Null when the baseline watercourse total is zero or unavailable."
     }
   ]
 }

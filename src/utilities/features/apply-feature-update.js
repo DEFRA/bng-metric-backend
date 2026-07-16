@@ -22,7 +22,10 @@ import {
 } from '../../validation/baseline/unit-calculation.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
 
-import { summarizeFeatureSetUnitsTotals } from './feature-set-units.js'
+import {
+  addPostInterventionNetUnitChanges,
+  summarizeFeatureSetUnitsTotals
+} from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
 
 /**
@@ -239,7 +242,12 @@ function applyFeatureUpdate(
         updatedFeature
       )
       summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-
+      if (documentKey === 'postIntervention') {
+        addPostInterventionNetUnitChanges(
+          updatedFeatureSet,
+          project?.baseline?.units
+        )
+      }
       // `layer` / `index` / `unitsTotals` let callers persist surgically via
       // persist-project.js (jsonb_set the one feature + the totals) rather than
       // rewriting the whole document. `project` is retained for callers/tests that

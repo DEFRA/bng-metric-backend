@@ -27,6 +27,12 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
   })
 
   it('re-enriches and persists post-intervention when baseline linear lengths exist', async () => {
+    const baselineUnits = {
+      habitatsTotal: 6,
+      treesTotal: 2,
+      hedgerowsTotal: 4,
+      watercoursesTotal: 3
+    }
     const postIntervention = {
       watercourses: [
         {
@@ -42,7 +48,8 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
           project: {
             postIntervention,
             baseline: {
-              watercourses: [{ ref: 'R1', sizeMetres: 1000 }]
+              watercourses: [{ ref: 'R1', sizeMetres: 1000 }],
+              units: baselineUnits
             }
           }
         })
@@ -56,7 +63,8 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
       postIntervention,
       logger,
       expect.objectContaining({
-        baselineLengthByRef: expect.any(Map)
+        baselineLengthByRef: expect.any(Map),
+        baselineUnits
       })
     )
     expect(setProjectHabitatData).toHaveBeenCalledWith(

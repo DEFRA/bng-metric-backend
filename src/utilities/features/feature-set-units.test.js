@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 
 import {
+  addPostInterventionNetUnitChanges,
   sumFeatureUnits,
   summarizeFeatureSetUnitsTotals
 } from './feature-set-units.js'
@@ -105,5 +106,71 @@ describe('summarizeFeatureSetUnitsTotals', () => {
       treesUrbanTotal: 0.2,
       treesRuralTotal: 0.5
     })
+  })
+})
+describe('addPostInterventionNetUnitChanges', () => {
+  it('adds net unit changes and percentages using baseline unit totals', () => {
+    const postIntervention = {
+      units: {
+        habitatsTotal: 12,
+        treesTotal: 3,
+        hedgerowsTotal: 6,
+        watercoursesTotal: 5
+      }
+    }
+
+    addPostInterventionNetUnitChanges(postIntervention, {
+      habitatsTotal: 10,
+      treesTotal: 2,
+      hedgerowsTotal: 4,
+      watercoursesTotal: 10
+    })
+
+    expect(postIntervention.units).toEqual(
+      expect.objectContaining({
+        habitatsNetUnitChange: 3,
+        habitatsNetUnitChangePercentage: 25,
+        hedgerowsNetUnitChange: 2,
+        hedgerowsNetUnitChangePercentage: 50,
+        watercoursesNetUnitChange: -5,
+        watercoursesNetUnitChangePercentage: -50
+      })
+    )
+  })
+
+  it('sets percentage change to null when the baseline total is zero', () => {
+    const postIntervention = {
+      units: {
+        habitatsTotal: 3,
+        hedgerowsTotal: 2,
+        watercoursesTotal: 1
+      }
+    }
+
+    addPostInterventionNetUnitChanges(postIntervention, {
+      habitatsTotal: 0,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0
+    })
+
+    expect(postIntervention.units).toEqual(
+      expect.objectContaining({
+        habitatsNetUnitChange: 3,
+        habitatsNetUnitChangePercentage: null,
+        hedgerowsNetUnitChange: 2,
+        hedgerowsNetUnitChangePercentage: null,
+        watercoursesNetUnitChange: 1,
+        watercoursesNetUnitChangePercentage: null
+      })
+    )
+  })
+
+  it('leaves units unchanged when no baseline units are available', () => {
+    const postIntervention = { units: { habitatsTotal: 3 } }
+    const originalUnits = postIntervention.units
+
+    addPostInterventionNetUnitChanges(postIntervention)
+
+    expect(postIntervention.units).toBe(originalUnits)
   })
 })

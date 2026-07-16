@@ -46,17 +46,23 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
  * @param {string} projectId
  * @returns {Promise<Map<string, number>>}
  */
-async function fetchBaselineLinearLengthByRef(drizzle, projectId) {
+async function fetchBaselineForPostIntervention(drizzle, projectId) {
   const [row] = await drizzle
     .select({ project: projects.project })
     .from(projects)
     .where(eq(projects.id, projectId))
     .limit(1)
-  const baseline = row?.project?.baseline
-  return buildBaselineLinearLengthByRef(
-    baseline?.hedgerows ?? [],
-    baseline?.watercourses ?? []
-  )
+  return row?.project?.baseline
+}
+
+function enrichOptionsForPostIntervention(baseline) {
+  return {
+    baselineLengthByRef: buildBaselineLinearLengthByRef(
+      baseline?.hedgerows ?? [],
+      baseline?.watercourses ?? []
+    ),
+    baselineUnits: baseline?.units
+  }
 }
 
 /**
@@ -127,11 +133,8 @@ export async function saveBaselineForProject(
 
   let enrichOptions = {}
   if (config.projectDocumentKey === 'postIntervention') {
-    const baselineLengthByRef = await fetchBaselineLinearLengthByRef(
-      drizzle,
-      projectId
-    )
-    enrichOptions = { baselineLengthByRef }
+    const baseline = await fetchBaselineForPostIntervention(drizzle, projectId)
+    enrichOptions = enrichOptionsForPostIntervention(baseline)
   }
   handlers.enrichDocument(document, logger, enrichOptions)
 

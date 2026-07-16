@@ -190,6 +190,32 @@ describe('#projectSchema', () => {
     expect(error).toBeDefined()
   })
 
+  test('Should allow post-intervention units with net unit change fields', () => {
+    const { error } = postInterventionDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      units: {
+        totalUnits: 12,
+        habitatsTotal: 8,
+        hedgerowsTotal: 3,
+        watercoursesTotal: 1,
+        treesTotal: 0,
+        treesUrbanTotal: 0,
+        treesRuralTotal: 0,
+        habitatsNetUnitChange: 2,
+        habitatsNetUnitChangePercentage: 33.33333333333333,
+        hedgerowsNetUnitChange: -1,
+        hedgerowsNetUnitChangePercentage: -25,
+        watercoursesNetUnitChange: 0,
+        watercoursesNetUnitChangePercentage: null
+      }
+    })
+
+    expect(error).toBeUndefined()
+  })
+
   test('Should reject baseline filename longer than 255 characters', () => {
     const { error } = projectSchema.validate({
       baseline: {

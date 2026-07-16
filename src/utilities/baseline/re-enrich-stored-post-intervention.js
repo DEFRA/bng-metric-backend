@@ -46,7 +46,8 @@ export async function reEnrichStoredPostInterventionIfPresent(
   )
 
   enrichPostInterventionDocumentWithUnits(postIntervention, logger, {
-    baselineLengthByRef
+    baselineLengthByRef,
+    baselineUnits: baseline?.units
   })
 
   await setProjectHabitatData(
