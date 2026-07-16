@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="27" author="bng-team">
+        <comment>
+            Create login_audit table: an append-only record of every successful
+            user login. One row is written by the application (POST
+            /auth/login-audit) per login, from the verified Defra ID token claims.
+            logged_in_at defaults to now() and is stored in UTC (timestamptz).
+        </comment>
+        <createTable schemaName="bng" tableName="login_audit">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="user_id" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="email" type="text"/>
+            <column name="first_name" type="text"/>
+            <column name="last_name" type="text"/>
+            <column name="current_relationship_id" type="text"/>
+            <column name="session_id" type="text"/>
+            <column name="logged_in_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="28" author="bng-team">
+        <comment>Index login_audit by user_id for efficient per-user login history lookups</comment>
+        <createIndex schemaName="bng" tableName="login_audit" indexName="idx_login_audit_user_id">
+            <column name="user_id"/>
+        </createIndex>
+    </changeSet>
+
+    <changeSet id="29" author="bng-team">
+        <comment>
+            Make bng.login_audit append-only. Rows are written once per login and
+            nothing ever legitimately updates or deletes a login-audit row. Guard
+            the table at the database level so no role can edit, delete or bulk-wipe
+            history: a BEFORE UPDATE OR DELETE row-level trigger and a BEFORE
+            TRUNCATE statement-level trigger both raise insufficient_privilege.
+            INSERT is left untouched, so logins keep being recorded. This holds for
+            every role — including the application role and the table owner —
+            regardless of how table privileges are granted; the only way past it is
+            to drop or disable the trigger, which is a deploy-time DDL action.
+            Mirrors the bng.audit_log guard in db.changelog-1.9.xml.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.reject_login_audit_mutation()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION
+                    'bng.login_audit is append-only; % is not permitted', TG_OP
+                    USING ERRCODE = 'insufficient_privilege';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER login_audit_reject_row_mutation
+                BEFORE UPDATE OR DELETE ON bng.login_audit
+                FOR EACH ROW
+                EXECUTE FUNCTION bng.reject_login_audit_mutation();
+
+            CREATE TRIGGER login_audit_reject_truncate
+                BEFORE TRUNCATE ON bng.login_audit
+                FOR EACH STATEMENT
+                EXECUTE FUNCTION bng.reject_login_audit_mutation();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS login_audit_reject_truncate ON bng.login_audit;
+            DROP TRIGGER IF EXISTS login_audit_reject_row_mutation ON bng.login_audit;
+            DROP FUNCTION IF EXISTS bng.reject_login_audit_mutation();
+        </rollback>
+    </changeSet>
+
+    <changeSet id="30" author="bng-team">
+        <comment>
+            Least-privilege backstop for the append-only guard: revoke the mutating
+            privileges on bng.login_audit from PUBLIC so no role inherits them by
+            default. Non-application ("read-only") roles must be granted SELECT
+            only; the application role needs SELECT, INSERT and never
+            UPDATE/DELETE/TRUNCATE. Per-role grants are provisioned by CDP
+            infrastructure outside this changelog (see docs/DATABASE.md — Audit Log
+            Immutability); this REVOKE ensures the default state is closed. Rollback
+            is intentionally empty: PUBLIC holds none of these privileges by
+            default, so there is nothing to restore.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            REVOKE UPDATE, DELETE, TRUNCATE ON bng.login_audit FROM PUBLIC;
+        </sql>
+        <rollback/>
+    </changeSet>
+
+</databaseChangeLog>

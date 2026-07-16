@@ -253,6 +253,26 @@ this is defence in depth rather than the sole control.
 > for that superuser connection only. Production application connections do not
 > have this privilege.
 
+### Login audit (`bng.login_audit`)
+
+`bng.login_audit` is a second append-only table: **one row per successful user
+login**. Unlike `bng.audit_log` (written by a trigger on `bng.projects`), it has
+no source table to hang a trigger on, so rows are appended by the **application**
+via `POST /auth/login-audit` through the single sanctioned path
+`src/db/persist-login-audit.js`. Each row captures the verified Defra ID token
+claims — `user_id` (`sub`), `email`, `first_name`, `last_name`,
+`current_relationship_id`, `session_id` — plus a server-set UTC `logged_in_at`
+(`timestamptz default now()`).
+
+The **same two-layer immutability guard** applies, added in
+`changelog/db.changelog-1.10.xml`: `BEFORE UPDATE OR DELETE` (row-level) and
+`BEFORE TRUNCATE` (statement-level) triggers call
+`bng.reject_login_audit_mutation()` (raising `insufficient_privilege`), and
+`UPDATE`, `DELETE`, `TRUNCATE` are revoked from `PUBLIC`. `INSERT` remains
+permitted. The same role model above applies (`SELECT, INSERT` for the
+application role, `SELECT` for reporting). Regression-tested by
+`integration-tests/login-audit-immutability.test.js`.
+
 ## Publishing Schema Changes to CDP
 
 Schema migrations are published to the CDP platform separately from the application build:

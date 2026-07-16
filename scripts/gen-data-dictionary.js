@@ -64,6 +64,8 @@ const TABLE_DESCRIPTIONS = {
     'One row per BNG project, holding the live project document plus its owner and version details.',
   'bng.audit_log':
     'A full snapshot of a project after every change, recording who made it and when, for audit history.',
+  'bng.login_audit':
+    'An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.',
   'bng.baseline_red_line':
     "The single red-line boundary outlining the overall extent of a project's development site.",
   'bng.baseline_habitats':
