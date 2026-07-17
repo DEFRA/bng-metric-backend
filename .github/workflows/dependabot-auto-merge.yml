@@ -29,19 +29,11 @@ jobs:
         # Only auto-merge patch and minor bumps; leave majors for a human to
         # review. For grouped updates the reported update-type is the highest
         # bump in the group, so a group containing a major is excluded here.
-        # Calls the enablePullRequestAutoMerge mutation directly rather than
-        # `gh pr merge --auto` so behaviour does not depend on how a given gh
-        # version interprets merge queues. No mergeMethod is passed: the merge
-        # queue owns the method, and passing one fails on a queued branch.
+        # No merge method is passed: main requires a merge queue, so gh arms
+        # auto-merge and the queue applies its own method (SQUASH). A method
+        # flag would be required here only on a branch without a queue.
         if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
-        run: |
-          gh api graphql \
-            -f query='mutation($prId: ID!) {
-              enablePullRequestAutoMerge(input: { pullRequestId: $prId }) {
-                pullRequest { autoMergeRequest { enabledAt } }
-              }
-            }' \
-            -f prId="$PR_NODE_ID"
+        run: gh pr merge --auto "$PR_URL"
         env:
-          PR_NODE_ID: ${{ github.event.pull_request.node_id }}
+          PR_URL: ${{ github.event.pull_request.html_url }}
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
