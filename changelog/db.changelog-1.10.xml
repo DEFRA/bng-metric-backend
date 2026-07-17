@@ -95,4 +95,24 @@
         <rollback/>
     </changeSet>
 
+    <changeSet id="31" author="bng-team">
+        <comment>
+            Enforce one login_audit row per session with a unique constraint on
+            session_id. The login is recorded as part of the POST /auth/session
+            workflow, which appends with ON CONFLICT DO NOTHING — so a repeat
+            /auth/session call for an already-recorded session is a graceful
+            no-op, not an error, and the table records distinct logins rather
+            than endpoint calls. NULL session_ids are distinct under standard
+            Postgres semantics, so a login whose token carries no session id is
+            always recorded (it cannot be de-duplicated). ON CONFLICT DO NOTHING
+            (never DO UPDATE) keeps this compatible with the append-only guard,
+            which rejects UPDATE. Liquibase auto-generates the drop rollback.
+        </comment>
+        <addUniqueConstraint
+            schemaName="bng"
+            tableName="login_audit"
+            columnNames="session_id"
+            constraintName="uq_login_audit_session_id"/>
+    </changeSet>
+
 </databaseChangeLog>

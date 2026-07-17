@@ -6,7 +6,6 @@ import { truncateTestData } from './helpers/db-cleanup.js'
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_NO_CONTENT = 204
-const HTTP_UNAUTHORIZED = 401
 
 let server
 let dbClient
@@ -26,34 +25,37 @@ afterAll(async () => {
   await stopServer(server)
 })
 
-async function postLoginAudit(token) {
+// The login is recorded as a side effect of the POST /auth/session workflow —
+// there is no dedicated audit endpoint. Identity comes solely from the verified
+// token, and the append is de-duplicated on session_id.
+async function postSession(token) {
   return server.inject({
     method: 'POST',
-    url: '/auth/login-audit',
+    url: '/auth/session',
     headers: authHeaders(token)
   })
 }
 
 function loginRows(sub) {
   return dbClient.query(
-    'SELECT * FROM bng.login_audit WHERE user_id = $1 ORDER BY logged_in_at',
+    'SELECT * FROM bng.login_audit WHERE user_id = $1 ORDER BY session_id',
     [sub]
   )
 }
 
-describe('POST /auth/login-audit', () => {
+describe('login audit via POST /auth/session', () => {
   it('appends one immutable login-audit row from the verified token claims', async () => {
     const sub = `it-${randomUUID()}`
-    const claims = {
-      sub,
-      email: 'ada@example.test',
-      firstName: 'Ada',
-      lastName: 'Lovelace',
-      currentRelationshipId: 'rel-1',
-      sessionId: 'sess-abc'
-    }
-
-    const res = await postLoginAudit(await mintToken(claims))
+    const res = await postSession(
+      await mintToken({
+        sub,
+        email: 'ada@example.test',
+        firstName: 'Ada',
+        lastName: 'Lovelace',
+        currentRelationshipId: 'rel-1',
+        sessionId: 'sess-abc'
+      })
+    )
     expect(res.statusCode).toBe(HTTP_NO_CONTENT)
 
     const { rows } = await loginRows(sub)
@@ -70,23 +72,38 @@ describe('POST /auth/login-audit', () => {
     expect(rows[0].logged_in_at).toBeInstanceOf(Date)
   })
 
-  it('appends a new row on each login (append-only, never upserted)', async () => {
+  it('is a graceful no-op for a repeat login with the same session id (no duplicate, still 204)', async () => {
     const sub = `it-${randomUUID()}`
-    const claims = { sub, email: 'grace@example.test', sessionId: 'sess-1' }
+    const claims = { sub, email: 'grace@example.test', sessionId: 'sess-dup' }
 
-    await postLoginAudit(await mintToken(claims))
-    await postLoginAudit(await mintToken({ ...claims, sessionId: 'sess-2' }))
+    const first = await postSession(await mintToken(claims))
+    const second = await postSession(await mintToken(claims))
+
+    expect(first.statusCode).toBe(HTTP_NO_CONTENT)
+    // A repeat call for an already-recorded session is not an error.
+    expect(second.statusCode).toBe(HTTP_NO_CONTENT)
 
     const { rows } = await loginRows(sub)
-    expect(rows).toHaveLength(2)
-    expect(rows.map((r) => r.session_id).sort()).toEqual(['sess-1', 'sess-2'])
+    expect(rows).toHaveLength(1)
+    expect(rows[0].session_id).toBe('sess-dup')
   })
 
-  it('returns 401 without a bearer token and records nothing', async () => {
-    const res = await server.inject({
-      method: 'POST',
-      url: '/auth/login-audit'
-    })
-    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  it('records a new row for each distinct session of the same user', async () => {
+    const sub = `it-${randomUUID()}`
+    await postSession(await mintToken({ sub, sessionId: 'sess-1' }))
+    await postSession(await mintToken({ sub, sessionId: 'sess-2' }))
+
+    const { rows } = await loginRows(sub)
+    expect(rows.map((r) => r.session_id)).toEqual(['sess-1', 'sess-2'])
+  })
+
+  it('still records a login when the token carries no session id (null session_id)', async () => {
+    const sub = `it-${randomUUID()}`
+    const res = await postSession(await mintToken({ sub, email: 'x@y.test' }))
+    expect(res.statusCode).toBe(HTTP_NO_CONTENT)
+
+    const { rows } = await loginRows(sub)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].session_id).toBeNull()
   })
 })

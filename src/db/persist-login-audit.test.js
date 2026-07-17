@@ -3,15 +3,18 @@ import { describe, test, expect, vi } from 'vitest'
 import { insertLoginAudit } from './persist-login-audit.js'
 import { loginAudit } from './schema/index.js'
 
-function makeDrizzle() {
-  const values = vi.fn().mockResolvedValue(undefined)
+// Records the insert(table).values(v).onConflictDoNothing(cfg) chain so we can
+// assert the values and the session_id de-dup target without a real database.
+function makeDb() {
+  const onConflictDoNothing = vi.fn().mockResolvedValue(undefined)
+  const values = vi.fn().mockReturnValue({ onConflictDoNothing })
   const insert = vi.fn().mockReturnValue({ values })
-  return { drizzle: { insert }, insert, values }
+  return { db: { insert }, insert, values, onConflictDoNothing }
 }
 
 describe('insertLoginAudit', () => {
-  test('appends one row to loginAudit from the primary claim names', async () => {
-    const { drizzle, insert, values } = makeDrizzle()
+  test('appends to loginAudit from the primary claim names, de-duped on session_id', async () => {
+    const { db, insert, values, onConflictDoNothing } = makeDb()
     const claims = {
       sub: 'user-1',
       email: 'user@bng.test',
@@ -21,7 +24,7 @@ describe('insertLoginAudit', () => {
       sessionId: 'sess-1'
     }
 
-    await insertLoginAudit(drizzle, claims)
+    await insertLoginAudit(db, claims)
 
     expect(insert).toHaveBeenCalledWith(loginAudit)
     expect(values).toHaveBeenCalledWith({
@@ -32,10 +35,15 @@ describe('insertLoginAudit', () => {
       currentRelationshipId: 'rel-1',
       sessionId: 'sess-1'
     })
+    // Repeat logins for the same session are a graceful no-op, never a DO UPDATE
+    // (which the append-only guard would reject).
+    expect(onConflictDoNothing).toHaveBeenCalledWith({
+      target: loginAudit.sessionId
+    })
   })
 
   test('falls back to given_name / family_name / sid', async () => {
-    const { drizzle, values } = makeDrizzle()
+    const { db, values } = makeDb()
     const claims = {
       sub: 'user-2',
       given_name: 'Grace',
@@ -43,7 +51,7 @@ describe('insertLoginAudit', () => {
       sid: 'sess-2'
     }
 
-    await insertLoginAudit(drizzle, claims)
+    await insertLoginAudit(db, claims)
 
     expect(values).toHaveBeenCalledWith({
       userId: 'user-2',
@@ -56,9 +64,9 @@ describe('insertLoginAudit', () => {
   })
 
   test('nulls every optional field when only sub is present', async () => {
-    const { drizzle, values } = makeDrizzle()
+    const { db, values } = makeDb()
 
-    await insertLoginAudit(drizzle, { sub: 'user-3' })
+    await insertLoginAudit(db, { sub: 'user-3' })
 
     expect(values).toHaveBeenCalledWith({
       userId: 'user-3',

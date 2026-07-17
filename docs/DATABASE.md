@@ -257,12 +257,23 @@ this is defence in depth rather than the sole control.
 
 `bng.login_audit` is a second append-only table: **one row per successful user
 login**. Unlike `bng.audit_log` (written by a trigger on `bng.projects`), it has
-no source table to hang a trigger on, so rows are appended by the **application**
-via `POST /auth/login-audit` through the single sanctioned path
-`src/db/persist-login-audit.js`. Each row captures the verified Defra ID token
-claims — `user_id` (`sub`), `email`, `first_name`, `last_name`,
-`current_relationship_id`, `session_id` — plus a server-set UTC `logged_in_at`
-(`timestamptz default now()`).
+no source table to hang a trigger on, so the row is appended by the
+**application** as part of the existing `POST /auth/session` login workflow —
+`src/db/persist-session.js` calls the single sanctioned path
+`src/db/persist-login-audit.js` inside the same transaction as the user upsert.
+Each row captures the verified Defra ID token claims — `user_id` (`sub`),
+`email`, `first_name`, `last_name`, `current_relationship_id`, `session_id` —
+plus a server-set UTC `logged_in_at` (`timestamptz default now()`).
+
+**De-duplication (records logins, not endpoint calls).** `session_id` carries a
+`UNIQUE` constraint (`uq_login_audit_session_id`, changeset 31) and the insert
+uses `ON CONFLICT DO NOTHING`, so a repeat `/auth/session` for an
+already-recorded session is a graceful no-op — `/auth/session` still returns
+`204`, but no duplicate audit row is written. This stops any authenticated client
+from spamming arbitrary or duplicate login events. `DO NOTHING` (never
+`DO UPDATE`) is required: the append-only guard rejects `UPDATE`. `NULL`
+`session_id`s are distinct under standard Postgres semantics, so a login whose
+token carries no session id is always recorded (it cannot be de-duplicated).
 
 The **same two-layer immutability guard** applies, added in
 `changelog/db.changelog-1.10.xml`: `BEFORE UPDATE OR DELETE` (row-level) and
@@ -271,7 +282,9 @@ The **same two-layer immutability guard** applies, added in
 `UPDATE`, `DELETE`, `TRUNCATE` are revoked from `PUBLIC`. `INSERT` remains
 permitted. The same role model above applies (`SELECT, INSERT` for the
 application role, `SELECT` for reporting). Regression-tested by
-`integration-tests/login-audit-immutability.test.js`.
+`integration-tests/login-audit-immutability.test.js` (immutability) and
+`integration-tests/auth-login-audit.test.js` (append + de-dup via
+`/auth/session`).
 
 ## Publishing Schema Changes to CDP
 

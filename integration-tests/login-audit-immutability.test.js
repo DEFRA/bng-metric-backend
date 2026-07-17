@@ -23,8 +23,9 @@ const BLOCKED_MUTATIONS = [
 ]
 
 // bng.login_audit is an append-only audit trail: the application appends one row
-// per successful login (POST /auth/login-audit) and nothing may ever edit,
-// delete or wipe those rows. The guard triggers enforce that at the database
+// per successful login (as part of the POST /auth/session workflow) and nothing
+// may ever edit, delete or wipe those rows. The guard triggers enforce that at
+// the database
 // level for every role — including this connection, which authenticates as the
 // same role the application uses locally. This file proves the immutability side:
 // INSERT (append) is permitted, every other mutation is rejected.

@@ -1,19 +1,23 @@
 // The single sanctioned path for writing the bng.users / bng.relationships /
-// bng.roles tables. Called from POST /auth/session with the VERIFIED token
-// payload (never the frontend's parsed claims).
+// bng.roles tables, and for appending the append-only bng.login_audit row.
+// Called from POST /auth/session with the VERIFIED token payload (never the
+// frontend's parsed claims).
 //
 // Everything happens in one transaction so a login can never leave a user with
 // half their relationships/roles applied. Every row is UPSERTed — we never
 // delete — so a relationship/role removed at the IdP arrives as a status update
 // (6/7) on the next login rather than vanishing. `sql\`excluded.<col>\`` is used
 // in every `set` (not the JS value) so concurrent logins for the same user
-// converge on the row the database actually wrote.
+// converge on the row the database actually wrote. The login_audit append is
+// de-duplicated on session_id (ON CONFLICT DO NOTHING), so a repeat login for
+// the same session records nothing new but still refreshes the user row.
 //
 // PII safety: this module must NOT log `claims` or any token contents (email,
 // names). Callers log at most the `sub`.
 import { sql } from 'drizzle-orm'
 
 import { users, relationships, roles } from './schema/index.js'
+import { insertLoginAudit } from './persist-login-audit.js'
 import { parseRelationships, parseRoles } from '../services/defra-id/claims.js'
 
 function userValues(claims) {
@@ -92,9 +96,10 @@ async function upsertRoles(tx, userId, userRoles) {
 }
 
 /**
- * Persist the logged-in user's identity, org relationships and roles in one
- * atomic transaction. Idempotent: a repeat login upserts in place (no dupes,
- * status / last_login refreshed).
+ * Persist the logged-in user's identity, org relationships and roles, and append
+ * an immutable login-audit row, in one atomic transaction. Idempotent: a repeat
+ * login upserts the user in place (no dupes, status / last_login refreshed) and
+ * appends at most one login_audit row per session (de-duplicated on session_id).
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
  * @param {object} claims verified Defra ID token payload (must carry `sub`)
@@ -107,6 +112,7 @@ async function persistSession(drizzle, claims) {
     await upsertUser(tx, claims)
     await upsertRelationships(tx, claims.sub, rels)
     await upsertRoles(tx, claims.sub, userRoles)
+    await insertLoginAudit(tx, claims)
   })
 }
 

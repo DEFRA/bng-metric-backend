@@ -2,7 +2,6 @@
   "GET /health",
   "GET /db-info",
   "POST /auth/session",
-  "POST /auth/login-audit",
   "GET /projects",
   "GET /projects/{id}",
   "GET /projects/{projectId}/features/{featureId}",

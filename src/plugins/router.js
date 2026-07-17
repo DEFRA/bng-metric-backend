@@ -3,7 +3,7 @@ import inert from '@hapi/inert'
 import { config } from '../config.js'
 import { health } from '../routes/health.js'
 import { dbInfo } from '../routes/db-info.js'
-import { postAuthSession, postAuthLoginAudit } from '../routes/auth.js'
+import { postAuthSession } from '../routes/auth.js'
 import {
   getProjects,
   getProject,
@@ -49,7 +49,6 @@ const router = {
       server.route([
         health,
         postAuthSession,
-        postAuthLoginAudit,
         getProjects,
         getProject,
         getHabitat,

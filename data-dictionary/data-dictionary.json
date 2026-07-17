@@ -333,7 +333,7 @@
           "type": "text",
           "nullable": true,
           "primaryKey": false,
-          "unique": false,
+          "unique": true,
           "default": null,
           "references": null
         },
