@@ -75,6 +75,21 @@ The mapped line of each baseline watercourse imported from the uploaded GeoPacka
 | `ref`        | `text`                             | ✓        | —                  | —                   |
 | `geom`       | `geometry(MultiLineString, 27700)` | —        | —                  | —                   |
 
+### `bng.login_audit`
+
+An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.
+
+| Column                    | Type                       | Nullable | Key    | Default             |
+| ------------------------- | -------------------------- | -------- | ------ | ------------------- |
+| `id`                      | `uuid`                     | —        | PK     | `gen_random_uuid()` |
+| `user_id`                 | `text`                     | —        | —      | —                   |
+| `email`                   | `text`                     | ✓        | —      | —                   |
+| `first_name`              | `text`                     | ✓        | —      | —                   |
+| `last_name`               | `text`                     | ✓        | —      | —                   |
+| `current_relationship_id` | `text`                     | ✓        | —      | —                   |
+| `session_id`              | `text`                     | ✓        | UNIQUE | —                   |
+| `logged_in_at`            | `timestamp with time zone` | —        | —      | `now()`             |
+
 ### `bng.post_intervention_habitats`
 
 The mapped outline of each post-intervention (proposed) area-habitat parcel imported from the uploaded GeoPackage.

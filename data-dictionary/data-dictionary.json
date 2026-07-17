@@ -271,6 +271,84 @@
       ]
     },
     {
+      "name": "bng.login_audit",
+      "description": "An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "email",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "first_name",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "last_name",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "current_relationship_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "session_id",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": true,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "logged_in_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
+    },
+    {
       "name": "bng.post_intervention_habitats",
       "description": "The mapped outline of each post-intervention (proposed) area-habitat parcel imported from the uploaded GeoPackage.",
       "columns": [

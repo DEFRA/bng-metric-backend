@@ -1,15 +1,20 @@
 import { describe, test, expect, vi } from 'vitest'
 
 import { persistSession } from './persist-session.js'
-import { users, relationships, roles } from './schema/index.js'
+import { users, relationships, roles, loginAudit } from './schema/index.js'
 
-// Records every insert(table).values(v).onConflictDoUpdate(cfg) chain issued
-// inside the transaction so we can assert the upserts without a real database.
+// Records every insert(table).values(v).onConflict*(cfg) chain issued inside the
+// transaction so we can assert the upserts (onConflictDoUpdate) and the
+// append-only login_audit insert (onConflictDoNothing) without a real database.
 function makeTx() {
   const calls = []
   const insert = vi.fn((table) => ({
     values: vi.fn((values) => ({
       onConflictDoUpdate: vi.fn((conflict) => {
+        calls.push({ table, values, conflict })
+        return Promise.resolve()
+      }),
+      onConflictDoNothing: vi.fn((conflict) => {
         calls.push({ table, values, conflict })
         return Promise.resolve()
       })
@@ -129,5 +134,27 @@ describe('persistSession', () => {
     expect(callsFor(tx, users)).toHaveLength(1)
     expect(callsFor(tx, relationships)).toHaveLength(0)
     expect(callsFor(tx, roles)).toHaveLength(0)
+  })
+
+  test('appends one login_audit row in the same transaction, de-duped on session_id', async () => {
+    const tx = makeTx()
+    await persistSession(makeDrizzle(tx), {
+      sub: SUB,
+      email: 'a@b.test',
+      currentRelationshipId: 'rel-1',
+      sessionId: 'sess-1'
+    })
+
+    const [auditCall] = callsFor(tx, loginAudit)
+    expect(callsFor(tx, loginAudit)).toHaveLength(1)
+    expect(auditCall.values).toMatchObject({
+      userId: SUB,
+      email: 'a@b.test',
+      currentRelationshipId: 'rel-1',
+      sessionId: 'sess-1'
+    })
+    // De-dup on session_id via DO NOTHING (never DO UPDATE — the append-only
+    // guard rejects UPDATE).
+    expect(auditCall.conflict).toEqual({ target: loginAudit.sessionId })
   })
 })

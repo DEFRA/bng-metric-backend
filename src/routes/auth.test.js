@@ -25,6 +25,7 @@ describe('POST /auth/session', () => {
     const result = await postAuthSession.handler(request, { response })
 
     // Identity comes from the verified token (credentials), never the payload.
+    // persistSession also appends the login_audit row inside its transaction.
     expect(persistSession).toHaveBeenCalledWith(drizzle, credentials)
     expect(response).toHaveBeenCalledWith()
     expect(code).toHaveBeenCalledWith(HTTP_STATUS.NO_CONTENT)
