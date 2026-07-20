@@ -10,7 +10,7 @@ export {
   resolveRetentionCategory,
   isLegacyLostLinear,
   deriveRetentionCategory,
-  isLostLinearRetention,
+  isLostRetentionCategory,
   RETENTION_CATEGORY_VALUES,
   RETENTION_RETAINED,
   RETENTION_CREATED,

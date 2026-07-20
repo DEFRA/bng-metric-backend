@@ -11,7 +11,7 @@ export const RETENTION_CATEGORY_VALUES = Object.freeze([
   RETENTION_ENHANCED
 ])
 
-/** Raw GPKG value before mapping area/tree Lost to Created. */
+/** Raw GPKG value before mapping area-habitat Lost to Created. */
 export const GPKG_RETENTION_LOST = 'Lost'
 
 /**
@@ -92,8 +92,9 @@ export function normaliseRetentionCategory(value) {
 
 /**
  * Map a raw GeoPackage Retention Category to one of the three persisted
- * retention categories. Area habitats and trees with GPKG Lost are treated as
- * Created (replacement habitat). Linear Lost is excluded at extract time.
+ * retention categories. Area habitats with GPKG Lost are treated as Created
+ * (replacement habitat). Hedgerows, watercourses, and trees with Lost are
+ * excluded at extract time and never reach this mapping.
  *
  * @param {unknown} rawRetentionCategory
  * @returns {'Retained' | 'Created' | 'Enhanced' | null}
@@ -119,10 +120,13 @@ export function deriveRetentionCategory(rawRetentionCategory) {
 }
 
 /**
+ * True when the raw GPKG Retention Category is Lost (including "N. Lost").
+ * Used to exclude hedgerows, watercourses, and trees at extract/sizing time.
+ *
  * @param {unknown} rawRetentionCategory
  * @returns {boolean}
  */
-export function isLostLinearRetention(rawRetentionCategory) {
+export function isLostRetentionCategory(rawRetentionCategory) {
   return (
     normaliseRetentionCategory(rawRetentionCategory) === GPKG_RETENTION_LOST
   )
@@ -157,5 +161,5 @@ export function isLegacyLostLinear(feature) {
   if (feature?.retentionCategory) {
     return false
   }
-  return isLostLinearRetention(feature?.baseline?.retentionCategory)
+  return isLostRetentionCategory(feature?.baseline?.retentionCategory)
 }

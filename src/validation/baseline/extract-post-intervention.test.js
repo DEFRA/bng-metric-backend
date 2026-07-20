@@ -57,6 +57,27 @@ describe('extractPostIntervention — top-level shape', () => {
     expect(out.document.fileSize).toBe(UPLOADED_FILE_SIZE)
     expect(out.document.importedAt).toBe('2026-05-10T12:00:00.000Z')
   })
+
+  it('extracts the first redline feature into document and geometries', () => {
+    const out = extractPostIntervention({
+      redline: [feature({ 'Parcel Ref': 'RL1', fid: 1 })],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.redLine).toEqual(
+      expect.objectContaining({
+        properties: expect.objectContaining({ fid: 1 })
+      })
+    )
+    expect(out.geometries.redLine).toEqual(
+      expect.objectContaining({
+        geometry: expect.any(Object),
+        srid: expect.any(Number)
+      })
+    )
+  })
 })
 
 describe('extractPostIntervention — habitat nested structure', () => {
@@ -195,6 +216,155 @@ describe('extractPostIntervention — habitat nested structure', () => {
     })
 
     expect(out.document.habitats[0].properties).toEqual(row)
+  })
+})
+
+describe('extractPostIntervention — Retained empty proposed copy', () => {
+  it('copies baseline identity onto empty proposed for Retained habitats', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'H1',
+          'Retention Category': 'Retained',
+          'Baseline Habitat Type': 'Developed land; sealed surface',
+          'Baseline Broad Habitat Type': 'Urban',
+          'Baseline Condition': '6. N/A - Other',
+          'Baseline Strategic Significance': 'Low significance',
+          'Proposed Habitat Type': 'N/A',
+          'Proposed Broad Habitat Type': 'N/A',
+          'Proposed Condition': 'N/A',
+          'Proposed Strategic Significance': 'N/A'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const hab = out.document.habitats[0]
+    expect(hab.retentionCategory).toBe('Retained')
+    expect(hab.proposed).toEqual(
+      expect.objectContaining({
+        type: 'Developed land; sealed surface',
+        broadType: 'Urban',
+        condition: 'N/A - Other',
+        strategicSignificance: 'Low significance'
+      })
+    )
+    expect(hab.status).toBe('Complete')
+  })
+
+  it('does not overwrite a non-empty proposed side on Retained habitats', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'H1',
+          'Retention Category': 'Retained',
+          'Baseline Habitat Type': 'Modified grassland',
+          'Baseline Broad Habitat Type': 'Grassland',
+          'Baseline Condition': '3. Moderate',
+          'Proposed Habitat Type': 'Other woodland; broadleaved',
+          'Proposed Broad Habitat Type': 'Woodland and forest',
+          'Proposed Condition': '2. Poor'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const hab = out.document.habitats[0]
+    expect(hab.proposed.type).toBe('Other woodland; broadleaved')
+    expect(hab.proposed.broadType).toBe('Woodland and forest')
+    expect(hab.proposed.condition).toBe('Poor')
+  })
+
+  it('does not copy baseline onto empty proposed when not Retained', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'H1',
+          'Retention Category': 'Enhanced',
+          'Baseline Habitat Type': 'Modified grassland',
+          'Baseline Broad Habitat Type': 'Grassland',
+          'Baseline Condition': '3. Moderate',
+          'Proposed Habitat Type': 'N/A',
+          'Proposed Broad Habitat Type': 'N/A',
+          'Proposed Condition': 'N/A'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const hab = out.document.habitats[0]
+    expect(hab.proposed.type).toBe('N/A')
+    expect(hab.proposed.condition).toBe('N/A')
+    expect(hab.status).toBe('Incomplete')
+  })
+
+  it('copies baseline identity onto empty proposed for Retained hedgerows', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'HW1',
+            'Retention Category': 'Retained',
+            'Baseline Hedge Type': 'Native hedgerow',
+            'Baseline Condition': '2. Moderate',
+            'Proposed Hedge Type': 'N/A',
+            'Proposed Condition': 'N/A'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: []
+    })
+
+    const hedge = out.document.hedgerows[0]
+    expect(hedge.proposed.type).toBe('Native hedgerow')
+    expect(hedge.proposed.condition).toBe('Moderate')
+    expect(hedge.status).toBe('Complete')
+  })
+
+  it('copies baseline identity onto empty proposed for Retained watercourses', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'WC1',
+            'Retention Category': 'Retained',
+            'Baseline River Type': 'Other rivers and streams',
+            'Baseline Condition': '2. Moderate',
+            'Baseline Encroachment into riparian zone':
+              'No Encroachment/No Encroachment',
+            'Baseline Encroachment into Watercourse': 'No Encroachment',
+            'Proposed River Type': 'N/A',
+            'Proposed Condition': 'N/A',
+            'Proposed Encroachment into riparian zone': 'N/A',
+            'Proposed Encroachment into Watercourse': 'N/A'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    const wc = out.document.watercourses[0]
+    expect(wc.proposed).toEqual(
+      expect.objectContaining({
+        type: 'Other rivers and streams',
+        condition: 'Moderate',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        watercourseEncroachment: 'No Encroachment'
+      })
+    )
+    expect(wc.status).toBe('Complete')
   })
 })
 
@@ -564,6 +734,82 @@ describe('extractPostIntervention — individual tree nested structure', () => {
     expect(tree.count).toBe(1)
     expect(tree).not.toHaveProperty('type')
     expect(tree).not.toHaveProperty('treeSize')
+  })
+
+  it('excludes Lost trees from the document and geometries', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T-lost',
+          'Retention Category': 'Lost',
+          'Baseline Tree Size': 'Small',
+          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Condition': '2. Moderate',
+          'Proposed Tree Size': 'N/A',
+          'Proposed Rural or Urban Tree': 'N/A',
+          'Proposed Condition': 'N/A',
+          Count: 1
+        }),
+        treeFeature({
+          'Tree Ref': 'T-kept',
+          'Retention Category': 'Retained',
+          'Baseline Tree Size': 'Small',
+          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Condition': '2. Moderate',
+          'Proposed Tree Size': 'Medium',
+          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Condition': '2. Moderate',
+          Count: 1
+        })
+      ]
+    })
+
+    expect(out.document.trees).toHaveLength(1)
+    expect(out.document.trees[0].ref).toBe('T-kept')
+    expect(out.geometries.trees).toHaveLength(1)
+    expect(out.geometries.trees[0].ref).toBe('T-kept')
+  })
+
+  it('copies baseline onto empty proposed for Retained trees and syncs top-level area', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Retention Category': 'Retained',
+          'Baseline Tree Size': 'Small',
+          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Condition': '2. Moderate',
+          'Proposed Tree Size': 'N/A',
+          'Proposed Rural or Urban Tree': 'N/A',
+          'Proposed Condition': 'N/A',
+          Count: 1
+        })
+      ]
+    })
+
+    const tree = out.document.trees[0]
+    expect(tree.proposed).toEqual(
+      expect.objectContaining({
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        condition: 'Moderate',
+        treeSize: 'Small',
+        ruralOrUrban: 'Urban',
+        sizeSquareMetres: SMALL_TREE_SQM,
+        area: SMALL_TREE_SQM
+      })
+    )
+    expect(tree.area).toBe(SMALL_TREE_SQM)
+    expect(tree.sizeSquareMetres).toBe(SMALL_TREE_SQM)
+    expect(tree.status).toBe('Complete')
   })
 
   it('is Complete when the proposed side has broad type, type and condition', () => {

@@ -58,7 +58,7 @@ vi.mock('../validation/baseline/extract-habitat-data.js', () => ({
 
 vi.mock('../validation/baseline/extract-post-intervention.js', () => ({
   extractPostIntervention: vi.fn(),
-  filterLostLinearPostInterventionLayers: vi.fn((layers) => layers)
+  filterLostPostInterventionLayers: vi.fn((layers) => layers)
 }))
 
 vi.mock('../utilities/baseline/enrich-post-intervention-units.js', () => ({

@@ -8,7 +8,7 @@ import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baselin
 import { extractHabitatData } from '../../validation/baseline/extract-habitat-data.js'
 import {
   extractPostIntervention,
-  filterLostLinearPostInterventionLayers
+  filterLostPostInterventionLayers
 } from '../../validation/baseline/extract-post-intervention.js'
 import { ERROR_CODES, makeError } from '../../validation/baseline/errors.js'
 import {
@@ -104,7 +104,7 @@ export async function saveBaselineForProject(
   const layersWithIds = assignFeatureIds(layers)
   const layersForSizing =
     config.projectDocumentKey === 'postIntervention'
-      ? filterLostLinearPostInterventionLayers(layersWithIds)
+      ? filterLostPostInterventionLayers(layersWithIds)
       : layersWithIds
 
   let habitatSizes
