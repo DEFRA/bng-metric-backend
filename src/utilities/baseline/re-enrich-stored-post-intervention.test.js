@@ -87,4 +87,39 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
     expect(enrichPostInterventionDocumentWithUnits).not.toHaveBeenCalled()
     expect(setProjectHabitatData).not.toHaveBeenCalled()
   })
+
+  it('re-enriches and persists a post-intervention document containing only trees', async () => {
+    const baselineUnits = { habitatsTotal: 2, treesTotal: 2 }
+    const postIntervention = {
+      habitats: [],
+      trees: [{ ref: 'T1', status: 'Incomplete' }],
+      hedgerows: [],
+      watercourses: []
+    }
+    const drizzle = {
+      select: vi.fn(() =>
+        makeSelectChain({
+          project: {
+            baseline: { units: baselineUnits },
+            postIntervention
+          }
+        })
+      )
+    }
+    const logger = { warn: vi.fn() }
+
+    await reEnrichStoredPostInterventionIfPresent(drizzle, 'project-id', logger)
+
+    expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledWith(
+      postIntervention,
+      logger,
+      expect.objectContaining({ baselineUnits })
+    )
+    expect(setProjectHabitatData).toHaveBeenCalledWith(
+      drizzle,
+      'project-id',
+      postIntervention,
+      'postIntervention'
+    )
+  })
 })
