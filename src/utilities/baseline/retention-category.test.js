@@ -3,7 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   deriveRetentionCategory,
   isLegacyLostLinear,
-  isLostLinearRetention,
+  isLostRetentionCategory,
   normaliseRetentionCategory,
   resolveRetentionCategory
 } from './retention-category.js'
@@ -13,13 +13,17 @@ describe('retention-category', () => {
     expect(normaliseRetentionCategory('1. Created')).toBe('Created')
   })
 
+  it('leaves digit-only strings unchanged when there is no list prefix', () => {
+    expect(normaliseRetentionCategory('123')).toBe('123')
+  })
+
   it('maps Retained, Created, and Enhanced verbatim', () => {
     expect(deriveRetentionCategory('Retained')).toBe('Retained')
     expect(deriveRetentionCategory('Created')).toBe('Created')
     expect(deriveRetentionCategory('Enhanced')).toBe('Enhanced')
   })
 
-  it('maps GPKG Lost to Created for area habitats and trees', () => {
+  it('maps GPKG Lost to Created for area habitats', () => {
     expect(deriveRetentionCategory('Lost')).toBe('Created')
     expect(deriveRetentionCategory('4. Lost')).toBe('Created')
   })
@@ -29,9 +33,9 @@ describe('retention-category', () => {
     expect(deriveRetentionCategory('Partial')).toBeNull()
   })
 
-  it('detects Lost linear retention for extract filtering', () => {
-    expect(isLostLinearRetention('Lost')).toBe(true)
-    expect(isLostLinearRetention('Created')).toBe(false)
+  it('detects Lost retention for extract filtering of linears and trees', () => {
+    expect(isLostRetentionCategory('Lost')).toBe(true)
+    expect(isLostRetentionCategory('Created')).toBe(false)
   })
 
   it('prefers top-level retentionCategory when resolving for enrichment', () => {
