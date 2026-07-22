@@ -61,9 +61,10 @@ const watercourseTradingRulesByDistinctiveness = Object.fromEntries(
   ])
 )
 
-// Distinctiveness bands in the MVS scope — the dropdowns for the area habitats,
-// hedgerow and watercourse journeys filter to these bands. High and V.High are
-// excluded because none of the journeys let the user pick them.
+// Distinctiveness bands in scope for the BNG Beta service — only V.Low, Low and
+// Medium habitats are supported (see distinctiveness-check.js, which rejects
+// anything higher at upload). The area, hedgerow and watercourse dropdowns all
+// filter to these bands so High and V.High habitats are never offered.
 const MVS_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
 // Split a habitat type key like 'Grassland - Lowland meadows' or
@@ -255,9 +256,10 @@ function getConditionsForHedgerowType(
 }
 
 // Watercourse reference data comes from the bundled engine. Like the area and
-// hedgerow journeys, the watercourse details page filters to the MVS bands:
-// High and V.High are dropped from the habitat type dropdown because the
-// journey does not let the user pick them.
+// hedgerow journeys, the watercourse details page filters to the in-scope bands:
+// High (Other rivers and streams) and V.High (Priority habitat) are dropped from
+// the habitat type dropdown because they are out of scope for the BNG Beta
+// service and are already rejected at upload.
 
 /**
  * Watercourse habitat types in the MVS scope (V.Low / Low / Medium), sorted
