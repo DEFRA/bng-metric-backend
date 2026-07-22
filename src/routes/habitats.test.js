@@ -187,7 +187,7 @@ describe('updateAreaHabitat handler — happy path', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: 'Good'
         }
       },
@@ -197,13 +197,13 @@ describe('updateAreaHabitat handler — happy path', () => {
     expect(result).toMatchObject({
       featureId: HABITAT_1_ID,
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: 'Good',
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
       conditionScore: 3,
-      // 1 ha × 8 × 3 = 24
-      units: 24,
+      // 1 ha × 4 × 3 = 12
+      units: 12,
       status: 'Complete'
     })
 
@@ -217,7 +217,7 @@ describe('updateAreaHabitat handler — happy path', () => {
         documentKey: 'baseline',
         layer: 'habitats',
         index: 0,
-        feature: expect.objectContaining({ featureId: HABITAT_1_ID, units: 24 })
+        feature: expect.objectContaining({ featureId: HABITAT_1_ID, units: 12 })
       })
     )
   })
@@ -233,7 +233,7 @@ describe('updateAreaHabitat handler — happy path', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: null
         }
       },
@@ -242,10 +242,10 @@ describe('updateAreaHabitat handler — happy path', () => {
 
     expect(result).toMatchObject({
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: null,
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
       conditionScore: null,
       units: 0,
       status: 'Incomplete'
@@ -317,15 +317,15 @@ describe('updateAreaHabitat handler — happy path', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: 'Good'
         }
       },
       {}
     )
 
-    // Edited habitat: 1 ha × V.High (8) × Good (3) = 24, so habitatsTotal
-    // should be 24 + 2 (the unchanged Cereal crops row) = 26. These refreshed
+    // Edited habitat: 1 ha × Medium (4) × Good (3) = 12, so habitatsTotal
+    // should be 12 + 2 (the unchanged Cereal crops row) = 14. These refreshed
     // totals are written surgically alongside the feature.
     expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
@@ -333,8 +333,8 @@ describe('updateAreaHabitat handler — happy path', () => {
       expect.objectContaining({
         documentKey: 'baseline',
         unitsTotals: {
-          totalUnits: 26,
-          habitatsTotal: 26,
+          totalUnits: 14,
+          habitatsTotal: 14,
           hedgerowsTotal: 0,
           watercoursesTotal: 0,
           treesTotal: 0,
@@ -356,7 +356,7 @@ describe('updateAreaHabitat handler — happy path', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: 'Good'
         }
       },
@@ -457,6 +457,33 @@ describe('updateAreaHabitat handler error cases', () => {
         {}
       )
     ).rejects.toThrow(/Habitat .* not found/)
+  })
+
+  test('throws 422 when the submitted habitat type is out of scope (High/V.High)', async () => {
+    const drizzle = makeDrizzle(makeProjectRow(defaultHabitats()))
+
+    await expect(
+      updateAreaHabitat.handler(
+        {
+          drizzle,
+          auth: AUTH,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+          payload: {
+            broadType: 'Grassland',
+            habitatType: 'Lowland meadows',
+            condition: 'Good'
+          }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: {
+        statusCode: 422,
+        payload: { code: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE' }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
   test('throws 404 when the featureId belongs to a hedgerow (legacy area URL only serves habitats)', async () => {

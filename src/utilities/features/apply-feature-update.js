@@ -20,6 +20,7 @@ import {
   recomputeHedgerow,
   recomputeWatercourse
 } from '../../validation/baseline/unit-calculation.js'
+import { OUT_OF_SCOPE_BANDS } from '../../validation/baseline/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
 
 import {
@@ -38,7 +39,8 @@ const APPLY_RESULT = Object.freeze({
   OK: 'ok',
   FEATURE_NOT_FOUND: 'featureNotFound',
   FEATURE_WRONG_TYPE: 'featureWrongType',
-  UNSUPPORTED_TYPE: 'unsupportedType'
+  UNSUPPORTED_TYPE: 'unsupportedType',
+  OUT_OF_SCOPE: 'outOfScope'
 })
 
 function blankToNull(value) {
@@ -198,6 +200,7 @@ function spliceFeatureInFeatureSet(
  * @param {string} [params.expectedType]
  * @returns {
  *   { status: 'ok', type: string, project: object, feature: object } |
+ *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */
@@ -220,6 +223,21 @@ function applyFeatureUpdate(
       documentKey
     )
     if (derived) {
+      // The dropdowns never offer High/V.High, but a crafted or stale PUT can
+      // still submit a habitat type whose true distinctiveness is out of scope.
+      // Reject it here — the shared chokepoint for every edit route and both
+      // documents — so an out-of-scope band can never be persisted, mirroring
+      // the upload gate (distinctiveness-check.js).
+      if (
+        derived.distinctiveness &&
+        OUT_OF_SCOPE_BANDS.has(derived.distinctiveness)
+      ) {
+        return {
+          status: APPLY_RESULT.OUT_OF_SCOPE,
+          type: found.type,
+          distinctiveness: derived.distinctiveness
+        }
+      }
       const updatedFeature =
         documentKey === 'postIntervention' &&
         found.type === 'habitat' &&

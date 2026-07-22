@@ -47,7 +47,7 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -57,12 +57,12 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
     expect(result.feature).toMatchObject({
       featureId: HABITAT_ID,
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: 'Good',
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
       conditionScore: 3,
-      units: 24,
+      units: 12,
       status: 'Complete'
     })
     // The canonical key is `units` — guard against the BMD-480 regression
@@ -79,13 +79,13 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
     expect(result.project.baseline.units).toEqual({
-      totalUnits: 24,
-      habitatsTotal: 24,
+      totalUnits: 12,
+      habitatsTotal: 12,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -99,7 +99,7 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -114,7 +114,7 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -157,7 +157,7 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -249,7 +249,7 @@ describe('applyFeatureUpdate — error outcomes', () => {
       featureId: HABITAT_ID,
       edits: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       },
       expectedType: 'habitat'
@@ -300,7 +300,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     const result = applyFeatureUpdate(watercourseProjectFixture(), {
       featureId: WATERCOURSE_ID,
       edits: {
-        habitatType: 'Other rivers and streams',
+        habitatType: 'Ditches',
         condition: 'Moderate',
         watercourseEncroachment: 'Minor',
         riparianEncroachment: 'Minor/Minor'
@@ -309,25 +309,25 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.type).toBe('watercourse')
     expect(result.layer).toBe('watercourses')
-    // High (6) × Moderate (2) × 1 km × 0.8 × 0.95 = 9.12
+    // Medium (4) × Moderate (2) × 1 km × 0.8 × 0.95 = 6.08
     expect(result.feature).toMatchObject({
-      type: 'Other rivers and streams',
+      type: 'Ditches',
       condition: 'Moderate',
       watercourseEncroachment: 'Minor',
       riparianEncroachment: 'Minor/Minor',
-      distinctiveness: 'High',
-      distinctivenessScore: 6,
-      units: 9.12,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
+      units: 6.08,
       status: 'Complete'
     })
-    expect(result.unitsTotals.watercoursesTotal).toBe(9.12)
+    expect(result.unitsTotals.watercoursesTotal).toBe(6.08)
   })
 
   test('saves zero units and Incomplete when an encroachment is unselected (Scenario B)', () => {
     const result = applyFeatureUpdate(watercourseProjectFixture(), {
       featureId: WATERCOURSE_ID,
       edits: {
-        habitatType: 'Other rivers and streams',
+        habitatType: 'Ditches',
         condition: 'Moderate',
         watercourseEncroachment: 'Minor',
         riparianEncroachment: ''
@@ -335,11 +335,11 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     })
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.feature).toMatchObject({
-      type: 'Other rivers and streams',
+      type: 'Ditches',
       condition: 'Moderate',
       watercourseEncroachment: 'Minor',
       riparianEncroachment: null,
-      distinctiveness: 'High',
+      distinctiveness: 'Medium',
       units: 0,
       status: 'Incomplete'
     })
@@ -353,7 +353,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     const result = applyFeatureUpdate(project, {
       featureId: WATERCOURSE_ID,
       edits: {
-        habitatType: 'Other rivers and streams',
+        habitatType: 'Ditches',
         condition: 'Moderate',
         watercourseEncroachment: 'Minor',
         riparianEncroachment: 'Minor/Minor'
@@ -364,7 +364,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     // with its distinctiveness resolved.
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.feature).toMatchObject({
-      distinctiveness: 'High',
+      distinctiveness: 'Medium',
       units: 0,
       status: 'Incomplete'
     })
@@ -388,6 +388,71 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
       units: 1.36,
       status: 'Complete'
     })
+  })
+})
+
+describe('applyFeatureUpdate — out-of-scope distinctiveness', () => {
+  function watercourseProjectFixture() {
+    const project = projectFixture()
+    project.baseline.watercourses = [
+      {
+        featureId: WATERCOURSE_ID,
+        ref: 'W1',
+        type: null,
+        condition: null,
+        watercourseEncroachment: null,
+        riparianEncroachment: null,
+        sizeMetres: 1000
+      }
+    ]
+    return project
+  }
+
+  test('rejects a V.High area habitat and persists nothing', () => {
+    const project = projectFixture()
+    const before = JSON.stringify(project)
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+    expect(result.status).toBe(APPLY_RESULT.OUT_OF_SCOPE)
+    expect(result.type).toBe('habitat')
+    expect(result.distinctiveness).toBe('V.High')
+    expect(result.feature).toBeUndefined()
+    // Nothing is written back to the project.
+    expect(JSON.stringify(project)).toBe(before)
+  })
+
+  test('rejects a High hedgerow', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HEDGEROW_ID,
+      edits: {
+        habitatType: 'Species-rich native hedgerow with trees',
+        condition: 'Good'
+      }
+    })
+    expect(result.status).toBe(APPLY_RESULT.OUT_OF_SCOPE)
+    expect(result.type).toBe('hedgerow')
+    expect(result.distinctiveness).toBe('High')
+  })
+
+  test('rejects a High watercourse', () => {
+    const result = applyFeatureUpdate(watercourseProjectFixture(), {
+      featureId: WATERCOURSE_ID,
+      edits: {
+        habitatType: 'Other rivers and streams',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Minor',
+        riparianEncroachment: 'Minor/Minor'
+      }
+    })
+    expect(result.status).toBe(APPLY_RESULT.OUT_OF_SCOPE)
+    expect(result.type).toBe('watercourse')
+    expect(result.distinctiveness).toBe('High')
   })
 })
 
