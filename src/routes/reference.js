@@ -133,9 +133,9 @@ import {
  *     summary: Watercourse habitat types available in the watercourse journey
  *     description: |
  *       Returns the engine's watercourse habitat types sorted alphabetically,
- *       each with its distinctiveness band + score. All four bands the engine
- *       emits (V.High / High / Medium / Low) are included — filtering would
- *       hide saved Priority habitat (V.High) rows.
+ *       each with its distinctiveness band + score. Filtered to the MVS bands
+ *       (Low / Medium); High and V.High are excluded because the watercourse
+ *       journey does not let the user pick them.
  *     responses:
  *       200:
  *         description: Alphabetical list of watercourse habitat types

@@ -132,15 +132,15 @@ describe('getWatercourseHabitatTypes (fixture-injected)', () => {
     const categories = {
       Zebra: 'Low',
       Apple: 'Medium',
-      Mango: 'High'
+      Mango: 'Low'
     }
     const names = getWatercourseHabitatTypes(categories).map((r) => r.name)
     expect(names).toEqual(['Apple', 'Mango', 'Zebra'])
   })
 
-  test('keeps every distinctiveness band the engine emits', () => {
-    // Watercourse types are not filtered to MVS bands — V.High Priority habitat
-    // must remain visible so saved rows are not hidden in the dropdown.
+  test('drops bands outside the MVS scope (High and V.High)', () => {
+    // The watercourse dropdown filters to the MVS bands, so V.High Priority
+    // habitat and High Other rivers and streams are excluded.
     const categories = {
       VeryHigh: 'V.High',
       High: 'High',
@@ -149,16 +149,16 @@ describe('getWatercourseHabitatTypes (fixture-injected)', () => {
     }
     const result = getWatercourseHabitatTypes(categories)
     expect(result.map((r) => r.distinctiveness).sort()).toEqual(
-      ['High', 'Low', 'Medium', 'V.High'].sort()
+      ['Low', 'Medium'].sort()
     )
   })
 
   test('attaches the watercourse-table score for each band', () => {
-    const result = getWatercourseHabitatTypes({ Priority: 'V.High' })
+    const result = getWatercourseHabitatTypes({ Ditches: 'Medium' })
     expect(result[0]).toMatchObject({
-      name: 'Priority',
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8
+      name: 'Ditches',
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4
     })
   })
 
@@ -166,9 +166,12 @@ describe('getWatercourseHabitatTypes (fixture-injected)', () => {
     const result = getWatercourseHabitatTypes()
     const names = result.map((r) => r.name)
     expect(names).toEqual([...names].sort((a, b) => a.localeCompare(b)))
-    expect(names).toContain('Priority habitat')
-    expect(names).toContain('Other rivers and streams')
     expect(names).toContain('Culvert')
+    expect(names).toContain('Ditches')
+    expect(names).toContain('Canals')
+    // High and V.High bands are excluded from the dropdown.
+    expect(names).not.toContain('Priority habitat')
+    expect(names).not.toContain('Other rivers and streams')
   })
 })
 

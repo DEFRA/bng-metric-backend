@@ -264,11 +264,11 @@ describe('#getWatercourseTypes', () => {
     expect(result.length).toBeGreaterThan(0)
     const names = result.map((r) => r.name)
     expect([...names].sort((a, b) => a.localeCompare(b))).toEqual(names)
-    expect(names).toContain('Priority habitat')
+    // High and V.High are filtered out of the watercourse dropdown.
+    expect(names).toContain('Ditches')
+    expect(names).not.toContain('Priority habitat')
     for (const entry of result) {
-      expect(['V.High', 'High', 'Medium', 'Low']).toContain(
-        entry.distinctiveness
-      )
+      expect(['Medium', 'Low']).toContain(entry.distinctiveness)
       expect(typeof entry.distinctivenessScore).toBe('number')
     }
   })
