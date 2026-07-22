@@ -33,6 +33,7 @@ export async function reEnrichStoredPostInterventionIfPresent(
 
   const hasFeatures =
     (postIntervention.habitats?.length ?? 0) > 0 ||
+    (postIntervention.trees?.length ?? 0) > 0 ||
     (postIntervention.hedgerows?.length ?? 0) > 0 ||
     (postIntervention.watercourses?.length ?? 0) > 0
   if (!hasFeatures) {
