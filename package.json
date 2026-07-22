@@ -83,7 +83,7 @@
   "devDependencies": {
     "@types/node": "26.1.1",
     "@vitest/coverage-v8": "4.1.10",
-    "autoprefixer": "10.5.2",
+    "autoprefixer": "10.5.3",
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
     "husky": "9.1.7",
