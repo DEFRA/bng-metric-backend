@@ -72,7 +72,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       url: `/projects/${projectId}/habitats/${habitat.featureId}`,
       payload: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -81,13 +81,13 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     expect(res.result).toMatchObject({
       featureId: habitat.featureId,
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: 'Good',
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
       conditionScore: 3,
-      // 1 ha × 8 × 3 = 24
-      units: 24,
+      // 1 ha × 4 × 3 = 12
+      units: 12,
       status: 'Complete'
     })
 
@@ -97,9 +97,9 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     )
     expect(rows[0].project.baseline.habitats[0]).toMatchObject({
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: 'Good',
-      units: 24,
+      units: 12,
       status: 'Complete'
     })
   })
@@ -114,7 +114,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       url: `/projects/${projectId}/habitats/${habitat.featureId}`,
       payload: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: null
       }
     })

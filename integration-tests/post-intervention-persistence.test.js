@@ -102,7 +102,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
       headers,
       payload: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -112,7 +112,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
         featureId: habitat.featureId,
         proposed: expect.objectContaining({
           broadType: 'Grassland',
-          type: 'Lowland meadows',
+          type: 'Other neutral grassland',
           condition: 'Good'
         }),
         status: 'Complete'

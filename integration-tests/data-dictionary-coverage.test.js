@@ -122,7 +122,7 @@ describe('data dictionary coverage — persisted JSONB matches the schema', () =
       headers,
       payload: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })

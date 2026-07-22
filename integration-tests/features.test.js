@@ -177,7 +177,7 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       url: `/projects/${projectId}/features/${habitat.featureId}`,
       payload: {
         broadType: 'Grassland',
-        habitatType: 'Lowland meadows',
+        habitatType: 'Other neutral grassland',
         condition: 'Good'
       }
     })
@@ -188,13 +188,13 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       feature: {
         featureId: habitat.featureId,
         broadType: 'Grassland',
-        type: 'Lowland meadows',
+        type: 'Other neutral grassland',
         condition: 'Good',
-        distinctiveness: 'V.High',
-        distinctivenessScore: 8,
+        distinctiveness: 'Medium',
+        distinctivenessScore: 4,
         conditionScore: 3,
-        // 1 ha × 8 × 3 × 1 = 24
-        units: 24,
+        // 1 ha × 4 × 3 × 1 = 12
+        units: 12,
         status: 'Complete'
       }
     })
@@ -204,15 +204,15 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       [projectId]
     )
     expect(rows[0].project.baseline.habitats[0]).toMatchObject({
-      units: 24,
+      units: 12,
       status: 'Complete'
     })
     // Round-trip totals refresh — this is the BMD-480 regression check.
     // The legacy area route shipped without it; the shared helper fixes it
     // for both PUT routes at once.
     expect(rows[0].project.baseline.units).toEqual({
-      totalUnits: 24,
-      habitatsTotal: 24,
+      totalUnits: 12,
+      habitatsTotal: 12,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
