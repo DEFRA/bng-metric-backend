@@ -9,6 +9,7 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
+import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
@@ -61,6 +62,8 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
  *         description: Returns the updated habitat document
  *       404:
  *         description: Project or habitat not found
+ *       422:
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -111,6 +114,8 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
  *         description: Returns the updated habitat document
  *       404:
  *         description: Project or habitat not found
+ *       422:
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -201,6 +206,9 @@ async function runUpdate(
     throw Boom.notFound(
       `Habitat ${featureId} not found in project ${projectId}`
     )
+  }
+  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
+    throw outOfScopeDistinctivenessError(result.distinctiveness)
   }
 
   await setProjectFeature(tx, projectId, {

@@ -128,7 +128,10 @@ describe('GET /reference/watercourse-types', () => {
       url: '/reference/watercourse-types'
     })
     expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.map((t) => t.name)).toContain('Priority habitat')
+    const names = res.result.map((t) => t.name)
+    // High and V.High are filtered out of the watercourse dropdown.
+    expect(names).toContain('Ditches')
+    expect(names).not.toContain('Priority habitat')
     res.result.forEach((entry) => {
       expect(entry).toHaveProperty('name')
       expect(entry).toHaveProperty('distinctiveness')

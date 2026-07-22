@@ -260,7 +260,7 @@ describe('updateFeature handler - area habitat dispatch', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: 'Good'
         }
       },
@@ -270,12 +270,12 @@ describe('updateFeature handler - area habitat dispatch', () => {
     expect(result.feature).toMatchObject({
       featureId: HABITAT_ID,
       broadType: 'Grassland',
-      type: 'Lowland meadows',
+      type: 'Other neutral grassland',
       condition: 'Good',
-      distinctiveness: 'V.High',
-      distinctivenessScore: 8,
+      distinctiveness: 'Medium',
+      distinctivenessScore: 4,
       conditionScore: 3,
-      units: 24,
+      units: 12,
       status: 'Complete'
     })
   })
@@ -291,7 +291,7 @@ describe('updateFeature handler - area habitat dispatch', () => {
         params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
         payload: {
           broadType: 'Grassland',
-          habitatType: 'Lowland meadows',
+          habitatType: 'Other neutral grassland',
           condition: 'Good'
         }
       },
@@ -305,9 +305,9 @@ describe('updateFeature handler - area habitat dispatch', () => {
         documentKey: 'baseline',
         layer: 'habitats',
         unitsTotals: expect.objectContaining({
-          habitatsTotal: 24,
+          habitatsTotal: 12,
           hedgerowsTotal: 0,
-          totalUnits: 24
+          totalUnits: 12
         })
       })
     )
@@ -412,7 +412,7 @@ describe('updateFeature handler - error cases', () => {
         auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
         payload: {
-          habitatType: 'Other rivers and streams',
+          habitatType: 'Ditches',
           condition: 'Moderate',
           watercourseEncroachment: 'Minor',
           riparianEncroachment: 'Minor/Minor'
@@ -422,23 +422,23 @@ describe('updateFeature handler - error cases', () => {
     )
 
     expect(result.type).toBe('watercourse')
-    // High (6) × Moderate (2) × 1 km × 0.8 × 0.95 = 9.12
+    // Medium (4) × Moderate (2) × 1 km × 0.8 × 0.95 = 6.08
     expect(result.feature).toMatchObject({
       featureId: WATERCOURSE_ID,
-      type: 'Other rivers and streams',
+      type: 'Ditches',
       condition: 'Moderate',
       watercourseEncroachment: 'Minor',
       riparianEncroachment: 'Minor/Minor',
-      distinctiveness: 'High',
+      distinctiveness: 'Medium',
       status: 'Complete',
-      units: 9.12
+      units: 6.08
     })
     expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
         layer: 'watercourses',
-        unitsTotals: expect.objectContaining({ watercoursesTotal: 9.12 })
+        unitsTotals: expect.objectContaining({ watercoursesTotal: 6.08 })
       })
     )
   })
@@ -451,7 +451,7 @@ describe('updateFeature handler - error cases', () => {
         auth: AUTH,
         params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
         payload: {
-          habitatType: 'Other rivers and streams',
+          habitatType: 'Ditches',
           condition: 'Moderate',
           watercourseEncroachment: '',
           riparianEncroachment: ''
@@ -461,10 +461,37 @@ describe('updateFeature handler - error cases', () => {
     )
 
     expect(result.feature).toMatchObject({
-      type: 'Other rivers and streams',
+      type: 'Ditches',
       status: 'Incomplete',
       units: 0
     })
+  })
+
+  test('rejects an out-of-scope (High/V.High) habitat type with 422', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    await expect(
+      updateFeature.handler(
+        {
+          drizzle,
+          auth: AUTH,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+          payload: {
+            broadType: 'Grassland',
+            habitatType: 'Lowland meadows',
+            condition: 'Good'
+          }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: {
+        statusCode: 422,
+        payload: { code: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE' }
+      }
+    })
+    // Nothing is persisted when the edit is rejected.
+    expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {

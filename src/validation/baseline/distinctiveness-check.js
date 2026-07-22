@@ -13,10 +13,11 @@ import {
   getWatercourseDistinctiveness
 } from './reference/habitat-distinctiveness.js'
 
-// BMD-352 / MVS scope: only Medium, Low and Very Low distinctiveness habitats
-// are accepted. High and Very High are rejected with one aggregate error
-// listing every offending parcel.
-const OUT_OF_SCOPE_BANDS = new Set(['High', 'V.High'])
+// MVS scope: only Medium, Low and Very Low distinctiveness habitats are
+// accepted. High and Very High are rejected with one aggregate error listing
+// every offending parcel. Exported so the feature-edit write path enforces the
+// same invariant instead of re-declaring the band set.
+export const OUT_OF_SCOPE_BANDS = new Set(['High', 'V.High'])
 
 const SAMPLE_CAP = 50
 

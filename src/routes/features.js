@@ -10,6 +10,7 @@ import {
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
 import { findFeature } from '../utilities/features/find-feature.js'
+import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
@@ -165,6 +166,8 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *         description: Feature type is not editable via this endpoint (e.g. an individual tree)
  *       404:
  *         description: Project or feature not found
+ *       422:
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -226,6 +229,9 @@ async function runFeatureUpdate(tx, { projectId, featureId, edits, sub }) {
     throw Boom.badRequest(
       `Feature type ${result.type} is not editable via this endpoint`
     )
+  }
+  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
+    throw outOfScopeDistinctivenessError(result.distinctiveness)
   }
 
   await setProjectFeature(tx, projectId, {

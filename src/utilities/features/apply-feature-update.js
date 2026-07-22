@@ -20,6 +20,7 @@ import {
   recomputeHedgerow,
   recomputeWatercourse
 } from '../../validation/baseline/unit-calculation.js'
+import { OUT_OF_SCOPE_BANDS } from '../../validation/baseline/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
 
 import {
@@ -38,7 +39,8 @@ const APPLY_RESULT = Object.freeze({
   OK: 'ok',
   FEATURE_NOT_FOUND: 'featureNotFound',
   FEATURE_WRONG_TYPE: 'featureWrongType',
-  UNSUPPORTED_TYPE: 'unsupportedType'
+  UNSUPPORTED_TYPE: 'unsupportedType',
+  OUT_OF_SCOPE: 'outOfScope'
 })
 
 function blankToNull(value) {
@@ -198,9 +200,21 @@ function spliceFeatureInFeatureSet(
  * @param {string} [params.expectedType]
  * @returns {
  *   { status: 'ok', type: string, project: object, feature: object } |
+ *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */
+function resolveUpdatedFeature(found, edits, derived, documentKey) {
+  const recomputedWholeFeature =
+    documentKey === 'postIntervention' &&
+    found.type === 'habitat' &&
+    derived.updatedFeature
+  if (recomputedWholeFeature) {
+    return derived.updatedFeature
+  }
+  return mergeFeature(found.type, found.feature, edits, derived, documentKey)
+}
+
 function applyFeatureUpdate(
   project,
   { featureId, edits, expectedType, documentKey = 'baseline' }
@@ -210,60 +224,68 @@ function applyFeatureUpdate(
   const found = findFeature(featureSet, featureId)
   if (!found) {
     return { status: APPLY_RESULT.FEATURE_NOT_FOUND }
-  } else if (expectedType && found.type !== expectedType) {
+  }
+  if (expectedType && found.type !== expectedType) {
     return { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
-  } else {
-    const derived = recomputeForType(
-      found.type,
-      found.feature,
-      normalizedEdits,
-      documentKey
-    )
-    if (derived) {
-      const updatedFeature =
-        documentKey === 'postIntervention' &&
-        found.type === 'habitat' &&
-        derived.updatedFeature
-          ? derived.updatedFeature
-          : mergeFeature(
-              found.type,
-              found.feature,
-              normalizedEdits,
-              derived,
-              documentKey
-            )
-      const index = featureSet[found.key].findIndex(
-        (f) => f?.featureId === featureId
-      )
-      const updatedFeatureSet = spliceFeatureInFeatureSet(
-        featureSet,
-        found.key,
-        index,
-        updatedFeature
-      )
-      summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-      if (documentKey === 'postIntervention') {
-        addPostInterventionNetUnitChanges(
-          updatedFeatureSet,
-          project?.baseline?.units
-        )
-      }
-      // `layer` / `index` / `unitsTotals` let callers persist surgically via
-      // persist-project.js (jsonb_set the one feature + the totals) rather than
-      // rewriting the whole document. `project` is retained for callers/tests that
-      // want the fully-rebuilt document.
-      return {
-        status: APPLY_RESULT.OK,
-        type: found.type,
-        layer: found.key,
-        index,
-        feature: updatedFeature,
-        unitsTotals: updatedFeatureSet.units,
-        project: { ...project, [documentKey]: updatedFeatureSet }
-      }
-    } else {
-      return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+  }
+  const derived = recomputeForType(
+    found.type,
+    found.feature,
+    normalizedEdits,
+    documentKey
+  )
+  if (!derived) {
+    return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+  }
+  // The dropdowns never offer High/V.High, but a crafted or stale PUT can
+  // still submit a habitat type whose true distinctiveness is out of scope.
+  // Reject it here — the shared chokepoint for every edit route and both
+  // documents — so an out-of-scope band can never be persisted, mirroring
+  // the upload gate (distinctiveness-check.js).
+  if (
+    derived.distinctiveness &&
+    OUT_OF_SCOPE_BANDS.has(derived.distinctiveness)
+  ) {
+    return {
+      status: APPLY_RESULT.OUT_OF_SCOPE,
+      type: found.type,
+      distinctiveness: derived.distinctiveness
     }
+  }
+  const updatedFeature = resolveUpdatedFeature(
+    found,
+    normalizedEdits,
+    derived,
+    documentKey
+  )
+  const index = featureSet[found.key].findIndex(
+    (f) => f?.featureId === featureId
+  )
+  const updatedFeatureSet = spliceFeatureInFeatureSet(
+    featureSet,
+    found.key,
+    index,
+    updatedFeature
+  )
+  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
+  if (documentKey === 'postIntervention') {
+    addPostInterventionNetUnitChanges(
+      updatedFeatureSet,
+      project?.baseline?.units
+    )
+  }
+  // `layer` / `index` / `unitsTotals` let callers persist surgically via
+  // persist-project.js (jsonb_set the one feature + the totals) rather than
+  // rewriting the whole document. `project` is retained for callers/tests that
+  // want the fully-rebuilt document.
+  return {
+    status: APPLY_RESULT.OK,
+    type: found.type,
+    layer: found.key,
+    index,
+    feature: updatedFeature,
+    unitsTotals: updatedFeatureSet.units,
+    project: { ...project, [documentKey]: updatedFeatureSet }
   }
 }
 

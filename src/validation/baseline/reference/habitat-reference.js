@@ -61,10 +61,10 @@ const watercourseTradingRulesByDistinctiveness = Object.fromEntries(
   ])
 )
 
-// Distinctiveness bands in the MVS scope — the dropdowns for both the area
-// habitats journey and the hedgerow journey (BMD-500 AC6b) filter to these
-// bands. High and V.High are excluded because neither journey lets the user
-// pick them.
+// Distinctiveness bands in scope for the BNG Beta service — only V.Low, Low and
+// Medium habitats are supported (see distinctiveness-check.js, which rejects
+// anything higher at upload). The area, hedgerow and watercourse dropdowns all
+// filter to these bands so High and V.High habitats are never offered.
 const MVS_BANDS = new Set(['V.Low', 'Low', 'Medium'])
 
 // Split a habitat type key like 'Grassland - Lowland meadows' or
@@ -255,15 +255,16 @@ function getConditionsForHedgerowType(
   return conditionsFromScoreTable(habitatType, scoresLookup)
 }
 
-// Watercourse reference data comes from the bundled engine. Unlike hedgerow,
-// every band the engine emits (V.High / High / Medium / Low) is in scope for
-// the watercourse details page — filtering to MVS bands would hide saved
-// Priority habitat (V.High) rows that users have already uploaded.
+// Watercourse reference data comes from the bundled engine. Like the area and
+// hedgerow journeys, the watercourse details page filters to the in-scope bands:
+// High (Other rivers and streams) and V.High (Priority habitat) are dropped from
+// the habitat type dropdown because they are out of scope for the BNG Beta
+// service and are already rejected at upload.
 
 /**
- * Watercourse habitat types in the order required by the BMD-502 details page,
- * each annotated with its distinctiveness band + score. Sorted alphabetically
- * by name.
+ * Watercourse habitat types in the MVS scope (V.Low / Low / Medium), sorted
+ * alphabetically by name. Each entry carries its distinctiveness band + score
+ * so the client can derive distinctiveness text without a round trip.
  *
  * The `categories` parameter is exposed for tests so the filter/sort logic can
  * be exercised independently of the engine's data choices.
@@ -276,6 +277,9 @@ function getWatercourseHabitatTypes(
 ) {
   const types = []
   for (const [name, distinctiveness] of Object.entries(categories)) {
+    if (!MVS_BANDS.has(distinctiveness)) {
+      continue
+    }
     types.push({
       name,
       distinctiveness,
