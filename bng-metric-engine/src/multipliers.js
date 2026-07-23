@@ -275,17 +275,28 @@ function resolveDifficultyDesc(
     validatedAdvanceYears,
     validatedDelayYears
   )
+  return lookupHabitatDifficultyLabel(habitat, difficultyChangeType)
+}
+
+/**
+ * Difficulty band label from habitat-area-difficulty.json.
+ *
+ * @param {string} habitat
+ * @param {string} creationOrEnhancement
+ * @returns {string}
+ */
+function lookupHabitatDifficultyLabel(habitat, creationOrEnhancement) {
   const difficultyRow = HABITAT_DIFFICULTY[habitat]
-  if (!difficultyRow || typeof difficultyRow !== 'object') {
-    throw new Error(`No difficulty reference data for habitat: ${habitat}`)
-  }
-  const difficultyDesc = difficultyRow[difficultyChangeType]
-  if (!difficultyDesc) {
+  if (difficultyRow && typeof difficultyRow === 'object') {
+    const difficultyDesc = difficultyRow[creationOrEnhancement]
+    if (difficultyDesc) {
+      return difficultyDesc
+    }
     throw new Error(
-      `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${difficultyChangeType}`
+      `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}`
     )
   }
-  return difficultyDesc
+  throw new Error(`No difficulty reference data for habitat: ${habitat}`)
 }
 
 /**
@@ -386,5 +397,6 @@ export {
   getConditionMultiplier,
   getTimeToTargetValue,
   getTimeMultiplier,
-  getDifficultyMultiplier
+  getDifficultyMultiplier,
+  lookupHabitatDifficultyLabel
 }

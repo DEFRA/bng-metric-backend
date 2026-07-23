@@ -23,32 +23,35 @@ describe('resolveAdvanceOrDelay', () => {
 })
 
 describe('resolveFinalTimeToTargetCondition', () => {
-  it('applies advance and delay to the standard years', () => {
+  it('combines standard years and time multiplier', () => {
     expect(
       resolveFinalTimeToTargetCondition({
         standardTimeToTargetCondition: '10',
-        advanceYears: 2,
-        delayYears: 1,
-        difficultyMultiplier: 0.67
+        timeMultiplier: 0.67
       })
-    ).toBe('9 years - 0.67')
+    ).toBe('10 years (0.67)')
   })
 
-  it('returns null when standard years or difficulty multiplier is missing', () => {
+  it('accepts numeric standard years', () => {
+    expect(
+      resolveFinalTimeToTargetCondition({
+        standardTimeToTargetCondition: 10,
+        timeMultiplier: 1
+      })
+    ).toBe('10 years (1)')
+  })
+
+  it('returns null when standard years or time multiplier is missing', () => {
     expect(
       resolveFinalTimeToTargetCondition({
         standardTimeToTargetCondition: null,
-        advanceYears: 0,
-        delayYears: 0,
-        difficultyMultiplier: 1
+        timeMultiplier: 1
       })
     ).toBeNull()
     expect(
       resolveFinalTimeToTargetCondition({
         standardTimeToTargetCondition: '10',
-        advanceYears: 0,
-        delayYears: 0,
-        difficultyMultiplier: null
+        timeMultiplier: null
       })
     ).toBeNull()
   })
@@ -60,11 +63,11 @@ describe('applyProposedTimeDifficultyDisplayFields', () => {
       advanceYears: 3,
       delayYears: 0,
       standardTimeToTargetCondition: '10',
-      difficultyMultiplier: 1
+      timeMultiplier: 1
     }
     applyProposedTimeDifficultyDisplayFields(proposed)
     expect(proposed.advanceOrDelay).toBe('Advance - 3 years')
-    expect(proposed.finalTimeToTargetCondition).toBe('7 years - 1')
+    expect(proposed.finalTimeToTargetCondition).toBe('10 years (1)')
   })
 
   it('writes only advanceOrDelay when final-time inputs are incomplete', () => {

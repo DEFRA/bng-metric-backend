@@ -108,7 +108,7 @@ function proposedCommonFields() {
     finalTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Final time-to-target display combining statutory years, advance/delay and difficulty multiplier.'
+        'Final time-to-target display combining statutory years and time multiplier (e.g. "10 years (0.7)").'
       )
   }
 }

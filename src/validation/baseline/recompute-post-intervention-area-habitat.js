@@ -2,6 +2,31 @@ import { enrichPostInterventionAreaHabitat } from '../../utilities/baseline/enri
 import { NO_OP_LOGGER } from '../../utilities/baseline/enrich-units-shared.js'
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
 
+const PROPOSED_RECOMPUTE_KEYS = Object.freeze([
+  'distinctiveness',
+  'distinctivenessScore',
+  'conditionScore',
+  'timeMultiplier',
+  'difficultyMultiplier',
+  'standardTimeToTargetCondition',
+  'difficulty',
+  'advanceOrDelay',
+  'finalTimeToTargetCondition'
+])
+
+/**
+ * @param {object} proposed
+ * @returns {Record<string, unknown>}
+ */
+function pickProposedRecomputeFields(proposed) {
+  /** @type {Record<string, unknown>} */
+  const fields = {}
+  for (const key of PROPOSED_RECOMPUTE_KEYS) {
+    fields[key] = proposed[key] ?? null
+  }
+  return fields
+}
+
 /**
  * Recompute post-intervention area-habitat units after a dropdown edit, using
  * the same retention-category dispatch as upload enrichment.
@@ -37,17 +62,7 @@ export function recomputePostInterventionAreaHabitat(existing, edits) {
   enrichPostInterventionAreaHabitat(feature, NO_OP_LOGGER)
 
   return {
-    distinctiveness: feature.proposed.distinctiveness ?? null,
-    distinctivenessScore: feature.proposed.distinctivenessScore ?? null,
-    conditionScore: feature.proposed.conditionScore ?? null,
-    timeMultiplier: feature.proposed.timeMultiplier ?? null,
-    difficultyMultiplier: feature.proposed.difficultyMultiplier ?? null,
-    standardTimeToTargetCondition:
-      feature.proposed.standardTimeToTargetCondition ?? null,
-    difficulty: feature.proposed.difficulty ?? null,
-    advanceOrDelay: feature.proposed.advanceOrDelay ?? null,
-    finalTimeToTargetCondition:
-      feature.proposed.finalTimeToTargetCondition ?? null,
+    ...pickProposedRecomputeFields(feature.proposed),
     units: feature.units ?? null,
     status: feature.status,
     updatedFeature: feature

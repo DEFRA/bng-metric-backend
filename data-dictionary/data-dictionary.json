@@ -3203,7 +3203,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
     },
     {
       "path": "postIntervention.habitats[].proposed.strategicSignificance",
@@ -3709,7 +3709,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
     },
     {
       "path": "postIntervention.trees[].properties",
@@ -4039,7 +4039,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
     },
     {
       "path": "postIntervention.hedgerows[].properties",
@@ -4424,7 +4424,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
     },
     {
       "path": "postIntervention.watercourses[].proposed.riparianEncroachment",

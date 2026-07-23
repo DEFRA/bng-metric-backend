@@ -16,20 +16,15 @@ function finiteYearsOrZero(value) {
 }
 
 /**
- * Parse statutory standard time-to-target text (e.g. "10") to a number of years.
- *
  * @param {unknown} value
- * @returns {number | null}
+ * @returns {string | null}
  */
-function parseStandardYears(value) {
+function formatStandardYearsDisplay(value) {
   if (typeof value === 'number' && Number.isFinite(value)) {
-    return value
+    return String(value)
   }
   if (typeof value === 'string' && value.trim() !== '') {
-    const parsed = Number(value)
-    if (Number.isFinite(parsed)) {
-      return parsed
-    }
+    return value.trim()
   }
   return null
 }
@@ -56,38 +51,28 @@ export function resolveAdvanceOrDelay(advanceYears, delayYears) {
 }
 
 /**
- * Final time-to-target display incorporating advance/delay and difficulty.
- * Format: "{standard - advance + delay} years - {difficultyMultiplier}"
+ * Final time-to-target display for the UI.
+ * Format: "{standardTimeToTargetCondition} years (timeMultiplier)"
  *
  * @param {{
  *   standardTimeToTargetCondition: unknown,
- *   advanceYears: unknown,
- *   delayYears: unknown,
- *   difficultyMultiplier: unknown
+ *   timeMultiplier: unknown
  * }} input
  * @returns {string | null}
  */
 export function resolveFinalTimeToTargetCondition({
   standardTimeToTargetCondition,
-  advanceYears,
-  delayYears,
-  difficultyMultiplier
+  timeMultiplier
 }) {
-  const standardYears = parseStandardYears(standardTimeToTargetCondition)
-  if (standardYears === null) {
-    return null
+  const standardYears = formatStandardYearsDisplay(
+    standardTimeToTargetCondition
+  )
+  const hasValidTimeMultiplier =
+    typeof timeMultiplier === 'number' && Number.isFinite(timeMultiplier)
+  if (standardYears !== null && hasValidTimeMultiplier) {
+    return `${standardYears} years (${timeMultiplier})`
   }
-  if (
-    typeof difficultyMultiplier !== 'number' ||
-    !Number.isFinite(difficultyMultiplier)
-  ) {
-    return null
-  }
-  const finalYears =
-    standardYears -
-    finiteYearsOrZero(advanceYears) +
-    finiteYearsOrZero(delayYears)
-  return `${finalYears} years - ${difficultyMultiplier}`
+  return null
 }
 
 /**
@@ -103,9 +88,7 @@ export function applyProposedTimeDifficultyDisplayFields(proposed) {
   )
   const finalTimeToTargetCondition = resolveFinalTimeToTargetCondition({
     standardTimeToTargetCondition: proposed.standardTimeToTargetCondition,
-    advanceYears: proposed.advanceYears,
-    delayYears: proposed.delayYears,
-    difficultyMultiplier: proposed.difficultyMultiplier
+    timeMultiplier: proposed.timeMultiplier
   })
   if (finalTimeToTargetCondition != null) {
     proposed.finalTimeToTargetCondition = finalTimeToTargetCondition

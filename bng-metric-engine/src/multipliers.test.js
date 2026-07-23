@@ -7,6 +7,7 @@ import {
   getDifficultyMultiplier,
   getTimeMultiplier,
   getTimeToTargetValue,
+  lookupHabitatDifficultyLabel,
   resolveDistinctiveness
 } from './multipliers.js'
 
@@ -315,5 +316,23 @@ describe('getDifficultyMultiplier', () => {
       getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 10, 0)
     ).toThrow('Difficulty multiplier not found')
     spy.mockRestore()
+  })
+})
+
+describe('lookupHabitatDifficultyLabel', () => {
+  it('returns the Enhancement difficulty band for a habitat', () => {
+    expect(lookupHabitatDifficultyLabel(H, 'Enhancement')).toBe('Low')
+  })
+
+  it('throws when habitat difficulty reference data is missing', () => {
+    expect(() =>
+      lookupHabitatDifficultyLabel('Not a valid habitat', 'Enhancement')
+    ).toThrow('No difficulty reference data for habitat')
+  })
+
+  it('throws when the creation/enhancement band is missing', () => {
+    expect(() => lookupHabitatDifficultyLabel(H, 'Unknown')).toThrow(
+      'Difficulty not found for habitat'
+    )
   })
 })

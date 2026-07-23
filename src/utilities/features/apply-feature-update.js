@@ -22,6 +22,10 @@ import {
 } from '../../validation/baseline/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/baseline/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
+import {
+  copyProposedDisplayFields,
+  copyProposedEngineMetrics
+} from '../baseline/proposed-enrichment-fields.js'
 
 import {
   addPostInterventionNetUnitChanges,
@@ -140,26 +144,8 @@ function mergePostInterventionFeature(type, existing, edits, derived) {
     distinctivenessScore: derived.distinctivenessScore,
     conditionScore: derived.conditionScore
   }
-  if (derived.timeMultiplier != null) {
-    updatedProposed.timeMultiplier = derived.timeMultiplier
-  }
-  if (derived.difficultyMultiplier != null) {
-    updatedProposed.difficultyMultiplier = derived.difficultyMultiplier
-  }
-  if (derived.standardTimeToTargetCondition != null) {
-    updatedProposed.standardTimeToTargetCondition =
-      derived.standardTimeToTargetCondition
-  }
-  if (derived.difficulty != null) {
-    updatedProposed.difficulty = derived.difficulty
-  }
-  if (derived.advanceOrDelay != null) {
-    updatedProposed.advanceOrDelay = derived.advanceOrDelay
-  }
-  if (derived.finalTimeToTargetCondition != null) {
-    updatedProposed.finalTimeToTargetCondition =
-      derived.finalTimeToTargetCondition
-  }
+  copyProposedEngineMetrics(updatedProposed, derived)
+  copyProposedDisplayFields(updatedProposed, derived)
   if (type === 'habitat') {
     updatedProposed.broadType = edits.broadType
     updatedProposed.type = edits.habitatType
