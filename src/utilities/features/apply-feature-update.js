@@ -146,6 +146,20 @@ function mergePostInterventionFeature(type, existing, edits, derived) {
   if (derived.difficultyMultiplier != null) {
     updatedProposed.difficultyMultiplier = derived.difficultyMultiplier
   }
+  if (derived.standardTimeToTargetCondition != null) {
+    updatedProposed.standardTimeToTargetCondition =
+      derived.standardTimeToTargetCondition
+  }
+  if (derived.difficulty != null) {
+    updatedProposed.difficulty = derived.difficulty
+  }
+  if (derived.advanceOrDelay != null) {
+    updatedProposed.advanceOrDelay = derived.advanceOrDelay
+  }
+  if (derived.finalTimeToTargetCondition != null) {
+    updatedProposed.finalTimeToTargetCondition =
+      derived.finalTimeToTargetCondition
+  }
   if (type === 'habitat') {
     updatedProposed.broadType = edits.broadType
     updatedProposed.type = edits.habitatType

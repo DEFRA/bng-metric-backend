@@ -191,6 +191,14 @@ describe('area habitat — Enhanced', () => {
     expect(typeof proposed.conditionScore).toBe('number')
     expect(typeof proposed.timeMultiplier).toBe('number')
     expect(typeof proposed.difficultyMultiplier).toBe('number')
+    expect(typeof proposed.standardTimeToTargetCondition).toBe('string')
+    expect(proposed.standardTimeToTargetCondition.length).toBeGreaterThan(0)
+    expect(typeof proposed.difficulty).toBe('string')
+    expect(proposed.difficulty.length).toBeGreaterThan(0)
+    expect(typeof proposed.advanceOrDelay).toBe('string')
+    expect(proposed.advanceOrDelay.length).toBeGreaterThan(0)
+    expect(typeof proposed.finalTimeToTargetCondition).toBe('string')
+    expect(proposed.finalTimeToTargetCondition.length).toBeGreaterThan(0)
   })
 
   it('marks Incomplete when proposed condition is missing', () => {

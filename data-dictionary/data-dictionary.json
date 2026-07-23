@@ -3162,6 +3162,50 @@
       "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
+      "path": "postIntervention.habitats[].proposed.standardTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.difficulty",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.advanceOrDelay",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance/delay summary derived from proposed advanceYears and delayYears (e.g. \"Advance - 3 years\", \"Neither\")."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.finalTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+    },
+    {
       "path": "postIntervention.habitats[].proposed.strategicSignificance",
       "type": "string",
       "required": false,
@@ -3624,6 +3668,50 @@
       "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
     },
     {
+      "path": "postIntervention.trees[].proposed.standardTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.difficulty",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.advanceOrDelay",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance/delay summary derived from proposed advanceYears and delayYears (e.g. \"Advance - 3 years\", \"Neither\")."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.finalTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
+    },
+    {
       "path": "postIntervention.trees[].properties",
       "type": "object",
       "required": false,
@@ -3908,6 +3996,50 @@
       "constraints": [],
       "openMap": false,
       "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.standardTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.difficulty",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance/delay summary derived from proposed advanceYears and delayYears (e.g. \"Advance - 3 years\", \"Neither\")."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.finalTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
     },
     {
       "path": "postIntervention.hedgerows[].properties",
@@ -4249,6 +4381,50 @@
       "constraints": [],
       "openMap": false,
       "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.standardTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.difficulty",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.advanceOrDelay",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance/delay summary derived from proposed advanceYears and delayYears (e.g. \"Advance - 3 years\", \"Neither\")."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.finalTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Final time-to-target display combining statutory years, advance/delay and difficulty multiplier."
     },
     {
       "path": "postIntervention.watercourses[].proposed.riparianEncroachment",

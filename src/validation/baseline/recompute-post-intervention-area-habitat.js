@@ -14,6 +14,10 @@ import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-status
  *   conditionScore: number | null,
  *   timeMultiplier: number | null,
  *   difficultyMultiplier: number | null,
+ *   standardTimeToTargetCondition: string | null,
+ *   difficulty: string | null,
+ *   advanceOrDelay: string | null,
+ *   finalTimeToTargetCondition: string | null,
  *   units: number | null,
  *   status: 'Complete' | 'Incomplete',
  *   updatedFeature: object
@@ -38,6 +42,12 @@ export function recomputePostInterventionAreaHabitat(existing, edits) {
     conditionScore: feature.proposed.conditionScore ?? null,
     timeMultiplier: feature.proposed.timeMultiplier ?? null,
     difficultyMultiplier: feature.proposed.difficultyMultiplier ?? null,
+    standardTimeToTargetCondition:
+      feature.proposed.standardTimeToTargetCondition ?? null,
+    difficulty: feature.proposed.difficulty ?? null,
+    advanceOrDelay: feature.proposed.advanceOrDelay ?? null,
+    finalTimeToTargetCondition:
+      feature.proposed.finalTimeToTargetCondition ?? null,
     units: feature.units ?? null,
     status: feature.status,
     updatedFeature: feature

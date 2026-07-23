@@ -3,12 +3,55 @@ import {
   resolveDistinctiveness,
   getConditionMultiplier,
   getTimeMultiplier,
+  getTimeToTargetValue,
   getDifficultyMultiplier,
   CREATION,
   ENHANCEMENT
 } from './multipliers.js'
-import { CONDITION_SCORES } from './reference-constants.js'
+import { CONDITION_SCORES, HABITAT_DIFFICULTY } from './reference-constants.js'
 import { roundToSigFigs } from './utils.js'
+
+/**
+ * Statutory (unadjusted) time-to-target text for Enhancement, before advance/delay.
+ * @param {string} habitat
+ * @param {string} startCondition
+ * @param {string} endCondition
+ * @returns {string}
+ */
+function standardEnhancementTimeToTargetCondition(
+  habitat,
+  startCondition,
+  endCondition
+) {
+  return getTimeToTargetValue(
+    habitat,
+    ENHANCEMENT,
+    startCondition,
+    endCondition,
+    0,
+    0
+  )
+}
+
+/**
+ * Difficulty band label from habitat-area-difficulty.json for Creation/Enhancement.
+ * @param {string} habitat
+ * @param {string} creationOrEnhancement
+ * @returns {string}
+ */
+function habitatDifficultyLabel(habitat, creationOrEnhancement) {
+  const difficultyRow = HABITAT_DIFFICULTY[habitat]
+  if (!difficultyRow || typeof difficultyRow !== 'object') {
+    throw new Error(`No difficulty reference data for habitat: ${habitat}`)
+  }
+  const difficulty = difficultyRow[creationOrEnhancement]
+  if (!difficulty) {
+    throw new Error(
+      `Difficulty not found for habitat: ${habitat}, creationOrEnhancement: ${creationOrEnhancement}`
+    )
+  }
+  return difficulty
+}
 
 /**
  * Enhancement time/difficulty tables use the "Lower" start band when the
@@ -196,6 +239,16 @@ export function calculateEnhancedAreaHabitatPostIntervention(
     advanceYears,
     delayYears
   )
+  const standardTimeToTargetCondition =
+    standardEnhancementTimeToTargetCondition(
+      postInterventionHabitatType,
+      timeStartCondition,
+      postInterventionCondition
+    )
+  const difficulty = habitatDifficultyLabel(
+    postInterventionHabitatType,
+    ENHANCEMENT
+  )
 
   const postInterventionValue =
     size * postInterventionDistinctivenessScore * postInterventionConditionScore
@@ -216,6 +269,8 @@ export function calculateEnhancedAreaHabitatPostIntervention(
     postInterventionConditionScore,
     strategicSignificanceScore,
     timeMultiplier,
-    difficultyMultiplier
+    difficultyMultiplier,
+    standardTimeToTargetCondition,
+    difficulty
   }
 }

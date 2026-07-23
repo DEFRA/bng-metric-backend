@@ -2,6 +2,7 @@
 // post-intervention enrichment sub-modules.
 
 import { HABITAT_STATUS } from '../../services/baseline/calculate-habitat-statuses.js'
+import { applyProposedTimeDifficultyDisplayFields } from './proposed-time-difficulty-display.js'
 import { GPKG_RETENTION_LOST } from './retention-category.js'
 
 export { isPresentEngineString } from './is-present-engine-string.js'
@@ -94,6 +95,14 @@ export function applyProposedResult(feature, result) {
   if (result.difficultyMultiplier != null) {
     proposed.difficultyMultiplier = result.difficultyMultiplier
   }
+  if (result.standardTimeToTargetCondition != null) {
+    proposed.standardTimeToTargetCondition =
+      result.standardTimeToTargetCondition
+  }
+  if (result.difficulty != null) {
+    proposed.difficulty = result.difficulty
+  }
+  applyProposedTimeDifficultyDisplayFields(proposed)
   feature.units = result.units
   feature.status = HABITAT_STATUS.COMPLETE
 }

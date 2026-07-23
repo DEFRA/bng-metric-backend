@@ -89,6 +89,26 @@ function proposedCommonFields() {
       .allow(null)
       .description(
         'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features.'
+      ),
+    standardTimeToTargetCondition: Joi.string()
+      .allow(null, '')
+      .description(
+        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features.'
+      ),
+    difficulty: Joi.string()
+      .allow(null, '')
+      .description(
+        'Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features.'
+      ),
+    advanceOrDelay: Joi.string()
+      .allow(null, '')
+      .description(
+        'Advance/delay summary derived from proposed advanceYears and delayYears (e.g. "Advance - 3 years", "Neither").'
+      ),
+    finalTimeToTargetCondition: Joi.string()
+      .allow(null, '')
+      .description(
+        'Final time-to-target display combining statutory years, advance/delay and difficulty multiplier.'
       )
   }
 }

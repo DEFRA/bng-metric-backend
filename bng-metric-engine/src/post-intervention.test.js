@@ -91,6 +91,8 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_MODERATE)
     expect(result.timeMultiplier).toBe(MULTIPLIER_ENHANCEMENT)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('10')
+    expect(result.difficulty).toBe('Low')
   })
 
   it('uses Lower time-to-target start when enhancing to higher distinctiveness habitat', () => {
@@ -111,6 +113,8 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
     expect(result.timeMultiplier).toBeCloseTo(MULTIPLIER_HIGH_DIST_ENHANCEMENT)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_CREATION)
+    expect(result.standardTimeToTargetCondition).toBe('30')
+    expect(result.difficulty).toBe('High')
   })
 
   it('calculates units for Moderate to Good enhancement', () => {
@@ -131,5 +135,7 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
     expect(result.timeMultiplier).toBe(MULTIPLIER_ENHANCEMENT)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('10')
+    expect(result.difficulty).toBe('Low')
   })
 })
