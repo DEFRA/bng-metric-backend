@@ -69,6 +69,24 @@ describe('calculateCreatedAreaHabitatPostIntervention', () => {
     expect(result.conditionScore).toBe(CONDITION_SCORE_MODERATE)
     expect(result.timeMultiplier).toBe(MULTIPLIER_4_YRS)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('4')
+    expect(result.difficulty).toBe('Low')
+  })
+
+  it('forces difficulty to Low when advance years meet the time-to-target', () => {
+    // Raw Creation difficulty for Lowland calcareous grassland is High.
+    // advanceYears covering the statutory target must force both the display
+    // label and the unit multiplier to Low — not the raw Creation band.
+    const result = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      'Grassland - Lowland calcareous grassland',
+      'Good',
+      20,
+      0
+    )
+    expect(result.standardTimeToTargetCondition).toBe('20')
+    expect(result.difficulty).toBe('Low')
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
   })
 })
 
