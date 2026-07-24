@@ -4,6 +4,7 @@ import * as referenceConstants from './reference-constants.js'
 import * as validateModule from './validate.js'
 import {
   getConditionMultiplier,
+  getDifficultyLabel,
   getDifficultyMultiplier,
   getTimeMultiplier,
   getTimeToTargetValue,
@@ -316,6 +317,77 @@ describe('getDifficultyMultiplier', () => {
       getDifficultyMultiplier(H, 'Creation', '', 'Moderate', 10, 0)
     ).toThrow('Difficulty multiplier not found')
     spy.mockRestore()
+  })
+})
+
+describe('getDifficultyLabel', () => {
+  it('returns Low when advance meets time-to-target, even for High habitats', () => {
+    expect(
+      getDifficultyLabel(
+        'Grassland - Lowland calcareous grassland',
+        'Enhancement',
+        'Lower',
+        'Good',
+        30,
+        0
+      )
+    ).toBe('Low')
+  })
+
+  it('returns the habitat Enhancement band when advance does not meet target', () => {
+    expect(
+      getDifficultyLabel(
+        'Grassland - Lowland calcareous grassland',
+        'Enhancement',
+        'Lower',
+        'Good',
+        0,
+        0
+      )
+    ).toBe('High')
+  })
+
+  it('matches the band that getDifficultyMultiplier applies', () => {
+    const habitat = 'Grassland - Lowland calcareous grassland'
+    const label = getDifficultyLabel(
+      habitat,
+      'Enhancement',
+      'Lower',
+      'Good',
+      0,
+      0
+    )
+    expect(label).toBe('High')
+    expect(
+      getDifficultyMultiplier(habitat, 'Enhancement', 'Lower', 'Good', 0, 0)
+    ).toBe(referenceConstants.DIFFICULTY_MULTIPLIER[label])
+  })
+
+  it('keeps label and multiplier on the Low band when advance meets time-to-target', () => {
+    // Raw Enhancement difficulty for this habitat is High; advanceYears >=
+    // time-to-target must force both the label and the multiplier to Low.
+    const habitat = 'Grassland - Lowland calcareous grassland'
+    const advanceYears = 30
+    const label = getDifficultyLabel(
+      habitat,
+      'Enhancement',
+      'Lower',
+      'Good',
+      advanceYears,
+      0
+    )
+    expect(label).toBe('Low')
+    expect(lookupHabitatDifficultyLabel(habitat, 'Enhancement')).toBe('High')
+    expect(
+      getDifficultyMultiplier(
+        habitat,
+        'Enhancement',
+        'Lower',
+        'Good',
+        advanceYears,
+        0
+      )
+    ).toBe(referenceConstants.DIFFICULTY_MULTIPLIER.Low)
   })
 })
 

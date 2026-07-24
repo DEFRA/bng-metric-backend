@@ -336,16 +336,19 @@ function resolveDifficultyChangeType(
 }
 
 /**
- * Get the difficulty multiplier for a given habitat and creation/enhancement type
+ * Resolve the difficulty band label used for unit calculation (including the
+ * advance-meets-time-to-target override to "Low", and Creation→Enhancement
+ * reclassification when advance clears the Poor target).
+ *
  * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
  * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement" (CREATION or ENHANCEMENT)
  * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
  * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
  * @param {number} advanceYears - The number of years to advance the project
  * @param {number} delayYears - The number of years to delay the project
- * @returns {number} The difficulty multiplier, or 0 if habitat/type not found
+ * @returns {string} Difficulty band label (e.g. "Low", "Medium", "High")
  */
-function getDifficultyMultiplier(
+function getDifficultyLabel(
   habitat,
   creationOrEnhancement,
   startCondition,
@@ -373,13 +376,41 @@ function getDifficultyMultiplier(
     validatedDelayYears
   )
 
-  const difficultyDesc = resolveDifficultyDesc(
+  return resolveDifficultyDesc(
     habitat,
     creationOrEnhancement,
     startCondition,
     validatedAdvanceYears,
     validatedDelayYears,
     timeToTargetValue
+  )
+}
+
+/**
+ * Get the difficulty multiplier for a given habitat and creation/enhancement type
+ * @param {string} habitat - The habitat name (e.g., "Grassland - Modified grassland")
+ * @param {string} creationOrEnhancement - Either "Creation" or "Enhancement" (CREATION or ENHANCEMENT)
+ * @param {string} [startCondition] - The starting condition (optional, only needed for Enhancement)
+ * @param {string} endCondition - The target condition (required for both Creation and Enhancement)
+ * @param {number} advanceYears - The number of years to advance the project
+ * @param {number} delayYears - The number of years to delay the project
+ * @returns {number} The difficulty multiplier, or 0 if habitat/type not found
+ */
+function getDifficultyMultiplier(
+  habitat,
+  creationOrEnhancement,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  const difficultyDesc = getDifficultyLabel(
+    habitat,
+    creationOrEnhancement,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
   )
 
   const difficultyMultiplier = DIFFICULTY_MULTIPLIER[difficultyDesc]
@@ -397,6 +428,7 @@ export {
   getConditionMultiplier,
   getTimeToTargetValue,
   getTimeMultiplier,
+  getDifficultyLabel,
   getDifficultyMultiplier,
   lookupHabitatDifficultyLabel
 }

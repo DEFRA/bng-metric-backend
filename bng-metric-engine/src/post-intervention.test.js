@@ -138,4 +138,23 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.standardTimeToTargetCondition).toBe('10')
     expect(result.difficulty).toBe('Low')
   })
+
+  it('forces difficulty to Low when advance years meet the time-to-target', () => {
+    // Same habitat as the High-band case above (advanceYears 0 → difficulty
+    // High / difficultyMultiplier Creation). With advanceYears covering the
+    // 30-year target, both the display label and the unit multiplier must
+    // follow the Low override — not the raw Enhancement band.
+    const result = calculateEnhancedAreaHabitatPostIntervention(
+      1,
+      H,
+      'Grassland - Lowland calcareous grassland',
+      'Moderate',
+      'Good',
+      30,
+      0
+    )
+    expect(result.standardTimeToTargetCondition).toBe('30')
+    expect(result.difficulty).toBe('Low')
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+  })
 })

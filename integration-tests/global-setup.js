@@ -32,7 +32,27 @@ async function applyMigrations() {
   if (process.platform === 'win32') {
     // On Windows, run the Docker Liquibase container directly rather than
     // going through a bash shell script (WSL bash may not be available).
+    // Mount a pinned JDBC jar into /liquibase/lib instead of using LPM —
+    // LPM package-manifest checksums periodically drift from Maven artifacts.
     const changelogDir = path.resolve('changelog').replaceAll('\\', '/')
+    const postgresJdbcVersion = process.env.POSTGRES_JDBC_VERSION ?? '42.7.8'
+    const driverCacheDir = path.resolve('.cache/liquibase')
+    const driverJar = path.join(
+      driverCacheDir,
+      `postgresql-${postgresJdbcVersion}.jar`
+    )
+    const driverUrl = `https://repo1.maven.org/maven2/org/postgresql/postgresql/${postgresJdbcVersion}/postgresql-${postgresJdbcVersion}.jar`
+    fs.mkdirSync(driverCacheDir, { recursive: true })
+    if (!fs.existsSync(driverJar)) {
+      const response = await fetch(driverUrl)
+      if (!response.ok) {
+        throw new Error(
+          `Failed to download PostgreSQL JDBC driver: ${response.status} ${response.statusText}`
+        )
+      }
+      fs.writeFileSync(driverJar, Buffer.from(await response.arrayBuffer()))
+    }
+    const driverJarMount = driverJar.replaceAll('\\', '/')
     cmd = 'docker'
     args = [
       'run',
@@ -43,9 +63,11 @@ async function applyMigrations() {
       'sh',
       '-v',
       `${changelogDir}:/liquibase/changelog`,
+      '-v',
+      `${driverJarMount}:/liquibase/lib/postgresql-${postgresJdbcVersion}.jar:ro`,
       'liquibase/liquibase',
       '-c',
-      'lpm add postgresql --global && liquibase --changelog-file=changelog/db.changelog.xml --url=jdbc:postgresql://postgres:5432/bng_metric_backend --username=dev --password=dev update'
+      'liquibase --changelog-file=changelog/db.changelog.xml --url=jdbc:postgresql://postgres:5432/bng_metric_backend --username=dev --password=dev update'
     ]
   } else {
     cmd = 'npm'

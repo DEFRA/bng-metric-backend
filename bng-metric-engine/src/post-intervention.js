@@ -5,7 +5,7 @@ import {
   getTimeMultiplier,
   getTimeToTargetValue,
   getDifficultyMultiplier,
-  lookupHabitatDifficultyLabel,
+  getDifficultyLabel,
   CREATION,
   ENHANCEMENT
 } from './multipliers.js'
@@ -98,9 +98,13 @@ function resolveEnhancedAreaDerivedMetrics(
       STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
       STATUTORY_TIME_TO_TARGET_DELAY_YEARS
     ),
-    difficulty: lookupHabitatDifficultyLabel(
+    difficulty: getDifficultyLabel(
       postInterventionHabitatType,
-      ENHANCEMENT
+      ENHANCEMENT,
+      timeStartCondition,
+      postInterventionCondition,
+      advanceYears,
+      delayYears
     )
   }
 }
