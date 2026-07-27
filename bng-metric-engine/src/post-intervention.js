@@ -3,12 +3,17 @@ import {
   resolveDistinctiveness,
   getConditionMultiplier,
   getTimeMultiplier,
+  getTimeToTargetValue,
   getDifficultyMultiplier,
+  getDifficultyLabel,
   CREATION,
   ENHANCEMENT
 } from './multipliers.js'
 import { CONDITION_SCORES } from './reference-constants.js'
 import { roundToSigFigs } from './utils.js'
+
+const STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS = 0
+const STATUTORY_TIME_TO_TARGET_DELAY_YEARS = 0
 
 /**
  * Enhancement time/difficulty tables use the "Lower" start band when the
@@ -41,17 +46,94 @@ function resolveEnhancementConditionScore(habitat, condition) {
   const scoresRow = CONDITION_SCORES[habitat]
   if (scoresRow && Object.hasOwn(scoresRow, condition)) {
     return getConditionMultiplier(habitat, condition)
-  } else if (condition === 'Lower') {
-    return getConditionMultiplier(habitat, 'Poor')
-  } else if (condition === 'CA N/A') {
-    return getConditionMultiplier(habitat, 'Condition Assessment N/A')
-  } else {
-    return getConditionMultiplier(habitat, condition)
   }
+  if (condition === 'Lower') {
+    return getConditionMultiplier(habitat, 'Poor')
+  }
+  if (condition === 'CA N/A') {
+    return getConditionMultiplier(habitat, 'Condition Assessment N/A')
+  }
+  return getConditionMultiplier(habitat, condition)
 }
 
 /** Metric uses 1 for post-intervention */
 const POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER = 1
+
+/**
+ * @param {string} postInterventionHabitatType
+ * @param {string} timeStartCondition
+ * @param {string} postInterventionCondition
+ * @param {number} advanceYears
+ * @param {number} delayYears
+ */
+function resolveEnhancedAreaDerivedMetrics(
+  postInterventionHabitatType,
+  timeStartCondition,
+  postInterventionCondition,
+  advanceYears,
+  delayYears
+) {
+  return {
+    timeMultiplier: getTimeMultiplier(
+      postInterventionHabitatType,
+      ENHANCEMENT,
+      timeStartCondition,
+      postInterventionCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getDifficultyMultiplier(
+      postInterventionHabitatType,
+      ENHANCEMENT,
+      timeStartCondition,
+      postInterventionCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getTimeToTargetValue(
+      postInterventionHabitatType,
+      ENHANCEMENT,
+      timeStartCondition,
+      postInterventionCondition,
+      STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
+      STATUTORY_TIME_TO_TARGET_DELAY_YEARS
+    ),
+    difficulty: getDifficultyLabel(
+      postInterventionHabitatType,
+      ENHANCEMENT,
+      timeStartCondition,
+      postInterventionCondition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
+/**
+ * @param {number} size
+ * @param {object} scores
+ * @param {object} metrics
+ * @param {number} strategicSignificanceScore
+ * @returns {number}
+ */
+function computeEnhancedAreaUnits(
+  size,
+  scores,
+  metrics,
+  strategicSignificanceScore
+) {
+  const postInterventionValue =
+    size *
+    scores.postInterventionDistinctivenessScore *
+    scores.postInterventionConditionScore
+  const baselineValue =
+    size * scores.baselineDistinctivenessScore * scores.baselineConditionScore
+  const riskMultiplier = metrics.timeMultiplier * metrics.difficultyMultiplier
+  const calc =
+    ((postInterventionValue - baselineValue) * riskMultiplier + baselineValue) *
+    strategicSignificanceScore
+  return roundToSigFigs(calc)
+}
 
 /**
  * Get area-habitat post-intervention retained biodiversity units for a given size, habitat type, and condition.
@@ -170,44 +252,31 @@ export function calculateEnhancedAreaHabitatPostIntervention(
     postInterventionHabitatType,
     postInterventionCondition
   )
-
   const strategicSignificanceScore =
     POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-
   const timeStartCondition = resolveEnhancementTimeStartCondition(
     baselineDistinctivenessScore,
     postInterventionDistinctivenessScore,
     baselineCondition
   )
-
-  const timeMultiplier = getTimeMultiplier(
+  const metrics = resolveEnhancedAreaDerivedMetrics(
     postInterventionHabitatType,
-    ENHANCEMENT,
     timeStartCondition,
     postInterventionCondition,
     advanceYears,
     delayYears
   )
-  const difficultyMultiplier = getDifficultyMultiplier(
-    postInterventionHabitatType,
-    ENHANCEMENT,
-    timeStartCondition,
-    postInterventionCondition,
-    advanceYears,
-    delayYears
-  )
-
-  const postInterventionValue =
-    size * postInterventionDistinctivenessScore * postInterventionConditionScore
-  const baselineValue =
-    size * baselineDistinctivenessScore * baselineConditionScore
-  const riskMultiplier = timeMultiplier * difficultyMultiplier
-
-  const calc =
-    ((postInterventionValue - baselineValue) * riskMultiplier + baselineValue) *
+  const units = computeEnhancedAreaUnits(
+    size,
+    {
+      baselineDistinctivenessScore,
+      postInterventionDistinctivenessScore,
+      baselineConditionScore,
+      postInterventionConditionScore
+    },
+    metrics,
     strategicSignificanceScore
-
-  const units = roundToSigFigs(calc)
+  )
 
   return {
     units,
@@ -215,7 +284,6 @@ export function calculateEnhancedAreaHabitatPostIntervention(
     postInterventionDistinctivenessScore,
     postInterventionConditionScore,
     strategicSignificanceScore,
-    timeMultiplier,
-    difficultyMultiplier
+    ...metrics
   }
 }

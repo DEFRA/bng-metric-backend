@@ -24,7 +24,12 @@ jobs:
     name: Backend Integration Tests
     runs-on: ubuntu-latest
     env:
-      LIQUIBASE_VERSION: '5.0.1'
+      # Prefer BNG_* so Liquibase 5 does not treat this as one of its own
+      # LIQUIBASE_* community environment variables.
+      BNG_LIQUIBASE_VERSION: '5.0.1'
+      # Pin the JDBC driver directly — LPM's package-manifest checksums periodically
+      # drift from republished Maven artifacts ("Checksum validation failed").
+      POSTGRES_JDBC_VERSION: '42.7.8'
       CDP_UPLOADER_IMAGE: 'defradigital/cdp-uploader:1.16.0@sha256:eb1627b60690ec24d41a17ed82e80c28d009aaaeb19dc179c6a3887da7e6a5bd'
       AWS_ACCESS_KEY_ID: test
       AWS_SECRET_ACCESS_KEY: test
@@ -90,9 +95,13 @@ jobs:
 
       - name: Install Liquibase
         run: |
-          mkdir -p ./liquibase-bin
-          curl -sL "https://github.com/liquibase/liquibase/releases/download/v${LIQUIBASE_VERSION}/liquibase-${LIQUIBASE_VERSION}.tar.gz" | tar xz -C ./liquibase-bin
-          ./liquibase-bin/liquibase lpm add postgresql --global
+          mkdir -p ./liquibase-bin/lib
+          curl -fsSL --proto '=https' --tlsv1.2 \
+            "https://github.com/liquibase/liquibase/releases/download/v${BNG_LIQUIBASE_VERSION}/liquibase-${BNG_LIQUIBASE_VERSION}.tar.gz" \
+            | tar xz -C ./liquibase-bin
+          curl -fsSL --proto '=https' --tlsv1.2 \
+            "https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar" \
+            -o "./liquibase-bin/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar"
 
       - name: Apply Liquibase migrations
         run: |
