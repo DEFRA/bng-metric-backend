@@ -1,8 +1,12 @@
 import {
+  getHedgerowCreationDifficultyLabel,
   getHedgerowCreationDifficultyMultiplier,
   getHedgerowCreationTimeMultiplier,
+  getHedgerowCreationTimeToTargetValue,
+  getHedgerowEnhancementDifficultyLabel,
   getHedgerowEnhancementDifficultyMultiplier,
-  getHedgerowEnhancementTimeMultiplier
+  getHedgerowEnhancementTimeMultiplier,
+  getHedgerowEnhancementTimeToTargetValue
 } from './linear-hedgerow-multipliers.js'
 import { isDistinctivenessEnhancement } from './linear-resolvers.js'
 import {
@@ -18,6 +22,8 @@ import {
 
 const HEDGEROW_RESOLVER_LABEL = 'hedgerow'
 const POOR_CONDITION = 'Poor'
+const STATUTORY_ADVANCE_YEARS = 0
+const STATUTORY_DELAY_YEARS = 0
 
 /**
  * Enhancement-through-distinctiveness from a Poor baseline uses creation
@@ -56,7 +62,7 @@ function resolveHedgerowEnhancementTimeStartCondition(
  *   advanceYears: number,
  *   delayYears: number
  * }} enhancementContext
- * @returns {{ timeMultiplier: number, difficultyMultiplier: number }}
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
  */
 function resolveHedgerowEnhancementMultipliers({
   baselineDistinctivenessScore,
@@ -86,6 +92,18 @@ function resolveHedgerowEnhancementMultipliers({
         postCondition,
         advanceYears,
         delayYears
+      ),
+      standardTimeToTargetCondition: getHedgerowCreationTimeToTargetValue(
+        postType,
+        postCondition,
+        STATUTORY_ADVANCE_YEARS,
+        STATUTORY_DELAY_YEARS
+      ),
+      difficulty: getHedgerowCreationDifficultyLabel(
+        postType,
+        postCondition,
+        advanceYears,
+        delayYears
       )
     }
   }
@@ -104,6 +122,20 @@ function resolveHedgerowEnhancementMultipliers({
       delayYears
     ),
     difficultyMultiplier: getHedgerowEnhancementDifficultyMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getHedgerowEnhancementTimeToTargetValue(
+      postType,
+      timeStartCondition,
+      postCondition,
+      STATUTORY_ADVANCE_YEARS,
+      STATUTORY_DELAY_YEARS
+    ),
+    difficulty: getHedgerowEnhancementDifficultyLabel(
       postType,
       timeStartCondition,
       postCondition,

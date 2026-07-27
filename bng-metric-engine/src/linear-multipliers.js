@@ -245,11 +245,7 @@ function resolveCreationDifficultyChangeType(
  * @param {string} difficultyChangeType
  * @returns {number}
  */
-function lookupLinearDifficultyMultiplier(
-  cfg,
-  linearType,
-  difficultyChangeType
-) {
+function lookupLinearDifficultyLabel(cfg, linearType, difficultyChangeType) {
   const difficultyRow = cfg.difficulty[linearType]
   if (!difficultyRow || typeof difficultyRow !== 'object') {
     throw new Error(
@@ -262,13 +258,7 @@ function lookupLinearDifficultyMultiplier(
       `Difficulty not found for ${cfg.label}: ${linearType}, change type: ${difficultyChangeType}`
     )
   }
-  const multiplier = DIFFICULTY_MULTIPLIER[difficultyDesc]
-  if (multiplier == null || multiplier === NOT_POSSIBLE) {
-    throw new Error(
-      `Difficulty multiplier not found for ${cfg.label}: ${linearType}, change type: ${difficultyChangeType}`
-    )
-  }
-  return multiplier
+  return difficultyDesc
 }
 
 /**
@@ -279,7 +269,7 @@ function lookupLinearDifficultyMultiplier(
  * @param {number} delayYears
  * @returns {number}
  */
-function getLinearCreationDifficultyMultiplier(
+function getLinearCreationDifficultyLabel(
   cfg,
   linearType,
   condition,
@@ -306,7 +296,30 @@ function getLinearCreationDifficultyMultiplier(
     validatedDelayYears,
     timeToTargetKey
   )
-  return lookupLinearDifficultyMultiplier(cfg, linearType, difficultyChangeType)
+  return lookupLinearDifficultyLabel(cfg, linearType, difficultyChangeType)
+}
+
+function getLinearCreationDifficultyMultiplier(
+  cfg,
+  linearType,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  const difficultyLabel = getLinearCreationDifficultyLabel(
+    cfg,
+    linearType,
+    condition,
+    advanceYears,
+    delayYears
+  )
+  const multiplier = DIFFICULTY_MULTIPLIER[difficultyLabel]
+  if (multiplier == null || multiplier === NOT_POSSIBLE) {
+    throw new Error(
+      `Difficulty multiplier not found for ${cfg.label}: ${linearType}`
+    )
+  }
+  return multiplier
 }
 
 // ---------------------------------------------------------------------------
@@ -439,7 +452,7 @@ function getLinearEnhancementTimeMultiplier(
  * @param {number} delayYears
  * @returns {number}
  */
-function getLinearEnhancementDifficultyMultiplier(
+function getLinearEnhancementDifficultyLabel(
   cfg,
   linearType,
   startCondition,
@@ -480,16 +493,45 @@ function getLinearEnhancementDifficultyMultiplier(
     validatedDelayYears
   )
   if (computedYears === 0) {
-    return DIFFICULTY_MULTIPLIER[LOW_DIFFICULTY]
+    return LOW_DIFFICULTY
   }
-  return lookupLinearDifficultyMultiplier(cfg, linearType, ENHANCEMENT)
+  return lookupLinearDifficultyLabel(cfg, linearType, ENHANCEMENT)
+}
+
+function getLinearEnhancementDifficultyMultiplier(
+  cfg,
+  linearType,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  const difficultyLabel = getLinearEnhancementDifficultyLabel(
+    cfg,
+    linearType,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
+  )
+  const multiplier = DIFFICULTY_MULTIPLIER[difficultyLabel]
+  if (multiplier == null || multiplier === NOT_POSSIBLE) {
+    throw new Error(
+      `Difficulty multiplier not found for ${cfg.label}: ${linearType}`
+    )
+  }
+  return multiplier
 }
 
 export {
   HEDGEROW_CONFIG,
   WATERCOURSE_CONFIG,
   getLinearCreationTimeMultiplier,
+  getLinearCreationTimeToTargetValue,
+  getLinearCreationDifficultyLabel,
   getLinearCreationDifficultyMultiplier,
   getLinearEnhancementTimeMultiplier,
+  getLinearEnhancementTimeToTargetValue,
+  getLinearEnhancementDifficultyLabel,
   getLinearEnhancementDifficultyMultiplier
 }
