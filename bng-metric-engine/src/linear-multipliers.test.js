@@ -2,10 +2,14 @@ import { describe, expect, it } from 'vitest'
 
 import { BaselineLookupError } from './errors.js'
 import {
+  getHedgerowCreationDifficultyLabel,
   getHedgerowCreationDifficultyMultiplier,
   getHedgerowCreationTimeMultiplier,
+  getHedgerowCreationTimeToTargetValue,
+  getHedgerowEnhancementDifficultyLabel,
   getHedgerowEnhancementDifficultyMultiplier,
-  getHedgerowEnhancementTimeMultiplier
+  getHedgerowEnhancementTimeMultiplier,
+  getHedgerowEnhancementTimeToTargetValue
 } from './linear-hedgerow-multipliers.js'
 import {
   getWatercourseCreationDifficultyMultiplier,
@@ -52,6 +56,37 @@ describe('getHedgerowCreationTimeMultiplier', () => {
   })
 })
 
+describe('hedgerow time and difficulty display values', () => {
+  it('returns creation time-to-target and difficulty labels', () => {
+    expect(
+      getHedgerowCreationTimeToTargetValue(NATIVE_HEDGEROW, MODERATE, 0, 0)
+    ).toBe('5')
+    expect(
+      getHedgerowCreationDifficultyLabel(NATIVE_HEDGEROW, MODERATE, 0, 0)
+    ).toBe('Low')
+  })
+
+  it('returns enhancement time-to-target and difficulty labels', () => {
+    expect(
+      getHedgerowEnhancementTimeToTargetValue(
+        NATIVE_HEDGEROW,
+        POOR,
+        MODERATE,
+        0,
+        0
+      )
+    ).toBe('3')
+    expect(
+      getHedgerowEnhancementDifficultyLabel(
+        NATIVE_HEDGEROW,
+        POOR,
+        MODERATE,
+        0,
+        0
+      )
+    ).toBe('Low')
+  })
+})
 describe('getHedgerowCreationDifficultyMultiplier', () => {
   it('returns Low difficulty for Native hedgerow creation with no advance or delay', () => {
     expect(

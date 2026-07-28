@@ -50,69 +50,47 @@ function resolveHedgerowEnhancementTimeStartCondition(
   return baselineCondition
 }
 
-/**
- * Resolve time and difficulty multipliers for an enhanced hedgerow.
- *
- * @param {{
- *   baselineDistinctivenessScore: number,
- *   postInterventionDistinctivenessScore: number,
- *   postType: string,
- *   baselineCondition: string,
- *   postCondition: string,
- *   advanceYears: number,
- *   delayYears: number
- * }} enhancementContext
- * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
- */
-function resolveHedgerowEnhancementMultipliers({
-  baselineDistinctivenessScore,
-  postInterventionDistinctivenessScore,
+function resolveCreationMetrics({
   postType,
-  baselineCondition,
   postCondition,
   advanceYears,
   delayYears
 }) {
-  if (
-    isDistinctivenessEnhancement(
-      baselineDistinctivenessScore,
-      postInterventionDistinctivenessScore
-    ) &&
-    baselineCondition === POOR_CONDITION
-  ) {
-    return {
-      timeMultiplier: getHedgerowCreationTimeMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      ),
-      difficultyMultiplier: getHedgerowCreationDifficultyMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      ),
-      standardTimeToTargetCondition: getHedgerowCreationTimeToTargetValue(
-        postType,
-        postCondition,
-        STATUTORY_ADVANCE_YEARS,
-        STATUTORY_DELAY_YEARS
-      ),
-      difficulty: getHedgerowCreationDifficultyLabel(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      )
-    }
+  return {
+    timeMultiplier: getHedgerowCreationTimeMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getHedgerowCreationDifficultyMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getHedgerowCreationTimeToTargetValue(
+      postType,
+      postCondition,
+      STATUTORY_ADVANCE_YEARS,
+      STATUTORY_DELAY_YEARS
+    ),
+    difficulty: getHedgerowCreationDifficultyLabel(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    )
   }
+}
 
-  const timeStartCondition = resolveHedgerowEnhancementTimeStartCondition(
-    baselineDistinctivenessScore,
-    postInterventionDistinctivenessScore,
-    baselineCondition
-  )
+function resolveEnhancementMetrics({
+  postType,
+  timeStartCondition,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
   return {
     timeMultiplier: getHedgerowEnhancementTimeMultiplier(
       postType,
@@ -145,6 +123,48 @@ function resolveHedgerowEnhancementMultipliers({
   }
 }
 
+/**
+ * Resolve time and difficulty multipliers for an enhanced hedgerow.
+ * @param {{ baselineDistinctivenessScore: number, postInterventionDistinctivenessScore: number, postType: string, baselineCondition: string, postCondition: string, advanceYears: number, delayYears: number }} enhancementContext
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
+ */
+function resolveHedgerowEnhancementMultipliers({
+  baselineDistinctivenessScore,
+  postInterventionDistinctivenessScore,
+  postType,
+  baselineCondition,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
+  if (
+    isDistinctivenessEnhancement(
+      baselineDistinctivenessScore,
+      postInterventionDistinctivenessScore
+    ) &&
+    baselineCondition === POOR_CONDITION
+  ) {
+    return resolveCreationMetrics({
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    })
+  }
+
+  const timeStartCondition = resolveHedgerowEnhancementTimeStartCondition(
+    baselineDistinctivenessScore,
+    postInterventionDistinctivenessScore,
+    baselineCondition
+  )
+  return resolveEnhancementMetrics({
+    postType,
+    timeStartCondition,
+    postCondition,
+    advanceYears,
+    delayYears
+  })
+}
 /** @type {import('./linear-post-intervention.js').LinearPostInterventionConfig} */
 const HEDGEROW_PI_CONFIG = {
   label: 'Hedgerow',
