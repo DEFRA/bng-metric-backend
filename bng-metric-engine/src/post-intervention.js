@@ -174,6 +174,54 @@ export function calculateRetainedAreaHabitatPostIntervention(
   }
 }
 
+/**
+ * @param {string} habitat
+ * @param {string} condition
+ * @param {number} advanceYears
+ * @param {number} delayYears
+ */
+function resolveCreatedAreaDerivedMetrics(
+  habitat,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  return {
+    timeMultiplier: getTimeMultiplier(
+      habitat,
+      CREATION,
+      null,
+      condition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getDifficultyMultiplier(
+      habitat,
+      CREATION,
+      null,
+      condition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getTimeToTargetValue(
+      habitat,
+      CREATION,
+      null,
+      condition,
+      STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
+      STATUTORY_TIME_TO_TARGET_DELAY_YEARS
+    ),
+    difficulty: getDifficultyLabel(
+      habitat,
+      CREATION,
+      null,
+      condition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
 export function calculateCreatedAreaHabitatPostIntervention(
   size,
   habitat,
@@ -188,18 +236,8 @@ export function calculateCreatedAreaHabitatPostIntervention(
   const conditionScore = getConditionMultiplier(habitat, condition)
   const strategicSignificanceScore =
     POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER
-  const timeMultiplier = getTimeMultiplier(
+  const metrics = resolveCreatedAreaDerivedMetrics(
     habitat,
-    CREATION,
-    null,
-    condition,
-    advanceYears,
-    delayYears
-  )
-  const difficultyMultiplier = getDifficultyMultiplier(
-    habitat,
-    CREATION,
-    null,
     condition,
     advanceYears,
     delayYears
@@ -211,8 +249,8 @@ export function calculateCreatedAreaHabitatPostIntervention(
       distinctivenessScore *
       conditionScore *
       strategicSignificanceScore *
-      timeMultiplier *
-      difficultyMultiplier
+      metrics.timeMultiplier *
+      metrics.difficultyMultiplier
   )
 
   return {
@@ -221,8 +259,7 @@ export function calculateCreatedAreaHabitatPostIntervention(
     distinctivenessScore,
     conditionScore,
     strategicSignificanceScore,
-    timeMultiplier,
-    difficultyMultiplier
+    ...metrics
   }
 }
 
