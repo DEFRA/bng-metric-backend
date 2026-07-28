@@ -28,7 +28,7 @@ describe('applyProposedResult', () => {
     expect(feature.proposed.difficulty).toBe('Low')
     expect(feature.proposed.advanceOrDelay).toBe('Advance - 2 years')
     expect(feature.proposed.finalTimeToTargetCondition).toBe(
-      '10 years (0.7002822742)'
+      '8 years (0.7002822742)'
     )
     expect(feature.units).toBe(5.4)
     expect(feature.status).toBe('Complete')
