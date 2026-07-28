@@ -324,18 +324,17 @@ export function calculateEnhancedLinearPostIntervention(
     encroachment,
     {}
   )
-  const { timeMultiplier, difficultyMultiplier } =
-    cfg.resolveEnhancementMultipliers({
-      baselineDistinctivenessScore: scores.baselineDistinctivenessScore,
-      postInterventionDistinctivenessScore:
-        scores.postInterventionDistinctivenessScore,
-      baselineType,
-      postType,
-      baselineCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    })
+  const enhancementMetrics = cfg.resolveEnhancementMultipliers({
+    baselineDistinctivenessScore: scores.baselineDistinctivenessScore,
+    postInterventionDistinctivenessScore:
+      scores.postInterventionDistinctivenessScore,
+    baselineType,
+    postType,
+    baselineCondition,
+    postCondition,
+    advanceYears,
+    delayYears
+  })
 
   const units = computeEnhancedLinearUnits({
     baselineLengthKm,
@@ -345,8 +344,8 @@ export function calculateEnhancedLinearPostIntervention(
       scores.postInterventionDistinctivenessScore,
     baselineConditionScore: scores.baselineConditionScore,
     postInterventionConditionScore: scores.postInterventionConditionScore,
-    timeMultiplier,
-    difficultyMultiplier,
+    timeMultiplier: enhancementMetrics.timeMultiplier,
+    difficultyMultiplier: enhancementMetrics.difficultyMultiplier,
     encroachmentFactors: factors
   })
 
@@ -359,7 +358,6 @@ export function calculateEnhancedLinearPostIntervention(
     ...fields,
     strategicSignificanceScore:
       POST_INTERVENTION_STRATEGIC_SIGNIFICANCE_MULTIPLIER,
-    timeMultiplier,
-    difficultyMultiplier
+    ...enhancementMetrics
   }
 }

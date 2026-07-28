@@ -1,11 +1,16 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
 import { BaselineLookupError } from './errors.js'
+import * as referenceConstants from './reference-constants.js'
 import {
+  getHedgerowCreationDifficultyLabel,
   getHedgerowCreationDifficultyMultiplier,
   getHedgerowCreationTimeMultiplier,
+  getHedgerowCreationTimeToTargetValue,
+  getHedgerowEnhancementDifficultyLabel,
   getHedgerowEnhancementDifficultyMultiplier,
-  getHedgerowEnhancementTimeMultiplier
+  getHedgerowEnhancementTimeMultiplier,
+  getHedgerowEnhancementTimeToTargetValue
 } from './linear-hedgerow-multipliers.js'
 import {
   getWatercourseCreationDifficultyMultiplier,
@@ -52,6 +57,62 @@ describe('getHedgerowCreationTimeMultiplier', () => {
   })
 })
 
+describe('hedgerow time and difficulty display values', () => {
+  it('returns creation time-to-target and difficulty labels', () => {
+    expect(
+      String(
+        getHedgerowCreationTimeToTargetValue(NATIVE_HEDGEROW, MODERATE, 0, 0)
+      )
+    ).toBe('5')
+    expect(
+      getHedgerowCreationDifficultyLabel(NATIVE_HEDGEROW, MODERATE, 0, 0)
+    ).toBe('Low')
+  })
+
+  it('returns enhancement time-to-target and difficulty labels', () => {
+    expect(
+      String(
+        getHedgerowEnhancementTimeToTargetValue(
+          NATIVE_HEDGEROW,
+          POOR,
+          MODERATE,
+          0,
+          0
+        )
+      )
+    ).toBe('3')
+    expect(
+      getHedgerowEnhancementDifficultyLabel(
+        NATIVE_HEDGEROW,
+        POOR,
+        MODERATE,
+        0,
+        0
+      )
+    ).toBe('Low')
+  })
+})
+it('rejects Not Possible creation and enhancement multipliers', () => {
+  const spy = vi.spyOn(referenceConstants, 'DIFFICULTY_MULTIPLIER', 'get')
+  spy.mockReturnValue({
+    ...referenceConstants.DIFFICULTY_MULTIPLIER,
+    Low: 'Not Possible'
+  })
+
+  expect(() =>
+    getHedgerowCreationDifficultyMultiplier(NATIVE_HEDGEROW, MODERATE, 0, 0)
+  ).toThrow('Difficulty multiplier not found')
+  expect(() =>
+    getHedgerowEnhancementDifficultyMultiplier(
+      NATIVE_HEDGEROW,
+      POOR,
+      MODERATE,
+      0,
+      0
+    )
+  ).toThrow('Difficulty multiplier not found')
+  spy.mockRestore()
+})
 describe('getHedgerowCreationDifficultyMultiplier', () => {
   it('returns Low difficulty for Native hedgerow creation with no advance or delay', () => {
     expect(
