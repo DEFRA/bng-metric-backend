@@ -243,7 +243,7 @@ function resolveCreationDifficultyChangeType(
  * @param {object} cfg
  * @param {string} linearType
  * @param {string} difficultyChangeType
- * @returns {number}
+ * @returns {string}
  */
 function lookupLinearDifficultyLabel(cfg, linearType, difficultyChangeType) {
   const difficultyRow = cfg.difficulty[linearType]
@@ -267,7 +267,7 @@ function lookupLinearDifficultyLabel(cfg, linearType, difficultyChangeType) {
  * @param {string} condition
  * @param {number} advanceYears
  * @param {number} delayYears
- * @returns {number}
+ * @returns {string}
  */
 function getLinearCreationDifficultyLabel(
   cfg,
@@ -450,7 +450,7 @@ function getLinearEnhancementTimeMultiplier(
  * @param {string} endCondition
  * @param {number} advanceYears
  * @param {number} delayYears
- * @returns {number}
+ * @returns {string}
  */
 function getLinearEnhancementDifficultyLabel(
   cfg,
