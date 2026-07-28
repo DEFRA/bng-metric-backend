@@ -224,7 +224,8 @@ export function validateAdvanceAndDelayYears(advanceYears, delayYears) {
   const validatedAdvanceYears = validateYears(advanceYears)
   const validatedDelayYears = validateYears(delayYears)
 
-  if (validatedAdvanceYears > MIN_YEARS && validatedDelayYears > MIN_YEARS) {
+  // Zero means "not entered", so both being non-zero is both being used.
+  if (validatedAdvanceYears > 0 && validatedDelayYears > 0) {
     throw new Error(
       `Advance (${validatedAdvanceYears}) and delay (${validatedDelayYears}) years cannot both be used on the same habitat. Use one or the other, or split the habitat across two parcels.`
     )

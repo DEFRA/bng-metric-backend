@@ -3,7 +3,6 @@ import { parseProposedAdvanceDelayYears } from './extract-post-intervention-sub-
 import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from './properties.js'
 
 const SAMPLE_CAP = 50
-const NO_YEARS = 0
 
 /** Column names quoted back to the user, matching the NE template headings. */
 const ADVANCE_COLUMN = PROPOSED_PROP_KEYS.advanceYears[0]
@@ -36,7 +35,8 @@ function hasBothYears(properties) {
   const delay = parseProposedAdvanceDelayYears(
     pickProp(properties, PROPOSED_PROP_KEYS.delayYears)
   )
-  return advance > NO_YEARS && delay > NO_YEARS
+  // Zero means "not entered", so both being non-zero is both being used.
+  return advance > 0 && delay > 0
 }
 
 /**

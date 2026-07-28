@@ -198,23 +198,23 @@ describe('validateYears', () => {
 
 describe('validateAdvanceAndDelayYears', () => {
   it('allows advance on its own', () => {
-    expect(validateAdvanceAndDelayYears(5, MIN_YEARS)).toEqual({
+    expect(validateAdvanceAndDelayYears(5, 0)).toEqual({
       validatedAdvanceYears: 5,
-      validatedDelayYears: MIN_YEARS
+      validatedDelayYears: 0
     })
   })
 
   it('allows delay on its own', () => {
-    expect(validateAdvanceAndDelayYears(MIN_YEARS, 5)).toEqual({
-      validatedAdvanceYears: MIN_YEARS,
+    expect(validateAdvanceAndDelayYears(0, 5)).toEqual({
+      validatedAdvanceYears: 0,
       validatedDelayYears: 5
     })
   })
 
   it('allows neither', () => {
-    expect(validateAdvanceAndDelayYears(MIN_YEARS, MIN_YEARS)).toEqual({
-      validatedAdvanceYears: MIN_YEARS,
-      validatedDelayYears: MIN_YEARS
+    expect(validateAdvanceAndDelayYears(0, 0)).toEqual({
+      validatedAdvanceYears: 0,
+      validatedDelayYears: 0
     })
   })
 
@@ -237,9 +237,9 @@ describe('validateAdvanceAndDelayYears', () => {
   })
 
   it('still rejects an individually invalid value', () => {
-    expect(() =>
-      validateAdvanceAndDelayYears(MAX_YEARS + 1, MIN_YEARS)
-    ).toThrow('is not a valid number for years')
+    expect(() => validateAdvanceAndDelayYears(MAX_YEARS + 1, 0)).toThrow(
+      'is not a valid number for years'
+    )
   })
 })
 
