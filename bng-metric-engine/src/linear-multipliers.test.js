@@ -261,11 +261,9 @@ describe('getWatercourseEnhancementDifficultyMultiplier', () => {
     ).toThrow(BaselineLookupError)
   })
 
-  it('accounts for delayYears when determining Low difficulty threshold', () => {
+  it('uses Low difficulty once advance alone meets the time to target', () => {
     // Priority habitat Moderate → Good has a statutory reference time-to-target
-    // of 4 years. Advancing by 4 years (delay=0) meets the target → Low.
-    // Adding a 2-year delay raises the effective target to 6 years, so advance=4
-    // no longer meets it → Enhancement difficulty (Medium, 0.67).
+    // of 4 years. Advancing by 4 years meets the target → Low.
     expect(
       getWatercourseEnhancementDifficultyMultiplier(
         PRIORITY_HABITAT,
@@ -275,7 +273,20 @@ describe('getWatercourseEnhancementDifficultyMultiplier', () => {
         0
       )
     ).toBe(DIFFICULTY_LOW)
+    // A 2-year delay on its own leaves the enhancement band (Medium, 0.67).
     expect(
+      getWatercourseEnhancementDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        GOOD,
+        0,
+        2
+      )
+    ).toBe(DIFFICULTY_MEDIUM)
+  })
+
+  it('rejects advance and delay on the same watercourse', () => {
+    expect(() =>
       getWatercourseEnhancementDifficultyMultiplier(
         PRIORITY_HABITAT,
         MODERATE,
@@ -283,16 +294,6 @@ describe('getWatercourseEnhancementDifficultyMultiplier', () => {
         4,
         2
       )
-    ).toBe(DIFFICULTY_MEDIUM)
-    // advance=6 with delay=2: effective years = 4+2-6 = 0 → Low again
-    expect(
-      getWatercourseEnhancementDifficultyMultiplier(
-        PRIORITY_HABITAT,
-        MODERATE,
-        GOOD,
-        6,
-        2
-      )
-    ).toBe(DIFFICULTY_LOW)
+    ).toThrow(/cannot both be used on the same habitat/)
   })
 })

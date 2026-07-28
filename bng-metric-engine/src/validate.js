@@ -207,3 +207,28 @@ export function validateYears(years) {
   assertYearsInReferenceTable(years, n)
   return n
 }
+
+/**
+ * Validate the advance/delay pair for a single habitat parcel.
+ *
+ * Statutory tool: advance and delayed creation cannot both be used on the same
+ * habitat. Staggered creation is expressed as two rows, so the pair is rejected
+ * rather than netted into a single figure.
+ *
+ * @param {unknown} advanceYears
+ * @param {unknown} delayYears
+ * @returns {{ validatedAdvanceYears: number, validatedDelayYears: number }}
+ * @throws {Error} If either value is invalid, or if both are non-zero.
+ */
+export function validateAdvanceAndDelayYears(advanceYears, delayYears) {
+  const validatedAdvanceYears = validateYears(advanceYears)
+  const validatedDelayYears = validateYears(delayYears)
+
+  if (validatedAdvanceYears > MIN_YEARS && validatedDelayYears > MIN_YEARS) {
+    throw new Error(
+      `Advance (${validatedAdvanceYears}) and delay (${validatedDelayYears}) years cannot both be used on the same habitat. Use one or the other, or split the habitat across two parcels.`
+    )
+  }
+
+  return { validatedAdvanceYears, validatedDelayYears }
+}

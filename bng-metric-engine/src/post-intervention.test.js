@@ -158,3 +158,52 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
   })
 })
+
+describe('advance and delay on the same area habitat', () => {
+  // Statutory tool: advance and delayed creation cannot both be used on one
+  // habitat. Saltmarsh is the clearest case — left unrejected, the pair walks the
+  // difficulty multiplier through all three bands while the timing never changes.
+  const SALTMARSH = 'Coastal saltmarsh - Saltmarshes and saline reedbeds'
+  const BOTH_REJECTED = /cannot both be used on the same habitat/
+
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedAreaHabitatPostIntervention(1, SALTMARSH, 'Good', 1, 1)
+    ).toThrow(BOTH_REJECTED)
+    expect(() =>
+      calculateCreatedAreaHabitatPostIntervention(1, SALTMARSH, 'Good', 30, 30)
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('rejects the pair when enhancing', () => {
+    expect(() =>
+      calculateEnhancedAreaHabitatPostIntervention(
+        1,
+        SALTMARSH,
+        SALTMARSH,
+        'Poor',
+        'Good',
+        5,
+        5
+      )
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('still scores each on its own', () => {
+    const advanced = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      SALTMARSH,
+      'Good',
+      1,
+      0
+    )
+    const delayed = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      SALTMARSH,
+      'Good',
+      0,
+      1
+    )
+    expect(advanced.units).toBeGreaterThan(delayed.units)
+  })
+})

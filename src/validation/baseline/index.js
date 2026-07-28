@@ -1,3 +1,4 @@
+import { checkAdvanceAndDelayNotBothSet } from './advance-delay-check.js'
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readBaselineGeoPackage } from './geopackage.js'
@@ -35,7 +36,8 @@ export async function validateBaselineLayers(layers, pool, variant) {
   // the user sees blocking policy/data-quality issues first.
   const dataQualityErrors = [
     checkHabitatDistinctiveness(layers, variant),
-    checkDuplicateHabitatRefs(layers)
+    checkDuplicateHabitatRefs(layers),
+    checkAdvanceAndDelayNotBothSet(layers)
   ].filter(Boolean)
   if (dataQualityErrors.length === 0) {
     return { valid, errors }
