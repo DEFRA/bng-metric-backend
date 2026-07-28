@@ -112,6 +112,21 @@ describe('watercourse — Created', () => {
     expect(typeof proposed.difficultyMultiplier).toBe('number')
   })
 
+  it('writes statutory time/difficulty and derived display fields to proposed', () => {
+    const doc = makeDoc({ watercourses: [makeCreatedWatercourse()] })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    const proposed = doc.watercourses[0].proposed
+    expect(typeof proposed.standardTimeToTargetCondition).toBe('string')
+    expect(proposed.standardTimeToTargetCondition.length).toBeGreaterThan(0)
+    expect(typeof proposed.difficulty).toBe('string')
+    expect(proposed.difficulty.length).toBeGreaterThan(0)
+    expect(typeof proposed.advanceOrDelay).toBe('string')
+    expect(proposed.advanceOrDelay.length).toBeGreaterThan(0)
+    expect(typeof proposed.finalTimeToTargetCondition).toBe('string')
+    expect(proposed.finalTimeToTargetCondition.length).toBeGreaterThan(0)
+  })
+
   it('normalises prefixed retention category "1. Created"', () => {
     const base = makeCreatedWatercourse()
     const doc = makeDoc({
