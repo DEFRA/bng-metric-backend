@@ -7,6 +7,9 @@ import {
   calculateRetainedWatercoursePostIntervention
 } from './watercourse-post-intervention.js'
 
+const DIFFICULTY_CREATION = 0.33
+const DIFFICULTY_MEDIUM = 0.67
+
 describe('calculateRetainedWatercoursePostIntervention', () => {
   it('returns correct units with no encroachment (defaults to 1)', () => {
     const result = calculateRetainedWatercoursePostIntervention(
@@ -71,7 +74,27 @@ describe('calculateCreatedWatercoursePostIntervention', () => {
     expect(result.distinctivenessScore).toBe(8)
     expect(result.conditionScore).toBe(2)
     expect(result.timeMultiplier).toBe(0.8368287006)
-    expect(result.difficultyMultiplier).toBe(0.33)
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_CREATION)
+    expect(result.standardTimeToTargetCondition).toBe('5')
+    expect(result.difficulty).toBe('High')
+  })
+
+  it('reclassifies difficulty to the Enhancement band once advance clears the Poor target', () => {
+    // Priority habitat Poor time-to-target is 1 year, so advanceYears: 1
+    // reclassifies Creation difficulty (High) to the Enhancement band
+    // (Medium) — difficulty and difficultyMultiplier must stay consistent.
+    const result = calculateCreatedWatercoursePostIntervention(
+      1,
+      'Priority habitat',
+      'Moderate',
+      'Minor',
+      'Minor/No Encroachment',
+      1,
+      0
+    )
+    expect(result.standardTimeToTargetCondition).toBe('5')
+    expect(result.difficulty).toBe('Medium')
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_MEDIUM)
   })
 
   it('defaults advanceYears and delayYears to 0 when omitted', () => {
@@ -258,5 +281,38 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     expect(withEncroachment.units).toBeCloseTo(
       withoutEncroachment.units * 0.8 * 0.98
     )
+  })
+})
+
+describe('advance and delay on the same watercourse', () => {
+  // Watercourses move the opposite way to area habitats — the pair makes a
+  // created ditch score worse, not better — so they need their own cover.
+  const BOTH_REJECTED = /cannot both be used on the same habitat/
+
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedWatercoursePostIntervention(
+        1,
+        'Ditches',
+        'Good',
+        'No Encroachment',
+        'No Encroachment/No Encroachment',
+        30,
+        30
+      )
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('still scores advance on its own', () => {
+    const result = calculateCreatedWatercoursePostIntervention(
+      1,
+      'Ditches',
+      'Good',
+      'No Encroachment',
+      'No Encroachment/No Encroachment',
+      30,
+      0
+    )
+    expect(result.units).toBeGreaterThan(0)
   })
 })

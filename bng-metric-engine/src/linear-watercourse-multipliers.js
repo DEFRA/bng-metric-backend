@@ -26,6 +26,7 @@ export function getWatercourseCreationTimeMultiplier(
   )
 }
 
+/** @param {string} watercourseType @param {string} condition @param {number} advanceYears @param {number} delayYears @returns {string} Time-to-target bucket key (e.g. "5", ">30") */
 export function getWatercourseCreationTimeToTargetValue(
   watercourseType,
   condition,
@@ -33,6 +34,22 @@ export function getWatercourseCreationTimeToTargetValue(
   delayYears
 ) {
   return getLinearCreationTimeToTargetValue(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    condition,
+    advanceYears,
+    delayYears
+  )
+}
+
+/** @param {string} watercourseType @param {string} condition @param {number} advanceYears @param {number} delayYears @returns {string} Difficulty band label (e.g. "Low", "Medium", "High") */
+export function getWatercourseCreationDifficultyLabel(
+  watercourseType,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearCreationDifficultyLabel(
     WATERCOURSE_CONFIG,
     watercourseType,
     condition,
@@ -49,21 +66,6 @@ export function getWatercourseCreationDifficultyMultiplier(
   delayYears
 ) {
   return getLinearCreationDifficultyMultiplier(
-    WATERCOURSE_CONFIG,
-    watercourseType,
-    condition,
-    advanceYears,
-    delayYears
-  )
-}
-
-export function getWatercourseCreationDifficultyLabel(
-  watercourseType,
-  condition,
-  advanceYears,
-  delayYears
-) {
-  return getLinearCreationDifficultyLabel(
     WATERCOURSE_CONFIG,
     watercourseType,
     condition,
@@ -90,6 +92,7 @@ export function getWatercourseEnhancementTimeMultiplier(
   )
 }
 
+/** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {string} Time-to-target bucket key (e.g. "5", ">30") */
 export function getWatercourseEnhancementTimeToTargetValue(
   watercourseType,
   startCondition,
@@ -125,6 +128,7 @@ export function getWatercourseEnhancementDifficultyMultiplier(
   )
 }
 
+/** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {string} Difficulty band label (e.g. "Low", "Medium", "High") */
 export function getWatercourseEnhancementDifficultyLabel(
   watercourseType,
   startCondition,

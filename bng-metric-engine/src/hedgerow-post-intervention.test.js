@@ -108,6 +108,8 @@ describe('calculateEnhancedHedgerowPostIntervention', () => {
     expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_MODERATE)
     expect(result.timeMultiplier).toBe(MULTIPLIER_30_YRS)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('5')
+    expect(result.difficulty).toBe('Low')
   })
 
   it('uses Poor enhancement time-to-target start for higher distinctiveness above Poor', () => {
@@ -146,6 +148,8 @@ describe('calculateEnhancedHedgerowPostIntervention', () => {
     expect(result.units).toBe(6)
     expect(result.timeMultiplier).toBe(1)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('2')
+    expect(result.difficulty).toBe('Low')
   })
 
   it('uses baseline length for baseline value when post-intervention length is greater', () => {
@@ -222,10 +226,26 @@ describe('calculateEnhancedHedgerowPostIntervention', () => {
     expect(result.units).toBe(11.7249)
     expect(result.timeMultiplier).toBe(MULTIPLIER_2_YRS)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('2')
+    expect(result.difficulty).toBe('Low')
     expect(result.postInterventionDistinctivenessScore).toBe(
       DISTINCTIVENESS_SCORE_MEDIUM
     )
     expect(result.postInterventionConditionScore).toBe(CONDITION_SCORE_GOOD)
     expect(result.strategicSignificanceScore).toBe(STRATEGIC_SIGNIFICANCE)
+  })
+})
+
+describe('advance and delay on the same hedgerow', () => {
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedHedgerowPostIntervention(
+        1,
+        'Native hedgerow',
+        'Good',
+        5,
+        5
+      )
+    ).toThrow(/cannot both be used on the same habitat/)
   })
 })

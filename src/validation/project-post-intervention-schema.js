@@ -93,12 +93,12 @@ function proposedCommonFields() {
     standardTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features.'
+        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
     difficulty: Joi.string()
       .allow(null, '')
       .description(
-        'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features.'
+        'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')
@@ -108,7 +108,7 @@ function proposedCommonFields() {
     finalTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Final time-to-target display combining statutory years and time multiplier (e.g. "10 years (0.7)").'
+        'Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. "8 years (0.7)").'
       )
   }
 }

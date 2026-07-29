@@ -1,8 +1,12 @@
 import {
+  getHedgerowCreationDifficultyLabel,
   getHedgerowCreationDifficultyMultiplier,
   getHedgerowCreationTimeMultiplier,
+  getHedgerowCreationTimeToTargetValue,
+  getHedgerowEnhancementDifficultyLabel,
   getHedgerowEnhancementDifficultyMultiplier,
-  getHedgerowEnhancementTimeMultiplier
+  getHedgerowEnhancementTimeMultiplier,
+  getHedgerowEnhancementTimeToTargetValue
 } from './linear-hedgerow-multipliers.js'
 import { isDistinctivenessEnhancement } from './linear-resolvers.js'
 import {
@@ -18,6 +22,8 @@ import {
 
 const HEDGEROW_RESOLVER_LABEL = 'hedgerow'
 const POOR_CONDITION = 'Poor'
+const STATUTORY_ADVANCE_YEARS = 0
+const STATUTORY_DELAY_YEARS = 0
 
 /**
  * Enhancement-through-distinctiveness from a Poor baseline uses creation
@@ -44,19 +50,83 @@ function resolveHedgerowEnhancementTimeStartCondition(
   return baselineCondition
 }
 
+function resolveCreationMetrics({
+  postType,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
+  return {
+    timeMultiplier: getHedgerowCreationTimeMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getHedgerowCreationDifficultyMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getHedgerowCreationTimeToTargetValue(
+      postType,
+      postCondition,
+      STATUTORY_ADVANCE_YEARS,
+      STATUTORY_DELAY_YEARS
+    ),
+    difficulty: getHedgerowCreationDifficultyLabel(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
+function resolveEnhancementMetrics({
+  postType,
+  timeStartCondition,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
+  return {
+    timeMultiplier: getHedgerowEnhancementTimeMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getHedgerowEnhancementDifficultyMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getHedgerowEnhancementTimeToTargetValue(
+      postType,
+      timeStartCondition,
+      postCondition,
+      STATUTORY_ADVANCE_YEARS,
+      STATUTORY_DELAY_YEARS
+    ),
+    difficulty: getHedgerowEnhancementDifficultyLabel(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
 /**
  * Resolve time and difficulty multipliers for an enhanced hedgerow.
- *
- * @param {{
- *   baselineDistinctivenessScore: number,
- *   postInterventionDistinctivenessScore: number,
- *   postType: string,
- *   baselineCondition: string,
- *   postCondition: string,
- *   advanceYears: number,
- *   delayYears: number
- * }} enhancementContext
- * @returns {{ timeMultiplier: number, difficultyMultiplier: number }}
+ * @param {{ baselineDistinctivenessScore: number, postInterventionDistinctivenessScore: number, postType: string, baselineCondition: string, postCondition: string, advanceYears: number, delayYears: number }} enhancementContext
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
  */
 function resolveHedgerowEnhancementMultipliers({
   baselineDistinctivenessScore,
@@ -74,20 +144,12 @@ function resolveHedgerowEnhancementMultipliers({
     ) &&
     baselineCondition === POOR_CONDITION
   ) {
-    return {
-      timeMultiplier: getHedgerowCreationTimeMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      ),
-      difficultyMultiplier: getHedgerowCreationDifficultyMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      )
-    }
+    return resolveCreationMetrics({
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    })
   }
 
   const timeStartCondition = resolveHedgerowEnhancementTimeStartCondition(
@@ -95,24 +157,14 @@ function resolveHedgerowEnhancementMultipliers({
     postInterventionDistinctivenessScore,
     baselineCondition
   )
-  return {
-    timeMultiplier: getHedgerowEnhancementTimeMultiplier(
-      postType,
-      timeStartCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    ),
-    difficultyMultiplier: getHedgerowEnhancementDifficultyMultiplier(
-      postType,
-      timeStartCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    )
-  }
+  return resolveEnhancementMetrics({
+    postType,
+    timeStartCondition,
+    postCondition,
+    advanceYears,
+    delayYears
+  })
 }
-
 /** @type {import('./linear-post-intervention.js').LinearPostInterventionConfig} */
 const HEDGEROW_PI_CONFIG = {
   label: 'Hedgerow',

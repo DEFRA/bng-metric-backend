@@ -69,6 +69,24 @@ describe('calculateCreatedAreaHabitatPostIntervention', () => {
     expect(result.conditionScore).toBe(CONDITION_SCORE_MODERATE)
     expect(result.timeMultiplier).toBe(MULTIPLIER_4_YRS)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('4')
+    expect(result.difficulty).toBe('Low')
+  })
+
+  it('forces difficulty to Low when advance years meet the time-to-target', () => {
+    // Raw Creation difficulty for Lowland calcareous grassland is High.
+    // advanceYears covering the statutory target must force both the display
+    // label and the unit multiplier to Low — not the raw Creation band.
+    const result = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      'Grassland - Lowland calcareous grassland',
+      'Good',
+      20,
+      0
+    )
+    expect(result.standardTimeToTargetCondition).toBe('20')
+    expect(result.difficulty).toBe('Low')
+    expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
   })
 })
 
@@ -156,5 +174,54 @@ describe('calculateEnhancedAreaHabitatPostIntervention', () => {
     expect(result.standardTimeToTargetCondition).toBe('30')
     expect(result.difficulty).toBe('Low')
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+  })
+})
+
+describe('advance and delay on the same area habitat', () => {
+  // Statutory tool: advance and delayed creation cannot both be used on one
+  // habitat. Saltmarsh is the clearest case — left unrejected, the pair walks the
+  // difficulty multiplier through all three bands while the timing never changes.
+  const SALTMARSH = 'Coastal saltmarsh - Saltmarshes and saline reedbeds'
+  const BOTH_REJECTED = /cannot both be used on the same habitat/
+
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedAreaHabitatPostIntervention(1, SALTMARSH, 'Good', 1, 1)
+    ).toThrow(BOTH_REJECTED)
+    expect(() =>
+      calculateCreatedAreaHabitatPostIntervention(1, SALTMARSH, 'Good', 30, 30)
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('rejects the pair when enhancing', () => {
+    expect(() =>
+      calculateEnhancedAreaHabitatPostIntervention(
+        1,
+        SALTMARSH,
+        SALTMARSH,
+        'Poor',
+        'Good',
+        5,
+        5
+      )
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('still scores each on its own', () => {
+    const advanced = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      SALTMARSH,
+      'Good',
+      1,
+      0
+    )
+    const delayed = calculateCreatedAreaHabitatPostIntervention(
+      1,
+      SALTMARSH,
+      'Good',
+      0,
+      1
+    )
+    expect(advanced.units).toBeGreaterThan(delayed.units)
   })
 })

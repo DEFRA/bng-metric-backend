@@ -3,6 +3,7 @@ import { describe, expect, it, vi } from 'vitest'
 import * as referenceConstants from './reference-constants.js'
 import { BaselineLookupError } from './errors.js'
 import {
+  validateAdvanceAndDelayYears,
   validateCondition,
   validateHabitat,
   validateHabitatChange,
@@ -192,6 +193,53 @@ describe('validateYears', () => {
 
     vi.doUnmock('./reference-constants.js')
     vi.resetModules()
+  })
+})
+
+describe('validateAdvanceAndDelayYears', () => {
+  it('allows advance on its own', () => {
+    expect(validateAdvanceAndDelayYears(5, 0)).toEqual({
+      validatedAdvanceYears: 5,
+      validatedDelayYears: 0
+    })
+  })
+
+  it('allows delay on its own', () => {
+    expect(validateAdvanceAndDelayYears(0, 5)).toEqual({
+      validatedAdvanceYears: 0,
+      validatedDelayYears: 5
+    })
+  })
+
+  it('allows neither', () => {
+    expect(validateAdvanceAndDelayYears(0, 0)).toEqual({
+      validatedAdvanceYears: 0,
+      validatedDelayYears: 0
+    })
+  })
+
+  it('rejects both, however small', () => {
+    expect(() => validateAdvanceAndDelayYears(1, 1)).toThrow(
+      'cannot both be used on the same habitat'
+    )
+  })
+
+  it('names both values in the message', () => {
+    expect(() => validateAdvanceAndDelayYears(30, 2)).toThrow(
+      'Advance (30) and delay (2) years'
+    )
+  })
+
+  it('normalises legacy forms before comparing', () => {
+    expect(() => validateAdvanceAndDelayYears(MAX_YEARS_PLUS, '2')).toThrow(
+      'Advance (30) and delay (2) years'
+    )
+  })
+
+  it('still rejects an individually invalid value', () => {
+    expect(() => validateAdvanceAndDelayYears(MAX_YEARS + 1, 0)).toThrow(
+      'is not a valid number for years'
+    )
   })
 })
 

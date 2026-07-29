@@ -3170,7 +3170,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.habitats[].proposed.difficulty",
@@ -3181,7 +3181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceOrDelay",
@@ -3203,7 +3203,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
+      "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
     },
     {
       "path": "postIntervention.habitats[].proposed.strategicSignificance",
@@ -3676,7 +3676,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.trees[].proposed.difficulty",
@@ -3687,7 +3687,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.trees[].proposed.advanceOrDelay",
@@ -3709,7 +3709,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
+      "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
     },
     {
       "path": "postIntervention.trees[].properties",
@@ -4006,7 +4006,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.difficulty",
@@ -4017,7 +4017,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
@@ -4039,7 +4039,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
+      "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
     },
     {
       "path": "postIntervention.hedgerows[].properties",
@@ -4391,7 +4391,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.difficulty",
@@ -4402,7 +4402,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceOrDelay",
@@ -4424,7 +4424,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Final time-to-target display combining statutory years and time multiplier (e.g. \"10 years (0.7)\")."
+      "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
     },
     {
       "path": "postIntervention.watercourses[].proposed.riparianEncroachment",

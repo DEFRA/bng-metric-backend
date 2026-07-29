@@ -2,7 +2,7 @@ import { BaselineLookupError } from './errors.js'
 import {
   validateHabitat,
   validateCondition,
-  validateYears,
+  validateAdvanceAndDelayYears,
   validateHabitatChange
 } from './validate.js'
 import {
@@ -160,8 +160,8 @@ function getTimeToTargetValue(
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
 
   const referenceYears = lookupRawTimeToTarget(
     habitat,
@@ -198,8 +198,8 @@ function getTimeMultiplier(
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
   validateEnhancementStartCondition(
     habitat,
     creationOrEnhancement,
@@ -359,8 +359,8 @@ function getDifficultyLabel(
   validateHabitat(habitat)
   validateHabitatChange(creationOrEnhancement)
   validateCondition(habitat, endCondition)
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
   validateEnhancementStartCondition(
     habitat,
     creationOrEnhancement,

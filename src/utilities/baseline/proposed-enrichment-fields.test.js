@@ -29,12 +29,12 @@ describe('copyProposedDisplayFields', () => {
     const proposed = {}
     copyProposedDisplayFields(proposed, {
       advanceOrDelay: 'Advance - 2 years',
-      finalTimeToTargetCondition: '10 years (0.7)',
+      finalTimeToTargetCondition: '8 years (0.7)',
       difficulty: 'Low'
     })
     expect(proposed).toEqual({
       advanceOrDelay: 'Advance - 2 years',
-      finalTimeToTargetCondition: '10 years (0.7)'
+      finalTimeToTargetCondition: '8 years (0.7)'
     })
   })
 })

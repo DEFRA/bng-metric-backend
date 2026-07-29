@@ -152,7 +152,7 @@ describe('hedgerow — Enhanced', () => {
     expect(hedge.status).toBe('Complete')
   })
 
-  it('writes postIntervention distinctiveness fields and multipliers to proposed', () => {
+  it('writes calculation and time/difficulty display fields to proposed', () => {
     const doc = makeDoc({ hedgerows: [makeEnhancedHedgerow()] })
     enrichPostInterventionDocumentWithUnits(doc, undefined, {
       baselineLengthByRef: BASELINE_LENGTH_BY_REF
@@ -164,6 +164,10 @@ describe('hedgerow — Enhanced', () => {
     expect(typeof proposed.conditionScore).toBe('number')
     expect(typeof proposed.timeMultiplier).toBe('number')
     expect(typeof proposed.difficultyMultiplier).toBe('number')
+    expect(typeof proposed.standardTimeToTargetCondition).toBe('string')
+    expect(typeof proposed.difficulty).toBe('string')
+    expect(proposed.advanceOrDelay).toBe('Neither')
+    expect(proposed.finalTimeToTargetCondition).toMatch(/^.+ years \(.+\)$/)
   })
 
   it('marks Incomplete and warns when baseline length lookup returns no match', () => {

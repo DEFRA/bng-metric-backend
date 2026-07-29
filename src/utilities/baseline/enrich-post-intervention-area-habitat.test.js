@@ -168,6 +168,21 @@ describe('area habitat — Created', () => {
     expect(hab.units).toBeGreaterThan(0)
     expect(hab.status).toBe('Complete')
   })
+
+  it('writes statutory time/difficulty and derived display fields to proposed', () => {
+    const doc = makeDoc({ habitats: [makeCreatedAreaHabitat()] })
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    const proposed = doc.habitats[0].proposed
+    expect(typeof proposed.standardTimeToTargetCondition).toBe('string')
+    expect(proposed.standardTimeToTargetCondition.length).toBeGreaterThan(0)
+    expect(typeof proposed.difficulty).toBe('string')
+    expect(proposed.difficulty.length).toBeGreaterThan(0)
+    expect(typeof proposed.advanceOrDelay).toBe('string')
+    expect(proposed.advanceOrDelay.length).toBeGreaterThan(0)
+    expect(typeof proposed.finalTimeToTargetCondition).toBe('string')
+    expect(proposed.finalTimeToTargetCondition.length).toBeGreaterThan(0)
+  })
 })
 
 describe('area habitat — Enhanced', () => {
