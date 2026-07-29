@@ -3170,7 +3170,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.habitats[].proposed.difficulty",
@@ -3181,7 +3181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceOrDelay",
@@ -3676,7 +3676,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.trees[].proposed.difficulty",
@@ -3687,7 +3687,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.trees[].proposed.advanceOrDelay",
@@ -4006,7 +4006,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.difficulty",
@@ -4017,7 +4017,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
@@ -4391,7 +4391,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.difficulty",
@@ -4402,7 +4402,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features and Enhanced hedgerow features."
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceOrDelay",

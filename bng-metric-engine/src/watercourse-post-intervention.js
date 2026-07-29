@@ -1,6 +1,8 @@
 import {
+  getWatercourseCreationDifficultyLabel,
   getWatercourseCreationDifficultyMultiplier,
   getWatercourseCreationTimeMultiplier,
+  getWatercourseCreationTimeToTargetValue,
   getWatercourseEnhancementDifficultyMultiplier,
   getWatercourseEnhancementTimeMultiplier
 } from './linear-watercourse-multipliers.js'
@@ -26,6 +28,8 @@ const WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL = 'watercourse encroachment'
 const RIPARIAN_ENCROACHMENT_LOOKUP_LABEL = 'riparian encroachment'
 const WATERCOURSE_RESOLVER_LABEL = 'watercourse'
 const POOR_CONDITION = 'Poor'
+const STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS = 0
+const STATUTORY_TIME_TO_TARGET_DELAY_YEARS = 0
 
 /**
  * Resolve time and difficulty multipliers for an enhanced watercourse, handling
@@ -178,6 +182,35 @@ function resolveEnhancedWatercourseEncroachmentFactors(encroachment) {
   }
 }
 
+/**
+ * @param {string} watercourseType
+ * @param {string} condition
+ * @param {number} advanceYears
+ * @param {number} delayYears
+ * @returns {{ standardTimeToTargetCondition: string, difficulty: string }}
+ */
+function resolveCreatedWatercourseDerivedMetrics(
+  watercourseType,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  return {
+    standardTimeToTargetCondition: getWatercourseCreationTimeToTargetValue(
+      watercourseType,
+      condition,
+      STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
+      STATUTORY_TIME_TO_TARGET_DELAY_YEARS
+    ),
+    difficulty: getWatercourseCreationDifficultyLabel(
+      watercourseType,
+      condition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
 /** @type {import('./linear-post-intervention.js').LinearPostInterventionConfig} */
 const WATERCOURSE_PI_CONFIG = {
   label: 'Watercourse',
@@ -230,7 +263,7 @@ export function calculateRetainedWatercoursePostIntervention(
  * @param {string} riparianEncroachment - Encroachment into riparian zone
  * @param {number} [advanceYears=0] - Years habitat is advanced beyond 30 years
  * @param {number} [delayYears=0] - Years delivery is delayed
- * @returns {{ units: number, distinctiveness: string, distinctivenessScore: number, conditionScore: number, waterEncroachmentMultiplier: number, riparianEncroachmentMultiplier: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number }}
+ * @returns {{ units: number, distinctiveness: string, distinctivenessScore: number, conditionScore: number, waterEncroachmentMultiplier: number, riparianEncroachmentMultiplier: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
  */
 export function calculateCreatedWatercoursePostIntervention(
   lengthKm,
@@ -241,7 +274,7 @@ export function calculateCreatedWatercoursePostIntervention(
   advanceYears = 0,
   delayYears = 0
 ) {
-  return calculateCreatedLinearPostIntervention(WATERCOURSE_PI_CONFIG, {
+  const result = calculateCreatedLinearPostIntervention(WATERCOURSE_PI_CONFIG, {
     lengthKm,
     type: watercourseType,
     condition,
@@ -249,6 +282,15 @@ export function calculateCreatedWatercoursePostIntervention(
     delayYears,
     encroachment: { watercourseEncroachment, riparianEncroachment }
   })
+  return {
+    ...result,
+    ...resolveCreatedWatercourseDerivedMetrics(
+      watercourseType,
+      condition,
+      advanceYears,
+      delayYears
+    )
+  }
 }
 
 /**

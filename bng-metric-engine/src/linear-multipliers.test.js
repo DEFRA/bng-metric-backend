@@ -13,8 +13,10 @@ import {
   getHedgerowEnhancementTimeToTargetValue
 } from './linear-hedgerow-multipliers.js'
 import {
+  getWatercourseCreationDifficultyLabel,
   getWatercourseCreationDifficultyMultiplier,
   getWatercourseCreationTimeMultiplier,
+  getWatercourseCreationTimeToTargetValue,
   getWatercourseEnhancementDifficultyMultiplier,
   getWatercourseEnhancementTimeMultiplier
 } from './linear-watercourse-multipliers.js'
@@ -32,6 +34,8 @@ const PRIORITY_HABITAT = 'Priority habitat'
 const MODERATE = 'Moderate'
 const GOOD = 'Good'
 const POOR = 'Poor'
+const CONDITION_ASSESSMENT_NA = 'Condition Assessment N/A'
+const WATERCOURSE_DITCHES = 'Ditches'
 
 // ---------------------------------------------------------------------------
 // Hedgerow creation
@@ -255,6 +259,97 @@ describe('getWatercourseCreationDifficultyMultiplier', () => {
   })
 })
 
+describe('getWatercourseCreationTimeToTargetValue', () => {
+  it('returns the statutory reference years as a bucket key text', () => {
+    expect(
+      getWatercourseCreationTimeToTargetValue(PRIORITY_HABITAT, MODERATE, 0, 0)
+    ).toBe('5')
+  })
+
+  it('applies advance/delay when resolving the bucket key', () => {
+    expect(
+      getWatercourseCreationTimeToTargetValue(PRIORITY_HABITAT, MODERATE, 2, 0)
+    ).toBe('3')
+  })
+
+  it('throws BaselineLookupError for an unrecognised watercourse type', () => {
+    expect(() =>
+      getWatercourseCreationTimeToTargetValue(
+        'Not a watercourse',
+        MODERATE,
+        0,
+        0
+      )
+    ).toThrow(BaselineLookupError)
+  })
+})
+
+describe('getWatercourseCreationDifficultyLabel', () => {
+  it('returns the Creation band label when advance does not clear the Poor target', () => {
+    expect(
+      getWatercourseCreationDifficultyLabel(PRIORITY_HABITAT, MODERATE, 0, 0)
+    ).toBe('High')
+  })
+
+  it('matches the band that getWatercourseCreationDifficultyMultiplier applies', () => {
+    const label = getWatercourseCreationDifficultyLabel(
+      PRIORITY_HABITAT,
+      MODERATE,
+      0,
+      0
+    )
+    expect(label).toBe('High')
+    expect(
+      getWatercourseCreationDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        0,
+        0
+      )
+    ).toBe(DIFFICULTY_CREATION)
+  })
+
+  it('reclassifies to the Enhancement band once advance clears the Poor target', () => {
+    // Priority habitat Poor time-to-target is 1 year, so advanceYears: 1
+    // reclassifies Creation difficulty to the Enhancement band (Medium),
+    // not directly to Low as area habitats do.
+    const label = getWatercourseCreationDifficultyLabel(
+      PRIORITY_HABITAT,
+      MODERATE,
+      1,
+      0
+    )
+    expect(label).toBe('Medium')
+    expect(
+      getWatercourseCreationDifficultyMultiplier(
+        PRIORITY_HABITAT,
+        MODERATE,
+        1,
+        0
+      )
+    ).toBe(DIFFICULTY_MEDIUM)
+  })
+
+  it('stays on the Enhancement band even when advance fully meets the target', () => {
+    // Meeting the full Moderate target (5 years) still only reclassifies to
+    // Enhancement (Medium) for watercourse creation — unlike area habitats,
+    // which force Low once advance meets the full target.
+    const label = getWatercourseCreationDifficultyLabel(
+      PRIORITY_HABITAT,
+      MODERATE,
+      5,
+      0
+    )
+    expect(label).toBe('Medium')
+  })
+
+  it('throws BaselineLookupError for an unrecognised watercourse type', () => {
+    expect(() =>
+      getWatercourseCreationDifficultyLabel('Not a watercourse', MODERATE, 0, 0)
+    ).toThrow(BaselineLookupError)
+  })
+})
+
 // ---------------------------------------------------------------------------
 // Watercourse enhancement
 // ---------------------------------------------------------------------------
@@ -356,5 +451,224 @@ describe('getWatercourseEnhancementDifficultyMultiplier', () => {
         2
       )
     ).toThrow(/cannot both be used on the same habitat/)
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Shared linear type/condition validation edge cases
+// ---------------------------------------------------------------------------
+
+describe('shared linear type/condition validation', () => {
+  it('throws BaselineLookupError for an empty linear type', () => {
+    expect(() => getHedgerowCreationTimeMultiplier('', MODERATE, 0, 0)).toThrow(
+      BaselineLookupError
+    )
+  })
+
+  it('throws TypeError for a non-string linear type', () => {
+    expect(() =>
+      getHedgerowCreationTimeMultiplier(123, MODERATE, 0, 0)
+    ).toThrow(TypeError)
+  })
+
+  it('throws BaselineLookupError for an empty condition', () => {
+    expect(() =>
+      getHedgerowCreationTimeMultiplier(NATIVE_HEDGEROW, '', 0, 0)
+    ).toThrow(BaselineLookupError)
+  })
+
+  it('throws TypeError for a non-string condition', () => {
+    expect(() =>
+      getHedgerowCreationTimeMultiplier(NATIVE_HEDGEROW, 123, 0, 0)
+    ).toThrow(TypeError)
+  })
+
+  it('throws when condition scores are missing for an otherwise-valid watercourse type', () => {
+    const original =
+      referenceConstants.WATERCOURSE_CONDITION_SCORES[WATERCOURSE_DITCHES]
+    delete referenceConstants.WATERCOURSE_CONDITION_SCORES[WATERCOURSE_DITCHES]
+    try {
+      expect(() =>
+        getWatercourseCreationTimeMultiplier(
+          WATERCOURSE_DITCHES,
+          MODERATE,
+          0,
+          0
+        )
+      ).toThrow('Condition scores not found')
+    } finally {
+      referenceConstants.WATERCOURSE_CONDITION_SCORES[WATERCOURSE_DITCHES] =
+        original
+    }
+  })
+
+  it('throws when there is no difficulty reference data for an otherwise-valid watercourse type', () => {
+    const original =
+      referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES]
+    delete referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES]
+    try {
+      expect(() =>
+        getWatercourseCreationDifficultyLabel(
+          WATERCOURSE_DITCHES,
+          MODERATE,
+          0,
+          0
+        )
+      ).toThrow('No difficulty reference data')
+    } finally {
+      referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES] = original
+    }
+  })
+
+  it('throws when the difficulty band is missing for the resolved change type', () => {
+    const original =
+      referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES]
+    referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES] = {
+      Creation: 'Low'
+    }
+    try {
+      // Ditches Poor time-to-target is 1 year, so advanceYears: 1
+      // reclassifies to the (now-missing) Enhancement band.
+      expect(() =>
+        getWatercourseCreationDifficultyLabel(
+          WATERCOURSE_DITCHES,
+          MODERATE,
+          1,
+          0
+        )
+      ).toThrow('Difficulty not found')
+    } finally {
+      referenceConstants.WATERCOURSE_DIFFICULTY[WATERCOURSE_DITCHES] = original
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Creation time-to-target / time-multiplier edge cases
+// ---------------------------------------------------------------------------
+
+describe('creation time-to-target and time-multiplier edge cases', () => {
+  it('throws BaselineLookupError when the creation time-to-target is Not Possible', () => {
+    expect(() =>
+      getWatercourseCreationTimeToTargetValue(
+        PRIORITY_HABITAT,
+        CONDITION_ASSESSMENT_NA,
+        0,
+        0
+      )
+    ).toThrow(BaselineLookupError)
+  })
+
+  it('throws BaselineLookupError when creation time-to-target data is missing an entry', () => {
+    const original =
+      referenceConstants.WATERCOURSE_TIME_TO_TARGET_CREATION[PRIORITY_HABITAT]
+        .Moderate
+    delete referenceConstants.WATERCOURSE_TIME_TO_TARGET_CREATION[
+      PRIORITY_HABITAT
+    ].Moderate
+    try {
+      expect(() =>
+        getWatercourseCreationTimeToTargetValue(
+          PRIORITY_HABITAT,
+          MODERATE,
+          0,
+          0
+        )
+      ).toThrow('Time to target not found')
+    } finally {
+      referenceConstants.WATERCOURSE_TIME_TO_TARGET_CREATION[
+        PRIORITY_HABITAT
+      ].Moderate = original
+    }
+  })
+
+  it('throws when the creation time multiplier table has no entry for the computed key', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_MULTIPLIER', 'get')
+    spy.mockReturnValue({})
+    try {
+      expect(() =>
+        getWatercourseCreationTimeMultiplier(PRIORITY_HABITAT, MODERATE, 0, 0)
+      ).toThrow('Time multiplier not found')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('throws when the creation time multiplier is Not Possible', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_MULTIPLIER', 'get')
+    spy.mockReturnValue({
+      ...referenceConstants.TIME_TO_TARGET_MULTIPLIER,
+      5: 'Not Possible'
+    })
+    try {
+      expect(() =>
+        getWatercourseCreationTimeMultiplier(PRIORITY_HABITAT, MODERATE, 0, 0)
+      ).toThrow('is not possible')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+})
+
+// ---------------------------------------------------------------------------
+// Enhancement time-to-target / time-multiplier edge cases
+// ---------------------------------------------------------------------------
+
+describe('enhancement time-to-target and time-multiplier edge cases', () => {
+  it('throws BaselineLookupError when enhancement time-to-target has no entry for the start condition', () => {
+    expect(() =>
+      getHedgerowEnhancementTimeToTargetValue(
+        NATIVE_HEDGEROW,
+        CONDITION_ASSESSMENT_NA,
+        GOOD,
+        0,
+        0
+      )
+    ).toThrow(BaselineLookupError)
+  })
+
+  it('throws BaselineLookupError when the enhancement time-to-target is Not Possible', () => {
+    expect(() =>
+      getHedgerowEnhancementTimeToTargetValue(NATIVE_HEDGEROW, POOR, POOR, 0, 0)
+    ).toThrow(BaselineLookupError)
+  })
+
+  it('throws when the enhancement time multiplier table has no entry for the computed key', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_MULTIPLIER', 'get')
+    spy.mockReturnValue({})
+    try {
+      expect(() =>
+        getWatercourseEnhancementTimeMultiplier(
+          PRIORITY_HABITAT,
+          MODERATE,
+          GOOD,
+          0,
+          0
+        )
+      ).toThrow('Time multiplier not found')
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
+  it('throws when the enhancement time multiplier is Not Possible', () => {
+    const spy = vi.spyOn(referenceConstants, 'TIME_TO_TARGET_MULTIPLIER', 'get')
+    spy.mockReturnValue({
+      ...referenceConstants.TIME_TO_TARGET_MULTIPLIER,
+      4: 'Not Possible'
+    })
+    try {
+      expect(() =>
+        getWatercourseEnhancementTimeMultiplier(
+          PRIORITY_HABITAT,
+          MODERATE,
+          GOOD,
+          0,
+          0
+        )
+      ).toThrow('is not possible')
+    } finally {
+      spy.mockRestore()
+    }
   })
 })
