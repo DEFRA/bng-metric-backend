@@ -235,3 +235,17 @@ describe('calculateEnhancedHedgerowPostIntervention', () => {
     expect(result.strategicSignificanceScore).toBe(STRATEGIC_SIGNIFICANCE)
   })
 })
+
+describe('advance and delay on the same hedgerow', () => {
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedHedgerowPostIntervention(
+        1,
+        'Native hedgerow',
+        'Good',
+        5,
+        5
+      )
+    ).toThrow(/cannot both be used on the same habitat/)
+  })
+})

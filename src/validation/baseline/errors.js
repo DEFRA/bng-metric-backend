@@ -50,6 +50,9 @@ export const ERROR_CODES = Object.freeze({
   HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE',
   DUPLICATE_HABITAT_REF: 'DUPLICATE_HABITAT_REF',
 
+  /** A feature carries both advance and delay years; the statutory metric allows only one. */
+  ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
+
   /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
   SIZING_FAILED: 'SIZING_FAILED',
 

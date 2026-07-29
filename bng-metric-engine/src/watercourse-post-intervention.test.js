@@ -251,3 +251,36 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     )
   })
 })
+
+describe('advance and delay on the same watercourse', () => {
+  // Watercourses move the opposite way to area habitats — the pair makes a
+  // created ditch score worse, not better — so they need their own cover.
+  const BOTH_REJECTED = /cannot both be used on the same habitat/
+
+  it('rejects the pair when creating', () => {
+    expect(() =>
+      calculateCreatedWatercoursePostIntervention(
+        1,
+        'Ditches',
+        'Good',
+        'No Encroachment',
+        'No Encroachment/No Encroachment',
+        30,
+        30
+      )
+    ).toThrow(BOTH_REJECTED)
+  })
+
+  it('still scores advance on its own', () => {
+    const result = calculateCreatedWatercoursePostIntervention(
+      1,
+      'Ditches',
+      'Good',
+      'No Encroachment',
+      'No Encroachment/No Encroachment',
+      30,
+      0
+    )
+    expect(result.units).toBeGreaterThan(0)
+  })
+})

@@ -20,7 +20,10 @@ import {
   normaliseReferenceYears,
   toTimeToTargetBucketKey
 } from './linear-time-target-utils.js'
-import { validateHabitatChange, validateYears } from './validate.js'
+import {
+  validateAdvanceAndDelayYears,
+  validateHabitatChange
+} from './validate.js'
 
 const NOT_POSSIBLE = 'Not Possible'
 const LOW_DIFFICULTY = 'Low'
@@ -155,8 +158,8 @@ function getLinearCreationTimeToTargetValue(
     cfg.conditionScores,
     cfg.label
   )
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
 
   const referenceYears = normaliseReferenceYears(
     lookupLinearCreationTimeToTarget(cfg, linearType, endCondition)
@@ -279,8 +282,8 @@ function getLinearCreationDifficultyLabel(
   validateLinearType(linearType, cfg.distinctivenessCategories, cfg.label)
   validateHabitatChange(CREATION)
   validateLinearCondition(linearType, condition, cfg.conditionScores, cfg.label)
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
 
   const timeToTargetKey = getLinearCreationTimeToTargetValue(
     cfg,
@@ -385,8 +388,8 @@ function getLinearEnhancementTimeToTargetValue(
     cfg.conditionScores,
     cfg.label
   )
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
 
   const referenceYears = normaliseReferenceYears(
     lookupLinearEnhancementTimeToTarget(
@@ -474,8 +477,8 @@ function getLinearEnhancementDifficultyLabel(
     cfg.conditionScores,
     cfg.label
   )
-  const validatedAdvanceYears = validateYears(advanceYears)
-  const validatedDelayYears = validateYears(delayYears)
+  const { validatedAdvanceYears, validatedDelayYears } =
+    validateAdvanceAndDelayYears(advanceYears, delayYears)
 
   const referenceYears = normaliseReferenceYears(
     lookupLinearEnhancementTimeToTarget(
