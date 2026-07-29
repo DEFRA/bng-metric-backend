@@ -66,6 +66,8 @@ describe('calculateCreatedHedgerowPostIntervention', () => {
     expect(result.conditionScore).toBe(CONDITION_SCORE_MODERATE)
     expect(result.timeMultiplier).toBe(MULTIPLIER_30_YRS)
     expect(result.difficultyMultiplier).toBe(DIFFICULTY_LOW)
+    expect(result.standardTimeToTargetCondition).toBe('5')
+    expect(result.difficulty).toBe('Low')
   })
 })
 
