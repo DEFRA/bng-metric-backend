@@ -93,12 +93,12 @@ function proposedCommonFields() {
     standardTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area features.'
+        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Enhanced area and watercourse features.'
       ),
     difficulty: Joi.string()
       .allow(null, '')
       .description(
-        'Difficulty band label (e.g. Low, Medium, High) from habitat-area-difficulty.json; set for Enhanced area features.'
+        'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Enhanced area and watercourse features.'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')

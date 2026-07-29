@@ -1,9 +1,13 @@
 import {
   WATERCOURSE_CONFIG,
+  getLinearCreationDifficultyLabel,
   getLinearCreationDifficultyMultiplier,
   getLinearCreationTimeMultiplier,
+  getLinearCreationTimeToTargetValue,
+  getLinearEnhancementDifficultyLabel,
   getLinearEnhancementDifficultyMultiplier,
-  getLinearEnhancementTimeMultiplier
+  getLinearEnhancementTimeMultiplier,
+  getLinearEnhancementTimeToTargetValue
 } from './linear-multipliers.js'
 
 /** @param {string} watercourseType @param {string} condition @param {number} advanceYears @param {number} delayYears @returns {number} */
@@ -22,6 +26,21 @@ export function getWatercourseCreationTimeMultiplier(
   )
 }
 
+export function getWatercourseCreationTimeToTargetValue(
+  watercourseType,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearCreationTimeToTargetValue(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    condition,
+    advanceYears,
+    delayYears
+  )
+}
+
 /** @param {string} watercourseType @param {string} condition @param {number} advanceYears @param {number} delayYears @returns {number} */
 export function getWatercourseCreationDifficultyMultiplier(
   watercourseType,
@@ -30,6 +49,21 @@ export function getWatercourseCreationDifficultyMultiplier(
   delayYears
 ) {
   return getLinearCreationDifficultyMultiplier(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    condition,
+    advanceYears,
+    delayYears
+  )
+}
+
+export function getWatercourseCreationDifficultyLabel(
+  watercourseType,
+  condition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearCreationDifficultyLabel(
     WATERCOURSE_CONFIG,
     watercourseType,
     condition,
@@ -56,6 +90,23 @@ export function getWatercourseEnhancementTimeMultiplier(
   )
 }
 
+export function getWatercourseEnhancementTimeToTargetValue(
+  watercourseType,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearEnhancementTimeToTargetValue(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
+  )
+}
+
 /** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {number} */
 export function getWatercourseEnhancementDifficultyMultiplier(
   watercourseType,
@@ -65,6 +116,23 @@ export function getWatercourseEnhancementDifficultyMultiplier(
   delayYears
 ) {
   return getLinearEnhancementDifficultyMultiplier(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
+  )
+}
+
+export function getWatercourseEnhancementDifficultyLabel(
+  watercourseType,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearEnhancementDifficultyLabel(
     WATERCOURSE_CONFIG,
     watercourseType,
     startCondition,

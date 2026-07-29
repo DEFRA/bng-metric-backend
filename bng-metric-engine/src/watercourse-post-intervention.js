@@ -1,8 +1,12 @@
 import {
+  getWatercourseCreationDifficultyLabel,
   getWatercourseCreationDifficultyMultiplier,
   getWatercourseCreationTimeMultiplier,
+  getWatercourseCreationTimeToTargetValue,
+  getWatercourseEnhancementDifficultyLabel,
   getWatercourseEnhancementDifficultyMultiplier,
-  getWatercourseEnhancementTimeMultiplier
+  getWatercourseEnhancementTimeMultiplier,
+  getWatercourseEnhancementTimeToTargetValue
 } from './linear-watercourse-multipliers.js'
 import {
   isDistinctivenessEnhancement,
@@ -26,6 +30,8 @@ const WATERCOURSE_ENCROACHMENT_LOOKUP_LABEL = 'watercourse encroachment'
 const RIPARIAN_ENCROACHMENT_LOOKUP_LABEL = 'riparian encroachment'
 const WATERCOURSE_RESOLVER_LABEL = 'watercourse'
 const POOR_CONDITION = 'Poor'
+const STATUTORY_ADVANCE_YEARS = 0
+const STATUTORY_DELAY_YEARS = 0
 
 /**
  * Resolve time and difficulty multipliers for an enhanced watercourse, handling
@@ -42,7 +48,7 @@ const POOR_CONDITION = 'Poor'
  *   advanceYears: number,
  *   delayYears: number
  * }} enhancementContext
- * @returns {{ timeMultiplier: number, difficultyMultiplier: number }}
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
  */
 function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   const {
@@ -75,6 +81,18 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
         postCondition,
         advanceYears,
         delayYears
+      ),
+      standardTimeToTargetCondition: getWatercourseCreationTimeToTargetValue(
+        postType,
+        postCondition,
+        STATUTORY_ADVANCE_YEARS,
+        STATUTORY_DELAY_YEARS
+      ),
+      difficulty: getWatercourseCreationDifficultyLabel(
+        postType,
+        postCondition,
+        advanceYears,
+        delayYears
       )
     }
   }
@@ -87,6 +105,19 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
         delayYears
       ),
       difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
+        postType,
+        POOR_CONDITION,
+        postCondition,
+        advanceYears,
+        delayYears
+      ),
+      standardTimeToTargetCondition: getWatercourseCreationTimeToTargetValue(
+        postType,
+        postCondition,
+        STATUTORY_ADVANCE_YEARS,
+        STATUTORY_DELAY_YEARS
+      ),
+      difficulty: getWatercourseEnhancementDifficultyLabel(
         postType,
         POOR_CONDITION,
         postCondition,
@@ -108,6 +139,20 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
       delayYears
     ),
     difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getWatercourseEnhancementTimeToTargetValue(
+      postType,
+      timeStartCondition,
+      postCondition,
+      STATUTORY_ADVANCE_YEARS,
+      STATUTORY_DELAY_YEARS
+    ),
+    difficulty: getWatercourseEnhancementDifficultyLabel(
       postType,
       timeStartCondition,
       postCondition,
@@ -263,7 +308,7 @@ export function calculateCreatedWatercoursePostIntervention(
  * @param {string} baselineCondition - Baseline condition band
  * @param {string} postInterventionCondition - Post-intervention condition band
  * @param {{ watercourseEncroachment?: string | null, riparianEncroachment?: string | null, advanceYears?: number, delayYears?: number }} [options] - Post-intervention encroachment and timing
- * @returns {{ units: number, postInterventionDistinctiveness: string, postInterventionDistinctivenessScore: number, postInterventionConditionScore: number, postInterventionWaterEncroachmentMultiplier: number, postInterventionRiparianEncroachmentMultiplier: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number }}
+ * @returns {{ units: number, postInterventionDistinctiveness: string, postInterventionDistinctivenessScore: number, postInterventionConditionScore: number, postInterventionWaterEncroachmentMultiplier: number, postInterventionRiparianEncroachmentMultiplier: number, strategicSignificanceScore: number, timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
  * @throws {TypeError} If either length is invalid
  * @throws {BaselineLookupError} If watercourse type, condition, or encroachment is not found in the reference tables
  */
