@@ -13,6 +13,8 @@ import {
   makeDrizzle
 } from '../../routes/baseline.test-fixtures.js'
 import { saveBaselineForProject } from './save-baseline-for-project.js'
+import { assignFeatureIds } from '../../validation/baseline/assign-feature-ids.js'
+import { refLookupKey } from '../../validation/baseline/carry-forward-feature-ids.js'
 import { calculateHabitatSizes } from './calculate-habitat-sizes.js'
 import { extractHabitatData } from '../../validation/baseline/extract-habitat-data.js'
 import { extractPostIntervention } from '../../validation/baseline/extract-post-intervention.js'
@@ -281,5 +283,84 @@ describe('saveBaselineForProject', () => {
         projectDocumentKey: 'postIntervention'
       })
     )
+  })
+
+  describe('featureId carry-forward', () => {
+    const STORED_ID = '11111111-1111-4111-8111-111111111111'
+
+    function drizzleReturning(project) {
+      const { drizzle } = makeDrizzle()
+      drizzle.select = vi.fn(() => ({
+        from: vi.fn(() => ({
+          where: vi.fn(() => ({
+            limit: vi.fn(() => Promise.resolve(project ? [{ project }] : []))
+          }))
+        }))
+      }))
+      return drizzle
+    }
+
+    async function save(project, config = BASELINE_CONFIG) {
+      const drizzle = drizzleReturning(project)
+      await saveBaselineForProject(
+        { drizzle, pgPool: {}, logger },
+        PROJECT_ID,
+        STUB_LAYERS,
+        { uploadId: UPLOAD_ID, sub: SUB, filename: null, fileSize: null },
+        h,
+        config
+      )
+    }
+
+    it('passes the stored ids for the document being replaced', async () => {
+      await save({
+        baseline: { habitats: [{ ref: 'PR-1', featureId: STORED_ID }] }
+      })
+
+      const [, featureIdByRef] = assignFeatureIds.mock.calls[0]
+      expect(featureIdByRef.get(refLookupKey('habitats', 'PR-1'))).toBe(
+        STORED_ID
+      )
+    })
+
+    it('passes an empty map on a first import', async () => {
+      await save(undefined)
+
+      const [, featureIdByRef] = assignFeatureIds.mock.calls[0]
+      expect(featureIdByRef.size).toBe(0)
+    })
+
+    // Uploading a post-intervention file must not inherit baseline ids: the two
+    // documents are separate feature sets with their own rows downstream.
+    it('scopes the lookup to the document key being written', async () => {
+      await save(
+        {
+          baseline: { habitats: [{ ref: 'PR-1', featureId: STORED_ID }] },
+          postIntervention: { habitats: [] }
+        },
+        POST_INTERVENTION_CONFIG
+      )
+
+      const [, featureIdByRef] = assignFeatureIds.mock.calls[0]
+      expect(featureIdByRef.size).toBe(0)
+    })
+
+    it('reads the project once, serving both carry-forward and enrichment', async () => {
+      const drizzle = drizzleReturning({
+        baseline: { habitats: [], hedgerows: [], watercourses: [], units: {} },
+        postIntervention: {}
+      })
+
+      await saveBaselineForProject(
+        { drizzle, pgPool: {}, logger },
+        PROJECT_ID,
+        STUB_LAYERS,
+        { uploadId: UPLOAD_ID, sub: SUB, filename: null, fileSize: null },
+        h,
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(drizzle.select).toHaveBeenCalledTimes(1)
+    })
   })
 })

@@ -13,6 +13,7 @@ import Joi from 'joi'
 import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
+  featureIdDescription,
   redLineSchema,
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
@@ -102,9 +103,7 @@ const habitatSchema = Joi.object({
   featureId: Joi.string()
     .uuid()
     .required()
-    .description(
-      'UUID assigned on import; join key to the bng.baseline_habitats geometry row.'
-    ),
+    .description(featureIdDescription('bng.baseline_habitats')),
   ref: Joi.string()
     .allow(null, '')
     .description('Parcel reference from the GeoPackage (Parcel Ref column).'),
@@ -173,9 +172,7 @@ const treeSchema = habitatSchema
     featureId: Joi.string()
       .uuid()
       .required()
-      .description(
-        'UUID assigned on import; join key to the bng.baseline_trees geometry row.'
-      ),
+      .description(featureIdDescription('bng.baseline_trees')),
     ref: Joi.string()
       .allow(null, '')
       .description('Tree reference from the GeoPackage (Tree Ref column).'),
@@ -256,9 +253,7 @@ function linearFeatureSchema({
     featureId: Joi.string()
       .uuid()
       .required()
-      .description(
-        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
-      ),
+      .description(featureIdDescription(geometryRow)),
     ref: Joi.string()
       .allow(null, '')
       .description(

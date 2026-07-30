@@ -204,25 +204,28 @@ describe('POST /baseline/validate/{uploadId} — re-upload behaviour', () => {
     expect(stored.baseline.uploadId).toBe(secondUploadId)
   })
 
-  it('keeps featureIds fresh across re-uploads (a re-upload is a clean import, not an in-place edit)', async () => {
-    const project = await createProject('Integration test — featureId churn')
+  // Superseded by BMD-867. A re-upload replaces the document wholesale, but the
+  // featureIds are carried forward by `ref` so the external relational
+  // consumers see UPDATEs rather than a mass delete-and-insert. The full
+  // guarantee — edits, red line, geometry rows, partial matches — is covered in
+  // feature-id-stability.test.js.
+  it('carries featureIds forward across re-uploads, keyed on ref', async () => {
+    const project = await createProject('Integration test — featureId carry')
 
     const firstUploadId = await uploadFixture(FIXTURE)
     await callValidate(firstUploadId, { projectId: project.id })
     const firstStored = await fetchProject(project.id)
-    const firstIds = new Set(
-      firstStored.baseline.habitats.map((h) => h.featureId)
+    const firstIdsByRef = new Map(
+      firstStored.baseline.habitats.map((h) => [h.ref, h.featureId])
     )
+    expect(firstIdsByRef.size).toBeGreaterThan(0)
 
     const secondUploadId = await uploadFixture(FIXTURE)
     await callValidate(secondUploadId, { projectId: project.id })
     const secondStored = await fetchProject(project.id)
-    const secondIds = new Set(
-      secondStored.baseline.habitats.map((h) => h.featureId)
-    )
 
-    for (const id of secondIds) {
-      expect(firstIds.has(id)).toBe(false)
+    for (const habitat of secondStored.baseline.habitats) {
+      expect(habitat.featureId).toBe(firstIdsByRef.get(habitat.ref))
     }
   })
 })

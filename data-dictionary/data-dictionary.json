@@ -1058,7 +1058,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_red_line geometry row."
+      "description": "Stable UUID for the Red Line Boundary; join key to the bng.baseline_red_line geometry row. There is at most one per document, so it is carried forward on re-upload without needing a ref."
     },
     {
       "path": "baseline.redLine.siteName",
@@ -1124,7 +1124,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_habitats geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "baseline.habitats[].ref",
@@ -1641,7 +1641,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_trees geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_trees geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "baseline.trees[].ref",
@@ -1806,7 +1806,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_hedgerows geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_hedgerows geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "baseline.hedgerows[].ref",
@@ -2114,7 +2114,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_watercourses geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_watercourses geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "baseline.watercourses[].ref",
@@ -2818,7 +2818,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_red_line geometry row."
+      "description": "Stable UUID for the Red Line Boundary; join key to the bng.baseline_red_line geometry row. There is at most one per document, so it is carried forward on re-upload without needing a ref."
     },
     {
       "path": "postIntervention.redLine.siteName",
@@ -2895,7 +2895,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_habitats geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.habitats[].ref",
@@ -3269,7 +3269,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.post_intervention_trees geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.post_intervention_trees geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.trees[].ref",
@@ -3764,7 +3764,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_hedgerows geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_hedgerows geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.hedgerows[].ref",
@@ -4094,7 +4094,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "UUID assigned on import; join key to the bng.baseline_watercourses geometry row."
+      "description": "Stable UUID for the feature; join key to the bng.baseline_watercourses geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.watercourses[].ref",
