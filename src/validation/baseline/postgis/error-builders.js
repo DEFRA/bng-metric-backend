@@ -68,6 +68,18 @@ function describeSliver(sample) {
 }
 
 /**
+ * Variant of describeFeature that also names the parcel's own area, so a
+ * sliver report says how small the offending shape actually is.
+ */
+function describeFeatureWithArea(sample) {
+  const base = describeFeature(sample)
+  if (sample?.area_sqm == null) {
+    return base
+  }
+  return `${base} — ~${Number(sample.area_sqm).toFixed(2)} sq m`
+}
+
+/**
  * Variant of describeFeature that also names the escape geometry's area + WKT
  * so the per-parcel report co-locates the parcel ref with where on the map it
  * leaks the redline.
@@ -144,13 +156,13 @@ export const ERROR_BUILDERS = {
       ),
       p
     ),
-  [ERROR_CODES.SLIVERS_INSIDE_REDLINE]: (p) =>
+  [ERROR_CODES.AREA_PARCELS_TOO_SMALL]: (p) =>
     makeError(
-      ERROR_CODES.SLIVERS_INSIDE_REDLINE,
+      ERROR_CODES.AREA_PARCELS_TOO_SMALL,
       formatList(
-        'Baseline file contains slivers inside the redline boundary that are not covered by any area habitat polygon',
+        'One or more area habitat parcels are slivers (smaller than 1 sq m)',
         p,
-        describeSliver
+        describeFeatureWithArea
       ),
       p
     ),

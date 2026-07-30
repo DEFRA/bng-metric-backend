@@ -23,7 +23,12 @@ const ENGLAND_GEOMETRY_JSON = JSON.stringify(englandGeoJson.geometry)
 // load time (they're static JS values, not user input, so direct string
 // interpolation is safe and makes the SQL self-documenting).
 
-const SLIVER_THRESHOLD_SQ_M = 1
+// A habitat parcel smaller than this is a digitising artefact — a hairline
+// strip left by an unsnapped edge, not a habitat anyone intended to record.
+// Applied to the parcel's own footprint as supplied in the file. Gaps *between*
+// parcels are not checked: the redline-vs-total-parcel-area comparison
+// (AREA_SUM_MISMATCH) already accounts for any land the parcels fail to cover.
+const SLIVER_PARCEL_THRESHOLD_SQ_M = 1
 const OVERLAP_TOLERANCE_SQ_M = 0.5
 const AREA_SUM_TOLERANCE_SQ_M = 0.5
 const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
@@ -190,19 +195,18 @@ c_overlap_offending AS (
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
   WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
 ),
--- Gaps inside the redline not covered by any habitat parcel, discarding
--- the trivially small (GEOS noise on shared edges) and the trivially large
--- (legitimately uncovered land — that's a different check). Slivers carry
--- geometry rather than a source feature.
-c_slivers AS (
-  SELECT ST_Area(g) AS area_sqm,
-         ST_AsText(g) AS location_wkt
-  FROM (
-    SELECT (ST_Dump(ST_Difference(redl.geom, parc.geom, ${OVERLAY_GRID_SIZE_M}))).geom AS g
-    FROM redline_union redl CROSS JOIN parcels_union parc
-    WHERE redl.geom IS NOT NULL AND parc.geom IS NOT NULL
-  ) leftover
-  WHERE ST_Area(g) > 0 AND ST_Area(g) < ${SLIVER_THRESHOLD_SQ_M}
+-- Area habitat parcels whose own footprint is a sliver — smaller than
+-- SLIVER_PARCEL_THRESHOLD_SQ_M as supplied in the file. Reported per parcel,
+-- with the area, so the user can find the offending shape and redraw it.
+-- Zero-area parcels are included: unlike derived overlay geometry, a parcel
+-- the file itself declares with no area is always a mistake.
+c_areas_sliver AS (
+  SELECT idx,
+         ${fidColumnSql()} AS fid,
+         ${featureRefSql()} AS feature_ref,
+         ST_Area(ST_MakeValid(geom)) AS area_sqm
+  FROM areas
+  WHERE ST_Area(ST_MakeValid(geom)) < ${SLIVER_PARCEL_THRESHOLD_SQ_M}
 ),
 -- Habitat parcel parts that fall outside the redline, reported as the
 -- *escaping geometry* rather than as a list of parcels (the per-parcel view
@@ -338,15 +342,15 @@ SELECT 'PARCEL_OVERLAPS',
 FROM c_overlap_offending
 HAVING count(*) > 0
 UNION ALL
-SELECT 'SLIVERS_INSIDE_REDLINE',
+SELECT 'AREA_PARCELS_TOO_SMALL',
        jsonb_build_object(
          'count', count(*),
          'sample', (
-           SELECT jsonb_agg(jsonb_build_object('area_sqm', area_sqm, 'location_wkt', location_wkt) ORDER BY area_sqm DESC)
-           FROM (SELECT area_sqm, location_wkt FROM c_slivers ORDER BY area_sqm DESC LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
+           SELECT jsonb_agg(jsonb_build_object('idx', idx, 'fid', fid, 'feature_ref', feature_ref, 'area_sqm', area_sqm) ORDER BY idx)
+           FROM (SELECT idx, fid, feature_ref, area_sqm FROM c_areas_sliver ORDER BY idx LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
          )
        )
-FROM c_slivers
+FROM c_areas_sliver
 HAVING count(*) > 0
 UNION ALL
 SELECT 'SLIVERS_OUTSIDE_REDLINE',
@@ -440,7 +444,7 @@ const ERROR_ORDER = [
   ERROR_CODES.REDLINE_INVALID_GEOMETRY,
   ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY,
   ERROR_CODES.PARCEL_OVERLAPS,
-  ERROR_CODES.SLIVERS_INSIDE_REDLINE,
+  ERROR_CODES.AREA_PARCELS_TOO_SMALL,
   ERROR_CODES.SLIVERS_OUTSIDE_REDLINE,
   ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE,
   ERROR_CODES.HEDGEROWS_OUTSIDE_REDLINE,

@@ -106,14 +106,14 @@ const HUGE = [
 ]
 
 // Side length (in metres) of the triangular corner cut from NOTCHED_SQUARE.
-// 0.8 m × 0.8 m / 2 = 0.32 sq m, which sits inside the (0, 1) sliver range
-// and below the 0.5 sq m AREA_SUM_MISMATCH tolerance.
+// 0.8 m × 0.8 m / 2 = 0.32 sq m, below the 0.5 sq m AREA_SUM_MISMATCH
+// tolerance.
 const NOTCH_SIDE_M = 0.8
 
-// SQUARE with a small triangular corner cut off (~0.32 sq m). When used as
-// the only habitat against the SQUARE redline, the gap shows up as a sliver
-// (area in the (0, SLIVER_THRESHOLD_SQ_M) range) without tripping
-// AREA_SUM_MISMATCH.
+// SQUARE with a small triangular corner cut off (~0.32 sq m). As the only
+// habitat against the SQUARE redline it leaves a hairline gap the service no
+// longer looks for (BMD-882) — small enough that AREA_SUM_MISMATCH lets it
+// through too.
 const NOTCHED_SQUARE = [
   [X0 + NOTCH_SIDE_M, Y0],
   [X0 + EDGE, Y0],
@@ -123,10 +123,34 @@ const NOTCHED_SQUARE = [
   [X0 + NOTCH_SIDE_M, Y0]
 ]
 
+// Width (in metres) of HAIRLINE_STRIP. It spans the full 100 m redline, so
+// 5 mm gives it an area of 0.5 sq m — under the 1 sq m
+// SLIVER_PARCEL_THRESHOLD_SQ_M in postgis/index.js.
+const HAIRLINE_WIDTH_M = 0.005
+const STRIP_EDGE_Y = Y0 + EDGE - HAIRLINE_WIDTH_M
+
+// SQUARE split into a full-size parcel and a hairline strip along its top
+// edge. The two tile the redline exactly, so the strip's own size is the only
+// thing wrong with the pair: no gap, no overlap, nothing outside the redline,
+// and the areas still sum to the redline area.
+const SQUARE_MINUS_STRIP = [
+  [X0, Y0],
+  [X0 + EDGE, Y0],
+  [X0 + EDGE, STRIP_EDGE_Y],
+  [X0, STRIP_EDGE_Y],
+  [X0, Y0]
+]
+const HAIRLINE_STRIP = [
+  [X0, STRIP_EDGE_Y],
+  [X0 + EDGE, STRIP_EDGE_Y],
+  [X0 + EDGE, Y0 + EDGE],
+  [X0, Y0 + EDGE],
+  [X0, STRIP_EDGE_Y]
+]
+
 // HALF the area of SQUARE, fully inside it. Triggers AREA_SUM_MISMATCH
 // (sums differ by 7500 sq m) without tripping PARCEL_OUTSIDE_REDLINE
-// (parcel ⊂ redline) or SLIVERS (the leftover gap is far above the
-// SLIVER_THRESHOLD_SQ_M cutoff).
+// (parcel ⊂ redline).
 const HALF_SQUARE = [
   [X0, Y0],
   [X0 + HALF, Y0],
@@ -245,7 +269,7 @@ describe('validateBaselineLayersPostgis — happy path', () => {
     expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
     expect(codes).not.toContain('AREA_PARCELS_INVALID_GEOMETRY')
     expect(codes).not.toContain('PARCEL_OVERLAPS')
-    expect(codes).not.toContain('SLIVERS_INSIDE_REDLINE')
+    expect(codes).not.toContain('AREA_PARCELS_TOO_SMALL')
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
     expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
@@ -313,14 +337,40 @@ describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
     expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
   })
 
-  it('detects slivers inside the redline', async () => {
+  it('detects a habitat parcel too small to be a real habitat', async () => {
+    const err = await runAndGetError(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [
+          poly(SQUARE_MINUS_STRIP, { fid: '1', 'Parcel Ref': 'PR-BIG' }),
+          poly(HAIRLINE_STRIP, { fid: '2', 'Parcel Ref': 'PR-SLIVER' })
+        ]
+      }),
+      'AREA_PARCELS_TOO_SMALL'
+    )
+    expect(err).toBeDefined()
+    expect(err.details.count).toBe(1)
+    expect(err.details.sample[0].feature_ref).toBe('PR-SLIVER')
+    expect(err.details.sample[0].area_sqm).toBeCloseTo(0.5, 2)
+  })
+
+  it('accepts habitat parcels that are comfortably above the sliver threshold', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
+    )
+    expect(codes).not.toContain('AREA_PARCELS_TOO_SMALL')
+  })
+
+  // BMD-882: gaps between parcels are no longer a check of their own. A
+  // hairline gap below the AREA_SUM_MISMATCH tolerance now passes validation.
+  it('accepts a hairline gap left between the parcels and the redline', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
         redline: [poly(SQUARE)],
         areas: [poly(NOTCHED_SQUARE)]
       })
     )
-    expect(codes).toContain('SLIVERS_INSIDE_REDLINE')
+    expect(codes).toEqual([])
   })
 
   it('detects slivers outside the redline (habitat parts escaping)', async () => {
@@ -521,18 +571,17 @@ describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
     expect(err.message).toContain('Feature Ref PR-A ↔ Feature Ref PR-B')
   })
 
-  it('SLIVERS_INSIDE_REDLINE carries area_sqm and location_wkt per sliver', async () => {
+  it('AREA_PARCELS_TOO_SMALL falls back to fid when no parcel ref is set', async () => {
     const err = await runAndGetError(
       makeLayers({
         redline: [poly(SQUARE)],
-        areas: [poly(NOTCHED_SQUARE)]
+        areas: [poly(SQUARE_MINUS_STRIP), poly(HAIRLINE_STRIP, { fid: '9' })]
       }),
-      'SLIVERS_INSIDE_REDLINE'
+      'AREA_PARCELS_TOO_SMALL'
     )
-    expect(err).toBeDefined()
-    expect(err.details.count).toBeGreaterThanOrEqual(1)
-    expect(err.details.sample[0]).toHaveProperty('area_sqm')
-    expect(err.details.sample[0]).toHaveProperty('location_wkt')
+    expect(err.details.sample[0].feature_ref).toBeNull()
+    expect(err.details.sample[0].fid).toBe('9')
+    expect(err.message).toContain('fid 9')
   })
 
   it('falls back to fid when feature_ref properties are absent', async () => {
@@ -562,7 +611,7 @@ describe('validateBaselineLayersPostgis — coordinate-system handling', () => {
     expect(codes).not.toContain('REDLINE_OUTSIDE_ENGLAND')
     expect(codes).not.toContain('REDLINE_INVALID_GEOMETRY')
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
-    expect(codes).not.toContain('SLIVERS_INSIDE_REDLINE')
+    expect(codes).not.toContain('AREA_PARCELS_TOO_SMALL')
     expect(codes).not.toContain('AREA_SUM_MISMATCH')
   })
 })
