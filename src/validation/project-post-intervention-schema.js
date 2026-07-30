@@ -93,12 +93,12 @@ function proposedCommonFields() {
     standardTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features.'
+        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
     difficulty: Joi.string()
       .allow(null, '')
       .description(
-        'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created watercourse features, and Enhanced hedgerow features.'
+        'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')

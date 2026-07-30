@@ -167,6 +167,8 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     expect(result.postInterventionRiparianEncroachmentMultiplier).toBe(0.98)
     expect(result.timeMultiplier).toBe(0.8671800006)
     expect(result.difficultyMultiplier).toBe(0.67)
+    expect(result.standardTimeToTargetCondition).toBe('4')
+    expect(result.difficulty).toBe('Medium')
   })
 
   it('matches spreadsheet units for cross-type distinctiveness enhancement from Poor baseline', () => {
@@ -187,6 +189,8 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     expect(result.timeMultiplier).toBe(0.8368287006)
     expect(result.difficultyMultiplier).toBe(0.33)
     expect(result.units).toBeCloseTo(7.31384)
+    expect(result.standardTimeToTargetCondition).toBe('5')
+    expect(result.difficulty).toBe('High')
   })
 
   it('matches spreadsheet units for cross-type distinctiveness enhancement', () => {
@@ -207,6 +211,8 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     expect(result.units).toBeCloseTo(15.504)
     expect(result.timeMultiplier).toBe(0.7002822742)
     expect(result.difficultyMultiplier).toBe(0.67)
+    expect(result.standardTimeToTargetCondition).toBe('10')
+    expect(result.difficulty).toBe('Medium')
   })
 
   it('matches spreadsheet units for Moderate to Good with advance years', () => {
@@ -227,6 +233,9 @@ describe('calculateEnhancedWatercoursePostIntervention', () => {
     expect(result.units).toBeCloseTo(20.99)
     expect(result.timeMultiplier).toBe(0.931225)
     expect(result.difficultyMultiplier).toBe(0.67)
+    // Statutory value ignores the applied 2-year advance, unlike timeMultiplier's bucket.
+    expect(result.standardTimeToTargetCondition).toBe('4')
+    expect(result.difficulty).toBe('Medium')
   })
 
   it('uses baseline length for baseline value when post-intervention length is greater', () => {

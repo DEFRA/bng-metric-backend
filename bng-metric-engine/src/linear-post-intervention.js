@@ -25,7 +25,7 @@ const NO_ENCROACHMENT = { factors: [], fields: {} }
  * @property {Record<string, Record<string, number>>} conditionScores
  * @property {(type: string, condition: string, advanceYears: number, delayYears: number) => number} getCreationTimeMultiplier
  * @property {(type: string, condition: string, advanceYears: number, delayYears: number) => number} getCreationDifficultyMultiplier
- * @property {(ctx: object) => { timeMultiplier: number, difficultyMultiplier: number }} resolveEnhancementMultipliers
+ * @property {(ctx: object) => { timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }} resolveEnhancementMultipliers
  * @property {(encroachment: object, options: { required: boolean }) => { factors: number[], fields: object }} [resolveEncroachmentFactors]
  * @property {(encroachment: object) => { factors: number[], fields: object }} [resolveEnhancedEncroachmentFactors]
  */

@@ -4,8 +4,10 @@ import {
   getLinearCreationDifficultyMultiplier,
   getLinearCreationTimeMultiplier,
   getLinearCreationTimeToTargetValue,
+  getLinearEnhancementDifficultyLabel,
   getLinearEnhancementDifficultyMultiplier,
-  getLinearEnhancementTimeMultiplier
+  getLinearEnhancementTimeMultiplier,
+  getLinearEnhancementTimeToTargetValue
 } from './linear-multipliers.js'
 
 /** @param {string} watercourseType @param {string} condition @param {number} advanceYears @param {number} delayYears @returns {number} */
@@ -90,6 +92,24 @@ export function getWatercourseEnhancementTimeMultiplier(
   )
 }
 
+/** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {string} Time-to-target bucket key (e.g. "5", ">30") */
+export function getWatercourseEnhancementTimeToTargetValue(
+  watercourseType,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearEnhancementTimeToTargetValue(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
+  )
+}
+
 /** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {number} */
 export function getWatercourseEnhancementDifficultyMultiplier(
   watercourseType,
@@ -99,6 +119,24 @@ export function getWatercourseEnhancementDifficultyMultiplier(
   delayYears
 ) {
   return getLinearEnhancementDifficultyMultiplier(
+    WATERCOURSE_CONFIG,
+    watercourseType,
+    startCondition,
+    endCondition,
+    advanceYears,
+    delayYears
+  )
+}
+
+/** @param {string} watercourseType @param {string} startCondition @param {string} endCondition @param {number} advanceYears @param {number} delayYears @returns {string} Difficulty band label (e.g. "Low", "Medium", "High") */
+export function getWatercourseEnhancementDifficultyLabel(
+  watercourseType,
+  startCondition,
+  endCondition,
+  advanceYears,
+  delayYears
+) {
+  return getLinearEnhancementDifficultyLabel(
     WATERCOURSE_CONFIG,
     watercourseType,
     startCondition,
