@@ -160,7 +160,10 @@ export const ERROR_BUILDERS = {
     makeError(
       ERROR_CODES.AREA_PARCELS_TOO_SMALL,
       formatList(
-        'One or more area habitat parcels are slivers (smaller than 1 sq m)',
+        // Phrased to match the frontend's single-error copy, so the same
+        // rejection reads the same on both layouts. Deliberately avoids
+        // "sliver": the check is on area, not on how thin the parcel is.
+        'One or more area habitat parcels are smaller than 1 square metre',
         p,
         describeFeatureWithArea
       ),

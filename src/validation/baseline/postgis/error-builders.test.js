@@ -149,14 +149,14 @@ describe('ERROR_BUILDERS — list errors: code-specific payload shapes', () => {
     expect(err.details).toEqual(payload)
   })
 
-  it('AREA_PARCELS_TOO_SMALL names each sliver parcel and its area', () => {
+  it('AREA_PARCELS_TOO_SMALL names each undersized parcel and its area', () => {
     const err = ERROR_BUILDERS[ERROR_CODES.AREA_PARCELS_TOO_SMALL]({
       count: 1,
       sample: [{ idx: 0, fid: '1', feature_ref: 'PR-42', area_sqm: 0.32 }]
     })
     expect(err.code).toBe(ERROR_CODES.AREA_PARCELS_TOO_SMALL)
     expect(err.message).toBe(
-      'One or more area habitat parcels are slivers (smaller than 1 sq m): Feature Ref PR-42 — ~0.32 sq m'
+      'One or more area habitat parcels are smaller than 1 square metre: Feature Ref PR-42 — ~0.32 sq m'
     )
   })
 
@@ -166,7 +166,7 @@ describe('ERROR_BUILDERS — list errors: code-specific payload shapes', () => {
       sample: [{ idx: 3, fid: null, feature_ref: null }]
     })
     expect(err.message).toBe(
-      'One or more area habitat parcels are slivers (smaller than 1 sq m): feature #3'
+      'One or more area habitat parcels are smaller than 1 square metre: feature #3'
     )
   })
 
