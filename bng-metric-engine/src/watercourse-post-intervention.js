@@ -34,6 +34,81 @@ const STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS = 0
 const STATUTORY_TIME_TO_TARGET_DELAY_YEARS = 0
 
 /**
+ * @param {{ postType: string, postCondition: string, advanceYears: number, delayYears: number }} ctx
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
+ */
+function resolveWatercourseCreationMetrics({
+  postType,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
+  return {
+    timeMultiplier: getWatercourseCreationTimeMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getWatercourseCreationDifficultyMultiplier(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    ...resolveCreatedWatercourseDerivedMetrics(
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
+/**
+ * @param {{ postType: string, timeStartCondition: string, postCondition: string, advanceYears: number, delayYears: number }} ctx
+ * @returns {{ timeMultiplier: number, difficultyMultiplier: number, standardTimeToTargetCondition: string, difficulty: string }}
+ */
+function resolveWatercourseEnhancementMetrics({
+  postType,
+  timeStartCondition,
+  postCondition,
+  advanceYears,
+  delayYears
+}) {
+  return {
+    timeMultiplier: getWatercourseEnhancementTimeMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    ),
+    standardTimeToTargetCondition: getWatercourseEnhancementTimeToTargetValue(
+      postType,
+      timeStartCondition,
+      postCondition,
+      STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
+      STATUTORY_TIME_TO_TARGET_DELAY_YEARS
+    ),
+    difficulty: getWatercourseEnhancementDifficultyLabel(
+      postType,
+      timeStartCondition,
+      postCondition,
+      advanceYears,
+      delayYears
+    )
+  }
+}
+
+/**
  * Resolve time and difficulty multipliers for an enhanced watercourse, handling
  * the three statutory scenarios: Poor-baseline distinctiveness uplift,
  * cross-type distinctiveness uplift, and same-type enhancement.
@@ -69,53 +144,33 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   const crossWatercourseType = baselineType !== postType
 
   if (distinctivenessEnhancement && baselineCondition === POOR_CONDITION) {
-    return {
-      timeMultiplier: getWatercourseCreationTimeMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      ),
-      difficultyMultiplier: getWatercourseCreationDifficultyMultiplier(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      ),
-      standardTimeToTargetCondition: getWatercourseCreationTimeToTargetValue(
-        postType,
-        postCondition,
-        STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
-        STATUTORY_TIME_TO_TARGET_DELAY_YEARS
-      ),
-      difficulty: getWatercourseCreationDifficultyLabel(
-        postType,
-        postCondition,
-        advanceYears,
-        delayYears
-      )
-    }
+    return resolveWatercourseCreationMetrics({
+      postType,
+      postCondition,
+      advanceYears,
+      delayYears
+    })
   }
   if (distinctivenessEnhancement && crossWatercourseType) {
-    return {
-      timeMultiplier: getWatercourseCreationTimeMultiplier(
+    // Mixed variant: time follows the creation table (postType/postCondition
+    // only) but difficulty follows the enhancement table starting from Poor,
+    // so this can't fully reuse either sibling helper above.
+    const { timeMultiplier, standardTimeToTargetCondition } =
+      resolveWatercourseCreationMetrics({
         postType,
         postCondition,
         advanceYears,
         delayYears
-      ),
+      })
+    return {
+      timeMultiplier,
+      standardTimeToTargetCondition,
       difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
         postType,
         POOR_CONDITION,
         postCondition,
         advanceYears,
         delayYears
-      ),
-      standardTimeToTargetCondition: getWatercourseCreationTimeToTargetValue(
-        postType,
-        postCondition,
-        STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
-        STATUTORY_TIME_TO_TARGET_DELAY_YEARS
       ),
       difficulty: getWatercourseEnhancementDifficultyLabel(
         postType,
@@ -130,36 +185,13 @@ function resolveWatercourseEnhancementMultipliers(enhancementContext) {
   const timeStartCondition = distinctivenessEnhancement
     ? POOR_CONDITION
     : baselineCondition
-  return {
-    timeMultiplier: getWatercourseEnhancementTimeMultiplier(
-      postType,
-      timeStartCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    ),
-    difficultyMultiplier: getWatercourseEnhancementDifficultyMultiplier(
-      postType,
-      timeStartCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    ),
-    standardTimeToTargetCondition: getWatercourseEnhancementTimeToTargetValue(
-      postType,
-      timeStartCondition,
-      postCondition,
-      STATUTORY_TIME_TO_TARGET_ADVANCE_YEARS,
-      STATUTORY_TIME_TO_TARGET_DELAY_YEARS
-    ),
-    difficulty: getWatercourseEnhancementDifficultyLabel(
-      postType,
-      timeStartCondition,
-      postCondition,
-      advanceYears,
-      delayYears
-    )
-  }
+  return resolveWatercourseEnhancementMetrics({
+    postType,
+    timeStartCondition,
+    postCondition,
+    advanceYears,
+    delayYears
+  })
 }
 
 /**
