@@ -39,15 +39,18 @@ export const REF_PROP_KEYS_BY_LAYER = Object.freeze({
 export const RED_LINE_KEY = 'redLine'
 
 /**
- * Trim a ref to a comparable string, collapsing blank and missing values to
- * null. Refs reach us as whatever the GeoPackage column held, so a numeric ref
- * must stringify the same way on both sides of the comparison.
+ * Trim a ref to a comparable string, collapsing blank, missing and non-scalar
+ * values to null. Refs reach us as whatever the GeoPackage column held, so a
+ * numeric ref must stringify the same way on both sides of the comparison —
+ * but anything that is not a string or number has no meaningful ref value, and
+ * stringifying it would collapse every such feature onto one lookup key
+ * ('[object Object]') and match them to each other.
  *
  * @param {unknown} ref
  * @returns {string | null}
  */
 export function normaliseRef(ref) {
-  if (ref === null || ref === undefined) {
+  if (typeof ref !== 'string' && typeof ref !== 'number') {
     return null
   }
   const trimmed = String(ref).trim()

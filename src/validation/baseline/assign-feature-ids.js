@@ -23,7 +23,7 @@ const RAW_TO_DOCUMENT_LAYER = Object.freeze({
 })
 
 /** Lookup used when a layer has nothing to carry forward. */
-const NO_CARRY_FORWARD = () => null
+const noCarryForward = () => null
 
 /**
  * Refs appearing exactly once in the incoming layer. A ref shared by two
@@ -79,7 +79,7 @@ function refCarryForward(documentLayer, features, featureIdByRef) {
 function redLineCarryForward(featureIdByRef) {
   const storedFeatureId = featureIdByRef.get(RED_LINE_KEY)
   if (!storedFeatureId) {
-    return NO_CARRY_FORWARD
+    return noCarryForward
   }
   return (_feature, index) => (index === 0 ? storedFeatureId : null)
 }
@@ -92,7 +92,7 @@ function redLineCarryForward(featureIdByRef) {
  */
 function carryForwardLookup(documentLayer, features, featureIdByRef) {
   if (!documentLayer || featureIdByRef.size === 0) {
-    return NO_CARRY_FORWARD
+    return noCarryForward
   }
   if (documentLayer === RED_LINE_KEY) {
     return redLineCarryForward(featureIdByRef)

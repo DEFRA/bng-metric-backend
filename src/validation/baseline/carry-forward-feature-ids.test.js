@@ -24,6 +24,15 @@ describe('#normaliseRef', () => {
   it.each([null, undefined, '', '   '])('treats %o as absent', (value) => {
     expect(normaliseRef(value)).toBeNull()
   })
+
+  // Stringifying these would collapse every one of them onto a single lookup
+  // key and match unrelated features to each other.
+  it.each([{}, { a: 1 }, [], true, () => null])(
+    'refuses the non-scalar %o rather than stringifying it',
+    (value) => {
+      expect(normaliseRef(value)).toBeNull()
+    }
+  )
 })
 
 describe('#buildFeatureIdByRef', () => {

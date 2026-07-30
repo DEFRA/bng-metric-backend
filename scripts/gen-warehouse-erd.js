@@ -10,7 +10,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 
-import { buildWarehouseModel, renderErdMarkdown } from './warehouse-erd.js'
+import { buildWarehouseModel } from './warehouse-erd.js'
+import { renderErdMarkdown } from './warehouse-erd-render.js'
 import { projectSchema } from '../src/validation/project.js'
 
 const DOCS_DIR = 'docs'

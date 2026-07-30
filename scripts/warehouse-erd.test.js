@@ -3,11 +3,11 @@ import Joi from 'joi'
 
 import {
   buildWarehouseModel,
-  renderErdMarkdown,
   schemaLeaves,
   toColumnName,
   warehouseTables
 } from './warehouse-erd.js'
+import { renderErdMarkdown } from './warehouse-erd-render.js'
 import { schemaPaths } from '../src/validation/data-dictionary-paths.js'
 import { projectSchema } from '../src/validation/project.js'
 
@@ -71,7 +71,7 @@ describe('#schemaLeaves', () => {
   })
 })
 
-describe('#buildWarehouseModel', () => {
+describe('#buildWarehouseModel — schema coverage', () => {
   // The contract guard: a field added to projectSchema that no table claims
   // must fail the build rather than silently vanish from what we publish.
   it('maps every leaf path declared by projectSchema', () => {
@@ -113,7 +113,9 @@ describe('#buildWarehouseModel', () => {
 
     expect(project.columns.map((column) => column.name)).toContain('nickname')
   })
+})
 
+describe('#buildWarehouseModel — keys', () => {
   it('gives every table a primary key and every child a foreign key', () => {
     for (const table of model.tables) {
       const keys = table.columns.filter((column) => column.key)
@@ -155,7 +157,9 @@ describe('#buildWarehouseModel', () => {
       expect(columnNames(table.table)).toContain('ref')
     }
   })
+})
 
+describe('#buildWarehouseModel — column layout', () => {
   it('flattens the post-intervention baseline/proposed blocks by prefix', () => {
     const names = columnNames('post_intervention_habitats')
 
@@ -241,9 +245,10 @@ describe('#renderErdMarkdown', () => {
   })
 
   it('never emits a double quote inside a mermaid attribute comment', () => {
+    const trailingComment = /"([^"]*)"\s*$/
     const diagram = markdown.split('```mermaid')[1].split('```')[0]
     for (const line of diagram.split('\n')) {
-      const comment = line.match(/"([^"]*)"\s*$/)
+      const comment = trailingComment.exec(line)
       if (comment) {
         expect(comment[1]).not.toContain('"')
       }
