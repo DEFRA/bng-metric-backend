@@ -111,7 +111,7 @@ const HUGE = [
 const NOTCH_SIDE_M = 0.8
 
 // SQUARE with a small triangular corner cut off (~0.32 sq m). As the only
-// habitat against the SQUARE redline it leaves a hairline gap the service no
+// habitat against the SQUARE redline it leaves an uncovered gap the service no
 // longer looks for (BMD-882) — small enough that AREA_SUM_MISMATCH lets it
 // through too.
 const NOTCHED_SQUARE = [
@@ -123,29 +123,50 @@ const NOTCHED_SQUARE = [
   [X0 + NOTCH_SIDE_M, Y0]
 ]
 
-// Width (in metres) of HAIRLINE_STRIP. It spans the full 100 m redline, so
-// 5 mm gives it an area of 0.5 sq m — under the 1 sq m
-// SLIVER_PARCEL_THRESHOLD_SQ_M in postgis/index.js.
-const HAIRLINE_WIDTH_M = 0.005
-const STRIP_EDGE_Y = Y0 + EDGE - HAIRLINE_WIDTH_M
+// Legs (in metres) of TOO_SMALL_PARCEL, a right triangle cut from SQUARE's
+// bottom-left corner: 1.2 × 1.2 / 2 = 0.72 sq m, under the 1 sq m
+// MIN_PARCEL_AREA_SQ_M in postgis/index.js. Deliberately a compact shape, not
+// an elongated one — the check tests area alone.
+const TOO_SMALL_LEG_M = 1.2
 
-// SQUARE split into a full-size parcel and a hairline strip along its top
-// edge. The two tile the redline exactly, so the strip's own size is the only
-// thing wrong with the pair: no gap, no overlap, nothing outside the redline,
-// and the areas still sum to the redline area.
-const SQUARE_MINUS_STRIP = [
-  [X0, Y0],
+// SQUARE split into a full-size parcel and the corner triangle. The two tile
+// the redline exactly, so the triangle's area is the only thing wrong with the
+// pair: no gap, no overlap, nothing outside the redline, and the areas still
+// sum to the redline area.
+const SQUARE_MINUS_CORNER = [
+  [X0 + TOO_SMALL_LEG_M, Y0],
   [X0 + EDGE, Y0],
-  [X0 + EDGE, STRIP_EDGE_Y],
-  [X0, STRIP_EDGE_Y],
-  [X0, Y0]
-]
-const HAIRLINE_STRIP = [
-  [X0, STRIP_EDGE_Y],
-  [X0 + EDGE, STRIP_EDGE_Y],
   [X0 + EDGE, Y0 + EDGE],
   [X0, Y0 + EDGE],
-  [X0, STRIP_EDGE_Y]
+  [X0, Y0 + TOO_SMALL_LEG_M],
+  [X0 + TOO_SMALL_LEG_M, Y0]
+]
+const TOO_SMALL_PARCEL = [
+  [X0, Y0],
+  [X0 + TOO_SMALL_LEG_M, Y0],
+  [X0, Y0 + TOO_SMALL_LEG_M],
+  [X0, Y0]
+]
+
+// SQUARE split into a 99 m × 100 m parcel and a 1 m × 100 m ribbon. The ribbon
+// is far thinner (100:1) than any parcel the check rejects, but at 100 sq m it
+// is nowhere near the area threshold — so it must pass. Pins down that the
+// check is on area, not on how sliver-like a parcel looks.
+const RIBBON_WIDTH_M = 1
+const RIBBON_EDGE_Y = Y0 + EDGE - RIBBON_WIDTH_M
+const SQUARE_MINUS_RIBBON = [
+  [X0, Y0],
+  [X0 + EDGE, Y0],
+  [X0 + EDGE, RIBBON_EDGE_Y],
+  [X0, RIBBON_EDGE_Y],
+  [X0, Y0]
+]
+const RIBBON_PARCEL = [
+  [X0, RIBBON_EDGE_Y],
+  [X0 + EDGE, RIBBON_EDGE_Y],
+  [X0 + EDGE, Y0 + EDGE],
+  [X0, Y0 + EDGE],
+  [X0, RIBBON_EDGE_Y]
 ]
 
 // HALF the area of SQUARE, fully inside it. Triggers AREA_SUM_MISMATCH
@@ -337,13 +358,13 @@ describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
     expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
   })
 
-  it('detects a habitat parcel too small to be a real habitat', async () => {
+  it('detects a habitat parcel under the 1 sq m minimum area', async () => {
     const err = await runAndGetError(
       makeLayers({
         redline: [poly(SQUARE)],
         areas: [
-          poly(SQUARE_MINUS_STRIP, { fid: '1', 'Parcel Ref': 'PR-BIG' }),
-          poly(HAIRLINE_STRIP, { fid: '2', 'Parcel Ref': 'PR-SLIVER' })
+          poly(SQUARE_MINUS_CORNER, { fid: '1', 'Parcel Ref': 'PR-BIG' }),
+          poly(TOO_SMALL_PARCEL, { fid: '2', 'Parcel Ref': 'PR-SLIVER' })
         ]
       }),
       'AREA_PARCELS_TOO_SMALL'
@@ -351,19 +372,31 @@ describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
     expect(err).toBeDefined()
     expect(err.details.count).toBe(1)
     expect(err.details.sample[0].feature_ref).toBe('PR-SLIVER')
-    expect(err.details.sample[0].area_sqm).toBeCloseTo(0.5, 2)
+    expect(err.details.sample[0].area_sqm).toBeCloseTo(0.72, 2)
   })
 
-  it('accepts habitat parcels that are comfortably above the sliver threshold', async () => {
+  it('accepts habitat parcels comfortably above the minimum area', async () => {
     const codes = await runAndGetCodes(
       makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
     )
     expect(codes).not.toContain('AREA_PARCELS_TOO_SMALL')
   })
 
-  // BMD-882: gaps between parcels are no longer a check of their own. A
-  // hairline gap below the AREA_SUM_MISMATCH tolerance now passes validation.
-  it('accepts a hairline gap left between the parcels and the redline', async () => {
+  // The check is on area alone. A 1 m × 100 m ribbon is thinner than anything
+  // it rejects, but at 100 sq m it is far above the threshold, so it passes.
+  it('accepts a long thin parcel whose area is above the minimum', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(SQUARE_MINUS_RIBBON), poly(RIBBON_PARCEL)]
+      })
+    )
+    expect(codes).toEqual([])
+  })
+
+  // BMD-882: gaps between parcels are no longer a check of their own. A gap
+  // below the AREA_SUM_MISMATCH tolerance now passes validation.
+  it('accepts a small gap left between the parcels and the redline', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
         redline: [poly(SQUARE)],
@@ -575,7 +608,7 @@ describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
     const err = await runAndGetError(
       makeLayers({
         redline: [poly(SQUARE)],
-        areas: [poly(SQUARE_MINUS_STRIP), poly(HAIRLINE_STRIP, { fid: '9' })]
+        areas: [poly(SQUARE_MINUS_CORNER), poly(TOO_SMALL_PARCEL, { fid: '9' })]
       }),
       'AREA_PARCELS_TOO_SMALL'
     )

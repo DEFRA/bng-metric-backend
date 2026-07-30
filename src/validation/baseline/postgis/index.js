@@ -23,12 +23,14 @@ const ENGLAND_GEOMETRY_JSON = JSON.stringify(englandGeoJson.geometry)
 // load time (they're static JS values, not user input, so direct string
 // interpolation is safe and makes the SQL self-documenting).
 
-// A habitat parcel smaller than this is a digitising artefact — a hairline
-// strip left by an unsnapped edge, not a habitat anyone intended to record.
-// Applied to the parcel's own footprint as supplied in the file. Gaps *between*
-// parcels are not checked: the redline-vs-total-parcel-area comparison
-// (AREA_SUM_MISMATCH) already accounts for any land the parcels fail to cover.
-const SLIVER_PARCEL_THRESHOLD_SQ_M = 1
+// Minimum area for a habitat parcel. Below this it is a digitising artefact
+// rather than a habitat anyone intended to record. Purely an area test —
+// shape is not considered, so a compact 0.9 m × 0.9 m parcel fails while a
+// 100 m × 1 m one passes. Applied to the parcel's own footprint as supplied in
+// the file; gaps *between* parcels are not checked, because the
+// redline-vs-total-parcel-area comparison (AREA_SUM_MISMATCH) already accounts
+// for any land the parcels fail to cover.
+const MIN_PARCEL_AREA_SQ_M = 1
 const OVERLAP_TOLERANCE_SQ_M = 0.5
 const AREA_SUM_TOLERANCE_SQ_M = 0.5
 const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
@@ -195,18 +197,19 @@ c_overlap_offending AS (
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
   WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
 ),
--- Area habitat parcels whose own footprint is a sliver — smaller than
--- SLIVER_PARCEL_THRESHOLD_SQ_M as supplied in the file. Reported per parcel,
--- with the area, so the user can find the offending shape and redraw it.
--- Zero-area parcels are included: unlike derived overlay geometry, a parcel
--- the file itself declares with no area is always a mistake.
-c_areas_sliver AS (
+-- Area habitat parcels whose own footprint is under MIN_PARCEL_AREA_SQ_M as
+-- supplied in the file. Area only — a parcel is not judged on how thin or
+-- elongated it is. Reported per parcel, with the area, so the user can find the
+-- offending polygon and redraw it. Zero-area parcels are included: unlike
+-- derived overlay geometry, a parcel the file itself declares with no area is
+-- always a mistake.
+c_areas_too_small AS (
   SELECT idx,
          ${fidColumnSql()} AS fid,
          ${featureRefSql()} AS feature_ref,
          ST_Area(ST_MakeValid(geom)) AS area_sqm
   FROM areas
-  WHERE ST_Area(ST_MakeValid(geom)) < ${SLIVER_PARCEL_THRESHOLD_SQ_M}
+  WHERE ST_Area(ST_MakeValid(geom)) < ${MIN_PARCEL_AREA_SQ_M}
 ),
 -- Habitat parcel parts that fall outside the redline, reported as the
 -- *escaping geometry* rather than as a list of parcels (the per-parcel view
@@ -347,10 +350,10 @@ SELECT 'AREA_PARCELS_TOO_SMALL',
          'count', count(*),
          'sample', (
            SELECT jsonb_agg(jsonb_build_object('idx', idx, 'fid', fid, 'feature_ref', feature_ref, 'area_sqm', area_sqm) ORDER BY idx)
-           FROM (SELECT idx, fid, feature_ref, area_sqm FROM c_areas_sliver ORDER BY idx LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
+           FROM (SELECT idx, fid, feature_ref, area_sqm FROM c_areas_too_small ORDER BY idx LIMIT ${ERROR_LIST_SAMPLE_CAP}) s
          )
        )
-FROM c_areas_sliver
+FROM c_areas_too_small
 HAVING count(*) > 0
 UNION ALL
 SELECT 'SLIVERS_OUTSIDE_REDLINE',
