@@ -260,7 +260,7 @@ async function runFullValidation(
  *                         description: |
  *                           Structured payload, present on list-bearing error
  *                           codes (e.g. AREA_PARCELS_OUTSIDE_REDLINE,
- *                           PARCEL_OVERLAPS, SLIVERS_INSIDE_REDLINE).
+ *                           PARCEL_OVERLAPS, AREA_PARCELS_TOO_SMALL).
  *                           Always carries `count` (the truthful total of
  *                           offending features) and `sample` (a capped array
  *                           of per-feature objects with `idx`, `fid`, and

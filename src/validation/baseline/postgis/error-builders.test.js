@@ -149,12 +149,25 @@ describe('ERROR_BUILDERS — list errors: code-specific payload shapes', () => {
     expect(err.details).toEqual(payload)
   })
 
-  it('SLIVERS_INSIDE_REDLINE renders area and location for each sliver', () => {
-    const err = ERROR_BUILDERS[ERROR_CODES.SLIVERS_INSIDE_REDLINE]({
+  it('AREA_PARCELS_TOO_SMALL names each undersized parcel and its area', () => {
+    const err = ERROR_BUILDERS[ERROR_CODES.AREA_PARCELS_TOO_SMALL]({
       count: 1,
-      sample: [{ area_sqm: 0.32, location_wkt: 'POINT(530000 180000)' }]
+      sample: [{ idx: 0, fid: '1', feature_ref: 'PR-42', area_sqm: 0.32 }]
     })
-    expect(err.message).toContain('~0.32 sq m near POINT(530000 180000)')
+    expect(err.code).toBe(ERROR_CODES.AREA_PARCELS_TOO_SMALL)
+    expect(err.message).toBe(
+      'One or more area habitat parcels are smaller than 1 square metre: Feature Ref PR-42 — ~0.32 sq m'
+    )
+  })
+
+  it('AREA_PARCELS_TOO_SMALL falls back to the plain feature label when no area is supplied', () => {
+    const err = ERROR_BUILDERS[ERROR_CODES.AREA_PARCELS_TOO_SMALL]({
+      count: 1,
+      sample: [{ idx: 3, fid: null, feature_ref: null }]
+    })
+    expect(err.message).toBe(
+      'One or more area habitat parcels are smaller than 1 square metre: feature #3'
+    )
   })
 
   it('SLIVERS_OUTSIDE_REDLINE uses the "habitat parcel parts outside" prefix', () => {
