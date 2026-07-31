@@ -223,13 +223,22 @@ export function calculateCreatedHedgerowPostIntervention(
   advanceYears,
   delayYears
 ) {
-  return calculateCreatedLinearPostIntervention(HEDGEROW_PI_CONFIG, {
+  const result = calculateCreatedLinearPostIntervention(HEDGEROW_PI_CONFIG, {
     lengthKm,
     type: hedgeType,
     condition,
     advanceYears,
     delayYears
   })
+  return {
+    ...result,
+    ...resolveCreationMetrics({
+      postType: hedgeType,
+      postCondition: condition,
+      advanceYears,
+      delayYears
+    })
+  }
 }
 
 /**

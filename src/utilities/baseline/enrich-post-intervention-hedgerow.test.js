@@ -124,6 +124,10 @@ describe('hedgerow — Created', () => {
     const proposed = doc.hedgerows[0].proposed
     expect(typeof proposed.timeMultiplier).toBe('number')
     expect(typeof proposed.difficultyMultiplier).toBe('number')
+    expect(typeof proposed.standardTimeToTargetCondition).toBe('string')
+    expect(typeof proposed.difficulty).toBe('string')
+    expect(proposed.advanceOrDelay).toBe('Neither')
+    expect(proposed.finalTimeToTargetCondition).toMatch(/^.+ years \(.+\)$/)
   })
 
   it('marks Incomplete when proposed condition is missing', () => {
