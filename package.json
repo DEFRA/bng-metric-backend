@@ -11,8 +11,8 @@
     "bng-metric-engine"
   ],
   "scripts": {
-    "data-dictionary": "node scripts/gen-data-dictionary.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json",
-    "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json",
+    "data-dictionary": "node scripts/gen-data-dictionary.js && node scripts/gen-warehouse-erd.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
+    "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
     "db:clear-checksums": "scripts/liquibase.sh clearChecksums",

@@ -229,8 +229,10 @@ function buildRedLine(features) {
  * data only, no geometry), and (b) the parallel geometry rows for the four
  * bng.baseline_* PostGIS tables.
  *
- * Each feature is given a fresh UUID `featureId` that appears in both halves;
- * it is the join key between the JSONB document and the geometry tables.
+ * Each feature carries a UUID `featureId` that appears in both halves; it is
+ * the join key between the JSONB document and the geometry tables. It is
+ * stamped upstream by assign-feature-ids.js, which reuses the id already stored
+ * for a matching `ref` so a re-upload does not re-key the whole site.
  *
  * @param {object} layers
  * @param {object[]} layers.redline

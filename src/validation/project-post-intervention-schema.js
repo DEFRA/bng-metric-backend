@@ -13,6 +13,7 @@ import { RETENTION_CATEGORY_VALUES } from '../utilities/baseline/retention-categ
 import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
+  featureIdDescription,
   redLineSchema,
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
@@ -123,9 +124,7 @@ function postInterventionLinearFeatureFields({ geometryRow }) {
     featureId: Joi.string()
       .uuid()
       .required()
-      .description(
-        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
-      ),
+      .description(featureIdDescription(geometryRow)),
     ref: Joi.string()
       .allow(null, '')
       .description('Feature reference from the GeoPackage.'),
@@ -163,9 +162,7 @@ function postInterventionAreaFeatureFields({
     featureId: Joi.string()
       .uuid()
       .required()
-      .description(
-        `UUID assigned on import; join key to the ${geometryRow} geometry row.`
-      ),
+      .description(featureIdDescription(geometryRow)),
     ref: Joi.string().allow(null, '').description(refDescription),
     area: Joi.number().allow(null).description(areaDescription),
     sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),

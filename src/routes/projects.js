@@ -5,6 +5,10 @@ import { projects } from '../db/schema/index.js'
 import { insertProject, setProjectName } from '../db/persist-project.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { currentOrgContext } from '../services/defra-id/claims.js'
+import {
+  toProjectResponse,
+  toProjectResponses
+} from '../utilities/project/to-project-response.js'
 import { projectSchema } from '../validation/project.js'
 
 /**
@@ -18,6 +22,9 @@ import { projectSchema } from '../validation/project.js'
  *       Returns only projects the authenticated user owns whose latest role for
  *       the project's relationship is approved (status 3), plus their legacy
  *       projects with no relationship.
+ *
+ *       Each row carries `projectId` — an explicit alias of `id` — as the
+ *       primary key for downstream relational consumers.
  *     security:
  *       - bearerAuth: []
  *     responses:
@@ -31,6 +38,11 @@ import { projectSchema } from '../validation/project.js'
  *     tags:
  *       - Projects
  *     summary: Get a project by ID
+ *     description: |
+ *       The response carries `projectId` — an explicit alias of `id` — as the
+ *       primary key for downstream relational consumers. Nested features are
+ *       keyed by their own `featureId`, which is stable across edits and across
+ *       re-uploads that keep the same `ref`.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -151,7 +163,7 @@ const getProjects = {
       .select()
       .from(projects)
       .where(visibleToUser(sub))
-    return rows
+    return toProjectResponses(rows)
   }
 }
 
@@ -178,7 +190,7 @@ const getProject = {
       throw Boom.notFound(`Project ${id} not found`)
     }
 
-    return rows[0]
+    return toProjectResponse(rows[0])
   }
 }
 
@@ -197,12 +209,13 @@ const createProject = {
     const claims = request.auth.credentials
     const { project } = request.payload
     const { relationshipId, orgId } = currentOrgContext(claims)
-    return insertProject(request.drizzle, {
+    const row = await insertProject(request.drizzle, {
       project,
       userId: claims.sub,
       orgId,
       relationshipId
     })
+    return toProjectResponse(row)
   }
 }
 
@@ -272,7 +285,7 @@ const updateProject = {
     if (!row) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    return row
+    return toProjectResponse(row)
   }
 }
 

@@ -70,7 +70,9 @@ describe('#getProjects', () => {
 
     expect(drizzle.select).toHaveBeenCalled()
     expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual(mockProjects)
+    expect(result).toEqual(
+      mockProjects.map((project) => ({ ...project, projectId: project.id }))
+    )
   })
 
   test('Should return empty array when no projects are visible', async () => {
@@ -113,7 +115,7 @@ describe('#createProject', () => {
     const result = await createProject.handler(request, {})
 
     expect(drizzle.insert).toHaveBeenCalled()
-    expect(result).toEqual(newProject)
+    expect(result).toEqual({ ...newProject, projectId: newProject.id })
   })
 
   test('Should derive userId from the token and stamp org context', async () => {
@@ -201,7 +203,7 @@ describe('#getProject', () => {
 
     expect(drizzle.select).toHaveBeenCalled()
     expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual(mockProjects[0])
+    expect(result).toEqual({ ...mockProjects[0], projectId: PROJECT_1_ID })
   })
 
   test('Should throw 404 when project not found or not visible', async () => {
@@ -395,7 +397,7 @@ describe('#updateProject', () => {
       project: expect.anything()
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual(updatedProject)
+    expect(result).toEqual({ ...updatedProject, projectId: PROJECT_1_ID })
   })
 
   test('Should throw 404 when project to update is not found or not visible', async () => {

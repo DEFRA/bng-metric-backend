@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 
 import { assignFeatureIds } from '../../validation/baseline/assign-feature-ids.js'
+import { buildFeatureIdByRef } from '../../validation/baseline/carry-forward-feature-ids.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baseline-linear-length-by-ref.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
@@ -38,21 +39,22 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
 })
 
 /**
- * Build a Map<parcelRef, lengthKm> from the project's stored baseline linear
- * features. Returns an empty Map when the project has no baseline or no
- * hedgerows/watercourses.
+ * Read the project's currently stored JSONB document. Serves two consumers:
+ * the featureId carry-forward (which needs the subtree being replaced) and the
+ * post-intervention enrichment (which needs the stored baseline). One read
+ * covers both.
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
  * @param {string} projectId
- * @returns {Promise<Map<string, number>>}
+ * @returns {Promise<object | undefined>}
  */
-async function fetchBaselineForPostIntervention(drizzle, projectId) {
+async function fetchStoredProject(drizzle, projectId) {
   const [row] = await drizzle
     .select({ project: projects.project })
     .from(projects)
     .where(eq(projects.id, projectId))
     .limit(1)
-  return row?.project?.baseline
+  return row?.project
 }
 
 function enrichOptionsForPostIntervention(baseline) {
@@ -101,7 +103,17 @@ export async function saveBaselineForProject(
 ) {
   const { drizzle, pgPool, logger } = deps
   const { uploadId, sub, filename, fileSize } = context
-  const layersWithIds = assignFeatureIds(layers)
+  // Reuse the featureIds already stored for this document wherever the incoming
+  // `ref` matches, so a re-upload updates the downstream relational rows rather
+  // than replacing them wholesale. This read sits outside the FOR UPDATE lock
+  // taken later in persistBaseline: a concurrent upload could make it stale,
+  // but the worst outcome is a fresh UUID where one could have been reused, and
+  // concurrent uploads for the same project already 409 on the lock timeout.
+  const storedProject = await fetchStoredProject(drizzle, projectId)
+  const featureIdByRef = buildFeatureIdByRef(
+    storedProject?.[config.projectDocumentKey]
+  )
+  const layersWithIds = assignFeatureIds(layers, featureIdByRef)
   const layersForSizing =
     config.projectDocumentKey === 'postIntervention'
       ? filterLostPostInterventionLayers(layersWithIds)
@@ -133,8 +145,7 @@ export async function saveBaselineForProject(
 
   let enrichOptions = {}
   if (config.projectDocumentKey === 'postIntervention') {
-    const baseline = await fetchBaselineForPostIntervention(drizzle, projectId)
-    enrichOptions = enrichOptionsForPostIntervention(baseline)
+    enrichOptions = enrichOptionsForPostIntervention(storedProject?.baseline)
   }
   handlers.enrichDocument(document, logger, enrichOptions)
 

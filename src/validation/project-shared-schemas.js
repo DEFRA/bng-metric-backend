@@ -19,6 +19,18 @@ export const MAX_FILENAME_LENGTH = 255
 //   6. SQL injection       — ' " ; not in the set; lone - cannot form --
 export const SAFE_FILENAME_RE = /^[a-z0-9][a-z0-9 ._-]*\.gpkg$/i
 
+/**
+ * Every ref-keyed feature's `featureId` carries the same guarantee, so the
+ * prose is shared. It is published in the data dictionary and read by the
+ * external relational consumers as the row's primary key, so it needs to say
+ * plainly what the id survives.
+ *
+ * @param {string} geometryRow the PostGIS table this id also keys
+ * @returns {string}
+ */
+export const featureIdDescription = (geometryRow) =>
+  `Stable UUID for the feature; join key to the ${geometryRow} geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature.`
+
 export const habitatSizesSummarySchema = Joi.object({
   areaHabitats: Joi.object({
     totalSquareMetres: Joi.number()
@@ -118,7 +130,7 @@ export const redLineSchema = Joi.object({
     .uuid()
     .required()
     .description(
-      'UUID assigned on import; join key to the bng.baseline_red_line geometry row.'
+      'Stable UUID for the Red Line Boundary; join key to the bng.baseline_red_line geometry row. There is at most one per document, so it is carried forward on re-upload without needing a ref.'
     ),
   siteName: Joi.string()
     .allow(null, '')
