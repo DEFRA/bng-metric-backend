@@ -78,14 +78,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        # min-release-age (.npmrc) is incompatible with preparing a git
-        # dependency (bng-library) — npm injects --before for the git-dep
-        # prepare then rejects it against min-release-age (npm/cli#9005).
-        # --ignore-scripts skips that prepare; better-sqlite3's native addon is
-        # rebuilt explicitly.
+        # min-release-age (.npmrc) collides with the git-dependency prepare step
+        # npm always runs for bng-library: it injects --before then rejects it
+        # against min-release-age (npm/cli#9005). npm ci installs exact locked
+        # versions, so the cooldown is redundant here — strip it for this step
+        # only. It stays in .npmrc for npm install / local dev / Dependabot.
         run: |
-          npm ci --ignore-scripts
-          npm rebuild better-sqlite3
+          sed -i '/^min-release-age=/d' .npmrc
+          npm ci
 
       - name: Wait for Postgres to accept connections
         run: |
@@ -193,13 +193,14 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      # min-release-age (.npmrc) is incompatible with preparing a git
-      # dependency (bng-library): npm injects --before for the git-dep prepare
-      # then rejects it against min-release-age (npm/cli#9005). --ignore-scripts
-      # skips that prepare; better-sqlite3's native addon is rebuilt explicitly.
+      # min-release-age (.npmrc) collides with the git-dependency prepare step
+      # npm always runs for bng-library: it injects --before then rejects it
+      # against min-release-age (npm/cli#9005). npm ci installs exact locked
+      # versions, so the cooldown is redundant here — strip it for this step
+      # only. It stays in .npmrc for npm install / local dev / Dependabot.
       - run: |
-          npm ci --ignore-scripts
-          npm rebuild better-sqlite3
+          sed -i '/^min-release-age=/d' .npmrc
+          npm ci
           npm run format:check
           npm run lint
           npm test
