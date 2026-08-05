@@ -78,7 +78,14 @@ jobs:
           cache: npm
 
       - name: Install dependencies
-        run: npm ci
+        # min-release-age (.npmrc) is incompatible with preparing a git
+        # dependency (bng-library) — npm injects --before for the git-dep
+        # prepare then rejects it against min-release-age (npm/cli#9005).
+        # --ignore-scripts skips that prepare; better-sqlite3's native addon is
+        # rebuilt explicitly.
+        run: |
+          npm ci --ignore-scripts
+          npm rebuild better-sqlite3
 
       - name: Wait for Postgres to accept connections
         run: |
@@ -186,8 +193,13 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      # min-release-age (.npmrc) is incompatible with preparing a git
+      # dependency (bng-library): npm injects --before for the git-dep prepare
+      # then rejects it against min-release-age (npm/cli#9005). --ignore-scripts
+      # skips that prepare; better-sqlite3's native addon is rebuilt explicitly.
       - run: |
-          npm ci
+          npm ci --ignore-scripts
+          npm rebuild better-sqlite3
           npm run format:check
           npm run lint
           npm test
