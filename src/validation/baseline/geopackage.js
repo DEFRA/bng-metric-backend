@@ -1,5 +1,5 @@
 import Database from 'better-sqlite3'
-import wkx from 'wkx'
+import { wkbToGeoJSON } from 'bng-library/gpkg-io'
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -259,8 +259,13 @@ function getTableNames(db) {
 }
 
 /**
- * Decode a GeoPackage geometry blob into a wkx Geometry.
- * Header format per OGC GeoPackage 1.2 §2.1.3.
+ * Decode a GeoPackage geometry blob into a GeoJSON geometry and its SRS id.
+ *
+ * The GeoPackageBinary header is validated here (magic + envelope indicator,
+ * per OGC GeoPackage 1.2 §2.1.3) so a malformed baseline is rejected rather
+ * than silently accepted. The WKB → GeoJSON decode itself is delegated to
+ * bng-library/gpkg-io (`wkbToGeoJSON`), which is the single source of truth
+ * for the format.
  *
  * @param {Buffer} blob
  * @returns {{ geometry: object, srsId: number } | null}
@@ -274,17 +279,14 @@ function decodeGpkgBlob(blob) {
   }
   const flags = blob[GPKG_FLAGS_BYTE_INDEX]
   const envelopeIndicator = (flags >> 1) & GPKG_ENVELOPE_INDICATOR_MASK
-  const envelopeBytes = GPKG_ENVELOPE_SIZES[envelopeIndicator]
-  if (envelopeBytes === undefined) {
+  if (GPKG_ENVELOPE_SIZES[envelopeIndicator] === undefined) {
     throw new Error(
       `Invalid GeoPackage envelope indicator: ${envelopeIndicator}`
     )
   }
   const isLittleEndian = (flags & 0x01) === 1
   const srsId = isLittleEndian ? blob.readInt32LE(4) : blob.readInt32BE(4)
-  const wkb = blob.subarray(GPKG_HEADER_BYTES + envelopeBytes)
-  const parsed = wkx.Geometry.parse(wkb)
-  return { geometry: parsed.toGeoJSON(), srsId }
+  return { geometry: wkbToGeoJSON(blob), srsId }
 }
 
 /**
