@@ -58,7 +58,7 @@
     "@hapi/wreck": "18.1.2",
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
-    "better-sqlite3": "13.0.1",
+    "better-sqlite3": "13.0.2",
     "bng-metric-engine": "workspace:*",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
