@@ -1,5 +1,6 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
+import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import {
   updateAreaHabitat,
@@ -11,6 +12,10 @@ import {
 // { documentKey, layer, index, feature, unitsTotals } to write. That helper's
 // validation is covered by persist-project.test.js; the totals maths by
 // apply-feature-update.test.js; end-to-end persistence by the integration tests.
+vi.mock('../common/helpers/audit-project-change.js', () => ({
+  auditProjectChange: vi.fn()
+}))
+
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
 }))
@@ -207,6 +212,14 @@ describe('updateAreaHabitat handler — happy path', () => {
       status: 'Complete'
     })
 
+    expect(auditProjectChange).toHaveBeenCalledOnce()
+    expect(auditProjectChange).toHaveBeenCalledWith({
+      actorId: AUTH.credentials.sub,
+      projectId: PROJECT_ID,
+      operation: 'updated',
+      dataType: 'baseline.feature',
+      featureId: HABITAT_1_ID
+    })
     // Persisted surgically: only the edited feature (by layer + index) and the
     // refreshed totals are handed to the choke point — the rest of the document
     // is left untouched in the DB.
@@ -402,6 +415,14 @@ describe('updatePostInterventionAreaHabitat handler', () => {
     expect(result).not.toHaveProperty('type')
     expect(result).not.toHaveProperty('condition')
 
+    expect(auditProjectChange).toHaveBeenCalledOnce()
+    expect(auditProjectChange).toHaveBeenCalledWith({
+      actorId: AUTH.credentials.sub,
+      projectId: PROJECT_ID,
+      operation: 'updated',
+      dataType: 'postIntervention.feature',
+      featureId: HABITAT_1_ID
+    })
     expect(setProjectFeature).toHaveBeenCalledWith(
       expect.anything(),
       PROJECT_ID,
@@ -484,6 +505,7 @@ describe('updateAreaHabitat handler error cases', () => {
       }
     })
     expect(setProjectFeature).not.toHaveBeenCalled()
+    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 
   test('throws 404 when the featureId belongs to a hedgerow (legacy area URL only serves habitats)', async () => {

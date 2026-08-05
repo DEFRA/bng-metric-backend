@@ -1,4 +1,6 @@
 import Boom from '@hapi/boom'
+
+import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -186,7 +188,7 @@ const updateFeature = {
     const { projectId, featureId } = request.params
 
     try {
-      return await request.drizzle.transaction((tx) =>
+      const result = await request.drizzle.transaction((tx) =>
         runFeatureUpdate(tx, {
           projectId,
           featureId,
@@ -194,6 +196,14 @@ const updateFeature = {
           sub
         })
       )
+      auditProjectChange({
+        actorId: sub,
+        projectId,
+        operation: 'updated',
+        dataType: 'baseline.feature',
+        featureId
+      })
+      return result
     } catch (err) {
       if (err?.isBoom) {
         throw err
@@ -239,7 +249,8 @@ async function runFeatureUpdate(tx, { projectId, featureId, edits, sub }) {
     layer: result.layer,
     index: result.index,
     feature: result.feature,
-    unitsTotals: result.unitsTotals
+    unitsTotals: result.unitsTotals,
+    actorId: sub
   })
 
   return { type: result.type, feature: result.feature }

@@ -1,0 +1,152 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="32" author="bng-team">
+        <comment>
+            Record the authenticated actor separately from the project owner so
+            every project audit entry identifies who performed the change.
+        </comment>
+        <addColumn schemaName="bng" tableName="projects">
+            <column name="last_modified_by" type="text"/>
+        </addColumn>
+        <sql>
+            UPDATE bng.projects
+               SET last_modified_by = user_id
+             WHERE last_modified_by IS NULL;
+        </sql>
+        <addNotNullConstraint
+            schemaName="bng"
+            tableName="projects"
+            columnName="last_modified_by"
+            columnDataType="text"/>
+        <rollback>
+            <dropColumn schemaName="bng" tableName="projects" columnName="last_modified_by"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="33" author="bng-team">
+        <comment>
+            Audit the authenticated actor held in projects.last_modified_by,
+            rather than copying projects.user_id (the project owner).
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.write_projects_audit_log()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                INSERT INTO bng.audit_log (
+                    project_id,
+                    project,
+                    user_id,
+                    bng_project_version,
+                    operation,
+                    audited_at
+                ) VALUES (
+                    NEW.id,
+                    NEW.project,
+                    NEW.last_modified_by,
+                    NEW.bng_project_version,
+                    TG_OP,
+                    CURRENT_TIMESTAMP
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        </sql>
+        <rollback>
+            CREATE OR REPLACE FUNCTION bng.write_projects_audit_log()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                INSERT INTO bng.audit_log (
+                    project_id, project, user_id, bng_project_version, operation, audited_at
+                ) VALUES (
+                    NEW.id, NEW.project, NEW.user_id, NEW.bng_project_version, TG_OP, CURRENT_TIMESTAMP
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        </rollback>
+    </changeSet>
+
+
+    <changeSet id="34" author="bng-team">
+        <comment>
+            Store the previous project document alongside the resulting snapshot,
+            making the changed values explicit without reconstructing history.
+        </comment>
+        <addColumn schemaName="bng" tableName="audit_log">
+            <column name="previous_project" type="jsonb"/>
+        </addColumn>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.write_projects_audit_log()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                INSERT INTO bng.audit_log (
+                    project_id,
+                    project,
+                    previous_project,
+                    user_id,
+                    bng_project_version,
+                    operation,
+                    audited_at
+                ) VALUES (
+                    NEW.id,
+                    NEW.project,
+                    CASE WHEN TG_OP = 'UPDATE' THEN OLD.project ELSE NULL END,
+                    NEW.last_modified_by,
+                    NEW.bng_project_version,
+                    TG_OP,
+                    CURRENT_TIMESTAMP
+                );
+                RETURN NEW;
+            END;
+            $$ LANGUAGE plpgsql;
+        </sql>
+        <rollback>
+            <sql splitStatements="false" endDelimiter=";">
+                CREATE OR REPLACE FUNCTION bng.write_projects_audit_log()
+                RETURNS TRIGGER AS $$
+                BEGIN
+                    INSERT INTO bng.audit_log (
+                        project_id, project, user_id, bng_project_version, operation, audited_at
+                    ) VALUES (
+                        NEW.id, NEW.project, NEW.last_modified_by, NEW.bng_project_version, TG_OP, CURRENT_TIMESTAMP
+                    );
+                    RETURN NEW;
+                END;
+                $$ LANGUAGE plpgsql;
+            </sql>
+            <dropColumn schemaName="bng" tableName="audit_log" columnName="previous_project"/>
+        </rollback>
+    </changeSet>
+
+    <changeSet id="35" author="bng-team">
+        <comment>
+            Prevent project deletion until a sanctioned deletion workflow can
+            provide an authenticated actor and retain the deleted project state.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE OR REPLACE FUNCTION bng.reject_unaudited_project_delete()
+            RETURNS TRIGGER AS $$
+            BEGIN
+                RAISE EXCEPTION
+                    'bng.projects deletion requires an audited deletion workflow'
+                    USING ERRCODE = 'insufficient_privilege';
+            END;
+            $$ LANGUAGE plpgsql;
+
+            CREATE TRIGGER projects_reject_unaudited_delete
+                BEFORE DELETE ON bng.projects
+                FOR EACH ROW
+                EXECUTE FUNCTION bng.reject_unaudited_project_delete();
+        </sql>
+        <rollback>
+            DROP TRIGGER IF EXISTS projects_reject_unaudited_delete ON bng.projects;
+            DROP FUNCTION IF EXISTS bng.reject_unaudited_project_delete();
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

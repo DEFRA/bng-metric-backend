@@ -1,4 +1,5 @@
-import { describe, test, expect, vi } from 'vitest'
+import { beforeEach, describe, test, expect, vi } from 'vitest'
+import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import {
   getProjects,
   getProject,
@@ -61,6 +62,14 @@ function createMockDrizzle(rows) {
   }
 }
 
+vi.mock('../common/helpers/audit-project-change.js', () => ({
+  auditProjectChange: vi.fn()
+}))
+
+beforeEach(() => {
+  vi.clearAllMocks()
+})
+
 describe('#getProjects', () => {
   test('Should return the projects visible to the user', async () => {
     const drizzle = createMockDrizzle(mockProjects)
@@ -116,6 +125,13 @@ describe('#createProject', () => {
 
     expect(drizzle.insert).toHaveBeenCalled()
     expect(result).toEqual({ ...newProject, projectId: newProject.id })
+    expect(auditProjectChange).toHaveBeenCalledOnce()
+    expect(auditProjectChange).toHaveBeenCalledWith({
+      actorId: USER_003,
+      projectId: newProject.id,
+      operation: 'created',
+      dataType: 'project'
+    })
   })
 
   test('Should derive userId from the token and stamp org context', async () => {
@@ -136,6 +152,7 @@ describe('#createProject', () => {
     expect(insertedValues).toEqual({
       project: { name: NEW_PROJECT_NAME },
       userId: USER_003,
+      lastModifiedBy: USER_003,
       orgId: 'org-9',
       relationshipId: 'rel-9'
     })
@@ -154,6 +171,7 @@ describe('#createProject', () => {
     const insertedValues = drizzle.insert().values.mock.calls[0][0]
     expect(insertedValues).toMatchObject({
       userId: USER_003,
+      lastModifiedBy: USER_003,
       orgId: null,
       relationshipId: null
     })
@@ -394,10 +412,18 @@ describe('#updateProject', () => {
 
     expect(drizzle.update).toHaveBeenCalled()
     expect(drizzle._chain.set).toHaveBeenCalledWith({
-      project: expect.anything()
+      project: expect.anything(),
+      lastModifiedBy: USER_001
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual({ ...updatedProject, projectId: PROJECT_1_ID })
+    expect(auditProjectChange).toHaveBeenCalledOnce()
+    expect(auditProjectChange).toHaveBeenCalledWith({
+      actorId: USER_001,
+      projectId: PROJECT_1_ID,
+      operation: 'updated',
+      dataType: 'project.name'
+    })
   })
 
   test('Should throw 404 when project to update is not found or not visible', async () => {
@@ -414,6 +440,7 @@ describe('#updateProject', () => {
     await expect(updateProject.handler(request, {})).rejects.toThrow(
       'Project a7dc53f2-05d2-4d75-9186-7e5cf52864bd not found'
     )
+    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 })
 

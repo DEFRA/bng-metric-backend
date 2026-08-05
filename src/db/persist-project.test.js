@@ -12,6 +12,7 @@ import {
 
 const FEATURE_ID = '11111111-1111-1111-1111-111111111111'
 const PROJECT_ID = '22222222-2222-2222-2222-222222222222'
+const ACTOR_ID = 'defra-id-actor'
 
 const validUnitsTotals = {
   totalUnits: 0,
@@ -61,19 +62,21 @@ describe('insertProject', () => {
 describe('setProjectName', () => {
   test('writes and returns the row for a valid name', async () => {
     const db = makeDb([{ id: PROJECT_ID }])
-    const row = await setProjectName(db, PROJECT_ID, 'New name')
+    const row = await setProjectName(db, PROJECT_ID, 'New name', ACTOR_ID)
     expect(db._update).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID })
   })
 
   test('returns null when no project matches', async () => {
     const db = makeDb([])
-    expect(await setProjectName(db, PROJECT_ID, 'New name')).toBeNull()
+    expect(
+      await setProjectName(db, PROJECT_ID, 'New name', ACTOR_ID)
+    ).toBeNull()
   })
 
   test('throws and does not write for an invalid name', async () => {
     const db = makeDb()
-    await expect(setProjectName(db, PROJECT_ID, 123)).rejects.toThrow(
+    await expect(setProjectName(db, PROJECT_ID, 123, ACTOR_ID)).rejects.toThrow(
       /failed schema validation/
     )
     expect(db._update).not.toHaveBeenCalled()
@@ -83,17 +86,22 @@ describe('setProjectName', () => {
 describe('setProjectBaseline', () => {
   test('writes when the baseline subtree is valid', async () => {
     const db = makeDb()
-    await setProjectBaseline(db, PROJECT_ID, {
-      importedAt: '2026-01-01T00:00:00.000Z',
-      habitats: []
-    })
+    await setProjectBaseline(
+      db,
+      PROJECT_ID,
+      {
+        importedAt: '2026-01-01T00:00:00.000Z',
+        habitats: []
+      },
+      ACTOR_ID
+    )
     expect(db._update).toHaveBeenCalledTimes(1)
   })
 
   test('throws and does not write for an invalid baseline', async () => {
     const db = makeDb()
     await expect(
-      setProjectBaseline(db, PROJECT_ID, { fileSize: -5 })
+      setProjectBaseline(db, PROJECT_ID, { fileSize: -5 }, ACTOR_ID)
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
@@ -106,7 +114,8 @@ describe('setBaselineFeature', () => {
       layer: 'habitats',
       index: 0,
       feature: validHabitat,
-      unitsTotals: validUnitsTotals
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
     })
     expect(db._update).toHaveBeenCalledTimes(1)
   })
@@ -118,7 +127,8 @@ describe('setBaselineFeature', () => {
         layer: 'trees',
         index: 0,
         feature: validHabitat,
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/unknown feature layer/)
     expect(db._update).not.toHaveBeenCalled()
@@ -131,7 +141,8 @@ describe('setBaselineFeature', () => {
         layer: 'habitats',
         index: 0,
         feature: { featureId: FEATURE_ID, status: 'Bogus' },
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
@@ -144,7 +155,8 @@ describe('setBaselineFeature', () => {
         layer: 'habitats',
         index: 0,
         feature: validHabitat,
-        unitsTotals: { totalUnits: 1 }
+        unitsTotals: { totalUnits: 1 },
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
@@ -184,6 +196,7 @@ describe('setProjectHabitatData', () => {
         hedgerows: [],
         watercourses: []
       },
+      ACTOR_ID,
       'postIntervention'
     )
     expect(db._update).toHaveBeenCalledTimes(1)
@@ -201,6 +214,7 @@ describe('setProjectHabitatData', () => {
           hedgerows: [],
           watercourses: []
         },
+        ACTOR_ID,
         'postIntervention'
       )
     ).rejects.toThrow(/"habitats\[0\]\.type" is not allowed/)
@@ -216,20 +230,20 @@ const validDetails = {
 describe('setProjectDetails', () => {
   test('writes and returns the row for valid details', async () => {
     const db = makeDb([{ id: PROJECT_ID, project: { details: validDetails } }])
-    const row = await setProjectDetails(db, PROJECT_ID, validDetails)
+    const row = await setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID)
     expect(db._update).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID, project: { details: validDetails } })
   })
 
   test('returns null when no project matches', async () => {
     const db = makeDb([])
-    expect(await setProjectDetails(db, PROJECT_ID, {})).toBeNull()
+    expect(await setProjectDetails(db, PROJECT_ID, {}, ACTOR_ID)).toBeNull()
   })
 
   test('throws and does not write for invalid details', async () => {
     const db = makeDb()
     await expect(
-      setProjectDetails(db, PROJECT_ID, { developmentType: 'Bad' })
+      setProjectDetails(db, PROJECT_ID, { developmentType: 'Bad' }, ACTOR_ID)
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
@@ -243,7 +257,8 @@ describe('setProjectFeature — postIntervention', () => {
       layer: 'habitats',
       index: 0,
       feature: validPostInterventionHabitat,
-      unitsTotals: validUnitsTotals
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
     })
     expect(db._update).toHaveBeenCalledTimes(1)
   })
@@ -256,7 +271,8 @@ describe('setProjectFeature — postIntervention', () => {
         layer: 'habitats',
         index: 0,
         feature: { ...validPostInterventionHabitat, type: 'Grassland' },
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/"type" is not allowed/)
     expect(db._update).not.toHaveBeenCalled()

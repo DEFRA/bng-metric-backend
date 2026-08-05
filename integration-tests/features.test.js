@@ -38,8 +38,8 @@ afterAll(async () => {
 async function seedProjectWithBaseline(baseline) {
   const id = randomUUID()
   await dbClient.query(
-    `INSERT INTO bng.projects (id, project, user_id)
-     VALUES ($1, $2, $3)`,
+    `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+     VALUES ($1, $2, $3, $3)`,
     [id, { name: 'Features endpoint IT', baseline }, userId]
   )
   return id

@@ -54,7 +54,9 @@ describe('audit_log reflects submit + rename', () => {
     expect(renamed.statusCode).toBe(HTTP_OK)
 
     const { rows } = await dbClient.query(
-      `SELECT operation, project->>'name' AS name, user_id, bng_project_version, audited_at
+      `SELECT operation, project->>'name' AS name,
+              previous_project->>'name' AS previous_name, user_id,
+              bng_project_version, audited_at
          FROM bng.audit_log
         WHERE project_id = $1
         ORDER BY audited_at`,
@@ -68,11 +70,13 @@ describe('audit_log reflects submit + rename', () => {
     expect(insertRow).toMatchObject({
       operation: 'INSERT',
       name: ORIGINAL_NAME,
+      previous_name: null,
       user_id: userId
     })
     expect(updateRow).toMatchObject({
       operation: 'UPDATE',
       name: RENAMED_NAME,
+      previous_name: ORIGINAL_NAME,
       user_id: userId
     })
 
@@ -86,5 +90,44 @@ describe('audit_log reflects submit + rename', () => {
     expect(updateRow.audited_at.getTime()).toBeGreaterThanOrEqual(
       insertRow.audited_at.getTime()
     )
+  })
+  it('rejects project deletion without an audited deletion workflow', async () => {
+    await expect(
+      dbClient.query('DELETE FROM bng.projects WHERE id = $1', [projectId])
+    ).rejects.toMatchObject({
+      code: '42501',
+      message: expect.stringContaining('audited deletion workflow')
+    })
+  })
+  it('records the authenticated actor separately from the project owner', async () => {
+    const actorId = `actor-${randomUUID()}`
+    const actorChangeName = 'Changed by a different actor'
+
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(project, '{name}', to_jsonb($1::text)),
+              last_modified_by = $2
+        WHERE id = $3`,
+      [actorChangeName, actorId, projectId]
+    )
+
+    const { rows } = await dbClient.query(
+      `SELECT a.user_id, a.project->>'name' AS name, p.user_id AS owner_id,
+              a.operation, a.audited_at
+         FROM bng.audit_log a
+         JOIN bng.projects p ON p.id = a.project_id
+        WHERE a.project_id = $1
+        ORDER BY a.audited_at DESC, a.id DESC
+        LIMIT 1`,
+      [projectId]
+    )
+
+    expect(rows[0]).toMatchObject({
+      user_id: actorId,
+      owner_id: userId,
+      name: actorChangeName,
+      operation: 'UPDATE'
+    })
+    expect(rows[0].audited_at).toBeInstanceOf(Date)
   })
 })

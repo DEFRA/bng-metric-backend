@@ -1,6 +1,7 @@
 import { eq } from 'drizzle-orm'
 
 import { assignFeatureIds } from '../../validation/baseline/assign-feature-ids.js'
+import { auditProjectChange } from '../../common/helpers/audit-project-change.js'
 import { buildFeatureIdByRef } from '../../validation/baseline/carry-forward-feature-ids.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baseline-linear-length-by-ref.js'
@@ -171,8 +172,20 @@ export async function saveBaselineForProject(
       uploadLabel: config.uploadLabel
     })
     if (config.projectDocumentKey === 'baseline') {
-      await reEnrichStoredPostInterventionIfPresent(drizzle, projectId, logger)
+      await reEnrichStoredPostInterventionIfPresent(
+        drizzle,
+        projectId,
+        sub,
+        logger
+      )
     }
+    auditProjectChange({
+      actorId: sub,
+      projectId,
+      operation: 'updated',
+      dataType: `${config.projectDocumentKey}.upload`,
+      uploadId
+    })
     return null
   }
 }

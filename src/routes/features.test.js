@@ -1,5 +1,6 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
+import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import {
@@ -13,6 +14,10 @@ import {
 // { documentKey, layer, index, feature, unitsTotals }. That helper's
 // validation is covered by persist-project.test.js and end-to-end persistence
 // by the integration tests.
+vi.mock('../common/helpers/audit-project-change.js', () => ({
+  auditProjectChange: vi.fn()
+}))
+
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
 }))
@@ -267,6 +272,14 @@ describe('updateFeature handler - area habitat dispatch', () => {
       {}
     )
     expect(result.type).toBe('habitat')
+    expect(auditProjectChange).toHaveBeenCalledOnce()
+    expect(auditProjectChange).toHaveBeenCalledWith({
+      actorId: AUTH.credentials.sub,
+      projectId: PROJECT_ID,
+      operation: 'updated',
+      dataType: 'baseline.feature',
+      featureId: HABITAT_ID
+    })
     expect(result.feature).toMatchObject({
       featureId: HABITAT_ID,
       broadType: 'Grassland',
@@ -492,6 +505,7 @@ describe('updateFeature handler - error cases', () => {
     })
     // Nothing is persisted when the edit is rejected.
     expect(setProjectFeature).not.toHaveBeenCalled()
+    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
