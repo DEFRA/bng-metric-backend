@@ -145,7 +145,7 @@ async function runFullValidation(
   h,
   config = BASELINE_VALIDATION_CONFIG
 ) {
-  const { uploadId, projectId, sub, filename, fileSize } = context
+  const { uploadId, projectId, credentials, filename, fileSize } = context
   const tmpDir = await fs.mkdtemp(
     path.join(os.tmpdir(), BASELINE_UPLOAD_TEMP_PREFIX)
   )
@@ -177,7 +177,7 @@ async function runFullValidation(
         { drizzle, pgPool, logger },
         projectId,
         layers,
-        { uploadId, sub, filename, fileSize },
+        { uploadId, credentials, filename, fileSize },
         h,
         config
       )
@@ -369,7 +369,7 @@ function createValidateGeoPackageRoute(config) {
       const { uploadId } = request.params
       const projectId = request.payload?.projectId ?? null
       // Persisting to a project is scoped to this user's current org context.
-      const { sub } = request.auth.credentials
+      const credentials = request.auth.credentials
 
       const { bucket, key, filename, fileSize } = await resolveUploadLocation(
         uploadId,
@@ -408,7 +408,7 @@ function createValidateGeoPackageRoute(config) {
         buffer,
         request.drizzle,
         request.pg,
-        { uploadId, projectId, sub, filename, fileSize },
+        { uploadId, projectId, credentials, filename, fileSize },
         h,
         config
       )

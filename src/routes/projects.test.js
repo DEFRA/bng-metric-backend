@@ -1,4 +1,5 @@
 import { describe, test, expect, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import {
   getProjects,
   getProject,
@@ -14,10 +15,28 @@ const USER_003 = 'test-user-003'
 const NEW_PROJECT_NAME = 'New Wetland Project'
 const RENAMED_NAME = 'Renamed Project'
 
+const REL_A = 'rel-org-a'
+const REL_B = 'rel-org-b'
+
 // Verified-token credentials as they reach the handler via request.auth.
 const credsFor = (sub, extra = {}) => ({
   auth: { credentials: { sub, ...extra } }
 })
+
+// Claims for a user approved in BOTH orgs, currently signed in under `current`.
+const multiOrgClaims = (current) => ({
+  currentRelationshipId: current,
+  relationships: [
+    `${REL_A}:org-a:Acme Ltd:0:Employee:1`,
+    `${REL_B}:org-b:Globex:0:Employee:1`
+  ],
+  roles: [`${REL_A}:bng completer:3`, `${REL_B}:bng completer:3`]
+})
+
+function renderWhere(whereSpy) {
+  const [predicate] = whereSpy.mock.calls[0]
+  return new PgDialect().sqlToQuery(predicate)
+}
 
 const mockProjects = [
   {
@@ -82,6 +101,20 @@ describe('#getProjects', () => {
     const result = await getProjects.handler(request, {})
 
     expect(result).toEqual([])
+  })
+
+  // BMD-890: holding an approved role in a second org must not widen the list —
+  // only the relationship the user is currently signed in as is queried.
+  test('Should scope the query to the current org context only', async () => {
+    const drizzle = createMockDrizzle(mockProjects)
+    const request = { drizzle, ...credsFor(USER_001, multiOrgClaims(REL_A)) }
+
+    await getProjects.handler(request, {})
+
+    const { sql, params } = renderWhere(drizzle._chain.where)
+    expect(sql).toContain('"relationship_id" is not distinct from')
+    expect(params).toContain(REL_A)
+    expect(params).not.toContain(REL_B)
   })
 })
 

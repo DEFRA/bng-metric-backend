@@ -90,7 +90,9 @@ explicitly-protected route, and a public route each behave correctly.
 1. Write the route. Do **nothing** for auth — it is protected by the default.
 2. Derive identity from `request.auth.credentials` (the verified token), never
    from the request body. For owned resources, filter with
-   [`visibleToUser`](../src/db/project-visibility.js).
+   [`visibleToUser`](../src/db/project-visibility.js) — pass it the whole
+   `credentials` object, not just the `sub`: it scopes to the user's **current**
+   organisation as well as to ownership and an approved role.
 3. Only if the endpoint is genuinely public: add `options: { auth: false }` and
    an entry in `PUBLIC_ROUTES` with a justification.
 4. Run `npm run test:integration` — the guard test confirms coverage.

@@ -19,9 +19,13 @@ import { projectSchema } from '../validation/project.js'
  *       - Projects
  *     summary: List the requesting user's visible projects
  *     description: |
- *       Returns only projects the authenticated user owns whose latest role for
- *       the project's relationship is approved (status 3), plus their legacy
- *       projects with no relationship.
+ *       Returns only projects the authenticated user owns that belong to the org
+ *       context they are currently acting in (the token's
+ *       `currentRelationshipId`) and whose latest role for that relationship is
+ *       approved (status 3). Projects created under a different organisation are
+ *       not returned, even when the user holds an approved role there too. A
+ *       user with no current org context sees only their org-less (legacy)
+ *       projects.
  *
  *       Each row carries `projectId` — an explicit alias of `id` — as the
  *       primary key for downstream relational consumers.
@@ -158,11 +162,11 @@ const getProjects = {
     auth: 'defra-jwt'
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(visibleToUser(sub))
+      .where(visibleToUser(credentials))
     return toProjectResponses(rows)
   }
 }
@@ -179,12 +183,12 @@ const getProject = {
     }
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const { id } = request.params
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(and(eq(projects.id, id), visibleToUser(sub)))
+      .where(and(eq(projects.id, id), visibleToUser(credentials)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${id} not found`)
@@ -232,12 +236,12 @@ const getHabitat = {
     }
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const { projectId, featureId } = request.params
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(and(eq(projects.id, projectId), visibleToUser(sub)))
+      .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${projectId} not found`)
@@ -271,7 +275,7 @@ const updateProject = {
     }
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const { id } = request.params
     const {
       project: { name }
@@ -280,7 +284,7 @@ const updateProject = {
       request.drizzle,
       id,
       name,
-      and(eq(projects.id, id), visibleToUser(sub))
+      and(eq(projects.id, id), visibleToUser(credentials))
     )
     if (!row) {
       throw Boom.notFound(`Project ${id} not found`)
