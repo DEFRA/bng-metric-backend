@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 import { describe, expect, test } from 'vitest'
 
 const SRC_ROOT = join(dirname(fileURLToPath(import.meta.url)), '..')
-const SANCTIONED_WRITER = 'db\\persist-project.js'
+const SANCTIONED_WRITER = 'db/persist-project.js'
 
 function javascriptFiles(directory) {
   return readdirSync(directory, { withFileTypes: true }).flatMap((entry) => {
@@ -31,7 +31,7 @@ describe('auditable project write boundary', () => {
     const offenders = javascriptFiles(SRC_ROOT)
       .filter((path) => !path.endsWith('.test.js'))
       .filter((path) => directProjectWrites(readFileSync(path, 'utf8')))
-      .map((path) => relative(SRC_ROOT, path))
+      .map((path) => relative(SRC_ROOT, path).replaceAll('\\', '/'))
       .filter((path) => path !== SANCTIONED_WRITER)
 
     expect(offenders).toEqual([])
