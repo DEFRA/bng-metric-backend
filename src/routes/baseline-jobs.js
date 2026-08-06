@@ -78,13 +78,21 @@ async function enqueueValidation(request, h, validationConfig) {
     // Unexpected non-terminal message (e.g. a duplicate that was skipped): let
     // the client poll rather than guess.
     return h
-      .response({ jobId, status: message.status, statusUrl: statusUrlFor(jobId) })
+      .response({
+        jobId,
+        status: message.status,
+        statusUrl: statusUrlFor(jobId)
+      })
       .code(HTTP_STATUS.ACCEPTED)
   } catch (err) {
     if (err.message === HOLD_OPEN_TIMEOUT) {
       // Slow/large file: hand the result off to polling.
       return h
-        .response({ jobId, status: 'processing', statusUrl: statusUrlFor(jobId) })
+        .response({
+          jobId,
+          status: 'processing',
+          statusUrl: statusUrlFor(jobId)
+        })
         .code(HTTP_STATUS.ACCEPTED)
     }
     throw err

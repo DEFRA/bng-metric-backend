@@ -26,7 +26,10 @@ if (!parentPort) {
 
 parentPort.on('message', async ({ jobId }) => {
   try {
-    const message = await runBaselineJob({ jobs, drizzle, pgPool, logger }, jobId)
+    const message = await runBaselineJob(
+      { jobs, drizzle, pgPool, logger },
+      jobId
+    )
     parentPort.postMessage(message)
   } catch (err) {
     // runBaselineJob records its own failures; this is a last-resort guard so a

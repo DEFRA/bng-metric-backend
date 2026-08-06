@@ -123,7 +123,10 @@ describe('runBaselineJob', () => {
 
   it('records a gpkg-gate rejection as a succeeded job with the gate result', async () => {
     const deps = makeDeps(makeJob())
-    const gateResult = { valid: false, errors: [{ code: 'X', message: 'bad file' }] }
+    const gateResult = {
+      valid: false,
+      errors: [{ code: 'X', message: 'bad file' }]
+    }
     validateGpkg.mockReturnValue(gateResult)
 
     const message = await runBaselineJob(deps, JOB_ID)
@@ -153,7 +156,10 @@ describe('runBaselineJob', () => {
 
     const message = await runBaselineJob(deps, JOB_ID)
 
-    expect(message).toMatchObject({ status: 'failed', statusCode: HTTP_INTERNAL })
+    expect(message).toMatchObject({
+      status: 'failed',
+      statusCode: HTTP_INTERNAL
+    })
     expect(deps.jobs.fail).toHaveBeenCalledWith(JOB_ID, {
       statusCode: HTTP_INTERNAL,
       error: 'kaboom'
