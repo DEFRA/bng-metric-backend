@@ -82,6 +82,110 @@ function saveHandlersForConfig(config) {
   }
 }
 
+function layersForUpload(layers, storedProject, projectDocumentKey) {
+  const featureIdByRef = buildFeatureIdByRef(
+    storedProject?.[projectDocumentKey]
+  )
+  const layersWithIds = assignFeatureIds(layers, featureIdByRef)
+  const layersForSizing =
+    projectDocumentKey === 'postIntervention'
+      ? filterLostPostInterventionLayers(layersWithIds)
+      : layersWithIds
+  return { layersWithIds, layersForSizing }
+}
+
+async function sizeUploadedHabitats(
+  pgPool,
+  layersForSizing,
+  { logger, routeName, uploadId, h }
+) {
+  try {
+    return {
+      habitatSizes: await calculateHabitatSizes(pgPool, layersForSizing)
+    }
+  } catch (err) {
+    logger.error(
+      `${routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
+    )
+    const response = h
+      .response({
+        valid: false,
+        errors: [
+          makeError(
+            ERROR_CODES.SIZING_FAILED,
+            'Unable to calculate habitat sizes'
+          )
+        ]
+      })
+      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    return { response }
+  }
+}
+
+function extractAndValidateDocument({
+  handlers,
+  layersWithIds,
+  storedProject,
+  context,
+  logger,
+  config,
+  habitatSizes
+}) {
+  const { uploadId, filename, fileSize } = context
+  const meta = { uploadId, filename, fileSize, habitatSizes }
+  const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
+  const enrichOptions =
+    config.projectDocumentKey === 'postIntervention'
+      ? enrichOptionsForPostIntervention(storedProject?.baseline)
+      : {}
+  handlers.enrichDocument(document, logger, enrichOptions)
+  const { error } = handlers.documentSchema.validate(document, {
+    allowUnknown: true
+  })
+  return { document, geometries, schemaError: error }
+}
+
+function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
+  logger.info(
+    `${routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
+  )
+  return h.response({
+    valid: false,
+    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)]
+  })
+}
+
+async function persistAndAuditUpload(
+  drizzle,
+  projectId,
+  document,
+  geometries,
+  { uploadId, sub, logger, config }
+) {
+  await persistBaseline(drizzle, projectId, document, geometries, {
+    uploadId,
+    logger,
+    sub,
+    projectDocumentKey: config.projectDocumentKey,
+    uploadLabel: config.uploadLabel
+  })
+  if (config.projectDocumentKey === 'baseline') {
+    await reEnrichStoredPostInterventionIfPresent(
+      drizzle,
+      projectId,
+      sub,
+      logger
+    )
+  }
+  auditProjectChange({
+    actorId: sub,
+    projectId,
+    operation: 'updated',
+    dataType: `${config.projectDocumentKey}.upload`,
+    uploadId
+  })
+}
+
 /**
  * Sizes, extracts, validates against the Joi schema, and persists the baseline
  * document for a known-valid set of layers. Returns a Hapi response on any
@@ -103,89 +207,48 @@ export async function saveBaselineForProject(
   config
 ) {
   const { drizzle, pgPool, logger } = deps
-  const { uploadId, sub, filename, fileSize } = context
-  // Reuse the featureIds already stored for this document wherever the incoming
-  // `ref` matches, so a re-upload updates the downstream relational rows rather
-  // than replacing them wholesale. This read sits outside the FOR UPDATE lock
-  // taken later in persistBaseline: a concurrent upload could make it stale,
-  // but the worst outcome is a fresh UUID where one could have been reused, and
-  // concurrent uploads for the same project already 409 on the lock timeout.
+  const { uploadId } = context
   const storedProject = await fetchStoredProject(drizzle, projectId)
-  const featureIdByRef = buildFeatureIdByRef(
-    storedProject?.[config.projectDocumentKey]
+  const { layersWithIds, layersForSizing } = layersForUpload(
+    layers,
+    storedProject,
+    config.projectDocumentKey
   )
-  const layersWithIds = assignFeatureIds(layers, featureIdByRef)
-  const layersForSizing =
-    config.projectDocumentKey === 'postIntervention'
-      ? filterLostPostInterventionLayers(layersWithIds)
-      : layersWithIds
-
-  let habitatSizes
-  try {
-    habitatSizes = await calculateHabitatSizes(pgPool, layersForSizing)
-  } catch (err) {
-    logger.error(
-      `${config.routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
-    )
-    return h
-      .response({
-        valid: false,
-        errors: [
-          makeError(
-            ERROR_CODES.SIZING_FAILED,
-            'Unable to calculate habitat sizes'
-          )
-        ]
-      })
-      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  const sizing = await sizeUploadedHabitats(pgPool, layersForSizing, {
+    logger,
+    routeName: config.routeName,
+    uploadId,
+    h
+  })
+  if (sizing.response) {
+    return sizing.response
   }
 
   const handlers = saveHandlersForConfig(config)
-  const meta = { uploadId, filename, fileSize, habitatSizes }
-  const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
-
-  let enrichOptions = {}
-  if (config.projectDocumentKey === 'postIntervention') {
-    enrichOptions = enrichOptionsForPostIntervention(storedProject?.baseline)
-  }
-  handlers.enrichDocument(document, logger, enrichOptions)
-
-  const { error: schemaError } = handlers.documentSchema.validate(document, {
-    allowUnknown: true
+  const extracted = extractAndValidateDocument({
+    handlers,
+    layersWithIds,
+    storedProject,
+    context,
+    logger,
+    config,
+    habitatSizes: sizing.habitatSizes
   })
-  if (schemaError) {
-    logger.info(
-      `${config.routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
-    )
-    return h.response({
-      valid: false,
-      errors: [
-        makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)
-      ]
-    })
-  } else {
-    await persistBaseline(drizzle, projectId, document, geometries, {
-      uploadId,
+  if (extracted.schemaError) {
+    return schemaErrorResponse(extracted.schemaError, {
       logger,
-      sub,
-      projectDocumentKey: config.projectDocumentKey,
-      uploadLabel: config.uploadLabel
+      routeName: config.routeName,
+      uploadId,
+      h
     })
-    if (config.projectDocumentKey === 'baseline') {
-      await reEnrichStoredPostInterventionIfPresent(
-        drizzle,
-        projectId,
-        sub,
-        logger
-      )
-    }
-    auditProjectChange({
-      actorId: sub,
-      projectId,
-      operation: 'updated',
-      dataType: `${config.projectDocumentKey}.upload`,
-      uploadId
-    })
-    return null
   }
+
+  await persistAndAuditUpload(
+    drizzle,
+    projectId,
+    extracted.document,
+    extracted.geometries,
+    { uploadId, sub: context.sub, logger, config }
+  )
+  return null
 }
