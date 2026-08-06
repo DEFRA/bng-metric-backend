@@ -423,4 +423,14 @@ const validatePostIntervention = createValidateGeoPackageRoute(
   POST_INTERVENTION_VALIDATION_CONFIG
 )
 
-export { validateBaseline, validatePostIntervention }
+// Also exported for the async validation worker (src/services/jobs), which reuses
+// the exact same, tested validation pipeline off the request event loop.
+export {
+  validateBaseline,
+  validatePostIntervention,
+  runFullValidation,
+  resolveUploadLocation,
+  fetchBaselineBuffer,
+  BASELINE_VALIDATION_CONFIG,
+  POST_INTERVENTION_VALIDATION_CONFIG
+}

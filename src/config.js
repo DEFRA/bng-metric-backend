@@ -184,6 +184,20 @@ const config = convict({
       env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
     }
   },
+  asyncValidation: {
+    enabled: {
+      doc: 'Enable the async GeoPackage validation worker thread plus the enqueue and job-status routes. When false the worker is not spawned and the enqueue routes return 503, leaving the synchronous /baseline/validate path as the only route. Off by default.',
+      format: Boolean,
+      default: false,
+      env: 'ASYNC_VALIDATION_ENABLED'
+    },
+    holdOpenMs: {
+      doc: 'How long the enqueue handler waits for the worker to finish before returning 202 + a job id for the client to poll. Small files complete inside this window and return their result inline, so the user still sees a near-synchronous response.',
+      format: Number,
+      default: 2500,
+      env: 'ASYNC_VALIDATION_HOLD_OPEN_MS'
+    }
+  },
   aws: {
     region: {
       doc: 'AWS region',

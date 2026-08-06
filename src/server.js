@@ -3,6 +3,8 @@ import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { postgres } from './plugins/postgres.js'
+import { postgresOptionsFromConfig } from './db/postgres-options.js'
+import { baselineWorker } from './plugins/baseline-worker.js'
 import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
@@ -56,15 +58,7 @@ async function createServer() {
     secureContext,
     {
       plugin: postgres.plugin,
-      options: {
-        host: config.get('postgres.host'),
-        port: config.get('postgres.port'),
-        user: config.get('postgres.user'),
-        database: config.get('postgres.database'),
-        iamAuthentication: config.get('postgres.iamAuthentication'),
-        localPassword: config.get('postgres.localPassword'),
-        region: process.env.AWS_REGION ?? 'eu-west-2'
-      }
+      options: postgresOptionsFromConfig()
     },
     pulse,
     {
@@ -72,6 +66,11 @@ async function createServer() {
       options: resolveOidcAuthOptions()
     }
   ])
+
+  // baselineWorker - spawns the async GeoPackage-validation worker thread and
+  // decorates request.baselineDispatcher. Registered after postgres (the worker
+  // builds its own pool) and before the router so the enqueue route can reach it.
+  await server.register([baselineWorker])
 
   // Secure by default: every route requires the 'defra-jwt' strategy unless it
   // explicitly opts out with `auth: false`. Set here — at the root realm, after

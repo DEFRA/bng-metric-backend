@@ -1,35 +1,8 @@
-import Pool from 'pg-pool'
-import { Signer } from '@aws-sdk/rds-signer'
-import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createDrizzle } from '../db/index.js'
+import { createPool } from '../db/create-pool.js'
 
 const logger = createLogger()
-
-function createPasswordProvider(options) {
-  if (options.iamAuthentication) {
-    return async () => {
-      logger.info('Requesting new IAM RDS token')
-      try {
-        const signer = new Signer({
-          region: options.region,
-          hostname: options.host,
-          port: options.port,
-          username: options.user,
-          credentials: fromNodeProviderChain()
-        })
-        const token = await signer.getAuthToken()
-        logger.info('IAM RDS token obtained successfully')
-        return token
-      } catch (error) {
-        logger.error(`Failed to obtain IAM RDS token: ${error.message}`)
-        throw error
-      }
-    }
-  }
-
-  return () => options.localPassword
-}
 
 const postgres = {
   plugin: {
@@ -40,24 +13,11 @@ const postgres = {
         `Setting up Postgres pool for ${options.host}:${options.port}/${options.database}`
       )
 
-      const passwordProvider = createPasswordProvider(options)
-      const pool = new Pool({
-        host: options.host,
-        port: options.port,
-        user: options.user,
-        password: passwordProvider,
-        database: options.database,
-        connectionTimeoutMillis: 10000,
-        idleTimeoutMillis: 30000,
-        maxLifetimeSeconds: 60 * 10,
-        max: 10,
-        ...(options.iamAuthentication &&
-          server.secureContext && {
-            ssl: {
-              rejectUnauthorized: false,
-              secureContext: server.secureContext
-            }
-          })
+      // secureContext is only present in the cloud (loaded by
+      // @defra/hapi-secure-context); it enables IAM-auth SSL in create-pool.js.
+      const pool = createPool({
+        ...options,
+        secureContext: server.secureContext
       })
 
       pool.on('error', (error) => {

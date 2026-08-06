@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="32" author="bng-team">
+        <comment>
+            Create baseline_jobs table: the durable record for asynchronous
+            GeoPackage validation. The enqueue route inserts one 'pending' row per
+            validation request; the worker thread claims it (pending -> processing),
+            runs the download + validation pipeline off the request event loop, then
+            writes the terminal outcome (succeeded/failed) with the validation result
+            payload and the HTTP status code the synchronous route would have
+            returned. The job-status route reads it back, scoped to user_sub, for the
+            frontend to poll. result is the { valid, errors } payload; status_code
+            carries 200 for a definitive result or the error code (409/413/500/...)
+            for a failure. Nothing here replaces the synchronous /baseline/validate
+            route, which is unchanged.
+        </comment>
+        <createTable schemaName="bng" tableName="baseline_jobs">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" nullable="false"/>
+            </column>
+            <column name="upload_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <column name="project_id" type="uuid"/>
+            <column name="user_sub" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="mode" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="bucket" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="s3_key" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filename" type="text"/>
+            <column name="file_size" type="bigint"/>
+            <column name="status" type="text" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <column name="stage" type="text"/>
+            <column name="result" type="jsonb"/>
+            <column name="status_code" type="integer"/>
+            <column name="error" type="text"/>
+            <column name="attempts" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="created_at" type="timestamptz" defaultValueComputed="now()">
+                <constraints nullable="false"/>
+            </column>
+            <column name="started_at" type="timestamptz"/>
+            <column name="finished_at" type="timestamptz"/>
+        </createTable>
+    </changeSet>
+
+    <changeSet id="33" author="bng-team">
+        <comment>Index baseline_jobs by user_sub (job-status reads are scoped to the owner) and by upload_id (dedupe / lookups by upload).</comment>
+        <createIndex schemaName="bng" tableName="baseline_jobs" indexName="idx_baseline_jobs_user_sub">
+            <column name="user_sub"/>
+        </createIndex>
+        <createIndex schemaName="bng" tableName="baseline_jobs" indexName="idx_baseline_jobs_upload_id">
+            <column name="upload_id"/>
+        </createIndex>
+    </changeSet>
+
+</databaseChangeLog>

@@ -25,6 +25,11 @@ import {
   validateBaseline,
   validatePostIntervention
 } from '../routes/baseline.js'
+import {
+  enqueueValidateBaseline,
+  enqueueValidatePostIntervention,
+  getBaselineJobStatus
+} from '../routes/baseline-jobs.js'
 import { getUserProjects } from '../routes/users.js'
 import {
   getProjectDetails,
@@ -63,6 +68,9 @@ const router = {
         uploadStatus,
         validateBaseline,
         validatePostIntervention,
+        enqueueValidateBaseline,
+        enqueueValidatePostIntervention,
+        getBaselineJobStatus,
         getUserProjects,
         getProjectDetails,
         updateProjectDetails,
