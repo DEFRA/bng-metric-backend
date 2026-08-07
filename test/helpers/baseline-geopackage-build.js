@@ -1,4 +1,5 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
+import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
@@ -29,10 +30,12 @@ import {
 const DEFAULT_BUILD_BUFFER_OPTIONS = {}
 
 /**
- * Build a SQLite database in-memory, optionally configure it as a
- * GeoPackage, then serialize it to a Buffer for use with validateGpkg.
+ * Configure an already-open SQLite database as a GeoPackage: sets the
+ * application_id and, when requested, creates the GeoPackage system tables
+ * and populates the requested feature/non-feature layers.
  *
- * @param {object} [opts]
+ * @param {import('better-sqlite3').Database} db
+ * @param {object} opts
  * @param {number}   [opts.appId=0]
  * @param {boolean}  [opts.systemTables=false]
  * @param {string[]} [opts.featureLayers=[]]
@@ -42,7 +45,7 @@ const DEFAULT_BUILD_BUFFER_OPTIONS = {}
  * @param {string|null|undefined} [opts.habitatsGeomColumnName]
  * @param {string[]} [opts.illegalFeatureLayers=[]]
  */
-export function buildBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
+function populateGpkgDb(db, opts) {
   const {
     appId = 0,
     systemTables = false,
@@ -53,7 +56,6 @@ export function buildBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
     rlbGeomColumnName,
     habitatsGeomColumnName
   } = opts
-  const db = new Database(':memory:')
   db.pragma(`application_id = ${appId}`)
 
   if (systemTables) {
@@ -68,10 +70,48 @@ export function buildBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
     insertIllegalBaselineFeatureLayers(db, illegalFeatureLayers)
     insertNonFeatureLayers(db, nonFeatureLayers)
   }
+}
 
+/**
+ * Build a SQLite database in-memory, optionally configure it as a
+ * GeoPackage, then serialize it to a Buffer for use with validateGpkg.
+ *
+ * @param {object} [opts] - See populateGpkgDb() for option descriptions.
+ * @returns {Buffer}
+ */
+export function buildBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
+  const db = new Database(':memory:')
+  populateGpkgDb(db, opts)
   const buffer = Buffer.from(db.serialize())
   db.close()
   return buffer
+}
+
+/**
+ * Build a GeoPackage the same way as buildBuffer(), but as a real file-backed
+ * database switched into WAL journal mode and checkpointed, then read back as
+ * a Buffer — mirroring a GeoPackage last saved by desktop GIS software with
+ * WAL mode enabled and uploaded without its -wal/-shm sidecar files.
+ *
+ * @param {object} [opts] - Same options as buildBuffer().
+ * @returns {Buffer}
+ */
+export function buildWalModeBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
+  const dir = mkdtempSync(join(tmpdir(), 'gpkg-wal-fixture-'))
+  const filePath = join(dir, 'wal-mode.gpkg')
+  try {
+    const db = new Database(filePath)
+    try {
+      populateGpkgDb(db, opts)
+      db.pragma('journal_mode = WAL')
+      db.pragma('wal_checkpoint(TRUNCATE)')
+    } finally {
+      db.close()
+    }
+    return readFileSync(filePath)
+  } finally {
+    rmSync(dir, { recursive: true, force: true })
+  }
 }
 
 /** GeoPackage buffer with all layers populated for `readBaselineGeoPackage` tests */
