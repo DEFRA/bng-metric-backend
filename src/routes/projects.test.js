@@ -118,13 +118,25 @@ describe('#getProjects', () => {
   })
 })
 
-function createMockDrizzleInsert(row) {
+// `storedOrgContext` is what bng.users / bng.relationships hold for the user —
+// the fallback createProject reads when the token carries no current
+// relationship. Left empty for a user with no persisted session.
+function createMockDrizzleInsert(row, storedOrgContext = []) {
+  const limit = vi.fn().mockResolvedValue(storedOrgContext)
   return {
     insert: vi.fn().mockReturnValue({
       values: vi.fn().mockReturnValue({
         returning: vi.fn().mockResolvedValue([row])
       })
-    })
+    }),
+    select: vi.fn().mockReturnValue({
+      from: vi.fn().mockReturnValue({
+        leftJoin: vi.fn().mockReturnValue({
+          where: vi.fn().mockReturnValue({ limit })
+        })
+      })
+    }),
+    _orgContextLimit: limit
   }
 }
 
@@ -174,7 +186,52 @@ describe('#createProject', () => {
     })
   })
 
-  test('Should stamp null org context when the token has no current relationship', async () => {
+  test('Should not read the stored context when the token carries one', async () => {
+    const drizzle = createMockDrizzleInsert(newProject, [
+      { relationshipId: 'stale-rel', orgId: 'stale-org' }
+    ])
+    const request = {
+      drizzle,
+      ...credsFor(USER_003, {
+        currentRelationshipId: 'rel-9',
+        relationships: ['rel-9:org-9:Acme Ltd:0:Employee:1']
+      }),
+      payload: { project: { name: NEW_PROJECT_NAME } }
+    }
+
+    await createProject.handler(request, {})
+
+    // The verified token wins outright — no fallback query is issued.
+    expect(drizzle.select).not.toHaveBeenCalled()
+    expect(drizzle.insert().values.mock.calls[0][0]).toMatchObject({
+      relationshipId: 'rel-9'
+    })
+  })
+
+  // BMD-890: the create path must resolve the org context exactly as the read
+  // path does. A refreshed id_token can arrive with the enrichment claims blank;
+  // stamping null then would hide the project from its own creator instantly,
+  // because the read scope falls back to the stored relationship.
+  test('Should stamp the stored org context when the token has none', async () => {
+    const drizzle = createMockDrizzleInsert(newProject, [
+      { relationshipId: 'rel-stored', orgId: 'org-stored' }
+    ])
+    const request = {
+      drizzle,
+      ...credsFor(USER_003, { currentRelationshipId: '' }),
+      payload: { project: { name: NEW_PROJECT_NAME } }
+    }
+
+    await createProject.handler(request, {})
+
+    expect(drizzle.insert().values.mock.calls[0][0]).toMatchObject({
+      userId: USER_003,
+      orgId: 'org-stored',
+      relationshipId: 'rel-stored'
+    })
+  })
+
+  test('Should stamp null org context when neither the token nor the store has one', async () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const request = {
       drizzle,

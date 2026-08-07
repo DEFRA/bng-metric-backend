@@ -45,6 +45,10 @@ import {
 // stored value stays in step. Reading it here keeps the predicate zero-trust
 // (nothing is taken from the request beyond the verified token) and synchronous,
 // so it still drops straight into any `.where(...)`.
+//
+// The CREATE path must resolve the context identically, or a project can be
+// stamped outside the scope it is read back through and disappear the moment it
+// is made — see resolveCurrentOrgContext in src/db/org-context.js.
 function currentRelationshipExpr(sub, relationshipId) {
   return sql`coalesce(${relationshipId}::text, (select u.current_relationship_id
         from bng.users u where u.user_id = ${sub}))`

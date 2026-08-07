@@ -3,8 +3,8 @@ import { and, eq } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { insertProject, setProjectName } from '../db/persist-project.js'
+import { resolveCurrentOrgContext } from '../db/org-context.js'
 import { visibleToUser } from '../db/project-visibility.js'
-import { currentOrgContext } from '../services/defra-id/claims.js'
 import {
   toProjectResponse,
   toProjectResponses
@@ -212,7 +212,12 @@ const createProject = {
   handler: async (request, _h) => {
     const claims = request.auth.credentials
     const { project } = request.payload
-    const { relationshipId, orgId } = currentOrgContext(claims)
+    // Resolved the same way the read scope resolves it (project-visibility.js),
+    // so a project can never be stamped outside the context it is read through.
+    const { relationshipId, orgId } = await resolveCurrentOrgContext(
+      request.drizzle,
+      claims
+    )
     const row = await insertProject(request.drizzle, {
       project,
       userId: claims.sub,

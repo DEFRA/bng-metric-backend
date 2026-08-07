@@ -368,6 +368,41 @@ describe('RBAC visibility', () => {
     expect(row.rows[0].name).toBe('Org A project')
   })
 
+  it('stamps the persisted org context on a project created under a blanked token', async () => {
+    // The create and read paths must resolve the org context the SAME way. If
+    // create stamped null from a blanked refresh token while read fell back to
+    // the stored relationship, the new project would be invisible to its own
+    // creator the moment it was made.
+    const sub = `it-${randomUUID()}`
+    await signInAs(sub, REL_ORG_A)
+
+    const blankedToken = await mintToken({
+      sub,
+      currentRelationshipId: '',
+      relationships: [],
+      roles: []
+    })
+    const created = await createProject(blankedToken, 'Made mid-refresh')
+
+    const row = await dbClient.query(
+      'SELECT org_id, relationship_id FROM bng.projects WHERE id = $1',
+      [created.id]
+    )
+    expect(row.rows[0]).toEqual({ org_id: 'org-a', relationship_id: REL_ORG_A })
+
+    expect(projectNames(await listProjects(blankedToken))).toEqual([
+      'Made mid-refresh'
+    ])
+
+    // …and it is still there once a normal, fully-enriched token comes back.
+    const orgAToken = await mintToken(
+      multiOrgClaims({ sub, current: REL_ORG_A })
+    )
+    expect(projectNames(await listProjects(orgAToken))).toEqual([
+      'Made mid-refresh'
+    ])
+  })
+
   it('falls back to the persisted org context when a refreshed token blanks the claims', async () => {
     // Defra ID runs relationship/role enrichment only on interactive sign-in, so
     // an id_token from a refresh_token grant can arrive with these claims empty.
