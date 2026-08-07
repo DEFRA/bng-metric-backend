@@ -20,7 +20,6 @@ import { extractHabitatData } from '../../validation/baseline/extract-habitat-da
 import { extractPostIntervention } from '../../validation/baseline/extract-post-intervention.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
-import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baseline/re-enrich-stored-post-intervention.js'
 import {
   habitatDataSchema,
   postInterventionDataSchema
@@ -53,15 +52,6 @@ vi.mock('../../utilities/baseline/enrich-baseline-units.js', () => ({
 vi.mock('../../utilities/baseline/enrich-post-intervention-units.js', () => ({
   enrichPostInterventionDocumentWithUnits: vi.fn()
 }))
-
-vi.mock(
-  '../../utilities/baseline/re-enrich-stored-post-intervention.js',
-  () => ({
-    reEnrichStoredPostInterventionIfPresent: vi
-      .fn()
-      .mockResolvedValue(undefined)
-  })
-)
 
 vi.mock('../../validation/project.js', () => ({
   habitatDataSchema: { validate: vi.fn() },
@@ -157,11 +147,6 @@ describe('saveBaselineForProject', () => {
         sub: SUB,
         projectDocumentKey: 'baseline'
       })
-    )
-    expect(reEnrichStoredPostInterventionIfPresent).toHaveBeenCalledWith(
-      deps.drizzle,
-      PROJECT_ID,
-      logger
     )
   })
 

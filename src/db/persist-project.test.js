@@ -1,4 +1,5 @@
 import { describe, test, expect, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
 
 import {
   insertProject,
@@ -81,13 +82,18 @@ describe('setProjectName', () => {
 })
 
 describe('setProjectBaseline', () => {
-  test('writes when the baseline subtree is valid', async () => {
+  test('AC3/AC4 replaces baseline and removes post-intervention atomically', async () => {
     const db = makeDb()
     await setProjectBaseline(db, PROJECT_ID, {
       importedAt: '2026-01-01T00:00:00.000Z',
       habitats: []
     })
     expect(db._update).toHaveBeenCalledTimes(1)
+
+    const [{ project }] = db._set.mock.calls[0]
+    const { sql: updateSql } = new PgDialect().sqlToQuery(project)
+    expect(updateSql).toContain('jsonb_set')
+    expect(updateSql).toMatch(/- 'postIntervention'/)
   })
 
   test('throws and does not write for an invalid baseline', async () => {

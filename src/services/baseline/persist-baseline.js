@@ -16,7 +16,10 @@ import {
   postInterventionWatercourses,
   postInterventionTrees
 } from '../../db/schema/index.js'
-import { setProjectHabitatData } from '../../db/persist-project.js'
+import {
+  setProjectBaseline,
+  setProjectHabitatData
+} from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 
 /** Cap rows per INSERT to keep statement size bounded for PostGIS bulk loads. */
@@ -148,7 +151,27 @@ async function updateProjectDocumentSection(
   document,
   projectDocumentKey
 ) {
-  await setProjectHabitatData(tx, projectId, document, projectDocumentKey)
+  if (projectDocumentKey === 'baseline') {
+    await setProjectBaseline(tx, projectId, document)
+  } else {
+    await setProjectHabitatData(tx, projectId, document, projectDocumentKey)
+  }
+}
+
+async function deleteReplacedFeatureRows(
+  tx,
+  projectId,
+  projectDocumentKey,
+  featureTables
+) {
+  await deleteExistingFeatureRows(tx, projectId, featureTables)
+  if (projectDocumentKey === 'baseline') {
+    await deleteExistingFeatureRows(
+      tx,
+      projectId,
+      POST_INTERVENTION_FEATURE_TABLES
+    )
+  }
 }
 
 async function runPersistTransaction(
@@ -164,7 +187,12 @@ async function runPersistTransaction(
     )
 
     await assertProjectExistsForUpdate(tx, projectId, sub)
-    await deleteExistingFeatureRows(tx, projectId, featureTables)
+    await deleteReplacedFeatureRows(
+      tx,
+      projectId,
+      projectDocumentKey,
+      featureTables
+    )
     await persistGeometryLayers(tx, projectId, geometries, featureTables)
     await updateProjectDocumentSection(
       tx,

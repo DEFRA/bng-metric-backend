@@ -5,7 +5,6 @@ import { buildFeatureIdByRef } from '../../validation/baseline/carry-forward-fea
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baseline-linear-length-by-ref.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/baseline/enrich-post-intervention-units.js'
-import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/baseline/re-enrich-stored-post-intervention.js'
 import { extractHabitatData } from '../../validation/baseline/extract-habitat-data.js'
 import {
   extractPostIntervention,
@@ -170,9 +169,6 @@ export async function saveBaselineForProject(
       projectDocumentKey: config.projectDocumentKey,
       uploadLabel: config.uploadLabel
     })
-    if (config.projectDocumentKey === 'baseline') {
-      await reEnrichStoredPostInterventionIfPresent(drizzle, projectId, logger)
-    }
     return null
   }
 }

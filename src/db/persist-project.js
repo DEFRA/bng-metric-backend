@@ -133,8 +133,8 @@ async function setProjectName(exec, id, name, where = eq(projects.id, id)) {
 }
 
 /**
- * Replace project.baseline only (baseline upload persist). Validates the
- * baseline subtree against habitatDataSchema.
+ * Replace one habitat document only. Used for post-intervention persistence;
+ * baseline replacement has additional cleanup in setProjectBaseline.
  */
 async function setProjectHabitatData(
   exec,
@@ -153,8 +153,20 @@ async function setProjectHabitatData(
     .where(eq(projects.id, id))
 }
 
+/**
+ * Replace the baseline and remove post-intervention data in one JSONB update.
+ * This keeps the project document consistent with the geometry cleanup in the
+ * surrounding upload transaction.
+ */
 async function setProjectBaseline(exec, id, baseline) {
-  await setProjectHabitatData(exec, id, baseline, 'baseline')
+  assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
+  const withBaseline = jsonbSet(projects.project, ['baseline'], baseline)
+  await exec
+    .update(projects)
+    .set({
+      project: sql`${withBaseline} - 'postIntervention'`
+    })
+    .where(eq(projects.id, id))
 }
 
 /**

@@ -5,6 +5,7 @@ import {
   BNG_SRID,
   FIXTURE,
   NULL_AREA_CONDITION_FIXTURE,
+  callPostInterventionValidate,
   callValidate,
   countLayer,
   createProject,
@@ -183,13 +184,21 @@ describe('POST /baseline/validate/{uploadId} - persistence (per-layer feature ro
 })
 
 describe('POST /baseline/validate/{uploadId} — re-upload behaviour', () => {
-  it('replaces the previous baseline rather than appending to it', async () => {
+  it('AC4 replaces baseline and removes all existing PI document and geometry data', async () => {
     const project = await createProject('Integration test — re-upload')
     const firstUploadId = await uploadFixture(FIXTURE)
     await callValidate(firstUploadId, { projectId: project.id })
 
     const firstHabitats = await countLayer('baseline_habitats', project.id)
     expect(firstHabitats).toBeGreaterThan(0)
+
+    const piUploadId = await uploadFixture(FIXTURE)
+    await callPostInterventionValidate(piUploadId, {
+      projectId: project.id
+    })
+    expect(
+      await countLayer('post_intervention_habitats', project.id)
+    ).toBeGreaterThan(0)
 
     const secondUploadId = await uploadFixture(FIXTURE)
     await callValidate(secondUploadId, { projectId: project.id })
@@ -202,6 +211,17 @@ describe('POST /baseline/validate/{uploadId} — re-upload behaviour', () => {
 
     const stored = await fetchProject(project.id)
     expect(stored.baseline.uploadId).toBe(secondUploadId)
+    expect(stored.postIntervention).toBeUndefined()
+
+    for (const table of [
+      'post_intervention_red_line',
+      'post_intervention_habitats',
+      'post_intervention_hedgerows',
+      'post_intervention_watercourses',
+      'post_intervention_trees'
+    ]) {
+      expect(await countLayer(table, project.id)).toBe(0)
+    }
   })
 
   // Superseded by BMD-867. A re-upload replaces the document wholesale, but the
