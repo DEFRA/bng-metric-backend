@@ -10,6 +10,7 @@ import {
   countLayer,
   createProject,
   fetchLayerRows,
+  fetchProjectAudit,
   fetchProject,
   getPersistenceTestContext,
   registerPersistenceTestHooks,
@@ -20,7 +21,7 @@ registerPersistenceTestHooks()
 
 describe('POST /post-intervention/validate/{uploadId} - persistence and feature editing', () => {
   it('persists post-intervention data separately from baseline and supports feature read/edit', async () => {
-    const { server, headers } = getPersistenceTestContext()
+    const { server, headers, userId } = getPersistenceTestContext()
     const project = await createProject('Integration test - post intervention')
     const uploadId = await uploadFixture(FIXTURE)
 
@@ -65,6 +66,15 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
         expect(typeof feature.units).toBe('number')
       }
     }
+
+    let auditRows = await fetchProjectAudit(project.id)
+    const uploadAudit = auditRows.at(-1)
+    expect(uploadAudit).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(uploadAudit.project.postIntervention.uploadId).toBe(uploadId)
+    expect(uploadAudit.previous_project.postIntervention).toBeUndefined()
 
     expect(await countLayer('baseline_habitats', project.id)).toBe(0)
     expect(await countLayer('post_intervention_red_line', project.id)).toBe(1)
@@ -126,6 +136,19 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
         (h) => h.featureId === habitat.featureId
       )
     ).toEqual(updateRes.result)
+
+    auditRows = await fetchProjectAudit(project.id)
+    const featureAudit = auditRows.at(-1)
+    expect(featureAudit).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(
+      featureAudit.project.postIntervention.habitats.find(
+        (feature) => feature.featureId === habitat.featureId
+      )
+    ).toEqual(updateRes.result)
+    expect(featureAudit.previous_project).not.toEqual(featureAudit.project)
   })
 
   it('calculates Enhanced linear units when baseline is uploaded before post-intervention', async () => {

@@ -133,6 +133,21 @@ describe('PATCH /projects/{id}/details', () => {
     const res = await patchDetails(project.id, payload)
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toMatchObject(payload)
+
+    const { rows } = await dbClient.query(
+      `SELECT operation, project, previous_project, user_id
+         FROM bng.audit_log
+        WHERE project_id = $1
+        ORDER BY audited_at DESC, id DESC
+        LIMIT 1`,
+      [project.id]
+    )
+    expect(rows[0]).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(rows[0].previous_project.details).toBeUndefined()
+    expect(rows[0].project.details).toMatchObject(payload)
   })
 
   it('merges partial updates without erasing existing fields', async () => {

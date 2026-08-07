@@ -1,6 +1,4 @@
 import Boom from '@hapi/boom'
-
-import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { and, eq } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
@@ -217,12 +215,6 @@ const createProject = {
       orgId,
       relationshipId
     })
-    auditProjectChange({
-      actorId: claims.sub,
-      projectId: row.id,
-      operation: 'created',
-      dataType: 'project'
-    })
     return toProjectResponse(row)
   }
 }
@@ -294,12 +286,6 @@ const updateProject = {
     if (!row) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    auditProjectChange({
-      actorId: sub,
-      projectId: id,
-      operation: 'updated',
-      dataType: 'project.name'
-    })
     return toProjectResponse(row)
   }
 }

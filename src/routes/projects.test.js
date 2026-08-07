@@ -1,5 +1,4 @@
-import { beforeEach, describe, test, expect, vi } from 'vitest'
-import { auditProjectChange } from '../common/helpers/audit-project-change.js'
+import { describe, test, expect, vi } from 'vitest'
 import {
   getProjects,
   getProject,
@@ -62,14 +61,6 @@ function createMockDrizzle(rows) {
   }
 }
 
-vi.mock('../common/helpers/audit-project-change.js', () => ({
-  auditProjectChange: vi.fn()
-}))
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
-
 describe('#getProjects', () => {
   test('Should return the projects visible to the user', async () => {
     const drizzle = createMockDrizzle(mockProjects)
@@ -125,13 +116,6 @@ describe('#createProject', () => {
 
     expect(drizzle.insert).toHaveBeenCalled()
     expect(result).toEqual({ ...newProject, projectId: newProject.id })
-    expect(auditProjectChange).toHaveBeenCalledOnce()
-    expect(auditProjectChange).toHaveBeenCalledWith({
-      actorId: USER_003,
-      projectId: newProject.id,
-      operation: 'created',
-      dataType: 'project'
-    })
   })
 
   test('Should derive userId from the token and stamp org context', async () => {
@@ -417,13 +401,6 @@ describe('#updateProject', () => {
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual({ ...updatedProject, projectId: PROJECT_1_ID })
-    expect(auditProjectChange).toHaveBeenCalledOnce()
-    expect(auditProjectChange).toHaveBeenCalledWith({
-      actorId: USER_001,
-      projectId: PROJECT_1_ID,
-      operation: 'updated',
-      dataType: 'project.name'
-    })
   })
 
   test('Should throw 404 when project to update is not found or not visible', async () => {
@@ -440,7 +417,6 @@ describe('#updateProject', () => {
     await expect(updateProject.handler(request, {})).rejects.toThrow(
       'Project a7dc53f2-05d2-4d75-9186-7e5cf52864bd not found'
     )
-    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 })
 

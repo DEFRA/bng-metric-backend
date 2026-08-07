@@ -1,5 +1,4 @@
-import { beforeEach, describe, test, expect, vi } from 'vitest'
-import { auditProjectChange } from '../common/helpers/audit-project-change.js'
+import { describe, test, expect, vi } from 'vitest'
 import { getProjectDetails, updateProjectDetails } from './project-details.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
@@ -37,14 +36,6 @@ function createMockDrizzle(updateRows = []) {
 
   return { update, _set: set }
 }
-
-vi.mock('../common/helpers/audit-project-change.js', () => ({
-  auditProjectChange: vi.fn()
-}))
-
-beforeEach(() => {
-  vi.clearAllMocks()
-})
 
 describe('#getProjectDetails', () => {
   test('returns details when project has them', async () => {
@@ -149,13 +140,6 @@ describe('#updateProjectDetails', () => {
     })
     expect(result).toEqual(persisted)
     expect(result.developmentType).toBe(sampleDetails.developmentType)
-    expect(auditProjectChange).toHaveBeenCalledOnce()
-    expect(auditProjectChange).toHaveBeenCalledWith({
-      actorId: SUB,
-      projectId: PROJECT_ID,
-      operation: 'updated',
-      dataType: 'project.details'
-    })
   })
 
   test('returns {} when project has no existing details', async () => {
@@ -187,7 +171,6 @@ describe('#updateProjectDetails', () => {
         {}
       )
     ).rejects.toThrow(`Project ${UNKNOWN_PROJECT_ID} not found`)
-    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 })
 

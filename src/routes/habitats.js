@@ -1,6 +1,4 @@
 import Boom from '@hapi/boom'
-
-import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -138,7 +136,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       const { broadType, habitatType, condition } = request.payload
 
       try {
-        const result = await request.drizzle.transaction((tx) =>
+        return await request.drizzle.transaction((tx) =>
           runUpdate(tx, {
             projectId,
             featureId,
@@ -149,17 +147,6 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             sub
           })
         )
-        auditProjectChange({
-          actorId: sub,
-          projectId,
-          operation: 'updated',
-          dataType:
-            documentKey === 'baseline'
-              ? 'baseline.feature'
-              : 'postIntervention.feature',
-          featureId
-        })
-        return result
       } catch (err) {
         if (err?.isBoom) {
           throw err

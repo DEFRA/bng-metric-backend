@@ -1,6 +1,4 @@
 import Boom from '@hapi/boom'
-
-import { auditProjectChange } from '../common/helpers/audit-project-change.js'
 import { and, eq } from 'drizzle-orm'
 import Joi from 'joi'
 
@@ -59,12 +57,6 @@ const updateProjectDetails = {
     if (!saved) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    auditProjectChange({
-      actorId: sub,
-      projectId: id,
-      operation: 'updated',
-      dataType: 'project.details'
-    })
     return saved.project?.details ?? {}
   }
 }

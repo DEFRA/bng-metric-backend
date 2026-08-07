@@ -28,7 +28,7 @@ let headers
 const userId = `it-${randomUUID()}`
 
 export function getPersistenceTestContext() {
-  return { server, dbClient, headers }
+  return { server, dbClient, headers, userId }
 }
 
 export async function createProject(name) {
@@ -91,6 +91,17 @@ export async function fetchProject(id) {
     [id]
   )
   return rows[0]?.project
+}
+
+export async function fetchProjectAudit(projectId) {
+  const { rows } = await dbClient.query(
+    `SELECT operation, project, previous_project, user_id, audited_at
+       FROM bng.audit_log
+      WHERE project_id = $1
+      ORDER BY audited_at, id`,
+    [projectId]
+  )
+  return rows
 }
 
 export async function countLayer(table, projectId) {

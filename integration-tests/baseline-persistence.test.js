@@ -9,7 +9,9 @@ import {
   countLayer,
   createProject,
   fetchLayerRows,
+  fetchProjectAudit,
   fetchProject,
+  getPersistenceTestContext,
   registerPersistenceTestHooks,
   uploadFixture
 } from './helpers/persistence-test-setup.js'
@@ -20,6 +22,7 @@ registerPersistenceTestHooks()
 
 describe('POST /baseline/validate/{uploadId} — persistence (document + red line)', () => {
   it('persists the unpacked baseline against the project', async () => {
+    const { userId } = getPersistenceTestContext()
     const project = await createProject('Integration test — happy path')
     const uploadId = await uploadFixture(FIXTURE)
 
@@ -82,6 +85,15 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
         stored.baseline.units.hedgerowsTotal +
         stored.baseline.units.watercoursesTotal
     )
+
+    const auditRows = await fetchProjectAudit(project.id)
+    const uploadAudit = auditRows.at(-1)
+    expect(uploadAudit).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(uploadAudit.project.baseline.uploadId).toBe(uploadId)
+    expect(uploadAudit.previous_project.baseline).toBeUndefined()
   })
 
   it('saves core habitat fields on every habitat (Reference, Type, Distinctiveness, Condition, plus Strategic Significance + Retention Category)', async () => {

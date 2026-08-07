@@ -219,6 +219,27 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       treesRuralTotal: 0,
       treesUrbanTotal: 0
     })
+
+    const { rows: auditRows } = await dbClient.query(
+      `SELECT operation, project, previous_project, user_id
+         FROM bng.audit_log
+        WHERE project_id = $1
+        ORDER BY audited_at DESC, id DESC
+        LIMIT 1`,
+      [projectId]
+    )
+    expect(auditRows[0]).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(auditRows[0].previous_project.baseline.habitats[0]).toMatchObject({
+      condition: 'Poor',
+      units: 4
+    })
+    expect(auditRows[0].project.baseline.habitats[0]).toMatchObject({
+      condition: 'Good',
+      units: 12
+    })
   })
 
   it('dispatches to the hedgerow recompute and writes the hedgerow layer', async () => {

@@ -85,6 +85,14 @@ function assertFragmentValid(schema, value, label) {
   }
 }
 
+function assertActorId(actorId) {
+  if (typeof actorId !== 'string' || actorId.trim().length === 0) {
+    throw Boom.badImplementation(
+      'persist: verified actor identity is required for every project write'
+    )
+  }
+}
+
 /**
  * Build a `jsonb_set(target, path, value)` expression. `target` may be the
  * column or another jsonb_set expression (so calls compose for multi-path
@@ -106,6 +114,7 @@ async function insertProject(
   db,
   { project, userId, orgId = null, relationshipId = null }
 ) {
+  assertActorId(userId)
   assertFragmentValid(projectSchema, project, 'project')
   const [row] = await db
     .insert(projects)
@@ -129,6 +138,7 @@ async function setProjectName(
   actorId,
   where = eq(projects.id, id)
 ) {
+  assertActorId(actorId)
   assertFragmentValid(projectSchema.extract('name'), name, 'project.name')
   const [row] = await exec
     .update(projects)
@@ -152,6 +162,7 @@ async function setProjectHabitatData(
   actorId,
   documentKey = 'baseline'
 ) {
+  assertActorId(actorId)
   assertFragmentValid(
     habitatDataSchemaFor(documentKey),
     habitatData,
@@ -189,6 +200,7 @@ async function setProjectFeature(
   id,
   { documentKey = 'baseline', layer, index, feature, unitsTotals, actorId }
 ) {
+  assertActorId(actorId)
   assertFragmentValid(
     featureSchemaFor(documentKey, layer),
     feature,
@@ -233,6 +245,7 @@ async function setProjectDetails(
   actorId,
   where = eq(projects.id, id)
 ) {
+  assertActorId(actorId)
   assertFragmentValid(projectDetailsSchema, patch, 'project.details')
   const [row] = await exec
     .update(projects)

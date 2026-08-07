@@ -1,7 +1,6 @@
 import { eq } from 'drizzle-orm'
 
 import { assignFeatureIds } from '../../validation/baseline/assign-feature-ids.js'
-import { auditProjectChange } from '../../common/helpers/audit-project-change.js'
 import { buildFeatureIdByRef } from '../../validation/baseline/carry-forward-feature-ids.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/baseline/enrich-baseline-units.js'
 import { buildBaselineLinearLengthByRef } from '../../utilities/baseline/baseline-linear-length-by-ref.js'
@@ -155,7 +154,7 @@ function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
   })
 }
 
-async function persistAndAuditUpload(
+async function persistUpload(
   drizzle,
   projectId,
   document,
@@ -177,13 +176,6 @@ async function persistAndAuditUpload(
       logger
     )
   }
-  auditProjectChange({
-    actorId: sub,
-    projectId,
-    operation: 'updated',
-    dataType: `${config.projectDocumentKey}.upload`,
-    uploadId
-  })
 }
 
 /**
@@ -194,7 +186,7 @@ async function persistAndAuditUpload(
  * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, sub?: string, filename?: string | null, fileSize?: number | null }} context
+ * @param {{ uploadId: string, sub: string, filename?: string | null, fileSize?: number | null }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -243,7 +235,7 @@ export async function saveBaselineForProject(
     })
   }
 
-  await persistAndAuditUpload(
+  await persistUpload(
     drizzle,
     projectId,
     extracted.document,

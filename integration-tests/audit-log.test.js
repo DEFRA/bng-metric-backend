@@ -99,7 +99,7 @@ describe('audit_log reflects submit + rename', () => {
       message: expect.stringContaining('audited deletion workflow')
     })
   })
-  it('records the authenticated actor separately from the project owner', async () => {
+  it('copies an explicitly supplied database actor separately from the project owner', async () => {
     const actorId = `actor-${randomUUID()}`
     const actorChangeName = 'Changed by a different actor'
 
@@ -129,5 +129,51 @@ describe('audit_log reflects submit + rename', () => {
       operation: 'UPDATE'
     })
     expect(rows[0].audited_at).toBeInstanceOf(Date)
+  })
+
+  it('keeps previous-version project writes compatible during a rolling deployment', async () => {
+    const previousVersionProjectId = randomUUID()
+    const previousVersionUserId = `previous-version-${randomUUID()}`
+    const originalName = 'Created by previous application version'
+    const updatedName = 'Updated by previous application version'
+
+    const inserted = await dbClient.query(
+      `INSERT INTO bng.projects (id, project, user_id)
+       VALUES ($1, $2, $3)
+       RETURNING last_modified_by`,
+      [previousVersionProjectId, { name: originalName }, previousVersionUserId]
+    )
+    expect(inserted.rows[0].last_modified_by).toBe(previousVersionUserId)
+
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(project, '{name}', to_jsonb($1::text))
+        WHERE id = $2`,
+      [updatedName, previousVersionProjectId]
+    )
+
+    const { rows } = await dbClient.query(
+      `SELECT operation, project->>'name' AS name,
+              previous_project->>'name' AS previous_name, user_id
+         FROM bng.audit_log
+        WHERE project_id = $1
+        ORDER BY audited_at, id`,
+      [previousVersionProjectId]
+    )
+
+    expect(rows).toEqual([
+      expect.objectContaining({
+        operation: 'INSERT',
+        name: originalName,
+        previous_name: null,
+        user_id: previousVersionUserId
+      }),
+      expect.objectContaining({
+        operation: 'UPDATE',
+        name: updatedName,
+        previous_name: originalName,
+        user_id: previousVersionUserId
+      })
+    ])
   })
 })

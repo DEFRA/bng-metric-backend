@@ -1,7 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 
 import { HTTP_STATUS } from '../../common/helpers/http/status-codes.js'
-import { auditProjectChange } from '../../common/helpers/audit-project-change.js'
 import { ERROR_CODES } from '../../validation/baseline/errors.js'
 import {
   UPLOAD_ID,
@@ -27,10 +26,6 @@ import {
   postInterventionDataSchema
 } from '../../validation/project.js'
 import { persistBaseline } from './persist-baseline.js'
-
-vi.mock('../../common/helpers/audit-project-change.js', () => ({
-  auditProjectChange: vi.fn()
-}))
 
 vi.mock('./calculate-habitat-sizes.js', () => ({
   calculateHabitatSizes: vi.fn()
@@ -146,13 +141,6 @@ describe('saveBaselineForProject', () => {
     )
 
     expect(result).toBeNull()
-    expect(auditProjectChange).toHaveBeenCalledWith({
-      actorId: SUB,
-      projectId: PROJECT_ID,
-      operation: 'updated',
-      dataType: 'baseline.upload',
-      uploadId: UPLOAD_ID
-    })
     expect(calculateHabitatSizes).toHaveBeenCalled()
     expect(extractHabitatData).toHaveBeenCalledWith(
       STUB_LAYERS,
@@ -198,7 +186,6 @@ describe('saveBaselineForProject', () => {
     expect(result).toBe(h)
     expect(logger.error).toHaveBeenCalled()
     expect(persistBaseline).not.toHaveBeenCalled()
-    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 
   it('returns a validation error response when the document schema rejects the extract', async () => {
@@ -227,7 +214,6 @@ describe('saveBaselineForProject', () => {
     expect(result).toBe(h)
     expect(logger.info).toHaveBeenCalled()
     expect(persistBaseline).not.toHaveBeenCalled()
-    expect(auditProjectChange).not.toHaveBeenCalled()
   })
 
   it('returns null after a successful post-intervention extract, enrich, validate and persist', async () => {
@@ -275,14 +261,6 @@ describe('saveBaselineForProject', () => {
     )
 
     expect(result).toBeNull()
-    expect(auditProjectChange).toHaveBeenCalledOnce()
-    expect(auditProjectChange).toHaveBeenCalledWith({
-      actorId: SUB,
-      projectId: PROJECT_ID,
-      operation: 'updated',
-      dataType: 'postIntervention.upload',
-      uploadId: UPLOAD_ID
-    })
     expect(extractPostIntervention).toHaveBeenCalledWith(
       STUB_LAYERS,
       expect.objectContaining({ uploadId: UPLOAD_ID })
