@@ -63,16 +63,16 @@ const INVALID_FILE_ERROR = makeError(
 
 const SUPPORTED_SRIDS = new Set([EPSG_WGS84, EPSG_BNG])
 
-/** Prefix for the ephemeral directory used to stage an uploaded buffer on disk. */
 const GPKG_GATE_STAGING_PREFIX = 'gpkg-gate-'
 const GPKG_GATE_STAGING_FILENAME = 'candidate.gpkg'
+// SQLite header — https://www.sqlite.org/fileformat.html §1.3
+const SQLITE_MAGIC = Buffer.from('SQLite format 3\0')
+const SQLITE_HEADER_MIN_BYTES = 20
+const SQLITE_WAL_VERSION = 2
+const SQLITE_READ_VERSION_OFFSET = 19
 
-// OGC GeoPackage 1.2 §2.1.3 — geometry blob header layout uses GPKG_MAGIC_BYTE_* /
-// GPKG_FLAGS_BYTE_INDEX / GPKG_ENVELOPE_* from ./geopackage-constants.js
-
-// Aliases cover both the underscored canonical names and the QGIS display
-// names with spaces. resolveTableName is case-insensitive, so spaces are the
-// only thing that matters here.
+// OGC GeoPackage 1.2 §2.1.3 geometry blob header (see geopackage-constants.js).
+// LAYER_ALIASES: underscored + QGIS spaced names; resolveTableName is case-insensitive.
 const LAYER_ALIASES = {
   redline: [
     'red_line_boundary',
@@ -99,23 +99,41 @@ const LAYER_ALIASES = {
   trees: ['trees', 'baseline_trees', 'tree', 'urban trees']
 }
 
+function bufferStartsWithSqliteMagic(buffer) {
+  return (
+    Buffer.isBuffer(buffer) &&
+    buffer.length >= SQLITE_MAGIC.length &&
+    buffer.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)
+  )
+}
+
+/** True when the SQLite header marks WAL journal mode (read version 2). */
+function isWalModeSqliteBuffer(buffer) {
+  return (
+    bufferStartsWithSqliteMagic(buffer) &&
+    buffer.length >= SQLITE_HEADER_MIN_BYTES &&
+    buffer[SQLITE_READ_VERSION_OFFSET] === SQLITE_WAL_VERSION
+  )
+}
+
+/** Fast path: sqlite3_deserialize + probe read (WAL fails here — deferred open). */
+function tryOpenBufferDatabase(buffer) {
+  let db
+  try {
+    db = new Database(buffer, { readonly: true })
+    db.pragma('application_id', { simple: true })
+    return db
+  } catch {
+    db?.close()
+    return null
+  }
+}
+
 /**
- * Stage the uploaded buffer to a real file on disk and open it there.
- *
- * GeoPackages last closed in WAL journal mode (SQLite file-format read
- * version 2) cannot be opened from an in-memory buffer via
- * sqlite3_deserialize (`new Database(buffer)`) — WAL mode requires a real
- * filesystem-backed -shm file — so the upload is staged to a real file on
- * disk and opened through better-sqlite3's normal file-based VFS instead.
- *
- * Writing the staged file is intentionally outside the try/catch below: a
- * filesystem failure there (e.g. ENOSPC, EACCES, EROFS) is an infrastructure
- * error, not an invalid upload, and must propagate rather than being coerced
- * into GPKG_INVALID_FILE. Only a failure to open the staged file as SQLite
- * counts as an invalid upload.
- *
+ * Slow path: stage to disk then open. writeFileSync is outside try/catch so
+ * ENOSPC/EACCES/EROFS propagate (not coerced to GPKG_INVALID_FILE).
  * @param {Buffer} buffer
- * @param {string} stagingDir - Pre-created, privately-owned staging directory.
+ * @param {string} stagingDir
  * @returns {import('better-sqlite3').Database | null}
  */
 function openStagedGpkgDatabase(buffer, stagingDir) {
@@ -125,11 +143,7 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
   try {
     return new Database(stagingPath, { readonly: true, fileMustExist: true })
   } catch (err) {
-    // better-sqlite3 does not throw in the constructor for most invalid files
-    // (it defers the error to the first operation). This catch covers the cases
-    // where it does throw (e.g. null/undefined input), which cannot be reliably
-    // reproduced in tests without depending on internal better-sqlite3 behaviour.
-    /* v8 ignore next 3 */
+    /* v8 ignore next 4 */
     logger.info(
       `validateGpkg: failed to open staged file as SQLite database: ${err.message}`
     )
@@ -137,13 +151,7 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
   }
 }
 
-/**
- * Run the layered GeoPackage checks against an already-open database.
- * Each stage only runs if the previous one passes.
- *
- * @param {import('better-sqlite3').Database} db
- * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
- */
+/** Layered GeoPackage checks against an already-open database. */
 function runGpkgChecks(db) {
   const errors = []
 
@@ -152,10 +160,6 @@ function runGpkgChecks(db) {
   try {
     appId = db.pragma('application_id', { simple: true })
   } catch {
-    // better-sqlite3 opens some corrupt files without throwing on open, but
-    // throws here when it tries to read the file header. No reliable way to
-    // craft such a file in tests without depending on internal better-sqlite3
-    // behaviour, so this branch is excluded.
     /* v8 ignore next 2 */
     return { valid: false, errors: [INVALID_FILE_ERROR] }
   }
@@ -205,24 +209,43 @@ function runGpkgChecks(db) {
   return { valid, errors }
 }
 
+/** Run the layered checks on an open db, then close it, whichever path opened it. */
+function runChecksAndClose(db) {
+  try {
+    return runGpkgChecks(db)
+  } finally {
+    db.close()
+  }
+}
+
 /**
- * Validate that a Buffer contains a valid BNG baseline GeoPackage.
- *
- * @param {Buffer} buffer - Raw file bytes
+ * Validate a Buffer as a BNG baseline GeoPackage. WAL-mode headers go
+ * straight to disk; otherwise try in-memory first. Non-SQLite failures skip
+ * staging; SQLite in-memory failures still fall back to disk.
+ * @param {Buffer} buffer
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
  */
 function validateGpkg(buffer) {
+  if (!isWalModeSqliteBuffer(buffer)) {
+    const bufferDb = tryOpenBufferDatabase(buffer)
+    if (bufferDb) {
+      return runChecksAndClose(bufferDb)
+    }
+    if (!bufferStartsWithSqliteMagic(buffer)) {
+      return { valid: false, errors: [INVALID_FILE_ERROR] }
+    }
+  }
+
+  logger.info(
+    'validateGpkg: opening via disk staging (WAL-mode header or in-memory open failed)'
+  )
   const stagingDir = mkdtempSync(join(tmpdir(), GPKG_GATE_STAGING_PREFIX))
   try {
     const db = openStagedGpkgDatabase(buffer, stagingDir)
     if (!db) {
       return { valid: false, errors: [INVALID_FILE_ERROR] }
     }
-    try {
-      return runGpkgChecks(db)
-    } finally {
-      db.close()
-    }
+    return runChecksAndClose(db)
   } finally {
     rmSync(stagingDir, { recursive: true, force: true })
   }
