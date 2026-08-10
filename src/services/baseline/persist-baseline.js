@@ -90,16 +90,17 @@ async function deleteExistingFeatureRows(tx, projectId, featureTables) {
 }
 
 // Lock the project row for update — but only if it is visible to the requesting
-// user. `visibleToUser(sub)` scopes to ownership AND an approved (status 3) role
-// for the project's relationship, i.e. the user's CURRENT org context. A project
-// the user doesn't own (or holds no approved current-relationship role for) is
-// indistinguishable from a missing one: it returns 404 without writing, matching
-// the sibling write paths (features.js, habitats.js, projects.js PATCH).
-async function assertProjectExistsForUpdate(tx, projectId, sub) {
+// user. `visibleToUser(credentials)` scopes to ownership AND the user's CURRENT
+// org context AND an approved (status 3) role for it. A project the user doesn't
+// own — or that belongs to a different org context than the one they are signed
+// into — is indistinguishable from a missing one: it returns 404 without
+// writing, matching the sibling write paths (features.js, habitats.js,
+// projects.js PATCH).
+async function assertProjectExistsForUpdate(tx, projectId, credentials) {
   const projectRows = await tx
     .select({ id: projects.id })
     .from(projects)
-    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
+    .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
     .for('update')
     .limit(1)
   if (projectRows.length === 0) {
@@ -156,14 +157,14 @@ async function runPersistTransaction(
   projectId,
   document,
   geometries,
-  { projectDocumentKey, featureTables, sub }
+  { projectDocumentKey, featureTables, credentials }
 ) {
   await drizzle.transaction(async (tx) => {
     await tx.execute(
       sql.raw(`SET LOCAL lock_timeout = '${PERSIST_LOCK_TIMEOUT}'`)
     )
 
-    await assertProjectExistsForUpdate(tx, projectId, sub)
+    await assertProjectExistsForUpdate(tx, projectId, credentials)
     await deleteExistingFeatureRows(tx, projectId, featureTables)
     await persistGeometryLayers(tx, projectId, geometries, featureTables)
     await updateProjectDocumentSection(
@@ -197,8 +198,9 @@ function rethrowPersistError(err, uploadLabel) {
  * @param {object} context
  * @param {string} context.uploadId
  * @param {{ info: (msg: string) => void }} context.logger
- * @param {string} context.sub verified token subject; the write is scoped to a
- *   project visible to this user (ownership + approved current-relationship role)
+ * @param {object} context.credentials verified token payload; the write is scoped
+ *   to a project visible to this user in their current org context (ownership +
+ *   matching relationship + approved role for it)
  */
 async function persistBaseline(
   drizzle,
@@ -208,7 +210,7 @@ async function persistBaseline(
   {
     uploadId,
     logger,
-    sub,
+    credentials,
     projectDocumentKey = 'baseline',
     uploadLabel = 'baseline',
     featureTables = FEATURE_TABLE_SETS[projectDocumentKey]
@@ -218,7 +220,7 @@ async function persistBaseline(
     await runPersistTransaction(drizzle, projectId, document, geometries, {
       projectDocumentKey,
       featureTables,
-      sub
+      credentials
     })
   } catch (err) {
     rethrowPersistError(err, uploadLabel)

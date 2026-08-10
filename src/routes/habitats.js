@@ -131,7 +131,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       }
     },
     handler: async (request, _h) => {
-      const { sub } = request.auth.credentials
+      const credentials = request.auth.credentials
       const { projectId, featureId } = request.params
       const { broadType, habitatType, condition } = request.payload
 
@@ -144,7 +144,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             habitatType,
             condition,
             documentKey,
-            sub
+            credentials
           })
         )
       } catch (err) {
@@ -172,7 +172,15 @@ const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
 
 async function runUpdate(
   tx,
-  { projectId, featureId, broadType, habitatType, condition, documentKey, sub }
+  {
+    projectId,
+    featureId,
+    broadType,
+    habitatType,
+    condition,
+    documentKey,
+    credentials
+  }
 ) {
   // Cap the wait on the project row lock so a stuck or pathologically slow
   // concurrent edit can't hang this request indefinitely.
@@ -186,7 +194,7 @@ async function runUpdate(
   const [row] = await tx
     .select()
     .from(projects)
-    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
+    .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
     .for('update')
     .limit(1)
   if (!row) {

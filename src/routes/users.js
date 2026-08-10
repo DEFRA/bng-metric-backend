@@ -21,8 +21,12 @@ const sortColumns = {
  *     description: |
  *       The user is taken from the verified Bearer token (`sub`); the {userId}
  *       path segment is retained for routing only and is not trusted. Returns
- *       projects the user owns whose latest role for the project's relationship
- *       is approved (status 3), plus their legacy projects with no relationship.
+ *       projects the user owns that belong to the org context they are currently
+ *       acting in (the token's `currentRelationshipId`) and whose latest role for
+ *       that relationship is approved (status 3). Projects created under a
+ *       different organisation are not returned, even when the user holds an
+ *       approved role there too. A user with no current org context sees only
+ *       their org-less (legacy) projects.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -69,13 +73,13 @@ const getUserProjects = {
     }
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const { sort, order } = request.query
 
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(visibleToUser(sub))
+      .where(visibleToUser(credentials))
       .orderBy(orderDirections[order](sortColumns[sort]))
 
     return rows
