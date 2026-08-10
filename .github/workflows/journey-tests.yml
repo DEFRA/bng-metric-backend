@@ -1,0 +1,22 @@
+name: Journey Tests
+
+on:
+  push:
+    branches:
+      - main
+  # Manual re-run. workflow_dispatch only fires for workflows on the default
+  # branch, so this is also the only way to exercise the cross-repo call
+  # without merging another change.
+  workflow_dispatch:
+
+jobs:
+  journey-tests:
+    name: Run Journey Tests
+    # bng-metric-journey-tests is public and exposes workflow_call, so this runs
+    # on this repo's own GITHUB_TOKEN. No PAT or repository_dispatch needed.
+    #
+    # No `with:` block on purpose: frontend-branch, backend-branch, browser and
+    # profile all keep their defaults (main / main / chromium / full suite).
+    # The suite checks out and builds both services from main, so this tests the
+    # merged result rather than the branch of the PR that triggered it.
+    uses: DEFRA/bng-metric-journey-tests/.github/workflows/journey-tests.yml@main
