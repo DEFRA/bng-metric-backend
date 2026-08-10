@@ -3,6 +3,15 @@ import { vi } from 'vitest'
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const SUB = 'defra-id-sub-abc123'
+const RELATIONSHIP_ID = 'rel-abc123'
+// Verified-token claims as the routes hand them to visibleToUser: the `sub`
+// alone is no longer enough — the org context comes from the same payload.
+const CREDENTIALS = {
+  sub: SUB,
+  currentRelationshipId: RELATIONSHIP_ID,
+  relationships: [`${RELATIONSHIP_ID}:org-abc:Acme Ltd:0:Employee:1`],
+  roles: [`${RELATIONSHIP_ID}:bng completer:3`]
+}
 const FEATURE_ID_RED = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 const FEATURE_ID_HAB = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const FEATURE_ID_HEDGE = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
@@ -301,6 +310,8 @@ export {
   UPLOAD_ID,
   PROJECT_ID,
   SUB,
+  RELATIONSHIP_ID,
+  CREDENTIALS,
   FEATURE_ID_RED,
   FEATURE_ID_HAB,
   FEATURE_ID_HEDGE,
