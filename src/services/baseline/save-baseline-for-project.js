@@ -159,12 +159,12 @@ async function persistUpload(
   projectId,
   document,
   geometries,
-  { uploadId, sub, logger, config }
+  { uploadId, credentials, logger, config }
 ) {
   await persistBaseline(drizzle, projectId, document, geometries, {
     uploadId,
     logger,
-    sub,
+    credentials,
     projectDocumentKey: config.projectDocumentKey,
     uploadLabel: config.uploadLabel
   })
@@ -172,7 +172,7 @@ async function persistUpload(
     await reEnrichStoredPostInterventionIfPresent(
       drizzle,
       projectId,
-      sub,
+      credentials.sub,
       logger
     )
   }
@@ -186,7 +186,7 @@ async function persistUpload(
  * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, sub: string, filename?: string | null, fileSize?: number | null }} context
+ * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -199,7 +199,13 @@ export async function saveBaselineForProject(
   config
 ) {
   const { drizzle, pgPool, logger } = deps
-  const { uploadId } = context
+  const { uploadId, credentials } = context
+  // Reuse the featureIds already stored for this document wherever the incoming
+  // `ref` matches, so a re-upload updates the downstream relational rows rather
+  // than replacing them wholesale. This read sits outside the FOR UPDATE lock
+  // taken later in persistBaseline: a concurrent upload could make it stale,
+  // but the worst outcome is a fresh UUID where one could have been reused, and
+  // concurrent uploads for the same project already 409 on the lock timeout.
   const storedProject = await fetchStoredProject(drizzle, projectId)
   const { layersWithIds, layersForSizing } = layersForUpload(
     layers,
@@ -240,7 +246,7 @@ export async function saveBaselineForProject(
     projectId,
     extracted.document,
     extracted.geometries,
-    { uploadId, sub: context.sub, logger, config }
+    { uploadId, credentials, logger, config }
   )
   return null
 }

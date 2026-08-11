@@ -11,6 +11,7 @@ import {
   LAYER_HABITATS,
   LAYER_RLB,
   buildBuffer,
+  buildWalModeBuffer,
   mutateSerializedBuffer,
   makeCorruptBlob,
   makeInvalidEnvelopeBlob,
@@ -454,6 +455,23 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
         appId: GP10_APP_ID,
         systemTables: true,
         featureLayers: ['RED LINE BOUNDARY', 'HABITATS']
+      })
+    )
+
+    expect(result).toEqual({ valid: true, errors: [] })
+  })
+
+  it('accepts a GeoPackage last saved in WAL journal mode', () => {
+    // A GeoPackage checkpointed and closed in WAL mode has SQLite file-format
+    // read version 2 in its header. Opening that file's bytes via
+    // sqlite3_deserialize (i.e. `new Database(buffer)`) fails with "unable to
+    // open database file" because WAL requires a real filesystem-backed -shm
+    // file; validateGpkg must stage the buffer on disk instead.
+    const result = validateGpkg(
+      buildWalModeBuffer({
+        appId: GP10_APP_ID,
+        systemTables: true,
+        featureLayers: ALL_LAYERS
       })
     )
 

@@ -1,10 +1,13 @@
 import { describe, test, expect, vi } from 'vitest'
 import { asc, desc, sql } from 'drizzle-orm'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import { getUserProjects } from './users.js'
 import { projects } from '../db/schema/index.js'
 
 const TEST_USER_ID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
 const UNKNOWN_USER_ID = '00000000-0000-0000-0000-000000000000'
+const REL_CURRENT = 'rel-current-org'
+const REL_OTHER = 'rel-other-org'
 
 const mockUserProjects = [
   {
@@ -53,13 +56,31 @@ function createMockDrizzle(rows) {
 }
 
 // The user is taken from the verified token (`sub`), not the path param.
-function makeRequest(sub, query = {}) {
+function makeRequest(sub, query = {}, credentials = {}) {
   return {
     drizzle: createMockDrizzle(mockUserProjects),
-    auth: { credentials: { sub } },
+    auth: { credentials: { sub, ...credentials } },
     params: { userId: sub },
     query: { sort: 'updated_at', order: 'desc', ...query }
   }
+}
+
+// Claims for a user who holds an approved 'bng completer' role in BOTH orgs but
+// is currently signed in under `current`.
+function multiOrgClaims(current) {
+  return {
+    currentRelationshipId: current,
+    relationships: [
+      `${REL_CURRENT}:org-current:Acme Ltd:0:Employee:1`,
+      `${REL_OTHER}:org-other:Globex:0:Employee:1`
+    ],
+    roles: [`${REL_CURRENT}:bng completer:3`, `${REL_OTHER}:bng completer:3`]
+  }
+}
+
+function renderWhere(request) {
+  const [predicate] = request.drizzle._chain.where.mock.calls[0]
+  return new PgDialect().sqlToQuery(predicate)
 }
 
 describe('#getUserProjects', () => {
@@ -96,6 +117,29 @@ describe('#getUserProjects', () => {
     // Filtering semantics (owner + approved role / legacy null) are covered by
     // the integration tests against real Postgres.
     expect(request.drizzle._chain.where).toHaveBeenCalledTimes(1)
+  })
+
+  // BMD-890: a user approved in two orgs must only see the current one's
+  // projects. The list endpoint is where the leak was visible.
+  test('Should scope the list to the org the user is currently signed in as', async () => {
+    const request = makeRequest(TEST_USER_ID, {}, multiOrgClaims(REL_CURRENT))
+
+    await getUserProjects.handler(request, {})
+
+    const { sql: whereSql, params } = renderWhere(request)
+    expect(whereSql).toContain('"relationship_id" is not distinct from')
+    expect(params).toContain(REL_CURRENT)
+    expect(params).not.toContain(REL_OTHER)
+  })
+
+  test('Should follow the user when they switch org context', async () => {
+    const request = makeRequest(TEST_USER_ID, {}, multiOrgClaims(REL_OTHER))
+
+    await getUserProjects.handler(request, {})
+
+    const { params } = renderWhere(request)
+    expect(params).toContain(REL_OTHER)
+    expect(params).not.toContain(REL_CURRENT)
   })
 
   test('Should include updatedAt in returned projects', async () => {

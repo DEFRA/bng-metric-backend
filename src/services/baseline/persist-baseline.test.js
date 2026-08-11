@@ -7,6 +7,8 @@ import { EPSG_BNG } from '../../validation/baseline/geopackage-constants.js'
 import {
   PROJECT_ID,
   SUB,
+  RELATIONSHIP_ID,
+  CREDENTIALS,
   FEATURE_ID_HAB,
   STUB_EXTRACTED,
   STUB_POST_INTERVENTION_EXTRACTED,
@@ -47,7 +49,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       STUB_EXTRACTED.geometries,
-      { uploadId: UPLOAD_ID, logger, sub: SUB }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.transactionCalls).toBe(1)
@@ -71,7 +73,7 @@ describe('persistBaseline', () => {
       {
         uploadId: UPLOAD_ID,
         logger,
-        sub: SUB,
+        credentials: CREDENTIALS,
         projectDocumentKey: 'postIntervention',
         uploadLabel: 'post-intervention'
       }
@@ -90,7 +92,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       makeGeometries({ redLine: null }),
-      { uploadId: UPLOAD_ID, logger, sub: SUB }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.executes).toHaveLength(4)
@@ -108,7 +110,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       geometries,
-      { uploadId: UPLOAD_ID, logger, sub: SUB }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     // lock_timeout + red line + 2 habitat batches + hedgerow + watercourse
@@ -123,19 +125,21 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       STUB_EXTRACTED.geometries,
-      { uploadId: UPLOAD_ID, logger, sub: SUB }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.projectWhere).toHaveLength(1)
     const { sql: lockSql, params } = new PgDialect().sqlToQuery(
       log.projectWhere[0]
     )
-    // The FOR UPDATE lock must enforce RBAC visibility (ownership + an approved
-    // role for the current relationship), not just match the project id — so a
-    // user cannot overwrite another org's baseline by supplying its UUID.
+    // The FOR UPDATE lock must enforce RBAC visibility (ownership + the current
+    // org context + an approved role for it), not just match the project id — so
+    // a user cannot overwrite another org's baseline by supplying its UUID.
     expect(lockSql).toContain('bng.roles')
     expect(lockSql).toContain('status')
+    expect(lockSql).toContain('is not distinct from')
     expect(params).toContain(SUB)
+    expect(params).toContain(RELATIONSHIP_ID)
     expect(params).toContain(PROJECT_ID)
   })
 
@@ -150,7 +154,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger, sub: SUB }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toMatchObject({
       isBoom: true,
@@ -171,7 +175,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger, sub: SUB }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toMatchObject({
       isBoom: true,
@@ -192,7 +196,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger, sub: SUB }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toBe(boom)
   })
@@ -209,7 +213,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger, sub: SUB }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toBe(err)
   })
@@ -231,7 +235,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       geometries,
-      { uploadId: UPLOAD_ID, logger, sub: SUB }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.executes.length).toBeGreaterThan(0)

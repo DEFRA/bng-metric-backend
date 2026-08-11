@@ -1,6 +1,7 @@
 import Database from 'better-sqlite3'
-import wkx from 'wkx'
-import { readFileSync } from 'node:fs'
+import { wkbToGeoJSON } from 'bng-library/gpkg-io'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -62,12 +63,16 @@ const INVALID_FILE_ERROR = makeError(
 
 const SUPPORTED_SRIDS = new Set([EPSG_WGS84, EPSG_BNG])
 
-// OGC GeoPackage 1.2 §2.1.3 — geometry blob header layout uses GPKG_MAGIC_BYTE_* /
-// GPKG_FLAGS_BYTE_INDEX / GPKG_ENVELOPE_* from ./geopackage-constants.js
+const GPKG_GATE_STAGING_PREFIX = 'gpkg-gate-'
+const GPKG_GATE_STAGING_FILENAME = 'candidate.gpkg'
+// SQLite header — https://www.sqlite.org/fileformat.html §1.3
+const SQLITE_MAGIC = Buffer.from('SQLite format 3\0')
+const SQLITE_HEADER_MIN_BYTES = 20
+const SQLITE_WAL_VERSION = 2
+const SQLITE_READ_VERSION_OFFSET = 19
 
-// Aliases cover both the underscored canonical names and the QGIS display
-// names with spaces. resolveTableName is case-insensitive, so spaces are the
-// only thing that matters here.
+// OGC GeoPackage 1.2 §2.1.3 geometry blob header (see geopackage-constants.js).
+// LAYER_ALIASES: underscored + QGIS spaced names; resolveTableName is case-insensitive.
 const LAYER_ALIASES = {
   redline: [
     'red_line_boundary',
@@ -94,92 +99,155 @@ const LAYER_ALIASES = {
   trees: ['trees', 'baseline_trees', 'tree', 'urban trees']
 }
 
+function bufferStartsWithSqliteMagic(buffer) {
+  return (
+    Buffer.isBuffer(buffer) &&
+    buffer.length >= SQLITE_MAGIC.length &&
+    buffer.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)
+  )
+}
+
+/** True when the SQLite header marks WAL journal mode (read version 2). */
+function isWalModeSqliteBuffer(buffer) {
+  return (
+    bufferStartsWithSqliteMagic(buffer) &&
+    buffer.length >= SQLITE_HEADER_MIN_BYTES &&
+    buffer[SQLITE_READ_VERSION_OFFSET] === SQLITE_WAL_VERSION
+  )
+}
+
+/** Fast path: sqlite3_deserialize + probe read (WAL fails here — deferred open). */
+function tryOpenBufferDatabase(buffer) {
+  let db
+  try {
+    db = new Database(buffer, { readonly: true })
+    db.pragma('application_id', { simple: true })
+    return db
+  } catch {
+    db?.close()
+    return null
+  }
+}
+
 /**
- * Validate that a Buffer contains a valid BNG baseline GeoPackage.
- * Checks are layered — each stage only runs if the previous one passes.
- *
- * @param {Buffer} buffer - Raw file bytes
+ * Slow path: stage to disk then open. writeFileSync is outside try/catch so
+ * ENOSPC/EACCES/EROFS propagate (not coerced to GPKG_INVALID_FILE).
+ * @param {Buffer} buffer
+ * @param {string} stagingDir
+ * @returns {import('better-sqlite3').Database | null}
+ */
+function openStagedGpkgDatabase(buffer, stagingDir) {
+  const stagingPath = join(stagingDir, GPKG_GATE_STAGING_FILENAME)
+  writeFileSync(stagingPath, buffer)
+
+  try {
+    return new Database(stagingPath, { readonly: true, fileMustExist: true })
+  } catch (err) {
+    /* v8 ignore next 4 */
+    logger.info(
+      `validateGpkg: failed to open staged file as SQLite database: ${err.message}`
+    )
+    return null
+  }
+}
+
+/** Layered GeoPackage checks against an already-open database. */
+function runGpkgChecks(db) {
+  const errors = []
+
+  // 1. Application ID confirms this is a GeoPackage, not a plain SQLite file
+  let appId
+  try {
+    appId = db.pragma('application_id', { simple: true })
+  } catch {
+    /* v8 ignore next 2 */
+    return { valid: false, errors: [INVALID_FILE_ERROR] }
+  }
+  if (!GPKG_APPLICATION_IDS.has(appId)) {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_NOT_A_GEOPACKAGE,
+        `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
+      )
+    )
+    return { valid: false, errors }
+  }
+
+  // 2. Required system tables
+  checkSystemTables(db, errors)
+  if (errors.length > 0) {
+    return { valid: false, errors }
+  }
+
+  // 3. Required feature layers (from baseline-template.schema.json)
+  const contentTables = getFeatureLayerNames(db)
+  checkRequiredLayersFromSchema(baselineTemplateSchema, contentTables, errors)
+
+  // 4. Layers present in gpkg_contents must match baseline template columns, srs, geometry
+  compareGpkgToBaselineSchema(db, baselineTemplateSchema, errors)
+
+  // 5. Red Line Boundary must contain exactly one polygon feature
+  if (contentTables.has(RLB_LYR)) {
+    validateRedLineBoundary(db, errors, logger)
+  }
+
+  if (contentTables.has(HABITATS_LYR)) {
+    validateHabitats(db, errors, logger)
+  }
+
+  // Hedgerows and Rivers are optional layers. Only validate when present;
+  // the validator itself skips silently when the table has zero rows.
+  if (contentTables.has(HEDGEROWS_LYR)) {
+    validateHedgerows(db, errors, logger)
+  }
+  if (contentTables.has(RIVERS_LYR)) {
+    validateWatercourses(db, errors, logger)
+  }
+
+  const valid = errors.length === 0
+  logger.info(`validateGpkg: valid=${valid}, errors=${JSON.stringify(errors)}`)
+  return { valid, errors }
+}
+
+/** Run the layered checks on an open db, then close it, whichever path opened it. */
+function runChecksAndClose(db) {
+  try {
+    return runGpkgChecks(db)
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * Validate a Buffer as a BNG baseline GeoPackage. WAL-mode headers go
+ * straight to disk; otherwise try in-memory first. Non-SQLite failures skip
+ * staging; SQLite in-memory failures still fall back to disk.
+ * @param {Buffer} buffer
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
  */
 function validateGpkg(buffer) {
-  const errors = []
-  let db
-
-  try {
-    db = new Database(buffer)
-  } catch (err) {
-    // better-sqlite3 does not throw in the constructor for most invalid buffers
-    // (it defers the error to the first operation). This catch covers the cases
-    // where it does throw (e.g. null/undefined input), which cannot be reliably
-    // reproduced in tests without depending on internal better-sqlite3 behaviour.
-    /* v8 ignore next 3 */
-    logger.info(
-      `validateGpkg: failed to open as SQLite database: ${err.message}`
-    )
-    return { valid: false, errors: [INVALID_FILE_ERROR] }
-  }
-
-  try {
-    // 1. Application ID confirms this is a GeoPackage, not a plain SQLite file
-    let appId
-    try {
-      appId = db.pragma('application_id', { simple: true })
-    } catch {
-      // better-sqlite3 opens some corrupt buffers without throwing in the
-      // constructor, but throws here when it tries to read the file header.
-      // No reliable way to craft such a buffer in tests without depending on
-      // internal better-sqlite3 behaviour, so this branch is excluded.
-      /* v8 ignore next 2 */
+  if (!isWalModeSqliteBuffer(buffer)) {
+    const bufferDb = tryOpenBufferDatabase(buffer)
+    if (bufferDb) {
+      return runChecksAndClose(bufferDb)
+    }
+    if (!bufferStartsWithSqliteMagic(buffer)) {
       return { valid: false, errors: [INVALID_FILE_ERROR] }
     }
-    if (!GPKG_APPLICATION_IDS.has(appId)) {
-      errors.push(
-        makeError(
-          ERROR_CODES.GPKG_NOT_A_GEOPACKAGE,
-          `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
-        )
-      )
-      return { valid: false, errors }
+  }
+
+  logger.info(
+    'validateGpkg: opening via disk staging (WAL-mode header or in-memory open failed)'
+  )
+  const stagingDir = mkdtempSync(join(tmpdir(), GPKG_GATE_STAGING_PREFIX))
+  try {
+    const db = openStagedGpkgDatabase(buffer, stagingDir)
+    if (!db) {
+      return { valid: false, errors: [INVALID_FILE_ERROR] }
     }
-
-    // 2. Required system tables
-    checkSystemTables(db, errors)
-    if (errors.length > 0) {
-      return { valid: false, errors }
-    }
-
-    // 3. Required feature layers (from baseline-template.schema.json)
-    const contentTables = getFeatureLayerNames(db)
-    checkRequiredLayersFromSchema(baselineTemplateSchema, contentTables, errors)
-
-    // 4. Layers present in gpkg_contents must match baseline template columns, srs, geometry
-    compareGpkgToBaselineSchema(db, baselineTemplateSchema, errors)
-
-    // 5. Red Line Boundary must contain exactly one polygon feature
-    if (contentTables.has(RLB_LYR)) {
-      validateRedLineBoundary(db, errors, logger)
-    }
-
-    if (contentTables.has(HABITATS_LYR)) {
-      validateHabitats(db, errors, logger)
-    }
-
-    // Hedgerows and Rivers are optional layers. Only validate when present;
-    // the validator itself skips silently when the table has zero rows.
-    if (contentTables.has(HEDGEROWS_LYR)) {
-      validateHedgerows(db, errors, logger)
-    }
-    if (contentTables.has(RIVERS_LYR)) {
-      validateWatercourses(db, errors, logger)
-    }
-
-    const valid = errors.length === 0
-    logger.info(
-      `validateGpkg: valid=${valid}, errors=${JSON.stringify(errors)}`
-    )
-    return { valid, errors }
+    return runChecksAndClose(db)
   } finally {
-    db.close()
+    rmSync(stagingDir, { recursive: true, force: true })
   }
 }
 
@@ -259,8 +327,13 @@ function getTableNames(db) {
 }
 
 /**
- * Decode a GeoPackage geometry blob into a wkx Geometry.
- * Header format per OGC GeoPackage 1.2 §2.1.3.
+ * Decode a GeoPackage geometry blob into a GeoJSON geometry and its SRS id.
+ *
+ * The GeoPackageBinary header is validated here (magic + envelope indicator,
+ * per OGC GeoPackage 1.2 §2.1.3) so a malformed baseline is rejected rather
+ * than silently accepted. The WKB → GeoJSON decode itself is delegated to
+ * bng-library/gpkg-io (`wkbToGeoJSON`), which is the single source of truth
+ * for the format.
  *
  * @param {Buffer} blob
  * @returns {{ geometry: object, srsId: number } | null}
@@ -274,17 +347,14 @@ function decodeGpkgBlob(blob) {
   }
   const flags = blob[GPKG_FLAGS_BYTE_INDEX]
   const envelopeIndicator = (flags >> 1) & GPKG_ENVELOPE_INDICATOR_MASK
-  const envelopeBytes = GPKG_ENVELOPE_SIZES[envelopeIndicator]
-  if (envelopeBytes === undefined) {
+  if (GPKG_ENVELOPE_SIZES[envelopeIndicator] === undefined) {
     throw new Error(
       `Invalid GeoPackage envelope indicator: ${envelopeIndicator}`
     )
   }
   const isLittleEndian = (flags & 0x01) === 1
   const srsId = isLittleEndian ? blob.readInt32LE(4) : blob.readInt32BE(4)
-  const wkb = blob.subarray(GPKG_HEADER_BYTES + envelopeBytes)
-  const parsed = wkx.Geometry.parse(wkb)
-  return { geometry: parsed.toGeoJSON(), srsId }
+  return { geometry: wkbToGeoJSON(blob), srsId }
 }
 
 /**
