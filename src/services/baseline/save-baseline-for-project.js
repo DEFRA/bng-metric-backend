@@ -89,7 +89,7 @@ function saveHandlersForConfig(config) {
  * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, sub?: string, filename?: string | null, fileSize?: number | null }} context
+ * @param {{ uploadId: string, credentials?: object, filename?: string | null, fileSize?: number | null }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -102,7 +102,7 @@ export async function saveBaselineForProject(
   config
 ) {
   const { drizzle, pgPool, logger } = deps
-  const { uploadId, sub, filename, fileSize } = context
+  const { uploadId, credentials, filename, fileSize } = context
   // Reuse the featureIds already stored for this document wherever the incoming
   // `ref` matches, so a re-upload updates the downstream relational rows rather
   // than replacing them wholesale. This read sits outside the FOR UPDATE lock
@@ -166,7 +166,7 @@ export async function saveBaselineForProject(
     await persistBaseline(drizzle, projectId, document, geometries, {
       uploadId,
       logger,
-      sub,
+      credentials,
       projectDocumentKey: config.projectDocumentKey,
       uploadLabel: config.uploadLabel
     })
