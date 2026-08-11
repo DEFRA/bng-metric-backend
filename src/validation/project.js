@@ -17,7 +17,7 @@ import {
   redLineSchema,
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
-import { postInterventionDataSchema } from './project-post-intervention-schema.js'
+import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-metric-engine.'

@@ -21,10 +21,8 @@ import {
   updateFeature
 } from '../routes/features.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
-import {
-  validateBaseline,
-  validatePostIntervention
-} from '../routes/baseline.js'
+import { validateBaseline } from '../routes/baseline.js'
+import { validatePostIntervention } from '../routes/post-intervention.js'
 import { getUserProjects } from '../routes/users.js'
 import {
   getProjectDetails,

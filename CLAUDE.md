@@ -59,16 +59,22 @@ the engine adapters. Code is organised three ways — baseline, post-interventio
 and shared — with shared code given a domain-precise name (`geopackage`,
 `upload`, `reference`, `engine-helpers`) rather than a generic `shared`.
 
-Beware: **the codebase does not match this yet.** The folders named `baseline/`
-under `src/validation/`, `src/services/` and `src/utilities/` currently hold
-shared and post-intervention code too, and no lint rule enforces the
-boundaries. Check a file's importers before assuming it is baseline-only, and
-put anything used by both flows in a shared module rather than under
-`baseline/`.
+GeoPackage validation and reference data live under
+`src/validation/geopackage/` and `src/validation/reference/`; shared
+save/persist lives under `src/services/upload/`; enrichment lives under
+`src/utilities/enrichment/{shared,baseline,post-intervention}/`; validate
+routes share `src/routes/validate-geopackage-route.js` with flow-specific
+route modules; Drizzle feature tables are split by family under
+`src/db/schema/`. ESLint path guardrails in `eslint.config.js` forbid
+enrichment and status cross-imports (see Guardrails in
+[`docs/CODE_STRUCTURE.md`](docs/CODE_STRUCTURE.md)). Check a file's
+importers before assuming a `baseline/` path is baseline-only, and put
+anything used by both flows in a shared module rather than under a
+flow-specific folder.
 
 Read [`docs/CODE_STRUCTURE.md`](docs/CODE_STRUCTURE.md) before adding a file or
 moving one — it has the target layout, a "where does this go?" decision list,
-and the traps in the current tree. The sequenced work to get there is in
+and remaining traps. The sequenced migration that landed this layout is in
 [`docs/CODE_STRUCTURE_MIGRATION.md`](docs/CODE_STRUCTURE_MIGRATION.md).
 
 ## Tests

@@ -19,13 +19,13 @@ import {
   recomputeAreaHabitat,
   recomputeHedgerow,
   recomputeWatercourse
-} from '../../validation/baseline/unit-calculation.js'
-import { OUT_OF_SCOPE_BANDS } from '../../validation/baseline/distinctiveness-check.js'
-import { recomputePostInterventionAreaHabitat } from '../../validation/baseline/recompute-post-intervention-area-habitat.js'
+} from '../../validation/geopackage/unit-calculation.js'
+import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
+import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
-} from '../baseline/proposed-enrichment-fields.js'
+} from '../enrichment/shared/proposed-enrichment-fields.js'
 
 import {
   addPostInterventionNetUnitChanges,

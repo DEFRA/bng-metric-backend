@@ -13,7 +13,7 @@ import {
   getWatercourseHabitatTypes,
   tradingRulesByDistinctiveness,
   watercourseTradingRulesByDistinctiveness
-} from '../validation/baseline/reference/habitat-reference.js'
+} from '../validation/reference/habitat-reference.js'
 
 /**
  * @openapi

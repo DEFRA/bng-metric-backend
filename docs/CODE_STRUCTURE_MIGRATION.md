@@ -4,11 +4,11 @@ The target layout and the rules behind it are in
 [`CODE_STRUCTURE.md`](CODE_STRUCTURE.md). This document is the work list to get
 there: one section per ticket, in dependency order.
 
-Nothing has moved yet. The reason for splitting this up rather than doing one
-large change is blast radius — around 109 files under `src/` have `baseline` in
-their path and roughly 120 import lines reference those paths, and the shared
-save/validate pipeline is used by **both** upload flows, so a mistake breaks
-baseline uploads as well as post-intervention ones.
+All eleven tickets below are done. The work was split rather than done as one
+large change because of blast radius — historically around 109 files under
+`src/` had `baseline` in their path and roughly 120 import lines referenced
+those paths, and the shared save/validate pipeline is used by **both** upload
+flows, so a mistake breaks baseline uploads as well as post-intervention ones.
 
 **Every ticket must end green**: `npm run lint`, `npm run format:check`,
 `npm test`, and `npm run test:integration`. The integration suite matters here
@@ -40,20 +40,20 @@ graph.
 
 ## Stage 1 — behaviour-preserving splits (no files move)
 
-### 1. Delete the dead habitat-condition reference module
+### 1. Delete the dead habitat-condition reference module — DONE
 
 **Size:** XS
 
-`src/validation/baseline/reference/habitat-condition.js` exports
+`src/validation/reference/habitat-condition.js` exports
 `getConditionScore`, which has no production importers — only its own test
 references it. The engine's `CONDITION_SCORES` is consumed directly elsewhere.
 
 Delete the module and `reference/habitat-condition.test.js`, and check
-`src/validation/baseline/reference/README.md` does not describe it.
+`src/validation/reference/README.md` does not describe it.
 
 **Done when:** both files are gone and the suite is green.
 
-### 2. Split the habitat status module by flow
+### 2. Split the habitat status module by flow — DONE
 
 **Size:** S
 
@@ -73,7 +73,7 @@ this ticket exists to remove.
 
 **Also update:** the seven importers — `extract-habitat-data.js`,
 `extract-post-intervention.js`, `extract-post-intervention-trees.js` and
-`recompute-post-intervention-area-habitat.js` under `src/validation/baseline/`,
+`recompute-post-intervention-area-habitat.js` under `src/validation/geopackage/`,
 plus `enrich-baseline-units.js`, `enrich-post-intervention-shared.js` and
 `enrich-post-intervention-hedgerow.js` (which re-exports `HABITAT_STATUS`) under
 `src/utilities/baseline/`. Split `calculate-habitat-statuses.test.js` to match.
@@ -82,11 +82,11 @@ plus `enrich-baseline-units.js`, `enrich-post-intervention-shared.js` and
 functions are currently uncovered branches. Add cases for them, or SonarCloud
 will report them as uncovered new code once the lines move.
 
-### 3. Extract the shared engine adapters out of baseline enrichment
+### 3. Extract the shared engine adapters out of baseline enrichment — DONE
 
 **Size:** M
 
-`src/utilities/baseline/enrich-baseline-units.js` (346 lines) is named baseline
+`src/utilities/enrichment/baseline/enrich-baseline-units.js` (346 lines) is named baseline
 but is shared: three post-intervention modules import four of its five exports.
 Move `normalizeConditionForEngine`, `engineHabitatTypeCandidates`,
 `calculateAreaHabitatWithCandidates` and `resolvedWatercourseEncroachments` —
@@ -117,7 +117,7 @@ functions it uses.
 move lands. Verify the rule actually fires — a `no-restricted-imports` pattern
 that matches nothing fails silently.
 
-### 4. Fix the stale geometryRow references (independent)
+### 4. Fix the stale geometryRow references (independent) — DONE
 
 **Size:** XS
 
@@ -142,17 +142,19 @@ triggers the Confluence mirror.
 
 Use `git mv` so history follows the file.
 
-### 5. Move the shared GeoPackage stack and reference data
+### 5. Move the shared GeoPackage stack and reference data — DONE
 
 **Size:** L — the biggest ticket
 
-`src/validation/baseline/` holds roughly 32 production files: about 27 are
-shared, one is baseline-only (`extract-habitat-data.js`), three are
-post-intervention-only (`extract-post-intervention.js`,
-`extract-post-intervention-trees.js`,
-`recompute-post-intervention-area-habitat.js`), and one is dead (removed by
-ticket 1). Re-verify the classification by importers before moving anything —
-it has drifted twice already.
+Landed on branch BMD-926. Shared parse/validate (+ `postgis/`) →
+`src/validation/geopackage/`; `reference/` → `src/validation/reference/`;
+baseline extract → `geopackage/baseline/`; PI extract/recompute →
+`geopackage/post-intervention/`; PI Joi schema →
+`src/validation/post-intervention/`.
+
+Prior to the move, `src/validation/baseline/` held roughly 31 production files
+(after ticket 1 deleted the dead habitat-condition module). Re-verify was done
+by importers before moving.
 
 Target:
 
@@ -168,44 +170,50 @@ Target:
 **Also update — these are the ones that fail silently:**
 
 - the coverage `exclude` entry for
-  `src/validation/baseline/geopackage-internals.js` in `vitest.config.js`
+  `src/validation/geopackage/geopackage-internals.js` in `vitest.config.js`
 - `TEMPLATE_REF` and `PROP_KEYS_REF` in `scripts/gen-data-dictionary.js`, plus
-  the prose reference to `src/validation/baseline/reference/*` in the same file
-- the `src/validation/baseline/carry-forward-feature-ids.js` documentation link
+  the prose reference to `src/validation/reference/*` in the same file
+- the `src/validation/geopackage/carry-forward-feature-ids.js` documentation link
   in `scripts/warehouse-erd-render.js`, then regenerate `docs/warehouse-erd.md`
 - `vi.mock()` literal paths in `src/routes/baseline.test.js`,
   `src/routes/baseline.persistence-errors.test.js` and
-  `src/services/baseline/save-baseline-for-project.test.js`
-- the six `test/helpers/baseline-geopackage*.js` helpers, which import
-  `geopackage-constants.js`, `errors.js` and `geopackage-internals-sqlite.js`
+  `src/services/upload/save-baseline-for-project.test.js`
+- the test GeoPackage helpers under `test/helpers/` (later renamed to
+  `gpkg*.js` in ticket 11), which import `geopackage-constants.js`, `errors.js`
+  and `geopackage-internals-sqlite.js`
 - `integration-tests/postgis-validate-baseline-layers.test.js`
 - the paths quoted in `CODE_STRUCTURE.md` and this document
 
 **Consider:** landing this as two PRs — `reference/` first (it has few
 importers), then the pipeline.
 
-### 6. Move the shared services into upload/
+### 6. Move the shared services into upload/ — DONE
 
 **Size:** M
 
-Everything in `src/services/baseline/` is shared; `save-baseline-for-project.js`
-and `persist-baseline.js` already dispatch on `projectDocumentKey`. Move
+Landed on branch BMD-927. Shared save/persist/size/status-constant code →
+`src/services/upload/`; baseline completeness rules stay in
+`src/services/baseline/`; post-intervention completeness rules →
+`src/services/post-intervention/`. Symbol renames deferred to ticket 8.
+
+Everything in `src/services/baseline/` was shared; `save-baseline-for-project.js`
+and `persist-baseline.js` already dispatch on `projectDocumentKey`. Moved
 `save-baseline-for-project.js`, `persist-baseline.js`, `calculate-habitat-sizes.js`
 and the `habitat-status.js` created by ticket 2 into `src/services/upload/`.
-Leave `calculate-baseline-statuses.js` in `src/services/baseline/` and move
+Left `calculate-baseline-statuses.js` in `src/services/baseline/` and moved
 `calculate-post-intervention-statuses.js` to `src/services/post-intervention/`.
 
-This also resolves the layering inversion where `src/utilities/` imports
-`HABITAT_STATUS` from `src/services/`.
+This also resolves the layering inversion where `src/utilities/` imported
+`HABITAT_STATUS` from a baseline-named services folder (utilities still import
+from `services/upload/`; a fuller layering fix can wait).
 
 **Depends on:** ticket 2.
 
-### 7. Move the enrichment utilities
+### 7. Move the enrichment utilities — DONE
 
 **Size:** M
 
-`src/utilities/baseline/` is the cleanest island — no baseline-only files apart
-from `enrich-baseline-units.js` itself. Move into
+Landed on branch BMD-928. Moved `src/utilities/baseline/` into
 `src/utilities/enrichment/{shared,baseline,post-intervention}/`:
 
 - **shared:** `enrich-units-shared.js`, the `engine-helpers.js` from ticket 3,
@@ -218,13 +226,19 @@ from `enrich-baseline-units.js` itself. Move into
   `proposed-time-difficulty-display.js`,
   `copy-retained-proposed-from-baseline.js`
 
-**Decide during this ticket:** `baseline-linear-length-by-ref.js` is named
-baseline but is imported by the post-intervention hedgerow and watercourse
-modules — it builds a baseline-length lookup _for_ post-intervention use. Either
-classify it as post-intervention support and rename it, or treat it as shared.
+**Decision — `baseline-linear-length-by-ref.js`:** classified as
+post-intervention support and renamed to
+`enrichment/post-intervention/linear-baseline-length-by-ref.js`. It builds a
+baseline-length lookup used only by Enhanced linear PI enrichment, re-enrich,
+and save orchestration for the PI path — not by baseline enrichment — so it is
+not shared. Export names (`buildBaselineLinearLengthByRef`, etc.) were left as
+they are — they describe baseline lengths consumed by the PI path, and were
+not part of the ticket 8 rename table.
 
-**Also update:** the `files` glob of the guardrail added in ticket 3, and the
-`enrich-post-intervention-units.fixtures.js` test fixture imports.
+**Also updated:** the ticket 3 ESLint `files` glob to
+`src/utilities/enrichment/post-intervention/enrich-post-intervention-*.js`, and
+fixture/importer paths (including
+`enrich-post-intervention-units.fixtures.js` consumers).
 
 **Depends on:** ticket 3.
 
@@ -232,12 +246,15 @@ classify it as post-intervention support and rename it, or treat it as shared.
 
 ## Stage 3 — naming, remaining splits, guardrails
 
-### 8. Rename the misleading shared symbols
+### 8. Rename the misleading shared symbols — DONE
 
 **Size:** M, but purely mechanical
 
-Do this after the moves so each file is touched once, and keep it in isolated
-commits per symbol so review is a diff of identical renames:
+Landed on branch BMD-929 as five isolated commits (one per symbol). Also renamed
+the PostGIS helper `validateBaselineLayersPostgis` →
+`validateGeoPackageLayersPostgis` alongside `validateGeoPackageLayers`, and
+aligned module filenames (`save-upload-for-project.js`, `persist-upload.js`,
+`read-geopackage.test.js`).
 
 | Current                         | Target                      |
 | ------------------------------- | --------------------------- |
@@ -252,43 +269,57 @@ commits per symbol so review is a diff of identical renames:
 Also leave the S3 bucket default `baseline-files` in `src/config.js`: renaming
 the string without a coordinated CDP bucket migration breaks uploads at runtime.
 
-### 9. Split the routes and DB schema files (independent)
+### 9. Split the routes and DB schema files (independent) — DONE
 
 **Size:** S
 
-`src/routes/baseline.js` hosts both validate routes. The shared
-`createValidateGeoPackageRoute` factory is **already extracted** inside that
-file, so this is a file split, not a refactor: move the post-intervention route
-into `src/routes/post-intervention.js` and lift the factory into its own module.
+Landed on branch BMD-930. Shared `createValidateGeoPackageRoute` factory →
+`src/routes/validate-geopackage-route.js`; baseline validate →
+`src/routes/baseline.js`; post-intervention validate →
+`src/routes/post-intervention.js`. HTTP paths unchanged.
 
-`src/db/schema/baseline-features.js` holds both the `baseline_*` and
-`post_intervention_*` Drizzle tables. Split the latter into
-`post-intervention-features.js`. This is an import-only reorganisation —
-**no migration**, table names unchanged.
+`post_intervention_*` Drizzle tables →
+`src/db/schema/post-intervention-features.js`; `baseline_*` stay in
+`baseline-features.js`. Import-only reorganisation — **no migration**, table
+names unchanged. `src/plugins/router.js` imports both route modules;
+`integration-tests/route-manifest.json` unchanged (paths unchanged).
 
-**Also update:** `src/plugins/router.js`, and
-`integration-tests/route-manifest.json` if any route path changes (the manifest
-is enforced by `scripts/assert-route-coverage.mjs`).
-
-### 10. Add the path guardrails
+### 10. Add the path guardrails — DONE
 
 **Size:** S
 
-Widen the narrow rule from ticket 3 into `no-restricted-imports` blocks that
-forbid `enrichment/baseline` ↔ `enrichment/post-intervention` cross-imports, and
-forbid either flow's folder from being imported by the shared pipeline. Document
-them in `CODE_STRUCTURE.md` under Guardrails.
+Landed on branch BMD-931. Replaced the narrow ticket-3
+`enrich-post-intervention-*.js` → `enrich-baseline-units.js` rule with
+folder-scoped `no-restricted-imports` regex patterns in `eslint.config.js`:
 
-Verify each rule fires by temporarily adding an offending import — a pattern
-that matches nothing passes lint quietly and gives false confidence.
+- `enrichment/baseline` ↔ `enrichment/post-intervention` cross-imports
+- `enrichment/shared` must not import either flow enrichment folder
+- shared pipeline (`validation/geopackage/*.js`,
+  `routes/validate-geopackage-route.js`) must not import flow enrichment or
+  status folders
+- `services/upload/**` must not import flow status folders (flow enrichment
+  remains allowed for documentKey dispatch)
+- each GeoPackage extract folder must not import the other flow's enrichment
+  or status modules
+
+Documented under Guardrails in `CODE_STRUCTURE.md`. Each rule was verified with
+a temporary offending import before landing.
 
 **Depends on:** tickets 7 and 8.
 
-### 11. Rename the test GeoPackage helpers (optional, cosmetic)
+### 11. Rename the test GeoPackage helpers (optional, cosmetic) — DONE
 
 **Size:** XS
 
-`test/helpers/baseline-geopackage*.js` (six files) are used only by the
-GeoPackage validation tests, not by any post-intervention test, so the
-`baseline-` prefix is misleading but harmless. Rename to `gpkg-*` if it is worth
-the churn; there is no functional reason to.
+Landed on branch BMD-932. Renamed the seven `test/helpers/baseline-geopackage*.js`
+modules (barrel + build + db split) to a neutral `gpkg*` / `gpkg-*` prefix:
+
+| From                           | To              |
+| ------------------------------ | --------------- |
+| `baseline-geopackage.js`       | `gpkg.js`       |
+| `baseline-geopackage-build.js` | `gpkg-build.js` |
+| `baseline-geopackage-db.js`    | `gpkg-db.js`    |
+| `baseline-geopackage-db-*.js`  | `gpkg-db-*.js`  |
+
+Importers in `src/validation/geopackage/*.test.js` updated. Purely cosmetic —
+no behaviour change.

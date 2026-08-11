@@ -3,7 +3,7 @@ import { calculatePostInterventionNetUnitChanges } from 'bng-metric-engine'
 import {
   URBAN_TREE_TYPE,
   RURAL_TREE_TYPE
-} from '../../validation/baseline/tree-constants.js'
+} from '../../validation/geopackage/tree-constants.js'
 
 /**
  * Sum `units` on features that have a finite numeric value (uncalculated rows are skipped).
