@@ -85,12 +85,12 @@ function createGetFeatureRoute({ path, documentKey }) {
       }
     },
     handler: async (request, _h) => {
-      const { sub } = request.auth.credentials
+      const credentials = request.auth.credentials
       const { projectId, featureId } = request.params
       const rows = await request.drizzle
         .select()
         .from(projects)
-        .where(and(eq(projects.id, projectId), visibleToUser(sub)))
+        .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
       if (rows.length === 0) {
         throw Boom.notFound(`Project ${projectId} not found`)
@@ -182,7 +182,7 @@ const updateFeature = {
     }
   },
   handler: async (request, _h) => {
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const { projectId, featureId } = request.params
 
     try {
@@ -191,7 +191,7 @@ const updateFeature = {
           projectId,
           featureId,
           edits: request.payload,
-          sub
+          credentials
         })
       )
     } catch (err) {
@@ -206,13 +206,16 @@ const updateFeature = {
   }
 }
 
-async function runFeatureUpdate(tx, { projectId, featureId, edits, sub }) {
+async function runFeatureUpdate(
+  tx,
+  { projectId, featureId, edits, credentials }
+) {
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
   const [row] = await tx
     .select()
     .from(projects)
-    .where(and(eq(projects.id, projectId), visibleToUser(sub)))
+    .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
     .for('update')
     .limit(1)
   if (!row) {
@@ -239,7 +242,8 @@ async function runFeatureUpdate(tx, { projectId, featureId, edits, sub }) {
     layer: result.layer,
     index: result.index,
     feature: result.feature,
-    unitsTotals: result.unitsTotals
+    unitsTotals: result.unitsTotals,
+    actorId: credentials.sub
   })
 
   return { type: result.type, feature: result.feature }

@@ -85,6 +85,14 @@ function assertFragmentValid(schema, value, label) {
   }
 }
 
+function assertActorId(actorId) {
+  if (typeof actorId !== 'string' || actorId.trim().length === 0) {
+    throw Boom.badImplementation(
+      'persist: verified actor identity is required for every project write'
+    )
+  }
+}
+
 /**
  * Build a `jsonb_set(target, path, value)` expression. `target` may be the
  * column or another jsonb_set expression (so calls compose for multi-path
@@ -106,10 +114,11 @@ async function insertProject(
   db,
   { project, userId, orgId = null, relationshipId = null }
 ) {
+  assertActorId(userId)
   assertFragmentValid(projectSchema, project, 'project')
   const [row] = await db
     .insert(projects)
-    .values({ project, userId, orgId, relationshipId })
+    .values({ project, userId, lastModifiedBy: userId, orgId, relationshipId })
     .returning()
   return row
 }
@@ -122,11 +131,21 @@ async function insertProject(
  * (id AND RBAC visibility) so a non-visible project updates nothing and the
  * route returns 404 — without leaking existence.
  */
-async function setProjectName(exec, id, name, where = eq(projects.id, id)) {
+async function setProjectName(
+  exec,
+  id,
+  name,
+  actorId,
+  where = eq(projects.id, id)
+) {
+  assertActorId(actorId)
   assertFragmentValid(projectSchema.extract('name'), name, 'project.name')
   const [row] = await exec
     .update(projects)
-    .set({ project: jsonbSet(projects.project, ['name'], name) })
+    .set({
+      project: jsonbSet(projects.project, ['name'], name),
+      lastModifiedBy: actorId
+    })
     .where(where)
     .returning()
   return row ?? null
@@ -140,8 +159,10 @@ async function setProjectHabitatData(
   exec,
   id,
   habitatData,
+  actorId,
   documentKey = 'baseline'
 ) {
+  assertActorId(actorId)
   assertFragmentValid(
     habitatDataSchemaFor(documentKey),
     habitatData,
@@ -149,7 +170,10 @@ async function setProjectHabitatData(
   )
   await exec
     .update(projects)
-    .set({ project: jsonbSet(projects.project, [documentKey], habitatData) })
+    .set({
+      project: jsonbSet(projects.project, [documentKey], habitatData),
+      lastModifiedBy: actorId
+    })
     .where(eq(projects.id, id))
 }
 
@@ -158,13 +182,15 @@ async function setProjectHabitatData(
  * This keeps the project document consistent with the geometry cleanup in the
  * surrounding upload transaction.
  */
-async function setProjectBaseline(exec, id, baseline) {
+async function setProjectBaseline(exec, id, baseline, actorId) {
+  assertActorId(actorId)
   assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
   const withBaseline = jsonbSet(projects.project, ['baseline'], baseline)
   await exec
     .update(projects)
     .set({
-      project: sql`${withBaseline} - 'postIntervention'`
+      project: sql`${withBaseline} - 'postIntervention'`,
+      lastModifiedBy: actorId
     })
     .where(eq(projects.id, id))
 }
@@ -186,8 +212,9 @@ async function setProjectBaseline(exec, id, baseline) {
 async function setProjectFeature(
   exec,
   id,
-  { documentKey = 'baseline', layer, index, feature, unitsTotals }
+  { documentKey = 'baseline', layer, index, feature, unitsTotals, actorId }
 ) {
+  assertActorId(actorId)
   assertFragmentValid(
     featureSchemaFor(documentKey, layer),
     feature,
@@ -207,7 +234,7 @@ async function setProjectFeature(
   const withTotals = jsonbSet(withFeature, [documentKey, 'units'], unitsTotals)
   await exec
     .update(projects)
-    .set({ project: withTotals })
+    .set({ project: withTotals, lastModifiedBy: actorId })
     .where(eq(projects.id, id))
 }
 
@@ -225,12 +252,20 @@ async function setBaselineFeature(exec, id, params) {
  * (id AND RBAC visibility) so a non-visible project updates nothing and the
  * route returns 404 — without leaking existence.
  */
-async function setProjectDetails(exec, id, patch, where = eq(projects.id, id)) {
+async function setProjectDetails(
+  exec,
+  id,
+  patch,
+  actorId,
+  where = eq(projects.id, id)
+) {
+  assertActorId(actorId)
   assertFragmentValid(projectDetailsSchema, patch, 'project.details')
   const [row] = await exec
     .update(projects)
     .set({
-      project: sql`jsonb_set(${projects.project}, '{details}', COALESCE(${projects.project}->'details', '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb)`
+      project: sql`jsonb_set(${projects.project}, '{details}', COALESCE(${projects.project}->'details', '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb)`,
+      lastModifiedBy: actorId
     })
     .where(where)
     .returning()

@@ -303,6 +303,7 @@ describe('updateFeature handler - area habitat dispatch', () => {
       PROJECT_ID,
       expect.objectContaining({
         documentKey: 'baseline',
+        actorId: AUTH.credentials.sub,
         layer: 'habitats',
         unitsTotals: expect.objectContaining({
           habitatsTotal: 12,
@@ -363,6 +364,7 @@ describe('updateFeature handler - hedgerow dispatch', () => {
       PROJECT_ID,
       expect.objectContaining({
         documentKey: 'baseline',
+        actorId: AUTH.credentials.sub,
         layer: 'hedgerows',
         unitsTotals: expect.objectContaining({
           habitatsTotal: 4,
@@ -437,6 +439,7 @@ describe('updateFeature handler - error cases', () => {
       expect.anything(),
       PROJECT_ID,
       expect.objectContaining({
+        actorId: AUTH.credentials.sub,
         layer: 'watercourses',
         unitsTotals: expect.objectContaining({ watercoursesTotal: 6.08 })
       })

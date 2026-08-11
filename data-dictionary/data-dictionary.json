@@ -32,6 +32,15 @@
           "references": null
         },
         {
+          "name": "previous_project",
+          "type": "jsonb",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
           "name": "user_id",
           "type": "text",
           "nullable": false,
@@ -573,6 +582,15 @@
         },
         {
           "name": "user_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "last_modified_by",
           "type": "text",
           "nullable": false,
           "primaryKey": false,

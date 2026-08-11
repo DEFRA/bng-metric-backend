@@ -37,9 +37,39 @@ For the full end-to-end procedure, including changeset examples, JSONB handling,
 
 ## Persisting project data
 
-All writes to the `bng.projects.project` JSONB column go through one validated choke point: `src/db/persist-project.js`. Each helper (`insertProject`, `setProjectName`, `setProjectBaseline`, `setBaselineFeature`) validates only the fragment it writes against the matching slice of the Joi schema before persisting, and partial updates use `jsonb_set` so a single feature edit never rewrites the whole document. An ESLint `no-restricted-syntax` rule bans direct `.insert(projects)` / `.update(projects)` outside that module, so a new route that persists project data **must** use a helper (or add one) — `npm run lint` rejects bypasses. See [`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
+All writes to the `bng.projects.project` JSONB column go through one validated
+choke point: `src/db/persist-project.js`. Its actor-aware helpers cover project
+creation, name and details changes, baseline/post-intervention replacement, and
+individual feature changes. Update helpers require the verified Defra ID token
+`sub` as `actorId` and stamp `projects.last_modified_by`; creation stamps the
+verified `userId`. Each helper validates only the fragment it writes against
+the matching Joi schema, and partial updates use `jsonb_set`. An ESLint
+`no-restricted-syntax` rule bans direct `.insert(projects)` /
+`.update(projects)` outside that module, so a new write **must** use a helper
+and supply its actor — `npm run lint` rejects bypasses. See
+[`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
 
 The persisted shape is documented in a generated data dictionary — `data-dictionary/data-dictionary.{md,json}` via `npm run data-dictionary`, sourced from the Drizzle tables, the per-table `TABLE_DESCRIPTIONS` map in `scripts/gen-data-dictionary.js`, and the Joi `.description()` annotations in `src/validation/project.js`. A CI step fails the PR if the committed docs drift from the schema, and coverage tests assert the code only persists schema-declared fields. On merge to `main` the **Publish Data Dictionary** workflow mirrors the Markdown to Confluence (only when it changed). See [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
+
+## Code organisation
+
+The backend serves two upload flows, **baseline** and **post-intervention**, and
+they share the GeoPackage validate pipeline, the save/persist orchestration and
+the engine adapters. Code is organised three ways — baseline, post-intervention,
+and shared — with shared code given a domain-precise name (`geopackage`,
+`upload`, `reference`, `engine-helpers`) rather than a generic `shared`.
+
+Beware: **the codebase does not match this yet.** The folders named `baseline/`
+under `src/validation/`, `src/services/` and `src/utilities/` currently hold
+shared and post-intervention code too, and no lint rule enforces the
+boundaries. Check a file's importers before assuming it is baseline-only, and
+put anything used by both flows in a shared module rather than under
+`baseline/`.
+
+Read [`docs/CODE_STRUCTURE.md`](docs/CODE_STRUCTURE.md) before adding a file or
+moving one — it has the target layout, a "where does this go?" decision list,
+and the traps in the current tree. The sequenced work to get there is in
+[`docs/CODE_STRUCTURE_MIGRATION.md`](docs/CODE_STRUCTURE_MIGRATION.md).
 
 ## Tests
 

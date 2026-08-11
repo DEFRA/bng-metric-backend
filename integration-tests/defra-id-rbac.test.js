@@ -14,6 +14,10 @@ const ROLE_APPROVED = 3
 const ROLE_REMOVED = 6
 const ROLE_NAME = 'bng completer'
 
+// The two organisations a multi-org user is linked to.
+const REL_ORG_A = 'rel-org-a'
+const REL_ORG_B = 'rel-org-b'
+
 let server
 let dbClient
 
@@ -54,6 +58,29 @@ function sessionClaims({
   }
 }
 
+// A user linked to TWO organisations, holding an approved 'bng completer' role
+// in each, currently acting in `current`. This is the shape that exposed
+// BMD-890: both roles are approved, so scoping on ownership + "approved for the
+// project's relationship" alone let org A's projects through while the user was
+// signed in as org B.
+function multiOrgClaims({ sub, current }) {
+  return {
+    sub,
+    email: `${sub}@example.test`,
+    firstName: 'Multi',
+    lastName: 'Org',
+    currentRelationshipId: current,
+    relationships: [
+      relString(REL_ORG_A, 'org-a', 'Acme Ltd'),
+      relString(REL_ORG_B, 'org-b', 'Globex')
+    ],
+    roles: [
+      roleString(REL_ORG_A, ROLE_APPROVED),
+      roleString(REL_ORG_B, ROLE_APPROVED)
+    ]
+  }
+}
+
 async function postSession(token) {
   return server.inject({
     method: 'POST',
@@ -72,6 +99,26 @@ async function createProject(token, name) {
   expect(res.statusCode).toBe(HTTP_OK)
   return res.result
 }
+
+/** Sign in under `current` (persisting the session) and return the token. */
+async function signInAs(sub, current) {
+  const token = await mintToken(multiOrgClaims({ sub, current }))
+  const res = await postSession(token)
+  expect(res.statusCode).toBe(HTTP_NO_CONTENT)
+  return token
+}
+
+async function listProjects(token, url = '/projects') {
+  const res = await server.inject({
+    method: 'GET',
+    url,
+    headers: authHeaders(token)
+  })
+  expect(res.statusCode).toBe(HTTP_OK)
+  return res.result
+}
+
+const projectNames = (rows) => rows.map((row) => row.project.name).sort()
 
 describe('POST /auth/session', () => {
   it('persists one user row, N relationships and M roles', async () => {
@@ -232,6 +279,149 @@ describe('RBAC visibility', () => {
       headers: authHeaders(token)
     })
     expect(res.statusCode).toBe(HTTP_OK)
+  })
+
+  it('hides a project from its own creator once they switch organisation', async () => {
+    // The reported BMD-890 defect, end to end: create under org A, switch to
+    // org B, and org A's project must be gone — not merely re-labelled.
+    const sub = `it-${randomUUID()}`
+
+    const orgAToken = await signInAs(sub, REL_ORG_A)
+    const orgAProject = await createProject(orgAToken, 'Org A project')
+
+    const orgBToken = await signInAs(sub, REL_ORG_B)
+
+    expect(await listProjects(orgBToken)).toEqual([])
+
+    const direct = await server.inject({
+      method: 'GET',
+      url: `/projects/${orgAProject.id}`,
+      headers: authHeaders(orgBToken)
+    })
+    expect(direct.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('gives each organisation its own project list for the same user', async () => {
+    const sub = `it-${randomUUID()}`
+
+    const orgAToken = await signInAs(sub, REL_ORG_A)
+    await createProject(orgAToken, 'Org A project')
+
+    const orgBToken = await signInAs(sub, REL_ORG_B)
+    await createProject(orgBToken, 'Org B project')
+
+    expect(projectNames(await listProjects(orgBToken))).toEqual([
+      'Org B project'
+    ])
+    // Switching back shows org A's again — the projects are scoped, not lost.
+    expect(projectNames(await listProjects(orgAToken))).toEqual([
+      'Org A project'
+    ])
+  })
+
+  it('scopes GET /users/{userId}/projects to the current organisation too', async () => {
+    const sub = `it-${randomUUID()}`
+
+    const orgAToken = await signInAs(sub, REL_ORG_A)
+    await createProject(orgAToken, 'Org A project')
+    const orgBToken = await signInAs(sub, REL_ORG_B)
+    await createProject(orgBToken, 'Org B project')
+
+    const url = `/users/${sub}/projects`
+    expect(projectNames(await listProjects(orgBToken, url))).toEqual([
+      'Org B project'
+    ])
+    expect(projectNames(await listProjects(orgAToken, url))).toEqual([
+      'Org A project'
+    ])
+  })
+
+  it('refuses writes to another organisation’s project', async () => {
+    const sub = `it-${randomUUID()}`
+
+    const orgAToken = await signInAs(sub, REL_ORG_A)
+    const orgAProject = await createProject(orgAToken, 'Org A project')
+
+    const orgBToken = await signInAs(sub, REL_ORG_B)
+
+    const renamed = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${orgAProject.id}`,
+      headers: authHeaders(orgBToken),
+      payload: { project: { name: 'Renamed from org B' } }
+    })
+    expect(renamed.statusCode).toBe(HTTP_NOT_FOUND)
+
+    const details = await server.inject({
+      method: 'PATCH',
+      url: `/projects/${orgAProject.id}/details`,
+      headers: authHeaders(orgBToken),
+      payload: { applicant: 'Someone from org B' }
+    })
+    expect(details.statusCode).toBe(HTTP_NOT_FOUND)
+
+    // …and the row is untouched, so the 404 is a real refusal, not a silent write.
+    const row = await dbClient.query(
+      "SELECT project->>'name' AS name FROM bng.projects WHERE id = $1",
+      [orgAProject.id]
+    )
+    expect(row.rows[0].name).toBe('Org A project')
+  })
+
+  it('stamps the persisted org context on a project created under a blanked token', async () => {
+    // The create and read paths must resolve the org context the SAME way. If
+    // create stamped null from a blanked refresh token while read fell back to
+    // the stored relationship, the new project would be invisible to its own
+    // creator the moment it was made.
+    const sub = `it-${randomUUID()}`
+    await signInAs(sub, REL_ORG_A)
+
+    const blankedToken = await mintToken({
+      sub,
+      currentRelationshipId: '',
+      relationships: [],
+      roles: []
+    })
+    const created = await createProject(blankedToken, 'Made mid-refresh')
+
+    const row = await dbClient.query(
+      'SELECT org_id, relationship_id FROM bng.projects WHERE id = $1',
+      [created.id]
+    )
+    expect(row.rows[0]).toEqual({ org_id: 'org-a', relationship_id: REL_ORG_A })
+
+    expect(projectNames(await listProjects(blankedToken))).toEqual([
+      'Made mid-refresh'
+    ])
+
+    // …and it is still there once a normal, fully-enriched token comes back.
+    const orgAToken = await mintToken(
+      multiOrgClaims({ sub, current: REL_ORG_A })
+    )
+    expect(projectNames(await listProjects(orgAToken))).toEqual([
+      'Made mid-refresh'
+    ])
+  })
+
+  it('falls back to the persisted org context when a refreshed token blanks the claims', async () => {
+    // Defra ID runs relationship/role enrichment only on interactive sign-in, so
+    // an id_token from a refresh_token grant can arrive with these claims empty.
+    // The user's projects must not vanish when that happens.
+    const sub = `it-${randomUUID()}`
+
+    const orgAToken = await signInAs(sub, REL_ORG_A)
+    await createProject(orgAToken, 'Org A project')
+
+    const blankedToken = await mintToken({
+      sub,
+      currentRelationshipId: '',
+      relationships: [],
+      roles: []
+    })
+
+    expect(projectNames(await listProjects(blankedToken))).toEqual([
+      'Org A project'
+    ])
   })
 
   it('does not leak other users’ projects from GET /projects', async () => {

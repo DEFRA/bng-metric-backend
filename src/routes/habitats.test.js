@@ -215,6 +215,7 @@ describe('updateAreaHabitat handler — happy path', () => {
       PROJECT_ID,
       expect.objectContaining({
         documentKey: 'baseline',
+        actorId: AUTH.credentials.sub,
         layer: 'habitats',
         index: 0,
         feature: expect.objectContaining({ featureId: HABITAT_1_ID, units: 12 })
@@ -332,6 +333,7 @@ describe('updateAreaHabitat handler — happy path', () => {
       PROJECT_ID,
       expect.objectContaining({
         documentKey: 'baseline',
+        actorId: AUTH.credentials.sub,
         unitsTotals: {
           totalUnits: 14,
           habitatsTotal: 14,
@@ -407,6 +409,7 @@ describe('updatePostInterventionAreaHabitat handler', () => {
       PROJECT_ID,
       expect.objectContaining({
         documentKey: 'postIntervention',
+        actorId: AUTH.credentials.sub,
         layer: 'habitats',
         index: 0,
         feature: expect.objectContaining({ featureId: HABITAT_1_ID })

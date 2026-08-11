@@ -8,10 +8,6 @@ updates:
 
     # Group packages into shared PR
     groups:
-      build:
-        patterns:
-          - 'autoprefixer'
-
       lint:
         patterns:
           - 'prettier'

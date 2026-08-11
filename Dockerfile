@@ -11,13 +11,18 @@ ARG PORT_DEBUG
 ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
-COPY --chown=node:node package*.json ./
+COPY --chown=node:node package*.json .npmrc ./
 # Workspace dependency (bng-metric-engine) must be present before npm install —
 # "workspace:*" cannot be resolved from the root package.json alone.
 COPY --chown=node:node bng-metric-engine/package.json ./bng-metric-engine/
 # Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
 # scripts/ is not in this image, and the hooks are not needed inside the container.
-RUN npm pkg delete scripts.postinstall && npm install
+# --ignore-scripts also blocks any dependency's own install scripts (belt-and-braces
+# with .npmrc's ignore-scripts=true, which some static analysis can't see into a file).
+# min-release-age collides with the git-dependency prepare step npm always attempts for
+# bng-library (npm/cli#9005), same as the CI workaround in check-pull-request.yml.
+RUN sed -i '/^min-release-age=/d' .npmrc && \
+    npm pkg delete scripts.postinstall && npm install --ignore-scripts
 COPY --chown=node:node ./src ./src
 # Engine runtime is src/ only; scripts/ are dev/CLI helpers and are not deployed.
 COPY --chown=node:node ./bng-metric-engine/src ./bng-metric-engine/src
@@ -41,7 +46,7 @@ COPY --chown=node:node --from=development /home/node/bng-metric-engine ./bng-met
 
 # Reuse the development install and prune dev dependencies locally — avoids a second
 # registry-bound `npm ci` in CI, where transient ECONNRESET failures are common.
-RUN npm pkg delete scripts.postinstall && npm prune --omit=dev
+RUN npm pkg delete scripts.postinstall && npm prune --omit=dev --ignore-scripts
 
 COPY --chown=node:node --from=development /home/node/src ./src/
 

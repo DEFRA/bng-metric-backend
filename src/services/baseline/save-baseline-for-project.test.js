@@ -5,7 +5,7 @@ import { ERROR_CODES } from '../../validation/baseline/errors.js'
 import {
   UPLOAD_ID,
   PROJECT_ID,
-  SUB,
+  CREDENTIALS,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
   STUB_LAYERS,
@@ -122,7 +122,7 @@ describe('saveBaselineForProject', () => {
       STUB_LAYERS,
       {
         uploadId: UPLOAD_ID,
-        sub: SUB,
+        credentials: CREDENTIALS,
         filename: MOCK_FILENAME,
         fileSize: MOCK_FILE_SIZE
       },
@@ -144,7 +144,7 @@ describe('saveBaselineForProject', () => {
       { habitats: [] },
       expect.objectContaining({
         uploadId: UPLOAD_ID,
-        sub: SUB,
+        credentials: CREDENTIALS,
         projectDocumentKey: 'baseline'
       })
     )
@@ -236,7 +236,7 @@ describe('saveBaselineForProject', () => {
       STUB_LAYERS,
       {
         uploadId: UPLOAD_ID,
-        sub: SUB,
+        credentials: CREDENTIALS,
         filename: MOCK_FILENAME,
         fileSize: MOCK_FILE_SIZE
       },
@@ -264,7 +264,7 @@ describe('saveBaselineForProject', () => {
       { habitats: [] },
       expect.objectContaining({
         uploadId: UPLOAD_ID,
-        sub: SUB,
+        credentials: CREDENTIALS,
         projectDocumentKey: 'postIntervention'
       })
     )
@@ -291,7 +291,12 @@ describe('saveBaselineForProject', () => {
         { drizzle, pgPool: {}, logger },
         PROJECT_ID,
         STUB_LAYERS,
-        { uploadId: UPLOAD_ID, sub: SUB, filename: null, fileSize: null },
+        {
+          uploadId: UPLOAD_ID,
+          credentials: CREDENTIALS,
+          filename: null,
+          fileSize: null
+        },
         h,
         config
       )
@@ -340,7 +345,12 @@ describe('saveBaselineForProject', () => {
         { drizzle, pgPool: {}, logger },
         PROJECT_ID,
         STUB_LAYERS,
-        { uploadId: UPLOAD_ID, sub: SUB, filename: null, fileSize: null },
+        {
+          uploadId: UPLOAD_ID,
+          credentials: CREDENTIALS,
+          filename: null,
+          fileSize: null
+        },
         h,
         POST_INTERVENTION_CONFIG
       )

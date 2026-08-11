@@ -28,7 +28,14 @@ jobs:
           cache: npm
 
       # Ensure tests pass. Add more checks if required
-      - run: npm ci
+      # min-release-age (.npmrc) collides with the git-dependency prepare step
+      # npm always runs for bng-library: it injects --before then rejects it
+      # against min-release-age (npm/cli#9005). npm ci installs exact locked
+      # versions, so the cooldown is redundant here — strip it for this step
+      # only. It stays in .npmrc for npm install / local dev / Dependabot.
+      - run: |
+          sed -i '/^min-release-age=/d' .npmrc
+          npm ci
       - run: npm test
 
       - name: Publish Hot Fix

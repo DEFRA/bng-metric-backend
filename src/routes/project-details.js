@@ -18,11 +18,11 @@ const getProjectDetails = {
   },
   handler: async (request, _h) => {
     const { id } = request.params
-    const { sub } = request.auth.credentials
+    const credentials = request.auth.credentials
     const rows = await request.drizzle
       .select()
       .from(projects)
-      .where(and(eq(projects.id, id), visibleToUser(sub)))
+      .where(and(eq(projects.id, id), visibleToUser(credentials)))
 
     if (rows.length === 0) {
       throw Boom.notFound(`Project ${id} not found`)
@@ -44,13 +44,14 @@ const updateProjectDetails = {
   },
   handler: async (request, _h) => {
     const { id } = request.params
-    const { sub } = request.auth.credentials
-    const where = and(eq(projects.id, id), visibleToUser(sub))
+    const credentials = request.auth.credentials
+    const where = and(eq(projects.id, id), visibleToUser(credentials))
 
     const saved = await setProjectDetails(
       request.drizzle,
       id,
       request.payload,
+      credentials.sub,
       where
     )
     if (!saved) {

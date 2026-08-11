@@ -16,6 +16,7 @@ const auditLog = bng.table(
     id: uuid('id').primaryKey().defaultRandom(),
     projectId: uuid('project_id').notNull(),
     project: jsonb('project').notNull(),
+    previousProject: jsonb('previous_project'),
     userId: text('user_id').notNull(),
     bngProjectVersion: integer('bng_project_version').notNull(),
     operation: text('operation').notNull(),

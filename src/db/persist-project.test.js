@@ -13,6 +13,7 @@ import {
 
 const FEATURE_ID = '11111111-1111-1111-1111-111111111111'
 const PROJECT_ID = '22222222-2222-2222-2222-222222222222'
+const ACTOR_ID = 'defra-id-actor'
 
 const validUnitsTotals = {
   totalUnits: 0,
@@ -36,7 +37,20 @@ function makeDb(returningRows = [{ id: PROJECT_ID, project: {} }]) {
   const update = vi.fn().mockReturnValue({ set })
   const values = vi.fn().mockReturnValue({ returning })
   const insert = vi.fn().mockReturnValue({ values })
-  return { insert, update, _insert: insert, _update: update, _set: set }
+  return {
+    insert,
+    update,
+    _insert: insert,
+    _values: values,
+    _update: update,
+    _set: set
+  }
+}
+
+function expectActorStamped(db) {
+  expect(db._set).toHaveBeenCalledWith(
+    expect.objectContaining({ lastModifiedBy: ACTOR_ID })
+  )
 }
 
 describe('insertProject', () => {
@@ -48,7 +62,21 @@ describe('insertProject', () => {
     })
     expect(db._insert).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID, project: { name: 'P' } })
+    expect(db._values).toHaveBeenCalledWith(
+      expect.objectContaining({ lastModifiedBy: 'u' })
+    )
   })
+
+  test.each([undefined, null, '', '   '])(
+    'rejects missing or blank creator identity: %j',
+    async (userId) => {
+      const db = makeDb()
+      await expect(
+        insertProject(db, { project: { name: 'P' }, userId })
+      ).rejects.toThrow(/verified actor identity is required/)
+      expect(db._insert).not.toHaveBeenCalled()
+    }
+  )
 
   test('throws and does not write when the document is invalid', async () => {
     const db = makeDb()
@@ -62,19 +90,33 @@ describe('insertProject', () => {
 describe('setProjectName', () => {
   test('writes and returns the row for a valid name', async () => {
     const db = makeDb([{ id: PROJECT_ID }])
-    const row = await setProjectName(db, PROJECT_ID, 'New name')
+    const row = await setProjectName(db, PROJECT_ID, 'New name', ACTOR_ID)
     expect(db._update).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID })
+    expectActorStamped(db)
   })
 
   test('returns null when no project matches', async () => {
     const db = makeDb([])
-    expect(await setProjectName(db, PROJECT_ID, 'New name')).toBeNull()
+    expect(
+      await setProjectName(db, PROJECT_ID, 'New name', ACTOR_ID)
+    ).toBeNull()
   })
+
+  test.each([undefined, null, '', '   '])(
+    'rejects missing or blank actor identity: %j',
+    async (actorId) => {
+      const db = makeDb()
+      await expect(
+        setProjectName(db, PROJECT_ID, 'New name', actorId)
+      ).rejects.toThrow(/verified actor identity is required/)
+      expect(db._update).not.toHaveBeenCalled()
+    }
+  )
 
   test('throws and does not write for an invalid name', async () => {
     const db = makeDb()
-    await expect(setProjectName(db, PROJECT_ID, 123)).rejects.toThrow(
+    await expect(setProjectName(db, PROJECT_ID, 123, ACTOR_ID)).rejects.toThrow(
       /failed schema validation/
     )
     expect(db._update).not.toHaveBeenCalled()
@@ -84,22 +126,38 @@ describe('setProjectName', () => {
 describe('setProjectBaseline', () => {
   test('AC3/AC4 replaces baseline and removes post-intervention atomically', async () => {
     const db = makeDb()
-    await setProjectBaseline(db, PROJECT_ID, {
-      importedAt: '2026-01-01T00:00:00.000Z',
-      habitats: []
-    })
+    await setProjectBaseline(
+      db,
+      PROJECT_ID,
+      {
+        importedAt: '2026-01-01T00:00:00.000Z',
+        habitats: []
+      },
+      ACTOR_ID
+    )
     expect(db._update).toHaveBeenCalledTimes(1)
-
+    expectActorStamped(db)
     const [{ project }] = db._set.mock.calls[0]
     const { sql: updateSql } = new PgDialect().sqlToQuery(project)
     expect(updateSql).toContain('jsonb_set')
     expect(updateSql).toMatch(/- 'postIntervention'/)
   })
 
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectBaseline(db, PROJECT_ID, {
+        importedAt: '2026-01-01T00:00:00.000Z',
+        habitats: []
+      })
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
   test('throws and does not write for an invalid baseline', async () => {
     const db = makeDb()
     await expect(
-      setProjectBaseline(db, PROJECT_ID, { fileSize: -5 })
+      setProjectBaseline(db, PROJECT_ID, { fileSize: -5 }, ACTOR_ID)
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
@@ -112,9 +170,24 @@ describe('setBaselineFeature', () => {
       layer: 'habitats',
       index: 0,
       feature: validHabitat,
-      unitsTotals: validUnitsTotals
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
     })
     expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setBaselineFeature(db, PROJECT_ID, {
+        layer: 'habitats',
+        index: 0,
+        feature: validHabitat,
+        unitsTotals: validUnitsTotals
+      })
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
   })
 
   test('throws for an unknown layer', async () => {
@@ -124,7 +197,8 @@ describe('setBaselineFeature', () => {
         layer: 'trees',
         index: 0,
         feature: validHabitat,
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/unknown feature layer/)
     expect(db._update).not.toHaveBeenCalled()
@@ -137,7 +211,8 @@ describe('setBaselineFeature', () => {
         layer: 'habitats',
         index: 0,
         feature: { featureId: FEATURE_ID, status: 'Bogus' },
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
@@ -150,7 +225,8 @@ describe('setBaselineFeature', () => {
         layer: 'habitats',
         index: 0,
         feature: validHabitat,
-        unitsTotals: { totalUnits: 1 }
+        unitsTotals: { totalUnits: 1 },
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
@@ -190,9 +266,30 @@ describe('setProjectHabitatData', () => {
         hedgerows: [],
         watercourses: []
       },
+      ACTOR_ID,
       'postIntervention'
     )
     expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectHabitatData(
+        db,
+        PROJECT_ID,
+        {
+          importedAt: '2026-01-01T00:00:00.000Z',
+          habitats: [],
+          hedgerows: [],
+          watercourses: []
+        },
+        undefined,
+        'postIntervention'
+      )
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
   })
 
   test('rejects flat habitat fields on post-intervention document', async () => {
@@ -207,6 +304,7 @@ describe('setProjectHabitatData', () => {
           hedgerows: [],
           watercourses: []
         },
+        ACTOR_ID,
         'postIntervention'
       )
     ).rejects.toThrow(/"habitats\[0\]\.type" is not allowed/)
@@ -222,20 +320,29 @@ const validDetails = {
 describe('setProjectDetails', () => {
   test('writes and returns the row for valid details', async () => {
     const db = makeDb([{ id: PROJECT_ID, project: { details: validDetails } }])
-    const row = await setProjectDetails(db, PROJECT_ID, validDetails)
+    const row = await setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID)
     expect(db._update).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID, project: { details: validDetails } })
+    expectActorStamped(db)
+  })
+
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectDetails(db, PROJECT_ID, validDetails, undefined)
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
   })
 
   test('returns null when no project matches', async () => {
     const db = makeDb([])
-    expect(await setProjectDetails(db, PROJECT_ID, {})).toBeNull()
+    expect(await setProjectDetails(db, PROJECT_ID, {}, ACTOR_ID)).toBeNull()
   })
 
   test('throws and does not write for invalid details', async () => {
     const db = makeDb()
     await expect(
-      setProjectDetails(db, PROJECT_ID, { developmentType: 'Bad' })
+      setProjectDetails(db, PROJECT_ID, { developmentType: 'Bad' }, ACTOR_ID)
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
@@ -249,9 +356,25 @@ describe('setProjectFeature — postIntervention', () => {
       layer: 'habitats',
       index: 0,
       feature: validPostInterventionHabitat,
-      unitsTotals: validUnitsTotals
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
     })
     expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: validPostInterventionHabitat,
+        unitsTotals: validUnitsTotals
+      })
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
   })
 
   test('rejects flat habitat fields on post-intervention feature save', async () => {
@@ -262,7 +385,8 @@ describe('setProjectFeature — postIntervention', () => {
         layer: 'habitats',
         index: 0,
         feature: { ...validPostInterventionHabitat, type: 'Grassland' },
-        unitsTotals: validUnitsTotals
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
       })
     ).rejects.toThrow(/"type" is not allowed/)
     expect(db._update).not.toHaveBeenCalled()
