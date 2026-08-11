@@ -289,6 +289,7 @@ const updateProject = {
       request.drizzle,
       id,
       name,
+      credentials.sub,
       and(eq(projects.id, id), visibleToUser(credentials))
     )
     if (!row) {

@@ -134,7 +134,10 @@ describe('#updateProjectDetails', () => {
       {}
     )
     expect(drizzle.update).toHaveBeenCalled()
-    expect(drizzle._set).toHaveBeenCalledWith({ project: expect.anything() })
+    expect(drizzle._set).toHaveBeenCalledWith({
+      project: expect.anything(),
+      lastModifiedBy: SUB
+    })
     expect(result).toEqual(persisted)
     expect(result.developmentType).toBe(sampleDetails.developmentType)
   })

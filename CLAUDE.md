@@ -37,7 +37,17 @@ For the full end-to-end procedure, including changeset examples, JSONB handling,
 
 ## Persisting project data
 
-All writes to the `bng.projects.project` JSONB column go through one validated choke point: `src/db/persist-project.js`. Each helper (`insertProject`, `setProjectName`, `setProjectBaseline`, `setBaselineFeature`) validates only the fragment it writes against the matching slice of the Joi schema before persisting, and partial updates use `jsonb_set` so a single feature edit never rewrites the whole document. An ESLint `no-restricted-syntax` rule bans direct `.insert(projects)` / `.update(projects)` outside that module, so a new route that persists project data **must** use a helper (or add one) — `npm run lint` rejects bypasses. See [`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
+All writes to the `bng.projects.project` JSONB column go through one validated
+choke point: `src/db/persist-project.js`. Its actor-aware helpers cover project
+creation, name and details changes, baseline/post-intervention replacement, and
+individual feature changes. Update helpers require the verified Defra ID token
+`sub` as `actorId` and stamp `projects.last_modified_by`; creation stamps the
+verified `userId`. Each helper validates only the fragment it writes against
+the matching Joi schema, and partial updates use `jsonb_set`. An ESLint
+`no-restricted-syntax` rule bans direct `.insert(projects)` /
+`.update(projects)` outside that module, so a new write **must** use a helper
+and supply its actor — `npm run lint` rejects bypasses. See
+[`docs/PERSISTENCE.md`](docs/PERSISTENCE.md).
 
 The persisted shape is documented in a generated data dictionary — `data-dictionary/data-dictionary.{md,json}` via `npm run data-dictionary`, sourced from the Drizzle tables, the per-table `TABLE_DESCRIPTIONS` map in `scripts/gen-data-dictionary.js`, and the Joi `.description()` annotations in `src/validation/project.js`. A CI step fails the PR if the committed docs drift from the schema, and coverage tests assert the code only persists schema-declared fields. On merge to `main` the **Publish Data Dictionary** workflow mirrors the Markdown to Confluence (only when it changed). See [`docs/DATA_DICTIONARY.md`](docs/DATA_DICTIONARY.md).
 

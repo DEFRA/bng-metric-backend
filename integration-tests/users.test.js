@@ -59,8 +59,8 @@ async function seedThree() {
   ]
   for (const row of rows) {
     await dbClient.query(
-      `INSERT INTO bng.projects (id, project, user_id, created_at, updated_at)
-       VALUES ($1, $2, $3, $4, $5)`,
+      `INSERT INTO bng.projects (id, project, user_id, last_modified_by, created_at, updated_at)
+       VALUES ($1, $2, $3, $3, $4, $5)`,
       [
         row.id,
         JSON.stringify({ name: row.name }),

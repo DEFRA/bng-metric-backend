@@ -24,18 +24,39 @@ We never re-serialise the whole document on a small change — a single habitat
 edit must not rewrite a baseline that can hold ~1000 parcels. Each helper writes
 only its subtree with `jsonb_set`, and validates only that subtree:
 
-| Helper               | Writes (path)                                     | Validates against                                     |
-| -------------------- | ------------------------------------------------- | ----------------------------------------------------- |
-| `insertProject`      | whole row (INSERT)                                | `projectSchema`                                       |
-| `setProjectName`     | `{name}`                                          | `projectSchema.extract('name')`                       |
-| `setProjectBaseline` | `{baseline}`                                      | `baselineSchema`                                      |
-| `setBaselineFeature` | `{baseline,<layer>,<index>}` + `{baseline,units}` | the layer's item schema + `baselineUnitsTotalsSchema` |
+| Helper                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                        |
+| ----------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------- |
+| `insertProject`         | `insertProject(db, { project, userId, orgId?, relationshipId? })`                            | whole row (INSERT)                        | `projectSchema`                                          |
+| `setProjectName`        | `setProjectName(exec, id, name, actorId, where?)`                                            | `{name}`                                  | `projectSchema.extract('name')`                          |
+| `setProjectHabitatData` | `setProjectHabitatData(exec, id, habitatData, actorId, documentKey?)`                        | `{baseline}` or `{postIntervention}`      | matching habitat document schema                         |
+| `setProjectBaseline`    | `setProjectBaseline(exec, id, baseline, actorId)`                                            | `{baseline}`                              | `baselineSchema`                                         |
+| `setProjectFeature`     | `setProjectFeature(exec, id, { documentKey?, layer, index, feature, unitsTotals, actorId })` | one feature + document unit totals        | matching layer item schema + `baselineUnitsTotalsSchema` |
+| `setBaselineFeature`    | `setBaselineFeature(exec, id, { layer, index, feature, unitsTotals, actorId })`              | one baseline feature + `{baseline,units}` | matching layer item schema + `baselineUnitsTotalsSchema` |
+| `setProjectDetails`     | `setProjectDetails(exec, id, patch, actorId, where?)`                                        | `{details}` merge                         | `projectDetailsSchema`                                   |
 
-`setBaselineFeature` is the partial-update workhorse: the feature-edit routes
+`setProjectFeature` is the partial-update workhorse: the feature-edit routes
 read the project under `SELECT … FOR UPDATE`, recompute one feature via
-`applyFeatureUpdate` (which returns `{ layer, index, feature, unitsTotals }`),
-and hand those to the helper — two small `jsonb_set` writes instead of the whole
-array.
+`applyFeatureUpdate`, and hand the result to the helper — two small `jsonb_set`
+writes instead of the whole array.
+
+## Audit actor
+
+Every sanctioned write stamps `projects.last_modified_by`. Route and upload
+callers must pass the verified Defra ID token `sub` as `actorId`; project
+creation uses its verified `userId` for both ownership and the initial actor.
+The database audit trigger copies `last_modified_by` to `audit_log.user_id` and
+generates `audit_log.audited_at`.
+
+`projects.user_id` remains the project owner and must not be reused as the actor
+for later changes. This distinction ensures delegated or future multi-user
+changes are attributed to the identity that performed the mutation.
+
+For rolling-deployment compatibility, the database fills `last_modified_by`
+from `user_id` only when the immediately preceding application version omits
+the new column. That version authorizes only the project owner to write, making
+the fallback identity equivalent to its authenticated actor. New application
+code must not rely on this fallback: every persistence helper rejects a missing
+or blank actor before issuing SQL.
 
 ## The guards
 
@@ -54,13 +75,16 @@ Three independent guards keep the column, the schema, and the docs in lockstep:
    regenerates the dictionary and fails the PR if it drifts. See
    [DATA_DICTIONARY.md](DATA_DICTIONARY.md).
 
+The persistence unit tests verify each helper includes `lastModifiedBy` in its
+write, and the audit-log integration tests verify actor, timestamp and snapshots.
+
 ## Adding a new write path
 
 1. Add (or reuse) a helper in `persist-project.js` that validates the fragment
    against the relevant schema slice, then `jsonb_set`s only that path. Object
    subtrees can derive their schema with `projectSchema.extract('<path>')`;
    array-element writes pick the item schema explicitly (see the layer map).
-2. Call it from your route. **Do not** call `.insert/.update(projects)`
-   directly — the lint rule will reject it.
+2. Call it from your route with the verified actor identity. **Do not** call
+   `.insert/.update(projects)` directly — the lint rule will reject it.
 3. If you introduced a new field, add it to `src/validation/project.js` (with a
    `.description()`) and run `npm run data-dictionary`.

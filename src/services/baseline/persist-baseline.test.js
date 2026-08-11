@@ -49,7 +49,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       STUB_EXTRACTED.geometries,
-      { uploadId: UPLOAD_ID, logger }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.transactionCalls).toBe(1)
@@ -73,6 +73,7 @@ describe('persistBaseline', () => {
       {
         uploadId: UPLOAD_ID,
         logger,
+        credentials: CREDENTIALS,
         projectDocumentKey: 'postIntervention',
         uploadLabel: 'post-intervention'
       }
@@ -91,7 +92,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       makeGeometries({ redLine: null }),
-      { uploadId: UPLOAD_ID, logger }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.executes).toHaveLength(4)
@@ -109,7 +110,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       geometries,
-      { uploadId: UPLOAD_ID, logger }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     // lock_timeout + red line + 2 habitat batches + hedgerow + watercourse
@@ -153,7 +154,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toMatchObject({
       isBoom: true,
@@ -174,7 +175,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toMatchObject({
       isBoom: true,
@@ -195,7 +196,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toBe(boom)
   })
@@ -212,7 +213,7 @@ describe('persistBaseline', () => {
         PROJECT_ID,
         STUB_EXTRACTED.document,
         STUB_EXTRACTED.geometries,
-        { uploadId: UPLOAD_ID, logger }
+        { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toBe(err)
   })
@@ -234,7 +235,7 @@ describe('persistBaseline', () => {
       PROJECT_ID,
       STUB_EXTRACTED.document,
       geometries,
-      { uploadId: UPLOAD_ID, logger }
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
     )
 
     expect(log.executes.length).toBeGreaterThan(0)

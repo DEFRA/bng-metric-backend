@@ -51,6 +51,7 @@ const updateProjectDetails = {
       request.drizzle,
       id,
       request.payload,
+      credentials.sub,
       where
     )
     if (!saved) {

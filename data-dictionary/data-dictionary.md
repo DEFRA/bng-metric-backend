@@ -16,6 +16,7 @@ A full snapshot of a project after every change, recording who made it and when,
 | `id`                  | `uuid`                     | —        | PK  | `gen_random_uuid()` |
 | `project_id`          | `uuid`                     | —        | —   | —                   |
 | `project`             | `jsonb`                    | —        | —   | —                   |
+| `previous_project`    | `jsonb`                    | ✓        | —   | —                   |
 | `user_id`             | `text`                     | —        | —   | —                   |
 | `bng_project_version` | `integer`                  | —        | —   | —                   |
 | `operation`           | `text`                     | —        | —   | —                   |
@@ -153,6 +154,7 @@ One row per BNG project, holding the live project document plus its owner and ve
 | `id`                  | `uuid`                     | —        | PK  | —       |
 | `project`             | `jsonb`                    | —        | —   | —       |
 | `user_id`             | `text`                     | —        | —   | —       |
+| `last_modified_by`    | `text`                     | —        | —   | —       |
 | `org_id`              | `text`                     | ✓        | —   | —       |
 | `relationship_id`     | `text`                     | ✓        | —   | —       |
 | `bng_project_version` | `integer`                  | —        | —   | `1`     |

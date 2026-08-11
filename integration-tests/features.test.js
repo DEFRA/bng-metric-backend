@@ -38,8 +38,8 @@ afterAll(async () => {
 async function seedProjectWithBaseline(baseline) {
   const id = randomUUID()
   await dbClient.query(
-    `INSERT INTO bng.projects (id, project, user_id)
-     VALUES ($1, $2, $3)`,
+    `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+     VALUES ($1, $2, $3, $3)`,
     [id, { name: 'Features endpoint IT', baseline }, userId]
   )
   return id
@@ -218,6 +218,27 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
       treesTotal: 0,
       treesRuralTotal: 0,
       treesUrbanTotal: 0
+    })
+
+    const { rows: auditRows } = await dbClient.query(
+      `SELECT operation, project, previous_project, user_id
+         FROM bng.audit_log
+        WHERE project_id = $1
+        ORDER BY audited_at DESC, id DESC
+        LIMIT 1`,
+      [projectId]
+    )
+    expect(auditRows[0]).toMatchObject({
+      operation: 'UPDATE',
+      user_id: userId
+    })
+    expect(auditRows[0].previous_project.baseline.habitats[0]).toMatchObject({
+      condition: 'Poor',
+      units: 4
+    })
+    expect(auditRows[0].project.baseline.habitats[0]).toMatchObject({
+      condition: 'Good',
+      units: 12
     })
   })
 

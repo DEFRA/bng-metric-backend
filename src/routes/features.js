@@ -242,7 +242,8 @@ async function runFeatureUpdate(
     layer: result.layer,
     index: result.index,
     feature: result.feature,
-    unitsTotals: result.unitsTotals
+    unitsTotals: result.unitsTotals,
+    actorId: credentials.sub
   })
 
   return { type: result.type, feature: result.feature }

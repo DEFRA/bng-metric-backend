@@ -147,9 +147,16 @@ async function updateProjectDocumentSection(
   tx,
   projectId,
   document,
+  actorId,
   projectDocumentKey
 ) {
-  await setProjectHabitatData(tx, projectId, document, projectDocumentKey)
+  await setProjectHabitatData(
+    tx,
+    projectId,
+    document,
+    actorId,
+    projectDocumentKey
+  )
 }
 
 async function runPersistTransaction(
@@ -171,6 +178,7 @@ async function runPersistTransaction(
       tx,
       projectId,
       document,
+      credentials.sub,
       projectDocumentKey
     )
   })

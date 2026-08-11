@@ -18,6 +18,7 @@ import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervent
 export async function reEnrichStoredPostInterventionIfPresent(
   drizzle,
   projectId,
+  actorId,
   logger
 ) {
   const [row] = await drizzle
@@ -55,6 +56,7 @@ export async function reEnrichStoredPostInterventionIfPresent(
     drizzle,
     projectId,
     postIntervention,
+    actorId,
     'postIntervention'
   )
 }

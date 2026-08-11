@@ -181,6 +181,7 @@ describe('#createProject', () => {
     expect(insertedValues).toEqual({
       project: { name: NEW_PROJECT_NAME },
       userId: USER_003,
+      lastModifiedBy: USER_003,
       orgId: 'org-9',
       relationshipId: 'rel-9'
     })
@@ -244,6 +245,7 @@ describe('#createProject', () => {
     const insertedValues = drizzle.insert().values.mock.calls[0][0]
     expect(insertedValues).toMatchObject({
       userId: USER_003,
+      lastModifiedBy: USER_003,
       orgId: null,
       relationshipId: null
     })
@@ -484,7 +486,8 @@ describe('#updateProject', () => {
 
     expect(drizzle.update).toHaveBeenCalled()
     expect(drizzle._chain.set).toHaveBeenCalledWith({
-      project: expect.anything()
+      project: expect.anything(),
+      lastModifiedBy: USER_001
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
     expect(result).toEqual({ ...updatedProject, projectId: PROJECT_1_ID })

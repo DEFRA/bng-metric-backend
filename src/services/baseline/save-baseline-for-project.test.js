@@ -161,6 +161,7 @@ describe('saveBaselineForProject', () => {
     expect(reEnrichStoredPostInterventionIfPresent).toHaveBeenCalledWith(
       deps.drizzle,
       PROJECT_ID,
+      CREDENTIALS.sub,
       logger
     )
   })

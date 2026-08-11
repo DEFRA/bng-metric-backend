@@ -21,6 +21,8 @@ function makeSelectChain(row) {
   return chain
 }
 
+const ACTOR_ID = 'defra-id-actor'
+
 describe('reEnrichStoredPostInterventionIfPresent', () => {
   beforeEach(() => {
     vi.clearAllMocks()
@@ -57,7 +59,12 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
     }
     const logger = { warn: vi.fn() }
 
-    await reEnrichStoredPostInterventionIfPresent(drizzle, 'project-id', logger)
+    await reEnrichStoredPostInterventionIfPresent(
+      drizzle,
+      'project-id',
+      ACTOR_ID,
+      logger
+    )
 
     expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledWith(
       postIntervention,
@@ -71,6 +78,7 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
       drizzle,
       'project-id',
       postIntervention,
+      ACTOR_ID,
       'postIntervention'
     )
   })
@@ -80,9 +88,14 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
       select: vi.fn(() => makeSelectChain({ project: {} }))
     }
 
-    await reEnrichStoredPostInterventionIfPresent(drizzle, 'project-id', {
-      warn: vi.fn()
-    })
+    await reEnrichStoredPostInterventionIfPresent(
+      drizzle,
+      'project-id',
+      ACTOR_ID,
+      {
+        warn: vi.fn()
+      }
+    )
 
     expect(enrichPostInterventionDocumentWithUnits).not.toHaveBeenCalled()
     expect(setProjectHabitatData).not.toHaveBeenCalled()
@@ -108,7 +121,12 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
     }
     const logger = { warn: vi.fn() }
 
-    await reEnrichStoredPostInterventionIfPresent(drizzle, 'project-id', logger)
+    await reEnrichStoredPostInterventionIfPresent(
+      drizzle,
+      'project-id',
+      ACTOR_ID,
+      logger
+    )
 
     expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledWith(
       postIntervention,
@@ -119,6 +137,7 @@ describe('reEnrichStoredPostInterventionIfPresent', () => {
       drizzle,
       'project-id',
       postIntervention,
+      ACTOR_ID,
       'postIntervention'
     )
   })
