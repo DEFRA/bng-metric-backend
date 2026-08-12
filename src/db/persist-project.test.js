@@ -292,6 +292,24 @@ describe('setProjectHabitatData', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 
+  test('requires an explicit document key', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectHabitatData(
+        db,
+        PROJECT_ID,
+        {
+          importedAt: '2026-01-01T00:00:00.000Z',
+          habitats: [],
+          hedgerows: [],
+          watercourses: []
+        },
+        ACTOR_ID
+      )
+    ).rejects.toThrow(/unknown habitat document key/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
   test('rejects flat habitat fields on post-intervention document', async () => {
     const db = makeDb()
     await expect(

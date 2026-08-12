@@ -160,7 +160,7 @@ async function setProjectHabitatData(
   id,
   habitatData,
   actorId,
-  documentKey = 'baseline'
+  documentKey
 ) {
   assertActorId(actorId)
   assertFragmentValid(

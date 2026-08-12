@@ -177,7 +177,7 @@ async function deleteReplacedFeatureRows(
     await deleteExistingFeatureRows(
       tx,
       projectId,
-      POST_INTERVENTION_FEATURE_TABLES
+      FEATURE_TABLE_SETS.postIntervention
     )
   }
 }
