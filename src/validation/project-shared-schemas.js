@@ -1,6 +1,6 @@
 /**
  * Joi sub-schemas shared between project.js (baseline) and
- * project-post-intervention-schema.js (post-intervention).
+ * post-intervention/project-post-intervention-schema.js.
  *
  * Extracted here to avoid circular imports between the two schema files.
  */

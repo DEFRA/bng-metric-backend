@@ -3,9 +3,8 @@
 The backend serves two upload flows — **baseline** and **post-intervention** —
 that share most of their machinery. Historically all of it was put under
 folders named `baseline/`, including the shared parts and the
-post-intervention-only parts. This document records the agreed target layout,
-how to decide where a new file goes, and which parts of the tree do not match
-the target yet.
+post-intervention-only parts. This document records the agreed layout, how to
+decide where a new file goes, and the remaining traps after the migration.
 
 ## The two flows
 
@@ -97,36 +96,35 @@ confusion this document exists to prevent.
 
 ## Guardrails
 
-There is currently **no** lint rule enforcing these boundaries, so correctness
-relies on review. Adding path guardrails
-(`no-restricted-imports`, alongside the existing `no-restricted-syntax` rule in
-[`eslint.config.js`](../eslint.config.js)) is part of the migration work below.
+Path boundaries are enforced by `no-restricted-imports` in
+[`eslint.config.js`](../eslint.config.js) (alongside the existing
+`no-restricted-syntax` persist choke-point rule). The import source string is
+matched — including deep relative paths and sibling `../baseline/` /
+`../post-intervention/` forms inside `enrichment/`.
 
-## Known gaps
+| Scope                                                                                               | Forbidden imports                                                                                                                                                                           |
+| --------------------------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `enrichment/baseline/**`                                                                            | `enrichment/post-intervention/**` (and `../post-intervention/`)                                                                                                                             |
+| `enrichment/post-intervention/**`                                                                   | `enrichment/baseline/**` (and `../baseline/`)                                                                                                                                               |
+| `enrichment/shared/**`                                                                              | either flow enrichment folder                                                                                                                                                               |
+| Shared pipeline: `validation/geopackage/*.js` (root only) and `routes/validate-geopackage-route.js` | flow enrichment folders and `services/baseline/**` / `services/post-intervention/**` status modules                                                                                         |
+| `services/upload/**`                                                                                | `services/baseline/**` / `services/post-intervention/**` and sibling `../baseline/` / `../post-intervention/` (flow enrichment imports remain allowed — upload dispatches on `documentKey`) |
+| `geopackage/baseline/**`                                                                            | post-intervention enrichment or status folders                                                                                                                                              |
+| `geopackage/post-intervention/**`                                                                   | baseline enrichment or status folders                                                                                                                                                       |
 
-The tree does not match the target yet — nothing has moved. Relocating ~109
-files at once would make the shared save path, used by both flows,
-unreviewable, so the work is sequenced as a series of small changes. Those
-changes and their order are in
-[`docs/CODE_STRUCTURE_MIGRATION.md`](CODE_STRUCTURE_MIGRATION.md).
+**Still allowed:** flow → `enrichment/shared/`; shared upload → both flow
+enrichers; each GeoPackage extract folder → its own status/enrichment modules;
+`HABITAT_STATUS` from `services/upload/`.
 
-Until they are done, treat the following as traps:
+## Remaining traps
 
-- `src/validation/baseline/`, `src/services/baseline/` and
-  `src/utilities/baseline/` hold shared and post-intervention code alongside
-  baseline code. Check a file's importers before assuming it is baseline-only.
-  Most of `src/validation/baseline/` and all of `src/services/baseline/` is
-  shared.
-- `src/utilities/baseline/enrich-baseline-units.js` is **not** baseline-only:
-  the post-intervention enrichment modules import its engine adapters.
-- `src/utilities/` imports `HABITAT_STATUS` from `src/services/`, which inverts
-  the usual layering. It resolves when the shared services move.
-- `src/routes/baseline.js` hosts both validate routes (the shared
-  `createValidateGeoPackageRoute` factory is already extracted within it), and
-  `src/db/schema/baseline-features.js` holds both table families.
-- Several symbols are named for baseline but serve both flows:
-  `saveBaselineForProject`, `persistBaseline`, `validateBaselineLayers`,
-  `readBaselineGeoPackage`, and `reference/baseline-template.schema.json`.
+The sequenced migration in
+[`docs/CODE_STRUCTURE_MIGRATION.md`](CODE_STRUCTURE_MIGRATION.md) is complete
+and the tree matches the target layout above. One layering inversion remains:
+
+- `src/utilities/` still imports `HABITAT_STATUS` from `src/services/upload/`
+  (utilities depending on a services constant). The constant no longer lives
+  under a baseline-named folder.
 
 When moving files, remember that literal paths appear in `vi.mock()` calls, the
 coverage `exclude` list in `vitest.config.js`, and the script constants in

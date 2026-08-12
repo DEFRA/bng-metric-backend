@@ -34,9 +34,8 @@ import { projectSchema } from '../src/validation/project.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DATA_DICTIONARY_DIR = join(HERE, '..', 'data-dictionary')
-const TEMPLATE_REF =
-  'src/validation/baseline/reference/baseline-template.schema.json'
-const PROP_KEYS_REF = 'src/validation/baseline/properties.js'
+const TEMPLATE_REF = 'src/validation/reference/gpkg-template.schema.json'
+const PROP_KEYS_REF = 'src/validation/geopackage/properties.js'
 
 // Source-file references in the Markdown link to the canonical copy on GitHub so
 // they resolve wherever the dictionary is read — in particular the Confluence
@@ -348,7 +347,7 @@ function renderNotesSection() {
     '  `waterEncroachmentMultiplier` / `riparianEncroachmentMultiplier`.',
     '- **Enum values** for habitat type, broad type, condition, distinctiveness',
     '  etc. are not enumerated in the Joi schema; they are resolved at runtime',
-    '  from `bng-metric-engine` via `src/validation/baseline/reference/*`.',
+    '  from `bng-metric-engine` via `src/validation/reference/*`.',
     ''
   ].join('\n')
 }
