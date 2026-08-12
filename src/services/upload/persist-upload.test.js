@@ -15,7 +15,7 @@ import {
   SAMPLE_GEOM,
   makeDrizzle
 } from '../../routes/validate-geopackage-route.test-fixtures.js'
-import { persistUpload } from './persist-upload.js'
+import { FEATURE_TABLE_SETS, persistUpload } from './persist-upload.js'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 /** Mirrors INSERT_BATCH_SIZE in persist-upload.js */
@@ -41,7 +41,7 @@ describe('persistUpload', () => {
     logger = { info: vi.fn() }
   })
 
-  it('persists document and geometry rows in a transaction', async () => {
+  it('AC3/AC4 replaces baseline and removes all baseline and PI geometry rows in one transaction', async () => {
     const { drizzle, log } = makeDrizzle()
 
     await persistUpload(
@@ -54,7 +54,10 @@ describe('persistUpload', () => {
 
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
-    expect(log.deletes).toHaveLength(5)
+    expect(log.deletes).toEqual([
+      ...Object.values(FEATURE_TABLE_SETS.baseline),
+      ...Object.values(FEATURE_TABLE_SETS.postIntervention)
+    ])
     expect(log.executes).toHaveLength(5)
     expect(log.updates).toHaveLength(1)
     expect(logger.info).toHaveBeenCalledWith(
@@ -62,8 +65,8 @@ describe('persistUpload', () => {
     )
   })
 
-  it('uses the upload label in the persistence success log', async () => {
-    const { drizzle } = makeDrizzle()
+  it('AC5/AC6 replaces only PI rows and preserves baseline rows', async () => {
+    const { drizzle, log } = makeDrizzle()
 
     await persistUpload(
       drizzle,
@@ -81,6 +84,9 @@ describe('persistUpload', () => {
 
     expect(logger.info).toHaveBeenCalledWith(
       `post-intervention: persisted post-intervention for projectId ${PROJECT_ID} from uploadId ${UPLOAD_ID}`
+    )
+    expect(log.deletes).toEqual(
+      Object.values(FEATURE_TABLE_SETS.postIntervention)
     )
   })
 

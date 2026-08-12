@@ -416,14 +416,14 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     expect(log.selectCalls).toBe(1)
   })
 
-  it('deletes prior baseline rows from all five feature tables before inserting', async () => {
+  it('AC3/AC4 deletes prior baseline and post-intervention feature rows before inserting', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({
       drizzle,
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(log.deletes).toHaveLength(5)
+    expect(log.deletes).toHaveLength(10)
   })
 
   it('inserts geometry rows for each non-empty layer', async () => {

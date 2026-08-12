@@ -105,6 +105,32 @@ function makeBaselineRequest({ drizzle, payload = null, sub = SUB } = {}) {
 
 const HAPPY_PATH_EXECUTE_COUNT = 5
 
+function findHabitatDocumentJson(value, seen = new WeakSet()) {
+  if (typeof value === 'string') {
+    try {
+      if (JSON.parse(value)?.habitats) {
+        return value
+      }
+    } catch {
+      return undefined
+    }
+  }
+  if (!value || typeof value !== 'object') {
+    return undefined
+  }
+  if (seen.has(value)) {
+    return undefined
+  }
+  seen.add(value)
+  for (const child of Object.values(value)) {
+    const found = findHabitatDocumentJson(child, seen)
+    if (found) {
+      return found
+    }
+  }
+  return undefined
+}
+
 describe('validateBaseline handler persistence — happy path side effects', () => {
   let h
 
@@ -138,14 +164,14 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     expect(log.selectCalls).toBe(1)
   })
 
-  it('deletes prior baseline rows from all five feature tables before inserting', async () => {
+  it('AC3/AC4 deletes prior baseline and post-intervention feature rows before inserting', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makeBaselineRequest({
       drizzle,
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(log.deletes).toHaveLength(5)
+    expect(log.deletes).toHaveLength(10)
   })
 
   it('inserts geometry rows for each non-empty layer', async () => {
@@ -176,9 +202,8 @@ describe('validateBaseline handler persistence — happy path side effects', () 
     })
     await validateBaseline.handler(request, h)
 
-    const docJson = log.updates[0].payload.project.queryChunks.find(
-      (chunk) => typeof chunk === 'string' && chunk.includes('"habitats"')
-    )
+    const docJson = findHabitatDocumentJson(log.updates[0].payload.project)
+    expect(docJson).toBeDefined()
     const document = JSON.parse(docJson)
     expect(document.habitats[0]).toEqual(
       expect.objectContaining({

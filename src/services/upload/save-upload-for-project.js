@@ -5,7 +5,6 @@ import { buildFeatureIdByRef } from '../../validation/geopackage/carry-forward-f
 import { enrichBaselineDocumentWithUnits } from '../../utilities/enrichment/baseline/enrich-baseline-units.js'
 import { buildBaselineLinearLengthByRef } from '../../utilities/enrichment/post-intervention/linear-baseline-length-by-ref.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
-import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/enrichment/post-intervention/re-enrich-stored-post-intervention.js'
 import { extractHabitatData } from '../../validation/geopackage/baseline/extract-habitat-data.js'
 import {
   extractPostIntervention,
@@ -168,14 +167,6 @@ async function persistUploadAndMaybeReEnrich(
     projectDocumentKey: config.projectDocumentKey,
     uploadLabel: config.uploadLabel
   })
-  if (config.projectDocumentKey === 'baseline') {
-    await reEnrichStoredPostInterventionIfPresent(
-      drizzle,
-      projectId,
-      credentials.sub,
-      logger
-    )
-  }
 }
 
 /**

@@ -222,14 +222,13 @@ Landed on branch BMD-928. Moved `src/utilities/baseline/` into
 - **baseline:** `enrich-baseline-units.js`
 - **post-intervention:** `enrich-post-intervention-units.js`, `-area-habitat.js`,
   `-hedgerow.js`, `-watercourse.js`, `-shared.js`,
-  `re-enrich-stored-post-intervention.js`, `retention-category.js`,
-  `proposed-time-difficulty-display.js`,
+  `retention-category.js`, `proposed-time-difficulty-display.js`,
   `copy-retained-proposed-from-baseline.js`
 
 **Decision — `baseline-linear-length-by-ref.js`:** classified as
 post-intervention support and renamed to
 `enrichment/post-intervention/linear-baseline-length-by-ref.js`. It builds a
-baseline-length lookup used only by Enhanced linear PI enrichment, re-enrich,
+baseline-length lookup used only by Enhanced linear PI enrichment,
 and save orchestration for the PI path — not by baseline enrichment — so it is
 not shared. Export names (`buildBaselineLinearLengthByRef`, etc.) were left as
 they are — they describe baseline lengths consumed by the PI path, and were

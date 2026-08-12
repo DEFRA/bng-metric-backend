@@ -20,7 +20,6 @@ import { extractHabitatData } from '../../validation/geopackage/baseline/extract
 import { extractPostIntervention } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/enrichment/baseline/enrich-baseline-units.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
-import { reEnrichStoredPostInterventionIfPresent } from '../../utilities/enrichment/post-intervention/re-enrich-stored-post-intervention.js'
 import {
   habitatDataSchema,
   postInterventionDataSchema
@@ -57,15 +56,6 @@ vi.mock(
   '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js',
   () => ({
     enrichPostInterventionDocumentWithUnits: vi.fn()
-  })
-)
-
-vi.mock(
-  '../../utilities/enrichment/post-intervention/re-enrich-stored-post-intervention.js',
-  () => ({
-    reEnrichStoredPostInterventionIfPresent: vi
-      .fn()
-      .mockResolvedValue(undefined)
   })
 )
 
@@ -163,12 +153,6 @@ describe('saveUploadForProject', () => {
         credentials: CREDENTIALS,
         projectDocumentKey: 'baseline'
       })
-    )
-    expect(reEnrichStoredPostInterventionIfPresent).toHaveBeenCalledWith(
-      deps.drizzle,
-      PROJECT_ID,
-      CREDENTIALS.sub,
-      logger
     )
   })
 
