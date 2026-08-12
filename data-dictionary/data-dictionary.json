@@ -2913,7 +2913,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "Stable UUID for the feature; join key to the bng.baseline_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+      "description": "Stable UUID for the feature; join key to the bng.post_intervention_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.habitats[].ref",
@@ -3782,7 +3782,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "Stable UUID for the feature; join key to the bng.baseline_hedgerows geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+      "description": "Stable UUID for the feature; join key to the bng.post_intervention_hedgerows geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.hedgerows[].ref",
@@ -4112,7 +4112,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "Stable UUID for the feature; join key to the bng.baseline_watercourses geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+      "description": "Stable UUID for the feature; join key to the bng.post_intervention_watercourses geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
       "path": "postIntervention.watercourses[].ref",

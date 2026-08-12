@@ -22,16 +22,16 @@ import {
   projectSchema
 } from './project.js'
 import { schemaPaths, undeclaredPaths } from './data-dictionary-paths.js'
-import { extractHabitatData } from './baseline/extract-habitat-data.js'
+import { extractHabitatData } from './geopackage/baseline/extract-habitat-data.js'
 import {
   recomputeAreaHabitat,
   recomputeHedgerow
-} from './baseline/unit-calculation.js'
-import { enrichBaselineDocumentWithUnits } from '../utilities/baseline/enrich-baseline-units.js'
+} from './geopackage/unit-calculation.js'
+import { enrichBaselineDocumentWithUnits } from '../utilities/enrichment/baseline/enrich-baseline-units.js'
 import {
   STUB_EXTRACTED,
   STUB_POST_INTERVENTION_EXTRACTED
-} from '../routes/baseline.test-fixtures.js'
+} from '../routes/validate-geopackage-route.test-fixtures.js'
 
 const BNG_SRID = 27700
 const ONE_HECTARE_SQM = 10_000

@@ -26,7 +26,7 @@ import {
   postInterventionHabitatSchema,
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
-} from '../validation/project-post-intervention-schema.js'
+} from '../validation/post-intervention/project-post-intervention-schema.js'
 import {
   projectSchema,
   projectDetailsSchema,

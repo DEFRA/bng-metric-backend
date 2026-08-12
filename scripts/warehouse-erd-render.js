@@ -131,7 +131,7 @@ function renderStabilitySection() {
     '  user uploads a corrected GeoPackage over a document they already',
     '  imported, ids are carried forward by matching `ref` within each layer, so',
     '  a corrected file produces `UPDATE`s rather than a mass delete-and-insert.',
-    `  See ${repoFileLink('src/validation/baseline/carry-forward-feature-ids.js')}.`,
+    `  See ${repoFileLink('src/validation/geopackage/carry-forward-feature-ids.js')}.`,
     '- **A `featureId` is regenerated** when the feature is new, when its `ref`',
     '  is blank, or when its `ref` is ambiguous (carried by more than one',
     '  feature on either side). Matching is deliberately conservative: `ref`',

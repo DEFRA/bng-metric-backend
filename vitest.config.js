@@ -20,7 +20,7 @@ export default defineConfig({
         ...configDefaults.exclude,
         'coverage',
         // Re-export-only facade; exercised by geopackage-internals.test.js — no executable lines to cover.
-        'src/validation/baseline/geopackage-internals.js',
+        'src/validation/geopackage/geopackage-internals.js',
         // Pure re-exports for `bng-metric-engine` package entrypoint.
         'bng-metric-engine/src/index.js'
       ]

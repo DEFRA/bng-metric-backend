@@ -19,7 +19,7 @@ import {
   STUB_EXTRACTED,
   makeH,
   makeDrizzle
-} from './baseline.test-fixtures.js'
+} from './validate-geopackage-route.test-fixtures.js'
 
 vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   waitForUploadReady: vi.fn(),
@@ -37,20 +37,20 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
   }
 }))
 
-vi.mock('../validation/baseline/geopackage.js', () => ({
+vi.mock('../validation/geopackage/geopackage.js', () => ({
   validateGpkg: vi.fn(),
-  readBaselineGeoPackage: vi.fn()
+  readGeoPackage: vi.fn()
 }))
 
-vi.mock('../validation/baseline/extract-habitat-data.js', () => ({
+vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
   extractHabitatData: vi.fn()
 }))
 
-vi.mock('../validation/baseline/index.js', () => ({
-  validateBaselineLayers: vi.fn()
+vi.mock('../validation/geopackage/index.js', () => ({
+  validateGeoPackageLayers: vi.fn()
 }))
 
-vi.mock('../services/baseline/calculate-habitat-sizes.js', () => ({
+vi.mock('../services/upload/calculate-habitat-sizes.js', () => ({
   calculateHabitatSizes: vi.fn()
 }))
 
@@ -63,15 +63,15 @@ const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
-const { validateGpkg, readBaselineGeoPackage } =
-  await import('../validation/baseline/geopackage.js')
+const { validateGpkg, readGeoPackage } =
+  await import('../validation/geopackage/geopackage.js')
 const { extractHabitatData } =
-  await import('../validation/baseline/extract-habitat-data.js')
-const { validateBaselineLayers } =
-  await import('../validation/baseline/index.js')
+  await import('../validation/geopackage/baseline/extract-habitat-data.js')
+const { validateGeoPackageLayers } =
+  await import('../validation/geopackage/index.js')
 const { calculateHabitatSizes } =
-  await import('../services/baseline/calculate-habitat-sizes.js')
-const { ERROR_CODES } = await import('../validation/baseline/errors.js')
+  await import('../services/upload/calculate-habitat-sizes.js')
+const { ERROR_CODES } = await import('../validation/geopackage/errors.js')
 const { validateBaseline } = await import('./baseline.js')
 
 function setupHappyPathMocks() {
@@ -81,8 +81,8 @@ function setupHappyPathMocks() {
   })
   vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
   vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-  vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
-  vi.mocked(validateBaselineLayers).mockResolvedValue({
+  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(validateGeoPackageLayers).mockResolvedValue({
     valid: true,
     errors: []
   })
@@ -270,7 +270,7 @@ describe('validateBaseline handler persistence — guard rails', () => {
   })
 
   it('does not persist when projectId is supplied but validation fails', async () => {
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: false,
       errors: [{ code: 'REDLINE_INVALID_GEOMETRY', message: 'bad' }]
     })
@@ -363,8 +363,8 @@ describe('validateBaseline handler upload error handling', () => {
     h = makeH()
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
     })
@@ -436,8 +436,8 @@ describe('validateBaseline handler download error handling', () => {
       key: MOCK_KEY
     })
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
     })
@@ -512,11 +512,11 @@ describe('validateBaseline handler full validation error handling', () => {
     })
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
     vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readBaselineGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
   })
 
-  it('returns 500 when validateBaselineLayers throws', async () => {
-    vi.mocked(validateBaselineLayers).mockRejectedValue(new Error('boom'))
+  it('returns 500 when validateGeoPackageLayers throws', async () => {
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(new Error('boom'))
 
     await validateBaseline.handler(request, h)
 
@@ -535,7 +535,7 @@ describe('validateBaseline handler full validation error handling', () => {
   })
 
   it('returns 500 SIZING_FAILED when calculateHabitatSizes throws', async () => {
-    vi.mocked(validateBaselineLayers).mockResolvedValue({
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
     })

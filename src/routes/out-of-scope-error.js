@@ -1,6 +1,6 @@
 import Boom from '@hapi/boom'
 
-import { ERROR_CODES } from '../validation/baseline/errors.js'
+import { ERROR_CODES } from '../validation/geopackage/errors.js'
 
 // Shared 422 response for the feature-edit routes when a submitted habitat type
 // resolves to an out-of-scope distinctiveness (High / V.High). Uses badData

@@ -1,7 +1,7 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import pg from 'pg'
 
-import { validateBaselineLayersPostgis } from '../src/validation/baseline/postgis/index.js'
+import { validateGeoPackageLayersPostgis } from '../src/validation/geopackage/postgis/index.js'
 import { getDbConfig } from './helpers/db.js'
 
 const BNG_SRID = 27700
@@ -273,16 +273,16 @@ function makeLayers(overrides = {}) {
 }
 
 async function runAndGetCodes(layers) {
-  const result = await validateBaselineLayersPostgis(pool, layers)
+  const result = await validateGeoPackageLayersPostgis(pool, layers)
   return result.errors.map((e) => e.code)
 }
 
 async function runAndGetError(layers, code) {
-  const result = await validateBaselineLayersPostgis(pool, layers)
+  const result = await validateGeoPackageLayersPostgis(pool, layers)
   return result.errors.find((e) => e.code === code)
 }
 
-describe('validateBaselineLayersPostgis — happy path', () => {
+describe('validateGeoPackageLayersPostgis — happy path', () => {
   it('returns no topology errors for redline == single habitat', async () => {
     const codes = await runAndGetCodes(
       makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
@@ -296,7 +296,7 @@ describe('validateBaselineLayersPostgis — happy path', () => {
   })
 })
 
-describe('validateBaselineLayersPostgis — redline-level errors', () => {
+describe('validateGeoPackageLayersPostgis — redline-level errors', () => {
   it('detects self-intersecting redline', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
@@ -332,7 +332,7 @@ describe('validateBaselineLayersPostgis — redline-level errors', () => {
   })
 })
 
-describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
+describe('validateGeoPackageLayersPostgis — habitat parcel errors', () => {
   it('detects parcel overlaps', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
@@ -455,7 +455,7 @@ describe('validateBaselineLayersPostgis — habitat parcel errors', () => {
   })
 })
 
-describe('validateBaselineLayersPostgis — non-area layers outside redline', () => {
+describe('validateGeoPackageLayersPostgis — non-area layers outside redline', () => {
   const baseValidLayers = {
     redline: [poly(SQUARE)],
     areas: [poly(SQUARE)]
@@ -490,7 +490,7 @@ describe('validateBaselineLayersPostgis — non-area layers outside redline', ()
   })
 })
 
-describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () => {
+describe('validateGeoPackageLayersPostgis — boundary-tolerance behaviour', () => {
   const baseValidLayers = {
     redline: [poly(SQUARE)],
     areas: [poly(SQUARE)]
@@ -559,7 +559,7 @@ describe('validateBaselineLayersPostgis — boundary-tolerance behaviour', () =>
   })
 })
 
-describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
+describe('validateGeoPackageLayersPostgis — details payload (Path B)', () => {
   it('AREA_PARCELS_OUTSIDE_REDLINE carries count, sample with feature refs, and per-parcel escape area + WKT', async () => {
     const err = await runAndGetError(
       makeLayers({
@@ -631,7 +631,7 @@ describe('validateBaselineLayersPostgis — details payload (Path B)', () => {
   })
 })
 
-describe('validateBaselineLayersPostgis — coordinate-system handling', () => {
+describe('validateGeoPackageLayersPostgis — coordinate-system handling', () => {
   it('reprojects EPSG:4326 input to BNG without spuriously flagging it', async () => {
     // Identical WGS84 redline + habitat parcel — round-trip through the
     // in-query ST_Transform should leave them aligned, so no topology errors.

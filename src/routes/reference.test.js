@@ -13,7 +13,7 @@ import {
 import {
   getHedgerowHabitatTypes,
   getWatercourseHabitatTypes
-} from '../validation/baseline/reference/habitat-reference.js'
+} from '../validation/reference/habitat-reference.js'
 
 describe('#getBroadHabitats', () => {
   test('Returns an alphabetised list of broad habitats', () => {
