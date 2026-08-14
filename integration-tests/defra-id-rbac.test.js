@@ -191,8 +191,8 @@ describe('POST /auth/session', () => {
   })
 })
 
-describe('createProject stamps org context from the token', () => {
-  it('stores org_id and relationship_id from the current relationship', async () => {
+describe('createProject stamps the persisted org context', () => {
+  it('stores org_id and relationship_id from the persisted relationship', async () => {
     const sub = `it-${randomUUID()}`
     const token = await mintToken(
       sessionClaims({
@@ -202,6 +202,11 @@ describe('createProject stamps org context from the token', () => {
         orgName: 'Stark Industries'
       })
     )
+    // BMD-936: the context is read from bng.users, so it has to have been
+    // persisted — which is what the frontend does at the OIDC callback, before
+    // the user can reach any project page. A token alone no longer carries it.
+    expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+
     const created = await createProject(token, 'Stamped Project')
 
     const row = await dbClient.query(
@@ -301,40 +306,38 @@ describe('RBAC visibility', () => {
     expect(direct.statusCode).toBe(HTTP_NOT_FOUND)
   })
 
-  it('gives each organisation its own project list for the same user', async () => {
-    const sub = `it-${randomUUID()}`
+  // BMD-936: the org scope follows the SIGN-IN, not the token. Switching org is
+  // an interactive re-sign-in, which re-posts /auth/session and moves
+  // bng.users.current_relationship_id — so each org still gets its own list, and
+  // switching back restores the other. What no longer happens is a stale token
+  // carrying its own org context: the backend reads the persisted one, so a user
+  // signed in twice (two browsers, two orgs) sees their most recent sign-in's
+  // org in both. That is the deliberate trade for a single, unambiguous source
+  // of org context — a token from a refresh_token grant can name the wrong
+  // relationship, and acting on it silently switched a user's org mid-session.
+  it.each([['/projects'], ['/users/:sub/projects']])(
+    'gives each organisation its own project list for the same user (%s)',
+    async (path) => {
+      const sub = `it-${randomUUID()}`
+      const url = path.replace(':sub', sub)
 
-    const orgAToken = await signInAs(sub, REL_ORG_A)
-    await createProject(orgAToken, 'Org A project')
+      const orgAToken = await signInAs(sub, REL_ORG_A)
+      await createProject(orgAToken, 'Org A project')
 
-    const orgBToken = await signInAs(sub, REL_ORG_B)
-    await createProject(orgBToken, 'Org B project')
+      const orgBToken = await signInAs(sub, REL_ORG_B)
+      await createProject(orgBToken, 'Org B project')
 
-    expect(projectNames(await listProjects(orgBToken))).toEqual([
-      'Org B project'
-    ])
-    // Switching back shows org A's again — the projects are scoped, not lost.
-    expect(projectNames(await listProjects(orgAToken))).toEqual([
-      'Org A project'
-    ])
-  })
+      expect(projectNames(await listProjects(orgBToken, url))).toEqual([
+        'Org B project'
+      ])
 
-  it('scopes GET /users/{userId}/projects to the current organisation too', async () => {
-    const sub = `it-${randomUUID()}`
-
-    const orgAToken = await signInAs(sub, REL_ORG_A)
-    await createProject(orgAToken, 'Org A project')
-    const orgBToken = await signInAs(sub, REL_ORG_B)
-    await createProject(orgBToken, 'Org B project')
-
-    const url = `/users/${sub}/projects`
-    expect(projectNames(await listProjects(orgBToken, url))).toEqual([
-      'Org B project'
-    ])
-    expect(projectNames(await listProjects(orgAToken, url))).toEqual([
-      'Org A project'
-    ])
-  })
+      // Switching back shows org A's again — the projects are scoped, not lost.
+      const backToOrgA = await signInAs(sub, REL_ORG_A)
+      expect(projectNames(await listProjects(backToOrgA, url))).toEqual([
+        'Org A project'
+      ])
+    }
+  )
 
   it('refuses writes to another organisation’s project', async () => {
     const sub = `it-${randomUUID()}`

@@ -141,11 +141,15 @@ describe('persistUpload', () => {
     // The FOR UPDATE lock must enforce RBAC visibility (ownership + the current
     // org context + an approved role for it), not just match the project id — so
     // a user cannot overwrite another org's baseline by supplying its UUID.
+    // The org context is read from bng.users, never bound from the token
+    // (BMD-936), so RELATIONSHIP_ID appears in the SQL's subquery rather than in
+    // the bound parameters.
     expect(lockSql).toContain('bng.roles')
     expect(lockSql).toContain('status')
     expect(lockSql).toContain('is not distinct from')
+    expect(lockSql).toContain('u.current_relationship_id')
     expect(params).toContain(SUB)
-    expect(params).toContain(RELATIONSHIP_ID)
+    expect(params).not.toContain(RELATIONSHIP_ID)
     expect(params).toContain(PROJECT_ID)
   })
 
