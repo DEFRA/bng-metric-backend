@@ -58,7 +58,7 @@ const PERF_TEST_CREDENTIALS = Object.freeze({
 // The bypass is active only when a token is configured AND the environment is on
 // the allow-list above. Default-deny: an unset or unrecognised environment is
 // never permitted.
-function perfBypassEnabled(options) {
+function bypassEnabled(options) {
   return (
     Boolean(options.perfTestToken) &&
     PERF_BYPASS_ENVIRONMENTS.has(options.environment)
@@ -206,7 +206,7 @@ function defraJwtScheme(_server, options) {
       // call the API without a real Defra ID login. Checked before JWT
       // verification, and only when enabled for this environment.
       if (
-        perfBypassEnabled(options) &&
+        bypassEnabled(options) &&
         tokensMatch(token, options.perfTestToken)
       ) {
         return h.authenticated({ credentials: PERF_TEST_CREDENTIALS })
@@ -259,7 +259,7 @@ const authJwt = {
       // Surface the perf-test bypass at boot — it weakens auth, so its state must
       // be unmissable in the logs, and a misconfiguration (token set in a
       // disallowed env) must be visible even though it is correctly ignored.
-      if (perfBypassEnabled(options)) {
+      if (bypassEnabled(options)) {
         logger.warn(
           { environment: options.environment },
           'SECURITY: perf-test auth bypass ENABLED — a static PERF_TEST_AUTH_TOKEN authenticates as a synthetic user without a real Defra ID token. Permitted only in local/perf-test; it MUST never be enabled in production.'
