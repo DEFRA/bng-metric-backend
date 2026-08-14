@@ -93,11 +93,15 @@ async function createServer() {
 // key set + issuer/audience after import, before createServer() runs.
 function resolveOidcAuthOptions() {
   return {
-    discoveryUrl:
-      process.env.OIDC_DISCOVERY_URL || config.get('oidc.discoveryUrl'),
-    audience:
-      process.env.OIDC_AUDIENCE || config.get('oidc.audience') || undefined,
-    issuer: process.env.OIDC_ISSUER || config.get('oidc.issuer') || undefined,
+    discoveryUrl: firstConfigured(
+      process.env.OIDC_DISCOVERY_URL,
+      config.get('oidc.discoveryUrl')
+    ),
+    audience: firstConfigured(
+      process.env.OIDC_AUDIENCE,
+      config.get('oidc.audience')
+    ),
+    issuer: firstConfigured(process.env.OIDC_ISSUER, config.get('oidc.issuer')),
     localJwks: process.env.OIDC_LOCAL_JWKS || undefined,
     // Perf-test auth bypass (auth-jwt.js enforces the non-prod allow-list): a
     // static token that authenticates the JMeter perf suite as a synthetic user.
@@ -105,8 +109,14 @@ function resolveOidcAuthOptions() {
     environment: process.env.ENVIRONMENT || undefined,
     // jose's JWKS fetch needs an explicit proxy agent in CDP — it bypasses the
     // undici/global-agent proxy used elsewhere. See plugins/auth-jwt.js.
-    httpProxy: process.env.HTTP_PROXY || config.get('httpProxy') || undefined
+    httpProxy: firstConfigured(process.env.HTTP_PROXY, config.get('httpProxy'))
   }
+}
+
+// First truthy value, else undefined — an empty-string env var or unset config
+// key normalises to "not configured" rather than leaking '' into jose options.
+function firstConfigured(...values) {
+  return values.find(Boolean)
 }
 
 export { createServer }

@@ -205,10 +205,7 @@ function defraJwtScheme(_server, options) {
       // authenticates as a synthetic, role-less user so the JMeter perf suite can
       // call the API without a real Defra ID login. Checked before JWT
       // verification, and only when enabled for this environment.
-      if (
-        bypassEnabled(options) &&
-        tokensMatch(token, options.perfTestToken)
-      ) {
+      if (bypassEnabled(options) && tokensMatch(token, options.perfTestToken)) {
         return h.authenticated({ credentials: PERF_TEST_CREDENTIALS })
       }
 
@@ -259,16 +256,18 @@ const authJwt = {
       // Surface the perf-test bypass at boot — it weakens auth, so its state must
       // be unmissable in the logs, and a misconfiguration (token set in a
       // disallowed env) must be visible even though it is correctly ignored.
-      if (bypassEnabled(options)) {
-        logger.warn(
-          { environment: options.environment },
-          'SECURITY: perf-test auth bypass ENABLED — a static PERF_TEST_AUTH_TOKEN authenticates as a synthetic user without a real Defra ID token. Permitted only in local/perf-test; it MUST never be enabled in production.'
-        )
-      } else if (options.perfTestToken) {
-        logger.warn(
-          { environment: options.environment },
-          `PERF_TEST_AUTH_TOKEN is set but IGNORED — environment '${options.environment}' is not in the perf-bypass allow-list (local, perf-test). The bypass is refused everywhere else.`
-        )
+      if (options.perfTestToken) {
+        if (bypassEnabled(options)) {
+          logger.warn(
+            { environment: options.environment },
+            'SECURITY: perf-test auth bypass ENABLED — a static PERF_TEST_AUTH_TOKEN authenticates as a synthetic user without a real Defra ID token. Permitted only in local/perf-test; it MUST never be enabled in production.'
+          )
+        } else {
+          logger.warn(
+            { environment: options.environment },
+            `PERF_TEST_AUTH_TOKEN is set but IGNORED — environment '${options.environment}' is not in the perf-bypass allow-list (local, perf-test). The bypass is refused everywhere else.`
+          )
+        }
       }
       server.auth.scheme('defra-jwt', defraJwtScheme)
       server.auth.strategy('defra-jwt', 'defra-jwt', options)
