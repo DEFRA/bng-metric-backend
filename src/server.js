@@ -99,6 +99,10 @@ function resolveOidcAuthOptions() {
       process.env.OIDC_AUDIENCE || config.get('oidc.audience') || undefined,
     issuer: process.env.OIDC_ISSUER || config.get('oidc.issuer') || undefined,
     localJwks: process.env.OIDC_LOCAL_JWKS || undefined,
+    // Perf-test auth bypass (auth-jwt.js enforces the non-prod allow-list): a
+    // static token that authenticates the JMeter perf suite as a synthetic user.
+    perfTestToken: process.env.PERF_TEST_AUTH_TOKEN || undefined,
+    environment: process.env.ENVIRONMENT || undefined,
     // jose's JWKS fetch needs an explicit proxy agent in CDP — it bypasses the
     // undici/global-agent proxy used elsewhere. See plugins/auth-jwt.js.
     httpProxy: process.env.HTTP_PROXY || config.get('httpProxy') || undefined

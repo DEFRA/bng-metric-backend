@@ -404,3 +404,99 @@ describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
     await s.stop()
   })
 })
+
+describe('defra-jwt strategy — perf-test auth bypass', () => {
+  const PERF_TOKEN = 'a-strong-random-perf-token'
+
+  async function buildBypassServer({ environment, perfTestToken }) {
+    const s = Hapi.server()
+    await s.register({
+      plugin: authJwt.plugin,
+      options: {
+        localJwks: publicJwks,
+        issuer: ISSUER,
+        audience: AUDIENCE,
+        perfTestToken,
+        environment
+      }
+    })
+    s.route({
+      method: 'GET',
+      path: '/protected',
+      options: { auth: 'defra-jwt' },
+      handler: (request) => ({ sub: request.auth.credentials.sub })
+    })
+    await s.initialize()
+    return s
+  }
+
+  function injectWith(s, token) {
+    return s.inject({
+      method: 'GET',
+      url: '/protected',
+      headers: token ? { authorization: `Bearer ${token}` } : {}
+    })
+  }
+
+  test('200 as a synthetic user when the token matches in perf-test', async () => {
+    const s = await buildBypassServer({
+      environment: 'perf-test',
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, PERF_TOKEN)
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.sub).toBe('perf-test-bypass')
+    await s.stop()
+  })
+
+  test('also enabled in the local environment', async () => {
+    const s = await buildBypassServer({
+      environment: 'local',
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, PERF_TOKEN)
+    expect(res.statusCode).toBe(HTTP_OK)
+    await s.stop()
+  })
+
+  test('401 when the bypass token does not match', async () => {
+    const s = await buildBypassServer({
+      environment: 'perf-test',
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, 'wrong-token')
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+    await s.stop()
+  })
+
+  test('IGNORED outside the allow-list: the token is rejected in production', async () => {
+    const s = await buildBypassServer({
+      environment: 'production',
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, PERF_TOKEN)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+    await s.stop()
+  })
+
+  test('IGNORED when the environment is unset (default-deny)', async () => {
+    const s = await buildBypassServer({
+      environment: undefined,
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, PERF_TOKEN)
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+    await s.stop()
+  })
+
+  test('a real valid JWT still authenticates when the bypass is configured', async () => {
+    const s = await buildBypassServer({
+      environment: 'perf-test',
+      perfTestToken: PERF_TOKEN
+    })
+    const res = await injectWith(s, await mint({ sub: 'real-user' }))
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.sub).toBe('real-user')
+    await s.stop()
+  })
+})

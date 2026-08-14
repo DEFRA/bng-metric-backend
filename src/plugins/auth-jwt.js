@@ -21,6 +21,8 @@
 // classify the failure (idp-unreachable vs token-rejected) and log a one-off
 // line on successful discovery, so a single deploy's logs reveal which stage
 // (discovery, JWKS fetch, or token verification) actually failed.
+import { createHash, timingSafeEqual } from 'node:crypto'
+
 import Boom from '@hapi/boom'
 import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from 'jose'
 import { HttpsProxyAgent } from 'https-proxy-agent'
@@ -36,6 +38,40 @@ const BEARER_PREFIX = 'Bearer '
 const JOSE_ERROR_PREFIX = 'ERR_J'
 // Cap the cause-chain walk so a cyclic `cause` can never loop forever.
 const MAX_CAUSE_DEPTH = 5
+
+// Environments where a static PERF_TEST_AUTH_TOKEN may stand in for a real Defra
+// ID token, so the JMeter perf suite can exercise the API headlessly. This is a
+// deliberate authentication *bypass*, so it is hard-limited to this code-level
+// allow-list: setting the token in any other environment (production included)
+// has no effect. The allow-list is a constant, never an env var, so it cannot be
+// widened by configuration.
+const PERF_BYPASS_ENVIRONMENTS = new Set(['local', 'perf-test'])
+
+// Minimal synthetic identity for a perf-token request: enough to satisfy
+// `request.auth.credentials`, with no roles or org context and a deliberately
+// non-human `sub` so its use is obvious in any log or audit trail.
+const PERF_TEST_CREDENTIALS = Object.freeze({
+  sub: 'perf-test-bypass',
+  perfTestBypass: true
+})
+
+// The bypass is active only when a token is configured AND the environment is on
+// the allow-list above. Default-deny: an unset or unrecognised environment is
+// never permitted.
+function perfBypassEnabled(options) {
+  return (
+    Boolean(options.perfTestToken) &&
+    PERF_BYPASS_ENVIRONMENTS.has(options.environment)
+  )
+}
+
+// Constant-time comparison over fixed-length SHA-256 digests, so neither the
+// configured token's value nor its length leaks through timing.
+function tokensMatch(provided, expected) {
+  const a = createHash('sha256').update(provided).digest()
+  const b = createHash('sha256').update(expected).digest()
+  return timingSafeEqual(a, b)
+}
 
 // Render one Error in the chain. The real reason for a failed fetch/proxy/TLS
 // error often sits in its message and nested cause, not its `code` (e.g. undici
@@ -165,6 +201,17 @@ function defraJwtScheme(_server, options) {
         throw Boom.unauthorized('Missing bearer token', 'Bearer')
       }
 
+      // Perf-test bypass (non-prod only): a preconfigured static token
+      // authenticates as a synthetic, role-less user so the JMeter perf suite can
+      // call the API without a real Defra ID login. Checked before JWT
+      // verification, and only when enabled for this environment.
+      if (
+        perfBypassEnabled(options) &&
+        tokensMatch(token, options.perfTestToken)
+      ) {
+        return h.authenticated({ credentials: PERF_TEST_CREDENTIALS })
+      }
+
       let verifier
       try {
         verifier = await getVerifier()
@@ -208,6 +255,21 @@ const authJwt = {
         },
         'defra-jwt auth strategy registered'
       )
+
+      // Surface the perf-test bypass at boot — it weakens auth, so its state must
+      // be unmissable in the logs, and a misconfiguration (token set in a
+      // disallowed env) must be visible even though it is correctly ignored.
+      if (perfBypassEnabled(options)) {
+        logger.warn(
+          { environment: options.environment },
+          'SECURITY: perf-test auth bypass ENABLED — a static PERF_TEST_AUTH_TOKEN authenticates as a synthetic user without a real Defra ID token. Permitted only in local/perf-test; it MUST never be enabled in production.'
+        )
+      } else if (options.perfTestToken) {
+        logger.warn(
+          { environment: options.environment },
+          `PERF_TEST_AUTH_TOKEN is set but IGNORED — environment '${options.environment}' is not in the perf-bypass allow-list (local, perf-test). The bypass is refused everywhere else.`
+        )
+      }
       server.auth.scheme('defra-jwt', defraJwtScheme)
       server.auth.strategy('defra-jwt', 'defra-jwt', options)
     }
