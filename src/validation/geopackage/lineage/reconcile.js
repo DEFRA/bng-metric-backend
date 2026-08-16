@@ -26,6 +26,17 @@ import {
 } from '../postgis/constants.js'
 
 /**
+ * The dimension a habitat type's sizes are quoted in. Also decides how lineage
+ * and containment measure an overlap, so a type cannot be reconciled on one
+ * measure while its parentage is apportioned on another.
+ */
+export const MEASURE = Object.freeze({
+  AREA: 'area',
+  LENGTH: 'length',
+  COUNT: 'count'
+})
+
+/**
  * Per-type reconciliation policy.
  *
  * `sizeMustMatch`  compare total baseline size against total PI size
@@ -36,32 +47,32 @@ export const RECONCILIATION_POLICY = Object.freeze({
   [HABITAT_TYPES.AREAS]: {
     sizeMustMatch: true,
     piWithinParent: true,
-    measure: 'area',
+    measure: MEASURE.AREA,
     tolerance: AREA_SUM_TOLERANCE_SQ_M
   },
   [HABITAT_TYPES.VERTICAL_AREAS]: {
     sizeMustMatch: true,
     piWithinParent: true,
-    measure: 'length',
+    measure: MEASURE.LENGTH,
     tolerance: OUTSIDE_BOUNDARY_TOLERANCE_M
   },
   [HABITAT_TYPES.HEDGEROWS]: {
     sizeMustMatch: true,
     piWithinParent: true,
-    measure: 'length',
+    measure: MEASURE.LENGTH,
     tolerance: OUTSIDE_BOUNDARY_TOLERANCE_M
   },
   [HABITAT_TYPES.WATERCOURSES]: {
     sizeMustMatch: false,
     piWithinParent: false,
-    measure: 'length',
+    measure: MEASURE.LENGTH,
     tolerance: OUTSIDE_BOUNDARY_TOLERANCE_M,
     reason: 'realignment legitimately moves and lengthens the channel'
   },
   [HABITAT_TYPES.TREES]: {
     sizeMustMatch: false,
     piWithinParent: false,
-    measure: 'count',
+    measure: MEASURE.COUNT,
     reason: 'points have no extent'
   }
 })
@@ -144,4 +155,29 @@ export async function reconcileSize(
  */
 export function requiresContainment(type) {
   return RECONCILIATION_POLICY[type]?.piWithinParent === true
+}
+
+/**
+ * True when this habitat type is measured in metres of length rather than
+ * square metres of area — hedgerows, watercourses, and vertical area habitats,
+ * whose footprint is a line even though the recorded size is a wall face.
+ *
+ * Read from the same policy table as everything else so lineage, containment
+ * and reconciliation can never disagree about a type's dimension.
+ *
+ * @param {string} type
+ * @returns {boolean}
+ */
+export function isLinearMeasure(type) {
+  return RECONCILIATION_POLICY[type]?.measure === MEASURE.LENGTH
+}
+
+/**
+ * The dimension a habitat type's sizes are quoted in, for error messages.
+ *
+ * @param {string} type
+ * @returns {string | undefined}
+ */
+export function measureFor(type) {
+  return RECONCILIATION_POLICY[type]?.measure
 }

@@ -59,6 +59,22 @@ export const ERROR_CODES = Object.freeze({
   /** Extracted document fails habitatDataSchema — e.g. filename or fileSize from CDP Uploader exceeds allowed bounds. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 
+  // --- staged GeoPackages (baseline + post-intervention in one file) ---------
+  // See src/validation/geopackage/lineage/README.md. These only ever fire for
+  // the staged format; a single-stage file cannot reach the code that emits them.
+
+  /** A post-intervention layer arrived with no baseline counterpart, so nothing can be reconciled against it. */
+  STAGED_MISSING_BASELINE_LAYER: 'STAGED_MISSING_BASELINE_LAYER',
+
+  /** A post-intervention feature's stamped `Parent Ref` names no baseline feature of the same habitat type. */
+  STAGED_UNKNOWN_PARENT_REF: 'STAGED_UNKNOWN_PARENT_REF',
+
+  /** A post-intervention feature strays outside the baseline parent it was stamped with. */
+  STAGED_PI_OUTSIDE_PARENT: 'STAGED_PI_OUTSIDE_PARENT',
+
+  /** Baseline and post-intervention totals disagree for a habitat type whose policy requires them to match. */
+  STAGED_SIZE_MISMATCH: 'STAGED_SIZE_MISMATCH',
+
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
 })

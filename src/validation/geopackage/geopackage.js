@@ -18,6 +18,7 @@ import {
   GPKG_ENVELOPE_INDICATOR_MASK,
   GPKG_ENVELOPE_SIZES,
   RLB_LYR,
+  RLB_LYR_DISPLAY_NAME,
   HABITATS_LYR,
   HEDGEROWS_LYR,
   RIVERS_LYR,
@@ -30,6 +31,7 @@ import {
   validateHedgerows,
   validateWatercourses
 } from './geopackage-internals.js'
+import { isStagedGeoPackage } from './lineage/staged-layer-names.js'
 
 const logger = createLogger()
 
@@ -152,6 +154,42 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
   }
 }
 
+/**
+ * Format gate for the staged format, whose feature tables are named per stage
+ * ("Habitats Baseline" / "Habitats Post-Intervention") and so match nothing in
+ * gpkg-template.schema.json. Run against that schema, a perfectly good staged
+ * file collects a GPKG_MISSING_LAYER plus one GPKG_UNEXPECTED_FEATURE_LAYER per
+ * table — the single-stage template simply does not describe this file.
+ *
+ * So the schema comparison is skipped and only the Red Line Boundary, which is
+ * identical in both formats, is checked here. Column and type validation of the
+ * staged tables needs a staged template schema of its own; until that exists
+ * the lineage checks in ./lineage are the whole of a staged file's validation.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {Set<string>} contentTables lower-cased feature-table names
+ * @param {Array<{ code: string, message: string }>} errors
+ */
+function runStagedGpkgChecks(db, contentTables, errors) {
+  if (contentTables.has(RLB_LYR)) {
+    validateRedLineBoundary(db, errors, logger)
+  } else {
+    errors.push(
+      makeError(
+        ERROR_CODES.GPKG_MISSING_LAYER,
+        `Missing required feature layer in GeoPackage: ${RLB_LYR_DISPLAY_NAME}`
+      )
+    )
+  }
+  const valid = errors.length === 0
+  logger.info(
+    `validateGpkg: staged GeoPackage, valid=${valid}, errors=${JSON.stringify(errors)}`
+  )
+  // `staged` is set only on this branch. A single-stage file's gate result is
+  // unchanged, flag and all — callers read it as "absent means the ordinary path".
+  return { valid, errors, staged: true }
+}
+
 /** Layered GeoPackage checks against an already-open database. */
 function runGpkgChecks(db) {
   const errors = []
@@ -182,6 +220,9 @@ function runGpkgChecks(db) {
 
   // 3. Required feature layers (from gpkg-template.schema.json)
   const contentTables = getFeatureLayerNames(db)
+  if (isStagedGeoPackage([...contentTables])) {
+    return runStagedGpkgChecks(db, contentTables, errors)
+  }
   checkRequiredLayersFromSchema(baselineTemplateSchema, contentTables, errors)
 
   // 4. Layers present in gpkg_contents must match baseline template columns, srs, geometry

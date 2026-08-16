@@ -20,6 +20,7 @@ import {
   readGeoPackage
 } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
+import { validateStagedGeoPackage } from '../validation/geopackage/lineage/validate-staged-geopackage.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
@@ -107,13 +108,65 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
   })
 }
 
+/**
+ * Validate a staged GeoPackage — baseline and post-intervention as separate
+ * feature tables in one file. Lineage checks only; see
+ * validation/geopackage/lineage/README.md for what that covers and what it
+ * does not.
+ *
+ * Nothing is persisted, even when a projectId was supplied. The stored document
+ * keeps one baseline subtree and one post-intervention subtree, each written by
+ * its own upload; deciding how a single file writes both is a schema question
+ * this route cannot answer on its own. Logged loudly so a caller that expected
+ * a save can see why it did not happen.
+ *
+ * @param {string} localPath
+ * @param {import('pg').Pool} pgPool
+ * @param {{ uploadId: string, projectId: string | null }} context
+ * @param {import('@hapi/hapi').ResponseToolkit} h
+ * @param {object} config
+ */
+async function runStagedValidation(localPath, pgPool, context, h, config) {
+  const { uploadId, projectId } = context
+  const result = await validateStagedGeoPackage(localPath, pgPool)
+  if (!result.valid) {
+    logger.info(
+      `${config.routeName} - rejected staged uploadId ${uploadId}: ${result.errors
+        .map((e) => `${e.code}: ${e.message}`)
+        .join(' | ')}`
+    )
+    await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+      category: VALIDATION_CATEGORY.geometric
+    })
+    return h.response({ valid: result.valid, errors: result.errors })
+  }
+  logger.info(`${config.routeName} - accepted staged uploadId ${uploadId}`)
+  await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
+  if (projectId) {
+    logger.warn(
+      `${config.routeName} - staged uploadId ${uploadId} validated but NOT persisted to project ${projectId}: staged persistence is not implemented`
+    )
+  }
+  return h.response({ valid: result.valid, errors: result.errors })
+}
+
 async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
-  const { uploadId, projectId, credentials, filename, fileSize } = context
+  const { uploadId, projectId, credentials, filename, fileSize, staged } =
+    context
   const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), UPLOAD_TEMP_PREFIX))
   const localPath = path.join(tmpDir, UPLOAD_TEMP_FILENAME)
 
   try {
     await fs.writeFile(localPath, buffer)
+    if (staged) {
+      return await runStagedValidation(
+        localPath,
+        pgPool,
+        { uploadId, projectId },
+        h,
+        config
+      )
+    }
     const layers = readGeoPackage(localPath)
     const result = await validateGeoPackageLayers(
       layers,
@@ -243,7 +296,16 @@ function createValidateGeoPackageRoute(config) {
         buffer,
         request.drizzle,
         request.pg,
-        { uploadId, projectId, credentials, filename, fileSize },
+        {
+          uploadId,
+          projectId,
+          credentials,
+          filename,
+          fileSize,
+          // The gate has the table names open already, so it is the cheapest
+          // place to tell the two formats apart. Absent means single-stage.
+          staged: gateResult.staged === true
+        },
         h,
         config
       )

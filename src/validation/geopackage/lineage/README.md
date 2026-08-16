@@ -5,8 +5,14 @@ which carries baseline and post-intervention as separate feature tables in one
 file. The existing single-stage format — one table per habitat type with
 `Baseline*` and `Proposed*` on the same row — is untouched and still works.
 
-Nothing here is wired into the upload routes yet. It is proven end to end
-against a real template export in `integration-tests/staged-lineage.test.js`.
+Wired into both upload routes. A staged file uploaded to
+`POST /baseline/validate/{uploadId}` or `POST /post-intervention/validate/{uploadId}`
+is detected at the format gate and routed here; a single-stage file takes
+exactly the path it always did.
+
+Proven against a real template export in `integration-tests/staged-lineage.test.js`
+(the lineage modules) and `integration-tests/staged-validation.test.js` (the
+wiring, including one upload through the real route).
 
 ## Why the format changed
 
@@ -75,16 +81,48 @@ coverage gap.
 
 ## Files
 
-| File                        | Does                                                                                  |
-| --------------------------- | ------------------------------------------------------------------------------------- |
-| `staged-layer-names.js`     | resolve table names to (stage, habitat type); unknown tables are ignored, never fatal |
-| `read-staged-geopackage.js` | read one file into `{ baseline, postIntervention, redline }` with lineage columns     |
-| `derive-lineage.js`         | stamped parents first, then area-weighted geometry for the rest                       |
-| `reconcile.js`              | per-type policy and size comparison                                                   |
+| File                            | Does                                                                                  |
+| ------------------------------- | ------------------------------------------------------------------------------------- |
+| `staged-layer-names.js`         | resolve table names to (stage, habitat type); unknown tables are ignored, never fatal |
+| `read-staged-geopackage.js`     | read one file into `{ baseline, postIntervention, redline }` with lineage columns     |
+| `derive-lineage.js`             | stamped parents first, then area-weighted geometry for the rest                       |
+| `reconcile.js`                  | per-type policy and size comparison                                                   |
+| `validate-staged-geopackage.js` | the entry point the routes call — runs the above and returns `{ valid, errors }`      |
+| `error-builders.js`             | the four `STAGED_*` errors, shaped like the geometry ones                             |
 
 `postgis/constants.js` was extracted from `postgis/index.js` so the lineage
 overlay uses the same grid size and tolerances as the validation overlay — two
 overlays on different grid sizes disagree at the sliver boundary.
+
+## How a staged file reaches this code
+
+`validateGpkg` (the format gate in `../geopackage.js`) opens the file, sees a
+post-intervention table in `gpkg_contents`, and returns `staged: true`. The
+route reads that flag and calls `validateStagedGeoPackage` instead of
+`readGeoPackage` + `validateGeoPackageLayers`.
+
+The gate has to branch there because it judges every file against
+`gpkg-template.schema.json`, which describes the single-stage template. A
+perfectly good staged file scored against it collects a `GPKG_MISSING_LAYER`
+for `Habitats` plus one `GPKG_UNEXPECTED_FEATURE_LAYER` per staged table. So the
+staged branch skips the schema comparison and checks only the Red Line Boundary,
+which is identical in both formats.
+
+`staged` is present only when true, so the gate's result for a single-stage file
+is unchanged.
+
+### Errors
+
+| Code                            | Fires when                                                     |
+| ------------------------------- | -------------------------------------------------------------- |
+| `STAGED_MISSING_BASELINE_LAYER` | a post-intervention layer has no baseline counterpart          |
+| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline           |
+| `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent (not yet enforced) |
+| `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match   |
+
+`STAGED_UNKNOWN_PARENT_REF` earns its place: without it a dangling stamp
+degrades silently, because `deriveLineage` falls through to the geometry rule
+and the feature picks up a plausible-looking parent it never had.
 
 ## Fixture coverage
 
@@ -106,8 +144,22 @@ to exactly one parent.
 
 ## Not done
 
-- Not wired into the upload routes; `readGeoPackage` still handles ingest.
-- Containment is decided by `requiresContainment()` but not yet enforced.
+- **A staged file gets lineage checks only.** The PostGIS geometry suite in
+  `../postgis/index.js` — redline containment, parcel overlaps, invalid
+  geometry, the redline/parcel area sum — reads `readGeoPackage`'s feature
+  shape, including a native SRID per feature that `readStagedGeoPackage` does
+  not carry. Adapting the staged read into that shape is the next piece of work
+  and is the largest remaining gap.
+- **Nothing persists.** A staged upload validates and returns; it is not saved
+  against a project even when a `projectId` is supplied (the route logs a
+  warning saying so). The stored document keeps one baseline subtree and one
+  post-intervention subtree, each written by its own upload, and deciding how a
+  single file writes both is a schema question rather than a validation one.
+- **The staged tables' columns are not validated.** The gate skips the schema
+  comparison for staged files because `gpkg-template.schema.json` describes the
+  single-stage template. A staged template schema of its own would close this.
+- Containment is decided by `requiresContainment()` but not yet enforced, so
+  `STAGED_PI_OUTSIDE_PARENT` is defined but never emitted.
 - No `featureId` carry-forward for the staged format — `PI Ref` is the natural
   key, and the template's tidy-refs action keeps it unique and stable.
 - **Nothing validates the hand-entered sizes.** A vertical area habitat's `Area`

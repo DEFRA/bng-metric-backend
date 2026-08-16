@@ -88,6 +88,9 @@ export const POLYGON_WKB_TYPES = new Set([
 /** Lower-case `gpkg_contents.table_name` key for the Red Line Boundary layer */
 export const RLB_LYR = 'red line boundary'
 
+/** Red Line Boundary as the template spells it, for user-facing messages. */
+export const RLB_LYR_DISPLAY_NAME = 'Red Line Boundary'
+
 /** Lower-case `gpkg_contents.table_name` key for the Habitats layer */
 export const HABITATS_LYR = 'habitats'
 

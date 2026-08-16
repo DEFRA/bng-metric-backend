@@ -30,11 +30,15 @@ function describeFeature(sample) {
  * payload. Returns `prefix` unchanged when there are no offenders (defensive
  * — the SQL only emits a row when count > 0).
  *
+ * Exported so the staged-GeoPackage lineage builders produce the same
+ * "message names the offenders, details carries the full count" shape as the
+ * geometry checks; the two error sets reach the user through one response.
+ *
  * @param {string} prefix
  * @param {{ count?: number, sample?: object[] }} payload
  * @param {(s: object) => string} [render]
  */
-function formatList(prefix, payload, render = describeFeature) {
+export function formatList(prefix, payload, render = describeFeature) {
   const count = Number(payload?.count ?? 0)
   const sample = payload?.sample ?? []
   if (count === 0) {
