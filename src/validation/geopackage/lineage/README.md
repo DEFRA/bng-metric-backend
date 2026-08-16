@@ -108,6 +108,36 @@ Watercourses and trees are exempt, and the exemption is the point. Re-meandering
 a straightened channel moves it off the old line; it is a headline BNG
 intervention, and a containment rule would reject every instance of it.
 
+## featureId carry-forward
+
+Same problem and the same answer as `../carry-forward-feature-ids.js` does for
+the single-stage format: without it, every re-upload mints fresh UUIDs, and a
+downstream relational consumer sees a mass delete-and-reinsert instead of an
+update, losing all row-level history.
+
+The staged format has two natural keys, one per stage:
+
+| Stage             | Key                       |
+| ----------------- | ------------------------- |
+| post-intervention | `PI Ref`                  |
+| baseline          | `Parcel Ref` / `Tree Ref` |
+
+`PI Ref` is sound because the template's tidy-refs action guarantees it is
+unique within its layer and reproduces the same value on the same feature.
+Nothing else in the file is stable across an edit-and-re-export cycle.
+
+**The stage is part of the lookup key.** A retained parcel keeps its parent's ref
+on the post-intervention side — the fixture has PI Ref `PR-1` against a baseline
+Parcel Ref of `PR-1` — so a key without the stage would collapse a baseline
+parcel and its post-intervention counterpart onto one id. Two features, two
+rows downstream.
+
+Matching is as conservative as the existing module: a key carries an id forward
+only when it is non-blank and unambiguous on **both** sides. Uniqueness is
+enforced nowhere for hedgerows, watercourses or trees, so a repeated ref is
+possible and cannot say which feature owns the stored id. Anything blank,
+ambiguous or unmatched gets a fresh UUID.
+
 ## Files
 
 | File                            | Does                                                                                  |
@@ -117,6 +147,7 @@ intervention, and a containment rule would reject every instance of it.
 | `derive-lineage.js`             | stamped parents first, then area-weighted geometry for the rest                       |
 | `reconcile.js`                  | per-type policy and size comparison                                                   |
 | `containment.js`                | PI-inside-parent, by size of `ST_Difference`, for the types whose policy demands it   |
+| `staged-feature-ids.js`         | keeps `featureId` stable across re-uploads, keyed on `PI Ref` / `Parcel Ref`          |
 | `validate-staged-geopackage.js` | the entry point the routes call — runs the above and returns `{ valid, errors }`      |
 | `error-builders.js`             | the four `STAGED_*` errors, shaped like the geometry ones                             |
 
@@ -199,8 +230,11 @@ size.
   parent came from geometry is unchecked — by construction there is nothing to
   check, but it does mean a `Created` parcel drawn wildly out of place is caught
   by the redline checks (which staged files do not get yet) rather than here.
-- No `featureId` carry-forward for the staged format — `PI Ref` is the natural
-  key, and the template's tidy-refs action keeps it unique and stable.
+- `staged-feature-ids.js` is written and tested but **called from nowhere**,
+  because nothing persists a staged upload yet. Its `stored` argument is
+  whatever a previous `assignStagedFeatureIds` produced — the shape a staged
+  document would take when persistence lands. Wiring it up is one line inside
+  whatever replaces `saveUploadForProject` for staged files.
 - **Nothing validates the hand-entered sizes.** A vertical area habitat's `Area`
   and a tree's `Count` cannot be derived from geometry, so a wrong value passes
   every check here. Reconciliation catches a changed _footprint_, not a wrong
