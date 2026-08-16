@@ -79,6 +79,35 @@ containment rule would reject every instance of it.
 was accounted for; dropping them makes a fully developed site look like it has a
 coverage gap.
 
+## Containment
+
+For the three types whose policy says so, every post-intervention feature must
+lie inside the baseline parcel it was cut from. `containment.js` enforces it.
+
+Two things about how, both of which matter:
+
+**It measures the size of `ST_Difference`, never a Boolean predicate.** A PI
+parcel cut from its parent shares that parent's edges exactly, and a vertex one
+ULP outside a shared edge makes `ST_Within` false while the geometric distance
+is zero — so a predicate rejects ordinary correct work. Measuring also gives the
+surveyor something actionable: "1000 sq m outside PR-1", not "not within". The
+tolerances are the redline checks' own (`postgis/constants.js`), because the
+situation is the same one: a feature sharing an edge with the polygon it is
+being tested against.
+
+**Only features with a _stamped_ parent are tested.** A parent derived from
+geometry is derived _by_ overlap, so testing it for overlap proves nothing.
+Worse, it would reject real work: the fixture's pond legitimately straddles both
+baseline parcels, and against either one alone it "escapes" by 1250 sq m.
+
+A parent named by more than one baseline row is unioned before the difference is
+taken — that is one parent drawn in several pieces, and differencing against
+only the first would report the rest of it as an escape.
+
+Watercourses and trees are exempt, and the exemption is the point. Re-meandering
+a straightened channel moves it off the old line; it is a headline BNG
+intervention, and a containment rule would reject every instance of it.
+
 ## Files
 
 | File                            | Does                                                                                  |
@@ -87,6 +116,7 @@ coverage gap.
 | `read-staged-geopackage.js`     | read one file into `{ baseline, postIntervention, redline }` with lineage columns     |
 | `derive-lineage.js`             | stamped parents first, then area-weighted geometry for the rest                       |
 | `reconcile.js`                  | per-type policy and size comparison                                                   |
+| `containment.js`                | PI-inside-parent, by size of `ST_Difference`, for the types whose policy demands it   |
 | `validate-staged-geopackage.js` | the entry point the routes call — runs the above and returns `{ valid, errors }`      |
 | `error-builders.js`             | the four `STAGED_*` errors, shaped like the geometry ones                             |
 
@@ -113,12 +143,12 @@ is unchanged.
 
 ### Errors
 
-| Code                            | Fires when                                                     |
-| ------------------------------- | -------------------------------------------------------------- |
-| `STAGED_MISSING_BASELINE_LAYER` | a post-intervention layer has no baseline counterpart          |
-| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline           |
-| `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent (not yet enforced) |
-| `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match   |
+| Code                            | Fires when                                                   |
+| ------------------------------- | ------------------------------------------------------------ |
+| `STAGED_MISSING_BASELINE_LAYER` | a post-intervention layer has no baseline counterpart        |
+| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline         |
+| `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent                  |
+| `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match |
 
 `STAGED_UNKNOWN_PARENT_REF` earns its place: without it a dangling stamp
 degrades silently, because `deriveLineage` falls through to the geometry rule
@@ -142,6 +172,13 @@ reconciliation fail by exactly the removed 100 m, and stripping the stamped
 parents forces the geometry path and shows each trimmed parcel still resolving
 to exactly one parent.
 
+`staged-validation.test.js` breaks a throwaway copy of the same fixture four
+ways — dangling parent ref, missing baseline layer, deleted `Lost` row, and PI
+parcel PR-1 shifted 10 m west. The shift is a translation, so the area is
+unchanged and the totals still reconcile: containment is the only thing that
+fails, which is what makes the assertion about containment rather than about
+size.
+
 ## Not done
 
 - **A staged file gets lineage checks only.** The PostGIS geometry suite in
@@ -158,8 +195,10 @@ to exactly one parent.
 - **The staged tables' columns are not validated.** The gate skips the schema
   comparison for staged files because `gpkg-template.schema.json` describes the
   single-stage template. A staged template schema of its own would close this.
-- Containment is decided by `requiresContainment()` but not yet enforced, so
-  `STAGED_PI_OUTSIDE_PARENT` is defined but never emitted.
+- Containment tests only features with a **stamped** parent. A feature whose
+  parent came from geometry is unchecked — by construction there is nothing to
+  check, but it does mean a `Created` parcel drawn wildly out of place is caught
+  by the redline checks (which staged files do not get yet) rather than here.
 - No `featureId` carry-forward for the staged format — `PI Ref` is the natural
   key, and the template's tidy-refs action keeps it unique and stable.
 - **Nothing validates the hand-entered sizes.** A vertical area habitat's `Area`

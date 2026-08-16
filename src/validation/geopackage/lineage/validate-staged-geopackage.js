@@ -14,9 +14,11 @@
 //     post-intervention subtree written by separate uploads; a single staged
 //     file writing both is a schema question, not a validation one.
 
+import { checkContainment } from './containment.js'
 import { deriveLineage } from './derive-lineage.js'
 import {
   stagedMissingBaselineLayerError,
+  stagedPiOutsideParentError,
   stagedSizeMismatchError,
   stagedUnknownParentRefError
 } from './error-builders.js'
@@ -80,11 +82,11 @@ function unknownParentRefs(type, postIntervention, baseline) {
  * @param {import('pg').Pool} pool
  * @param {string} type
  * @param {object} staged output of readStagedGeoPackage
- * @returns {Promise<{ missingBaseline?: string, unknownParents: object[], sizeMismatch?: object }>}
+ * @returns {Promise<{ missingBaseline?: string, unknownParents: object[], outsideParent: object[], sizeMismatch?: object }>}
  */
 async function checkType(pool, type, staged) {
   const postIntervention = staged.postIntervention[type] ?? []
-  const findings = { unknownParents: [] }
+  const findings = { unknownParents: [], outsideParent: [] }
   if (postIntervention.length === 0) {
     return findings
   }
@@ -97,11 +99,15 @@ async function checkType(pool, type, staged) {
 
   findings.unknownParents = unknownParentRefs(type, postIntervention, baseline)
 
-  // Derived even when nothing below consumes it yet: it is what proves the file
-  // is navigable, and it raises anything deriveLineage itself would throw on
-  // (unreadable geometry) here rather than at persistence time.
-  findings.lineage = await deriveLineage(pool, postIntervention, baseline, {
+  const lineage = await deriveLineage(pool, postIntervention, baseline, {
     linear: isLinearMeasure(type)
+  })
+  // checkContainment returns [] for the exempt types, so the policy lives in one
+  // place rather than being re-stated as a condition here.
+  findings.outsideParent = await checkContainment(pool, type, {
+    postIntervention,
+    baseline,
+    lineage
   })
 
   const reconciled = await reconcileSize(pool, type, baseline, postIntervention)
@@ -136,6 +142,11 @@ function buildErrors(perType) {
   const unknownParents = perType.flatMap((findings) => findings.unknownParents)
   if (unknownParents.length > 0) {
     errors.push(stagedUnknownParentRefError(unknownParents))
+  }
+
+  const outsideParent = perType.flatMap((findings) => findings.outsideParent)
+  if (outsideParent.length > 0) {
+    errors.push(stagedPiOutsideParentError(outsideParent))
   }
 
   const sizeMismatches = perType

@@ -17,10 +17,12 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import Database from 'better-sqlite3'
+import { gpkgPolygon } from 'bng-library/gpkg-io'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import pg from 'pg'
 
 import { ERROR_CODES } from '../src/validation/geopackage/errors.js'
+import { EPSG_BNG } from '../src/validation/geopackage/geopackage-constants.js'
 import { validateStagedGeoPackage } from '../src/validation/geopackage/lineage/validate-staged-geopackage.js'
 import { getDbConfig } from './helpers/db.js'
 import { startServer, stopServer } from './helpers/server.js'
@@ -41,6 +43,25 @@ const FIXTURE = path.join(
 const HTTP_OK = 200
 const BUCKET = 'baseline-files'
 const HEDGE_HALF_M = 100
+
+/**
+ * PI parcel PR-1, shifted 10 m west. Translation preserves its area, so the
+ * totals still reconcile and containment is the only thing that fails — which
+ * is what makes the assertion below about containment specifically.
+ * The strip from x=-10 to x=0 is the 1000 sq m that escapes parent PR-1.
+ */
+const SHIFTED_PR1_RING = [
+  [90, 0],
+  [-10, 0],
+  [-10, 100],
+  [90, 100],
+  [90, 75],
+  [65, 75],
+  [65, 25],
+  [90, 25],
+  [90, 0]
+]
+const SHIFTED_PR1_ESCAPE_SQ_M = 1000
 
 const pool = new pg.Pool(getDbConfig())
 
@@ -154,6 +175,27 @@ describe('validateStagedGeoPackage', () => {
       measure: 'length'
     })
     expect(error.details.sample[0].delta).toBeCloseTo(HEDGE_HALF_M, 1)
+  })
+
+  it('rejects a parcel that has strayed outside its stamped parent', async () => {
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Habitats Post-Intervention" SET geom = ? WHERE "PI Ref" = 'PR-1'`
+      ).run(gpkgPolygon(EPSG_BNG, SHIFTED_PR1_RING))
+    })
+
+    expect(result.valid).toBe(false)
+    const error = errorFor(result, ERROR_CODES.STAGED_PI_OUTSIDE_PARENT)
+    expect(error.details.sample[0]).toMatchObject({
+      type: 'areas',
+      pi_ref: 'PR-1',
+      parent_ref: 'PR-1',
+      measure: 'area'
+    })
+    expect(error.details.sample[0].escape_size).toBeCloseTo(
+      SHIFTED_PR1_ESCAPE_SQ_M,
+      1
+    )
   })
 
   it('leaves watercourses alone — realignment is not a mismatch', async () => {
