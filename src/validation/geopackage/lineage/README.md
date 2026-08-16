@@ -86,11 +86,33 @@ coverage gap.
 overlay uses the same grid size and tolerances as the validation overlay — two
 overlays on different grid sizes disagree at the sliver boundary.
 
+## Fixture coverage
+
+`integration-tests/fixtures/staged-baseline-and-pi.gpkg` is a real export from
+the template, exercising all five types on both sides:
+
+| Type           | Scenario                            | Proves                                                                |
+| -------------- | ----------------------------------- | --------------------------------------------------------------------- |
+| Area habitats  | pond straddling two parcels         | geometry apportionment 1250/1250; adjacency does not confer parentage |
+| Vertical areas | wall rebuilt taller, same footprint | reconciles on footprint **length**, not the hand-entered face area    |
+| Hedgerows      | split, half retained half `Lost`    | one parent for both halves; `Lost` keeps the totals balanced          |
+| Watercourses   | re-meandered off the old line       | the exemption is load-bearing — an equal-length rule would reject it  |
+| Trees          | retained, removed, newly planted    | a point inside a parcel inherits nothing from it                      |
+
+Two negative tests earn their keep: dropping the `Lost` hedgerow row makes
+reconciliation fail by exactly the removed 100 m, and stripping the stamped
+parents forces the geometry path and shows each trimmed parcel still resolving
+to exactly one parent.
+
 ## Not done
 
 - Not wired into the upload routes; `readGeoPackage` still handles ingest.
 - Containment is decided by `requiresContainment()` but not yet enforced.
 - No `featureId` carry-forward for the staged format — `PI Ref` is the natural
   key, and the template's tidy-refs action keeps it unique and stable.
-- Trees, vertical areas and hedgerows have policies and name resolution but no
-  fixture coverage yet; only areas and watercourses are exercised end to end.
+- **Nothing validates the hand-entered sizes.** A vertical area habitat's `Area`
+  and a tree's `Count` cannot be derived from geometry, so a wrong value passes
+  every check here. Reconciliation catches a changed _footprint_, not a wrong
+  face area. These need present/numeric/positive validation of their own, and
+  possibly a plausibility bound (an `Area` implying an absurd wall height when
+  divided by the footprint length).

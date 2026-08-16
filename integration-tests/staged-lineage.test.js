@@ -30,6 +30,9 @@ const POND_AREA_SQ_M = 2500
 const PARCEL_AREA_SQ_M = 10_000
 const SHARE_EACH_SQ_M = 1250
 const TOLERANCE_SQ_M = 0.5
+const VERTICAL_FOOTPRINT_M = 50
+const HEDGE_TOTAL_M = 200
+const HEDGE_HALF_M = 100
 
 const pool = new pg.Pool(getDbConfig())
 let staged
@@ -213,6 +216,192 @@ describe('reconciliation is per habitat type', () => {
   it('every habitat type has a policy', () => {
     for (const type of Object.values(HABITAT_TYPES)) {
       expect(RECONCILIATION_POLICY[type]).toBeDefined()
+    }
+  })
+})
+
+describe('vertical area habitats', () => {
+  it('reads as a line with a hand-entered Area', () => {
+    const base = staged.baseline[HABITAT_TYPES.VERTICAL_AREAS]
+    const pi = staged.postIntervention[HABITAT_TYPES.VERTICAL_AREAS]
+    expect(base).toHaveLength(1)
+    expect(pi).toHaveLength(1)
+    expect(base[0].geometry.type).toBe('LineString')
+    expect(pi[0].retentionCategory).toBe('Enhanced')
+  })
+
+  it('reconciles on footprint length, not on the recorded face area', async () => {
+    // The wall is rebuilt taller: same 50 m footprint, Area 150 -> 250 m².
+    // Reconciliation must compare the footprint, or every heightened wall fails.
+    const base = staged.baseline[HABITAT_TYPES.VERTICAL_AREAS]
+    const pi = staged.postIntervention[HABITAT_TYPES.VERTICAL_AREAS]
+    expect(base[0].properties.Area).toBe(150)
+    expect(pi[0].properties.Area).toBe(250)
+
+    const result = await reconcileSize(
+      pool,
+      HABITAT_TYPES.VERTICAL_AREAS,
+      base,
+      pi
+    )
+    expect(result.checked).toBe(true)
+    expect(result.measure).toBe('length')
+    expect(result.baselineTotal).toBeCloseTo(VERTICAL_FOOTPRINT_M, 1)
+    expect(result.piTotal).toBeCloseTo(VERTICAL_FOOTPRINT_M, 1)
+    expect(result.withinTolerance).toBe(true)
+  })
+
+  it('keeps its stamped parent', async () => {
+    const result = await deriveLineage(
+      pool,
+      staged.postIntervention[HABITAT_TYPES.VERTICAL_AREAS],
+      staged.baseline[HABITAT_TYPES.VERTICAL_AREAS],
+      { linear: true }
+    )
+    expect(result[0].source).toBe('stamped')
+    expect(result[0].parents[0].ref).toBe('VAH-1')
+  })
+})
+
+describe('hedgerows', () => {
+  it('both halves of the split share one parent', async () => {
+    const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
+    expect(pi).toHaveLength(2)
+    // tidy-refs has made the PI refs unique while the parent stays shared
+    expect(pi.map((f) => f.piRef).sort()).toEqual(['HR-1a', 'HR-1b'])
+    expect(pi.every((f) => f.parentRef === 'HR-1')).toBe(true)
+
+    const result = await deriveLineage(
+      pool,
+      pi,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      { linear: true }
+    )
+    expect(result.every((r) => r.source === 'stamped')).toBe(true)
+    expect(result.every((r) => r.parents[0].ref === 'HR-1')).toBe(true)
+  })
+
+  it('resolves parentage by shared LENGTH when the stamp is absent', async () => {
+    // exercises the linear geometry path, which the area fixture cannot reach
+    const unstamped = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].map(
+      (f) => ({ ...f, parentRef: null })
+    )
+    const result = await deriveLineage(
+      pool,
+      unstamped,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      { linear: true }
+    )
+    expect(result.every((r) => r.source === 'geometry')).toBe(true)
+    for (const entry of result) {
+      expect(entry.parents).toHaveLength(1)
+      expect(entry.parents[0].ref).toBe('HR-1')
+      expect(entry.parents[0].sharedSize).toBeCloseTo(HEDGE_HALF_M, 1)
+    }
+  })
+
+  it('counts the Lost half towards the total, so lengths balance', async () => {
+    const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
+    expect(pi.filter((f) => f.retentionCategory === 'Lost')).toHaveLength(1)
+
+    const result = await reconcileSize(
+      pool,
+      HABITAT_TYPES.HEDGEROWS,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      pi
+    )
+    expect(result.checked).toBe(true)
+    expect(result.baselineTotal).toBeCloseTo(HEDGE_TOTAL_M, 1)
+    expect(result.piTotal).toBeCloseTo(HEDGE_TOTAL_M, 1)
+    expect(result.withinTolerance).toBe(true)
+  })
+
+  it('would NOT balance if Lost rows were dropped', async () => {
+    // guards the decision to keep Lost rows rather than delete them
+    const surviving = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].filter(
+      (f) => f.retentionCategory !== 'Lost'
+    )
+    const result = await reconcileSize(
+      pool,
+      HABITAT_TYPES.HEDGEROWS,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      surviving
+    )
+    expect(result.withinTolerance).toBe(false)
+    expect(result.delta).toBeCloseTo(HEDGE_HALF_M, 1)
+  })
+})
+
+describe('trees', () => {
+  it('reads as points, with the planted one parentless', () => {
+    const pi = staged.postIntervention[HABITAT_TYPES.TREES]
+    expect(staged.baseline[HABITAT_TYPES.TREES]).toHaveLength(2)
+    expect(pi).toHaveLength(3)
+    expect(pi.every((f) => f.geometry.type === 'Point')).toBe(true)
+
+    const planted = pi.find((f) => f.retentionCategory === 'Created')
+    expect(planted.piRef).toBe('T-NEW-1')
+    expect(planted.parentRef).toBeNull()
+  })
+
+  it('a planted tree standing inside a habitat parcel gains no parent from it', async () => {
+    // T-NEW-1 sits inside PR-1's footprint. Points have no extent, so there is
+    // nothing to apportion — it must stay parentless rather than inherit the
+    // polygon it happens to fall in.
+    const result = await deriveLineage(
+      pool,
+      staged.postIntervention[HABITAT_TYPES.TREES],
+      staged.baseline[HABITAT_TYPES.TREES]
+    )
+    const planted = result.find((r) => r.piRef === 'T-NEW-1')
+    expect(planted.source).toBe('none')
+    expect(planted.parents).toEqual([])
+  })
+
+  it('retained and removed trees keep their stamped parents', async () => {
+    const result = await deriveLineage(
+      pool,
+      staged.postIntervention[HABITAT_TYPES.TREES],
+      staged.baseline[HABITAT_TYPES.TREES]
+    )
+    const stamped = result.filter((r) => r.source === 'stamped')
+    expect(stamped.map((r) => r.parents[0].ref).sort()).toEqual(['T-1', 'T-2'])
+  })
+
+  it('is exempt from size reconciliation — points have no extent', async () => {
+    const result = await reconcileSize(
+      pool,
+      HABITAT_TYPES.TREES,
+      staged.baseline[HABITAT_TYPES.TREES],
+      staged.postIntervention[HABITAT_TYPES.TREES]
+    )
+    expect(result.checked).toBe(false)
+    expect(result.reason).toMatch(/no extent/i)
+  })
+})
+
+describe('the whole file', () => {
+  it('carries all five habitat types on both sides', () => {
+    for (const type of Object.values(HABITAT_TYPES)) {
+      expect(staged.baseline[type], `baseline ${type}`).toBeDefined()
+      expect(staged.postIntervention[type], `PI ${type}`).toBeDefined()
+    }
+  })
+
+  it('every post-intervention feature has a retention category', () => {
+    for (const features of Object.values(staged.postIntervention)) {
+      for (const feature of features) {
+        expect(feature.retentionCategory).toBeTruthy()
+      }
+    }
+  })
+
+  it('every stamped parent resolves to a real baseline feature', () => {
+    for (const [type, features] of Object.entries(staged.postIntervention)) {
+      const refs = new Set(staged.baseline[type].map((f) => f.ref))
+      for (const feature of features.filter((f) => f.parentRef)) {
+        expect(refs, `${type}/${feature.piRef}`).toContain(feature.parentRef)
+      }
     }
   })
 })
