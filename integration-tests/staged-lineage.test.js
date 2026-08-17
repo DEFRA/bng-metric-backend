@@ -300,9 +300,15 @@ describe('hedgerows', () => {
     }
   })
 
-  it('counts the Lost half towards the total, so lengths balance', async () => {
+  it('counts the built-over half towards the total, so lengths balance', async () => {
     const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
-    expect(pi.filter((f) => f.retentionCategory === 'Lost')).toHaveLength(1)
+    // HR-1b is the half of the split that was built over. The Statutory
+    // Metric records that as `Created` (development creates the new surface),
+    // so what marks it as built-over rather than genuinely new habitat is its
+    // stamped parent, not its retention category.
+    const builtOver = pi.find((f) => f.piRef === 'HR-1b')
+    expect(builtOver.retentionCategory).toBe('Created')
+    expect(builtOver.parentRef).toBe('HR-1')
 
     const result = await reconcileSize(
       pool,
@@ -316,10 +322,12 @@ describe('hedgerows', () => {
     expect(result.withinTolerance).toBe(true)
   })
 
-  it('would NOT balance if Lost rows were dropped', async () => {
-    // guards the decision to keep Lost rows rather than delete them
+  it('would NOT balance if the built-over half were dropped', async () => {
+    // guards the decision to keep built-over rows rather than delete them —
+    // HR-1b identified by ref, because its `Created` category is shared with
+    // genuinely new habitat and cannot single it out
     const surviving = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].filter(
-      (f) => f.retentionCategory !== 'Lost'
+      (f) => f.piRef !== 'HR-1b'
     )
     const result = await reconcileSize(
       pool,
@@ -339,9 +347,17 @@ describe('trees', () => {
     expect(pi).toHaveLength(3)
     expect(pi.every((f) => f.geometry.type === 'Point')).toBe(true)
 
-    const planted = pi.find((f) => f.retentionCategory === 'Created')
-    expect(planted.piRef).toBe('T-NEW-1')
+    // Both the removed tree and the planted one read `Created` — the
+    // Statutory Metric records built-over ground as creating the new surface.
+    // Only the stamped parent tells them apart: the removed tree keeps its
+    // parent, the genuinely new one has none.
+    const planted = pi.find((f) => f.piRef === 'T-NEW-1')
+    expect(planted.retentionCategory).toBe('Created')
     expect(planted.parentRef).toBeNull()
+
+    const removed = pi.find((f) => f.piRef === 'T-2')
+    expect(removed.retentionCategory).toBe('Created')
+    expect(removed.parentRef).toBe('T-2')
   })
 
   it('a planted tree standing inside a habitat parcel gains no parent from it', async () => {

@@ -15,9 +15,12 @@
 //                     intervention. Only red-line containment applies.
 //   Trees             NEITHER. Points have no extent and no containment.
 //
-// `Lost` rows count towards the totals. They are the record that a piece of
-// ground was accounted for; dropping them would make a fully developed site
-// look like it had a coverage gap.
+// Built-over ground counts towards the totals. Following the Statutory
+// Metric, the template records it as `Created` — developing a parcel creates
+// the new surface (developed land / sealed surface) — so a `Created` row with
+// a stamped parent is the record that a piece of ground was accounted for;
+// dropping it would make a fully developed site look like it had a coverage
+// gap.
 
 import { HABITAT_TYPES } from './staged-layer-names.js'
 import {

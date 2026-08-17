@@ -159,12 +159,14 @@ describe('validateStagedGeoPackage', () => {
   })
 
   it('rejects totals that no longer balance', async () => {
-    // Deleting the `Lost` half of the split hedgerow is the exact scenario the
-    // "Lost rows count towards the totals" decision exists for: the ground is
-    // still accounted for, so removing the row opens a 100 m hole.
+    // Deleting the built-over half of the split hedgerow (HR-1b — recorded as
+    // `Created` per the Statutory Metric, marked as built-over by its stamped
+    // parent) is the exact scenario the "built-over ground counts towards the
+    // totals" decision exists for: the ground is still accounted for, so
+    // removing the row opens a 100 m hole.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `DELETE FROM "Hedgerows Post-Intervention" WHERE "Retention Category" = 'Lost'`
+        `DELETE FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1b'`
       ).run()
     })
 

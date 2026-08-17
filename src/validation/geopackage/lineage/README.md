@@ -36,8 +36,11 @@ Two sources, in order:
    verbatim through a split, so every parcel later derived by splitting keeps
    the correct parent with no geometric inference. This covers the common case.
 2. **Geometry**, only for rows with no stamped parent — parcels drawn fresh,
-   which are `Created` and need no parent for their units. The apportionment
-   matters for area reconciliation, not for the calculation.
+   which need no parent for their units. (They are `Created`, but the converse
+   does not hold: built-over ground is also `Created` — the Statutory Metric
+   treats development as creating the new surface — and keeps its stamped
+   parent. The stamp, not the category, decides.) The apportionment matters
+   for area reconciliation, not for the calculation.
 
 ### The trap worth knowing about
 
@@ -62,21 +65,25 @@ mis-attribute essentially every parcel, plausibly enough to go unnoticed.
 Established by prototyping each type in QGIS. Applying one rule everywhere
 would reject legitimate work.
 
-| Type                   | Totals must match  | PI within baseline | Enforce       |
-| ---------------------- | ------------------ | ------------------ | ------------- |
-| Area habitats          | yes                | yes                | both          |
-| Vertical area habitats | yes                | yes                | both          |
-| Hedgerows              | yes (incl. `Lost`) | yes                | both          |
-| **Watercourses**       | **no**             | **no**             | red line only |
-| Trees                  | n/a (counts)       | n/a (points)       | red line only |
+| Type                   | Totals must match                | PI within baseline | Enforce       |
+| ---------------------- | -------------------------------- | ------------------ | ------------- |
+| Area habitats          | yes                              | yes                | both          |
+| Vertical area habitats | yes                              | yes                | both          |
+| Hedgerows              | yes (incl. built-over `Created`) | yes                | both          |
+| **Watercourses**       | **no**                           | **no**             | red line only |
+| Trees                  | n/a (counts)                     | n/a (points)       | red line only |
 
 Watercourses are the exception that matters: re-meandering a straightened
 channel moves it off the old line and makes it longer. It is a headline BNG
 intervention with its own layer in the NE template, and an equal-length or
 containment rule would reject every instance of it.
 
-`Lost` rows count towards the totals. They are the record that a piece of ground
-was accounted for; dropping them makes a fully developed site look like it has a
+Built-over ground counts towards the totals. Following the Statutory Metric,
+the template records it as `Created` — developing a parcel _creates_ the new
+surface (developed land / sealed surface) — so it is distinguished from
+genuinely new habitat not by its retention category but by its stamped
+`Parent Ref`. Either way the row is the record that a piece of ground was
+accounted for; dropping it makes a fully developed site look like it has a
 coverage gap.
 
 ## Containment
@@ -190,21 +197,21 @@ and the feature picks up a plausible-looking parent it never had.
 `integration-tests/fixtures/staged-baseline-and-pi.gpkg` is a real export from
 the template, exercising all five types on both sides:
 
-| Type           | Scenario                            | Proves                                                                |
-| -------------- | ----------------------------------- | --------------------------------------------------------------------- |
-| Area habitats  | pond straddling two parcels         | geometry apportionment 1250/1250; adjacency does not confer parentage |
-| Vertical areas | wall rebuilt taller, same footprint | reconciles on footprint **length**, not the hand-entered face area    |
-| Hedgerows      | split, half retained half `Lost`    | one parent for both halves; `Lost` keeps the totals balanced          |
-| Watercourses   | re-meandered off the old line       | the exemption is load-bearing — an equal-length rule would reject it  |
-| Trees          | retained, removed, newly planted    | a point inside a parcel inherits nothing from it                      |
+| Type           | Scenario                                         | Proves                                                                    |
+| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
+| Area habitats  | pond straddling two parcels                      | geometry apportionment 1250/1250; adjacency does not confer parentage     |
+| Vertical areas | wall rebuilt taller, same footprint              | reconciles on footprint **length**, not the hand-entered face area        |
+| Hedgerows      | split, half retained half built over (`Created`) | one parent for both halves; the built-over half keeps the totals balanced |
+| Watercourses   | re-meandered off the old line                    | the exemption is load-bearing — an equal-length rule would reject it      |
+| Trees          | retained, removed, newly planted                 | a point inside a parcel inherits nothing from it                          |
 
-Two negative tests earn their keep: dropping the `Lost` hedgerow row makes
+Two negative tests earn their keep: dropping the built-over hedgerow row makes
 reconciliation fail by exactly the removed 100 m, and stripping the stamped
 parents forces the geometry path and shows each trimmed parcel still resolving
 to exactly one parent.
 
 `staged-validation.test.js` breaks a throwaway copy of the same fixture four
-ways — dangling parent ref, missing baseline layer, deleted `Lost` row, and PI
+ways — dangling parent ref, missing baseline layer, deleted built-over row, and PI
 parcel PR-1 shifted 10 m west. The shift is a translation, so the area is
 unchanged and the totals still reconcile: containment is the only thing that
 fails, which is what makes the assertion about containment rather than about

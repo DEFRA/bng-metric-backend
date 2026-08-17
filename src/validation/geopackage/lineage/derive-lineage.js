@@ -8,7 +8,10 @@
 //     keeps the correct parent with no geometry involved. Trust it.
 //
 //  2. Geometry, only for rows with no stamped parent — parcels a surveyor drew
-//     fresh, which are Created and therefore need no parent for their units.
+//     fresh, which need no parent for their units. (They are Created, but the
+//     converse does not hold: built-over ground is also recorded as Created —
+//     the Statutory Metric treats development as creating the new surface —
+//     and keeps its stamped parent. The stamp, not the category, decides.)
 //     Here the apportionment matters for area reconciliation, not the metric.
 //
 // The geometry rule is AREA-WEIGHTED INTERSECTION, never a bare ST_Intersects.
