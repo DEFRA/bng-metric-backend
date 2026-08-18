@@ -267,4 +267,80 @@ async function persistUpload(
   )
 }
 
-export { persistUpload, FEATURE_TABLE_SETS }
+/** Label used in logs and the concurrent-upload 409 for staged uploads. */
+const STAGED_UPLOAD_LABEL = 'staged'
+
+/**
+ * Persist BOTH document subtrees and BOTH geometry-table sets from a single
+ * staged GeoPackage in ONE transaction: if either stage fails, neither is
+ * written. Holds the same project row lock (and therefore the same
+ * concurrent-upload 409 semantics) as the single-stage path.
+ *
+ * Ordering inside the transaction matters: setProjectBaseline strips the
+ * stored postIntervention subtree (a baseline replacement invalidates any
+ * previously stored post-intervention), so the post-intervention subtree must
+ * be written after it.
+ *
+ * Vertical area habitats live only in the JSONB documents — no PostGIS table
+ * exists for them yet — so persistGeometryLayers ignores their geometry rows.
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
+ * @param {string} projectId
+ * @param {{ baseline: { document: object, geometries: object }, postIntervention: { document: object, geometries: object } }} stages
+ * @param {{ uploadId: string, logger: { info: (msg: string) => void }, credentials: { sub: string } }} context
+ */
+async function persistStagedUpload(
+  drizzle,
+  projectId,
+  stages,
+  { uploadId, logger, credentials }
+) {
+  try {
+    await drizzle.transaction(async (tx) => {
+      await tx.execute(
+        sql.raw(`SET LOCAL lock_timeout = '${PERSIST_LOCK_TIMEOUT}'`)
+      )
+      await assertProjectExistsForUpdate(tx, projectId, credentials)
+      // The 'baseline' delete wipes the post-intervention feature rows too.
+      await deleteReplacedFeatureRows(
+        tx,
+        projectId,
+        'baseline',
+        FEATURE_TABLE_SETS.baseline
+      )
+      await persistGeometryLayers(
+        tx,
+        projectId,
+        stages.baseline.geometries,
+        FEATURE_TABLE_SETS.baseline
+      )
+      await persistGeometryLayers(
+        tx,
+        projectId,
+        stages.postIntervention.geometries,
+        FEATURE_TABLE_SETS.postIntervention
+      )
+      await setProjectBaseline(
+        tx,
+        projectId,
+        stages.baseline.document,
+        credentials.sub
+      )
+      await setProjectHabitatData(
+        tx,
+        projectId,
+        stages.postIntervention.document,
+        credentials.sub,
+        'postIntervention'
+      )
+    })
+  } catch (err) {
+    rethrowPersistError(err, STAGED_UPLOAD_LABEL)
+  }
+
+  logger.info(
+    `${STAGED_UPLOAD_LABEL}: persisted baseline + post-intervention for projectId ${projectId} from uploadId ${uploadId}`
+  )
+}
+
+export { persistUpload, persistStagedUpload, FEATURE_TABLE_SETS }

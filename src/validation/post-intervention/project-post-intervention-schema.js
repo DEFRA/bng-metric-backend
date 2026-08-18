@@ -234,6 +234,80 @@ const postInterventionHabitatSchema = Joi.object({
   'A post-intervention area (polygon) habitat parcel with nested baseline and proposed sub-objects.'
 )
 
+// A post-intervention vertical area habitat (green wall / intertidal
+// structure), staged uploads only. An area habitat in the metric, so it reuses
+// the parcel schema verbatim — but it is drawn as a LINESTRING and its
+// unit-bearing size is the hand-entered face Area (m²) column, so the size
+// fields are re-described and there is no geometry table to join to.
+const postInterventionVerticalAreaSchema = postInterventionHabitatSchema
+  .append({
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        'Stable UUID for the vertical area habitat. No PostGIS geometry table exists for this layer yet, so the id keys the JSONB document only; it is still carried forward on re-upload whenever the PI Ref is unchanged.'
+      ),
+    area: Joi.number()
+      .allow(null)
+      .description(
+        'Hand-entered face area in square metres (Area column), rounded. Vertical area habitats are drawn as lines; this column — not the geometry — is the value fed to the unit calculation.'
+      ),
+    sizeSquareMetres: Joi.number()
+      .allow(null)
+      .description(
+        'Hand-entered face area in square metres, exactly as written in the GeoPackage Area column.'
+      ),
+    properties: Joi.object()
+      .unknown(true)
+      .description(
+        'Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats Post-Intervention layer.'
+      )
+  })
+  .description(
+    'A post-intervention vertical area habitat (green wall / intertidal structure): drawn as a line, sized by its hand-entered face area. Present only on documents imported from a staged GeoPackage.'
+  )
+
+// ──────────────────────────────────────────────────────────────────────────────
+// Removed habitats (staged reconciliation report)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const REMOVED_HABITAT_TYPES = Object.freeze([
+  'areas',
+  'verticalAreas',
+  'hedgerows',
+  'watercourses',
+  'trees'
+])
+const REMOVED_HABITAT_MEASURES = Object.freeze(['area', 'length', 'count'])
+
+const removedHabitatSchema = Joi.object({
+  type: Joi.string()
+    .valid(...REMOVED_HABITAT_TYPES)
+    .required()
+    .description('Habitat type of the removed baseline feature.'),
+  parentRef: Joi.string()
+    .required()
+    .description(
+      'Reference of the baseline feature (Parcel Ref / Tree Ref) that has no post-intervention continuation.'
+    ),
+  measure: Joi.string()
+    .valid(...REMOVED_HABITAT_MEASURES)
+    .required()
+    .description(
+      "Dimension the sizes are quoted in: 'area' (m²), 'length' (m), or 'count' (trees)."
+    ),
+  baselineSize: Joi.number()
+    .required()
+    .description('Total baseline size of the parent feature, in the measure.'),
+  removedSize: Joi.number()
+    .required()
+    .description(
+      'Baseline size with no post-intervention continuation — what the calculation treats as removed, in the measure.'
+    )
+}).description(
+  'One baseline feature (or part of one) recorded as removed by absence: no post-intervention row continues it.'
+)
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Individual tree sub-schemas
 // ──────────────────────────────────────────────────────────────────────────────
@@ -428,6 +502,11 @@ const postInterventionDataSchema = Joi.object({
   trees: Joi.array()
     .items(postInterventionTreeSchema)
     .description('Post-intervention individual tree (point) features.'),
+  verticalAreas: Joi.array()
+    .items(postInterventionVerticalAreaSchema)
+    .description(
+      'Post-intervention vertical area habitats (green walls / intertidal structures). Present only when imported from a staged GeoPackage.'
+    ),
   hedgerows: Joi.array()
     .items(postInterventionLinearHabitatSchema)
     .description('Post-intervention hedgerow (linear) features.'),
@@ -435,7 +514,12 @@ const postInterventionDataSchema = Joi.object({
     .items(postInterventionWatercourseSchema)
     .description('Post-intervention watercourse (linear) features.'),
   habitatSizes: habitatSizesSummarySchema,
-  units: baselineUnitsTotalsSchema
+  units: baselineUnitsTotalsSchema,
+  removedHabitats: Joi.array()
+    .items(removedHabitatSchema)
+    .description(
+      'Per-parent removal report from staged reconciliation (removal-by-absence): baseline features with no post-intervention continuation. Written only by the staged upload path, from the same reconcileParents report the STAGED_FEATURES_REMOVED warning samples. Empty array when a staged upload removed nothing; absent on documents written by the legacy single-stage upload.'
+    )
 }).description(
   'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes and unit totals.'
 )
@@ -444,6 +528,8 @@ export {
   postInterventionDataSchema,
   postInterventionHabitatSchema,
   postInterventionTreeSchema,
+  postInterventionVerticalAreaSchema,
   postInterventionLinearHabitatSchema,
-  postInterventionWatercourseSchema
+  postInterventionWatercourseSchema,
+  removedHabitatSchema
 }

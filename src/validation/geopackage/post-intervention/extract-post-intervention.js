@@ -11,7 +11,8 @@ import {
 import {
   splitFeatures,
   embedPostInterventionHabitatSizes,
-  buildExtractResult
+  buildExtractResult,
+  areaFromSizeSquareMetres
 } from '../extract-shared.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import { isLostRetentionCategory } from '../../../utilities/enrichment/post-intervention/retention-category.js'
@@ -127,6 +128,32 @@ function buildPostInterventionHedgerow(feature) {
     postInterventionHedgerowStatus,
     RETAINED_HEDGEROW_PROPOSED_FIELDS
   )
+}
+
+/**
+ * The hand-entered face area (m²) of a vertical area habitat, mirroring the
+ * baseline extract: the geometry is a LINESTRING, so the Area column is the
+ * unit-bearing size and PostGIS sizing never applies.
+ *
+ * @param {object} props
+ * @returns {number | null}
+ */
+function verticalAreaFaceSquareMetres(props) {
+  const raw = pickProp(props, PROP_KEYS.area)
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
+/**
+ * A post-intervention vertical area habitat takes the area-parcel document
+ * shape, with the size stamped from the hand-entered Area column.
+ */
+function buildPostInterventionVerticalArea(feature) {
+  const built = buildPostInterventionHabitat(feature)
+  const faceArea = verticalAreaFaceSquareMetres(feature.properties ?? {})
+  built.document.sizeSquareMetres = faceArea
+  built.document.area = areaFromSizeSquareMetres(faceArea)
+  return built
 }
 
 function normaliseEncroachmentField(value) {
@@ -290,7 +317,17 @@ export function extractPostIntervention(layers, meta = {}) {
   const trees = splitFeatures(filteredLayers.trees ?? [], (feature) =>
     buildPostInterventionTree(feature, initParsedFeature, buildGeometryRow)
   )
+  // Only staged GeoPackages carry this layer; single-stage documents keep
+  // their exact historical shape (buildExtractResult omits the key when null).
+  const verticalAreas = filteredLayers.verticalAreas
+    ? splitFeatures(
+        filteredLayers.verticalAreas,
+        buildPostInterventionVerticalArea
+      )
+    : null
 
+  // Vertical area habitats are excluded from the PostGIS size embedding:
+  // their size is the hand-entered Area column, already stamped at build time.
   const habitatSizesSummary = meta.habitatSizes
     ? embedPostInterventionHabitatSizes(
         { habitats, hedgerows, watercourses, trees },
@@ -300,7 +337,7 @@ export function extractPostIntervention(layers, meta = {}) {
 
   return buildExtractResult(
     meta,
-    { redLine, habitats, hedgerows, watercourses, trees },
+    { redLine, habitats, hedgerows, watercourses, trees, verticalAreas },
     habitatSizesSummary
   )
 }

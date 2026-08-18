@@ -14,9 +14,34 @@ import {
   NO_OP_LOGGER,
   enrichCollectionIfNonEmpty
 } from '../shared/enrich-units-shared.js'
+import { verticalAreaFaceAreaMissing } from '../shared/vertical-area-units.js'
 import { enrichPostInterventionAreaHabitat } from './enrich-post-intervention-area-habitat.js'
 import { enrichPostInterventionHedgerowWithUnits } from './enrich-post-intervention-hedgerow.js'
 import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-intervention-watercourse.js'
+import {
+  LOG_ENRICH_PI_PREFIX,
+  finalizePostInterventionFeatureStatus
+} from './enrich-post-intervention-shared.js'
+
+/**
+ * Enrich a post-intervention vertical area habitat. Same dispatch and engine
+ * reference data as an area parcel, but the size is the hand-entered face
+ * Area (m²) stamped at extract time — a row with no usable Area yields no
+ * units and a logged note, never a crash.
+ *
+ * @param {object} verticalArea
+ * @param {{ warn: (msg: string) => void }} logger
+ */
+function enrichPostInterventionVerticalArea(verticalArea, logger) {
+  if (verticalAreaFaceAreaMissing(verticalArea, logger, LOG_ENRICH_PI_PREFIX)) {
+    // Mirrors the baseline enricher: the face area is user-entered data, so a
+    // row without it is an incomplete record, not a measurement gap. The
+    // shared finalizer stamps Incomplete because no units were calculated.
+    finalizePostInterventionFeatureStatus(verticalArea)
+    return
+  }
+  enrichPostInterventionAreaHabitat(verticalArea, logger)
+}
 
 /**
  * Mutates `postInterventionDocument`: for each feature, enriches the `proposed`
@@ -52,6 +77,13 @@ export function enrichPostInterventionDocumentWithUnits(
     postInterventionDocument?.trees,
     (tree, log) =>
       enrichPostInterventionAreaHabitat(tree, log, 'Individual tree'),
+    logger
+  )
+  // Vertical area habitats (staged uploads only): area-habitat dispatch, sized
+  // by the hand-entered face Area rather than geometry.
+  enrichCollectionIfNonEmpty(
+    postInterventionDocument?.verticalAreas,
+    enrichPostInterventionVerticalArea,
     logger
   )
   if (

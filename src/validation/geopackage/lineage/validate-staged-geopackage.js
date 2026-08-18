@@ -3,16 +3,16 @@
 // habitat type, and reconciles, returning the same `{ valid, errors }` shape
 // the single-stage path returns so the route needs no second response format.
 //
-// What this does NOT do yet, deliberately:
+// What this does NOT do yet, deliberately: it does not run the PostGIS
+// geometry suite (redline containment, parcel overlaps, area sums) against the
+// staged tables. readStagedGeoPackage now carries a per-feature SRID, so the
+// blocker is gone, but adapting the suite is a separate piece of work; until
+// then a staged file gets lineage checks only. See ./README.md.
 //
-//   * It does not run the PostGIS geometry suite (redline containment, parcel
-//     overlaps, area sums). That suite reads `readGeoPackage`'s feature shape,
-//     including a native SRID per feature, which readStagedGeoPackage does not
-//     carry. Adapting it is a separate piece of work; until then a staged file
-//     gets lineage checks only. See ./README.md.
-//   * It does not persist. The stored document has one baseline subtree and one
-//     post-intervention subtree written by separate uploads; a single staged
-//     file writing both is a schema question, not a validation one.
+// Persistence is NOT this module's job either — but it feeds it: the route
+// hands the returned `staged` read and `removed` report to
+// services/upload/save-staged-upload-for-project.js, which persists BOTH
+// subtrees from the one file.
 
 import { checkContainment } from './containment.js'
 import { deriveLineage } from './derive-lineage.js'
@@ -301,9 +301,15 @@ function buildWarnings(perType) {
 /**
  * Validate a staged GeoPackage.
  *
+ * The returned `removed` array is reconcileParents' full per-parent removal
+ * report across all types — the same entries the STAGED_FEATURES_REMOVED
+ * warning samples from, but uncapped. The persistence path maps it onto the
+ * post-intervention document's `removedHabitats` so the report is computed
+ * exactly once.
+ *
  * @param {string} filePath path to the .gpkg on local disk
  * @param {import('pg').Pool} pool
- * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, warnings: Array<{ code: string, message: string, details?: object }>, staged: object }>}
+ * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, warnings: Array<{ code: string, message: string, details?: object }>, staged: object, removed: Array<{ type: string, parent_ref: string, measure: string, baseline_size: number, pi_size: number, removed_size: number }> }>}
  */
 export async function validateStagedGeoPackage(filePath, pool) {
   if (!pool) {
@@ -320,5 +326,6 @@ export async function validateStagedGeoPackage(filePath, pool) {
 
   const errors = buildErrors(perType)
   const warnings = buildWarnings(perType)
-  return { valid: errors.length === 0, errors, warnings, staged }
+  const removed = perType.flatMap((findings) => findings.removed)
+  return { valid: errors.length === 0, errors, warnings, staged, removed }
 }

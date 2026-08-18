@@ -18,6 +18,7 @@ import {
   NO_OP_LOGGER,
   enrichCollectionIfNonEmpty
 } from '../shared/enrich-units-shared.js'
+import { verticalAreaFaceAreaMissing } from '../shared/vertical-area-units.js'
 
 /**
  * @param {object} feature
@@ -113,6 +114,27 @@ function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
 }
 
 /**
+ * Enrich a vertical area habitat with baseline units. The calculation is the
+ * ordinary area-habitat one — the same engine reference data resolves the
+ * distinctiveness and condition scores — but the size is the hand-entered face
+ * Area (m²), stamped onto `area` at extract time. A row with no usable Area
+ * yields no units and a logged note, never a crash.
+ *
+ * @param {object} verticalArea
+ * @param {{ warn: (msg: string) => void }} [logger]
+ */
+function enrichVerticalAreaWithUnits(verticalArea, logger = NO_OP_LOGGER) {
+  if (verticalAreaFaceAreaMissing(verticalArea, logger, LOG_ENRICH_PREFIX)) {
+    // Unlike a parcel, whose area is always measured by PostGIS, the face
+    // area is user-entered data — a row without it is an incomplete record,
+    // not a measurement gap.
+    verticalArea.status = HABITAT_STATUS.INCOMPLETE
+    return
+  }
+  enrichHabitatParcelWithUnits(verticalArea, logger)
+}
+
+/**
  * Enrich a hedgerow or watercourse feature with baseline units from the engine.
  *
  * @param {object} feature
@@ -197,6 +219,13 @@ export function enrichBaselineDocumentWithUnits(
   enrichCollectionIfNonEmpty(
     baselineDocument?.trees,
     enrichHabitatParcelWithUnits,
+    logger
+  )
+  // Vertical area habitats (staged uploads only) are also area habitats, sized
+  // by their hand-entered face Area rather than geometry.
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.verticalAreas,
+    enrichVerticalAreaWithUnits,
     logger
   )
 

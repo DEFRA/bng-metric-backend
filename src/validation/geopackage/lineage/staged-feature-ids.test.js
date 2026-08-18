@@ -121,9 +121,78 @@ describe('assignStagedFeatureIds against a stored document', () => {
 
     const lookup = buildStagedFeatureIdByRef(stored)
 
-    expect(
-      lookup.has(stagedLookupKey(STAGE.BASELINE, HABITAT_TYPES.AREAS, 'PR-1'))
-    ).toBe(false)
+    const baselineAreaKeys = [...lookup.keys()].filter((key) =>
+      key.startsWith(stagedLookupKey(STAGE.BASELINE, HABITAT_TYPES.AREAS, ''))
+    )
+    expect(baselineAreaKeys).toEqual([])
+  })
+
+  it('keeps a baseline feature keyed by feature_uuid when its ref is renamed', () => {
+    // Refs are cosmetic since the uuid columns landed: renaming a parcel must
+    // not re-key it. The uuid, not the ref, is the baseline natural key.
+    const withUuid = () =>
+      makeStaged({
+        baseline: {
+          [HABITAT_TYPES.AREAS]: [
+            { ref: 'PR-1', featureUuid: '26002853-cb9b-40e9-9460-3c8dbd3bd928' }
+          ]
+        },
+        postIntervention: { [HABITAT_TYPES.AREAS]: [] }
+      })
+    const stored = assignStagedFeatureIds(withUuid())
+    const renamed = withUuid()
+    renamed.baseline[HABITAT_TYPES.AREAS][0].ref = 'PR-1-renamed'
+
+    const again = assignStagedFeatureIds(
+      renamed,
+      buildStagedFeatureIdByRef(stored)
+    )
+
+    expect(again.baseline[HABITAT_TYPES.AREAS][0].featureId).toBe(
+      stored.baseline[HABITAT_TYPES.AREAS][0].featureId
+    )
+  })
+
+  it('never cross-matches a uuid-keyed store against a ref-only file', () => {
+    // A file that lost its uuid columns (edited outside the template) matches
+    // nothing — conservative fresh ids, never a wrong carry-forward.
+    const stored = assignStagedFeatureIds(
+      makeStaged({
+        baseline: {
+          [HABITAT_TYPES.AREAS]: [
+            { ref: 'PR-1', featureUuid: '26002853-cb9b-40e9-9460-3c8dbd3bd928' }
+          ]
+        },
+        postIntervention: { [HABITAT_TYPES.AREAS]: [] }
+      })
+    )
+    const refOnly = makeStaged({
+      baseline: { [HABITAT_TYPES.AREAS]: [{ ref: 'PR-1' }] },
+      postIntervention: { [HABITAT_TYPES.AREAS]: [] }
+    })
+
+    const again = assignStagedFeatureIds(
+      refOnly,
+      buildStagedFeatureIdByRef(stored)
+    )
+
+    expect(again.baseline[HABITAT_TYPES.AREAS][0].featureId).not.toBe(
+      stored.baseline[HABITAT_TYPES.AREAS][0].featureId
+    )
+  })
+
+  it('falls back to the ref for pre-uuid baseline files on both sides', () => {
+    // makeStaged carries no featureUuid at all, so this whole block runs on the
+    // ref fallback — this test just names that fact explicitly.
+    const stored = assignStagedFeatureIds(makeStaged())
+    const again = assignStagedFeatureIds(
+      makeStaged(),
+      buildStagedFeatureIdByRef(stored)
+    )
+
+    expect(again.baseline[HABITAT_TYPES.AREAS][0].featureId).toBe(
+      stored.baseline[HABITAT_TYPES.AREAS][0].featureId
+    )
   })
 
   it('mints a fresh id for a feature with a blank ref', () => {

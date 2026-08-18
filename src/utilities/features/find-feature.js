@@ -1,6 +1,10 @@
 const FEATURE_LAYERS = [
   { type: 'habitat', key: 'habitats' },
   { type: 'tree', key: 'trees' },
+  // Staged uploads only. Readable through the by-id feature endpoints; not
+  // editable (recomputeForType has no vertical-area branch, so a PUT returns
+  // the same not-editable outcome as an individual tree).
+  { type: 'verticalArea', key: 'verticalAreas' },
   { type: 'hedgerow', key: 'hedgerows' },
   { type: 'watercourse', key: 'watercourses' }
 ]

@@ -166,14 +166,19 @@ export function embedPostInterventionHabitatSizes(parts, habitatSizes) {
 /**
  * Assemble the `{ document, geometries }` result shared by both extract paths.
  *
+ * `verticalAreas` is optional: it exists only for documents imported from a
+ * staged GeoPackage carrying a Vertical Area Habitats layer, and single-stage
+ * documents keep their exact historical shape (no empty key appears).
+ *
  * @param {object} meta upload metadata (uploadId/filename/fileSize/importedAt)
- * @param {{ redLine: object, habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
+ * @param {{ redLine: object, habitats: object, hedgerows: object, watercourses: object, trees: object, verticalAreas?: object | null }} parts
  *   each `*.documents` / `*.geometries` pair from splitFeatures (redLine is `{ document, geometryRow }`)
  * @param {object | null} habitatSizesSummary
  * @returns {{ document: object, geometries: object }}
  */
 export function buildExtractResult(meta, parts, habitatSizesSummary) {
-  const { redLine, habitats, hedgerows, watercourses, trees } = parts
+  const { redLine, habitats, hedgerows, watercourses, trees, verticalAreas } =
+    parts
   return {
     document: {
       uploadId: meta.uploadId ?? null,
@@ -185,6 +190,7 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
       hedgerows: hedgerows.documents,
       watercourses: watercourses.documents,
       trees: trees.documents,
+      ...(verticalAreas ? { verticalAreas: verticalAreas.documents } : {}),
       habitatSizes: habitatSizesSummary
     },
     geometries: {
@@ -192,7 +198,8 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
       habitats: habitats.geometries,
       hedgerows: hedgerows.geometries,
       watercourses: watercourses.geometries,
-      trees: trees.geometries
+      trees: trees.geometries,
+      ...(verticalAreas ? { verticalAreas: verticalAreas.geometries } : {})
     }
   }
 }

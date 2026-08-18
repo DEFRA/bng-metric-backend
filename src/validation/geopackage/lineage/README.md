@@ -249,15 +249,18 @@ size.
 
 - **A staged file gets lineage checks only.** The PostGIS geometry suite in
   `../postgis/index.js` — redline containment, parcel overlaps, invalid
-  geometry, the redline/parcel area sum — reads `readGeoPackage`'s feature
-  shape, including a native SRID per feature that `readStagedGeoPackage` does
-  not carry. Adapting the staged read into that shape is the next piece of work
-  and is the largest remaining gap.
-- **Nothing persists.** A staged upload validates and returns; it is not saved
-  against a project even when a `projectId` is supplied (the route logs a
-  warning saying so). The stored document keeps one baseline subtree and one
-  post-intervention subtree, each written by its own upload, and deciding how a
-  single file writes both is a schema question rather than a validation one.
+  geometry, the redline/parcel area sum — is not yet wired to the staged
+  tables. `readStagedGeoPackage` now carries a per-feature SRID, so the shape
+  blocker is gone; adapting the suite is the next piece of work and the
+  largest remaining validation gap.
+- **A valid staged upload with a `projectId` persists BOTH subtrees.** The
+  route hands the validation result to
+  `services/upload/save-staged-upload-for-project.js`, which transforms the
+  staged read into the two legacy layer shapes (`staged-to-legacy.js`), builds
+  and enriches both documents (baseline and post-intervention, including
+  vertical area habitat units), and writes both — JSONB subtrees and geometry
+  rows — in ONE transaction, with the per-parent removal report persisted as
+  `removedHabitats` on the post-intervention subtree.
 - **The staged tables' columns are not validated.** The gate skips the schema
   comparison for staged files because `gpkg-template.schema.json` describes the
   single-stage template. A staged template schema of its own would close this.
@@ -265,11 +268,12 @@ size.
   parent came from geometry is unchecked — by construction there is nothing to
   check, but it does mean a `Created` parcel drawn wildly out of place is caught
   by the redline checks (which staged files do not get yet) rather than here.
-- `staged-feature-ids.js` is written and tested but **called from nowhere**,
-  because nothing persists a staged upload yet. Its `stored` argument is
-  whatever a previous `assignStagedFeatureIds` produced — the shape a staged
-  document would take when persistence lands. Wiring it up is one line inside
-  whatever replaces `saveUploadForProject` for staged files.
+- `staged-feature-ids.js` keys the baseline on the hidden `feature_uuid`
+  (falling back to the visible ref for pre-uuid files) and the
+  post-intervention side on `PI Ref` — a PI row has no uuid of its own, only
+  its parent's. The staged save path rebuilds its `stored` argument from the
+  persisted project document (`stagedStoredShapeFromProject`), so featureIds
+  survive re-uploads even when a surveyor renames a baseline parcel.
 - **Nothing validates the hand-entered sizes.** A vertical area habitat's `Area`
   and a tree's `Count` cannot be derived from geometry, so a wrong value passes
   every check here. Reconciliation catches a changed _footprint_, not a wrong

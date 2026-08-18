@@ -22,6 +22,7 @@ import {
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import { validateStagedGeoPackage } from '../validation/geopackage/lineage/validate-staged-geopackage.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
+import { saveStagedUploadForProject } from '../services/upload/save-staged-upload-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
@@ -110,25 +111,27 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
 
 /**
  * Validate a staged GeoPackage — baseline and post-intervention as separate
- * feature tables in one file. Lineage checks only; see
- * validation/geopackage/lineage/README.md for what that covers and what it
- * does not.
+ * feature tables in one file — and, when valid and a projectId was supplied,
+ * persist BOTH subtrees from it in one transaction. See
+ * validation/geopackage/lineage/README.md for what the validation covers.
  *
- * Nothing is persisted, even when a projectId was supplied. The stored document
- * keeps one baseline subtree and one post-intervention subtree, each written by
- * its own upload; deciding how a single file writes both is a schema question
- * this route cannot answer on its own. Logged loudly so a caller that expected
- * a save can see why it did not happen.
+ * The response shape is the single-stage `{ valid, errors, warnings }`
+ * regardless of whether a save happened, exactly as the legacy path behaves.
  *
  * @param {string} localPath
- * @param {import('pg').Pool} pgPool
- * @param {{ uploadId: string, projectId: string | null }} context
+ * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool }} deps
+ * @param {{ uploadId: string, projectId: string | null, credentials: object, filename?: string | null, fileSize?: number | null }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
-async function runStagedValidation(localPath, pgPool, context, h, config) {
-  const { uploadId, projectId } = context
-  const result = await validateStagedGeoPackage(localPath, pgPool)
+async function runStagedValidation(localPath, deps, context, h, config) {
+  const { uploadId, projectId, credentials, filename, fileSize } = context
+  const result = await validateStagedGeoPackage(localPath, deps.pgPool)
+  const responseBody = {
+    valid: result.valid,
+    errors: result.errors,
+    warnings: result.warnings
+  }
   if (!result.valid) {
     logger.info(
       `${config.routeName} - rejected staged uploadId ${uploadId}: ${result.errors
@@ -138,24 +141,24 @@ async function runStagedValidation(localPath, pgPool, context, h, config) {
     await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
       category: VALIDATION_CATEGORY.geometric
     })
-    return h.response({
-      valid: result.valid,
-      errors: result.errors,
-      warnings: result.warnings
-    })
+    return h.response(responseBody)
   }
   logger.info(`${config.routeName} - accepted staged uploadId ${uploadId}`)
   await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
   if (projectId) {
-    logger.warn(
-      `${config.routeName} - staged uploadId ${uploadId} validated but NOT persisted to project ${projectId}: staged persistence is not implemented`
+    const errorResponse = await saveStagedUploadForProject(
+      { drizzle: deps.drizzle, pgPool: deps.pgPool, logger },
+      projectId,
+      result,
+      { uploadId, credentials, filename, fileSize },
+      h,
+      config
     )
+    if (errorResponse) {
+      return errorResponse
+    }
   }
-  return h.response({
-    valid: result.valid,
-    errors: result.errors,
-    warnings: result.warnings
-  })
+  return h.response(responseBody)
 }
 
 async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
@@ -169,8 +172,8 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
     if (staged) {
       return await runStagedValidation(
         localPath,
-        pgPool,
-        { uploadId, projectId },
+        { drizzle, pgPool },
+        { uploadId, projectId, credentials, filename, fileSize },
         h,
         config
       )

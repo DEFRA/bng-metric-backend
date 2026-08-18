@@ -44,6 +44,31 @@ describe('summarizeFeatureSetUnitsTotals', () => {
     })
   })
 
+  it('adds verticalAreasTotal and rolls it into totalUnits only when the layer exists', () => {
+    const featureSet = {
+      habitats: [{ units: 3 }],
+      verticalAreas: [{ units: 0.06 }, { units: 0.1 }, { ref: 'no-units' }]
+    }
+    summarizeFeatureSetUnitsTotals(featureSet)
+    expect(featureSet.units.verticalAreasTotal).toBeCloseTo(0.16, 10)
+    expect(featureSet.units.totalUnits).toBeCloseTo(3.16, 10)
+    // Vertical areas are not ground coverage; the parcel total excludes them.
+    expect(featureSet.units.habitatsTotal).toBe(3)
+  })
+
+  it('keeps the historical totals shape for documents without vertical areas', () => {
+    const featureSet = { habitats: [{ units: 3 }] }
+    summarizeFeatureSetUnitsTotals(featureSet)
+    expect('verticalAreasTotal' in featureSet.units).toBe(false)
+  })
+
+  it('reports a zero verticalAreasTotal for an empty vertical areas layer', () => {
+    const featureSet = { verticalAreas: [] }
+    summarizeFeatureSetUnitsTotals(featureSet)
+    expect(featureSet.units.verticalAreasTotal).toBe(0)
+    expect(featureSet.units.totalUnits).toBe(0)
+  })
+
   it('emits zero totals when no features have units', () => {
     const featureSet = {
       habitats: [{ ref: 'H1' }],

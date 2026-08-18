@@ -9,6 +9,7 @@
 import Database from 'better-sqlite3'
 import { wkbToGeoJSON } from 'bng-library/gpkg-io'
 
+import { EPSG_BNG } from '../geopackage-constants.js'
 import { groupStagedTables, isStagedGeoPackage } from './staged-layer-names.js'
 
 const GPKG_CONTENTS_FEATURES_DATA_TYPE = 'features'
@@ -33,14 +34,19 @@ function firstPresent(row, candidates) {
 }
 
 function readTable(db, tableName) {
-  const geomColumn = db
+  const geomColumnRow = db
     .prepare(
-      'SELECT column_name FROM gpkg_geometry_columns WHERE table_name = ?'
+      'SELECT column_name, srs_id FROM gpkg_geometry_columns WHERE table_name = ?'
     )
-    .get(tableName)?.column_name
-  if (!geomColumn) {
+    .get(tableName)
+  if (!geomColumnRow?.column_name) {
     return []
   }
+  const { column_name: geomColumn, srs_id: tableSrid } = geomColumnRow
+  // The template writes British National Grid throughout; a table registered
+  // without an srs_id (hand-built fixtures) is treated as 27700 rather than
+  // being dropped, because every consumer downstream needs *a* SRID to carry.
+  const srid = tableSrid ?? EPSG_BNG
   // Layer names contain spaces, so the identifier has to be quoted inline —
   // SQLite cannot bind object names as parameters.
   const quoted = `"${tableName.replaceAll('"', '""')}"`
@@ -56,7 +62,8 @@ function readTable(db, tableName) {
       parentChecksum: firstPresent(properties, PARENT_CHECKSUM_COLUMNS),
       retentionCategory: properties['Retention Category'] ?? null,
       properties,
-      geometry: blob ? wkbToGeoJSON(blob) : null
+      geometry: blob ? wkbToGeoJSON(blob) : null,
+      srid
     }
   })
 }

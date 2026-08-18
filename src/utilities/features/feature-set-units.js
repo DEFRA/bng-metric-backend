@@ -67,8 +67,20 @@ export function summarizeFeatureSetUnitsTotals(featureSet) {
   const treesRuralTotal = sumFeatureUnits(treesOfType(trees, RURAL_TREE_TYPE))
   const treesTotal = sumFeatureUnits(trees)
 
+  // Vertical area habitats exist only on documents imported from a staged
+  // GeoPackage. The key is emitted only when the layer exists, so single-stage
+  // documents keep their exact historical totals shape.
+  const hasVerticalAreas = Array.isArray(featureSet?.verticalAreas)
+  const verticalAreasTotal = hasVerticalAreas
+    ? sumFeatureUnits(featureSet.verticalAreas)
+    : 0
+
   const totalUnits =
-    habitatsTotal + hedgerowsTotal + watercoursesTotal + treesTotal
+    habitatsTotal +
+    hedgerowsTotal +
+    watercoursesTotal +
+    treesTotal +
+    verticalAreasTotal
 
   featureSet.units = {
     totalUnits,
@@ -77,7 +89,8 @@ export function summarizeFeatureSetUnitsTotals(featureSet) {
     watercoursesTotal,
     treesTotal,
     treesUrbanTotal,
-    treesRuralTotal
+    treesRuralTotal,
+    ...(hasVerticalAreas ? { verticalAreasTotal } : {})
   }
   return featureSet
 }

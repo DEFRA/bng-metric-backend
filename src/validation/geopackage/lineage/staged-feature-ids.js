@@ -7,19 +7,31 @@
 //
 // The natural keys differ, because the staged format has two of them:
 //
+//   baseline            hidden `feature_uuid`, falling back to the visible ref
+//                       (`Parcel Ref` / `Tree Ref`) for files exported before
+//                       the uuid columns existed
 //   post-intervention   `PI Ref`
-//   baseline            `Parcel Ref` / `Tree Ref`
 //
-// `PI Ref` is a sound key because the template's tidy-refs action guarantees it
-// is unique within the layer and reproduces the same value on the same feature.
-// That is what makes it safe to match on; nothing else in the file is stable
-// across an edit-and-re-export cycle.
+// Baseline refs are cosmetic since the uuid columns landed: a surveyor renaming
+// a parcel must NOT re-key the feature (a re-key reads as a delete-and-reinsert
+// to downstream relational consumers — the exact failure this module exists to
+// prevent). `feature_uuid` is stamped once by the template and never edited by
+// hand, so it survives renames; the ref fallback keeps pre-uuid files working.
+// The two key kinds are prefixed (`uuid:` / `ref:`) so a ref that happens to
+// look like a uuid can never cross-match, and a file that gained or lost its
+// uuid columns simply matches nothing — conservative, never wrong.
+//
+// KNOWN LIMITATION: post-intervention rows carry no feature_uuid of their own —
+// their `parent_uuid` is the PARENT's key, not this row's — so the PI side
+// stays keyed on `PI Ref`. A renamed PI ref therefore still re-keys that one
+// feature. `PI Ref` is otherwise sound: the template's tidy-refs action
+// guarantees it is unique within the layer and reproduces the same value on
+// the same feature.
 //
 // The stage is part of the lookup key. A retained parcel keeps its parent's ref
 // on the post-intervention side (PI Ref "PR-1", Parent Ref "PR-1" in the
-// fixture), so a key without the stage would collapse a baseline parcel and its
-// post-intervention counterpart onto one id — two different features, two
-// different rows downstream.
+// fixture), and a PI row's parent_uuid equals its baseline parent's
+// feature_uuid — so neither ref nor uuid alone disambiguates baseline from PI.
 //
 // Matching stays as conservative as the existing module: a key carries an id
 // forward only when it is non-blank and unambiguous on BOTH sides. Uniqueness
@@ -27,10 +39,10 @@
 // possible and a repeat cannot say which feature owns the stored id. Anything
 // blank, ambiguous or unmatched gets a fresh UUID, exactly as before.
 //
-// NOT yet called from anywhere: staged uploads are validated but not persisted
-// (see ./README.md), so there is no stored document to carry ids forward from.
-// The `stored` argument is whatever a previous run of assignStagedFeatureIds
-// produced — the shape a staged document would take when persistence lands.
+// Called from the staged persistence path
+// (services/upload/save-staged-upload-for-project.js), which rebuilds the
+// staged `stored` shape this module reads from the persisted project document
+// before a re-upload is transformed and saved.
 
 import { randomUUID } from 'node:crypto'
 
@@ -52,47 +64,60 @@ const FIRST_RED_LINE_INDEX = 0
 /**
  * @param {string} stage
  * @param {string} type
- * @param {string} ref
+ * @param {string} naturalKey kind-prefixed natural key (`uuid:…` / `ref:…`)
  * @returns {string}
  */
-export function stagedLookupKey(stage, type, ref) {
-  return `${stage}:${type}:${ref}`
+export function stagedLookupKey(stage, type, naturalKey) {
+  return `${stage}:${type}:${naturalKey}`
 }
 
+/** Key-kind prefixes keep uuid keys and ref keys from ever cross-matching. */
+const KEY_KIND_UUID = 'uuid'
+const KEY_KIND_REF = 'ref'
+
 /**
- * The key a feature is matched on: `PI Ref` post-intervention, the feature's own
- * ref (Parcel Ref / Tree Ref) on the baseline.
+ * The key a feature is matched on: the hidden `feature_uuid` on the baseline
+ * (ref fallback for pre-uuid files), `PI Ref` post-intervention — see the
+ * module comment for why the two sides differ.
  *
  * @param {object} feature
  * @param {string} stage
  * @returns {string | null}
  */
 function naturalKey(feature, stage) {
-  return normaliseRef(
-    stage === STAGE.POST_INTERVENTION ? feature?.piRef : feature?.ref
-  )
+  if (stage === STAGE.POST_INTERVENTION) {
+    const piRef = normaliseRef(feature?.piRef)
+    return piRef === null ? null : `${KEY_KIND_REF}:${piRef}`
+  }
+  const uuid = normaliseRef(feature?.featureUuid)
+  if (uuid !== null) {
+    return `${KEY_KIND_UUID}:${uuid}`
+  }
+  const ref = normaliseRef(feature?.ref)
+  return ref === null ? null : `${KEY_KIND_REF}:${ref}`
 }
 
 /**
- * Refs appearing exactly once in a layer. Anything repeated is dropped: a ref
- * held by two features cannot say which of them owns the stored id.
+ * Natural keys appearing exactly once in a layer. Anything repeated is
+ * dropped: a key held by two features cannot say which of them owns the
+ * stored id.
  *
  * @param {object[]} features
  * @param {string} stage
  * @returns {Set<string>}
  */
-function unambiguousRefs(features, stage) {
+function unambiguousKeys(features, stage) {
   const counts = new Map()
   for (const feature of features) {
-    const ref = naturalKey(feature, stage)
-    if (ref !== null) {
-      counts.set(ref, (counts.get(ref) ?? 0) + 1)
+    const key = naturalKey(feature, stage)
+    if (key !== null) {
+      counts.set(key, (counts.get(key) ?? 0) + 1)
     }
   }
   const unique = new Set()
-  for (const [ref, count] of counts) {
+  for (const [key, count] of counts) {
     if (count === 1) {
-      unique.add(ref)
+      unique.add(key)
     }
   }
   return unique
@@ -108,11 +133,11 @@ function addStageEntries(map, stage, byType) {
     if (!Array.isArray(features)) {
       continue
     }
-    const unique = unambiguousRefs(features, stage)
+    const unique = unambiguousKeys(features, stage)
     for (const feature of features) {
-      const ref = naturalKey(feature, stage)
-      if (ref !== null && unique.has(ref) && feature?.featureId) {
-        map.set(stagedLookupKey(stage, type, ref), feature.featureId)
+      const key = naturalKey(feature, stage)
+      if (key !== null && unique.has(key) && feature?.featureId) {
+        map.set(stagedLookupKey(stage, type, key), feature.featureId)
       }
     }
   }
@@ -151,12 +176,12 @@ export function buildStagedFeatureIdByRef(stored) {
  * @returns {object[]}
  */
 function assignLayer(features, stage, type, featureIdByRef) {
-  const unique = unambiguousRefs(features, stage)
+  const unique = unambiguousKeys(features, stage)
   return features.map((feature) => {
-    const ref = naturalKey(feature, stage)
+    const key = naturalKey(feature, stage)
     const carried =
-      ref !== null && unique.has(ref)
-        ? featureIdByRef.get(stagedLookupKey(stage, type, ref))
+      key !== null && unique.has(key)
+        ? featureIdByRef.get(stagedLookupKey(stage, type, key))
         : null
     return { ...feature, featureId: carried ?? randomUUID() }
   })

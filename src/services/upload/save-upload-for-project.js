@@ -47,7 +47,7 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
  * @param {string} projectId
  * @returns {Promise<object | undefined>}
  */
-async function fetchStoredProject(drizzle, projectId) {
+export async function fetchStoredProject(drizzle, projectId) {
   const [row] = await drizzle
     .select({ project: projects.project })
     .from(projects)
@@ -56,7 +56,7 @@ async function fetchStoredProject(drizzle, projectId) {
   return row?.project
 }
 
-function enrichOptionsForPostIntervention(baseline) {
+export function enrichOptionsForPostIntervention(baseline) {
   return {
     baselineLengthByRef: buildBaselineLinearLengthByRef(
       baseline?.hedgerows ?? [],
@@ -92,7 +92,7 @@ function layersForUpload(layers, storedProject, projectDocumentKey) {
   return { layersWithIds, layersForSizing }
 }
 
-async function sizeUploadedHabitats(
+export async function sizeUploadedHabitats(
   pgPool,
   layersForSizing,
   { logger, routeName, uploadId, h }
@@ -143,7 +143,10 @@ function extractAndValidateDocument({
   return { document, geometries, schemaError: error }
 }
 
-function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
+export function schemaErrorResponse(
+  schemaError,
+  { logger, routeName, uploadId, h }
+) {
   logger.info(
     `${routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
   )

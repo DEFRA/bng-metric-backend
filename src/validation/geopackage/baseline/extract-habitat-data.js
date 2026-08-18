@@ -16,7 +16,8 @@ import { treeAreaFields } from '../tree-sizes.js'
 import {
   splitFeatures,
   embedBaselineHabitatSizes,
-  buildExtractResult
+  buildExtractResult,
+  areaFromSizeSquareMetres
 } from '../extract-shared.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 
@@ -86,6 +87,33 @@ function buildHabitat(feature, keys) {
     geometry: feature.nativeGeometry,
     srid: feature.nativeSrid
   }
+  return { document, geometryRow }
+}
+
+/**
+ * The hand-entered face area (m²) of a vertical area habitat. Vertical area
+ * habitats are drawn as LINESTRINGs, so the geometry carries no usable size —
+ * the Area column is the unit-bearing measurement.
+ *
+ * @param {object} props
+ * @returns {number | null}
+ */
+function verticalAreaFaceSquareMetres(props) {
+  const raw = pickProp(props, PROP_KEYS.area)
+  const value = typeof raw === 'number' ? raw : Number(raw)
+  return Number.isFinite(value) && value > 0 ? value : null
+}
+
+/**
+ * A vertical area habitat (green wall / intertidal structure) is an area
+ * habitat in the metric, so it takes the parcel document shape — but its size
+ * comes from the hand-entered Area column, never from PostGIS.
+ */
+function buildVerticalArea(feature, keys) {
+  const { document, geometryRow } = buildHabitat(feature, keys)
+  const faceArea = verticalAreaFaceSquareMetres(feature.properties ?? {})
+  document.sizeSquareMetres = faceArea
+  document.area = areaFromSizeSquareMetres(faceArea)
   return { document, geometryRow }
 }
 
@@ -270,10 +298,17 @@ export function extractHabitatData(layers, meta = {}) {
     keys
   )
   const trees = splitFeatures(layers.trees ?? [], buildTree, keys)
+  // Only staged GeoPackages carry this layer; single-stage documents keep
+  // their exact historical shape (buildExtractResult omits the key when null).
+  const verticalAreas = layers.verticalAreas
+    ? splitFeatures(layers.verticalAreas, buildVerticalArea, keys)
+    : null
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
-  // secondary join. featureId is the join key between the sizes result and the documents.
+  // secondary join. featureId is the join key between the sizes result and the
+  // documents. Vertical area habitats are excluded: their size is the
+  // hand-entered Area column, already set by buildVerticalArea.
   let habitatSizesSummary = null
   if (meta.habitatSizes) {
     habitatSizesSummary = embedBaselineHabitatSizes(
@@ -284,7 +319,7 @@ export function extractHabitatData(layers, meta = {}) {
 
   return buildExtractResult(
     meta,
-    { redLine, habitats, hedgerows, watercourses, trees },
+    { redLine, habitats, hedgerows, watercourses, trees, verticalAreas },
     habitatSizesSummary
   )
 }

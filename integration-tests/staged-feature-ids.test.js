@@ -2,10 +2,11 @@
 //
 // The unit tests in src/.../staged-feature-ids.test.js cover the matching rules
 // on synthetic data. What they cannot prove is the claim the whole thing rests
-// on: that the template's own columns — `PI Ref` post-intervention, `Parcel Ref`
-// / `Tree Ref` on the baseline — actually come through readStagedGeoPackage as
-// non-blank, unambiguous keys for every one of the five habitat types. If they
-// did not, every re-upload would silently mint fresh ids and nothing would fail.
+// on: that the template's own columns — the hidden `feature_uuid` on the
+// baseline (with `Parcel Ref` / `Tree Ref` as the pre-uuid fallback), `PI Ref`
+// post-intervention — actually come through readStagedGeoPackage as non-blank,
+// unambiguous keys for every one of the five habitat types. If they did not,
+// every re-upload would silently mint fresh ids and nothing would fail.
 
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -72,6 +73,54 @@ describe('featureId carry-forward across a staged re-upload', () => {
         expect(feature.featureId, `PI ${type}`).toBeTruthy()
       }
     }
+  })
+
+  it('keeps a baseline parcel’s id when the surveyor renames its Parcel Ref', () => {
+    // Baseline refs are cosmetic since the uuid columns landed: the natural key
+    // is the hidden feature_uuid, which survives a rename. This is the
+    // fixture-backed proof that the template's uuid column actually comes
+    // through readStagedGeoPackage and keys the carry-forward.
+    const first = assignStagedFeatureIds(readStagedGeoPackage(FIXTURE))
+    const edited = readStagedGeoPackage(FIXTURE)
+    const renamed = edited.baseline[HABITAT_TYPES.AREAS].find(
+      (feature) => feature.ref === 'PR-1'
+    )
+    expect(renamed.featureUuid).toBeTruthy()
+    renamed.ref = 'PR-1-renamed'
+
+    const second = assignStagedFeatureIds(
+      edited,
+      buildStagedFeatureIdByRef(first)
+    )
+
+    const before = first.baseline[HABITAT_TYPES.AREAS].find(
+      (feature) => feature.ref === 'PR-1'
+    ).featureId
+    const after = second.baseline[HABITAT_TYPES.AREAS].find(
+      (feature) => feature.ref === 'PR-1-renamed'
+    ).featureId
+
+    expect(after).toBe(before)
+  })
+
+  it('falls back to refs for a pre-uuid export, on both sides', () => {
+    const stripUuids = (staged) => {
+      for (const features of Object.values(staged.baseline)) {
+        for (const feature of features) {
+          feature.featureUuid = null
+        }
+      }
+      return staged
+    }
+    const first = assignStagedFeatureIds(
+      stripUuids(readStagedGeoPackage(FIXTURE))
+    )
+    const second = assignStagedFeatureIds(
+      stripUuids(readStagedGeoPackage(FIXTURE)),
+      buildStagedFeatureIdByRef(first)
+    )
+
+    expect(idsByStageAndType(second)).toEqual(idsByStageAndType(first))
   })
 
   it('mints a fresh id for a parcel whose PI Ref the surveyor changed', () => {

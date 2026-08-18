@@ -99,6 +99,9 @@ export const baselineUnitsTotalsSchema = Joi.object({
   treesRuralTotal: Joi.number()
     .required()
     .description('Sum of baseline units across rural trees.'),
+  verticalAreasTotal: Joi.number().description(
+    'Sum of units across all vertical area habitats (green walls / intertidal structures). Present only on documents imported from a staged GeoPackage carrying a Vertical Area Habitats layer; included in totalUnits.'
+  ),
   habitatsNetUnitChange: Joi.number().description(
     'Post-intervention only: total post-intervention area units minus total baseline area units.'
   ),

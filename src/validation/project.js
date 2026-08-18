@@ -231,6 +231,39 @@ const treeSchema = habitatSchema
   })
   .description('An individual tree feature (point).')
 
+// A vertical area habitat (green wall / intertidal structure), staged uploads
+// only. An area habitat in the metric, so it reuses habitatSchema verbatim —
+// but it is drawn as a LINESTRING and its unit-bearing size is the
+// hand-entered face Area (m²) column, so the size fields are re-described and
+// there is no geometry table to join to.
+const verticalAreaSchema = habitatSchema
+  .append({
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(
+        'Stable UUID for the vertical area habitat. No PostGIS geometry table exists for this layer yet, so the id keys the JSONB document only; it is still carried forward on re-upload, keyed on the hidden feature_uuid column (ref fallback for pre-uuid files).'
+      ),
+    area: Joi.number()
+      .allow(null)
+      .description(
+        'Hand-entered face area in square metres (Area column), rounded. Vertical area habitats are drawn as lines; this column — not the geometry — is the value fed to the unit calculation.'
+      ),
+    sizeSquareMetres: Joi.number()
+      .allow(null)
+      .description(
+        'Hand-entered face area in square metres, exactly as written in the GeoPackage Area column.'
+      ),
+    properties: Joi.object()
+      .unknown(true)
+      .description(
+        'Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats layer.'
+      )
+  })
+  .description(
+    'A vertical area habitat (green wall / intertidal structure): drawn as a line, sized by its hand-entered face area. Present only on documents imported from a staged GeoPackage.'
+  )
+
 // Hedgerows and watercourses share the same linear-feature shape. This factory
 // keeps their field order and prose identical while letting each supply its own
 // descriptions and module-specific fields. Field order is significant — it
@@ -382,6 +415,11 @@ const habitatDataSchema = Joi.object({
   trees: Joi.array()
     .items(treeSchema)
     .description('Individual tree (point) features in the baseline.'),
+  verticalAreas: Joi.array()
+    .items(verticalAreaSchema)
+    .description(
+      'Vertical area habitats (green walls / intertidal structures) in the baseline. Present only when imported from a staged GeoPackage.'
+    ),
   hedgerows: Joi.array()
     .items(linearHabitatSchema)
     .description('Hedgerow (linear) features in the baseline.'),
@@ -416,6 +454,7 @@ export {
   habitatDataSchema,
   habitatSchema,
   treeSchema,
+  verticalAreaSchema,
   linearHabitatSchema,
   watercourseHabitatSchema,
   postInterventionDataSchema
