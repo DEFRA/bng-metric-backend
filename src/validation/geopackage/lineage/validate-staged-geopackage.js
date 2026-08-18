@@ -17,13 +17,19 @@
 import { checkContainment } from './containment.js'
 import { deriveLineage } from './derive-lineage.js'
 import {
+  stagedFeaturesRemovedWarning,
   stagedMissingBaselineLayerError,
+  stagedParentOversubscribedError,
   stagedPiOutsideParentError,
   stagedSizeMismatchError,
   stagedUnknownParentRefError
 } from './error-builders.js'
 import { readStagedGeoPackage } from './read-staged-geopackage.js'
-import { isLinearMeasure, reconcileSize } from './reconcile.js'
+import {
+  isLinearMeasure,
+  reconcileParents,
+  reconcileSize
+} from './reconcile.js'
 import { HABITAT_TYPES } from './staged-layer-names.js'
 
 /**
@@ -86,13 +92,24 @@ function unknownParentRefs(type, postIntervention, baseline) {
  */
 async function checkType(pool, type, staged) {
   const postIntervention = staged.postIntervention[type] ?? []
-  const findings = { unknownParents: [], outsideParent: [] }
+  const findings = {
+    unknownParents: [],
+    outsideParent: [],
+    removed: [],
+    oversubscribed: []
+  }
+  const baseline = staged.baseline[type] ?? []
+
   if (postIntervention.length === 0) {
+    // An empty post-intervention layer is not a pass: every baseline feature
+    // of a SHORTFALL/PRESENCE type is now unaccounted for, and the surveyor
+    // should be told the lot will read as removed.
+    const parents = await reconcileParents(pool, type, baseline, [])
+    findings.removed = parents.removed
     return findings
   }
 
-  const baseline = staged.baseline[type]
-  if (baseline === undefined) {
+  if (staged.baseline[type] === undefined) {
     findings.missingBaseline = type
     return findings
   }
@@ -120,6 +137,10 @@ async function checkType(pool, type, staged) {
       delta: reconciled.delta
     }
   }
+
+  const parents = await reconcileParents(pool, type, baseline, postIntervention)
+  findings.removed = parents.removed
+  findings.oversubscribed = parents.oversubscribed
   return findings
 }
 
@@ -155,7 +176,26 @@ function buildErrors(perType) {
   if (sizeMismatches.length > 0) {
     errors.push(stagedSizeMismatchError(sizeMismatches))
   }
+
+  const oversubscribed = perType.flatMap((findings) => findings.oversubscribed)
+  if (oversubscribed.length > 0) {
+    errors.push(stagedParentOversubscribedError(oversubscribed))
+  }
   return errors
+}
+
+/**
+ * Advisory findings that must not fail the upload. Removal-by-absence is the
+ * intended way to record a demolished wall, grubbed-out hedge or felled tree,
+ * so the file stays valid — but the surveyor gets told what the calculation
+ * will assume.
+ *
+ * @param {object[]} perType
+ * @returns {Array<{ code: string, message: string, details?: object }>}
+ */
+function buildWarnings(perType) {
+  const removed = perType.flatMap((findings) => findings.removed)
+  return removed.length > 0 ? [stagedFeaturesRemovedWarning(removed)] : []
 }
 
 /**
@@ -163,7 +203,7 @@ function buildErrors(perType) {
  *
  * @param {string} filePath path to the .gpkg on local disk
  * @param {import('pg').Pool} pool
- * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, staged: object }>}
+ * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, warnings: Array<{ code: string, message: string, details?: object }>, staged: object }>}
  */
 export async function validateStagedGeoPackage(filePath, pool) {
   if (!pool) {
@@ -179,5 +219,6 @@ export async function validateStagedGeoPackage(filePath, pool) {
   }
 
   const errors = buildErrors(perType)
-  return { valid: errors.length === 0, errors, staged }
+  const warnings = buildWarnings(perType)
+  return { valid: errors.length === 0, errors, warnings, staged }
 }

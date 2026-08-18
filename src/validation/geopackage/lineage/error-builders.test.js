@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { ERROR_CODES } from '../errors.js'
 import { ERROR_LIST_SAMPLE_CAP } from '../postgis/constants.js'
 import {
+  stagedFeaturesRemovedWarning,
   stagedMissingBaselineLayerError,
+  stagedParentOversubscribedError,
   stagedPiOutsideParentError,
   stagedSizeMismatchError,
   stagedUnknownParentRefError,
@@ -119,5 +121,63 @@ describe('stagedSizeMismatchError', () => {
       'Baseline and post-intervention totals do not match: hedgerows — baseline 200.00 m vs post-intervention 100.00 m'
     )
     expect(error.details.sample[0].delta).toBe(100)
+  })
+})
+
+describe('stagedParentOversubscribedError', () => {
+  it('quotes children total against the baseline in the type’s unit', () => {
+    const error = stagedParentOversubscribedError([
+      {
+        type: HABITAT_TYPES.HEDGEROWS,
+        parent_ref: 'HR-1',
+        measure: 'length',
+        baseline_size: 200,
+        pi_size: 300,
+        excess: 100
+      }
+    ])
+
+    expect(error.code).toBe(ERROR_CODES.STAGED_PARENT_OVERSUBSCRIBED)
+    expect(error.message).toContain(
+      'hedgerows "HR-1" — children total 300.00 m against a baseline of 200.00 m'
+    )
+  })
+})
+
+describe('stagedFeaturesRemovedWarning', () => {
+  it('quotes the removed length with decimals', () => {
+    const warning = stagedFeaturesRemovedWarning([
+      {
+        type: HABITAT_TYPES.HEDGEROWS,
+        parent_ref: 'HR-1',
+        measure: 'length',
+        baseline_size: 200,
+        pi_size: 100,
+        removed_size: 100
+      }
+    ])
+
+    expect(warning.code).toBe(ERROR_CODES.STAGED_FEATURES_REMOVED)
+    expect(warning.message).toContain(
+      'hedgerows "HR-1" — 100.00 m with no post-intervention continuation'
+    )
+  })
+
+  it('quotes tree counts as whole trees, not decimals', () => {
+    const warning = stagedFeaturesRemovedWarning([
+      {
+        type: HABITAT_TYPES.TREES,
+        parent_ref: 'T-2',
+        measure: 'count',
+        baseline_size: 1,
+        pi_size: 0,
+        removed_size: 1
+      }
+    ])
+
+    expect(warning.message).toContain(
+      'trees "T-2" — 1 with no post-intervention continuation'
+    )
+    expect(warning.message).not.toContain('1.00')
   })
 })

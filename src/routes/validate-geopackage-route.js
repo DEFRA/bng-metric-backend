@@ -138,7 +138,11 @@ async function runStagedValidation(localPath, pgPool, context, h, config) {
     await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
       category: VALIDATION_CATEGORY.geometric
     })
-    return h.response({ valid: result.valid, errors: result.errors })
+    return h.response({
+      valid: result.valid,
+      errors: result.errors,
+      warnings: result.warnings
+    })
   }
   logger.info(`${config.routeName} - accepted staged uploadId ${uploadId}`)
   await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
@@ -147,7 +151,11 @@ async function runStagedValidation(localPath, pgPool, context, h, config) {
       `${config.routeName} - staged uploadId ${uploadId} validated but NOT persisted to project ${projectId}: staged persistence is not implemented`
     )
   }
-  return h.response({ valid: result.valid, errors: result.errors })
+  return h.response({
+    valid: result.valid,
+    errors: result.errors,
+    warnings: result.warnings
+  })
 }
 
 async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {

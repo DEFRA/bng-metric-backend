@@ -14,6 +14,7 @@ import { deriveLineage } from '../src/validation/geopackage/lineage/derive-linea
 import { readStagedGeoPackage } from '../src/validation/geopackage/lineage/read-staged-geopackage.js'
 import {
   RECONCILIATION_POLICY,
+  reconcileParents,
   reconcileSize,
   requiresContainment
 } from '../src/validation/geopackage/lineage/reconcile.js'
@@ -232,23 +233,51 @@ describe('vertical area habitats', () => {
 
   it('reconciles on footprint length, not on the recorded face area', async () => {
     // The wall is rebuilt taller: same 50 m footprint, Area 150 -> 250 m².
-    // Reconciliation must compare the footprint, or every heightened wall fails.
+    // Accounting must compare the footprint, or every heightened wall would
+    // read as oversubscribed.
     const base = staged.baseline[HABITAT_TYPES.VERTICAL_AREAS]
     const pi = staged.postIntervention[HABITAT_TYPES.VERTICAL_AREAS]
     expect(base[0].properties.Area).toBe(150)
     expect(pi[0].properties.Area).toBe(250)
 
-    const result = await reconcileSize(
+    const result = await reconcileParents(
       pool,
       HABITAT_TYPES.VERTICAL_AREAS,
       base,
       pi
     )
     expect(result.checked).toBe(true)
-    expect(result.measure).toBe('length')
-    expect(result.baselineTotal).toBeCloseTo(VERTICAL_FOOTPRINT_M, 1)
-    expect(result.piTotal).toBeCloseTo(VERTICAL_FOOTPRINT_M, 1)
-    expect(result.withinTolerance).toBe(true)
+    expect(result.removed).toEqual([])
+    expect(result.oversubscribed).toEqual([])
+  })
+
+  it('is exempt from total reconciliation — absence records demolition', async () => {
+    const result = await reconcileSize(
+      pool,
+      HABITAT_TYPES.VERTICAL_AREAS,
+      staged.baseline[HABITAT_TYPES.VERTICAL_AREAS],
+      staged.postIntervention[HABITAT_TYPES.VERTICAL_AREAS]
+    )
+    expect(result.checked).toBe(false)
+    expect(result.reason).toMatch(/absence records the loss/i)
+  })
+
+  it('reports a demolished wall as removed footprint, not as an error', async () => {
+    // No PI child at all — the wall came down and nothing replaced it.
+    const result = await reconcileParents(
+      pool,
+      HABITAT_TYPES.VERTICAL_AREAS,
+      staged.baseline[HABITAT_TYPES.VERTICAL_AREAS],
+      []
+    )
+    expect(result.removed).toHaveLength(1)
+    expect(result.removed[0]).toMatchObject({
+      type: HABITAT_TYPES.VERTICAL_AREAS,
+      parent_ref: 'VAH-1',
+      measure: 'length'
+    })
+    expect(result.removed[0].removed_size).toBeCloseTo(VERTICAL_FOOTPRINT_M, 1)
+    expect(result.oversubscribed).toEqual([])
   })
 
   it('keeps its stamped parent', async () => {
@@ -264,11 +293,12 @@ describe('vertical area habitats', () => {
 })
 
 describe('hedgerows', () => {
-  it('both halves of the split share one parent', async () => {
+  it('the surviving half keeps its stamped parent', async () => {
+    // The other half of the split (HR-1b) was grubbed out — under
+    // removal-by-absence it has no row at all.
     const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
-    expect(pi).toHaveLength(2)
-    // tidy-refs has made the PI refs unique while the parent stays shared
-    expect(pi.map((f) => f.piRef).sort()).toEqual(['HR-1a', 'HR-1b'])
+    expect(pi).toHaveLength(1)
+    expect(pi[0].piRef).toBe('HR-1a')
     expect(pi.every((f) => f.parentRef === 'HR-1')).toBe(true)
 
     const result = await deriveLineage(
@@ -300,64 +330,71 @@ describe('hedgerows', () => {
     }
   })
 
-  it('counts the built-over half towards the total, so lengths balance', async () => {
-    const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
-    // HR-1b is the half of the split that was built over. The Statutory
-    // Metric records that as `Created` (development creates the new surface),
-    // so what marks it as built-over rather than genuinely new habitat is its
-    // stamped parent, not its retention category.
-    const builtOver = pi.find((f) => f.piRef === 'HR-1b')
-    expect(builtOver.retentionCategory).toBe('Created')
-    expect(builtOver.parentRef).toBe('HR-1')
-
+  it('is exempt from total reconciliation — lost length is the residual', async () => {
+    // The Statutory Metric's hedgerow sheet takes retained/enhanced lengths
+    // per baseline row and derives the lost length as the remainder; it is
+    // never entered as a row of its own.
     const result = await reconcileSize(
       pool,
       HABITAT_TYPES.HEDGEROWS,
       staged.baseline[HABITAT_TYPES.HEDGEROWS],
-      pi
+      staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
     )
-    expect(result.checked).toBe(true)
-    expect(result.baselineTotal).toBeCloseTo(HEDGE_TOTAL_M, 1)
-    expect(result.piTotal).toBeCloseTo(HEDGE_TOTAL_M, 1)
-    expect(result.withinTolerance).toBe(true)
+    expect(result.checked).toBe(false)
+    expect(result.reason).toMatch(/residual/i)
   })
 
-  it('would NOT balance if the built-over half were dropped', async () => {
-    // guards the decision to keep built-over rows rather than delete them —
-    // HR-1b identified by ref, because its `Created` category is shared with
-    // genuinely new habitat and cannot single it out
-    const surviving = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].filter(
-      (f) => f.piRef !== 'HR-1b'
-    )
-    const result = await reconcileSize(
+  it('reports the grubbed-out half as removed length on its parent', async () => {
+    const result = await reconcileParents(
       pool,
       HABITAT_TYPES.HEDGEROWS,
       staged.baseline[HABITAT_TYPES.HEDGEROWS],
-      surviving
+      staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
     )
-    expect(result.withinTolerance).toBe(false)
-    expect(result.delta).toBeCloseTo(HEDGE_HALF_M, 1)
+    expect(result.checked).toBe(true)
+    expect(result.oversubscribed).toEqual([])
+    expect(result.removed).toHaveLength(1)
+    expect(result.removed[0]).toMatchObject({
+      type: HABITAT_TYPES.HEDGEROWS,
+      parent_ref: 'HR-1',
+      measure: 'length'
+    })
+    expect(result.removed[0].baseline_size).toBeCloseTo(HEDGE_TOTAL_M, 1)
+    expect(result.removed[0].pi_size).toBeCloseTo(HEDGE_HALF_M, 1)
+    expect(result.removed[0].removed_size).toBeCloseTo(HEDGE_HALF_M, 1)
+  })
+
+  it('flags children that outgrow their parent as oversubscription', async () => {
+    // Duplicated rows are the realistic way this happens — paste the retained
+    // half twice more and the children total 300 m against a 200 m parent.
+    const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
+    const duplicated = [...pi, ...pi, ...pi]
+    const result = await reconcileParents(
+      pool,
+      HABITAT_TYPES.HEDGEROWS,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      duplicated
+    )
+    expect(result.removed).toEqual([])
+    expect(result.oversubscribed).toHaveLength(1)
+    expect(result.oversubscribed[0].parent_ref).toBe('HR-1')
+    expect(result.oversubscribed[0].excess).toBeCloseTo(HEDGE_HALF_M, 1)
   })
 })
 
 describe('trees', () => {
-  it('reads as points, with the planted one parentless', () => {
+  it('reads as points, with the felled tree simply absent', () => {
     const pi = staged.postIntervention[HABITAT_TYPES.TREES]
     expect(staged.baseline[HABITAT_TYPES.TREES]).toHaveLength(2)
-    expect(pi).toHaveLength(3)
+    expect(pi).toHaveLength(2)
     expect(pi.every((f) => f.geometry.type === 'Point')).toBe(true)
 
-    // Both the removed tree and the planted one read `Created` — the
-    // Statutory Metric records built-over ground as creating the new surface.
-    // Only the stamped parent tells them apart: the removed tree keeps its
-    // parent, the genuinely new one has none.
+    // T-2 was felled: under removal-by-absence it has no post-intervention
+    // row at all. The planted tree is `Created` and parentless.
+    expect(pi.find((f) => f.piRef === 'T-2')).toBeUndefined()
     const planted = pi.find((f) => f.piRef === 'T-NEW-1')
     expect(planted.retentionCategory).toBe('Created')
     expect(planted.parentRef).toBeNull()
-
-    const removed = pi.find((f) => f.piRef === 'T-2')
-    expect(removed.retentionCategory).toBe('Created')
-    expect(removed.parentRef).toBe('T-2')
   })
 
   it('a planted tree standing inside a habitat parcel gains no parent from it', async () => {
@@ -374,17 +411,17 @@ describe('trees', () => {
     expect(planted.parents).toEqual([])
   })
 
-  it('retained and removed trees keep their stamped parents', async () => {
+  it('the retained tree keeps its stamped parent', async () => {
     const result = await deriveLineage(
       pool,
       staged.postIntervention[HABITAT_TYPES.TREES],
       staged.baseline[HABITAT_TYPES.TREES]
     )
     const stamped = result.filter((r) => r.source === 'stamped')
-    expect(stamped.map((r) => r.parents[0].ref).sort()).toEqual(['T-1', 'T-2'])
+    expect(stamped.map((r) => r.parents[0].ref)).toEqual(['T-1'])
   })
 
-  it('is exempt from size reconciliation — points have no extent', async () => {
+  it('is exempt from total reconciliation — a felled tree is an absent point', async () => {
     const result = await reconcileSize(
       pool,
       HABITAT_TYPES.TREES,
@@ -392,7 +429,28 @@ describe('trees', () => {
       staged.postIntervention[HABITAT_TYPES.TREES]
     )
     expect(result.checked).toBe(false)
-    expect(result.reason).toMatch(/no extent/i)
+    expect(result.reason).toMatch(/absent point/i)
+  })
+
+  it('reports the felled tree as a removed count on its parent', async () => {
+    const result = await reconcileParents(
+      pool,
+      HABITAT_TYPES.TREES,
+      staged.baseline[HABITAT_TYPES.TREES],
+      staged.postIntervention[HABITAT_TYPES.TREES]
+    )
+    expect(result.checked).toBe(true)
+    expect(result.oversubscribed).toEqual([])
+    expect(result.removed).toEqual([
+      {
+        type: HABITAT_TYPES.TREES,
+        parent_ref: 'T-2',
+        measure: 'count',
+        baseline_size: 1,
+        pi_size: 0,
+        removed_size: 1
+      }
+    ])
   })
 })
 

@@ -75,6 +75,12 @@ export const ERROR_CODES = Object.freeze({
   /** Baseline and post-intervention totals disagree for a habitat type whose policy requires them to match. */
   STAGED_SIZE_MISMATCH: 'STAGED_SIZE_MISMATCH',
 
+  /** Post-intervention children total more than the baseline parent they are stamped with — duplicated or mis-stamped rows. */
+  STAGED_PARENT_OVERSUBSCRIBED: 'STAGED_PARENT_OVERSUBSCRIBED',
+
+  /** WARNING, not an error: baseline features with no (or partial) post-intervention continuation, which the service will treat as removed. */
+  STAGED_FEATURES_REMOVED: 'STAGED_FEATURES_REMOVED',
+
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
 })

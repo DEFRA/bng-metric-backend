@@ -36,11 +36,11 @@ Two sources, in order:
    verbatim through a split, so every parcel later derived by splitting keeps
    the correct parent with no geometric inference. This covers the common case.
 2. **Geometry**, only for rows with no stamped parent — parcels drawn fresh,
-   which need no parent for their units. (They are `Created`, but the converse
-   does not hold: built-over ground is also `Created` — the Statutory Metric
-   treats development as creating the new surface — and keeps its stamped
-   parent. The stamp, not the category, decides.) The apportionment matters
-   for area reconciliation, not for the calculation.
+   which need no parent for their units. (They are `Created`, but for area
+   habitats the converse does not hold: built-over ground is also `Created` —
+   the Statutory Metric treats development as creating the new surface — and
+   keeps its stamped parent. The stamp, not the category, decides.) The
+   apportionment matters for area reconciliation, not for the calculation.
 
 ### The trap worth knowing about
 
@@ -62,29 +62,43 @@ mis-attribute essentially every parcel, plausibly enough to go unnoticed.
 
 ## Reconciliation is per habitat type
 
-Established by prototyping each type in QGIS. Applying one rule everywhere
-would reject legitimate work.
+Established by prototyping each type in QGIS, then revised when
+removal-by-absence replaced removal rows. Applying one rule everywhere would
+reject legitimate work.
 
-| Type                   | Totals must match                | PI within baseline | Enforce       |
-| ---------------------- | -------------------------------- | ------------------ | ------------- |
-| Area habitats          | yes                              | yes                | both          |
-| Vertical area habitats | yes                              | yes                | both          |
-| Hedgerows              | yes (incl. built-over `Created`) | yes                | both          |
-| **Watercourses**       | **no**                           | **no**             | red line only |
-| Trees                  | n/a (counts)                     | n/a (points)       | red line only |
+| Type                   | Size rule              | PI within baseline | Removal is recorded by                          |
+| ---------------------- | ---------------------- | ------------------ | ----------------------------------------------- |
+| Area habitats          | **exact**              | yes                | a `Created` row for the new (sealed) surface    |
+| Vertical area habitats | **shortfall**          | yes                | absence — a demolished wall has no successor    |
+| Hedgerows              | **shortfall**          | yes                | absence — lost length is the residual           |
+| **Watercourses**       | **presence**           | **no**             | absence of any child for the whole baseline row |
+| Trees                  | **shortfall** (counts) | no (points)        | absence — a felled tree is an absent point      |
 
-Watercourses are the exception that matters: re-meandering a straightened
-channel moves it off the old line and makes it longer. It is a headline BNG
-intervention with its own layer in the NE template, and an equal-length or
-containment rule would reject every instance of it.
+The three rules (`reconcile.js`, `SIZE_RULES`):
 
-Built-over ground counts towards the totals. Following the Statutory Metric,
-the template records it as `Created` — developing a parcel _creates_ the new
-surface (developed land / sealed surface) — so it is distinguished from
-genuinely new habitat not by its retention category but by its stamped
-`Parent Ref`. Either way the row is the record that a piece of ground was
-accounted for; dropping it makes a fully developed site look like it has a
-coverage gap.
+- **exact** — baseline and post-intervention totals must balance. Only area
+  habitats: ground inside the red line cannot vanish, so building on it is
+  recorded as `Created` developed land / sealed surface, and an absent parcel
+  is indistinguishable from a mapping gap. Mismatch is an **error**.
+- **shortfall** — per stamped parent, children may total _less_ than the
+  parent (the difference is what was removed — a **warning**,
+  `STAGED_FEATURES_REMOVED`) but never _more_ (an **error**,
+  `STAGED_PARENT_OVERSUBSCRIBED`: children are contained within their parent,
+  so an excess is a duplicated or mis-stamped row). This is the Statutory
+  Metric's own bookkeeping: its hedgerow sheets take retained/enhanced lengths
+  per baseline row and derive the lost length as the residual — it is never
+  entered as a row.
+- **presence** — watercourses only. Re-meandering a straightened channel moves
+  it off the old line and makes it longer — a headline BNG intervention — so
+  child lengths say nothing about how much baseline was lost. A parent with at
+  least one stamped child continues in full; a parent with none is treated as
+  removed (**warning**). Partial watercourse loss is expressed by drawing the
+  baseline stretch as two features at survey time.
+
+Removal warnings never fail the file. The template's copy action populates
+post-intervention with every baseline feature, so an absent row is always a
+deliberate deletion — but the surveyor is told what the calculation will
+assume, because absence is also what a slip of the delete key looks like.
 
 ## Containment
 
@@ -197,21 +211,22 @@ and the feature picks up a plausible-looking parent it never had.
 `integration-tests/fixtures/staged-baseline-and-pi.gpkg` is a real export from
 the template, exercising all five types on both sides:
 
-| Type           | Scenario                                         | Proves                                                                    |
-| -------------- | ------------------------------------------------ | ------------------------------------------------------------------------- |
-| Area habitats  | pond straddling two parcels                      | geometry apportionment 1250/1250; adjacency does not confer parentage     |
-| Vertical areas | wall rebuilt taller, same footprint              | reconciles on footprint **length**, not the hand-entered face area        |
-| Hedgerows      | split, half retained half built over (`Created`) | one parent for both halves; the built-over half keeps the totals balanced |
-| Watercourses   | re-meandered off the old line                    | the exemption is load-bearing — an equal-length rule would reject it      |
-| Trees          | retained, removed, newly planted                 | a point inside a parcel inherits nothing from it                          |
+| Type           | Scenario                                       | Proves                                                                |
+| -------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
+| Area habitats  | pond straddling two parcels                    | geometry apportionment 1250/1250; adjacency does not confer parentage |
+| Vertical areas | wall rebuilt taller, same footprint            | accounting uses footprint **length**, not the hand-entered face area  |
+| Hedgerows      | split, half retained, half grubbed out         | the absent half surfaces as a 100 m removal warning on its parent     |
+| Watercourses   | re-meandered off the old line                  | the presence rule is load-bearing — an equal-length rule would reject |
+| Trees          | one retained, one felled (absent), one planted | a felled tree warns; a point inside a parcel inherits nothing from it |
 
-Two negative tests earn their keep: dropping the built-over hedgerow row makes
-reconciliation fail by exactly the removed 100 m, and stripping the stamped
+Two negative tests earn their keep: pasting duplicate children makes the parent
+oversubscribed by exactly the duplicated 100 m, and stripping the stamped
 parents forces the geometry path and shows each trimmed parcel still resolving
 to exactly one parent.
 
-`staged-validation.test.js` breaks a throwaway copy of the same fixture four
-ways — dangling parent ref, missing baseline layer, deleted built-over row, and PI
+`staged-validation.test.js` breaks a throwaway copy of the same fixture five
+ways — dangling parent ref, missing baseline layer, deleted retained hedgerow
+row (a warning, not an error), deleted area parcel (still an error), and PI
 parcel PR-1 shifted 10 m west. The shift is a translation, so the area is
 unchanged and the totals still reconcile: containment is the only thing that
 fails, which is what makes the assertion about containment rather than about

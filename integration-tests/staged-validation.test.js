@@ -43,6 +43,8 @@ const FIXTURE = path.join(
 const HTTP_OK = 200
 const BUCKET = 'baseline-files'
 const HEDGE_HALF_M = 100
+const HEDGE_TOTAL_M = 200
+const TREE_REMOVED_COUNT = 1
 
 /**
  * PI parcel PR-1, shifted 10 m west. Translation preserves its area, so the
@@ -112,6 +114,10 @@ function errorFor(result, code) {
   return result.errors.find((error) => error.code === code)
 }
 
+function warningFor(result, code) {
+  return (result.warnings ?? []).find((warning) => warning.code === code)
+}
+
 afterAll(async () => {
   await pool.end().catch(() => {})
 })
@@ -122,6 +128,35 @@ describe('validateStagedGeoPackage', () => {
 
     expect(result.errors).toEqual([])
     expect(result.valid).toBe(true)
+  })
+
+  it('reports the clean export\u2019s removals as warnings, not errors', async () => {
+    // The fixture deliberately carries two removals: the grubbed-out half of
+    // hedgerow HR-1 and felled tree T-2, both recorded by absence. Neither
+    // may fail the file, but the surveyor must be told what the calculation
+    // will assume.
+    const result = await validateStagedGeoPackage(FIXTURE, pool)
+
+    expect(result.valid).toBe(true)
+    const warning = warningFor(result, ERROR_CODES.STAGED_FEATURES_REMOVED)
+    expect(warning.details.sample).toEqual([
+      {
+        type: 'hedgerows',
+        parent_ref: 'HR-1',
+        measure: 'length',
+        baseline_size: expect.closeTo(HEDGE_TOTAL_M, 1),
+        pi_size: expect.closeTo(HEDGE_HALF_M, 1),
+        removed_size: expect.closeTo(HEDGE_HALF_M, 1)
+      },
+      {
+        type: 'trees',
+        parent_ref: 'T-2',
+        measure: 'count',
+        baseline_size: TREE_REMOVED_COUNT,
+        pi_size: 0,
+        removed_size: TREE_REMOVED_COUNT
+      }
+    ])
   })
 
   it('rejects a stamped parent that names nothing in the baseline', async () => {
@@ -158,25 +193,66 @@ describe('validateStagedGeoPackage', () => {
     expect(error.details.sample).toEqual([{ type: 'hedgerows' }])
   })
 
-  it('rejects totals that no longer balance', async () => {
-    // Deleting the built-over half of the split hedgerow (HR-1b — recorded as
-    // `Created` per the Statutory Metric, marked as built-over by its stamped
-    // parent) is the exact scenario the "built-over ground counts towards the
-    // totals" decision exists for: the ground is still accounted for, so
-    // removing the row opens a 100 m hole.
+  it('treats a deleted hedgerow row as removal — a warning, not an error', async () => {
+    // The inverse of the old "totals must balance" rule: grubbing out the
+    // whole hedge is recorded by deleting its copied row, exactly as the
+    // Statutory Metric derives lost length as the residual on the baseline.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `DELETE FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1b'`
+        `DELETE FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1a'`
+      ).run()
+    })
+
+    expect(result.valid).toBe(true)
+    expect(errorFor(result, ERROR_CODES.STAGED_SIZE_MISMATCH)).toBeUndefined()
+
+    const warning = warningFor(result, ERROR_CODES.STAGED_FEATURES_REMOVED)
+    const hedge = warning.details.sample.find((s) => s.type === 'hedgerows')
+    expect(hedge).toMatchObject({ parent_ref: 'HR-1', measure: 'length' })
+    expect(hedge.removed_size).toBeCloseTo(HEDGE_TOTAL_M, 1)
+  })
+
+  it('still rejects area totals that no longer balance', async () => {
+    // Area habitats keep the exact rule: ground inside the red line cannot
+    // vanish, and an absent parcel is indistinguishable from a mapping gap.
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `DELETE FROM "Habitats Post-Intervention" WHERE "PI Ref" = 'PI-POND'`
       ).run()
     })
 
     expect(result.valid).toBe(false)
     const error = errorFor(result, ERROR_CODES.STAGED_SIZE_MISMATCH)
     expect(error.details.sample[0]).toMatchObject({
+      type: 'areas',
+      measure: 'area'
+    })
+    expect(error.details.sample[0].delta).toBeGreaterThan(0)
+  })
+
+  it('rejects children that outgrow their stamped parent', async () => {
+    // Two pasted duplicates of the retained half: children total 300 m
+    // against a 200 m parent. A shortfall is a removal; an excess is always
+    // a duplicated or mis-stamped row.
+    const result = await validateMutatedFixture((db) => {
+      for (const piRef of ['HR-1a-copy1', 'HR-1a-copy2']) {
+        db.prepare(
+          `INSERT INTO "Hedgerows Post-Intervention"
+             (geom, "PI Ref", "Parent Ref", "Retention Category")
+           SELECT geom, ?, "Parent Ref", "Retention Category"
+           FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1a'`
+        ).run(piRef)
+      }
+    })
+
+    expect(result.valid).toBe(false)
+    const error = errorFor(result, ERROR_CODES.STAGED_PARENT_OVERSUBSCRIBED)
+    expect(error.details.sample[0]).toMatchObject({
       type: 'hedgerows',
+      parent_ref: 'HR-1',
       measure: 'length'
     })
-    expect(error.details.sample[0].delta).toBeCloseTo(HEDGE_HALF_M, 1)
+    expect(error.details.sample[0].excess).toBeCloseTo(HEDGE_HALF_M, 1)
   })
 
   it('rejects a parcel that has strayed outside its stamped parent', async () => {
@@ -255,5 +331,10 @@ describe('POST /baseline/validate/{uploadId} with a staged GeoPackage', () => {
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result.errors).toEqual([])
     expect(res.result.valid).toBe(true)
+    // The removal warning must survive the route boundary — the frontend is
+    // what actually shows it to the surveyor.
+    expect(res.result.warnings.map((warning) => warning.code)).toContain(
+      ERROR_CODES.STAGED_FEATURES_REMOVED
+    )
   })
 })

@@ -83,6 +83,31 @@ function describeSizeMismatch(sample) {
   return `${typeLabel(sample?.type)} — baseline ${baseline} ${unit} vs post-intervention ${pi} ${unit}`
 }
 
+/** Counts read as whole trees; areas and lengths keep their decimals. */
+function formatSize(measure, value) {
+  const size = Number(value ?? 0)
+  return measure === 'count'
+    ? String(Math.round(size))
+    : size.toFixed(SIZE_MESSAGE_DECIMALS)
+}
+
+function describeRemoval(sample) {
+  const unit = MEASURE_UNITS[sample?.measure] ?? ''
+  const removed = formatSize(sample?.measure, sample?.removed_size)
+  return `${typeLabel(sample?.type)} "${sample?.parent_ref}" — ${removed} ${unit} with no post-intervention continuation`
+    .replaceAll('  ', ' ')
+    .trim()
+}
+
+function describeOversubscription(sample) {
+  const unit = MEASURE_UNITS[sample?.measure] ?? ''
+  const baseline = formatSize(sample?.measure, sample?.baseline_size)
+  const pi = formatSize(sample?.measure, sample?.pi_size)
+  return `${typeLabel(sample?.type)} "${sample?.parent_ref}" — children total ${pi} ${unit} against a baseline of ${baseline} ${unit}`
+    .replaceAll('  ', ' ')
+    .trim()
+}
+
 /**
  * A post-intervention layer with no baseline counterpart. Nothing can be
  * reconciled against it, and the units it claims cannot be checked, so this is
@@ -150,6 +175,50 @@ export function stagedSizeMismatchError(samples) {
       'Baseline and post-intervention totals do not match',
       payload,
       describeSizeMismatch
+    ),
+    payload
+  )
+}
+
+/**
+ * Children stamped to one parent totalling MORE than that parent. Blocking:
+ * within-parent containment means length and area children cannot legitimately
+ * outgrow their parent, so an excess is a duplicated or mis-stamped row, and
+ * for trees a count exceeding the baseline point's count is simply wrong.
+ *
+ * @param {Array<{ type: string, parent_ref: string, measure: string, baseline_size: number, pi_size: number, excess: number }>} samples
+ */
+export function stagedParentOversubscribedError(samples) {
+  const payload = listPayload(samples)
+  return makeError(
+    ERROR_CODES.STAGED_PARENT_OVERSUBSCRIBED,
+    formatList(
+      'One or more baseline features have post-intervention children totalling more than the baseline',
+      payload,
+      describeOversubscription
+    ),
+    payload
+  )
+}
+
+/**
+ * Baseline features the service will treat as (partly) removed because no
+ * post-intervention child accounts for them. A WARNING, not an error: the
+ * template's copy action populates post-intervention with every baseline
+ * feature, so absence is a deliberate deletion — but the surveyor is told
+ * what the calculation will assume, because absence is also what a slip of
+ * the delete key looks like.
+ *
+ * @param {Array<{ type: string, parent_ref: string, measure: string, baseline_size: number, pi_size: number, removed_size: number }>} samples
+ */
+export function stagedFeaturesRemovedWarning(samples) {
+  const payload = listPayload(samples)
+  return makeError(
+    ERROR_CODES.STAGED_FEATURES_REMOVED,
+    formatList(
+      'Baseline features with no post-intervention continuation will be treated as removed',
+      payload,
+      describeRemoval
     ),
     payload
   )
