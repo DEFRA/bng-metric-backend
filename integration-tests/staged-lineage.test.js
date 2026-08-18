@@ -47,6 +47,36 @@ afterAll(async () => {
 })
 
 describe('reading a staged GeoPackage', () => {
+  it('carries the hidden lineage keys', () => {
+    for (const [type, features] of Object.entries(staged.baseline)) {
+      for (const feature of features) {
+        expect(feature.featureUuid, `${type} baseline uuid`).toBeTruthy()
+      }
+    }
+    for (const features of Object.values(staged.postIntervention)) {
+      for (const feature of features.filter((f) => f.parentRef)) {
+        expect(feature.parentUuid).toBeTruthy()
+        expect(feature.parentChecksum).toMatch(/^[0-9a-f]{16}$/)
+      }
+    }
+  })
+
+  it('prefers the uuid stamp over a mangled ref', async () => {
+    const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].map((f) => ({
+      ...f,
+      parentRef: 'WRONG'
+    }))
+    const result = await deriveLineage(
+      pool,
+      pi,
+      staged.baseline[HABITAT_TYPES.HEDGEROWS],
+      { linear: true }
+    )
+    expect(result[0].source).toBe('stamped')
+    expect(result[0].stampedBy).toBe('uuid')
+    expect(result[0].parents[0].ref).toBe('HR-1')
+  })
+
   it('recognises it as staged', () => {
     expect(staged.staged).toBe(true)
   })
@@ -116,7 +146,8 @@ describe('deriving lineage', () => {
     // Area weighting must resolve each trimmed parcel to exactly one.
     const unstamped = staged.postIntervention[HABITAT_TYPES.AREAS].map((f) => ({
       ...f,
-      parentRef: null // force the geometry path for all three
+      parentRef: null, // force the geometry path for all three
+      parentUuid: null
     }))
     const result = await deriveLineage(
       pool,
@@ -314,7 +345,7 @@ describe('hedgerows', () => {
   it('resolves parentage by shared LENGTH when the stamp is absent', async () => {
     // exercises the linear geometry path, which the area fixture cannot reach
     const unstamped = staged.postIntervention[HABITAT_TYPES.HEDGEROWS].map(
-      (f) => ({ ...f, parentRef: null })
+      (f) => ({ ...f, parentRef: null, parentUuid: null })
     )
     const result = await deriveLineage(
       pool,

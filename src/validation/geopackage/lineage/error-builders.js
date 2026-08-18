@@ -223,3 +223,49 @@ export function stagedFeaturesRemovedWarning(samples) {
     payload
   )
 }
+
+/**
+ * Baseline features whose geometry no longer matches the checksum stamped on
+ * their post-intervention children — the baseline was edited AFTER the copy
+ * was made. A warning: the edit may be a legitimate correction, but the copy
+ * is now stale for those parcels and should be re-run or confirmed.
+ *
+ * @param {Array<{ type: string, parent_ref: string, pi_count: number }>} samples
+ */
+export function stagedBaselineDriftedWarning(samples) {
+  const payload = listPayload(samples)
+  return makeError(
+    ERROR_CODES.STAGED_BASELINE_DRIFTED,
+    formatList(
+      'Baseline features changed after the post-intervention copy was made from them',
+      payload,
+      (sample) =>
+        `${typeLabel(sample?.type)} "${sample?.parent_ref}" — ${sample?.pi_count} post-intervention row(s) were copied from an older shape`
+    ),
+    payload
+  )
+}
+
+/**
+ * Continuing (Retained/Enhanced) features with no lineage stamp at all —
+ * a file made outside the template's copy action. Their parent was inferred
+ * from geometric overlap, which is a guess the surveyor should confirm; where
+ * even geometry found nothing, that is said too.
+ *
+ * @param {Array<{ type: string, pi_ref: string|null, parent_ref: string|null }>} samples
+ */
+export function stagedParentInferredWarning(samples) {
+  const payload = listPayload(samples)
+  return makeError(
+    ERROR_CODES.STAGED_PARENT_INFERRED,
+    formatList(
+      'Continuing features carry no lineage stamp; their baseline parents were inferred from geometry',
+      payload,
+      (sample) =>
+        sample?.parent_ref
+          ? `${describePiFeature(sample)} → "${sample.parent_ref}" (inferred from overlap)`
+          : `${describePiFeature(sample)} → no baseline overlap found`
+    ),
+    payload
+  )
+}

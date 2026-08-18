@@ -17,13 +17,16 @@
 import { checkContainment } from './containment.js'
 import { deriveLineage } from './derive-lineage.js'
 import {
+  stagedBaselineDriftedWarning,
   stagedFeaturesRemovedWarning,
   stagedMissingBaselineLayerError,
+  stagedParentInferredWarning,
   stagedParentOversubscribedError,
   stagedPiOutsideParentError,
   stagedSizeMismatchError,
   stagedUnknownParentRefError
 } from './error-builders.js'
+import { geometryChecksum } from './geometry-checksum.js'
 import { readStagedGeoPackage } from './read-staged-geopackage.js'
 import {
   isLinearMeasure,
@@ -66,18 +69,99 @@ function baselineRefSet(baseline) {
  */
 function unknownParentRefs(type, postIntervention, baseline) {
   const known = baselineRefSet(baseline)
+  const knownUuids = new Set(
+    baseline.map((f) => f?.featureUuid).filter(Boolean)
+  )
   const offenders = []
   for (const feature of postIntervention) {
     const parentRef = feature?.parentRef
-    if (parentRef != null && parentRef !== '' && !known.has(parentRef)) {
+    const parentUuid = feature?.parentUuid
+    const hasStamp =
+      (parentRef != null && parentRef !== '') ||
+      (parentUuid != null && parentUuid !== '')
+    const resolves =
+      (parentUuid != null && knownUuids.has(parentUuid)) ||
+      (parentRef != null && known.has(parentRef))
+    if (hasStamp && !resolves) {
       offenders.push({
         type,
         pi_ref: feature?.piRef ?? null,
-        parent_ref: parentRef
+        parent_ref: parentRef ?? parentUuid
       })
     }
   }
   return offenders
+}
+
+/** Retention categories that continue baseline habitat and so need a parent. */
+const CONTINUING_CATEGORIES = new Set(['Retained', 'Enhanced'])
+
+/**
+ * Post-intervention rows stamped with a resolving parent_uuid whose checksum
+ * no longer matches any baseline row carrying that uuid — the baseline was
+ * edited after the copy. Grouped per parent so a parcel split into ten pieces
+ * reports one drift, not ten.
+ *
+ * @param {string} type
+ * @param {object[]} postIntervention
+ * @param {object[]} baseline
+ * @returns {Array<{ type: string, parent_ref: string, pi_count: number }>}
+ */
+function baselineDrift(type, postIntervention, baseline) {
+  const rowsByUuid = new Map()
+  for (const feature of baseline) {
+    if (!feature?.featureUuid) {
+      continue
+    }
+    const list = rowsByUuid.get(feature.featureUuid) ?? []
+    list.push(feature)
+    rowsByUuid.set(feature.featureUuid, list)
+  }
+  const drifted = new Map()
+  for (const feature of postIntervention) {
+    const uuid = feature?.parentUuid
+    const stamped = feature?.parentChecksum
+    const rows = uuid ? rowsByUuid.get(uuid) : undefined
+    if (!stamped || !rows) {
+      continue
+    }
+    const current = rows.map((row) => geometryChecksum(row.geometry))
+    if (!current.includes(stamped)) {
+      const ref = rows[0]?.ref ?? uuid
+      const entry = drifted.get(ref) ?? { type, parent_ref: ref, pi_count: 0 }
+      entry.pi_count += 1
+      drifted.set(ref, entry)
+    }
+  }
+  return [...drifted.values()]
+}
+
+/**
+ * Continuing rows whose parent had to be inferred from geometry because they
+ * carry no stamp at all. The inference is a guess to confirm, not a record.
+ *
+ * @param {string} type
+ * @param {object[]} postIntervention
+ * @param {object[]} lineage aligned with postIntervention by piIndex
+ * @returns {Array<{ type: string, pi_ref: string|null, parent_ref: string|null }>}
+ */
+function inferredParents(type, postIntervention, lineage) {
+  const inferred = []
+  for (const entry of lineage) {
+    if (entry.source === 'stamped') {
+      continue
+    }
+    const feature = postIntervention[entry.piIndex]
+    if (!CONTINUING_CATEGORIES.has(feature?.retentionCategory)) {
+      continue
+    }
+    inferred.push({
+      type,
+      pi_ref: feature?.piRef ?? null,
+      parent_ref: entry.parents[0]?.ref ?? null
+    })
+  }
+  return inferred
 }
 
 /**
@@ -96,7 +180,9 @@ async function checkType(pool, type, staged) {
     unknownParents: [],
     outsideParent: [],
     removed: [],
-    oversubscribed: []
+    oversubscribed: [],
+    drifted: [],
+    inferred: []
   }
   const baseline = staged.baseline[type] ?? []
 
@@ -115,10 +201,12 @@ async function checkType(pool, type, staged) {
   }
 
   findings.unknownParents = unknownParentRefs(type, postIntervention, baseline)
+  findings.drifted = baselineDrift(type, postIntervention, baseline)
 
   const lineage = await deriveLineage(pool, postIntervention, baseline, {
     linear: isLinearMeasure(type)
   })
+  findings.inferred = inferredParents(type, postIntervention, lineage)
   // checkContainment returns [] for the exempt types, so the policy lives in one
   // place rather than being re-stated as a condition here.
   findings.outsideParent = await checkContainment(pool, type, {
@@ -194,8 +282,20 @@ function buildErrors(perType) {
  * @returns {Array<{ code: string, message: string, details?: object }>}
  */
 function buildWarnings(perType) {
+  const warnings = []
   const removed = perType.flatMap((findings) => findings.removed)
-  return removed.length > 0 ? [stagedFeaturesRemovedWarning(removed)] : []
+  if (removed.length > 0) {
+    warnings.push(stagedFeaturesRemovedWarning(removed))
+  }
+  const drifted = perType.flatMap((findings) => findings.drifted)
+  if (drifted.length > 0) {
+    warnings.push(stagedBaselineDriftedWarning(drifted))
+  }
+  const inferred = perType.flatMap((findings) => findings.inferred)
+  if (inferred.length > 0) {
+    warnings.push(stagedParentInferredWarning(inferred))
+  }
+  return warnings
 }
 
 /**

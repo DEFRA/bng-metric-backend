@@ -81,6 +81,12 @@ export const ERROR_CODES = Object.freeze({
   /** WARNING, not an error: baseline features with no (or partial) post-intervention continuation, which the service will treat as removed. */
   STAGED_FEATURES_REMOVED: 'STAGED_FEATURES_REMOVED',
 
+  /** WARNING: a baseline feature's geometry changed after the post-intervention copy was stamped from it (parent_checksum mismatch). */
+  STAGED_BASELINE_DRIFTED: 'STAGED_BASELINE_DRIFTED',
+
+  /** WARNING: a continuing (Retained/Enhanced) feature carries no lineage stamp; its parent was inferred from geometry and needs confirming. */
+  STAGED_PARENT_INFERRED: 'STAGED_PARENT_INFERRED',
+
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
 })

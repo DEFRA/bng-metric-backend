@@ -1,11 +1,14 @@
 // Derive baseline → post-intervention lineage for a staged GeoPackage.
 //
-// Two sources of truth, in this order:
+// Sources of truth, in this order:
 //
-//  1. The STAMPED Parent Ref. The QGIS template writes it once when the
-//     post-intervention layer is copied from the baseline, and QGIS carries
-//     attributes verbatim through a split, so every parcel derived by splitting
-//     keeps the correct parent with no geometry involved. Trust it.
+//  1. The STAMPED parent — `parent_uuid` first (a hidden machine key humans
+//     never see or type, so renames cannot break it), falling back to the
+//     human-readable `Parent Ref` for files made before the uuid columns
+//     existed. The QGIS template writes both once when the post-intervention
+//     layer is copied from the baseline, and QGIS carries attributes verbatim
+//     through a split, so every parcel derived by splitting keeps the correct
+//     parent with no geometry involved. Trust it.
 //
 //  2. Geometry, only for rows with no stamped parent — parcels a surveyor drew
 //     fresh, which need no parent for their units. (They are Created, but the
@@ -107,18 +110,40 @@ export async function deriveLineage(
     source: 'none'
   }))
 
-  // 1. stamped parents win outright
+  // 1. stamped parents win outright: uuid first, ref as the fallback
   const baselineRefs = new Set(
     baseline.map((feature) => feature?.ref).filter((ref) => ref != null)
   )
+  const refByUuid = new Map()
+  for (const feature of baseline) {
+    if (feature?.featureUuid && !refByUuid.has(feature.featureUuid)) {
+      refByUuid.set(feature.featureUuid, feature?.ref ?? null)
+    }
+  }
   const needsGeometry = []
   postIntervention.forEach((feature, piIndex) => {
+    const parentUuid = feature?.parentUuid
     const parentRef = feature?.parentRef
-    if (parentRef != null && parentRef !== '' && baselineRefs.has(parentRef)) {
+    if (parentUuid != null && parentUuid !== '' && refByUuid.has(parentUuid)) {
+      results[piIndex].parents = [
+        {
+          ref: refByUuid.get(parentUuid) ?? parentRef ?? null,
+          sharedSize: null,
+          share: 1
+        }
+      ]
+      results[piIndex].source = 'stamped'
+      results[piIndex].stampedBy = 'uuid'
+    } else if (
+      parentRef != null &&
+      parentRef !== '' &&
+      baselineRefs.has(parentRef)
+    ) {
       results[piIndex].parents = [
         { ref: parentRef, sharedSize: null, share: 1 }
       ]
       results[piIndex].source = 'stamped'
+      results[piIndex].stampedBy = 'ref'
     } else {
       needsGeometry.push({ feature, piIndex })
     }

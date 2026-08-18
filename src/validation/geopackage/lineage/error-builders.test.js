@@ -3,7 +3,9 @@ import { describe, expect, it } from 'vitest'
 import { ERROR_CODES } from '../errors.js'
 import { ERROR_LIST_SAMPLE_CAP } from '../postgis/constants.js'
 import {
+  stagedBaselineDriftedWarning,
   stagedFeaturesRemovedWarning,
+  stagedParentInferredWarning,
   stagedMissingBaselineLayerError,
   stagedParentOversubscribedError,
   stagedPiOutsideParentError,
@@ -179,5 +181,39 @@ describe('stagedFeaturesRemovedWarning', () => {
       'trees "T-2" — 1 with no post-intervention continuation'
     )
     expect(warning.message).not.toContain('1.00')
+  })
+})
+
+describe('stagedBaselineDriftedWarning', () => {
+  it('names the parent and how many rows were copied from the old shape', () => {
+    const warning = stagedBaselineDriftedWarning([
+      { type: HABITAT_TYPES.WATERCOURSES, parent_ref: 'WC-1', pi_count: 3 }
+    ])
+
+    expect(warning.code).toBe(ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.message).toContain(
+      'watercourses "WC-1" — 3 post-intervention row(s) were copied from an older shape'
+    )
+  })
+})
+
+describe('stagedParentInferredWarning', () => {
+  it('names the inferred parent', () => {
+    const warning = stagedParentInferredWarning([
+      { type: HABITAT_TYPES.HEDGEROWS, pi_ref: 'HR-1a', parent_ref: 'HR-1' }
+    ])
+
+    expect(warning.code).toBe(ERROR_CODES.STAGED_PARENT_INFERRED)
+    expect(warning.message).toContain(
+      'hedgerows HR-1a → "HR-1" (inferred from overlap)'
+    )
+  })
+
+  it('says so when even geometry found nothing', () => {
+    const warning = stagedParentInferredWarning([
+      { type: HABITAT_TYPES.TREES, pi_ref: 'T-9', parent_ref: null }
+    ])
+
+    expect(warning.message).toContain('trees T-9 → no baseline overlap found')
   })
 })

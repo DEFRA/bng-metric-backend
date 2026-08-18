@@ -159,12 +159,74 @@ describe('validateStagedGeoPackage', () => {
     ])
   })
 
+  it('survives a mangled Parent Ref when the uuid stamp is intact', async () => {
+    // The whole point of the hidden uuid: renames and typos on the visible
+    // ref can no longer break lineage.
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Habitats Post-Intervention" SET "Parent Ref" = 'GONE' WHERE "PI Ref" = 'PR-1'`
+      ).run()
+    })
+
+    expect(
+      errorFor(result, ERROR_CODES.STAGED_UNKNOWN_PARENT_REF)
+    ).toBeUndefined()
+    expect(
+      errorFor(result, ERROR_CODES.STAGED_PI_OUTSIDE_PARENT)
+    ).toBeUndefined()
+    expect(result.valid).toBe(true)
+  })
+
+  it('warns when a stamped checksum no longer matches the baseline geometry', async () => {
+    // Simulates the baseline being edited after the copy: the stamp was made
+    // from a shape that no longer exists. Watercourses are containment-exempt,
+    // so the drift warning is the only signal — exactly the point of it.
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Watercourses Post-Intervention" SET parent_checksum = '0123456789abcdef'`
+      ).run()
+    })
+
+    expect(result.valid).toBe(true)
+    const warning = warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.details.sample).toEqual([
+      { type: 'watercourses', parent_ref: 'WC-1', pi_count: 1 }
+    ])
+  })
+
+  it('flags a continuing row with no stamp at all as inferred lineage', async () => {
+    // A file made outside the template's copy action: the parent is guessed
+    // from geometric overlap and the surveyor is asked to confirm.
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Hedgerows Post-Intervention" SET "Parent Ref" = NULL, parent_uuid = NULL WHERE "PI Ref" = 'HR-1a'`
+      ).run()
+    })
+
+    expect(result.valid).toBe(true)
+    const warning = warningFor(result, ERROR_CODES.STAGED_PARENT_INFERRED)
+    expect(warning.details.sample).toEqual([
+      { type: 'hedgerows', pi_ref: 'HR-1a', parent_ref: 'HR-1' }
+    ])
+  })
+
+  it('emits no drift or inferred warnings for a clean template export', async () => {
+    const result = await validateStagedGeoPackage(FIXTURE, pool)
+
+    expect(
+      warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    ).toBeUndefined()
+    expect(
+      warningFor(result, ERROR_CODES.STAGED_PARENT_INFERRED)
+    ).toBeUndefined()
+  })
+
   it('rejects a stamped parent that names nothing in the baseline', async () => {
     // Left unreported this degrades quietly: deriveLineage falls through to the
     // geometry rule and the parcel picks up a plausible parent it never had.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Habitats Post-Intervention" SET "Parent Ref" = 'GONE' WHERE "PI Ref" = 'PR-1'`
+        `UPDATE "Habitats Post-Intervention" SET "Parent Ref" = 'GONE', parent_uuid = NULL WHERE "PI Ref" = 'PR-1'`
       ).run()
     })
 

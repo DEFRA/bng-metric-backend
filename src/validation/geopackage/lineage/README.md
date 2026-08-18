@@ -29,9 +29,22 @@ loss was the actual defect.
 
 ## How lineage is established
 
-Two sources, in order:
+The full design rationale lives in the workspace note
+`lineage-uuid-reconciliation.md`; the short version: the human label and the
+machine key are separate fields. Baseline rows carry a hidden `feature_uuid`
+(auto-filled by a QGIS default at digitise time); the copy action stamps
+`parent_uuid` and `parent_checksum` (a canonical geometry hash — see
+`geometry-checksum.js`, byte-compatible with the template's Python) onto every
+post-intervention row. Renaming refs is cosmetic; a checksum mismatch surfaces
+as the `STAGED_BASELINE_DRIFTED` warning ("baseline edited after the copy");
+continuing rows with no stamp at all fall back to geometric inference and are
+flagged `STAGED_PARENT_INFERRED` for confirmation.
 
-1. **The stamped `Parent Ref`.** The template writes it once when the
+## Resolution order
+
+Sources, in order:
+
+1. **The stamped parent — `parent_uuid` first, `Parent Ref` as fallback.** The template writes it once when the
    post-intervention layer is copied from the baseline. QGIS carries attributes
    verbatim through a split, so every parcel later derived by splitting keeps
    the correct parent with no geometric inference. This covers the common case.
