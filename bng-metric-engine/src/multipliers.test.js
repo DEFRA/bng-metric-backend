@@ -29,7 +29,8 @@ const FELLED_ADVANCE_BELOW_TARGET = 5
 // branches: its Creation band (High) differs from its Enhancement band (Medium),
 // its Poor target is achievable in 1 year, and the chosen end condition (Good)
 // has a 15-year target so advance=1 does not trip the Low override.
-const DISCRIMINATING_HABITAT = 'Coastal saltmarsh - Saltmarshes and saline reedbeds'
+const DISCRIMINATING_HABITAT =
+  'Coastal saltmarsh - Saltmarshes and saline reedbeds'
 const DISCRIMINATING_TARGET = 'Good'
 const DIFFICULTY_HIGH = 0.33
 
