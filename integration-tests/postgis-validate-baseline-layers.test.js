@@ -1,7 +1,10 @@
 import { afterAll, describe, expect, it } from 'vitest'
 import pg from 'pg'
 
-import { validateGeoPackageLayersPostgis } from '../src/validation/geopackage/postgis/index.js'
+import {
+  materialiseIndexedAreas,
+  validateGeoPackageLayersPostgis
+} from '../src/validation/geopackage/postgis/index.js'
 import { getDbConfig } from './helpers/db.js'
 
 const BNG_SRID = 27700
@@ -646,5 +649,158 @@ describe('validateGeoPackageLayersPostgis — coordinate-system handling', () =>
     expect(codes).not.toContain('AREA_PARCELS_OUTSIDE_REDLINE')
     expect(codes).not.toContain('AREA_PARCELS_TOO_SMALL')
     expect(codes).not.toContain('AREA_SUM_MISMATCH')
+  })
+})
+
+// --------------------------------------------------------------------------
+// Parcel-overlap spatial index. The overlap check is a self-join over the
+// habitat parcels; these pin down the mechanism that keeps it from degrading
+// into an ~N²/2 cross-product.
+// --------------------------------------------------------------------------
+
+// Enough parcels for a plan that says something about how the join scales.
+// The planner picks the index well below this, so the number is comfort, not
+// a threshold.
+const PLAN_PARCEL_COUNT = 50
+// Side, and spacing, of the parcels in the generated grid. Spacing == side so
+// the parcels tile without overlapping: the check finds nothing, and the plan
+// is what's under test.
+const GRID_PARCEL_EDGE_M = 10
+
+// A square grid of non-overlapping parcels, laid out from (X0, Y0).
+function parcelGrid(count) {
+  const columns = Math.ceil(Math.sqrt(count))
+  return Array.from({ length: count }, (_, i) => {
+    const x = X0 + (i % columns) * GRID_PARCEL_EDGE_M
+    const y = Y0 + Math.floor(i / columns) * GRID_PARCEL_EDGE_M
+    return poly(
+      [
+        [x, y],
+        [x + GRID_PARCEL_EDGE_M, y],
+        [x + GRID_PARCEL_EDGE_M, y + GRID_PARCEL_EDGE_M],
+        [x, y + GRID_PARCEL_EDGE_M],
+        [x, y]
+      ],
+      { fid: String(i + 1) }
+    )
+  })
+}
+
+// Runs `work` against a client with the parcels of `layers` already
+// materialised, then rolls back so the temp table goes away.
+async function withMaterialisedAreas(layers, work) {
+  const client = await pool.connect()
+  try {
+    await client.query('BEGIN')
+    await materialiseIndexedAreas(client, layers)
+    return await work(client)
+  } finally {
+    await client.query('ROLLBACK').catch(() => {})
+    client.release()
+  }
+}
+
+const OVERLAP_JOIN_SQL = `
+  SELECT prc1.idx, prc2.idx
+  FROM areas_g prc1 JOIN areas_g prc2
+    ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)`
+
+describe('validateGeoPackageLayersPostgis — parcel-overlap spatial index', () => {
+  it('materialises the habitat parcels into a GiST-indexed table', async () => {
+    const indexes = await withMaterialisedAreas(
+      makeLayers({ areas: parcelGrid(PLAN_PARCEL_COUNT) }),
+      (client) =>
+        client.query(
+          `SELECT indexdef FROM pg_indexes
+           WHERE schemaname LIKE 'pg_temp%' AND tablename = 'areas_g'`
+        )
+    )
+    expect(indexes.rows).toHaveLength(1)
+    expect(indexes.rows[0].indexdef).toContain('USING gist (geom)')
+  })
+
+  it('stores the parcels already made valid, one row per parcel', async () => {
+    const stored = await withMaterialisedAreas(
+      makeLayers({
+        areas: [poly(SQUARE), poly(SELF_INTERSECTING), poly(SQUARE_OFFSET)]
+      }),
+      (client) =>
+        client.query(
+          'SELECT count(*)::int AS n, bool_and(ST_IsValid(geom)) AS all_valid FROM areas_g'
+        )
+    )
+    expect(stored.rows[0]).toEqual({ n: 3, all_valid: true })
+  })
+
+  it('plans the overlap self-join as an index scan, not a cross-product', async () => {
+    const explained = await withMaterialisedAreas(
+      makeLayers({ areas: parcelGrid(PLAN_PARCEL_COUNT) }),
+      (client) => client.query(`EXPLAIN ${OVERLAP_JOIN_SQL}`)
+    )
+    const plan = explained.rows.map((r) => r['QUERY PLAN']).join('\n')
+    expect(plan).toMatch(/Index Scan using \S+ on areas_g/)
+    expect(plan).not.toContain('Materialize')
+  })
+
+  it('drops the temp table when the transaction ends, so a pooled connection is reusable', async () => {
+    // max: 1 forces both runs onto the same backend — the case where a temp
+    // table outliving its transaction would blow up the second run with
+    // "relation areas_g already exists".
+    const singleConnectionPool = new pg.Pool({ ...getDbConfig(), max: 1 })
+    try {
+      const layers = makeLayers({
+        redline: [poly(SQUARE)],
+        areas: [poly(SQUARE), poly(SQUARE_OFFSET)]
+      })
+      const first = await validateGeoPackageLayersPostgis(
+        singleConnectionPool,
+        layers
+      )
+      const second = await validateGeoPackageLayersPostgis(
+        singleConnectionPool,
+        layers
+      )
+      expect(second.errors.map((e) => e.code)).toEqual(
+        first.errors.map((e) => e.code)
+      )
+      expect(first.errors.map((e) => e.code)).toContain('PARCEL_OVERLAPS')
+    } finally {
+      await singleConnectionPool.end().catch(() => {})
+    }
+  })
+
+  it('leaves nothing behind when the check itself fails', async () => {
+    const singleConnectionPool = new pg.Pool({ ...getDbConfig(), max: 1 })
+    try {
+      await expect(
+        validateGeoPackageLayersPostgis(
+          singleConnectionPool,
+          makeLayers({ areas: [poly(SQUARE, { fid: '1' })] })
+        )
+      ).resolves.toBeDefined()
+
+      // A parcel with unparseable geometry aborts the transaction mid-way.
+      await expect(
+        validateGeoPackageLayersPostgis(singleConnectionPool, {
+          ...makeLayers(),
+          areas: [
+            {
+              properties: {},
+              nativeGeometry: { type: 'Polygon', coordinates: 'nonsense' },
+              nativeSrid: BNG_SRID
+            }
+          ]
+        })
+      ).rejects.toThrow()
+
+      // The rolled-back run must not have poisoned the connection.
+      const after = await validateGeoPackageLayersPostgis(
+        singleConnectionPool,
+        makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
+      )
+      expect(after.valid).toBe(true)
+    } finally {
+      await singleConnectionPool.end().catch(() => {})
+    }
   })
 })
