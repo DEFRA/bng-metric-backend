@@ -23,7 +23,11 @@ export function toProjectListResponse(row) {
     project: { name: row.name },
     // Whether the project has baseline data yet — the frontend uses it to pick
     // each row's link target without needing to look inside the document.
-    hasBaseline: Boolean(row.hasBaseline),
+    //
+    // snake_case deliberately, against the envelope's camelCase habit: this is
+    // the projected `has_baseline` column, and it is the name BMD-933's
+    // acceptance criteria and the JMeter suite's AC3 assertion both check for.
+    has_baseline: Boolean(row.hasBaseline),
     createdAt: row.createdAt,
     updatedAt: row.updatedAt
   }

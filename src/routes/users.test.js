@@ -43,7 +43,7 @@ const expectedResponse = [
     id: PROJECT_1_ID,
     projectId: PROJECT_1_ID,
     project: { name: 'Greenfield Meadow Restoration' },
-    hasBaseline: true,
+    has_baseline: true,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-02')
   },
@@ -51,7 +51,7 @@ const expectedResponse = [
     id: PROJECT_2_ID,
     projectId: PROJECT_2_ID,
     project: { name: 'Oakwood Farm BNG Assessment' },
-    hasBaseline: false,
+    has_baseline: false,
     createdAt: new Date('2024-02-01'),
     updatedAt: new Date('2024-02-02')
   }
@@ -238,12 +238,12 @@ describe('#getUserProjects list projection', () => {
     }
   })
 
-  test('Should include hasBaseline for each row', async () => {
+  test('Should include has_baseline for each row', async () => {
     const request = makeRequest(TEST_USER_ID)
 
     const result = await getUserProjects.handler(request, {})
 
-    expect(result.map((r) => r.hasBaseline)).toEqual([true, false])
+    expect(result.map((r) => r.has_baseline)).toEqual([true, false])
   })
 
   test('Should keep the payload flat however large the stored document is', async () => {

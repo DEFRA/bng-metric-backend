@@ -22,7 +22,7 @@ describe('#toProjectListResponse', () => {
       id: PROJECT_ID,
       projectId: PROJECT_ID,
       project: { name: 'Greenfield Meadow Restoration' },
-      hasBaseline: true,
+      has_baseline: true,
       createdAt: new Date('2024-01-01'),
       updatedAt: new Date('2024-01-02')
     })
@@ -38,10 +38,17 @@ describe('#toProjectListResponse', () => {
     expect(toProjectListResponse(row).projectId).toBe(PROJECT_ID)
   })
 
-  it('reports hasBaseline false when the document has no baseline', () => {
+  it('reports has_baseline false when the document has no baseline', () => {
     expect(
-      toProjectListResponse({ ...row, hasBaseline: false }).hasBaseline
+      toProjectListResponse({ ...row, hasBaseline: false }).has_baseline
     ).toBe(false)
+  })
+
+  // The perf suite's AC3 assertion and seed-via-api.mjs both look for this
+  // exact key in the payload.
+  it('names the flag has_baseline in the envelope', () => {
+    expect(toProjectListResponse(row)).toHaveProperty('has_baseline')
+    expect(toProjectListResponse(row)).not.toHaveProperty('hasBaseline')
   })
 
   // BMD-933: this mapper is the guard against a document body reaching a list

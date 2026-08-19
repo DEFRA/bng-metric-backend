@@ -129,14 +129,14 @@ describe('GET /projects', () => {
         id: created.id,
         projectId: created.id,
         project: { name: 'Listed' },
-        hasBaseline: true,
+        has_baseline: true,
         createdAt: expect.any(Date),
         updatedAt: expect.any(Date)
       }
     ])
   })
 
-  it('reports hasBaseline false before any baseline is uploaded', async () => {
+  it('reports has_baseline false before any baseline is uploaded', async () => {
     await createProject('No Baseline')
 
     const res = await server.inject({
@@ -145,7 +145,7 @@ describe('GET /projects', () => {
       headers
     })
 
-    expect(res.result.map((p) => p.hasBaseline)).toEqual([false])
+    expect(res.result.map((p) => p.has_baseline)).toEqual([false])
   })
 
   it('bounds the list with limit and offset', async () => {

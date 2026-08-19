@@ -70,7 +70,7 @@ const sortColumns = {
  *         description: |
  *           Returns an array of the user's visible projects, projected to the
  *           list columns only — `id`, `projectId`, `project.name`,
- *           `hasBaseline`, `createdAt`, `updatedAt`. The baseline /
+ *           `has_baseline`, `createdAt`, `updatedAt`. The baseline /
  *           postIntervention document body is NOT included; read a single
  *           project via GET /projects/{id} for that.
  *       401:

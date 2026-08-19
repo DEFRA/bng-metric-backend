@@ -178,7 +178,7 @@ describe('GET /users/{userId}/projects list projection', () => {
       id,
       projectId: id,
       project: { name: 'Has Baseline' },
-      hasBaseline: true,
+      has_baseline: true,
       createdAt: expect.any(Date),
       updatedAt: expect.any(Date)
     })
@@ -199,7 +199,7 @@ describe('GET /users/{userId}/projects list projection', () => {
     expect(res.payload.length).toBeLessThan(MAX_LIST_ROW_BYTES)
   })
 
-  it('reports hasBaseline false for a project with no baseline yet', async () => {
+  it('reports has_baseline false for a project with no baseline yet', async () => {
     await seedThree()
 
     const res = await server.inject({
@@ -208,7 +208,7 @@ describe('GET /users/{userId}/projects list projection', () => {
       headers
     })
 
-    expect(res.result.map((r) => r.hasBaseline)).toEqual([false, false, false])
+    expect(res.result.map((r) => r.has_baseline)).toEqual([false, false, false])
   })
 })
 

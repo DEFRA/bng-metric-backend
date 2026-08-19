@@ -55,8 +55,8 @@ import { projectSchema } from '../validation/project.js'
  *       200:
  *         description: |
  *           Returns an array of the user's visible projects, each carrying
- *           `id`, `projectId`, `project.name`, `hasBaseline`, `createdAt` and
- *           `updatedAt`.
+ *           `id`, `projectId`, `project.name`, `has_baseline`, `createdAt`
+ *           and `updatedAt`.
  *       401:
  *         description: Missing or invalid bearer token
  *

@@ -30,6 +30,10 @@ const MAX_LIST_LIMIT = 500
 // `jsonb_exists(doc, 'baseline')` is the function spelling of the `?` operator.
 // Preferred here because `?` is also a placeholder token in several Postgres
 // drivers, and the function form reads unambiguously in the generated SQL.
+//
+// The JS key is camelCase to match the other drizzle field maps; the response
+// envelope renames it to `has_baseline` (see to-project-list-response.js), which
+// is the name the acceptance criteria and the JMeter suite assert on.
 const projectListColumns = {
   id: projects.id,
   name: sql`${projects.project}->>'name'`.as('name'),
