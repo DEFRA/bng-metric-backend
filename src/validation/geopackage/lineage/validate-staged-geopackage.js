@@ -97,6 +97,20 @@ function unknownParentRefs(type, postIntervention, baseline) {
 const CONTINUING_CATEGORIES = new Set(['Retained', 'Enhanced'])
 
 /**
+ * True when at least one post-intervention row continues baseline habitat.
+ * Continuing rows are the ones that cannot exist without a baseline
+ * counterpart; Created rows record brand-new habitat and can.
+ *
+ * @param {object[]} postIntervention
+ * @returns {boolean}
+ */
+function hasContinuingRows(postIntervention) {
+  return postIntervention.some((feature) =>
+    CONTINUING_CATEGORIES.has(feature?.retentionCategory)
+  )
+}
+
+/**
  * Post-intervention rows stamped with a resolving parent_uuid whose checksum
  * no longer matches any baseline row carrying that uuid — the baseline was
  * edited after the copy. Grouped per parent so a parcel split into ten pieces
@@ -195,7 +209,14 @@ async function checkType(pool, type, staged) {
     return findings
   }
 
-  if (staged.baseline[type] === undefined) {
+  // A baseline layer that is absent from the file OR carries no features is
+  // only a problem when continuing (Retained/Enhanced) rows point back at it:
+  // they claim to carry baseline habitat forward, and there is nothing to
+  // reconcile that claim against. Brand-new habitats recorded at
+  // post-intervention only — every row Created, no parent stamps: planted
+  // hedgerows, new trees, new watercourses, new walls — are legitimate work,
+  // and every check below copes with an empty baseline for them.
+  if (baseline.length === 0 && hasContinuingRows(postIntervention)) {
     findings.missingBaseline = type
     return findings
   }
@@ -204,7 +225,15 @@ async function checkType(pool, type, staged) {
   findings.drifted = baselineDrift(type, postIntervention, baseline)
 
   const lineage = await deriveLineage(pool, postIntervention, baseline, {
-    linear: isLinearMeasure(type)
+    linear: isLinearMeasure(type),
+    // Geometry inference must not hand a parent to an unstamped Created row
+    // for hedgerows, watercourses, trees or vertical areas: a brand-new
+    // planting drawn inside the site would inherit a bogus parent from
+    // whatever baseline feature it happens to touch. Area habitats keep the
+    // inference for ALL unstamped rows because the EXACT area reconciliation
+    // needs full lineage — every square metre must be accounted against a
+    // baseline parcel (see reconcile.js).
+    inferCreatedParents: type === HABITAT_TYPES.AREAS
   })
   findings.inferred = inferredParents(type, postIntervention, lineage)
   // checkContainment returns [] for the exempt types, so the policy lives in one

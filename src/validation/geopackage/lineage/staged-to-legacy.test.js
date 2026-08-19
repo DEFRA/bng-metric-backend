@@ -113,7 +113,7 @@ describe('stagedToLegacyLayers against the real fixture', () => {
     ).toEqual(['PR-1', 'PR-2', 'PI-POND'])
     expect(
       postIntervention.hedgerows.map((f) => f.properties['Parcel Ref'])
-    ).toEqual(['HR-1a'])
+    ).toEqual(['HR-1a', 'HR-NEW-1'])
     expect(
       postIntervention.watercourses.map((f) => f.properties['Parcel Ref'])
     ).toEqual(['WC-1'])

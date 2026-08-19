@@ -33,6 +33,9 @@ export const MIN_SHARED_AREA_SQ_M = 1
 /** Same, for linear features, in metres of shared length. */
 export const MIN_SHARED_LENGTH_M = 0.5
 
+/** The retention category recording habitat that did not exist at baseline. */
+const RETENTION_CATEGORY_CREATED = 'Created'
+
 /**
  * Apportion each post-intervention polygon across the baseline polygons it
  * genuinely overlaps. One row per (pi, baseline) pair with a real shared area.
@@ -94,14 +97,16 @@ function toArrays(features, refKey) {
  * @param {import('pg').Pool} pool
  * @param {object[]} postIntervention features with { piRef, parentRef, geometry }
  * @param {object[]} baseline features with { ref, geometry }
- * @param {{ linear?: boolean }} [options]
+ * @param {{ linear?: boolean, inferCreatedParents?: boolean }} [options]
+ *   `inferCreatedParents: false` keeps unstamped Created rows out of the
+ *   geometry rule entirely — see the comment at the fall-through below.
  * @returns {Promise<Array<{ piIndex: number, piRef: string|null, parents: Array<{ ref: string, sharedSize: number, share: number }>, source: 'stamped'|'geometry'|'none' }>>}
  */
 export async function deriveLineage(
   pool,
   postIntervention = [],
   baseline = [],
-  { linear = false } = {}
+  { linear = false, inferCreatedParents = true } = {}
 ) {
   const results = postIntervention.map((feature, piIndex) => ({
     piIndex,
@@ -144,6 +149,21 @@ export async function deriveLineage(
       ]
       results[piIndex].source = 'stamped'
       results[piIndex].stampedBy = 'ref'
+    } else if (
+      !inferCreatedParents &&
+      feature?.retentionCategory === RETENTION_CATEGORY_CREATED
+    ) {
+      // DECISION: an unstamped Created row is left parentless ('none') rather
+      // than geometry-inferred when the caller opts out — which the staged
+      // validator does for hedgerows, watercourses, trees and vertical areas.
+      // A brand-new planting drawn inside the site would otherwise inherit a
+      // bogus parent from whatever baseline feature it happens to touch.
+      // Area habitats deliberately keep the current behaviour (the default,
+      // inferCreatedParents: true): unstamped rows there legitimately
+      // geometry-infer, because the EXACT area reconciliation needs full
+      // lineage — every square metre must be accounted against a baseline
+      // parcel. A stamped Created row is untouched by this branch: the stamp,
+      // not the category, decides (built-over ground is Created AND stamped).
     } else {
       needsGeometry.push({ feature, piIndex })
     }

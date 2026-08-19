@@ -48,7 +48,7 @@ const GEOMETRY_TABLE_EXPECTATIONS = [
   ['baseline_trees', 2, 'MULTIPOINT'],
   ['post_intervention_red_line', 1, 'MULTIPOLYGON'],
   ['post_intervention_habitats', 3, 'MULTIPOLYGON'],
-  ['post_intervention_hedgerows', 1, 'MULTILINESTRING'],
+  ['post_intervention_hedgerows', 2, 'MULTILINESTRING'],
   ['post_intervention_watercourses', 1, 'MULTILINESTRING'],
   ['post_intervention_trees', 2, 'MULTIPOINT']
 ]
@@ -127,9 +127,23 @@ describe('POST /baseline/validate/{uploadId} - staged persistence', () => {
     // 4. Post-intervention subtree: legacy shape + vertical areas + removals.
     expect(stored.postIntervention.habitats).toHaveLength(3)
     expect(stored.postIntervention.verticalAreas).toHaveLength(1)
-    expect(stored.postIntervention.hedgerows).toHaveLength(1)
+    expect(stored.postIntervention.hedgerows).toHaveLength(2)
     expect(stored.postIntervention.watercourses).toHaveLength(1)
     expect(stored.postIntervention.trees).toHaveLength(2)
+    // Brand-new habitats recorded at post-intervention only: parentless
+    // Created rows must flow through enrichment to real units.
+    const plantedHedge = stored.postIntervention.hedgerows.find(
+      (h) => h.ref === 'HR-NEW-1'
+    )
+    expect(plantedHedge.retentionCategory).toBe('Created')
+    expect(plantedHedge.status).toBe('Complete')
+    expect(plantedHedge.units).toBeGreaterThan(0)
+    const plantedTree = stored.postIntervention.trees.find(
+      (t) => t.ref === 'T-NEW-1'
+    )
+    expect(plantedTree.retentionCategory).toBe('Created')
+    expect(plantedTree.status).toBe('Complete')
+    expect(plantedTree.units).toBeGreaterThan(0)
     const piVah = stored.postIntervention.verticalAreas[0]
     expect(piVah.ref).toBe('VAH-1')
     expect(piVah.retentionCategory).toBe('Enhanced')

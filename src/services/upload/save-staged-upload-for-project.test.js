@@ -96,7 +96,10 @@ describe('extendBaselineLengthsForEnhancedChildren', () => {
       [HABITAT_TYPES.HEDGEROWS]: [
         { piRef: 'HR-1a', parentRef: 'HR-1', retentionCategory: 'Retained' },
         enhancedChild('HR-9b', 'HR-9'),
-        { piRef: 'HR-1c', parentRef: null, retentionCategory: 'Enhanced' }
+        { piRef: 'HR-1c', parentRef: null, retentionCategory: 'Enhanced' },
+        // a brand-new planting: Created and parentless — must never trigger
+        // the Enhanced baseline-length lookup
+        { piRef: 'HR-NEW-1', parentRef: null, retentionCategory: 'Created' }
       ]
     })
 

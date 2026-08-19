@@ -55,6 +55,15 @@ Sources, in order:
    keeps its stamped parent. The stamp, not the category, decides.) The
    apportionment matters for area reconciliation, not for the calculation.
 
+   **Area habitats only.** For hedgerows, watercourses, trees and vertical
+   areas an unstamped `Created` row skips the geometry rule entirely and stays
+   parentless (`deriveLineage`'s `inferCreatedParents: false`): a brand-new
+   planting drawn inside the site would otherwise inherit a bogus parent from
+   whatever baseline feature it happens to touch. Area habitats keep the
+   inference for every unstamped row because the EXACT reconciliation needs
+   full lineage — every square metre must be accounted against a baseline
+   parcel.
+
 ### The trap worth knowing about
 
 Parentage must use **area-weighted intersection**, never a bare `ST_Intersects`.
@@ -208,12 +217,12 @@ is unchanged.
 
 ### Errors
 
-| Code                            | Fires when                                                   |
-| ------------------------------- | ------------------------------------------------------------ |
-| `STAGED_MISSING_BASELINE_LAYER` | a post-intervention layer has no baseline counterpart        |
-| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline         |
-| `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent                  |
-| `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match |
+| Code                            | Fires when                                                                                                                                                                                                                                                                                     |
+| ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STAGED_MISSING_BASELINE_LAYER` | continuing (Retained/Enhanced) rows have no baseline features to reconcile against — the layer is absent or empty. A layer whose rows are ALL `Created` is exempt: brand-new habitats (planted hedgerows, new trees, new watercourses, new walls) legitimately exist at post-intervention only |
+| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline                                                                                                                                                                                                                                           |
+| `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent                                                                                                                                                                                                                                                    |
+| `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match                                                                                                                                                                                                                                   |
 
 `STAGED_UNKNOWN_PARENT_REF` earns its place: without it a dangling stamp
 degrades silently, because `deriveLineage` falls through to the geometry rule
@@ -224,13 +233,13 @@ and the feature picks up a plausible-looking parent it never had.
 `integration-tests/fixtures/staged-baseline-and-pi.gpkg` is a real export from
 the template, exercising all five types on both sides:
 
-| Type           | Scenario                                       | Proves                                                                |
-| -------------- | ---------------------------------------------- | --------------------------------------------------------------------- |
-| Area habitats  | pond straddling two parcels                    | geometry apportionment 1250/1250; adjacency does not confer parentage |
-| Vertical areas | wall rebuilt taller, same footprint            | accounting uses footprint **length**, not the hand-entered face area  |
-| Hedgerows      | split, half retained, half grubbed out         | the absent half surfaces as a 100 m removal warning on its parent     |
-| Watercourses   | re-meandered off the old line                  | the presence rule is load-bearing — an equal-length rule would reject |
-| Trees          | one retained, one felled (absent), one planted | a felled tree warns; a point inside a parcel inherits nothing from it |
+| Type           | Scenario                                                                                               | Proves                                                                                                                                         |
+| -------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| Area habitats  | pond straddling two parcels                                                                            | geometry apportionment 1250/1250; adjacency does not confer parentage                                                                          |
+| Vertical areas | wall rebuilt taller, same footprint                                                                    | accounting uses footprint **length**, not the hand-entered face area                                                                           |
+| Hedgerows      | split, half retained, half grubbed out; plus HR-NEW-1, a 150 m hedge planted at post-intervention only | the absent half surfaces as a 100 m removal warning on its parent; the parentless `Created` hedge passes with no warning and enriches to units |
+| Watercourses   | re-meandered off the old line                                                                          | the presence rule is load-bearing — an equal-length rule would reject                                                                          |
+| Trees          | one retained, one felled (absent), one planted                                                         | a felled tree warns; a point inside a parcel inherits nothing from it                                                                          |
 
 Two negative tests earn their keep: pasting duplicate children makes the parent
 oversubscribed by exactly the duplicated 100 m, and stripping the stamped

@@ -324,22 +324,31 @@ describe('vertical area habitats', () => {
 })
 
 describe('hedgerows', () => {
-  it('the surviving half keeps its stamped parent', async () => {
+  it('the surviving half keeps its stamped parent; the new planting stays parentless', async () => {
     // The other half of the split (HR-1b) was grubbed out — under
-    // removal-by-absence it has no row at all.
+    // removal-by-absence it has no row at all. HR-NEW-1 is a brand-new
+    // planting: Created, unstamped, and with inference disabled for
+    // hedgerows it must NOT acquire a parent from geometry.
     const pi = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
-    expect(pi).toHaveLength(1)
-    expect(pi[0].piRef).toBe('HR-1a')
-    expect(pi.every((f) => f.parentRef === 'HR-1')).toBe(true)
+    expect(pi).toHaveLength(2)
+    const survivor = pi.find((f) => f.piRef === 'HR-1a')
+    expect(survivor.parentRef).toBe('HR-1')
+    const newPlanting = pi.find((f) => f.piRef === 'HR-NEW-1')
+    expect(newPlanting.retentionCategory).toBe('Created')
+    expect(newPlanting.parentRef).toBeNull()
 
     const result = await deriveLineage(
       pool,
       pi,
       staged.baseline[HABITAT_TYPES.HEDGEROWS],
-      { linear: true }
+      { linear: true, inferCreatedParents: false }
     )
-    expect(result.every((r) => r.source === 'stamped')).toBe(true)
-    expect(result.every((r) => r.parents[0].ref === 'HR-1')).toBe(true)
+    const stamped = result.find((r) => r.piRef === 'HR-1a')
+    expect(stamped.source).toBe('stamped')
+    expect(stamped.parents[0].ref).toBe('HR-1')
+    const planted = result.find((r) => r.piRef === 'HR-NEW-1')
+    expect(planted.source).toBe('none')
+    expect(planted.parents).toEqual([])
   })
 
   it('resolves parentage by shared LENGTH when the stamp is absent', async () => {
@@ -353,12 +362,16 @@ describe('hedgerows', () => {
       staged.baseline[HABITAT_TYPES.HEDGEROWS],
       { linear: true }
     )
-    expect(result.every((r) => r.source === 'geometry')).toBe(true)
-    for (const entry of result) {
-      expect(entry.parents).toHaveLength(1)
-      expect(entry.parents[0].ref).toBe('HR-1')
-      expect(entry.parents[0].sharedSize).toBeCloseTo(HEDGE_HALF_M, 1)
-    }
+    const trimmed = result.find((r) => r.piRef === 'HR-1a')
+    expect(trimmed.source).toBe('geometry')
+    expect(trimmed.parents).toHaveLength(1)
+    expect(trimmed.parents[0].ref).toBe('HR-1')
+    expect(trimmed.parents[0].sharedSize).toBeCloseTo(HEDGE_HALF_M, 1)
+    // The new planting shares no length with any baseline hedge, so even
+    // with inference left on (the default) it resolves to nothing.
+    const planted = result.find((r) => r.piRef === 'HR-NEW-1')
+    expect(planted.source).toBe('none')
+    expect(planted.parents).toEqual([])
   })
 
   it('is exempt from total reconciliation — lost length is the residual', async () => {
