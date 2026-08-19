@@ -106,6 +106,81 @@ describe('GET /projects', () => {
     const res = await server.inject({ method: 'GET', url: '/projects' })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
+
+  // BMD-933: the list must not carry the project document body.
+  it('excludes the document body and reports has-baseline instead', async () => {
+    const created = await createProject('Listed')
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = project || $2::jsonb
+        WHERE id = $1`,
+      [created.id, JSON.stringify({ baseline: { habitats: [{ area: 1 }] } })]
+    )
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/projects',
+      headers
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual([
+      {
+        id: created.id,
+        projectId: created.id,
+        project: { name: 'Listed' },
+        hasBaseline: true,
+        createdAt: expect.any(Date),
+        updatedAt: expect.any(Date)
+      }
+    ])
+  })
+
+  it('reports hasBaseline false before any baseline is uploaded', async () => {
+    await createProject('No Baseline')
+
+    const res = await server.inject({
+      method: 'GET',
+      url: '/projects',
+      headers
+    })
+
+    expect(res.result.map((p) => p.hasBaseline)).toEqual([false])
+  })
+
+  it('bounds the list with limit and offset', async () => {
+    await createProject('First')
+    await createProject('Second')
+    await createProject('Third')
+
+    const page = async (query) =>
+      (
+        await server.inject({
+          method: 'GET',
+          url: `/projects?${query}`,
+          headers
+        })
+      ).result.map((p) => p.project.name)
+
+    const first = await page('limit=2')
+    const second = await page('limit=2&offset=2')
+
+    expect(first).toHaveLength(2)
+    expect(second).toHaveLength(1)
+    expect([...first, ...second].sort()).toEqual(['First', 'Second', 'Third'])
+  })
+
+  it.each(['limit=0', 'limit=501', 'offset=-1'])(
+    'returns 400 for ?%s',
+    async (query) => {
+      const res = await server.inject({
+        method: 'GET',
+        url: `/projects?${query}`,
+        headers
+      })
+      expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    }
+  )
 })
 
 describe('GET /projects/{id}', () => {
