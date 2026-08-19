@@ -3,34 +3,55 @@ import { asc, desc, sql } from 'drizzle-orm'
 import { PgDialect } from 'drizzle-orm/pg-core'
 import { getUserProjects } from './users.js'
 import { projects } from '../db/schema/index.js'
+import {
+  projectListColumns,
+  DEFAULT_LIST_LIMIT,
+  MAX_LIST_LIMIT
+} from '../db/project-list.js'
 
 const TEST_USER_ID = 'f47ac10b-58cc-4372-a567-0e02b2c3d479'
 const UNKNOWN_USER_ID = '00000000-0000-0000-0000-000000000000'
 const REL_CURRENT = 'rel-current-org'
 const REL_OTHER = 'rel-other-org'
+// Comfortably above two projected rows, far below any real project document.
+const MAX_LIST_PAYLOAD_BYTES = 1000
 
+const PROJECT_1_ID = 'aaa11111-0000-0000-0000-000000000001'
+const PROJECT_2_ID = 'bbb22222-0000-0000-0000-000000000002'
+
+// Rows as they come back through projectListColumns — the projection, not the
+// bng.projects row: the `project` JSONB document is never selected (BMD-933).
 const mockUserProjects = [
   {
-    id: 'aaa11111-0000-0000-0000-000000000001',
-    project: {
-      name: 'Greenfield Meadow Restoration',
-      site: { name: 'Greenfield Meadow', grid_ref: 'TQ 123 456' },
-      units: { habitat: 10.5, hedgerow: 2.3, watercourse: 0.8 }
-    },
-    userId: TEST_USER_ID,
-    bngProjectVersion: 1,
+    id: PROJECT_1_ID,
+    name: 'Greenfield Meadow Restoration',
+    hasBaseline: true,
     createdAt: new Date('2024-01-01'),
     updatedAt: new Date('2024-01-02')
   },
   {
-    id: 'bbb22222-0000-0000-0000-000000000002',
-    project: {
-      name: 'Oakwood Farm BNG Assessment',
-      site: { name: 'Oakwood Farm', grid_ref: 'SP 987 654' },
-      units: { habitat: 25, hedgerow: 8.1 }
-    },
-    userId: TEST_USER_ID,
-    bngProjectVersion: 1,
+    id: PROJECT_2_ID,
+    name: 'Oakwood Farm BNG Assessment',
+    hasBaseline: false,
+    createdAt: new Date('2024-02-01'),
+    updatedAt: new Date('2024-02-02')
+  }
+]
+
+const expectedResponse = [
+  {
+    id: PROJECT_1_ID,
+    projectId: PROJECT_1_ID,
+    project: { name: 'Greenfield Meadow Restoration' },
+    has_baseline: true,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-02')
+  },
+  {
+    id: PROJECT_2_ID,
+    projectId: PROJECT_2_ID,
+    project: { name: 'Oakwood Farm BNG Assessment' },
+    has_baseline: false,
     createdAt: new Date('2024-02-01'),
     updatedAt: new Date('2024-02-02')
   }
@@ -38,16 +59,13 @@ const mockUserProjects = [
 
 function createMockDrizzle(rows) {
   const chain = {
-    orderBy: vi.fn().mockResolvedValue(rows)
+    offset: vi.fn().mockResolvedValue(rows)
   }
 
-  chain.where = vi.fn().mockReturnValue({
-    orderBy: chain.orderBy
-  })
-
-  chain.from = vi.fn().mockReturnValue({
-    where: chain.where
-  })
+  chain.limit = vi.fn().mockReturnValue({ offset: chain.offset })
+  chain.orderBy = vi.fn().mockReturnValue({ limit: chain.limit })
+  chain.where = vi.fn().mockReturnValue({ orderBy: chain.orderBy })
+  chain.from = vi.fn().mockReturnValue({ where: chain.where })
 
   return {
     select: vi.fn().mockReturnValue(chain),
@@ -61,7 +79,13 @@ function makeRequest(sub, query = {}, credentials = {}) {
     drizzle: createMockDrizzle(mockUserProjects),
     auth: { credentials: { sub, ...credentials } },
     params: { userId: sub },
-    query: { sort: 'updated_at', order: 'desc', ...query }
+    query: {
+      sort: 'updated_at',
+      order: 'desc',
+      limit: DEFAULT_LIST_LIMIT,
+      offset: 0,
+      ...query
+    }
   }
 }
 
@@ -91,17 +115,21 @@ describe('#getUserProjects', () => {
 
     expect(request.drizzle.select).toHaveBeenCalled()
     expect(request.drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual(mockUserProjects)
+    expect(result).toEqual(expectedResponse)
   })
 
   test('Should return empty array when no projects are visible', async () => {
     const drizzle = createMockDrizzle([])
-    drizzle._chain.orderBy.mockResolvedValue([])
     const request = {
       drizzle,
       auth: { credentials: { sub: UNKNOWN_USER_ID } },
       params: { userId: UNKNOWN_USER_ID },
-      query: { sort: 'updated_at', order: 'desc' }
+      query: {
+        sort: 'updated_at',
+        order: 'desc',
+        limit: DEFAULT_LIST_LIMIT,
+        offset: 0
+      }
     }
 
     const result = await getUserProjects.handler(request, {})
@@ -178,7 +206,76 @@ describe('#getUserProjects', () => {
 
     await getUserProjects.handler(request, {})
 
-    expect(request.drizzle._chain.orderBy).toHaveBeenCalledWith(expectedExpr())
+    // The id tiebreak makes the order total, so limit/offset pages are stable.
+    expect(request.drizzle._chain.orderBy).toHaveBeenCalledWith(
+      expectedExpr(),
+      asc(projects.id)
+    )
+  })
+})
+
+// BMD-933: the list page renders name + timestamps + a link target. Selecting
+// the whole row shipped the entire project document (megabytes at scale) to
+// render three columns.
+describe('#getUserProjects list projection', () => {
+  test('Should select only the list columns, never the project document', async () => {
+    const request = makeRequest(TEST_USER_ID)
+
+    await getUserProjects.handler(request, {})
+
+    expect(request.drizzle.select).toHaveBeenCalledWith(projectListColumns)
+  })
+
+  test('Should exclude the document body from the payload', async () => {
+    const request = makeRequest(TEST_USER_ID)
+
+    const result = await getUserProjects.handler(request, {})
+
+    for (const row of result) {
+      expect(row.project).toEqual({ name: expect.any(String) })
+      expect(row.project).not.toHaveProperty('baseline')
+      expect(row.project).not.toHaveProperty('postIntervention')
+    }
+  })
+
+  test('Should include has_baseline for each row', async () => {
+    const request = makeRequest(TEST_USER_ID)
+
+    const result = await getUserProjects.handler(request, {})
+
+    expect(result.map((r) => r.has_baseline)).toEqual([true, false])
+  })
+
+  test('Should keep the payload flat however large the stored document is', async () => {
+    // The projection is applied in Postgres, so a 31 MB baseline never reaches
+    // Node: the row the handler sees carries the same five projected fields.
+    const request = makeRequest(TEST_USER_ID)
+
+    const result = await getUserProjects.handler(request, {})
+
+    expect(JSON.stringify(result).length).toBeLessThan(MAX_LIST_PAYLOAD_BYTES)
+  })
+})
+
+describe('#getUserProjects pagination', () => {
+  test('Should apply the requested limit and offset', async () => {
+    const request = makeRequest(TEST_USER_ID, { limit: 25, offset: 50 })
+
+    await getUserProjects.handler(request, {})
+
+    expect(request.drizzle._chain.limit).toHaveBeenCalledWith(25)
+    expect(request.drizzle._chain.offset).toHaveBeenCalledWith(50)
+  })
+
+  test('Should always bound the query, even for a caller that asks for neither', async () => {
+    const request = makeRequest(TEST_USER_ID)
+
+    await getUserProjects.handler(request, {})
+
+    expect(request.drizzle._chain.limit).toHaveBeenCalledWith(
+      DEFAULT_LIST_LIMIT
+    )
+    expect(request.drizzle._chain.offset).toHaveBeenCalledWith(0)
   })
 })
 
@@ -210,10 +307,53 @@ describe('#getUserProjects params validation', () => {
 describe('#getUserProjects query validation', () => {
   const schema = getUserProjects.options.validate.query
 
-  test('Should default sort to updated_at and order to desc', () => {
+  test('Should default sort, order, limit and offset', () => {
     const { error, value } = schema.validate({})
     expect(error).toBeUndefined()
-    expect(value).toEqual({ sort: 'updated_at', order: 'desc' })
+    expect(value).toEqual({
+      sort: 'updated_at',
+      order: 'desc',
+      limit: DEFAULT_LIST_LIMIT,
+      offset: 0
+    })
+  })
+
+  test.each([
+    [{ limit: 1 }],
+    [{ limit: MAX_LIST_LIMIT }],
+    [{ offset: 0 }],
+    [{ offset: 10_000 }],
+    [{ limit: 20, offset: 40 }]
+  ])('Should accept %o', (query) => {
+    const { error } = schema.validate(query)
+    expect(error).toBeUndefined()
+  })
+
+  test('Should reject a limit above the cap', () => {
+    const { error } = schema.validate({ limit: MAX_LIST_LIMIT + 1 })
+    expect(error).toBeDefined()
+    expect(error.message).toContain(
+      `"limit" must be less than or equal to ${MAX_LIST_LIMIT}`
+    )
+  })
+
+  test('Should reject a zero or negative limit', () => {
+    expect(schema.validate({ limit: 0 }).error).toBeDefined()
+    expect(schema.validate({ limit: -1 }).error).toBeDefined()
+  })
+
+  test('Should reject a negative offset', () => {
+    const { error } = schema.validate({ offset: -1 })
+    expect(error).toBeDefined()
+    expect(error.message).toContain(
+      '"offset" must be greater than or equal to 0'
+    )
+  })
+
+  test('Should reject a non-integer limit', () => {
+    const { error } = schema.validate({ limit: 1.5 })
+    expect(error).toBeDefined()
+    expect(error.message).toContain('"limit" must be an integer')
   })
 
   test.each([

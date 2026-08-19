@@ -20,11 +20,3 @@
 export function toProjectResponse(row) {
   return { ...row, projectId: row.id }
 }
-
-/**
- * @param {object[]} rows
- * @returns {object[]}
- */
-export function toProjectResponses(rows) {
-  return rows.map(toProjectResponse)
-}

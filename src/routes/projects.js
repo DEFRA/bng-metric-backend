@@ -1,14 +1,14 @@
 import Boom from '@hapi/boom'
-import { and, eq } from 'drizzle-orm'
+import { and, asc, desc, eq } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { insertProject, setProjectName } from '../db/persist-project.js'
 import { resolveCurrentOrgContext } from '../db/org-context.js'
 import { visibleToUser } from '../db/project-visibility.js'
-import {
-  toProjectResponse,
-  toProjectResponses
-} from '../utilities/project/to-project-response.js'
+import { projectListColumns } from '../db/project-list.js'
+import { toProjectResponse } from '../utilities/project/to-project-response.js'
+import { toProjectListResponses } from '../utilities/project/to-project-list-response.js'
+import { paginationKeys } from '../validation/pagination.js'
 import { projectSchema } from '../validation/project.js'
 
 /**
@@ -29,11 +29,34 @@ import { projectSchema } from '../validation/project.js'
  *
  *       Each row carries `projectId` — an explicit alias of `id` — as the
  *       primary key for downstream relational consumers.
+ *
+ *       Rows are projected to the list columns only. The baseline /
+ *       postIntervention document body is NOT included — read a single project
+ *       via GET /projects/{id} for that.
  *     security:
  *       - bearerAuth: []
+ *     parameters:
+ *       - in: query
+ *         name: limit
+ *         description: Maximum number of projects to return (1-500).
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 500
+ *           default: 100
+ *       - in: query
+ *         name: offset
+ *         description: Number of projects to skip before returning results.
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
  *     responses:
  *       200:
- *         description: Returns an array of the user's visible projects
+ *         description: |
+ *           Returns an array of the user's visible projects, each carrying
+ *           `id`, `projectId`, `project.name`, `has_baseline`, `createdAt`
+ *           and `updatedAt`.
  *       401:
  *         description: Missing or invalid bearer token
  *
@@ -159,15 +182,25 @@ const getProjects = {
   method: 'GET',
   path: '/projects',
   options: {
-    auth: 'defra-jwt'
+    auth: 'defra-jwt',
+    validate: {
+      query: Joi.object({ ...paginationKeys })
+    }
   },
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
+    const { limit, offset } = request.query
     const rows = await request.drizzle
-      .select()
+      .select(projectListColumns)
       .from(projects)
       .where(visibleToUser(credentials))
-    return toProjectResponses(rows)
+      // This endpoint had no order at all, which is fine for an unpaged dump but
+      // not for limit/offset: without a total order Postgres may return the same
+      // row on two pages and never return another.
+      .orderBy(desc(projects.updatedAt), asc(projects.id))
+      .limit(limit)
+      .offset(offset)
+    return toProjectListResponses(rows)
   }
 }
 

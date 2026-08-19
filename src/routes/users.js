@@ -2,6 +2,9 @@ import { asc, desc, sql } from 'drizzle-orm'
 import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { visibleToUser } from '../db/project-visibility.js'
+import { projectListColumns } from '../db/project-list.js'
+import { paginationKeys } from '../validation/pagination.js'
+import { toProjectListResponses } from '../utilities/project/to-project-list-response.js'
 
 const orderDirections = { asc, desc }
 
@@ -47,9 +50,29 @@ const sortColumns = {
  *           type: string
  *           enum: [asc, desc]
  *           default: desc
+ *       - in: query
+ *         name: limit
+ *         description: Maximum number of projects to return (1-500).
+ *         schema:
+ *           type: integer
+ *           minimum: 1
+ *           maximum: 500
+ *           default: 100
+ *       - in: query
+ *         name: offset
+ *         description: Number of projects to skip before returning results.
+ *         schema:
+ *           type: integer
+ *           minimum: 0
+ *           default: 0
  *     responses:
  *       200:
- *         description: Returns an array of the user's visible projects
+ *         description: |
+ *           Returns an array of the user's visible projects, projected to the
+ *           list columns only — `id`, `projectId`, `project.name`,
+ *           `has_baseline`, `createdAt`, `updatedAt`. The baseline /
+ *           postIntervention document body is NOT included; read a single
+ *           project via GET /projects/{id} for that.
  *       401:
  *         description: Missing or invalid bearer token
  */
@@ -68,21 +91,27 @@ const getUserProjects = {
         sort: Joi.string()
           .valid('created_at', 'updated_at', 'name')
           .default('updated_at'),
-        order: Joi.string().valid('asc', 'desc').default('desc')
+        order: Joi.string().valid('asc', 'desc').default('desc'),
+        ...paginationKeys
       })
     }
   },
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
-    const { sort, order } = request.query
+    const { sort, order, limit, offset } = request.query
 
     const rows = await request.drizzle
-      .select()
+      .select(projectListColumns)
       .from(projects)
       .where(visibleToUser(credentials))
-      .orderBy(orderDirections[order](sortColumns[sort]))
+      // The id tiebreak keeps the order total: rows sharing a timestamp (or a
+      // name) would otherwise be free to swap places between pages, so an
+      // offset could skip one row and repeat another.
+      .orderBy(orderDirections[order](sortColumns[sort]), asc(projects.id))
+      .limit(limit)
+      .offset(offset)
 
-    return rows
+    return toProjectListResponses(rows)
   }
 }
 

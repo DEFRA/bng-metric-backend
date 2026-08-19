@@ -154,7 +154,7 @@ integration-tests/
 ├── health.test.js                   ← GET /health smoke
 ├── projects.test.js                 ← all four /projects routes
 ├── upload.test.js                   ← POST /upload/initiate + GET /upload/{id}/status
-├── users.test.js                    ← GET /users/{userId}/projects (sort/order)
+├── users.test.js                    ← GET /users/{userId}/projects (sort/order, list projection, paging)
 ├── route-manifest.json              ← every endpoint that should exist
 ├── global-setup.js                  ← DB probe + Liquibase + reset route-hits.json
 ├── fixtures/
