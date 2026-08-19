@@ -25,6 +25,8 @@ import {
 const NOT_POSSIBLE = 'Not Possible'
 export const CREATION = 'Creation'
 export const ENHANCEMENT = 'Enhancement'
+const POOR = 'Poor'
+const ZERO_ADVANCE_YEARS = 0
 
 /**
  * Resolve the statutory distinctiveness band label (e.g. "Low", "V.Low") and its
@@ -321,11 +323,26 @@ function resolveDifficultyChangeType(
     return ENHANCEMENT
   }
 
+  // With no advance the habitat cannot yet have reached Poor condition, so the
+  // enhancement-band reclassification can never apply. Return before the Poor
+  // probe below, which for some habitats records Poor as Not Possible and would
+  // otherwise throw computing a value that cannot change the outcome.
+  if (validatedAdvanceYears <= ZERO_ADVANCE_YEARS) {
+    return CREATION
+  }
+
+  // Some habitats have no statutory route to Poor (its creation time-to-target is
+  // Not Possible). Such a habitat cannot have reached Poor, so it stays in the
+  // Creation band rather than throwing on the probe.
+  if (creationPoorTargetIsUnreachable(habitat)) {
+    return CREATION
+  }
+
   const poorTargetYears = getTimeToTargetValue(
     habitat,
     creationOrEnhancement,
     startCondition,
-    'Poor',
+    POOR,
     validatedAdvanceYears,
     validatedDelayYears
   )
@@ -333,6 +350,17 @@ function resolveDifficultyChangeType(
   return advanceMeetsTimeToTarget(validatedAdvanceYears, poorTargetYears)
     ? ENHANCEMENT
     : CREATION
+}
+
+/**
+ * True when the habitat's statutory creation time-to-target for Poor condition is
+ * recorded as Not Possible — i.e. the habitat has no route to Poor condition.
+ *
+ * @param {string} habitat
+ * @returns {boolean}
+ */
+function creationPoorTargetIsUnreachable(habitat) {
+  return TIME_TO_TARGET_CREATION[habitat]?.[POOR] === NOT_POSSIBLE
 }
 
 /**
