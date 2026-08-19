@@ -56,44 +56,49 @@ describe('visibleToUser', () => {
   // apart. Without it, an approved role in EITHER org satisfied the EXISTS and
   // both orgs' projects came back.
   test('scopes the row to the relationship the user is currently acting in', () => {
-    const { sql, params } = renderSql(inOrg(REL_A))
+    const { sql } = renderSql(inOrg(REL_A))
 
     expect(sql).toContain('"relationship_id" is not distinct from')
-    expect(params).toContain(REL_A)
+    expect(sql).toContain('u.current_relationship_id')
   })
 
-  test('binds the CURRENT relationship, not another the user is approved for', () => {
-    const bothOrgs = claims({
-      currentRelationshipId: REL_A,
-      relationships: [
-        `${REL_A}:org-a:Acme Ltd:0:Employee:1`,
-        `${REL_B}:org-b:Globex:0:Employee:1`
-      ],
-      roles: [
-        `${REL_A}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`,
-        `${REL_B}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`
-      ]
-    })
-
-    const { params } = renderSql(bothOrgs)
-
-    expect(params).toContain(REL_A)
-    expect(params).not.toContain(REL_B)
-  })
-
-  test('falls back to the persisted current relationship when the token has none', () => {
-    // A refreshed id_token can come back with the enrichment claims blanked, so
-    // the org context is resolved from bng.users instead of being dropped.
-    const { sql, params } = renderSql(claims())
+  // BMD-936: the org context is read from bng.users, never from the token. A
+  // refresh_token grant's id_token can carry a blank currentRelationshipId, or a
+  // non-blank one naming a DIFFERENT relationship from the one the user chose at
+  // sign-in — so binding the token's value made a user's visible project set
+  // depend on which grant last issued their token.
+  test.each([
+    ['carries the current relationship', inOrg(REL_A)],
+    ['carries a different relationship', inOrg(REL_B)],
+    ['carries an empty relationship', claims({ currentRelationshipId: '' })],
+    ['carries no enrichment claims at all', claims()]
+  ])('ignores the token when it %s', (_name, credentials) => {
+    const { sql, params } = renderSql(credentials)
 
     expect(sql).toContain('u.current_relationship_id')
     expect(sql).toContain('bng.users u')
-    expect(params).toContain(null)
+    expect(params).not.toContain(REL_A)
+    expect(params).not.toContain(REL_B)
   })
 
-  test('treats an empty currentRelationshipId as absent', () => {
-    const { params } = renderSql(claims({ currentRelationshipId: '' }))
-    expect(params).not.toContain('')
-    expect(params).toContain(null)
+  test('resolves the same context regardless of what the token claims', () => {
+    // The read scope must not shift under a user mid-session. Two tokens for the
+    // same `sub` — one from sign-in, one from a refresh that defaulted the org —
+    // must produce byte-identical SQL and bindings.
+    const atSignIn = inOrg(REL_A)
+    const afterRefresh = claims({
+      currentRelationshipId: REL_B,
+      relationships: [`${REL_B}:org-b:Globex:0:Employee:1`],
+      roles: [`${REL_B}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`]
+    })
+
+    expect(renderSql(afterRefresh)).toEqual(renderSql(atSignIn))
+  })
+
+  test('binds nothing from the token but the sub, plus the approved status', () => {
+    // owner scope, org-context subquery, role EXISTS — all keyed on `sub`.
+    const { params } = renderSql(inOrg(REL_A))
+
+    expect(params).toEqual([SUB, SUB, SUB, ROLE_STATUS.COMPLETE_APPROVED])
   })
 })

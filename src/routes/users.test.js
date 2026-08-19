@@ -121,26 +121,33 @@ describe('#getUserProjects', () => {
 
   // BMD-890: a user approved in two orgs must only see the current one's
   // projects. The list endpoint is where the leak was visible.
-  test('Should scope the list to the org the user is currently signed in as', async () => {
-    const request = makeRequest(TEST_USER_ID, {}, multiOrgClaims(REL_CURRENT))
+  //
+  // BMD-936: that scope is now taken from bng.users rather than the token, so
+  // the assertion is that the query reads the stored context and binds no
+  // relationship from the token at all. Switching org still follows the user —
+  // a switch is an interactive re-sign-in, which re-posts /auth/session and
+  // rewrites bng.users.current_relationship_id.
+  test.each([
+    ['signed in as one org', REL_CURRENT],
+    ['switched to the other org', REL_OTHER]
+  ])(
+    'Should scope the list from the stored context when %s',
+    async (_name, tokenRelationship) => {
+      const request = makeRequest(
+        TEST_USER_ID,
+        {},
+        multiOrgClaims(tokenRelationship)
+      )
 
-    await getUserProjects.handler(request, {})
+      await getUserProjects.handler(request, {})
 
-    const { sql: whereSql, params } = renderWhere(request)
-    expect(whereSql).toContain('"relationship_id" is not distinct from')
-    expect(params).toContain(REL_CURRENT)
-    expect(params).not.toContain(REL_OTHER)
-  })
-
-  test('Should follow the user when they switch org context', async () => {
-    const request = makeRequest(TEST_USER_ID, {}, multiOrgClaims(REL_OTHER))
-
-    await getUserProjects.handler(request, {})
-
-    const { params } = renderWhere(request)
-    expect(params).toContain(REL_OTHER)
-    expect(params).not.toContain(REL_CURRENT)
-  })
+      const { sql: whereSql, params } = renderWhere(request)
+      expect(whereSql).toContain('"relationship_id" is not distinct from')
+      expect(whereSql).toContain('u.current_relationship_id')
+      expect(params).not.toContain(REL_CURRENT)
+      expect(params).not.toContain(REL_OTHER)
+    }
+  )
 
   test('Should include updatedAt in returned projects', async () => {
     const request = makeRequest(TEST_USER_ID)

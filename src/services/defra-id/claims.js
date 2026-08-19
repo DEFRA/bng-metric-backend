@@ -141,28 +141,12 @@ function parseRoles(claims) {
     .filter((role) => role !== null)
 }
 
-/**
- * Resolve the user's current org context from `currentRelationshipId`, matched
- * against the parsed relationships. Returns `orgId: null` when there is no
- * current relationship or it does not appear among the parsed relationships.
- * @param {object} claims verified token payload
- * @returns {{relationshipId: string|null, orgId: string|null}}
- */
-function currentOrgContext(claims) {
-  const relationshipId = claims?.currentRelationshipId ?? null
-  if (!relationshipId) {
-    return { relationshipId: null, orgId: null }
-  }
-  const match = parseRelationships(claims).find(
-    (rel) => rel.relationshipId === relationshipId
-  )
-  return { relationshipId, orgId: match?.orgId ?? null }
-}
+// There is deliberately no helper here for resolving the user's CURRENT org
+// context from token claims. The org context a request is served under always
+// comes from bng.users, written at the last interactive sign-in — see
+// currentRelationshipExpr in src/db/project-visibility.js for why a token's
+// `currentRelationshipId` is not authoritative (BMD-936). The parsers above are
+// still used to WRITE that state from a verified sign-in token
+// (src/db/persist-session.js), which is the one place a token is the authority.
 
-export {
-  ROLE_STATUS,
-  ROLE_STATUS_APPROVED,
-  parseRelationships,
-  parseRoles,
-  currentOrgContext
-}
+export { ROLE_STATUS, ROLE_STATUS_APPROVED, parseRelationships, parseRoles }

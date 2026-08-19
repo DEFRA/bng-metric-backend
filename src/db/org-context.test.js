@@ -20,7 +20,12 @@ const tokenWith = (relationshipId, entry) => ({
 })
 
 describe('resolveCurrentOrgContext', () => {
-  test('takes the context from the verified token when it carries one', async () => {
+  // BMD-936: the write side resolves the org context from bng.users, exactly as
+  // the read side does — a token's `currentRelationshipId` is not authoritative
+  // (a refresh_token grant can blank it, or default it to another relationship),
+  // and a project stamped from the token would be read back through the stored
+  // scope and vanish.
+  test('takes the context from bng.users even when the token carries one', async () => {
     const db = mockDb([{ relationshipId: 'rel-stored', orgId: 'org-stored' }])
 
     const result = await resolveCurrentOrgContext(
@@ -29,28 +34,28 @@ describe('resolveCurrentOrgContext', () => {
     )
 
     expect(result).toEqual({
-      relationshipId: 'rel-token',
-      orgId: 'org-token'
-    })
-    // No DB round-trip on the common path.
-    expect(db.select).not.toHaveBeenCalled()
-  })
-
-  // A refresh_token-grant id_token can arrive with the enrichment claims blank.
-  // Falling back keeps the stamped context equal to the one reads scope by.
-  test('falls back to the stored context when the token has none', async () => {
-    const db = mockDb([{ relationshipId: 'rel-stored', orgId: 'org-stored' }])
-
-    const result = await resolveCurrentOrgContext(db, tokenWith(''))
-
-    expect(result).toEqual({
       relationshipId: 'rel-stored',
       orgId: 'org-stored'
     })
     expect(db.select).toHaveBeenCalledOnce()
   })
 
-  test('falls back when the claim is missing entirely', async () => {
+  test('resolves the same context whatever the token claims', async () => {
+    const stored = [{ relationshipId: 'rel-stored', orgId: 'org-stored' }]
+
+    const fromSignIn = await resolveCurrentOrgContext(
+      mockDb(stored),
+      tokenWith('rel-stored', 'rel-stored:org-stored:Acme Ltd:0:Employee:1')
+    )
+    const afterRefresh = await resolveCurrentOrgContext(
+      mockDb(stored),
+      tokenWith('rel-other', 'rel-other:org-other:Globex:0:Employee:1')
+    )
+
+    expect(afterRefresh).toEqual(fromSignIn)
+  })
+
+  test('reads the stored context when the claim is missing entirely', async () => {
     const db = mockDb([{ relationshipId: 'rel-stored', orgId: 'org-stored' }])
 
     const result = await resolveCurrentOrgContext(db, { sub: SUB })
