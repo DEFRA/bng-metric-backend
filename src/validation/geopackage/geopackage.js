@@ -1,5 +1,4 @@
 import Database from 'better-sqlite3'
-import { wkbToGeoJSON } from 'bng-library/gpkg-io'
 import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
@@ -9,18 +8,6 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 import { ERROR_CODES, makeError } from './errors.js'
 import {
   GPKG_APPLICATION_IDS,
-  EPSG_WGS84,
-  EPSG_BNG,
-  GPKG_MAGIC_BYTE_G,
-  GPKG_MAGIC_BYTE_P,
-  GPKG_FLAGS_BYTE_INDEX,
-  GPKG_HEADER_BYTES,
-  GPKG_ENVELOPE_INDICATOR_MASK,
-  GPKG_ENVELOPE_SIZES,
-  RLB_LYR,
-  HABITATS_LYR,
-  HEDGEROWS_LYR,
-  RIVERS_LYR,
   GPKG_CONTENTS_FEATURES_DATA_TYPE
 } from './geopackage-constants.js'
 import {
@@ -30,11 +17,9 @@ import {
   validateHedgerows,
   validateWatercourses
 } from './geopackage-internals.js'
+import { readFeatureTables, toLayers } from './read-feature-tables.js'
 
 const logger = createLogger()
-
-// MERGE NOTE (PR #16): runs after that PR's validateGpkg format gate. Long
-// term, collapse both readers into a single SQLite open pass.
 
 const baselineTemplateSchema = JSON.parse(
   readFileSync(
@@ -62,8 +47,6 @@ const INVALID_FILE_ERROR = makeError(
   'File is not a valid GeoPackage'
 )
 
-const SUPPORTED_SRIDS = new Set([EPSG_WGS84, EPSG_BNG])
-
 const GPKG_GATE_STAGING_PREFIX = 'gpkg-gate-'
 const GPKG_GATE_STAGING_FILENAME = 'candidate.gpkg'
 // SQLite header — https://www.sqlite.org/fileformat.html §1.3
@@ -71,34 +54,6 @@ const SQLITE_MAGIC = Buffer.from('SQLite format 3\0')
 const SQLITE_HEADER_MIN_BYTES = 20
 const SQLITE_WAL_VERSION = 2
 const SQLITE_READ_VERSION_OFFSET = 19
-
-// OGC GeoPackage 1.2 §2.1.3 geometry blob header (see geopackage-constants.js).
-// LAYER_ALIASES: underscored + QGIS spaced names; resolveTableName is case-insensitive.
-const LAYER_ALIASES = {
-  redline: [
-    'red_line_boundary',
-    'redline_boundary',
-    'redline',
-    'red_line',
-    RLB_LYR
-  ],
-  areas: [
-    'area_habitats',
-    'baseline_area_habitats',
-    'habitat_areas',
-    'areas',
-    'habitats'
-  ],
-  hedgerows: ['hedgerow_habitats', 'baseline_hedgerow_habitats', 'hedgerows'],
-  watercourses: [
-    'watercourse_habitats',
-    'baseline_watercourse_habitats',
-    'watercourses',
-    'rivers'
-  ],
-  iggis: ['iggis', 'iggi', 'integrated_greening_grey_infrastructure'],
-  trees: ['trees', 'baseline_trees', 'tree', 'urban trees']
-}
 
 function bufferStartsWithSqliteMagic(buffer) {
   return (
@@ -152,8 +107,8 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
   }
 }
 
-/** Layered GeoPackage checks against an already-open database. */
-function runGpkgChecks(db) {
+/** Structural checks that need no shape data — the early exit of the gate. */
+function runStructuralChecks(db) {
   const errors = []
 
   // 1. Application ID confirms this is a GeoPackage, not a plain SQLite file
@@ -187,53 +142,47 @@ function runGpkgChecks(db) {
   // 4. Layers present in gpkg_contents must match baseline template columns, srs, geometry
   compareGpkgToBaselineSchema(db, baselineTemplateSchema, errors)
 
-  // 5. Red Line Boundary must contain exactly one polygon feature
-  if (contentTables.has(RLB_LYR)) {
-    validateRedLineBoundary(db, errors, logger)
-  }
-
-  if (contentTables.has(HABITATS_LYR)) {
-    validateHabitats(db, errors, logger)
-  }
-
-  // Hedgerows and Rivers are optional layers. Only validate when present;
-  // the validator itself skips silently when the table has zero rows.
-  if (contentTables.has(HEDGEROWS_LYR)) {
-    validateHedgerows(db, errors, logger)
-  }
-  if (contentTables.has(RIVERS_LYR)) {
-    validateWatercourses(db, errors, logger)
-  }
-
-  const valid = errors.length === 0
-  logger.info(`validateGpkg: valid=${valid}, errors=${JSON.stringify(errors)}`)
-  return { valid, errors }
-}
-
-/** Run the layered checks on an open db, then close it, whichever path opened it. */
-function runChecksAndClose(db) {
-  try {
-    return runGpkgChecks(db)
-  } finally {
-    db.close()
-  }
+  return { valid: errors.length === 0, errors }
 }
 
 /**
- * Validate a Buffer as a BNG baseline GeoPackage. WAL-mode headers go
- * straight to disk; otherwise try in-memory first. Non-SQLite failures skip
- * staging; SQLite in-memory failures still fall back to disk.
- * @param {Buffer} buffer
- * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
+ * Feature-count and geometry-type checks, run against the geometry types the
+ * single reader pass classified. Red Line Boundary must contain exactly one
+ * polygon; Habitats at least one. Hedgerows and Rivers are optional layers —
+ * the validators skip silently when the layer is absent or empty.
+ *
+ * @param {ReturnType<typeof readFeatureTables>} featureTables
+ * @returns {Array<{ code: string, message: string }>}
  */
-function validateGpkg(buffer) {
+function runFeatureChecks({ tables }) {
+  const errors = []
+  validateRedLineBoundary(tables, errors, logger)
+  validateHabitats(tables, errors, logger)
+  validateHedgerows(tables, errors, logger)
+  validateWatercourses(tables, errors, logger)
+  return errors
+}
+
+/**
+ * Open a candidate GeoPackage buffer and hand the open database to `withDb`.
+ * WAL-mode headers go straight to disk; otherwise try in-memory first.
+ * Non-SQLite failures skip staging; SQLite in-memory failures still fall back
+ * to disk. The database is closed and any staging directory removed before
+ * returning.
+ *
+ * @param {Buffer} buffer
+ * @param {(db: import('better-sqlite3').Database) => T} withDb
+ * @returns {T | { valid: false, errors: Array<{ code: string, message: string }> }}
+ * @template T
+ */
+function withGpkgDatabase(buffer, withDb) {
   if (!isWalModeSqliteBuffer(buffer)) {
     const bufferDb = tryOpenBufferDatabase(buffer)
     if (bufferDb) {
-      return runChecksAndClose(bufferDb)
+      return useAndClose(bufferDb, withDb)
     }
     if (!bufferStartsWithSqliteMagic(buffer)) {
-      return { valid: false, errors: [INVALID_FILE_ERROR] }
+      return invalidFileResult()
     }
   }
 
@@ -244,12 +193,96 @@ function validateGpkg(buffer) {
   try {
     const db = openStagedGpkgDatabase(buffer, stagingDir)
     if (!db) {
-      return { valid: false, errors: [INVALID_FILE_ERROR] }
+      return invalidFileResult()
     }
-    return runChecksAndClose(db)
+    return useAndClose(db, withDb)
   } finally {
     rmSync(stagingDir, { recursive: true, force: true })
   }
+}
+
+function invalidFileResult() {
+  return { valid: false, errors: [INVALID_FILE_ERROR] }
+}
+
+function useAndClose(db, withDb) {
+  try {
+    return withDb(db)
+  } finally {
+    db.close()
+  }
+}
+
+/**
+ * The format gate against an open database: the structural checks first, and
+ * only for a file that survives them, the single reader pass whose geometry
+ * types the feature checks count.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @param {boolean} decodeGeometry also unpack the shapes in that same pass
+ */
+function runGpkgGate(db, decodeGeometry) {
+  const structural = runStructuralChecks(db)
+  if (!structural.valid) {
+    return { ...structural, featureTables: null }
+  }
+
+  const featureTables = readFeatureTables(db, { decodeGeometry })
+  const errors = runFeatureChecks(featureTables)
+  return { valid: errors.length === 0, errors, featureTables }
+}
+
+/**
+ * Validate a Buffer as a BNG baseline GeoPackage and, when it passes, return
+ * its layers from the same read.
+ *
+ * The structural checks run first and reject a broken file before any shape is
+ * unpacked. Only then is the file walked — once — classifying and decoding
+ * every geometry in a single pass, so the caller needs no second open of the
+ * file to get the data (BMD-910).
+ *
+ * @param {Buffer} buffer
+ * @returns {{
+ *   valid: boolean,
+ *   errors: Array<{ code: string, message: string }>,
+ *   layers: ReturnType<typeof toLayers> | null
+ * }}
+ */
+function validateAndReadGpkg(buffer) {
+  const result = withGpkgDatabase(buffer, (db) => {
+    const gate = runGpkgGate(db, true)
+    if (!gate.valid) {
+      return logGateResult({ valid: false, errors: gate.errors })
+    }
+    return logGateResult({
+      valid: true,
+      errors: [],
+      layers: toLayers(gate.featureTables)
+    })
+  })
+  return { layers: null, ...result }
+}
+
+function logGateResult(result) {
+  logger.info(
+    `validateGpkg: valid=${result.valid}, errors=${JSON.stringify(result.errors)}`
+  )
+  return result
+}
+
+/**
+ * Format gate only: is this Buffer an acceptable BNG baseline GeoPackage?
+ * Nothing is unpacked — callers that also need the shapes should use
+ * {@link validateAndReadGpkg}, which returns them from the same read.
+ *
+ * @param {Buffer} buffer
+ * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
+ */
+function validateGpkg(buffer) {
+  return withGpkgDatabase(buffer, (db) => {
+    const { valid, errors } = runGpkgGate(db, false)
+    return logGateResult({ valid, errors })
+  })
 }
 
 /**
@@ -328,165 +361,27 @@ function getTableNames(db) {
 }
 
 /**
- * Decode a GeoPackage geometry blob into a GeoJSON geometry and its SRS id.
+ * Open a GeoPackage file and return all layers we know about as GeoJSON
+ * Features carrying their native geometry and SRID. PostGIS reprojects to
+ * 27700 in-query for area / containment checks.
  *
- * The GeoPackageBinary header is validated here (magic + envelope indicator,
- * per OGC GeoPackage 1.2 §2.1.3) so a malformed baseline is rejected rather
- * than silently accepted. The WKB → GeoJSON decode itself is delegated to
- * bng-library/gpkg-io (`wkbToGeoJSON`), which is the single source of truth
- * for the format.
- *
- * @param {Buffer} blob
- * @returns {{ geometry: object, srsId: number } | null}
- */
-function decodeGpkgBlob(blob) {
-  if (!blob || blob.length < GPKG_HEADER_BYTES) {
-    return null
-  }
-  if (blob[0] !== GPKG_MAGIC_BYTE_G || blob[1] !== GPKG_MAGIC_BYTE_P) {
-    throw new Error('Invalid GeoPackage geometry blob: bad magic')
-  }
-  const flags = blob[GPKG_FLAGS_BYTE_INDEX]
-  const envelopeIndicator = (flags >> 1) & GPKG_ENVELOPE_INDICATOR_MASK
-  if (GPKG_ENVELOPE_SIZES[envelopeIndicator] === undefined) {
-    throw new Error(
-      `Invalid GeoPackage envelope indicator: ${envelopeIndicator}`
-    )
-  }
-  const isLittleEndian = (flags & 0x01) === 1
-  const srsId = isLittleEndian ? blob.readInt32LE(4) : blob.readInt32BE(4)
-  return { geometry: wkbToGeoJSON(blob), srsId }
-}
-
-/**
- * Match a logical layer name (e.g. 'redline') to a real table name in the
- * GeoPackage, using the alias list. Case-insensitive.
- */
-function resolveTableName(logicalName, availableTables) {
-  const aliases = LAYER_ALIASES[logicalName] ?? [logicalName]
-  const lower = new Map(availableTables.map((t) => [t.toLowerCase(), t]))
-  for (const alias of aliases) {
-    const hit = lower.get(alias.toLowerCase())
-    if (hit) {
-      return hit
-    }
-  }
-  return null
-}
-
-/**
- * Read all features from a single GeoPackage feature table, returning them as
- * GeoJSON Features in their native SRID (PostGIS reprojects to 27700 in-query).
- */
-function readLayer(db, tableName) {
-  const geomColumnRow = db
-    .prepare(
-      'SELECT column_name, srs_id FROM gpkg_geometry_columns WHERE table_name = ?'
-    )
-    .get(tableName)
-  if (!geomColumnRow) {
-    return { nativeSrid: null, features: [] }
-  }
-
-  const { column_name: geomColumn, srs_id: tableSrid } = geomColumnRow
-
-  // QGIS-authored layer names contain spaces (e.g. "Red Line Boundary"), so the
-  // identifier has to be double-quoted in the prepared SQL. PRAGMA and SELECT *
-  // can't take bound parameters for object names, hence the inline quoting.
-  const quotedTable = `"${tableName.replaceAll('"', '""')}"`
-
-  // Discover non-geometry columns to attach as feature properties.
-  const colRows = db.prepare(`PRAGMA table_info(${quotedTable})`).all()
-  const propColumns = colRows.map((c) => c.name).filter((n) => n !== geomColumn)
-
-  const rows = db.prepare(`SELECT * FROM ${quotedTable}`).all()
-  const features = []
-  for (const row of rows) {
-    const blob = row[geomColumn]
-    const decoded = decodeGpkgBlob(blob)
-    if (!decoded) {
-      continue
-    }
-
-    const featureSrid = decoded.srsId || tableSrid
-    if (!SUPPORTED_SRIDS.has(featureSrid)) {
-      throw new Error(
-        `Unsupported SRID ${featureSrid} in table ${tableName}. ` +
-          `Supported: ${[...SUPPORTED_SRIDS].join(', ')}.`
-      )
-    }
-
-    const properties = {}
-    for (const col of propColumns) {
-      properties[col] = row[col]
-    }
-
-    features.push({
-      type: 'Feature',
-      properties,
-      nativeGeometry: decoded.geometry,
-      // Stringified once here so validation, sizing and persist can all reuse
-      // it rather than each re-serialising the same geometry. In-memory only.
-      geometryJson: JSON.stringify(decoded.geometry),
-      nativeSrid: featureSrid
-    })
-  }
-  return { nativeSrid: tableSrid, features }
-}
-
-/**
- * Open a GeoPackage and return all layers we know about as GeoJSON Features
- * carrying their native geometry and SRID. PostGIS reprojects to 27700
- * in-query for area / containment checks.
+ * Upload validation reads from the buffer instead — see
+ * {@link validateAndReadGpkg}; this is for callers that already have a file.
  *
  * @param {string} filePath
- * @returns {{
- *   redline: object[],
- *   areas: object[],
- *   hedgerows: object[],
- *   watercourses: object[],
- *   iggis: object[],
- *   trees: object[],
- *   missingLayers: string[]
- * }}
+ * @returns {ReturnType<typeof toLayers>}
  */
 export function readGeoPackage(filePath) {
   const db = new Database(filePath, { readonly: true, fileMustExist: true })
   try {
-    const tables = db
-      .prepare(
-        'SELECT table_name FROM gpkg_contents WHERE lower(CAST(data_type AS TEXT)) = ?'
-      )
-      .all(GPKG_CONTENTS_FEATURES_DATA_TYPE)
-      .map((r) => r.table_name)
-
+    const featureTables = readFeatureTables(db, { decodeGeometry: true })
     logger.info(
-      `readGeoPackage - file: ${filePath}, feature tables: ${JSON.stringify(tables)}`
+      `readGeoPackage - file: ${filePath}, feature tables: ${JSON.stringify(featureTables.tableNames)}`
     )
-
-    const result = {
-      redline: [],
-      areas: [],
-      hedgerows: [],
-      watercourses: [],
-      iggis: [],
-      trees: [],
-      missingLayers: []
-    }
-
-    for (const logical of Object.keys(LAYER_ALIASES)) {
-      const table = resolveTableName(logical, tables)
-      if (!table) {
-        result.missingLayers.push(logical)
-        continue
-      }
-      result[logical] = readLayer(db, table).features
-    }
-
-    return result
+    return toLayers(featureTables)
   } finally {
     db.close()
   }
 }
 
-export { validateGpkg }
+export { validateGpkg, validateAndReadGpkg }
