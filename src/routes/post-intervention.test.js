@@ -22,8 +22,7 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateGpkg: vi.fn(),
-  readGeoPackage: vi.fn()
+  validateAndReadGpkg: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -75,7 +74,7 @@ vi.mock('../common/helpers/metrics.js', () => ({
 const { waitForUploadReady } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile } = await import('../services/s3/download-file.js')
-const { validateGpkg, readGeoPackage } =
+const { validateAndReadGpkg } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
   await import('../validation/geopackage/assign-feature-ids.js')
@@ -117,8 +116,11 @@ function setupHappyPathMocks() {
     fileSize: MOCK_FILE_SIZE
   })
   vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-  vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(validateAndReadGpkg).mockReturnValue({
+    valid: true,
+    errors: [],
+    layers: STUB_LAYERS
+  })
   vi.mocked(validateGeoPackageLayers).mockResolvedValue({
     valid: true,
     errors: []

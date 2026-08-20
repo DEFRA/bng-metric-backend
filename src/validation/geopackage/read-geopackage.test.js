@@ -65,6 +65,15 @@ describe('readGeoPackage feature decoding', () => {
     })
   })
 
+  it('throws when a registered layer has no physical table to read', async () => {
+    const buf = mutateSerializedBuffer(fullReadBuffer(), (db) => {
+      db.exec(`DROP TABLE "Rivers"`)
+    })
+    await withTempGpkgFile(buf, (filePath) => {
+      expect(() => readGeoPackage(filePath)).toThrow(/no such table/i)
+    })
+  })
+
   it('copies non-geometry attribute columns into Feature properties', async () => {
     const buf = mutateSerializedBuffer(fullReadBuffer(), (db) => {
       db.prepare(`UPDATE "Habitats" SET "Parcel Ref" = ? WHERE rowid = 1`).run(

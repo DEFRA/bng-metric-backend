@@ -38,8 +38,7 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateGpkg: vi.fn(),
-  readGeoPackage: vi.fn()
+  validateAndReadGpkg: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -63,7 +62,7 @@ const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
   await import('../services/s3/download-file.js')
-const { validateGpkg, readGeoPackage } =
+const { validateAndReadGpkg } =
   await import('../validation/geopackage/geopackage.js')
 const { extractHabitatData } =
   await import('../validation/geopackage/baseline/extract-habitat-data.js')
@@ -80,8 +79,11 @@ function setupHappyPathMocks() {
     key: MOCK_KEY
   })
   vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-  vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(validateAndReadGpkg).mockReturnValue({
+    valid: true,
+    errors: [],
+    layers: STUB_LAYERS
+  })
   vi.mocked(validateGeoPackageLayers).mockResolvedValue({
     valid: true,
     errors: []
@@ -362,8 +364,11 @@ describe('validateBaseline handler upload error handling', () => {
     vi.clearAllMocks()
     h = makeH()
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateAndReadGpkg).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
@@ -435,8 +440,11 @@ describe('validateBaseline handler download error handling', () => {
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateAndReadGpkg).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
@@ -511,8 +519,11 @@ describe('validateBaseline handler full validation error handling', () => {
       key: MOCK_KEY
     })
     vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateAndReadGpkg).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
   })
 
   it('returns 500 when validateGeoPackageLayers throws', async () => {
