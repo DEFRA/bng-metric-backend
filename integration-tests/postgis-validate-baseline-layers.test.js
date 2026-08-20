@@ -78,6 +78,61 @@ const SELF_INTERSECTING = [
   [X0, Y0]
 ]
 
+// ST_MakeValid splits SELF_INTERSECTING at its crossing point
+// (X0 + HALF, Y0 + HALF) into two triangular lobes — a west one
+// (X0, Y0)-(crossing)-(X0, Y0 + EDGE) and an east one
+// (crossing)-(X0 + EDGE, Y0 + EDGE)-(X0 + EDGE, Y0) — leaving the notches
+// above and below the crossing point outside the parcel. The three fixtures
+// below sit in known positions relative to those lobes, so they pin down what
+// the overlap check makes of a repaired parcel.
+const LOBE_OVERLAP_SIDE_M = 20
+const LOBE_OVERLAP_HALF_M = LOBE_OVERLAP_SIDE_M / 2
+
+// 20 m × 20 m square against the east edge, wholly inside the east lobe:
+// 400 sq m of overlap, far above the 0.5 sq m OVERLAP_TOLERANCE_SQ_M.
+const OVERLAPS_BOWTIE_LOBE = [
+  [X0 + EDGE - LOBE_OVERLAP_SIDE_M, Y0 + HALF - LOBE_OVERLAP_HALF_M],
+  [X0 + EDGE, Y0 + HALF - LOBE_OVERLAP_HALF_M],
+  [X0 + EDGE, Y0 + HALF + LOBE_OVERLAP_HALF_M],
+  [X0 + EDGE - LOBE_OVERLAP_SIDE_M, Y0 + HALF + LOBE_OVERLAP_HALF_M],
+  [X0 + EDGE - LOBE_OVERLAP_SIDE_M, Y0 + HALF - LOBE_OVERLAP_HALF_M]
+]
+
+// Triangle with a corner exactly on the crossing point, covering half the east
+// lobe (1250 sq m). GEOS cannot evaluate ST_Intersects against the *unrepaired*
+// ring for this pair at all — it raises "side location conflict" at the
+// crossing point — so this is the pair that pins down that the join predicate
+// sees repaired geometry.
+const TOUCHES_BOWTIE_CROSSING = [
+  [X0 + HALF, Y0 + HALF],
+  [X0 + EDGE + HALF, Y0 + EDGE + HALF],
+  [X0 + EDGE + HALF, Y0 + HALF],
+  [X0 + HALF, Y0 + HALF]
+]
+
+// Gap between the notch square and the top edge of SELF_INTERSECTING's outline.
+const BOWTIE_NOTCH_INSET_M = 5
+
+// 20 m × 20 m square in the notch above the crossing point: inside the
+// bow-tie's outline, but in neither lobe, so the repaired parcel does not
+// cover it at all.
+const INSIDE_BOWTIE_NOTCH = [
+  [
+    X0 + HALF - LOBE_OVERLAP_HALF_M,
+    Y0 + EDGE - BOWTIE_NOTCH_INSET_M - LOBE_OVERLAP_SIDE_M
+  ],
+  [
+    X0 + HALF + LOBE_OVERLAP_HALF_M,
+    Y0 + EDGE - BOWTIE_NOTCH_INSET_M - LOBE_OVERLAP_SIDE_M
+  ],
+  [X0 + HALF + LOBE_OVERLAP_HALF_M, Y0 + EDGE - BOWTIE_NOTCH_INSET_M],
+  [X0 + HALF - LOBE_OVERLAP_HALF_M, Y0 + EDGE - BOWTIE_NOTCH_INSET_M],
+  [
+    X0 + HALF - LOBE_OVERLAP_HALF_M,
+    Y0 + EDGE - BOWTIE_NOTCH_INSET_M - LOBE_OVERLAP_SIDE_M
+  ]
+]
+
 const BIG = [
   [X0 - EDGE, Y0 - EDGE],
   [X0 + 2 * EDGE, Y0 - EDGE],
@@ -455,6 +510,47 @@ describe('validateGeoPackageLayersPostgis — habitat parcel errors', () => {
       })
     )
     expect(codes).toContain('AREA_SUM_MISMATCH')
+  })
+})
+
+// The overlap self-join runs against ST_MakeValid'ed geometry, so an invalid
+// parcel is compared as the shape GEOS repairs it into. These pin down what
+// that means for a bow-tie parcel — the case example-files has no example of.
+describe('validateGeoPackageLayersPostgis — overlaps involving an invalid parcel', () => {
+  it('detects an overlap between a self-intersecting parcel and a valid neighbour', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(BIG)],
+        areas: [poly(SELF_INTERSECTING), poly(OVERLAPS_BOWTIE_LOBE)]
+      })
+    )
+    expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
+    expect(codes).toContain('PARCEL_OVERLAPS')
+  })
+
+  it('detects an overlap at the self-intersection point, which GEOS cannot test unrepaired', async () => {
+    // Against the raw ring, ST_Intersects on this pair raises "side location
+    // conflict" and takes the whole validation run down with it; repairing the
+    // parcel before the join turns that into an ordinary reported overlap.
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(BIG)],
+        areas: [poly(SELF_INTERSECTING), poly(TOUCHES_BOWTIE_CROSSING)]
+      })
+    )
+    expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
+    expect(codes).toContain('PARCEL_OVERLAPS')
+  })
+
+  it('does not flag a neighbour sitting in a notch the repaired parcel does not cover', async () => {
+    const codes = await runAndGetCodes(
+      makeLayers({
+        redline: [poly(BIG)],
+        areas: [poly(SELF_INTERSECTING), poly(INSIDE_BOWTIE_NOTCH)]
+      })
+    )
+    expect(codes).toContain('AREA_PARCELS_INVALID_GEOMETRY')
+    expect(codes).not.toContain('PARCEL_OVERLAPS')
   })
 })
 

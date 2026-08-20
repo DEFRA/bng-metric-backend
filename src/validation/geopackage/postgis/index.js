@@ -229,6 +229,11 @@ c_areas_invalid AS (
 -- Reads the GiST-indexed temp table rather than the inline areas view so
 -- the planner prunes candidate pairs by bounding box instead of testing
 -- every pair; its geometries are already valid, so no per-pair ST_MakeValid.
+-- That means ST_Intersects sees repaired geometry too: an invalid parcel is
+-- compared as the shape ST_MakeValid resolves it into, and a pair GEOS refuses
+-- to evaluate against the raw ring ("side location conflict") no longer takes
+-- the whole check down. See the invalid-parcel overlap cases in
+-- integration-tests/postgis-validate-baseline-layers.test.js.
 c_overlap_offending AS (
   SELECT prc1.idx AS idx_a,
          ${fidColumnSql('prc1.props')} AS fid_a,
