@@ -87,10 +87,13 @@ function fidColumnSql(propsExpr = 'props') {
 // the literal from being repeated across every CTE that selects identifiers.
 const FEAT_PROPS = 'feat.props'
 
-// Baseline geometry validation, run as a single PostGIS statement. Features
-// are passed in as parallel arrays of GeoJSON strings ($1..$5), parsed and
-// reprojected to EPSG:27700 inside the query, used for every spatial check,
-// and discarded when the statement finishes. Nothing is persisted.
+// Baseline geometry validation, run as a single PostGIS statement — over the
+// same $1..$5 arrays MATERIALISE_AREAS_QUERY has already been given, plus the
+// England polygon. Features are passed in as parallel arrays of GeoJSON
+// strings, parsed and reprojected to EPSG:27700 inside the query, used for
+// every spatial check, and discarded when the statement finishes. The only
+// pre-existing relation it reads is the parcels temp table. Nothing is
+// persisted.
 //
 // Parameters
 //   $1  text[]   layer names per feature (redline | areas | hedgerows | watercourses | iggis | trees)
@@ -111,16 +114,53 @@ const FEAT_PROPS = 'feat.props'
 // TIP: use the VS Code extension "bierner.comment-tagged-templates" to get SQL syntax
 // highlighting after the /* sql */ comment.
 
-const CHECK_QUERY = /* sql */ `
-WITH
--- Reproject every input feature to EPSG:27700 (British National Grid). All
--- subsequent area / containment maths is in metres on this CRS.
+// Session-local table holding the area habitat parcels, materialised so the
+// parcel-overlap self-join has something the planner can put a spatial index
+// on. Dropped automatically when the surrounding transaction ends.
+const AREAS_TEMP_TABLE = 'areas_g'
+
+// Reproject every input feature to EPSG:27700 (British National Grid). All
+// subsequent area / containment maths is in metres on this CRS. Shared by the
+// materialise step and the main check query so both read the same parameters
+// the same way.
+const FEATURES_IN_CTE = /* sql */ `
 features_in AS (
   SELECT layer, idx, props::jsonb AS props,
          ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(g), srid), 27700) AS geom
   FROM unnest($1::text[], $2::int[], $3::text[], $4::text[], $5::int[])
     AS t(layer, idx, props, g, srid)
-),
+)`
+
+// Materialise the area habitat parcels into a real (temporary) table.
+//
+// The overlap check is a self-join over the parcels. Against the inline
+// `areas` view — an ephemeral rowset over unnest()ed parameter arrays — the
+// planner has no index and no statistics, so it walks all ~N²/2 idx pairs and
+// runs ST_Intersects on each. Materialising gives the geometries a home a GiST
+// index can be built on, which turns that cross-product into an index-backed
+// spatial join.
+//
+// ST_MakeValid is applied once here rather than per pair inside the join.
+//
+// Takes $1..$5 (see CHECK_QUERY); ON COMMIT DROP ties the table's lifetime to
+// the caller's transaction, so nothing is left behind on the pooled connection.
+const MATERIALISE_AREAS_QUERY = /* sql */ `
+CREATE TEMP TABLE ${AREAS_TEMP_TABLE} ON COMMIT DROP AS
+WITH ${FEATURES_IN_CTE}
+SELECT idx, props, ST_MakeValid(geom) AS geom
+FROM features_in
+WHERE layer = 'areas'`
+
+// GiST index for bounding-box candidate pruning, then ANALYZE so the planner
+// has the row counts and selectivity estimates it needs to actually choose the
+// index path (a freshly created table has no statistics at all).
+const INDEX_AREAS_QUERY = /* sql */ `
+CREATE INDEX ON ${AREAS_TEMP_TABLE} USING gist (geom);
+ANALYZE ${AREAS_TEMP_TABLE};`
+
+const CHECK_QUERY = /* sql */ `
+WITH
+${FEATURES_IN_CTE},
 -- Per-layer views over features_in.
 redline      AS (SELECT idx, props, geom FROM features_in WHERE layer = 'redline'),
 areas        AS (SELECT idx, props, geom FROM features_in WHERE layer = 'areas'),
@@ -186,6 +226,14 @@ c_areas_invalid AS (
   WHERE NOT ST_IsValid(geom)
 ),
 -- List every overlapping pair (idx_a < idx_b avoids duplicates).
+-- Reads the GiST-indexed temp table rather than the inline areas view so
+-- the planner prunes candidate pairs by bounding box instead of testing
+-- every pair; its geometries are already valid, so no per-pair ST_MakeValid.
+-- That means ST_Intersects sees repaired geometry too: an invalid parcel is
+-- compared as the shape ST_MakeValid resolves it into, and a pair GEOS refuses
+-- to evaluate against the raw ring ("side location conflict") no longer takes
+-- the whole check down. See the invalid-parcel overlap cases in
+-- integration-tests/postgis-validate-baseline-layers.test.js.
 c_overlap_offending AS (
   SELECT prc1.idx AS idx_a,
          ${fidColumnSql('prc1.props')} AS fid_a,
@@ -193,9 +241,9 @@ c_overlap_offending AS (
          prc2.idx AS idx_b,
          ${fidColumnSql('prc2.props')} AS fid_b,
          ${featureRefSql('prc2.props')} AS feature_ref_b
-  FROM areas prc1 JOIN areas prc2
+  FROM ${AREAS_TEMP_TABLE} prc1 JOIN ${AREAS_TEMP_TABLE} prc2
     ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)
-  WHERE ST_Area(ST_Intersection(ST_MakeValid(prc1.geom), ST_MakeValid(prc2.geom), ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
+  WHERE ST_Area(ST_Intersection(prc1.geom, prc2.geom, ${OVERLAY_GRID_SIZE_M})) > ${OVERLAP_TOLERANCE_SQ_M}
 ),
 -- Area habitat parcels whose own footprint is under MIN_PARCEL_AREA_SQ_M as
 -- supplied in the file. Area only — a parcel is not judged on how thin or
@@ -483,24 +531,74 @@ function buildArrays(layers) {
 }
 
 /**
+ * Materialise the area habitat parcels into a GiST-indexed temp table on the
+ * given client, and return the parameter arrays built from `layers` so the
+ * caller can reuse them for the main check query.
+ *
+ * Must be called inside a transaction: the table is ON COMMIT DROP, so the
+ * surrounding COMMIT / ROLLBACK is what cleans it off the pooled connection.
+ *
+ * @param {import('pg').ClientBase} client Client with an open transaction
+ * @param {object} layers Output of readGeoPackage
+ */
+export async function materialiseIndexedAreas(client, layers) {
+  const arrays = buildArrays(layers)
+  const { layerNames, idxs, props, geoms, srids } = arrays
+
+  await client.query(MATERIALISE_AREAS_QUERY, [
+    layerNames,
+    idxs,
+    props,
+    geoms,
+    srids
+  ])
+  await client.query(INDEX_AREAS_QUERY)
+
+  return arrays
+}
+
+/**
  * Run every baseline geometry check in a single PostGIS statement. No data is
  * persisted: features are passed in as parameters, parsed in-query, used for
- * the spatial checks, and discarded.
+ * the spatial checks, and discarded when the transaction ends.
+ *
+ * The one exception is the area habitat parcels, which are materialised into a
+ * temporary table so the overlap self-join can use a spatial index. That table
+ * is ON COMMIT DROP, hence the explicit transaction on a dedicated client — it
+ * disappears when the transaction ends, whichever way it ends.
  *
  * @param {import('pg').Pool} pool
  * @param {object} layers Output of readGeoPackage
  */
 export async function validateGeoPackageLayersPostgis(pool, layers) {
-  const { layerNames, idxs, props, geoms, srids } = buildArrays(layers)
-
-  const { rows } = await pool.query(CHECK_QUERY, [
-    layerNames,
-    idxs,
-    props,
-    geoms,
-    srids,
-    ENGLAND_GEOMETRY_JSON
-  ])
+  const client = await pool.connect()
+  let rows
+  // Stays undefined on the happy path. If the rollback itself fails the
+  // connection can't be trusted back in the pool still inside a transaction,
+  // so the error is handed to release() and pg destroys the client instead.
+  let releaseError
+  try {
+    await client.query('BEGIN')
+    const { layerNames, idxs, props, geoms, srids } =
+      await materialiseIndexedAreas(client, layers)
+    ;({ rows } = await client.query(CHECK_QUERY, [
+      layerNames,
+      idxs,
+      props,
+      geoms,
+      srids,
+      ENGLAND_GEOMETRY_JSON
+    ]))
+    await client.query('COMMIT')
+  } catch (err) {
+    releaseError = await client.query('ROLLBACK').then(
+      () => undefined,
+      (rollbackErr) => rollbackErr
+    )
+    throw err
+  } finally {
+    client.release(releaseError)
+  }
 
   const byCode = new Map()
   for (const row of rows) {
