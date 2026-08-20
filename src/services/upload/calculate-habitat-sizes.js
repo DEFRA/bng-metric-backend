@@ -1,3 +1,5 @@
+import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
+
 const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 
 const CALCULATE_HABITAT_SIZES_QUERY = /* sql */ `
@@ -34,7 +36,7 @@ function buildLayerArrays(layers) {
 
       layerNames.push(layerName)
       featureIds.push(feature.featureId)
-      geoms.push(JSON.stringify(feature.nativeGeometry))
+      geoms.push(toGeometryJson(feature.geometryJson, feature.nativeGeometry))
       srids.push(feature.nativeSrid)
     }
   }

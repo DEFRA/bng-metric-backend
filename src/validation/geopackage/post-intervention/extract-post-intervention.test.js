@@ -5,6 +5,7 @@ import { postInterventionDataSchema } from '../../project.js'
 import {
   PARCEL_REF,
   SAMPLE_LINESTRING,
+  SAMPLE_POLYGON,
   UPLOADED_FILE_SIZE,
   feature
 } from './extract-post-intervention.test-fixtures.js'
@@ -39,6 +40,35 @@ describe('extractPostIntervention — top-level shape', () => {
         }
       })
     )
+  })
+
+  it('carries the cached geometryJson from the feature onto every geometry row', () => {
+    // BMD-914: persist reads row.geometryJson, so the string readGeoPackage
+    // cached at decode has to survive the feature → row copy.
+    const cached = (geometry) => ({
+      ...feature({ [PARCEL_REF]: 'P1' }, geometry),
+      geometryJson: JSON.stringify(geometry)
+    })
+
+    const out = extractPostIntervention({
+      redline: [cached(SAMPLE_POLYGON)],
+      areas: [cached(SAMPLE_POLYGON)],
+      hedgerows: [cached(SAMPLE_LINESTRING)],
+      watercourses: [cached(SAMPLE_LINESTRING)],
+      trees: [cached(SAMPLE_POLYGON)]
+    })
+
+    const rows = [
+      out.geometries.redLine,
+      ...out.geometries.habitats,
+      ...out.geometries.hedgerows,
+      ...out.geometries.watercourses,
+      ...out.geometries.trees
+    ]
+    expect(rows).toHaveLength(5)
+    for (const row of rows) {
+      expect(row.geometryJson).toBe(JSON.stringify(row.geometry))
+    }
   })
 
   it('threads uploadId, filename and fileSize from meta into the document', () => {

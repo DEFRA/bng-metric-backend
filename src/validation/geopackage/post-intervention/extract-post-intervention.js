@@ -56,6 +56,7 @@ function buildGeometryRow(feature, featureId, ref) {
     featureId,
     ref,
     geometry: feature.nativeGeometry,
+    geometryJson: feature.geometryJson,
     srid: feature.nativeSrid
   }
 }
@@ -213,6 +214,7 @@ function buildRedLine(features) {
       geometryRow: {
         featureId,
         geometry: feature.nativeGeometry,
+        geometryJson: feature.geometryJson,
         srid: feature.nativeSrid
       }
     }

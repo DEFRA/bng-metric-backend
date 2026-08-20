@@ -228,6 +228,67 @@ describe('persistUpload', () => {
     ).rejects.toBe(err)
   })
 
+  it('binds the geometryJson cached at decode rather than re-serialising', async () => {
+    // BMD-914: the extract functions copy readGeoPackage's cached string onto
+    // each geometry row, so persist binds that string straight into the INSERT.
+    const { drizzle, log } = makeDrizzle()
+    // A geometry that would throw if stringified proves the cached string is
+    // what gets bound, and that JSON.stringify is never reached.
+    const unserialisable = { type: 'Polygon' }
+    unserialisable.self = unserialisable
+    const geometries = makeGeometries({
+      habitats: [
+        {
+          featureId: FEATURE_ID_HAB,
+          ref: 'P1',
+          geometry: unserialisable,
+          geometryJson: '{"cached":"habitat"}',
+          srid: EPSG_BNG
+        }
+      ]
+    })
+
+    await persistUpload(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      geometries,
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
+    )
+
+    const boundParams = log.executes.flatMap(
+      (statement) => new PgDialect().sqlToQuery(statement).params
+    )
+    expect(boundParams).toContain('{"cached":"habitat"}')
+  })
+
+  it('serialises a geometry row that carries no cached string', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const geometries = makeGeometries({
+      habitats: [
+        {
+          featureId: FEATURE_ID_HAB,
+          ref: 'P1',
+          geometry: SAMPLE_GEOM,
+          srid: EPSG_BNG
+        }
+      ]
+    })
+
+    await persistUpload(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      geometries,
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
+    )
+
+    const boundParams = log.executes.flatMap(
+      (statement) => new PgDialect().sqlToQuery(statement).params
+    )
+    expect(boundParams).toContain(JSON.stringify(SAMPLE_GEOM))
+  })
+
   it('persists rows with a null ref when ref is omitted', async () => {
     const { drizzle, log } = makeDrizzle()
     const geometries = makeGeometries({

@@ -21,6 +21,7 @@ import {
   setProjectHabitatData
 } from '../../db/persist-project.js'
 import { EPSG_BNG } from '../../validation/geopackage/geopackage-constants.js'
+import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
 
 /** Cap rows per INSERT to keep statement size bounded for PostGIS bulk loads. */
 const INSERT_BATCH_SIZE = 500
@@ -54,7 +55,7 @@ function transformToBngMultiGeomSql(geomJson, sourceSrid) {
 }
 
 function geometryRowValues(projectId, row) {
-  const geomJson = JSON.stringify(row.geometry)
+  const geomJson = toGeometryJson(row.geometryJson, row.geometry)
   return sql`(
     ${row.featureId}::uuid,
     ${projectId}::uuid,
@@ -75,7 +76,7 @@ async function insertGeometryRowsBatched(tx, table, projectId, rows) {
 }
 
 async function insertRedLineRow(tx, table, projectId, row) {
-  const geomJson = JSON.stringify(row.geometry)
+  const geomJson = toGeometryJson(row.geometryJson, row.geometry)
   await tx.execute(sql`
     INSERT INTO ${table} (id, project_id, geom)
     VALUES (
