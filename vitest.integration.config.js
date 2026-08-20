@@ -17,7 +17,7 @@ export default defineConfig({
     // Vitest sets NODE_ENV=test by default, which means the backend's convict
     // config does NOT default `s3.endpoint` to LocalStack (that branch only
     // fires when NODE_ENV=development). Without these, the validate route's
-    // downloadFile() tries to hit real AWS and hangs / 502s. Set explicitly so
+    // download tries to hit real AWS and hangs / 502s. Set explicitly so
     // the SDK points at LocalStack on both local dev and CI.
     env: {
       S3_ENDPOINT: 'http://localhost:4566',

@@ -8,7 +8,8 @@ import {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  MOCK_DOWNLOAD_RESULT,
+  STAGED_FILENAME,
   STUB_LAYERS,
   STUB_POST_INTERVENTION_EXTRACTED,
   makeH,
@@ -63,7 +64,7 @@ vi.mock('../utilities/enrichment/baseline/enrich-baseline-units.js', () => ({
 // Preserve real error classes so instanceof checks in the handler work correctly
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, downloadFile: vi.fn() }
+  return { ...actual, downloadFileToPath: vi.fn() }
 })
 
 vi.mock('../common/helpers/metrics.js', () => ({
@@ -73,7 +74,7 @@ vi.mock('../common/helpers/metrics.js', () => ({
 
 const { waitForUploadReady } =
   await import('../services/cdp-uploader/cdp-uploader.js')
-const { downloadFile } = await import('../services/s3/download-file.js')
+const { downloadFileToPath } = await import('../services/s3/download-file.js')
 const { validateAndReadGpkg } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
@@ -115,7 +116,7 @@ function setupHappyPathMocks() {
     filename: MOCK_FILENAME,
     fileSize: MOCK_FILE_SIZE
   })
-  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  vi.mocked(downloadFileToPath).mockResolvedValue(MOCK_DOWNLOAD_RESULT)
   vi.mocked(validateAndReadGpkg).mockReturnValue({
     valid: true,
     errors: [],
@@ -157,6 +158,19 @@ describe('validatePostIntervention handler persistence', () => {
     vi.clearAllMocks()
     h = makeH()
     setupHappyPathMocks()
+  })
+
+  it('validates the same staged file it streamed the upload into', async () => {
+    const { drizzle } = makeDrizzle()
+
+    await validatePostIntervention.handler(
+      makePostInterventionRequest({ drizzle }),
+      h
+    )
+
+    const [, , stagedPath] = vi.mocked(downloadFileToPath).mock.calls[0]
+    expect(stagedPath).toContain(STAGED_FILENAME)
+    expect(validateAndReadGpkg).toHaveBeenCalledWith(stagedPath)
   })
 
   it('persists the processed document and replaces post-intervention geometry rows', async () => {

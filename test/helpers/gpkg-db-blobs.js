@@ -5,10 +5,7 @@ import {
   GPKG_MAGIC_BYTE_G,
   GPKG_MAGIC_BYTE_P,
   GPKG_FLAGS_BYTE_INDEX,
-  WKB_MIN_BYTES,
-  WKB_POLYGON,
-  WKB_LINE_STRING,
-  WKB_POINT
+  WKB_MIN_BYTES
 } from '../../src/validation/geopackage/geopackage-constants.js'
 
 import {
@@ -99,9 +96,13 @@ export function readTestPointWkb() {
   return new wkx.Point(TEST_QUARTER_EASTING, TEST_QUARTER_NORTHING).toWkb()
 }
 
-export const makePolygon = () => makeGpkgBlob(WKB_POLYGON)
-export const makeLineString = () => makeGpkgBlob(WKB_LINE_STRING)
-export const makePoint = () => makeGpkgBlob(WKB_POINT)
+// Real, decodable WKB rather than a type-only stub: the validator classifies
+// and unpacks every geometry in the same pass (BMD-910), so a fixture that
+// only carries a type code cannot stand in for a valid feature. srsId 0 keeps
+// the header deferring to the layer's registered SRID, as before.
+export const makePolygon = () => wrapGpkgWkb(readTestPolygonWkb(), 0)
+export const makeLineString = () => wrapGpkgWkb(readTestLineStringWkb(), 0)
+export const makePoint = () => wrapGpkgWkb(readTestPointWkb(), 0)
 
 export const makeCorruptBlob = () =>
   Buffer.from([GPKG_MAGIC_BYTE_G, GPKG_MAGIC_BYTE_P])

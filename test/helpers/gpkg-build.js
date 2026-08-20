@@ -1,5 +1,5 @@
 import { mkdtemp, rm, writeFile } from 'node:fs/promises'
-import { mkdtempSync, readFileSync, rmSync } from 'node:fs'
+import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import Database from 'better-sqlite3'
@@ -74,7 +74,8 @@ function populateGpkgDb(db, opts) {
 
 /**
  * Build a SQLite database in-memory, optionally configure it as a
- * GeoPackage, then serialize it to a Buffer for use with validateGpkg.
+ * GeoPackage, then serialize it to a Buffer. Stage it with stageGpkgFile() for
+ * the validator, which reads an upload from disk.
  *
  * @param {object} [opts] - See populateGpkgDb() for option descriptions.
  * @returns {Buffer}
@@ -156,8 +157,38 @@ export function buildBufferWithRedLineBoundaryAliasTable() {
 }
 
 // ---------------------------------------------------------------------------
-// Temp file helpers (async — require node:fs/promises)
+// Temp file helpers
 // ---------------------------------------------------------------------------
+
+/** Staging directories created by stageGpkgFile, cleared by removeStagedGpkgFiles. */
+const stagedGpkgDirs = []
+
+/**
+ * Write a fixture buffer to a real file and return its path.
+ *
+ * The validator opens an upload where it lies on disk rather than taking it as
+ * a Buffer (BMD-913), so tests that build a fixture in memory stage it the same
+ * way the upload route does. Synchronous, because the validator is.
+ *
+ * Call removeStagedGpkgFiles() from afterAll to clean up.
+ *
+ * @param {Buffer} buffer
+ * @returns {string} path to the staged file
+ */
+export function stageGpkgFile(buffer) {
+  const dir = mkdtempSync(join(tmpdir(), 'gpkg-staged-'))
+  stagedGpkgDirs.push(dir)
+  const filePath = join(dir, 'candidate.gpkg')
+  writeFileSync(filePath, buffer)
+  return filePath
+}
+
+/** Remove every directory stageGpkgFile created in this test file. */
+export function removeStagedGpkgFiles() {
+  while (stagedGpkgDirs.length > 0) {
+    rmSync(stagedGpkgDirs.pop(), { recursive: true, force: true })
+  }
+}
 
 export async function withTempGpkgFile(buffer, fn) {
   const dir = await mkdtemp(join(tmpdir(), 'baseline-gpkg-read-'))

@@ -23,7 +23,7 @@ import { caughtValueMessage } from './geopackage-internals-sqlite.js'
 /** Comparator baseline for “more than zero countable items” checks. */
 const INTEGER_COUNT_NONE = 0
 
-const LOG_VALIDATE_PREFIX = 'validateGpkg: '
+const LOG_VALIDATE_PREFIX = 'validateAndReadGpkg: '
 
 /** @type {{ warn: (msg: string) => void }} */
 const NO_OP_LOGGER = { warn: () => {} }

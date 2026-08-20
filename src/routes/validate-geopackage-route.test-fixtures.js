@@ -21,7 +21,11 @@ const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_FILENAME = 'my-baseline.gpkg'
 const MOCK_FILE_SIZE = 204800
-const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
+// The upload is streamed to a staged file, so the route's collaborators deal
+// in paths and byte counts rather than a Buffer (BMD-913). The staging
+// directory is created per request, so tests match on the filename alone.
+const STAGED_FILENAME = 'baseline.gpkg'
+const MOCK_DOWNLOAD_RESULT = { bytes: 204800 }
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const HTTP_404 = 404
@@ -320,7 +324,8 @@ export {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  MOCK_DOWNLOAD_RESULT,
+  STAGED_FILENAME,
   THROWS_502,
   HTTP_404,
   HTTP_409,

@@ -1,4 +1,4 @@
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 import Database from 'better-sqlite3'
 
 import { ERROR_CODES, makeError } from './errors.js'
@@ -19,13 +19,28 @@ import {
   makePoint,
   makePolygon,
   makeTruncatedEnvelopeBlob,
-  missingLayerError
+  missingLayerError,
+  removeStagedGpkgFiles,
+  stageGpkgFile
 } from '../../../test/helpers/gpkg.js'
 
-const { validateGpkg } = await import('./geopackage.js')
-describe('validateGpkg when the buffer is not a SQLite database', () => {
+const { validateAndReadGpkg } = await import('./geopackage.js')
+
+/**
+ * These are format-gate tests: they build a fixture in memory, stage it to a
+ * file the way the upload route now does (BMD-913), and assert on the gate
+ * verdict alone. The parsed layers are covered by validate-and-read-gpkg.test.js.
+ */
+function gateBuffer(buffer) {
+  const { valid, errors } = validateAndReadGpkg(stageGpkgFile(buffer))
+  return { valid, errors }
+}
+
+afterAll(removeStagedGpkgFiles)
+
+describe('format gate when the file is not a SQLite database', () => {
   it('returns invalid with a descriptive error', () => {
-    const result = validateGpkg(Buffer.from('this is not a database'))
+    const result = gateBuffer(Buffer.from('this is not a database'))
 
     expect(result).toEqual({
       valid: false,
@@ -39,9 +54,9 @@ describe('validateGpkg when the buffer is not a SQLite database', () => {
   })
 })
 
-describe('validateGpkg when the application_id is not a GeoPackage identifier', () => {
+describe('format gate when the application_id is not a GeoPackage identifier', () => {
   it('returns invalid with a descriptive error for application_id 0', () => {
-    const result = validateGpkg(buildBuffer({ appId: 0 }))
+    const result = gateBuffer(buildBuffer({ appId: 0 }))
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
@@ -51,7 +66,7 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
   })
 
   it('returns invalid with a descriptive error for an arbitrary wrong id', () => {
-    const result = validateGpkg(buildBuffer({ appId: 12345 }))
+    const result = gateBuffer(buildBuffer({ appId: 12345 }))
 
     expect(result.valid).toBe(false)
     expect(result.errors[0].message).toMatch(
@@ -60,9 +75,9 @@ describe('validateGpkg when the application_id is not a GeoPackage identifier', 
   })
 })
 
-describe('validateGpkg when required system tables are missing', () => {
+describe('format gate when required system tables are missing', () => {
   it('returns an error for each missing system table', () => {
-    const result = validateGpkg(buildBuffer({ appId: GP10_APP_ID }))
+    const result = gateBuffer(buildBuffer({ appId: GP10_APP_ID }))
 
     expect(result.valid).toBe(false)
     expect(result.errors.map((e) => e.message)).toContain(
@@ -89,7 +104,7 @@ describe('validateGpkg when required system tables are missing', () => {
     const buffer = Buffer.from(db.serialize())
     db.close()
 
-    const result = validateGpkg(buffer)
+    const result = gateBuffer(buffer)
 
     expect(result.valid).toBe(false)
     expect(result.errors).toHaveLength(1)
@@ -99,9 +114,9 @@ describe('validateGpkg when required system tables are missing', () => {
   })
 })
 
-describe('validateGpkg when required feature layers are missing', () => {
+describe('format gate when required feature layers are missing', () => {
   it('does not count layers registered with a non-features data_type', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -119,7 +134,7 @@ describe('validateGpkg when required feature layers are missing', () => {
   })
 
   it('returns an error for each missing layer when none are present', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({ appId: GP10_APP_ID, systemTables: true })
     )
 
@@ -133,7 +148,7 @@ describe('validateGpkg when required feature layers are missing', () => {
   })
 
   it('returns an error only for the missing layer when one is present', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -149,9 +164,9 @@ describe('validateGpkg when required feature layers are missing', () => {
   })
 })
 
-describe('validateGpkg when a feature layer is not in gpkg-template.schema.json', () => {
+describe('format gate when a feature layer is not in gpkg-template.schema.json', () => {
   it('reports an unexpected layer error', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -171,9 +186,9 @@ describe('validateGpkg when a feature layer is not in gpkg-template.schema.json'
   })
 })
 
-describe('validateGpkg when the Red Line Boundary geometry column is missing or invalid', () => {
+describe('format gate when the Red Line Boundary geometry column is missing or invalid', () => {
   it('returns a descriptive error when there is no registered geometry column', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -190,7 +205,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
   })
 
   it('returns GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME when Red Line Boundary column name is not a safe SQLite identifier', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -224,7 +239,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
         ).run(LAYER_RLB)
       }
     )
-    const result = validateGpkg(buffer)
+    const result = gateBuffer(buffer)
 
     expect(result.valid).toBe(false)
     expect(
@@ -236,7 +251,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
   })
 
   it('accepts Red Line Boundary when the geometry column is named geom', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -256,7 +271,7 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
   })
 })
 
-describe('validateGpkg when a feature layer has multiple geometry columns in the table', () => {
+describe('format gate when a feature layer has multiple geometry columns in the table', () => {
   it('returns GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS', () => {
     const buffer = mutateSerializedBuffer(
       buildBuffer({
@@ -268,7 +283,7 @@ describe('validateGpkg when a feature layer has multiple geometry columns in the
         db.exec(`ALTER TABLE "${LAYER_HABITATS}" ADD COLUMN geom2 MULTIPOLYGON`)
       }
     )
-    const result = validateGpkg(buffer)
+    const result = gateBuffer(buffer)
 
     expect(result.valid).toBe(false)
     expect(
@@ -281,9 +296,9 @@ describe('validateGpkg when a feature layer has multiple geometry columns in the
   })
 })
 
-describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon count', () => {
+describe('format gate when the Red Line Boundary layer has an incorrect polygon count', () => {
   it('returns an error when there are no polygon features', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -298,7 +313,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
   })
 
   it('returns an error when the only features are non-polygon geometries', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -315,7 +330,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
   })
 
   it('returns an error when there are multiple polygon features', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -334,7 +349,7 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
   })
 
   it('does not count non-polygon rows towards the polygon total', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -349,9 +364,9 @@ describe('validateGpkg when the Red Line Boundary layer has an incorrect polygon
   })
 })
 
-describe('validateGpkg when the Red Line Boundary layer contains unreadable geometry', () => {
+describe('format gate when the Red Line Boundary layer contains unreadable geometry', () => {
   it('returns an error when any geometry blob is unreadable', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -368,7 +383,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
   })
 
   it('does not also report a polygon count error when geometry is unreadable', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -388,7 +403,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
   })
 
   it('treats a blob with an out-of-range envelope indicator as unreadable', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -406,7 +421,7 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
   })
 
   it('treats a blob too short for its declared envelope as unreadable', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -424,9 +439,9 @@ describe('validateGpkg when the Red Line Boundary layer contains unreadable geom
   })
 })
 
-describe('validateGpkg when the GeoPackage is fully valid', () => {
+describe('format gate when the GeoPackage is fully valid', () => {
   it('returns valid with no errors for a GP10 (v1.0) GeoPackage', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -438,7 +453,7 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
   })
 
   it('returns valid with no errors for a GPKG (v1.2.1+) GeoPackage', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GPKG_APP_ID,
         systemTables: true,
@@ -450,7 +465,7 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
   })
 
   it('matches layer names case-insensitively', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -463,11 +478,10 @@ describe('validateGpkg when the GeoPackage is fully valid', () => {
 
   it('accepts a GeoPackage last saved in WAL journal mode', () => {
     // A GeoPackage checkpointed and closed in WAL mode has SQLite file-format
-    // read version 2 in its header. Opening that file's bytes via
-    // sqlite3_deserialize (i.e. `new Database(buffer)`) fails with "unable to
-    // open database file" because WAL requires a real filesystem-backed -shm
-    // file; validateGpkg must stage the buffer on disk instead.
-    const result = validateGpkg(
+    // read version 2 in its header, which used to need a disk-staging fallback
+    // because sqlite3_deserialize cannot service it. Now that the upload is
+    // opened where it lies on disk (BMD-913) it is just another file.
+    const result = gateBuffer(
       buildWalModeBuffer({
         appId: GP10_APP_ID,
         systemTables: true,

@@ -15,7 +15,8 @@ import {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  MOCK_DOWNLOAD_RESULT,
+  STAGED_FILENAME,
   THROWS_502,
   HTTP_404,
   HTTP_409,
@@ -88,7 +89,7 @@ vi.mock('../utilities/enrichment/baseline/enrich-baseline-units.js', () => ({
 // Preserve real error classes so instanceof checks in the handler work correctly
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, downloadFile: vi.fn() }
+  return { ...actual, downloadFileToPath: vi.fn() }
 })
 
 vi.mock('../common/helpers/metrics.js', () => ({
@@ -98,8 +99,12 @@ vi.mock('../common/helpers/metrics.js', () => ({
 
 const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
-const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
-  await import('../services/s3/download-file.js')
+const {
+  downloadFileToPath,
+  S3FileTooLargeError,
+  S3TimeoutError,
+  S3ConnectionError
+} = await import('../services/s3/download-file.js')
 const { validateAndReadGpkg } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
@@ -177,7 +182,7 @@ function setupHappyPathMocks() {
     filename: MOCK_FILENAME,
     fileSize: MOCK_FILE_SIZE
   })
-  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+  vi.mocked(downloadFileToPath).mockResolvedValue(MOCK_DOWNLOAD_RESULT)
   vi.mocked(validateAndReadGpkg).mockReturnValue({
     valid: true,
     errors: [],
@@ -248,7 +253,7 @@ describe('validateBaseline handler — upload metadata early rejection', () => {
       h
     )
 
-    expect(downloadFile).not.toHaveBeenCalled()
+    expect(downloadFileToPath).not.toHaveBeenCalled()
     expect(validateGeoPackageLayers).not.toHaveBeenCalled()
     expect(h.response).toHaveBeenCalledWith(
       expect.objectContaining({
@@ -273,7 +278,7 @@ describe('validateBaseline handler — upload metadata early rejection', () => {
       h
     )
 
-    expect(downloadFile).toHaveBeenCalled()
+    expect(downloadFileToPath).toHaveBeenCalled()
   })
 })
 
@@ -301,15 +306,21 @@ describe('validateBaseline handler — pipeline calls', () => {
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(downloadFile).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
+    expect(downloadFileToPath).toHaveBeenCalledWith(
+      MOCK_BUCKET,
+      MOCK_KEY,
+      expect.stringContaining(STAGED_FILENAME)
+    )
   })
 
-  it('runs the gpkg gate against the downloaded buffer', async () => {
+  it('runs the gpkg gate against the staged file', async () => {
     await validateBaseline.handler(
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(validateAndReadGpkg).toHaveBeenCalledWith(MOCK_BUFFER)
+    expect(validateAndReadGpkg).toHaveBeenCalledWith(
+      expect.stringContaining(STAGED_FILENAME)
+    )
   })
 
   it('runs full baseline validation on the layers the gate already parsed', async () => {
@@ -584,7 +595,7 @@ describe('validateBaseline handler upload error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     h = makeH()
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(downloadFileToPath).mockResolvedValue(MOCK_DOWNLOAD_RESULT)
     vi.mocked(validateAndReadGpkg).mockReturnValue({
       valid: true,
       errors: [],
@@ -641,7 +652,7 @@ describe('validateBaseline handler upload error handling', () => {
 
       await validateBaseline.handler(request, h).catch(() => {})
 
-      expect(downloadFile).not.toHaveBeenCalled()
+      expect(downloadFileToPath).not.toHaveBeenCalled()
     })
   })
 })
@@ -672,9 +683,9 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an S3FileTooLargeError', () => {
+  describe('when downloadFileToPath throws an S3FileTooLargeError', () => {
     it('throws a 413 Entity Too Large', async () => {
-      vi.mocked(downloadFile).mockRejectedValue(
+      vi.mocked(downloadFileToPath).mockRejectedValue(
         new S3FileTooLargeError('too big')
       )
 
@@ -686,9 +697,11 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an S3TimeoutError', () => {
+  describe('when downloadFileToPath throws an S3TimeoutError', () => {
     it('throws a 504 Gateway Timeout', async () => {
-      vi.mocked(downloadFile).mockRejectedValue(new S3TimeoutError('timed out'))
+      vi.mocked(downloadFileToPath).mockRejectedValue(
+        new S3TimeoutError('timed out')
+      )
 
       const err = await validateBaseline.handler(request, h).catch((e) => e)
 
@@ -698,9 +711,9 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an S3ConnectionError', () => {
+  describe('when downloadFileToPath throws an S3ConnectionError', () => {
     it(THROWS_502, async () => {
-      vi.mocked(downloadFile).mockRejectedValue(
+      vi.mocked(downloadFileToPath).mockRejectedValue(
         new S3ConnectionError('connection refused')
       )
 
@@ -712,9 +725,9 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an unexpected error', () => {
+  describe('when downloadFileToPath throws an unexpected error', () => {
     it(THROWS_502, async () => {
-      vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
+      vi.mocked(downloadFileToPath).mockRejectedValue(new Error('unexpected'))
 
       const err = await validateBaseline.handler(request, h).catch((e) => e)
 
@@ -739,7 +752,7 @@ describe('validateBaseline handler full validation error handling', () => {
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
+    vi.mocked(downloadFileToPath).mockResolvedValue(MOCK_DOWNLOAD_RESULT)
     vi.mocked(validateAndReadGpkg).mockReturnValue({
       valid: true,
       errors: [],

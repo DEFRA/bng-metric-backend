@@ -1,6 +1,6 @@
 /**
  * Tests for the optional Hedgerows and Rivers layer validators invoked during
- * validateGpkg. Both layers are optional (not required by gpkg-template.schema.json):
+ * the format gate. Both layers are optional (not required by gpkg-template.schema.json):
  * - Absent → no error
  * - Present but empty (zero rows) → no error
  * - Present with readable linestrings only → no error
@@ -9,7 +9,7 @@
  * - Present with unreadable geometry → GPKG_*_UNREADABLE_GEOMETRY
  */
 
-import { describe, it, expect } from 'vitest'
+import { describe, it, expect, afterAll } from 'vitest'
 
 import {
   GP10_APP_ID,
@@ -24,13 +24,28 @@ import {
   buildBuffer,
   makeLineString,
   makePolygon,
-  makeCorruptBlob
+  makeCorruptBlob,
+  removeStagedGpkgFiles,
+  stageGpkgFile
 } from '../../../test/helpers/gpkg.js'
 
 const LAYER_HEDGEROWS = 'Hedgerows'
 const LAYER_RIVERS = 'Rivers'
 
-const { validateGpkg } = await import('./geopackage.js')
+const { validateAndReadGpkg } = await import('./geopackage.js')
+
+/**
+ * These are format-gate tests: they build a fixture in memory, stage it to a
+ * file the way the upload route now does (BMD-913), and assert on the gate
+ * verdict alone. The parsed layers are covered by validate-and-read-gpkg.test.js.
+ */
+function gateBuffer(buffer) {
+  const { valid, errors } = validateAndReadGpkg(stageGpkgFile(buffer))
+  return { valid, errors }
+}
+
+afterAll(removeStagedGpkgFiles)
+
 const { ERROR_CODES } = await import('./errors.js')
 
 // Helper: build a buffer that includes the given linear layer populated with
@@ -48,9 +63,9 @@ function buildWithLinearLayer(layerName, blobs) {
 // Hedgerows
 // ---------------------------------------------------------------------------
 
-describe('validateGpkg — Hedgerows layer absent', () => {
+describe('format gate — Hedgerows layer absent', () => {
   it('passes when Hedgerows is not registered in gpkg_contents', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -65,16 +80,16 @@ describe('validateGpkg — Hedgerows layer absent', () => {
   })
 })
 
-describe('validateGpkg — Hedgerows layer present but empty', () => {
+describe('format gate — Hedgerows layer present but empty', () => {
   it('passes silently when Hedgerows has zero rows', () => {
-    const result = validateGpkg(buildWithLinearLayer(LAYER_HEDGEROWS, []))
+    const result = gateBuffer(buildWithLinearLayer(LAYER_HEDGEROWS, []))
     expect(result.errors).not.toContainEqual(ERR_UNREADABLE_HEDGEROWS)
   })
 })
 
-describe('validateGpkg — Hedgerows layer with valid geometry', () => {
+describe('format gate — Hedgerows layer with valid geometry', () => {
   it('is valid when all Hedgerow features have readable linestring geometry', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [
         makeLineString(),
         makeLineString()
@@ -88,9 +103,9 @@ describe('validateGpkg — Hedgerows layer with valid geometry', () => {
   })
 })
 
-describe('validateGpkg — Hedgerows layer with wrong geometry type', () => {
+describe('format gate — Hedgerows layer with wrong geometry type', () => {
   it('reports GPKG_HEDGEROWS_NO_LINESTRING_GEOMETRY when features are polygons only', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [makePolygon()])
     )
     expect(result.valid).toBe(false)
@@ -98,7 +113,7 @@ describe('validateGpkg — Hedgerows layer with wrong geometry type', () => {
   })
 
   it('reports GPKG_HEDGEROWS_WRONG_GEOMETRY_TYPE when linestrings are mixed with polygons', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [makeLineString(), makePolygon()])
     )
     expect(result.valid).toBe(false)
@@ -107,9 +122,9 @@ describe('validateGpkg — Hedgerows layer with wrong geometry type', () => {
   })
 })
 
-describe('validateGpkg — Hedgerows layer with unreadable geometry', () => {
+describe('format gate — Hedgerows layer with unreadable geometry', () => {
   it('reports GPKG_HEDGEROWS_UNREADABLE_GEOMETRY when any blob is corrupt', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [
         makeLineString(),
         makeCorruptBlob()
@@ -120,14 +135,14 @@ describe('validateGpkg — Hedgerows layer with unreadable geometry', () => {
   })
 
   it('reports the error even when the only row is corrupt', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [makeCorruptBlob()])
     )
     expect(result.errors).toContainEqual(ERR_UNREADABLE_HEDGEROWS)
   })
 
   it('does not produce a duplicate error for the same layer', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [
         makeCorruptBlob(),
         makeCorruptBlob()
@@ -140,7 +155,7 @@ describe('validateGpkg — Hedgerows layer with unreadable geometry', () => {
   })
 
   it('does not also report a no-linestring error when geometry is unreadable', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_HEDGEROWS, [makeCorruptBlob()])
     )
     expect(result.errors).toContainEqual(ERR_UNREADABLE_HEDGEROWS)
@@ -152,9 +167,9 @@ describe('validateGpkg — Hedgerows layer with unreadable geometry', () => {
 // Rivers
 // ---------------------------------------------------------------------------
 
-describe('validateGpkg — Rivers layer absent', () => {
+describe('format gate — Rivers layer absent', () => {
   it('passes when Rivers is not registered in gpkg_contents', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -169,16 +184,16 @@ describe('validateGpkg — Rivers layer absent', () => {
   })
 })
 
-describe('validateGpkg — Rivers layer present but empty', () => {
+describe('format gate — Rivers layer present but empty', () => {
   it('passes silently when Rivers has zero rows', () => {
-    const result = validateGpkg(buildWithLinearLayer(LAYER_RIVERS, []))
+    const result = gateBuffer(buildWithLinearLayer(LAYER_RIVERS, []))
     expect(result.errors).not.toContainEqual(ERR_UNREADABLE_RIVERS)
   })
 })
 
-describe('validateGpkg — Rivers layer with valid geometry', () => {
+describe('format gate — Rivers layer with valid geometry', () => {
   it('is valid when all River features have readable linestring geometry', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_RIVERS, [makeLineString()])
     )
     expect(result.errors).not.toContainEqual(ERR_UNREADABLE_RIVERS)
@@ -187,9 +202,9 @@ describe('validateGpkg — Rivers layer with valid geometry', () => {
   })
 })
 
-describe('validateGpkg — Rivers layer with wrong geometry type', () => {
+describe('format gate — Rivers layer with wrong geometry type', () => {
   it('reports GPKG_RIVERS_NO_LINESTRING_GEOMETRY when features are polygons only', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_RIVERS, [makePolygon(), makePolygon()])
     )
     expect(result.valid).toBe(false)
@@ -197,7 +212,7 @@ describe('validateGpkg — Rivers layer with wrong geometry type', () => {
   })
 
   it('reports GPKG_RIVERS_WRONG_GEOMETRY_TYPE when linestrings are mixed with polygons', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_RIVERS, [makeLineString(), makePolygon()])
     )
     expect(result.valid).toBe(false)
@@ -205,9 +220,9 @@ describe('validateGpkg — Rivers layer with wrong geometry type', () => {
   })
 })
 
-describe('validateGpkg — Rivers layer with unreadable geometry', () => {
+describe('format gate — Rivers layer with unreadable geometry', () => {
   it('reports GPKG_RIVERS_UNREADABLE_GEOMETRY when any blob is corrupt', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildWithLinearLayer(LAYER_RIVERS, [makeLineString(), makeCorruptBlob()])
     )
     expect(result.valid).toBe(false)
@@ -219,9 +234,9 @@ describe('validateGpkg — Rivers layer with unreadable geometry', () => {
 // Both layers present — independent errors
 // ---------------------------------------------------------------------------
 
-describe('validateGpkg — both Hedgerows and Rivers have corrupt geometry', () => {
+describe('format gate — both Hedgerows and Rivers have corrupt geometry', () => {
   it('reports both errors independently', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -237,9 +252,9 @@ describe('validateGpkg — both Hedgerows and Rivers have corrupt geometry', () 
   })
 })
 
-describe('validateGpkg — full-stack buffer with Hedgerows and Rivers', () => {
+describe('format gate — full-stack buffer with Hedgerows and Rivers', () => {
   it('passes when all layers including hedgerows and rivers have valid geometry', () => {
-    const result = validateGpkg(
+    const result = gateBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,

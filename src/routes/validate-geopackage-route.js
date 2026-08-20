@@ -1,3 +1,7 @@
+import fs from 'node:fs/promises'
+import os from 'node:os'
+import path from 'node:path'
+
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 
@@ -7,7 +11,7 @@ import {
   UploadTimeoutError
 } from '../services/cdp-uploader/cdp-uploader.js'
 import {
-  downloadFile,
+  downloadFileToPath,
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
@@ -25,6 +29,12 @@ import {
 } from '../common/helpers/metric-names.js'
 
 const logger = createLogger()
+
+/** Prefix for ephemeral GeoPackage staging directories under os.tmpdir(). */
+const UPLOAD_TEMP_PREFIX = 'baseline-'
+
+/** Fixed filename inside the staging directory (not derived from user input). */
+const UPLOAD_TEMP_FILENAME = 'baseline.gpkg'
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -53,9 +63,13 @@ async function resolveUploadLocation(uploadId, config) {
   }
 }
 
-async function fetchUploadBuffer(bucket, key, uploadId, config) {
+/**
+ * Stream the upload from S3 onto local disk. The object is never held in memory
+ * as a Buffer, so concurrent uploads cannot multiply into an OOM (BMD-913).
+ */
+async function fetchUploadToPath(bucket, key, localPath, uploadId, config) {
   try {
-    return await downloadFile(bucket, key)
+    return await downloadFileToPath(bucket, key, localPath)
   } catch (err) {
     if (err instanceof S3FileTooLargeError) {
       logger.error(
@@ -151,15 +165,22 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
 }
 
 /**
- * Validate the uploaded buffer end to end. The GeoPackage is opened once: the
+ * Validate the staged upload end to end. The GeoPackage is opened once: the
  * format gate rejects a structurally broken file before any shape is unpacked,
  * and an accepted file hands back its parsed layers from the same read.
  */
-async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
+async function runFullValidation(
+  localPath,
+  drizzle,
+  pgPool,
+  context,
+  h,
+  config
+) {
   const { uploadId } = context
 
   try {
-    const gateResult = validateAndReadGpkg(buffer)
+    const gateResult = validateAndReadGpkg(localPath)
     if (!gateResult.valid) {
       return await respondToGateRejection(gateResult, uploadId, h, config)
     }
@@ -247,16 +268,26 @@ function createValidateGeoPackageRoute(config) {
         }
       }
 
-      const buffer = await fetchUploadBuffer(bucket, key, uploadId, config)
-
-      return runFullValidation(
-        buffer,
-        request.drizzle,
-        request.pg,
-        { uploadId, projectId, credentials, filename, fileSize },
-        h,
-        config
+      // One staging directory per request, removed on every exit path — the
+      // gate rejection included.
+      const tmpDir = await fs.mkdtemp(
+        path.join(os.tmpdir(), UPLOAD_TEMP_PREFIX)
       )
+      const localPath = path.join(tmpDir, UPLOAD_TEMP_FILENAME)
+      try {
+        await fetchUploadToPath(bucket, key, localPath, uploadId, config)
+
+        return await runFullValidation(
+          localPath,
+          request.drizzle,
+          request.pg,
+          { uploadId, projectId, credentials, filename, fileSize },
+          h,
+          config
+        )
+      } finally {
+        await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
+      }
     }
   }
 }

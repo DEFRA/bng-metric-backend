@@ -270,7 +270,7 @@ export function compareGpkgToBaselineSchema(db, schema, errors) {
     const lowerTable = layerDef.tableName.toLowerCase()
     if (!uploadedFeatureLowerKeys.has(lowerTable)) {
       // Layer not present in the uploaded GeoPackage — missing layers are not an error here;
-      // GPKG_MISSING_LAYER is reported upstream by validateGpkg before this function is called.
+      // GPKG_MISSING_LAYER is reported upstream by the format gate before this function is called.
       continue
     }
 

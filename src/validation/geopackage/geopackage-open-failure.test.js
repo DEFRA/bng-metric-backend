@@ -1,4 +1,7 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, it, expect, vi, afterAll } from 'vitest'
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 import { ERROR_CODES, makeError } from './errors.js'
 
@@ -8,35 +11,57 @@ vi.mock('better-sqlite3', () => ({
   }
 }))
 
-const { validateGpkg } = await import('./geopackage.js')
+const { validateAndReadGpkg } = await import('./geopackage.js')
 
 const INVALID_FILE = {
   valid: false,
   errors: [
     makeError(ERROR_CODES.GPKG_INVALID_FILE, 'File is not a valid GeoPackage')
-  ]
+  ],
+  layers: null
 }
 
-/** Minimal SQLite header; read/write version 1 = rollback journal (not WAL). */
+/** Enough bytes to carry a SQLite header; contents beyond the magic are irrelevant. */
+const SQLITE_HEADER_BYTES = 64
+
+const stagingDir = mkdtempSync(join(tmpdir(), 'gpkg-open-failure-'))
+
+afterAll(() => {
+  rmSync(stagingDir, { recursive: true, force: true })
+})
+
+function stageFile(name, buffer) {
+  const filePath = join(stagingDir, name)
+  writeFileSync(filePath, buffer)
+  return filePath
+}
+
+/** Minimal SQLite header — enough to pass the magic probe, nothing more. */
 function makeSqliteHeaderBuffer() {
-  const buf = Buffer.alloc(64)
+  const buf = Buffer.alloc(SQLITE_HEADER_BYTES)
   Buffer.from('SQLite format 3\0').copy(buf)
-  buf[18] = 1
-  buf[19] = 1
   return buf
 }
 
-describe('validateGpkg when better-sqlite3 throws while opening the database', () => {
-  it('returns GPKG_INVALID_FILE for a non-SQLite buffer without staging to disk', () => {
-    // Buffer.alloc(16) has no SQLite magic, so after the in-memory open
-    // throws, validateGpkg rejects immediately rather than falling through
-    // to the disk-staging path.
-    expect(validateGpkg(Buffer.alloc(16))).toEqual(INVALID_FILE)
+describe('validateAndReadGpkg when better-sqlite3 throws while opening the database', () => {
+  it('returns GPKG_INVALID_FILE for a file that is not SQLite at all', () => {
+    // No SQLite magic, so the header probe rejects it before any open attempt.
+    const filePath = stageFile('not-sqlite.gpkg', Buffer.alloc(16))
+
+    expect(validateAndReadGpkg(filePath)).toEqual(INVALID_FILE)
   })
 
-  it('returns GPKG_INVALID_FILE when staging open also fails for a SQLite header', () => {
-    // SQLite magic + non-WAL version: in-memory open throws, then the safety
-    // net stages to disk and open throws again → INVALID_FILE.
-    expect(validateGpkg(makeSqliteHeaderBuffer())).toEqual(INVALID_FILE)
+  it('returns GPKG_INVALID_FILE when the open itself fails', () => {
+    // SQLite magic present, so the probe passes and the open is attempted —
+    // and the failure is reported as an invalid file, not thrown.
+    const filePath = stageFile('header-only.gpkg', makeSqliteHeaderBuffer())
+
+    expect(validateAndReadGpkg(filePath)).toEqual(INVALID_FILE)
+  })
+
+  it('returns GPKG_INVALID_FILE when the file does not exist', () => {
+    expect(validateAndReadGpkg(join(stagingDir, 'absent.gpkg'))).toEqual(
+      INVALID_FILE
+    )
   })
 })

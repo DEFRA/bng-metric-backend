@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterAll } from 'vitest'
 
 // Counts how many shapes are actually unpacked, so the tests can pin the
 // promise of BMD-910: a structurally broken file unpacks none, and an
@@ -25,13 +25,16 @@ const {
   fullReadBuffer,
   makePolygon,
   readTestPolygonWkb,
+  removeStagedGpkgFiles,
+  stageGpkgFile,
   withTempGpkgFile,
   wrapGpkgWkb
 } = await import('../../../test/helpers/gpkg.js')
 
-const { validateAndReadGpkg, validateGpkg, readGeoPackage } =
-  await import('./geopackage.js')
+const { validateAndReadGpkg, readGeoPackage } = await import('./geopackage.js')
 const { ERROR_CODES } = await import('./errors.js')
+
+afterAll(removeStagedGpkgFiles)
 
 /** Every feature in fullReadBuffer(): RLB, Habitats, Hedgerows, Rivers, Trees. */
 const FULL_READ_FEATURE_COUNT = 5
@@ -41,10 +44,10 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     wkbToGeoJSONSpy.mockClear()
   })
 
-  it('validates and returns the layers from a single read of the buffer', async () => {
+  it('validates and returns the layers from a single read of the file', async () => {
     const buffer = fullReadBuffer()
 
-    const result = validateAndReadGpkg(buffer)
+    const result = validateAndReadGpkg(stageGpkgFile(buffer))
 
     expect(result.valid).toBe(true)
     expect(result.errors).toEqual([])
@@ -54,7 +57,7 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
   })
 
   it('unpacks each shape exactly once', () => {
-    validateAndReadGpkg(fullReadBuffer())
+    validateAndReadGpkg(stageGpkgFile(fullReadBuffer()))
 
     expect(wkbToGeoJSONSpy).toHaveBeenCalledTimes(FULL_READ_FEATURE_COUNT)
   })
@@ -62,12 +65,14 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
   it('rejects a structurally broken file without unpacking any shape', () => {
     // Habitats missing: a required layer, caught before any geometry is read.
     const result = validateAndReadGpkg(
-      buildBuffer({
-        appId: GP10_APP_ID,
-        systemTables: true,
-        featureLayers: [LAYER_RLB],
-        layerFeatures: { [LAYER_RLB]: [makePolygon()] }
-      })
+      stageGpkgFile(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: [LAYER_RLB],
+          layerFeatures: { [LAYER_RLB]: [makePolygon()] }
+        })
+      )
     )
 
     expect(result.valid).toBe(false)
@@ -80,17 +85,19 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
 
   it('returns no layers when the feature checks reject the file', () => {
     const result = validateAndReadGpkg(
-      buildBuffer({
-        appId: GP10_APP_ID,
-        systemTables: true,
-        featureLayers: ALL_LAYERS,
-        layerFeatures: {
-          [LAYER_RLB]: [
-            wrapGpkgWkb(readTestPolygonWkb()),
-            wrapGpkgWkb(readTestPolygonWkb())
-          ]
-        }
-      })
+      stageGpkgFile(
+        buildBuffer({
+          appId: GP10_APP_ID,
+          systemTables: true,
+          featureLayers: ALL_LAYERS,
+          layerFeatures: {
+            [LAYER_RLB]: [
+              wrapGpkgWkb(readTestPolygonWkb()),
+              wrapGpkgWkb(readTestPolygonWkb())
+            ]
+          }
+        })
+      )
     )
 
     expect(result.errors.map((e) => e.code)).toEqual([
@@ -99,8 +106,10 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     expect(result.layers).toBeNull()
   })
 
-  it('returns no layers when the buffer is not a database at all', () => {
-    const result = validateAndReadGpkg(Buffer.from('this is not a database'))
+  it('returns no layers when the file is not a database at all', () => {
+    const result = validateAndReadGpkg(
+      stageGpkgFile(Buffer.from('this is not a database'))
+    )
 
     expect(result).toEqual({
       valid: false,
@@ -120,17 +129,8 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
       [LAYER_RLB]: [wrapGpkgWkb(readTestPolygonWkb(), EPSG_WEB_MERCATOR)]
     })
 
-    expect(() => validateAndReadGpkg(buffer)).toThrow(/Unsupported SRID/)
-  })
-})
-
-describe('validateGpkg — format gate only', () => {
-  beforeEach(() => {
-    wkbToGeoJSONSpy.mockClear()
-  })
-
-  it('classifies geometries without unpacking them', () => {
-    expect(validateGpkg(fullReadBuffer())).toEqual({ valid: true, errors: [] })
-    expect(wkbToGeoJSONSpy).not.toHaveBeenCalled()
+    expect(() => validateAndReadGpkg(stageGpkgFile(buffer))).toThrow(
+      /Unsupported SRID/
+    )
   })
 })

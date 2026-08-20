@@ -1,6 +1,5 @@
 import Database from 'better-sqlite3'
-import { mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
-import { tmpdir } from 'node:os'
+import { closeSync, openSync, readFileSync, readSync } from 'node:fs'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -47,61 +46,48 @@ const INVALID_FILE_ERROR = makeError(
   'File is not a valid GeoPackage'
 )
 
-const GPKG_GATE_STAGING_PREFIX = 'gpkg-gate-'
-const GPKG_GATE_STAGING_FILENAME = 'candidate.gpkg'
 // SQLite header — https://www.sqlite.org/fileformat.html §1.3
 const SQLITE_MAGIC = Buffer.from('SQLite format 3\0')
-const SQLITE_HEADER_MIN_BYTES = 20
-const SQLITE_WAL_VERSION = 2
-const SQLITE_READ_VERSION_OFFSET = 19
 
-function bufferStartsWithSqliteMagic(buffer) {
-  return (
-    Buffer.isBuffer(buffer) &&
-    buffer.length >= SQLITE_MAGIC.length &&
-    buffer.subarray(0, SQLITE_MAGIC.length).equals(SQLITE_MAGIC)
-  )
-}
-
-/** True when the SQLite header marks WAL journal mode (read version 2). */
-function isWalModeSqliteBuffer(buffer) {
-  return (
-    bufferStartsWithSqliteMagic(buffer) &&
-    buffer.length >= SQLITE_HEADER_MIN_BYTES &&
-    buffer[SQLITE_READ_VERSION_OFFSET] === SQLITE_WAL_VERSION
-  )
-}
-
-/** Fast path: sqlite3_deserialize + probe read (WAL fails here — deferred open). */
-function tryOpenBufferDatabase(buffer) {
-  let db
+/**
+ * Does the file begin with the SQLite magic string?
+ *
+ * Only the first bytes are read: a file that is not a SQLite database at all is
+ * the common rejection, and answering it should not cost a database open — nor,
+ * now that uploads are streamed to disk (BMD-913), a read of the whole file.
+ *
+ * @param {string} filePath
+ * @returns {boolean}
+ */
+function fileStartsWithSqliteMagic(filePath) {
+  const header = Buffer.alloc(SQLITE_MAGIC.length)
+  let fd
   try {
-    db = new Database(buffer, { readonly: true })
-    db.pragma('application_id', { simple: true })
-    return db
+    fd = openSync(filePath, 'r')
+    const bytesRead = readSync(fd, header, 0, header.length, 0)
+    return bytesRead === header.length && header.equals(SQLITE_MAGIC)
   } catch {
-    db?.close()
-    return null
+    return false
+  } finally {
+    if (fd !== undefined) {
+      closeSync(fd)
+    }
   }
 }
 
 /**
- * Slow path: stage to disk then open. writeFileSync is outside try/catch so
- * ENOSPC/EACCES/EROFS propagate (not coerced to GPKG_INVALID_FILE).
- * @param {Buffer} buffer
- * @param {string} stagingDir
+ * Open the staged upload read-only. Returns null for anything SQLite will not
+ * open, which the caller reports as an invalid file.
+ *
+ * @param {string} filePath
  * @returns {import('better-sqlite3').Database | null}
  */
-function openStagedGpkgDatabase(buffer, stagingDir) {
-  const stagingPath = join(stagingDir, GPKG_GATE_STAGING_FILENAME)
-  writeFileSync(stagingPath, buffer)
-
+function openGpkgDatabase(filePath) {
   try {
-    return new Database(stagingPath, { readonly: true, fileMustExist: true })
+    return new Database(filePath, { readonly: true, fileMustExist: true })
   } catch (err) {
-    /* v8 ignore next 4 */
     logger.info(
-      `validateGpkg: failed to open staged file as SQLite database: ${err.message}`
+      `validateAndReadGpkg: failed to open ${filePath} as SQLite database: ${err.message}`
     )
     return null
   }
@@ -164,41 +150,28 @@ function runFeatureChecks({ tables }) {
 }
 
 /**
- * Open a candidate GeoPackage buffer and hand the open database to `withDb`.
- * WAL-mode headers go straight to disk; otherwise try in-memory first.
- * Non-SQLite failures skip staging; SQLite in-memory failures still fall back
- * to disk. The database is closed and any staging directory removed before
- * returning.
+ * Open a candidate GeoPackage file and hand the open database to `withDb`.
  *
- * @param {Buffer} buffer
+ * The file is opened where it already lies — the upload is streamed to disk by
+ * the route, so there is nothing to stage and no in-memory copy to make. A
+ * WAL-mode header needs no special handling for the same reason: SQLite reads
+ * it from the file directly. The database is closed before returning.
+ *
+ * @param {string} filePath
  * @param {(db: import('better-sqlite3').Database) => T} withDb
  * @returns {T | { valid: false, errors: Array<{ code: string, message: string }> }}
  * @template T
  */
-function withGpkgDatabase(buffer, withDb) {
-  if (!isWalModeSqliteBuffer(buffer)) {
-    const bufferDb = tryOpenBufferDatabase(buffer)
-    if (bufferDb) {
-      return useAndClose(bufferDb, withDb)
-    }
-    if (!bufferStartsWithSqliteMagic(buffer)) {
-      return invalidFileResult()
-    }
+function withGpkgDatabase(filePath, withDb) {
+  if (!fileStartsWithSqliteMagic(filePath)) {
+    return invalidFileResult()
   }
 
-  logger.info(
-    'validateGpkg: opening via disk staging (WAL-mode header or in-memory open failed)'
-  )
-  const stagingDir = mkdtempSync(join(tmpdir(), GPKG_GATE_STAGING_PREFIX))
-  try {
-    const db = openStagedGpkgDatabase(buffer, stagingDir)
-    if (!db) {
-      return invalidFileResult()
-    }
-    return useAndClose(db, withDb)
-  } finally {
-    rmSync(stagingDir, { recursive: true, force: true })
+  const db = openGpkgDatabase(filePath)
+  if (!db) {
+    return invalidFileResult()
   }
+  return useAndClose(db, withDb)
 }
 
 function invalidFileResult() {
@@ -219,38 +192,37 @@ function useAndClose(db, withDb) {
  * types the feature checks count.
  *
  * @param {import('better-sqlite3').Database} db
- * @param {boolean} decodeGeometry also unpack the shapes in that same pass
  */
-function runGpkgGate(db, decodeGeometry) {
+function runGpkgGate(db) {
   const structural = runStructuralChecks(db)
   if (!structural.valid) {
     return { ...structural, featureTables: null }
   }
 
-  const featureTables = readFeatureTables(db, { decodeGeometry })
+  const featureTables = readFeatureTables(db, { decodeGeometry: true })
   const errors = runFeatureChecks(featureTables)
   return { valid: errors.length === 0, errors, featureTables }
 }
 
 /**
- * Validate a Buffer as a BNG baseline GeoPackage and, when it passes, return
- * its layers from the same read.
+ * Validate a file as a BNG baseline GeoPackage and, when it passes, return its
+ * layers from the same read.
  *
  * The structural checks run first and reject a broken file before any shape is
  * unpacked. Only then is the file walked — once — classifying and decoding
  * every geometry in a single pass, so the caller needs no second open of the
  * file to get the data (BMD-910).
  *
- * @param {Buffer} buffer
+ * @param {string} filePath a staged upload on local disk
  * @returns {{
  *   valid: boolean,
  *   errors: Array<{ code: string, message: string }>,
  *   layers: ReturnType<typeof toLayers> | null
  * }}
  */
-function validateAndReadGpkg(buffer) {
-  const result = withGpkgDatabase(buffer, (db) => {
-    const gate = runGpkgGate(db, true)
+function validateAndReadGpkg(filePath) {
+  const result = withGpkgDatabase(filePath, (db) => {
+    const gate = runGpkgGate(db)
     if (!gate.valid) {
       return logGateResult({ valid: false, errors: gate.errors })
     }
@@ -265,24 +237,9 @@ function validateAndReadGpkg(buffer) {
 
 function logGateResult(result) {
   logger.info(
-    `validateGpkg: valid=${result.valid}, errors=${JSON.stringify(result.errors)}`
+    `validateAndReadGpkg: valid=${result.valid}, errors=${JSON.stringify(result.errors)}`
   )
   return result
-}
-
-/**
- * Format gate only: is this Buffer an acceptable BNG baseline GeoPackage?
- * Nothing is unpacked — callers that also need the shapes should use
- * {@link validateAndReadGpkg}, which returns them from the same read.
- *
- * @param {Buffer} buffer
- * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
- */
-function validateGpkg(buffer) {
-  return withGpkgDatabase(buffer, (db) => {
-    const { valid, errors } = runGpkgGate(db, false)
-    return logGateResult({ valid, errors })
-  })
 }
 
 /**
@@ -384,4 +341,4 @@ export function readGeoPackage(filePath) {
   }
 }
 
-export { validateGpkg, validateAndReadGpkg }
+export { validateAndReadGpkg }
