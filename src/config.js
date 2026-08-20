@@ -184,6 +184,20 @@ const config = convict({
       env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
     }
   },
+  validation: {
+    maxConcurrent: {
+      doc: 'How many GeoPackage validations may hold parsed layers in memory at once. Parsing itself is synchronous, so this bounds the validations awaiting PostGIS with their features still resident — the multiplier behind concurrent-upload memory growth.',
+      format: Number,
+      default: 4,
+      env: 'VALIDATION_MAX_CONCURRENT'
+    },
+    queueTimeoutMs: {
+      doc: 'How long a validation waits for a free slot before the request is rejected with 503. Bounded so a burst produces prompt, retryable failures rather than a queue of requests the client has already abandoned.',
+      format: Number,
+      default: 30000,
+      env: 'VALIDATION_QUEUE_TIMEOUT_MS'
+    }
+  },
   aws: {
     region: {
       doc: 'AWS region',

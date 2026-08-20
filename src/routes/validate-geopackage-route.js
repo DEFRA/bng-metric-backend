@@ -16,6 +16,11 @@ import {
   S3TimeoutError
 } from '../services/s3/download-file.js'
 import { validateAndReadGpkg } from '../validation/geopackage/geopackage.js'
+import { config as appConfig } from '../config.js'
+import {
+  createSemaphore,
+  SemaphoreTimeoutError
+} from '../common/helpers/semaphore.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
@@ -35,6 +40,22 @@ const UPLOAD_TEMP_PREFIX = 'baseline-'
 
 /** Fixed filename inside the staging directory (not derived from user input). */
 const UPLOAD_TEMP_FILENAME = 'baseline.gpkg'
+
+/** Seconds a rejected caller is asked to wait before retrying. */
+const RETRY_AFTER_SECONDS = 30
+
+/**
+ * Bounds how many uploads hold parsed layers in memory at once.
+ *
+ * Shared by both validate routes, because they share the one process and the
+ * one heap. It is deliberately *not* wrapped around the S3 download: that is
+ * bounded by disk and by the per-file size cap, and holding a slot through it
+ * would let a slow download stall uploads that are ready to be parsed.
+ */
+const validationSlots = createSemaphore(
+  appConfig.get('validation.maxConcurrent'),
+  { name: 'geopackage-validation' }
+)
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -165,11 +186,48 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
 }
 
 /**
- * Validate the staged upload end to end. The GeoPackage is opened once: the
+ * Validate the staged upload end to end, under a concurrency slot.
+ *
+ * A burst larger than the service can hold in memory is queued, and a caller
+ * that waits too long gets a 503 it can retry — a predictable failure for one
+ * request, rather than heap pressure that risks every request in flight.
+ */
+async function runFullValidation(
+  localPath,
+  drizzle,
+  pgPool,
+  context,
+  h,
+  config
+) {
+  const { uploadId } = context
+
+  try {
+    return await validationSlots.run(
+      appConfig.get('validation.queueTimeoutMs'),
+      () => validateStagedFile(localPath, drizzle, pgPool, context, h, config)
+    )
+  } catch (error) {
+    if (error instanceof SemaphoreTimeoutError) {
+      logger.warn(
+        `${config.routeName} - no validation slot for uploadId ${uploadId}: ${error.message}`
+      )
+      const busy = Boom.serverUnavailable(
+        'The service is busy validating other files. Please try again.'
+      )
+      busy.output.headers['retry-after'] = RETRY_AFTER_SECONDS
+      throw busy
+    }
+    throw error
+  }
+}
+
+/**
+ * The validation itself, holding a slot. The GeoPackage is opened once: the
  * format gate rejects a structurally broken file before any shape is unpacked,
  * and an accepted file hands back its parsed layers from the same read.
  */
-async function runFullValidation(
+async function validateStagedFile(
   localPath,
   drizzle,
   pgPool,
