@@ -126,6 +126,20 @@ describe('materialiseIndexedAreas', () => {
     ])
   })
 
+  it('reuses the geometryJson cached at decode rather than re-serialising', async () => {
+    // BMD-914: readGeoPackage stringifies each geometry once; validation reads it.
+    const { client } = createClient()
+
+    const arrays = await materialiseIndexedAreas(client, {
+      areas: [feature({ geometryJson: '{"cached":"area"}' }), feature()]
+    })
+
+    expect(arrays.geoms).toEqual([
+      '{"cached":"area"}',
+      JSON.stringify(feature().nativeGeometry)
+    ])
+  })
+
   it('skips features with no native geometry, keeping the source index', async () => {
     const { client } = createClient()
 

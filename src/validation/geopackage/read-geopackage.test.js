@@ -44,6 +44,27 @@ describe('readGeoPackage feature decoding', () => {
     })
   })
 
+  it('caches each geometry as a geometryJson string at decode', async () => {
+    // BMD-914: validation, sizing and persist all need the string form, so it
+    // is serialised once here and carried alongside the geometry object.
+    await withTempGpkgFile(fullReadBuffer(), (filePath) => {
+      const r = readGeoPackage(filePath)
+      const decoded = [
+        ...r.redline,
+        ...r.areas,
+        ...r.hedgerows,
+        ...r.watercourses,
+        ...r.trees
+      ]
+      expect(decoded.length).toBeGreaterThan(0)
+      for (const feature of decoded) {
+        expect(feature.geometryJson).toBe(
+          JSON.stringify(feature.nativeGeometry)
+        )
+      }
+    })
+  })
+
   it('copies non-geometry attribute columns into Feature properties', async () => {
     const buf = mutateSerializedBuffer(fullReadBuffer(), (db) => {
       db.prepare(`UPDATE "Habitats" SET "Parcel Ref" = ? WHERE rowid = 1`).run(

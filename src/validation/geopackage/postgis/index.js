@@ -3,6 +3,7 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ERROR_CODES } from '../errors.js'
+import { toGeometryJson } from '../geometry-json.js'
 import { ERROR_BUILDERS } from './error-builders.js'
 
 // Single-statement validation: the layer features are passed in as parallel
@@ -523,7 +524,7 @@ function buildArrays(layers) {
       layerNames.push(layerName)
       idxs.push(index)
       props.push(JSON.stringify(feature.properties ?? {}))
-      geoms.push(JSON.stringify(geom))
+      geoms.push(toGeometryJson(feature.geometryJson, geom))
       srids.push(feature.nativeSrid)
     })
   }

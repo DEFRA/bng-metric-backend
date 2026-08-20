@@ -425,6 +425,9 @@ function readLayer(db, tableName) {
       type: 'Feature',
       properties,
       nativeGeometry: decoded.geometry,
+      // Stringified once here so validation, sizing and persist can all reuse
+      // it rather than each re-serialising the same geometry. In-memory only.
+      geometryJson: JSON.stringify(decoded.geometry),
       nativeSrid: featureSrid
     })
   }
