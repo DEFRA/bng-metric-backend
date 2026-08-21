@@ -23,6 +23,9 @@ import {
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
 import { validatePostIntervention } from '../routes/post-intervention.js'
+import { validateBaselineAsync } from '../routes/baseline-async.js'
+import { validatePostInterventionAsync } from '../routes/post-intervention-async.js'
+import { getValidationJob } from '../routes/validation-jobs.js'
 import { getUserProjects } from '../routes/users.js'
 import {
   getProjectDetails,
@@ -73,6 +76,18 @@ const router = {
         getWatercourseEncroachments,
         getTradingRules
       ])
+
+      // The asynchronous validate endpoints and their status route are added
+      // only when the flag is on, so an environment running with it off has no
+      // way to enqueue work its dispatcher is not running to pick up. The
+      // frontend flag of the same name must move in lock-step.
+      if (config.get('asyncValidation.enabled')) {
+        server.route([
+          validateBaselineAsync,
+          validatePostInterventionAsync,
+          getValidationJob
+        ])
+      }
 
       // /db-info is a DB-introspection diagnostic — keep it out of the
       // production route table entirely (it is removed, not just access-gated).

@@ -20,6 +20,10 @@ export default defineConfig({
     // downloadFile() tries to hit real AWS and hangs / 502s. Set explicitly so
     // the SDK points at LocalStack on both local dev and CI.
     env: {
+      // Exercise the asynchronous validate path: the routes are only
+      // registered when this is on, and route-coverage asserts every route in
+      // the manifest is hit. `npm run test:integration:routes` sets it too.
+      ASYNC_VALIDATION_ENABLED: 'true',
       S3_ENDPOINT: 'http://localhost:4566',
       S3_FORCE_PATH_STYLE: 'true',
       AWS_ACCESS_KEY_ID: 'test',

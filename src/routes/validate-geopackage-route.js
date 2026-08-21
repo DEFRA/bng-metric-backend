@@ -12,17 +12,16 @@ import {
   S3TimeoutError
 } from '../services/s3/download-file.js'
 import { validateAndReadGpkg } from '../validation/geopackage/geopackage.js'
-import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
-import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
+import {
+  respondToGateRejection,
+  validateLayersAndSave
+} from '../services/upload/validate-layers-and-save.js'
 import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
-import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
-import {
-  GEOPACKAGE_METRIC,
-  VALIDATION_CATEGORY
-} from '../common/helpers/metric-names.js'
+import { metricsByteSize } from '../common/helpers/metrics.js'
+import { GEOPACKAGE_METRIC } from '../common/helpers/metric-names.js'
 
 const logger = createLogger()
 
@@ -95,62 +94,6 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
 }
 
 /**
- * The format gate rejected the file before any shape was unpacked.
- */
-async function respondToGateRejection(gateResult, uploadId, h, config) {
-  logger.info(
-    `${config.routeName} - rejected at gpkg gate uploadId ${uploadId}`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-    category: VALIDATION_CATEGORY.internalData
-  })
-  return h.response({ valid: gateResult.valid, errors: gateResult.errors })
-}
-
-/**
- * The shapes parsed, but the geometry or data-quality checks failed.
- */
-async function respondToGeometryRejection(result, uploadId, h, config) {
-  logger.info(
-    `${config.routeName} - rejected uploadId ${uploadId}: ${result.errors
-      .map((e) => `${e.code}: ${e.message}`)
-      .join(' | ')}`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-    category: VALIDATION_CATEGORY.geometric
-  })
-  return h.response(result)
-}
-
-async function validateLayers(layers, drizzle, pgPool, context, h, config) {
-  const { uploadId, projectId, credentials, filename, fileSize } = context
-  const result = await validateGeoPackageLayers(
-    layers,
-    pgPool,
-    config.projectDocumentKey
-  )
-  if (!result.valid) {
-    return respondToGeometryRejection(result, uploadId, h, config)
-  }
-
-  logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
-  await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
-  if (!projectId) {
-    return h.response(result)
-  }
-
-  const errorResponse = await saveUploadForProject(
-    { drizzle, pgPool, logger },
-    projectId,
-    layers,
-    { uploadId, credentials, filename, fileSize },
-    h,
-    config
-  )
-  return errorResponse ?? h.response(result)
-}
-
-/**
  * Validate the uploaded buffer end to end. The GeoPackage is opened once: the
  * format gate rejects a structurally broken file before any shape is unpacked,
  * and an accepted file hands back its parsed layers from the same read.
@@ -163,7 +106,7 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
     if (!gateResult.valid) {
       return await respondToGateRejection(gateResult, uploadId, h, config)
     }
-    return await validateLayers(
+    return await validateLayersAndSave(
       gateResult.layers,
       drizzle,
       pgPool,

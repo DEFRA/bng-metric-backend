@@ -77,6 +77,68 @@ moving one — it has the target layout, a "where does this go?" decision list,
 and remaining traps. The sequenced migration that landed this layout is in
 [`docs/CODE_STRUCTURE_MIGRATION.md`](docs/CODE_STRUCTURE_MIGRATION.md).
 
+## Asynchronous GeoPackage validation
+
+Behind `ASYNC_VALIDATION_ENABLED` (off by default). The frontend flag of the
+same name must move in lock-step: the async routes are only registered when the
+flag is on, so an environment with it off cannot be handed work its dispatcher
+is not running to pick up.
+
+`POST /baseline/validate-async/{uploadId}` records a row in
+`bng.validation_jobs` and returns **202** with a `statusUrl`. There is no
+hold-open window — always 202, one response shape, one client path.
+`GET /validation-jobs/{jobId}` is polled until `done`, and carries the _same_
+payload the synchronous route would have returned, so downstream code does not
+care which path produced it. Note a rejected file is a **succeeded** job whose
+`result.valid` is false: the job succeeded in establishing the file is invalid.
+`failed` means the job never reached an answer and the upload should be retried.
+
+### Why a worker thread, and not just a queue
+
+The parse is pure synchronous CPU — `read-feature-tables.js` contains no
+`await` at all — so on the main thread it blocks _every_ unrelated request for
+its whole duration. Measured: ~270ms for a 5.6MB file, scaling with size.
+
+Enqueuing alone does not fix that. A dispatcher running in the same process
+runs the same synchronous code on the same loop; the uploader gets a fast 202
+while everyone else still freezes. Only `runParseInWorker` moves it
+(270ms → 75ms of worst-case loop lag in the same measurement). **If you ever
+inline the parse back into the dispatcher "for simplicity", the story is
+undone.**
+
+Only the parse is on the thread. The rest of the pipeline needs database
+access, which would mean a second pool per thread and writes outside the
+`persist-project.js` chokepoint — and those stages are await-heavy, so they
+yield anyway. The residual lag is the structured clone of the parsed layers
+coming back.
+
+### Shape of it
+
+- `services/validation-jobs/job-store.js` — claim is `SELECT ... FOR UPDATE
+SKIP LOCKED`, so instances share the table with no distributed lock. Also
+  holds the reaper (jobs whose worker died), the bury (jobs out of attempts,
+  which the claim query skips and would otherwise sit pending for ever) and the
+  retention sweep.
+- `services/validation-jobs/dispatcher.js` — claims, runs, records. `stop()`
+  waits for in-flight jobs, so a redeploy finishes them rather than stranding
+  them for a lease. It waits on the pass in progress, so never call `stop()`
+  from inside a job.
+- `services/upload/validate-layers-and-save.js` — the pipeline after the parse,
+  shared by both entry points so they cannot drift.
+- `services/validation-jobs/response-collector.js` — a stand-in for Hapi's
+  toolkit so that shared pipeline runs unchanged outside a request.
+
+A job row carries the enqueuing user's verified token **claims** (never the
+token) because the worker runs outside any request and persistence is scoped to
+the user's org context. Retention bounds how long they are held.
+
+### What this does not do
+
+Concurrency is capped per instance (`maxConcurrentJobs`, default 1), which
+incidentally bounds how many GeoPackages are in memory at once — but nothing
+bounds the queue itself, and the parsed layers still live on the heap through
+the PostGIS checks.
+
 ## Tests
 
 Two suites:

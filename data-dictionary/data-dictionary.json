@@ -833,6 +833,147 @@
           "references": null
         }
       ]
+    },
+    {
+      "name": "bng.validation_jobs",
+      "description": "Transient working state for asynchronous GeoPackage validation, not a system of record. One row per queued upload, holding the enqueuing user’s verified token claims so the background worker can save on their behalf, and the validation outcome once it is known. A retention sweep deletes finished rows.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "upload_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "document_key",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "status",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "pending",
+          "references": null
+        },
+        {
+          "name": "credentials",
+          "type": "jsonb",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "filename",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "file_size",
+          "type": "bigint",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "result",
+          "type": "jsonb",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "error",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "attempts",
+          "type": "integer",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "0",
+          "references": null
+        },
+        {
+          "name": "claimed_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "finished_at",
+          "type": "timestamp with time zone",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        },
+        {
+          "name": "updated_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ]
     }
   ],
   "projectJson": [

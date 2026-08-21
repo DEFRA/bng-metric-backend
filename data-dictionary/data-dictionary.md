@@ -201,6 +201,28 @@ One row per authenticated Defra ID user, upserted from the verified token on eac
 | `session_id`              | `text`                     | ✓        | —   | —       |
 | `current_relationship_id` | `text`                     | ✓        | —   | —       |
 
+### `bng.validation_jobs`
+
+Transient working state for asynchronous GeoPackage validation, not a system of record. One row per queued upload, holding the enqueuing user’s verified token claims so the background worker can save on their behalf, and the validation outcome once it is known. A retention sweep deletes finished rows.
+
+| Column         | Type                       | Nullable | Key | Default             |
+| -------------- | -------------------------- | -------- | --- | ------------------- |
+| `id`           | `uuid`                     | —        | PK  | `gen_random_uuid()` |
+| `upload_id`    | `uuid`                     | —        | —   | —                   |
+| `project_id`   | `uuid`                     | ✓        | —   | —                   |
+| `document_key` | `text`                     | —        | —   | —                   |
+| `status`       | `text`                     | —        | —   | `pending`           |
+| `credentials`  | `jsonb`                    | —        | —   | —                   |
+| `filename`     | `text`                     | ✓        | —   | —                   |
+| `file_size`    | `bigint`                   | ✓        | —   | —                   |
+| `result`       | `jsonb`                    | ✓        | —   | —                   |
+| `error`        | `text`                     | ✓        | —   | —                   |
+| `attempts`     | `integer`                  | —        | —   | `0`                 |
+| `claimed_at`   | `timestamp with time zone` | ✓        | —   | —                   |
+| `finished_at`  | `timestamp with time zone` | ✓        | —   | —                   |
+| `created_at`   | `timestamp with time zone` | —        | —   | `now()`             |
+| `updated_at`   | `timestamp with time zone` | —        | —   | `now()`             |
+
 ## The `project` JSONB document
 
 Stored in `bng.projects.project` and snapshotted verbatim into

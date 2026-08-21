@@ -65,6 +65,8 @@ const TABLE_DESCRIPTIONS = {
     'A full snapshot of a project after every change, recording who made it and when, for audit history.',
   'bng.login_audit':
     'An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.',
+  'bng.validation_jobs':
+    'Transient working state for asynchronous GeoPackage validation, not a system of record. One row per queued upload, holding the enqueuing user\u2019s verified token claims so the background worker can save on their behalf, and the validation outcome once it is known. A retention sweep deletes finished rows.',
   'bng.baseline_red_line':
     "The single red-line boundary outlining the overall extent of a project's development site.",
   'bng.baseline_habitats':

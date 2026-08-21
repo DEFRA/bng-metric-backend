@@ -37,7 +37,7 @@
     "test:watch": "cross-env TZ=UTC vitest",
     "test:integration": "cross-env TZ=UTC vitest run --config vitest.integration.config.js",
     "test:integration:coverage": "cross-env TZ=UTC vitest run --config vitest.integration.config.js --coverage --coverage.enabled",
-    "test:integration:routes": "node scripts/assert-route-coverage.mjs",
+    "test:integration:routes": "cross-env ASYNC_VALIDATION_ENABLED=true node scripts/assert-route-coverage.mjs",
     "test:integration:full": "npm run test:integration:coverage && npm run test:integration:routes"
   },
   "author": "Defra DDTS",

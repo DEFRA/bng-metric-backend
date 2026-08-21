@@ -184,6 +184,44 @@ const config = convict({
       env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
     }
   },
+  asyncValidation: {
+    enabled: {
+      doc: 'Register the async GeoPackage validate endpoints and start the job dispatcher. Must move in lock-step with the frontend flag of the same name: the frontend only calls /validate-async when its own flag is on.',
+      format: Boolean,
+      default: false,
+      env: 'ASYNC_VALIDATION_ENABLED'
+    },
+    maxConcurrentJobs: {
+      doc: 'How many validation jobs this instance runs at once. Each job occupies a worker thread and holds a whole GeoPackage, so this doubles as the memory ceiling for concurrent validation.',
+      format: Number,
+      default: 1,
+      env: 'ASYNC_VALIDATION_MAX_CONCURRENT_JOBS'
+    },
+    pollIntervalMs: {
+      doc: 'How often the dispatcher looks for work it was not nudged about — jobs left pending by an instance that died, or claimed by one that never finished.',
+      format: Number,
+      default: 5_000,
+      env: 'ASYNC_VALIDATION_POLL_INTERVAL_MS'
+    },
+    leaseMs: {
+      doc: 'How long a job may sit in processing before the reaper assumes its worker died and returns it to pending. Must exceed the slowest realistic validation.',
+      format: Number,
+      default: 300_000,
+      env: 'ASYNC_VALIDATION_LEASE_MS'
+    },
+    maxAttempts: {
+      doc: 'How many times a job is retried before it is failed for good. Guards against a file that reliably crashes its worker being retried forever.',
+      format: Number,
+      default: 3,
+      env: 'ASYNC_VALIDATION_MAX_ATTEMPTS'
+    },
+    retentionMs: {
+      doc: 'How long finished jobs are kept before the retention sweep deletes them. Jobs hold the uploading user token claims, so this is a data-minimisation control as well as housekeeping.',
+      format: Number,
+      default: 86_400_000,
+      env: 'ASYNC_VALIDATION_RETENTION_MS'
+    }
+  },
   aws: {
     region: {
       doc: 'AWS region',

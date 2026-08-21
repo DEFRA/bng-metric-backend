@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="36" author="bng-team">
+        <comment>
+            Durable store for asynchronous GeoPackage validation jobs. A job is
+            claimed by exactly one instance via SELECT ... FOR UPDATE SKIP
+            LOCKED, so several instances can share the table without a
+            distributed lock. Rows are transient working state, not a system of
+            record: a retention sweep deletes finished jobs, and losing one
+            costs the user a re-upload.
+        </comment>
+        <createTable schemaName="bng" tableName="validation_jobs">
+            <column name="id" type="uuid" defaultValueComputed="gen_random_uuid()">
+                <constraints primaryKey="true" primaryKeyName="pk_validation_jobs"/>
+            </column>
+            <column name="upload_id" type="uuid">
+                <constraints nullable="false"/>
+            </column>
+            <!-- Null when the caller is validating without saving to a project. -->
+            <column name="project_id" type="uuid"/>
+            <column name="document_key" type="text">
+                <constraints nullable="false"/>
+            </column>
+            <column name="status" type="text" defaultValue="pending">
+                <constraints nullable="false"/>
+            </column>
+            <!-- The verified Defra ID token claims of the user who enqueued the
+                 job. The worker runs outside any request, so it cannot re-derive
+                 them, and persistence is scoped to the user's org context. These
+                 are claims, never the token itself, and the retention sweep
+                 bounds how long they are held. -->
+            <column name="credentials" type="jsonb">
+                <constraints nullable="false"/>
+            </column>
+            <column name="filename" type="text"/>
+            <column name="file_size" type="bigint"/>
+            <!-- The response body the synchronous route would have returned. -->
+            <column name="result" type="jsonb"/>
+            <column name="error" type="text"/>
+            <column name="attempts" type="integer" defaultValueNumeric="0">
+                <constraints nullable="false"/>
+            </column>
+            <column name="claimed_at" type="timestamptz"/>
+            <column name="finished_at" type="timestamptz"/>
+            <column name="created_at" type="timestamptz" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+            <column name="updated_at" type="timestamptz" defaultValueComputed="CURRENT_TIMESTAMP">
+                <constraints nullable="false"/>
+            </column>
+        </createTable>
+
+        <sql splitStatements="false" endDelimiter=";">
+            ALTER TABLE bng.validation_jobs
+                ADD CONSTRAINT ck_validation_jobs_status
+                CHECK (status IN ('pending', 'processing', 'succeeded', 'failed'));
+        </sql>
+
+        <!-- The dispatcher's claim query: oldest pending job first. Partial, so
+             the index stays small as finished rows accumulate between sweeps. -->
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE INDEX idx_validation_jobs_claim
+                ON bng.validation_jobs (created_at)
+             WHERE status = 'pending';
+        </sql>
+
+        <!-- The reaper's query: jobs whose lease has expired. -->
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE INDEX idx_validation_jobs_claimed_at
+                ON bng.validation_jobs (claimed_at)
+             WHERE status = 'processing';
+        </sql>
+
+        <createIndex schemaName="bng" tableName="validation_jobs" indexName="idx_validation_jobs_upload_id">
+            <column name="upload_id"/>
+        </createIndex>
+
+        <!-- The retention sweep. -->
+        <createIndex schemaName="bng" tableName="validation_jobs" indexName="idx_validation_jobs_finished_at">
+            <column name="finished_at"/>
+        </createIndex>
+
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TRIGGER set_updated_at
+                BEFORE UPDATE ON bng.validation_jobs
+                FOR EACH ROW
+                EXECUTE FUNCTION bng.update_updated_at_column();
+        </sql>
+
+        <rollback>
+            <dropTable schemaName="bng" tableName="validation_jobs"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

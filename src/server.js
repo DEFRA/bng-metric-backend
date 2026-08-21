@@ -3,6 +3,7 @@ import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
 import { postgres } from './plugins/postgres.js'
+import { validationJobs } from './plugins/validation-jobs.js'
 import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
@@ -72,6 +73,13 @@ async function createServer() {
       options: resolveOidcAuthOptions()
     }
   ])
+
+  // After postgres: the dispatcher takes the pool and Drizzle handle that
+  // plugin decorates onto the server. Registered only when the flag is on, so
+  // an instance with async validation disabled never polls the jobs table.
+  if (config.get('asyncValidation.enabled')) {
+    await server.register([validationJobs])
+  }
 
   // Secure by default: every route requires the 'defra-jwt' strategy unless it
   // explicitly opts out with `auth: false`. Set here — at the root realm, after
