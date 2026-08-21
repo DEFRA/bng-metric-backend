@@ -99,7 +99,7 @@ async function* countingChunks(body, bucket, key, counter) {
 /**
  * Stream the response body to `filePath`, one chunk at a time. Nothing larger
  * than a single chunk is ever resident, so a 100 MB object costs 100 MB of
- * disk rather than 100 MB of heap.
+ * disk rather than 100 MB of memory.
  *
  * @returns {Promise<number>} bytes written
  */
@@ -136,7 +136,7 @@ async function streamBodyToFile(response, filePath, bucket, key, timeoutMs) {
  * Download a file from S3 by streaming it straight to a temporary file.
  *
  * The object is never held in memory as a Buffer (BMD-913): concurrent
- * uploads would otherwise each keep a full copy of their file on the heap —
+ * uploads would otherwise each keep a full copy of their file in memory —
  * up to the 100 MB upload limit apiece — and a handful of them at once could
  * OOM the whole process.
  *

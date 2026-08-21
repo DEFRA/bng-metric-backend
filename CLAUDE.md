@@ -81,8 +81,8 @@ and remaining traps. The sequenced migration that landed this layout is in
 
 An uploaded GeoPackage may be up to 100 MB (`upload.maxFileSizeBytes`), and the
 validate routes are ordinary async handlers with no concurrency limit — every
-`await` is a yield point, so several uploads are in flight on the same heap at
-once. Holding each one in memory used to mean buffer + temp-file copy + parsed
+`await` is a yield point, so several uploads are in flight in the same process
+at once. Holding each one in memory used to mean buffer + temp-file copy + parsed
 GeoJSON all alive together, and a handful of large concurrent uploads could OOM
 the whole process (BMD-913).
 
@@ -99,10 +99,14 @@ The pipeline is therefore file-based end to end:
 `validateGpkg(buffer)` still takes a Buffer, but only the unit tests use it —
 fixtures are built in memory. Production paths take a path.
 
-The production image also caps V8's old space (`NODE_OPTIONS` in the
-`Dockerfile`), so a concurrency spike fails the offending request with a heap
-error rather than being OOM-killed mid-flight and taking every other user's
-validation down with it. Override it per environment in the CDP Portal.
+What this does **not** bound is the parsed geometry: the layers stay on the
+heap while the PostGIS checks run, so concurrent validations still add up.
+Capping how many run at once is the fix for that — a Node `--max-old-space-size`
+is not. Hitting V8's heap limit aborts the process (SIGABRT), it does not throw
+something a route can catch; and the streamed chunks and better-sqlite3's pages
+are off-heap, so the flag never sees them anyway. On Fargate each task is a
+microVM sized to the task definition, so Node's default heap already derives
+from the task's own memory rather than a shared host's.
 
 ## Tests
 
