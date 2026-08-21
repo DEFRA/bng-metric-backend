@@ -308,7 +308,7 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
 
 /**
  * What downloadFileToTemp hands back: a temp file on disk plus the cleanup the
- * route is obliged to call (BMD-913).
+ * route is obliged to call.
  */
 function makeDownload(path = MOCK_DOWNLOAD_PATH) {
   return { path, size: MOCK_FILE_SIZE, cleanup: vi.fn().mockResolvedValue() }

@@ -332,7 +332,7 @@ describe('validateBaseline handler — pipeline calls', () => {
   })
 })
 
-// BMD-913: the download is a file on disk now, not a Buffer in memory, so
+// The download is a file on disk now, not a Buffer in memory, so
 // the handler owns removing it however the request ends.
 describe('validateBaseline handler — downloaded file cleanup', () => {
   let h

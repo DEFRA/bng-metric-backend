@@ -205,8 +205,8 @@ function withGpkgDatabase(buffer, withDb) {
  * Open a candidate GeoPackage that is already on disk and hand the open
  * database to `withDb`. Nothing is copied into memory and nothing is staged:
  * better-sqlite3 reads the file where it lies, so the downloaded file is the
- * only copy of the upload in play (BMD-913). The database is closed before
- * returning; removing the file stays the caller's job.
+ * only copy of the upload in play. The database is closed before returning;
+ * removing the file stays the caller's job.
  *
  * @param {string} filePath
  * @param {(db: import('better-sqlite3').Database) => T} withDb
@@ -267,7 +267,7 @@ function runGpkgGate(db, decodeGeometry) {
  * file to get the data (BMD-910).
  *
  * Takes a path rather than a Buffer so the upload never has to be resident in
- * memory to be validated (BMD-913).
+ * memory to be validated.
  *
  * @param {string} filePath
  * @returns {{

@@ -3,11 +3,11 @@ import { readdir } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 
 /**
- * BMD-913: the Content-Length check is only the first guard. An object that
- * arrives without one — or understates its size — is caught by the running
- * byte count as it streams, so a malformed response cannot fill the disk.
- * The limit is shrunk to a handful of bytes here so the case is provable
- * without moving 100 MB.
+ * The Content-Length check is only the first guard. An object that arrives
+ * without one — or understates its size — is caught by the running byte count
+ * as it streams, so a malformed response cannot fill the disk. The limit is
+ * shrunk to a handful of bytes here so the case is provable without moving
+ * 100 MB.
  */
 const TINY_MAX_BYTES = 8
 

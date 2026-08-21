@@ -39,7 +39,7 @@ const { ERROR_CODES } = await import('./errors.js')
 /** Every feature in fullReadBuffer(): RLB, Habitats, Hedgerows, Rivers, Trees. */
 const FULL_READ_FEATURE_COUNT = 5
 
-/** Stage a buffer as a file, the way a downloaded upload arrives (BMD-913). */
+/** Stage a buffer as a file, the way a downloaded upload arrives. */
 function validateAndReadBuffer(buffer) {
   return withTempGpkgFile(buffer, validateAndReadGpkgFile)
 }

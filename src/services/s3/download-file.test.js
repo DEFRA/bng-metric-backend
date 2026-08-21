@@ -113,7 +113,7 @@ describe('downloadFileToTemp successful download', () => {
     const result = await downloadFileToTemp(BUCKET, KEY)
 
     try {
-      // BMD-913: the contract is a path, not bytes — concurrent uploads must
+      // The contract is a path, not bytes — concurrent uploads must
       // not each keep a copy of their file in memory.
       expect(typeof result.path).toBe('string')
       expect(Buffer.isBuffer(result)).toBe(false)

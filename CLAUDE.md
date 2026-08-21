@@ -82,9 +82,9 @@ and remaining traps. The sequenced migration that landed this layout is in
 An uploaded GeoPackage may be up to 100 MB (`upload.maxFileSizeBytes`), and the
 validate routes are ordinary async handlers with no concurrency limit — every
 `await` is a yield point, so several uploads are in flight in the same process
-at once. Holding each one in memory used to mean buffer + temp-file copy + parsed
-GeoJSON all alive together, and a handful of large concurrent uploads could OOM
-the whole process (BMD-913).
+at once. Holding each one in memory used to mean buffer + temp-file copy +
+parsed GeoJSON all alive together, and a handful of large concurrent uploads
+could OOM the whole process.
 
 The pipeline is therefore file-based end to end:
 

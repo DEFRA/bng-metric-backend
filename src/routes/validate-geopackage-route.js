@@ -263,7 +263,7 @@ function createValidateGeoPackageRoute(config) {
 
       // Streamed to disk rather than buffered, and removed as soon as
       // validation is done with it, so concurrent uploads cannot stack up
-      // whole files in memory (BMD-913).
+      // whole files in memory.
       const upload = await fetchUploadFile(bucket, key, uploadId, config)
       try {
         return await runFullValidation(

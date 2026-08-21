@@ -135,10 +135,10 @@ async function streamBodyToFile(response, filePath, bucket, key, timeoutMs) {
 /**
  * Download a file from S3 by streaming it straight to a temporary file.
  *
- * The object is never held in memory as a Buffer (BMD-913): concurrent
- * uploads would otherwise each keep a full copy of their file in memory —
- * up to the 100 MB upload limit apiece — and a handful of them at once could
- * OOM the whole process.
+ * The object is never held in memory as a Buffer: concurrent uploads would
+ * otherwise each keep a full copy of their file in memory — up to the 100 MB
+ * upload limit apiece — and a handful of them at once could OOM the whole
+ * process.
  *
  * The caller owns the returned file and **must** call `cleanup()` when done,
  * whatever the outcome.
