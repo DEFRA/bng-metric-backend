@@ -21,7 +21,7 @@ const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_FILENAME = 'my-baseline.gpkg'
 const MOCK_FILE_SIZE = 204800
-const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
+const MOCK_DOWNLOAD_PATH = '/tmp/s3-download-test/download.bin'
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const HTTP_404 = 404
@@ -306,6 +306,14 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
   return { drizzle, tx, log }
 }
 
+/**
+ * What downloadFileToTemp hands back: a temp file on disk plus the cleanup the
+ * route is obliged to call (BMD-913).
+ */
+function makeDownload(path = MOCK_DOWNLOAD_PATH) {
+  return { path, size: MOCK_FILE_SIZE, cleanup: vi.fn().mockResolvedValue() }
+}
+
 export {
   UPLOAD_ID,
   PROJECT_ID,
@@ -320,7 +328,8 @@ export {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  MOCK_DOWNLOAD_PATH,
+  makeDownload,
   THROWS_502,
   HTTP_404,
   HTTP_409,

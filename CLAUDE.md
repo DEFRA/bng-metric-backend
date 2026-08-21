@@ -77,6 +77,33 @@ moving one — it has the target layout, a "where does this go?" decision list,
 and remaining traps. The sequenced migration that landed this layout is in
 [`docs/CODE_STRUCTURE_MIGRATION.md`](docs/CODE_STRUCTURE_MIGRATION.md).
 
+## Uploaded GeoPackages never become Buffers
+
+An uploaded GeoPackage may be up to 100 MB (`upload.maxFileSizeBytes`), and the
+validate routes are ordinary async handlers with no concurrency limit — every
+`await` is a yield point, so several uploads are in flight on the same heap at
+once. Holding each one in memory used to mean buffer + temp-file copy + parsed
+GeoJSON all alive together, and a handful of large concurrent uploads could OOM
+the whole process (BMD-913).
+
+The pipeline is therefore file-based end to end:
+
+- `services/s3/download-file.js` — `downloadFileToTemp()` streams the S3 body
+  chunk by chunk into a temp file and returns `{ path, size, cleanup }`. There
+  is deliberately **no** buffer-returning download; do not add one back.
+- `validation/geopackage/geopackage.js` — `validateAndReadGpkgFile(path)` opens
+  that file in place with better-sqlite3. Nothing is copied or re-staged.
+- `routes/validate-geopackage-route.js` — owns the file and `cleanup()`s it in a
+  `finally`, whatever the outcome.
+
+`validateGpkg(buffer)` still takes a Buffer, but only the unit tests use it —
+fixtures are built in memory. Production paths take a path.
+
+The production image also caps V8's old space (`NODE_OPTIONS` in the
+`Dockerfile`), so a concurrency spike fails the offending request with a heap
+error rather than being OOM-killed mid-flight and taking every other user's
+validation down with it. Override it per environment in the CDP Portal.
+
 ## Tests
 
 Two suites:

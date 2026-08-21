@@ -201,6 +201,31 @@ function withGpkgDatabase(buffer, withDb) {
   }
 }
 
+/**
+ * Open a candidate GeoPackage that is already on disk and hand the open
+ * database to `withDb`. Nothing is copied into memory and nothing is staged:
+ * better-sqlite3 reads the file where it lies, so the downloaded file is the
+ * only copy of the upload in play (BMD-913). The database is closed before
+ * returning; removing the file stays the caller's job.
+ *
+ * @param {string} filePath
+ * @param {(db: import('better-sqlite3').Database) => T} withDb
+ * @returns {T | { valid: false, errors: Array<{ code: string, message: string }> }}
+ * @template T
+ */
+function withGpkgFileDatabase(filePath, withDb) {
+  let db
+  try {
+    db = new Database(filePath, { readonly: true, fileMustExist: true })
+  } catch (err) {
+    logger.info(
+      `validateGpkg: failed to open downloaded file as SQLite database: ${err.message}`
+    )
+    return invalidFileResult()
+  }
+  return useAndClose(db, withDb)
+}
+
 function invalidFileResult() {
   return { valid: false, errors: [INVALID_FILE_ERROR] }
 }
@@ -233,34 +258,40 @@ function runGpkgGate(db, decodeGeometry) {
 }
 
 /**
- * Validate a Buffer as a BNG baseline GeoPackage and, when it passes, return
- * its layers from the same read.
+ * Validate a downloaded GeoPackage file as a BNG baseline GeoPackage and, when
+ * it passes, return its layers from the same read.
  *
  * The structural checks run first and reject a broken file before any shape is
  * unpacked. Only then is the file walked — once — classifying and decoding
  * every geometry in a single pass, so the caller needs no second open of the
  * file to get the data (BMD-910).
  *
- * @param {Buffer} buffer
+ * Takes a path rather than a Buffer so the upload never has to be resident in
+ * memory to be validated (BMD-913).
+ *
+ * @param {string} filePath
  * @returns {{
  *   valid: boolean,
  *   errors: Array<{ code: string, message: string }>,
  *   layers: ReturnType<typeof toLayers> | null
  * }}
  */
-function validateAndReadGpkg(buffer) {
-  const result = withGpkgDatabase(buffer, (db) => {
-    const gate = runGpkgGate(db, true)
-    if (!gate.valid) {
-      return logGateResult({ valid: false, errors: gate.errors })
-    }
-    return logGateResult({
-      valid: true,
-      errors: [],
-      layers: toLayers(gate.featureTables)
-    })
-  })
+function validateAndReadGpkgFile(filePath) {
+  const result = withGpkgFileDatabase(filePath, gateAndReadLayers)
   return { layers: null, ...result }
+}
+
+/** The gate, plus the layers from the same read when the file passes it. */
+function gateAndReadLayers(db) {
+  const gate = runGpkgGate(db, true)
+  if (!gate.valid) {
+    return logGateResult({ valid: false, errors: gate.errors })
+  }
+  return logGateResult({
+    valid: true,
+    errors: [],
+    layers: toLayers(gate.featureTables)
+  })
 }
 
 function logGateResult(result) {
@@ -273,7 +304,7 @@ function logGateResult(result) {
 /**
  * Format gate only: is this Buffer an acceptable BNG baseline GeoPackage?
  * Nothing is unpacked — callers that also need the shapes should use
- * {@link validateAndReadGpkg}, which returns them from the same read.
+ * {@link validateAndReadGpkgFile}, which returns them from the same read.
  *
  * @param {Buffer} buffer
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
@@ -365,8 +396,8 @@ function getTableNames(db) {
  * Features carrying their native geometry and SRID. PostGIS reprojects to
  * 27700 in-query for area / containment checks.
  *
- * Upload validation reads from the buffer instead — see
- * {@link validateAndReadGpkg}; this is for callers that already have a file.
+ * Upload validation opens the downloaded file itself — see
+ * {@link validateAndReadGpkgFile}, which validates and reads in one pass.
  *
  * @param {string} filePath
  * @returns {ReturnType<typeof toLayers>}
@@ -384,4 +415,4 @@ export function readGeoPackage(filePath) {
   }
 }
 
-export { validateGpkg, validateAndReadGpkg }
+export { validateGpkg, validateAndReadGpkgFile }

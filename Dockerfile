@@ -54,4 +54,14 @@ ARG PORT
 ENV PORT=${PORT}
 EXPOSE ${PORT}
 
+# Cap V8's old space so a spike in concurrent GeoPackage uploads fails the
+# offending request with a JS heap error the route can turn into a 500, rather
+# than the kernel OOM-killing the process and taking every other user's
+# validation down with it (BMD-913). Keep this comfortably below the container
+# memory limit — the rest of RSS (native better-sqlite3 pages, stream buffers,
+# the Node runtime itself) lives outside the old space. Override per
+# environment by setting NODE_OPTIONS in the CDP Portal.
+ARG NODE_MAX_OLD_SPACE_SIZE_MB=1024
+ENV NODE_OPTIONS="--max-old-space-size=${NODE_MAX_OLD_SPACE_SIZE_MB}"
+
 CMD [ "node", "src" ]

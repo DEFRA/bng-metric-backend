@@ -1,4 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 // Counts how many shapes are actually unpacked, so the tests can pin the
 // promise of BMD-910: a structurally broken file unpacks none, and an
@@ -24,27 +26,33 @@ const {
   buildBuffer,
   fullReadBuffer,
   makePolygon,
+  walModeFullReadBuffer,
   readTestPolygonWkb,
   withTempGpkgFile,
   wrapGpkgWkb
 } = await import('../../../test/helpers/gpkg.js')
 
-const { validateAndReadGpkg, validateGpkg, readGeoPackage } =
+const { validateAndReadGpkgFile, validateGpkg, readGeoPackage } =
   await import('./geopackage.js')
 const { ERROR_CODES } = await import('./errors.js')
 
 /** Every feature in fullReadBuffer(): RLB, Habitats, Hedgerows, Rivers, Trees. */
 const FULL_READ_FEATURE_COUNT = 5
 
-describe('validateAndReadGpkg — one parse for both jobs', () => {
+/** Stage a buffer as a file, the way a downloaded upload arrives (BMD-913). */
+function validateAndReadBuffer(buffer) {
+  return withTempGpkgFile(buffer, validateAndReadGpkgFile)
+}
+
+describe('validateAndReadGpkgFile — one parse for both jobs', () => {
   beforeEach(() => {
     wkbToGeoJSONSpy.mockClear()
   })
 
-  it('validates and returns the layers from a single read of the buffer', async () => {
+  it('validates and returns the layers from a single read of the file', async () => {
     const buffer = fullReadBuffer()
 
-    const result = validateAndReadGpkg(buffer)
+    const result = await validateAndReadBuffer(buffer)
 
     expect(result.valid).toBe(true)
     expect(result.errors).toEqual([])
@@ -53,15 +61,15 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     expect(result.layers).toEqual(fromDisk)
   })
 
-  it('unpacks each shape exactly once', () => {
-    validateAndReadGpkg(fullReadBuffer())
+  it('unpacks each shape exactly once', async () => {
+    await validateAndReadBuffer(fullReadBuffer())
 
     expect(wkbToGeoJSONSpy).toHaveBeenCalledTimes(FULL_READ_FEATURE_COUNT)
   })
 
-  it('rejects a structurally broken file without unpacking any shape', () => {
+  it('rejects a structurally broken file without unpacking any shape', async () => {
     // Habitats missing: a required layer, caught before any geometry is read.
-    const result = validateAndReadGpkg(
+    const result = await validateAndReadBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -78,8 +86,8 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     expect(wkbToGeoJSONSpy).not.toHaveBeenCalled()
   })
 
-  it('returns no layers when the feature checks reject the file', () => {
-    const result = validateAndReadGpkg(
+  it('returns no layers when the feature checks reject the file', async () => {
+    const result = await validateAndReadBuffer(
       buildBuffer({
         appId: GP10_APP_ID,
         systemTables: true,
@@ -99,8 +107,10 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     expect(result.layers).toBeNull()
   })
 
-  it('returns no layers when the buffer is not a database at all', () => {
-    const result = validateAndReadGpkg(Buffer.from('this is not a database'))
+  it('returns no layers when the file is not a database at all', async () => {
+    const result = await validateAndReadBuffer(
+      Buffer.from('this is not a database')
+    )
 
     expect(result).toEqual({
       valid: false,
@@ -115,12 +125,33 @@ describe('validateAndReadGpkg — one parse for both jobs', () => {
     expect(wkbToGeoJSONSpy).not.toHaveBeenCalled()
   })
 
-  it('rejects a feature whose SRID cannot be reprojected', () => {
+  it('returns no layers when the file is not there at all', () => {
+    const result = validateAndReadGpkgFile(
+      join(tmpdir(), 'bmd-913-does-not-exist.gpkg')
+    )
+
+    expect(result.valid).toBe(false)
+    expect(result.errors.map((e) => e.code)).toEqual([
+      ERROR_CODES.GPKG_INVALID_FILE
+    ])
+    expect(result.layers).toBeNull()
+  })
+
+  it('reads a WAL-mode file in place rather than restaging it', async () => {
+    const result = await validateAndReadBuffer(walModeFullReadBuffer())
+
+    expect(result.valid).toBe(true)
+    expect(result.layers).not.toBeNull()
+  })
+
+  it('rejects a feature whose SRID cannot be reprojected', async () => {
     const buffer = fullReadBuffer({
       [LAYER_RLB]: [wrapGpkgWkb(readTestPolygonWkb(), EPSG_WEB_MERCATOR)]
     })
 
-    expect(() => validateAndReadGpkg(buffer)).toThrow(/Unsupported SRID/)
+    await expect(validateAndReadBuffer(buffer)).rejects.toThrow(
+      /Unsupported SRID/
+    )
   })
 })
 
