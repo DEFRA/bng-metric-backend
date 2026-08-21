@@ -56,8 +56,11 @@ export const ERROR_CODES = Object.freeze({
   /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
   SIZING_FAILED: 'SIZING_FAILED',
 
-  /** Extracted document fails habitatDataSchema — e.g. filename or fileSize from CDP Uploader exceeds allowed bounds. */
+  /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
+
+  /** The uploaded file's own name fails SAFE_FILENAME_RE or the length limit. The user fixes this by renaming the file, so it is reported apart from a malformed document. */
+  INVALID_FILENAME: 'INVALID_FILENAME',
 
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED'
@@ -65,4 +68,31 @@ export const ERROR_CODES = Object.freeze({
 
 export function makeError(code, message, details) {
   return details === undefined ? { code, message } : { code, message, details }
+}
+
+/** Top-level key holding the uploaded file's own name, on both the metadata probe and the extracted document. */
+const FILENAME_KEY = 'filename'
+/** Joi `path[0]` is the document root; only that slot is the uploaded file's name. */
+const PATH_ROOT_INDEX = 0
+
+/**
+ * Choose the error code for a Joi rejection of upload metadata or of the
+ * extracted document. A rejected file name is the only one of these the user
+ * can act on — they rename the file — so it is reported separately from a
+ * document whose structure is wrong.
+ *
+ * @param {{message: string, details?: Array<{path?: Array<string|number>}>}} joiError
+ * @returns {{code: string, message: string}}
+ */
+export function makeMetadataError(joiError) {
+  const rejectedFilename = joiError?.details?.some(
+    (detail) => detail?.path?.[PATH_ROOT_INDEX] === FILENAME_KEY
+  )
+
+  return makeError(
+    rejectedFilename
+      ? ERROR_CODES.INVALID_FILENAME
+      : ERROR_CODES.INVALID_FILE_METADATA,
+    joiError.message
+  )
 }

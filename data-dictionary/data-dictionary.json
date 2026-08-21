@@ -1030,7 +1030,7 @@
       "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
-      "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._-]*\\.gpkg$/i"],
+      "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._()-]*\\.gpkg$/i"],
       "openMap": false,
       "description": "Original filename of the uploaded GeoPackage. Constrained to a safe `*.gpkg` pattern."
     },
@@ -2790,7 +2790,7 @@
       "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
-      "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._-]*\\.gpkg$/i"],
+      "constraints": ["max 255", "pattern /^[a-z0-9][a-z0-9 ._()-]*\\.gpkg$/i"],
       "openMap": false,
       "description": "Original filename of the uploaded GeoPackage. Constrained to a safe `*.gpkg` pattern."
     },

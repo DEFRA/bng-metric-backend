@@ -14,7 +14,11 @@ import {
 import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
-import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
+import {
+  ERROR_CODES,
+  makeError,
+  makeMetadataError
+} from '../validation/geopackage/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
@@ -87,17 +91,17 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
     { uploadId, filename, fileSize },
     { allowUnknown: true }
   )
-  if (!metaError) {
-    return null
+  if (metaError) {
+    logger.info(
+      `${config.routeName} - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+    )
+    return h.response({
+      valid: false,
+      errors: [makeMetadataError(metaError)]
+    })
   }
 
-  logger.info(
-    `${config.routeName} - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
-  )
-  return h.response({
-    valid: false,
-    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, metaError.message)]
-  })
+  return null
 }
 
 /**
