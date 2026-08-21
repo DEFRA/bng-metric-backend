@@ -1,4 +1,6 @@
 import { vi } from 'vitest'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
@@ -21,7 +23,7 @@ const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_FILENAME = 'my-baseline.gpkg'
 const MOCK_FILE_SIZE = 204800
-const MOCK_DOWNLOAD_PATH = '/tmp/s3-download-test/download.bin'
+const MOCK_DOWNLOAD_PATH = join(tmpdir(), 's3-download-test', 'download.bin')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const HTTP_404 = 404
