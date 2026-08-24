@@ -8,7 +8,7 @@ import {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  makeDownload,
   STUB_LAYERS,
   STUB_POST_INTERVENTION_EXTRACTED,
   makeH,
@@ -22,7 +22,7 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateAndReadGpkg: vi.fn()
+  validateAndReadGpkgFile: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -63,7 +63,7 @@ vi.mock('../utilities/enrichment/baseline/enrich-baseline-units.js', () => ({
 // Preserve real error classes so instanceof checks in the handler work correctly
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, downloadFile: vi.fn() }
+  return { ...actual, downloadFileToTemp: vi.fn() }
 })
 
 vi.mock('../common/helpers/metrics.js', () => ({
@@ -75,8 +75,8 @@ vi.mock('../common/helpers/metrics.js', () => ({
 
 const { waitForUploadReady } =
   await import('../services/cdp-uploader/cdp-uploader.js')
-const { downloadFile } = await import('../services/s3/download-file.js')
-const { validateAndReadGpkg } =
+const { downloadFileToTemp } = await import('../services/s3/download-file.js')
+const { validateAndReadGpkgFile } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
   await import('../validation/geopackage/assign-feature-ids.js')
@@ -117,8 +117,8 @@ function setupHappyPathMocks() {
     filename: MOCK_FILENAME,
     fileSize: MOCK_FILE_SIZE
   })
-  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-  vi.mocked(validateAndReadGpkg).mockReturnValue({
+  vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
+  vi.mocked(validateAndReadGpkgFile).mockReturnValue({
     valid: true,
     errors: [],
     layers: STUB_LAYERS

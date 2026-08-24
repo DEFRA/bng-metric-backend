@@ -7,11 +7,11 @@ import {
   UploadTimeoutError
 } from '../services/cdp-uploader/cdp-uploader.js'
 import {
-  downloadFile,
+  downloadFileToTemp,
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import { validateAndReadGpkg } from '../validation/geopackage/geopackage.js'
+import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
@@ -106,9 +106,15 @@ async function resolveUploadLocation(uploadId, config) {
   }
 }
 
-async function fetchUploadBuffer(bucket, key, uploadId, config) {
+/**
+ * Stream the upload out of S3 onto local disk. The caller owns the returned
+ * file and must `cleanup()` it — see {@link downloadFileToTemp}.
+ *
+ * @returns {Promise<{ path: string, size: number, cleanup: () => Promise<void> }>}
+ */
+async function fetchUploadFile(bucket, key, uploadId, config) {
   try {
-    return await downloadFile(bucket, key)
+    return await downloadFileToTemp(bucket, key)
   } catch (err) {
     if (err instanceof S3FileTooLargeError) {
       logger.error(
@@ -220,19 +226,28 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
 }
 
 /**
- * Validate the uploaded buffer end to end. The GeoPackage is opened once: the
- * format gate rejects a structurally broken file before any shape is unpacked,
- * and an accepted file hands back its parsed layers from the same read.
+ * Validate the downloaded file end to end. The GeoPackage is opened once, in
+ * place on disk: the format gate rejects a structurally broken file before any
+ * shape is unpacked, and an accepted file hands back its parsed layers from
+ * the same read.
  */
-async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
+async function runFullValidation(
+  filePath,
+  drizzle,
+  pgPool,
+  context,
+  h,
+  config
+) {
   const { uploadId } = context
 
   try {
     // Evidence (Item 2 — features and geometries are loaded synchronously):
     // better-sqlite3 is a synchronous binding, so this call blocks the event
     // loop for its whole duration; nothing else on this instance progresses.
+    // Reading from disk rather than a Buffer does not change that.
     const parseStart = perfNow()
-    const gateResult = validateAndReadGpkg(buffer)
+    const gateResult = validateAndReadGpkgFile(filePath)
     const parseMs = msSince(parseStart)
     const featureCount = countFeatures(gateResult.layers)
 
@@ -339,26 +354,41 @@ function createValidateGeoPackageRoute(config) {
         }
       }
 
-      const buffer = await fetchUploadBuffer(bucket, key, uploadId, config)
+      // Streamed to disk rather than buffered, and removed as soon as
+      // validation is done with it, so concurrent uploads cannot stack up
+      // whole files in memory.
+      const upload = await fetchUploadFile(bucket, key, uploadId, config)
 
       const totalStart = perfNow()
-      const response = await runFullValidation(
-        buffer,
-        request.drizzle,
-        request.pg,
-        { uploadId, projectId, credentials, filename, fileSize },
-        h,
-        config
-      )
-      // Evidence (Item 1): the end-to-end handler time a user waits on, with
-      // every stage above still running on this one request.
-      await recordStage(
-        PERFORMANCE_METRIC.totalMs,
-        msSince(totalStart),
-        { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
-        config
-      )
-      return response
+      try {
+        return await runFullValidation(
+          upload.path,
+          request.drizzle,
+          request.pg,
+          { uploadId, projectId, credentials, filename, fileSize },
+          h,
+          config
+        )
+      } finally {
+        // A file we could not delete is a disk problem to chase in the logs,
+        // not a reason to fail a validation that already succeeded.
+        await upload.cleanup().catch((err) => {
+          logger.warn(
+            `${config.routeName}: failed to remove the downloaded file for uploadId ${uploadId}: ${err.message}`
+          )
+        })
+        // Evidence (Item 1): the end-to-end handler time a user waits on, with
+        // every stage above still running on this one request. Recorded in the
+        // `finally` so a failed upload — often the slowest kind — is measured
+        // too, matching how each stage above records before checking for
+        // errors.
+        await recordStage(
+          PERFORMANCE_METRIC.totalMs,
+          msSince(totalStart),
+          { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
+          config
+        )
+      }
     }
   }
 }

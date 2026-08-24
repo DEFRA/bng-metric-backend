@@ -77,6 +77,37 @@ moving one — it has the target layout, a "where does this go?" decision list,
 and remaining traps. The sequenced migration that landed this layout is in
 [`docs/CODE_STRUCTURE_MIGRATION.md`](docs/CODE_STRUCTURE_MIGRATION.md).
 
+## Uploaded GeoPackages never become Buffers
+
+An uploaded GeoPackage may be up to 100 MB (`upload.maxFileSizeBytes`), and the
+validate routes are ordinary async handlers with no concurrency limit — every
+`await` is a yield point, so several uploads are in flight in the same process
+at once. Holding each one in memory used to mean buffer + temp-file copy +
+parsed GeoJSON all alive together, and a handful of large concurrent uploads
+could OOM the whole process.
+
+The pipeline is therefore file-based end to end:
+
+- `services/s3/download-file.js` — `downloadFileToTemp()` streams the S3 body
+  chunk by chunk into a temp file and returns `{ path, size, cleanup }`. There
+  is deliberately **no** buffer-returning download; do not add one back.
+- `validation/geopackage/geopackage.js` — `validateAndReadGpkgFile(path)` opens
+  that file in place with better-sqlite3. Nothing is copied or re-staged.
+- `routes/validate-geopackage-route.js` — owns the file and `cleanup()`s it in a
+  `finally`, whatever the outcome.
+
+`validateGpkg(buffer)` still takes a Buffer, but only the unit tests use it —
+fixtures are built in memory. Production paths take a path.
+
+What this does **not** bound is the parsed geometry: the layers stay on the
+heap while the PostGIS checks run, so concurrent validations still add up.
+Capping how many run at once is the fix for that — a Node `--max-old-space-size`
+is not. Hitting V8's heap limit aborts the process (SIGABRT), it does not throw
+something a route can catch; and the streamed chunks and better-sqlite3's pages
+are off-heap, so the flag never sees them anyway. On Fargate each task is a
+microVM sized to the task definition, so Node's default heap already derives
+from the task's own memory rather than a shared host's.
+
 ## Tests
 
 Two suites:

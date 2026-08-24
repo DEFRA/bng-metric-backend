@@ -116,7 +116,12 @@ export function buildWalModeBuffer(opts = DEFAULT_BUILD_BUFFER_OPTIONS) {
 
 /** GeoPackage buffer with all layers populated for `readGeoPackage` tests */
 export function fullReadBuffer(layerFeaturesOverrides = {}) {
-  return buildBuffer({
+  return buildBuffer(fullReadBuildOptions(layerFeaturesOverrides))
+}
+
+/** Options shared by fullReadBuffer() and walModeFullReadBuffer(). */
+function fullReadBuildOptions(layerFeaturesOverrides) {
+  return {
     appId: GPKG_APP_ID_GP10,
     systemTables: true,
     featureLayers: FULL_READ_LAYERS,
@@ -128,7 +133,12 @@ export function fullReadBuffer(layerFeaturesOverrides = {}) {
       'Urban Trees': [wrapGpkgWkb(readTestPointWkb())],
       ...layerFeaturesOverrides
     }
-  })
+  }
+}
+
+/** As fullReadBuffer(), but last saved in WAL journal mode. */
+export function walModeFullReadBuffer(layerFeaturesOverrides = {}) {
+  return buildWalModeBuffer(fullReadBuildOptions(layerFeaturesOverrides))
 }
 
 /** Single-row DB using an underscored RLB alias table name (resolver coverage). */
