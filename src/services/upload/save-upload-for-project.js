@@ -10,7 +10,11 @@ import {
   extractPostIntervention,
   filterLostPostInterventionLayers
 } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
-import { ERROR_CODES, makeError } from '../../validation/geopackage/errors.js'
+import {
+  ERROR_CODES,
+  makeError,
+  makeMetadataError
+} from '../../validation/geopackage/errors.js'
 import {
   habitatDataSchema,
   postInterventionDataSchema
@@ -149,7 +153,7 @@ function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
   )
   return h.response({
     valid: false,
-    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, schemaError.message)]
+    errors: [makeMetadataError(schemaError)]
   })
 }
 

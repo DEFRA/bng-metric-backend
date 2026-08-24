@@ -1,6 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import { MAX_FILENAME_LENGTH } from '../validation/project-shared-schemas.js'
 import {
   UPLOAD_ID,
   PROJECT_ID,
@@ -590,9 +591,39 @@ describe('validateBaseline handler — document schema validation', () => {
     setupHappyPathMocks()
   })
 
-  it('returns INVALID_FILE_METADATA when filename exceeds the allowed length', async () => {
+  it('returns INVALID_FILENAME when filename exceeds the allowed length', async () => {
     vi.mocked(extractHabitatData).mockReturnValue({
-      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      document: {
+        ...STUB_EXTRACTED.document,
+        filename: 'x'.repeat(MAX_FILENAME_LENGTH + 1)
+      },
+      geometries: STUB_EXTRACTED.geometries
+    })
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [
+          expect.objectContaining({ code: ERROR_CODES.INVALID_FILENAME })
+        ]
+      })
+    )
+  })
+
+  it('returns INVALID_FILE_METADATA when a feature rather than the filename is malformed', async () => {
+    const [firstHabitat, ...otherHabitats] = STUB_EXTRACTED.document.habitats
+    vi.mocked(extractHabitatData).mockReturnValue({
+      document: {
+        ...STUB_EXTRACTED.document,
+        habitats: [
+          { ...firstHabitat, featureId: 'not-a-uuid' },
+          ...otherHabitats
+        ]
+      },
       geometries: STUB_EXTRACTED.geometries
     })
     const { drizzle } = makeDrizzle()
@@ -612,7 +643,10 @@ describe('validateBaseline handler — document schema validation', () => {
 
   it('does not open a transaction when document schema validation fails', async () => {
     vi.mocked(extractHabitatData).mockReturnValue({
-      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      document: {
+        ...STUB_EXTRACTED.document,
+        filename: 'x'.repeat(MAX_FILENAME_LENGTH + 1)
+      },
       geometries: STUB_EXTRACTED.geometries
     })
     const { drizzle, log } = makeDrizzle()

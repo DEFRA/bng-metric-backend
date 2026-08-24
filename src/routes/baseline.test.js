@@ -259,7 +259,7 @@ describe('validateBaseline handler — upload metadata early rejection', () => {
       expect.objectContaining({
         valid: false,
         errors: expect.arrayContaining([
-          expect.objectContaining({ code: ERROR_CODES.INVALID_FILE_METADATA })
+          expect.objectContaining({ code: ERROR_CODES.INVALID_FILENAME })
         ])
       })
     )

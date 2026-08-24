@@ -254,6 +254,11 @@ describe('#filename validation', () => {
     expect(error).toBeUndefined()
   })
 
+  test('Should accept filenames with parentheses (browser duplicate downloads)', () => {
+    const { error } = withFilename('survey (1).gpkg')
+    expect(error).toBeUndefined()
+  })
+
   test('Should accept null filename', () => {
     const { error } = withFilename(null)
     expect(error).toBeUndefined()
