@@ -1,4 +1,6 @@
 import { vi } from 'vitest'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
@@ -21,7 +23,7 @@ const MOCK_BUCKET = 'baseline-files'
 const MOCK_KEY = 'baseline/file.gpkg'
 const MOCK_FILENAME = 'my-baseline.gpkg'
 const MOCK_FILE_SIZE = 204800
-const MOCK_BUFFER = Buffer.from('mock-gpkg-data')
+const MOCK_DOWNLOAD_PATH = join(tmpdir(), 's3-download-test', 'download.bin')
 const THROWS_502 = 'throws a 502 Bad Gateway'
 
 const HTTP_404 = 404
@@ -306,6 +308,14 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
   return { drizzle, tx, log }
 }
 
+/**
+ * What downloadFileToTemp hands back: a temp file on disk plus the cleanup the
+ * route is obliged to call.
+ */
+function makeDownload(path = MOCK_DOWNLOAD_PATH) {
+  return { path, size: MOCK_FILE_SIZE, cleanup: vi.fn().mockResolvedValue() }
+}
+
 export {
   UPLOAD_ID,
   PROJECT_ID,
@@ -320,7 +330,8 @@ export {
   MOCK_KEY,
   MOCK_FILENAME,
   MOCK_FILE_SIZE,
-  MOCK_BUFFER,
+  MOCK_DOWNLOAD_PATH,
+  makeDownload,
   THROWS_502,
   HTTP_404,
   HTTP_409,

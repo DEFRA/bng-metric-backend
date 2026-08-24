@@ -1,9 +1,27 @@
 import { vi, describe, it, expect } from 'vitest'
+import { readFile, stat } from 'node:fs/promises'
 
 vi.mock('./s3-client.js')
 
+// Every directory downloadFileToTemp creates, in call order. Hoisted so the
+// vi.mock factory below can close over it.
+const { createdTempDirs } = vi.hoisted(() => ({ createdTempDirs: [] }))
+
+// Partial mock: only mkdtemp is wrapped, to record what it hands out. Every
+// other fs/promises export — including the rm that does the cleanup being
+// asserted on — passes straight through to the real implementation.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal()
+  const { recordingMkdtemp } =
+    await import('../../../test/helpers/temp-dir-spy.js')
+  return { ...actual, mkdtemp: recordingMkdtemp(actual, createdTempDirs) }
+})
+
+const { expectTempDirsCleanedUp, expectNoTempDirCreated } =
+  await import('../../../test/helpers/temp-dir-spy.js')
+
 const {
-  downloadFile,
+  downloadFileToTemp,
   S3FileTooLargeError,
   S3TimeoutError,
   S3ConnectionError,
@@ -74,109 +92,177 @@ describe('MAX_FILE_SIZE_BYTES', () => {
   })
 })
 
-describe('downloadFile successful download', () => {
-  it('concatenates body chunks and returns a Buffer', async () => {
-    const chunk1 = Buffer.from('hello ')
-    const chunk2 = Buffer.from('world')
-    mockSendWith({ Body: makeBody([chunk1, chunk2]) })
+describe('downloadFileToTemp successful download', () => {
+  it('writes the body to a temp file and reports its size', async () => {
+    mockSendWith({
+      Body: makeBody([Buffer.from('hello '), Buffer.from('world')])
+    })
 
-    const result = await downloadFile(BUCKET, KEY)
+    const result = await downloadFileToTemp(BUCKET, KEY)
 
-    expect(result).toBeInstanceOf(Buffer)
-    expect(result.toString()).toBe('hello world')
+    try {
+      expect(await readFile(result.path, 'utf8')).toBe('hello world')
+      expect(result.size).toBe('hello world'.length)
+    } finally {
+      await result.cleanup()
+    }
   })
 
-  it('returns an empty Buffer when the body has no chunks', async () => {
+  it('never holds the object in memory as a Buffer', async () => {
+    mockSendWith({ Body: makeBody([Buffer.from('hello')]) })
+
+    const result = await downloadFileToTemp(BUCKET, KEY)
+
+    try {
+      // The contract is a path, not bytes — concurrent uploads must
+      // not each keep a copy of their file in memory.
+      expect(typeof result.path).toBe('string')
+      expect(Buffer.isBuffer(result)).toBe(false)
+    } finally {
+      await result.cleanup()
+    }
+  })
+
+  it('writes an empty file when the body has no chunks', async () => {
     mockSendWith({ Body: makeBody([]) })
 
-    const result = await downloadFile(BUCKET, KEY)
+    const result = await downloadFileToTemp(BUCKET, KEY)
 
-    expect(result).toBeInstanceOf(Buffer)
-    expect(result.byteLength).toBe(0)
+    try {
+      expect(result.size).toBe(0)
+      expect((await stat(result.path)).size).toBe(0)
+    } finally {
+      await result.cleanup()
+    }
+  })
+
+  it('cleanup removes the temp file', async () => {
+    mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
+
+    const result = await downloadFileToTemp(BUCKET, KEY)
+    await result.cleanup()
+
+    await expect(stat(result.path)).rejects.toThrow()
+  })
+
+  it('cleanup is safe to call twice', async () => {
+    mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
+
+    const result = await downloadFileToTemp(BUCKET, KEY)
+    await result.cleanup()
+
+    await expect(result.cleanup()).resolves.not.toThrow()
   })
 
   it('passes the abortSignal through to client.send', async () => {
     const send = mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
 
-    await downloadFile(BUCKET, KEY)
+    const result = await downloadFileToTemp(BUCKET, KEY)
+    await result.cleanup()
 
     const [, options] = send.mock.calls[0]
     expect(options).toHaveProperty('abortSignal')
   })
 })
 
-describe('downloadFile when client.send throws a timeout', () => {
+describe('downloadFileToTemp when client.send throws a timeout', () => {
   it('throws S3TimeoutError for a TimeoutError', async () => {
     mockSendRejecting(namedError('TimeoutError'))
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3TimeoutError
+    )
   })
 
   it('throws S3TimeoutError for an AbortError', async () => {
     mockSendRejecting(namedError('AbortError'))
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3TimeoutError
+    )
   })
 
   it('includes bucket and key in the S3TimeoutError message', async () => {
     mockSendRejecting(namedError('TimeoutError'))
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
       new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
     )
   })
 })
 
-describe('downloadFile when client.send throws a connection error', () => {
+describe('downloadFileToTemp when client.send throws a connection error', () => {
   it('throws S3ConnectionError for a generic error', async () => {
     mockSendRejecting(new Error('ECONNREFUSED'))
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3ConnectionError
+    )
   })
 
   it('includes the original message in the S3ConnectionError', async () => {
     mockSendRejecting(new Error('NoSuchKey'))
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/NoSuchKey/)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(/NoSuchKey/)
   })
 })
 
-describe('downloadFile when the body stream throws a timeout', () => {
+describe('downloadFileToTemp when the body stream throws a timeout', () => {
   it('throws S3TimeoutError for a TimeoutError during streaming', async () => {
     mockSendWith({ Body: { [Symbol.asyncIterator]: failWithTimeout } })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3TimeoutError
+    )
   })
 
   it('throws S3TimeoutError for an AbortError during streaming', async () => {
     mockSendWith({ Body: { [Symbol.asyncIterator]: failWithAbort } })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3TimeoutError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3TimeoutError
+    )
   })
 })
 
-describe('downloadFile when the body stream throws a connection error', () => {
+describe('downloadFileToTemp when the body stream throws a connection error', () => {
   it('throws S3ConnectionError for a generic stream error', async () => {
     mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3ConnectionError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3ConnectionError
+    )
   })
 
   it('includes the original message in the S3ConnectionError', async () => {
     mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(/socket hang up/)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      /socket hang up/
+    )
+  })
+
+  it('cleans up the temp directory it created', async () => {
+    mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
+
+    await expectTempDirsCleanedUp(createdTempDirs, async () => {
+      await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+        S3ConnectionError
+      )
+    })
   })
 })
 
-describe('downloadFile when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
+describe('downloadFileToTemp when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
   it('throws S3FileTooLargeError when Content-Length exceeds the limit', async () => {
     mockSendWith({
       Body: makeBody([]),
       ContentLength: MAX_FILE_SIZE_BYTES + 1
     })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(S3FileTooLargeError)
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3FileTooLargeError
+    )
   })
 
   it('includes bucket, key and sizes in the error message', async () => {
@@ -185,9 +271,22 @@ describe('downloadFile when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
       ContentLength: MAX_FILE_SIZE_BYTES + 1
     })
 
-    await expect(downloadFile(BUCKET, KEY)).rejects.toThrow(
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
       new RegExp(`${BUCKET}.*${KEY}|${KEY}.*${BUCKET}`)
     )
+  })
+
+  it('rejects before creating a temp directory at all', async () => {
+    mockSendWith({
+      Body: makeBody([]),
+      ContentLength: MAX_FILE_SIZE_BYTES + 1
+    })
+
+    await expectNoTempDirCreated(createdTempDirs, async () => {
+      await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+        S3FileTooLargeError
+      )
+    })
   })
 
   it('does not throw when Content-Length equals MAX_FILE_SIZE_BYTES', async () => {
@@ -196,22 +295,32 @@ describe('downloadFile when the S3 object exceeds MAX_FILE_SIZE_BYTES', () => {
       ContentLength: MAX_FILE_SIZE_BYTES
     })
 
-    await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
+    const result = await downloadFileToTemp(BUCKET, KEY)
+
+    expect(result.size).toBe(1)
+    await result.cleanup()
   })
 
   it('does not throw when Content-Length is absent', async () => {
     mockSendWith({ Body: makeBody([Buffer.from('ok')]) })
 
-    await expect(downloadFile(BUCKET, KEY)).resolves.toBeInstanceOf(Buffer)
+    const result = await downloadFileToTemp(BUCKET, KEY)
+
+    expect(result.size).toBe(2)
+    await result.cleanup()
   })
 })
 
-describe('downloadFile custom timeoutMs option', () => {
+describe('downloadFileToTemp custom timeoutMs option', () => {
   it('accepts a custom timeout and still succeeds', async () => {
     mockSendWith({ Body: makeBody([Buffer.from('data')]) })
 
-    const result = await downloadFile(BUCKET, KEY, { timeoutMs: 5_000 })
+    const result = await downloadFileToTemp(BUCKET, KEY, { timeoutMs: 5_000 })
 
-    expect(result.toString()).toBe('data')
+    try {
+      expect(await readFile(result.path, 'utf8')).toBe('data')
+    } finally {
+      await result.cleanup()
+    }
   })
 })
