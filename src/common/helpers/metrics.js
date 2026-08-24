@@ -6,9 +6,15 @@ import { createLogger } from './logging/logger.js'
 /**
  * Run one metric emission under the shared guard/error policy.
  *
- * Guarded by `isMetricsEnabled` (off in dev/test, on in production or when
- * ENABLE_METRICS=true) so nothing is attempted from local dev. Any failure is
- * swallowed and logged — metrics must never break the request that emits them.
+ * Guarded by `isMetricsEnabled`, which defaults to `NODE_ENV === 'production'`.
+ * That keys off how the process was started, NOT which environment it is
+ * deployed to: `npm start` sets NODE_ENV=production, so metrics are ON in every
+ * deployed environment (dev, test, perf-test and prod alike) and OFF only for
+ * local `npm run dev`, Docker Compose and the unit tests. Set ENABLE_METRICS to
+ * override it for one environment.
+ *
+ * Any failure is swallowed and logged — metrics must never break the request
+ * that emits them.
  *
  * Each call constructs its own `Metrics` and flushes on completion, so a metric
  * costs one EMF flush. Emit per request or per pipeline stage; never per
