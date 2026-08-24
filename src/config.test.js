@@ -29,3 +29,40 @@ describe('#config', () => {
     vi.unstubAllEnvs()
   })
 })
+
+describe('#config boolean flags from the environment', () => {
+  const reload = async () => {
+    vi.resetModules()
+    const { config } = await import('./config.js')
+    return config
+  }
+
+  test.each([
+    ['true', true],
+    ['1', true],
+    ['yes', true],
+    ['on', true],
+    ['false', false],
+    ['0', false],
+    ['no', false],
+    ['off', false],
+    ['FALSE', false],
+    ['  false  ', false]
+  ])('Should read ENABLE_METRICS=%s as %s', async (value, expected) => {
+    vi.stubEnv('ENABLE_METRICS', value)
+
+    const config = await reload()
+
+    expect(config.get('isMetricsEnabled')).toBe(expected)
+
+    vi.unstubAllEnvs()
+  })
+
+  test('Should reject a value that is not recognisably a boolean', async () => {
+    vi.stubEnv('ENABLE_METRICS', 'banana')
+
+    await expect(reload()).rejects.toThrow(/must be one of true\/false/)
+
+    vi.unstubAllEnvs()
+  })
+})
