@@ -1,8 +1,24 @@
 import { vi, describe, it, expect } from 'vitest'
-import { readFile, readdir, stat } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
+import { readFile, stat } from 'node:fs/promises'
 
 vi.mock('./s3-client.js')
+
+// Every directory downloadFileToTemp creates, in call order. Hoisted so the
+// vi.mock factory below can close over it.
+const { createdTempDirs } = vi.hoisted(() => ({ createdTempDirs: [] }))
+
+// Partial mock: only mkdtemp is wrapped, to record what it hands out. Every
+// other fs/promises export — including the rm that does the cleanup being
+// asserted on — passes straight through to the real implementation.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal()
+  const { recordingMkdtemp } =
+    await import('../../../test/helpers/temp-dir-spy.js')
+  return { ...actual, mkdtemp: recordingMkdtemp(actual, createdTempDirs) }
+})
+
+const { expectTempDirsCleanedUp, expectNoTempDirCreated } =
+  await import('../../../test/helpers/temp-dir-spy.js')
 
 const {
   downloadFileToTemp,
@@ -16,7 +32,6 @@ const { createS3Client } = await import('./s3-client.js')
 
 const BUCKET = 'baseline-files'
 const KEY = 'baseline/file.gpkg'
-const TEMP_DIR_PREFIX = 's3-download-'
 
 /** Build an async-iterable body from an array of Buffer chunks. */
 function makeBody(chunks) {
@@ -61,20 +76,6 @@ function mockSendRejecting(error) {
   const send = vi.fn().mockRejectedValue(error)
   vi.mocked(createS3Client).mockReturnValue({ send })
   return send
-}
-
-/** Temp directories this module has left behind in os.tmpdir(). */
-async function downloadTempDirs() {
-  const entries = await readdir(tmpdir())
-  return entries.filter((name) => name.startsWith(TEMP_DIR_PREFIX))
-}
-
-/** Run `fn` and assert it left no temp directory behind. */
-async function expectingNoTempDirsLeft(fn) {
-  const before = await downloadTempDirs()
-  await fn()
-  const after = await downloadTempDirs()
-  expect(after.filter((name) => !before.includes(name))).toEqual([])
 }
 
 const THIRTY_SECONDS_MS = 30_000
@@ -241,10 +242,10 @@ describe('downloadFileToTemp when the body stream throws a connection error', ()
     )
   })
 
-  it('leaves no partial file behind', async () => {
+  it('cleans up the temp directory it created', async () => {
     mockSendWith({ Body: { [Symbol.asyncIterator]: failWithError } })
 
-    await expectingNoTempDirsLeft(async () => {
+    await expectTempDirsCleanedUp(createdTempDirs, async () => {
       await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
         S3ConnectionError
       )
@@ -275,13 +276,13 @@ describe('downloadFileToTemp when the S3 object exceeds MAX_FILE_SIZE_BYTES', ()
     )
   })
 
-  it('rejects before writing anything to disk', async () => {
+  it('rejects before creating a temp directory at all', async () => {
     mockSendWith({
       Body: makeBody([]),
       ContentLength: MAX_FILE_SIZE_BYTES + 1
     })
 
-    await expectingNoTempDirsLeft(async () => {
+    await expectNoTempDirCreated(createdTempDirs, async () => {
       await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
         S3FileTooLargeError
       )

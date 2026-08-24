@@ -1,6 +1,4 @@
 import { vi, describe, it, expect } from 'vitest'
-import { readdir } from 'node:fs/promises'
-import { tmpdir } from 'node:os'
 
 /**
  * The Content-Length check is only the first guard. An object that arrives
@@ -12,6 +10,20 @@ import { tmpdir } from 'node:os'
 const TINY_MAX_BYTES = 8
 
 vi.mock('./s3-client.js')
+
+// Every directory downloadFileToTemp creates, in call order. Hoisted so the
+// vi.mock factory below can close over it.
+const { createdTempDirs } = vi.hoisted(() => ({ createdTempDirs: [] }))
+
+// Partial mock: only mkdtemp is wrapped, to record what it hands out. Every
+// other fs/promises export — including the rm that does the cleanup being
+// asserted on — passes straight through to the real implementation.
+vi.mock('node:fs/promises', async (importOriginal) => {
+  const actual = await importOriginal()
+  const { recordingMkdtemp } =
+    await import('../../../test/helpers/temp-dir-spy.js')
+  return { ...actual, mkdtemp: recordingMkdtemp(actual, createdTempDirs) }
+})
 vi.mock('../../config.js', async (importOriginal) => {
   const actual = await importOriginal()
   return {
@@ -29,10 +41,11 @@ vi.mock('../../config.js', async (importOriginal) => {
 const { downloadFileToTemp, S3FileTooLargeError, MAX_FILE_SIZE_BYTES } =
   await import('./download-file.js')
 const { createS3Client } = await import('./s3-client.js')
+const { expectTempDirsCleanedUp } =
+  await import('../../../test/helpers/temp-dir-spy.js')
 
 const BUCKET = 'baseline-files'
 const KEY = 'baseline/file.gpkg'
-const TEMP_DIR_PREFIX = 's3-download-'
 
 function mockBody(chunks) {
   const send = vi.fn().mockResolvedValue({
@@ -45,11 +58,6 @@ function mockBody(chunks) {
     }
   })
   vi.mocked(createS3Client).mockReturnValue({ send })
-}
-
-async function downloadTempDirs() {
-  const entries = await readdir(tmpdir())
-  return entries.filter((name) => name.startsWith(TEMP_DIR_PREFIX))
 }
 
 describe('downloadFileToTemp streaming size guard', () => {
@@ -74,15 +82,15 @@ describe('downloadFileToTemp streaming size guard', () => {
     )
   })
 
-  it('leaves no partial file behind when it overruns', async () => {
+  it('cleans up the temp directory it created when it overruns', async () => {
     mockBody([Buffer.alloc(TINY_MAX_BYTES), Buffer.alloc(1)])
-    const before = await downloadTempDirs()
 
-    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
-      S3FileTooLargeError
-    )
-
-    const after = await downloadTempDirs()
-    expect(after.filter((name) => !before.includes(name))).toEqual([])
+    // Unlike the Content-Length guard, this one only fires mid-stream, so a
+    // directory already exists by the time it rejects and must be removed.
+    await expectTempDirsCleanedUp(createdTempDirs, async () => {
+      await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+        S3FileTooLargeError
+      )
+    })
   })
 })
