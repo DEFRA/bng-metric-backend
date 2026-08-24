@@ -50,6 +50,33 @@ async function recordSaveStage(
   await metricsMillis(metricName, durationMs, { documentKey })
 }
 
+/**
+ * Run one save stage, timing it and recording the duration via
+ * {@link recordSaveStage}. The stage is always recorded, including when it
+ * produces a failure the caller turns into an error response — a slow stage is
+ * evidence whether or not it succeeded.
+ *
+ * @param {{ logger: { info?: Function }, metricName: string, stage: string, uploadId: string, documentKey: string }} stage
+ * @param {() => T | Promise<T>} run the stage's work
+ * @returns {Promise<T>} whatever `run` returned
+ * @template T
+ */
+async function timeSaveStage(
+  { logger, metricName, stage, uploadId, documentKey },
+  run
+) {
+  const start = perfNow()
+  const result = await run()
+  await recordSaveStage(
+    logger,
+    metricName,
+    msSince(start),
+    { uploadId, stage },
+    documentKey
+  )
+  return result
+}
+
 function extractBaselineDocument(layers, meta) {
   return extractHabitatData(layers, { ...meta, variant: 'baseline' })
 }
@@ -200,6 +227,101 @@ async function persistUploadAndMaybeReEnrich(
 }
 
 /**
+ * Time the PostGIS sizing pass.
+ *
+ * Evidence (Item 6 — the sizing pass is a second PostGIS round trip): a
+ * separate awaited query that recomputes ST_MakeValid per feature, on top of
+ * the geometry-repair work the validation statement already did.
+ *
+ * @param {import('pg').Pool} pgPool
+ * @param {object} layersForSizing
+ * @param {{ logger: object, uploadId: string, documentKey: string }} stageContext
+ * @param {{ config: object, h: import('@hapi/hapi').ResponseToolkit }} deps
+ * @returns {Promise<{ habitatSizes?: object, response?: object }>}
+ */
+function runSizingStage(pgPool, layersForSizing, stageContext, { config, h }) {
+  const { logger, uploadId } = stageContext
+  return timeSaveStage(
+    {
+      ...stageContext,
+      metricName: PERFORMANCE_METRIC.sizingMs,
+      stage: 'sizing'
+    },
+    () =>
+      sizeUploadedHabitats(pgPool, layersForSizing, {
+        logger,
+        routeName: config.routeName,
+        uploadId,
+        h
+      })
+  )
+}
+
+/**
+ * Extract, enrich, validate and persist the upload document once the habitat
+ * sizes are known. Returns a Hapi response if the document fails its schema,
+ * or `null` on success.
+ *
+ * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
+ * @param {string} projectId
+ * @param {{ stageContext: object, layersWithIds: object, storedProject: object | undefined, habitatSizes: object }} sized
+ * @param {{ uploadId: string, credentials: { sub: string } }} context
+ * @param {import('@hapi/hapi').ResponseToolkit} h
+ * @param {object} config
+ */
+async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
+  const { stageContext, layersWithIds, storedProject, habitatSizes } = sized
+  const { logger, uploadId } = stageContext
+
+  // Evidence (Item 8 — extract and engine enrichment loop every feature inline):
+  // fully synchronous, so this blocks the event loop for its whole duration.
+  const extracted = await timeSaveStage(
+    {
+      ...stageContext,
+      metricName: PERFORMANCE_METRIC.enrichMs,
+      stage: 'enrich'
+    },
+    () =>
+      extractAndValidateDocument({
+        handlers: saveHandlersForConfig(config),
+        layersWithIds,
+        storedProject,
+        context,
+        logger,
+        config,
+        habitatSizes
+      })
+  )
+  if (extracted.schemaError) {
+    return schemaErrorResponse(extracted.schemaError, {
+      logger,
+      routeName: config.routeName,
+      uploadId,
+      h
+    })
+  }
+
+  // Evidence (Item 1): the persist transaction — batched geometry inserts plus
+  // the JSONB document update — still on the same request handler.
+  await timeSaveStage(
+    {
+      ...stageContext,
+      metricName: PERFORMANCE_METRIC.persistMs,
+      stage: 'persist'
+    },
+    () =>
+      persistUploadAndMaybeReEnrich(
+        drizzle,
+        projectId,
+        extracted.document,
+        extracted.geometries,
+        { uploadId, credentials: context.credentials, logger, config }
+      )
+  )
+  return null
+}
+
+/**
  * Sizes, extracts, validates against the Joi schema, and persists the upload
  * document for a known-valid set of layers. Returns a Hapi response on any
  * recoverable error, or `null` on success.
@@ -220,7 +342,12 @@ export async function saveUploadForProject(
   config
 ) {
   const { drizzle, pgPool, logger } = deps
-  const { uploadId, credentials } = context
+  const { projectDocumentKey } = config
+  const stageContext = {
+    logger,
+    uploadId: context.uploadId,
+    documentKey: projectDocumentKey
+  }
   // Reuse the featureIds already stored for this document wherever the incoming
   // `ref` matches, so a re-upload updates the downstream relational rows rather
   // than replacing them wholesale. This read sits outside the FOR UPDATE lock
@@ -231,74 +358,28 @@ export async function saveUploadForProject(
   const { layersWithIds, layersForSizing } = layersForUpload(
     layers,
     storedProject,
-    config.projectDocumentKey
+    projectDocumentKey
   )
-  // Evidence (Item 6 — the sizing pass is a second PostGIS round trip): a
-  // separate awaited query that recomputes ST_MakeValid per feature, on top of
-  // the geometry-repair work the validation statement already did.
-  const sizingStart = perfNow()
-  const sizing = await sizeUploadedHabitats(pgPool, layersForSizing, {
-    logger,
-    routeName: config.routeName,
-    uploadId,
+
+  const sizing = await runSizingStage(pgPool, layersForSizing, stageContext, {
+    config,
     h
   })
-  await recordSaveStage(
-    logger,
-    PERFORMANCE_METRIC.sizingMs,
-    msSince(sizingStart),
-    { uploadId, stage: 'sizing' },
-    config.projectDocumentKey
-  )
   if (sizing.response) {
     return sizing.response
   }
 
-  // Evidence (Item 8 — extract and engine enrichment loop every feature inline):
-  // fully synchronous, so this blocks the event loop for its whole duration.
-  const enrichStart = perfNow()
-  const handlers = saveHandlersForConfig(config)
-  const extracted = extractAndValidateDocument({
-    handlers,
-    layersWithIds,
-    storedProject,
-    context,
-    logger,
-    config,
-    habitatSizes: sizing.habitatSizes
-  })
-  await recordSaveStage(
-    logger,
-    PERFORMANCE_METRIC.enrichMs,
-    msSince(enrichStart),
-    { uploadId, stage: 'enrich' },
-    config.projectDocumentKey
-  )
-  if (extracted.schemaError) {
-    return schemaErrorResponse(extracted.schemaError, {
-      logger,
-      routeName: config.routeName,
-      uploadId,
-      h
-    })
-  }
-
-  // Evidence (Item 1): the persist transaction — batched geometry inserts plus
-  // the JSONB document update — still on the same request handler.
-  const persistStart = perfNow()
-  await persistUploadAndMaybeReEnrich(
+  return saveSizedUpload(
     drizzle,
     projectId,
-    extracted.document,
-    extracted.geometries,
-    { uploadId, credentials, logger, config }
+    {
+      stageContext,
+      layersWithIds,
+      storedProject,
+      habitatSizes: sizing.habitatSizes
+    },
+    context,
+    h,
+    config
   )
-  await recordSaveStage(
-    logger,
-    PERFORMANCE_METRIC.persistMs,
-    msSince(persistStart),
-    { uploadId, stage: 'persist' },
-    config.projectDocumentKey
-  )
-  return null
 }
