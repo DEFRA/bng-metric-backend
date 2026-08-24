@@ -93,7 +93,9 @@ vi.mock('../services/s3/download-file.js', async (importOriginal) => {
 
 vi.mock('../common/helpers/metrics.js', () => ({
   metricsCounter: vi.fn(),
-  metricsByteSize: vi.fn()
+  metricsByteSize: vi.fn(),
+  metricsMillis: vi.fn(),
+  metricsGauge: vi.fn()
 }))
 
 const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =

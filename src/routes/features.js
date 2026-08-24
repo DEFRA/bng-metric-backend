@@ -12,6 +12,7 @@ import {
 import { findFeature } from '../utilities/features/find-feature.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
+import { logPerf, utf8Bytes } from '../common/helpers/perf-evidence.js'
 
 /**
  * @openapi
@@ -103,6 +104,17 @@ function createGetFeatureRoute({ path, documentKey }) {
           `Feature ${featureId} not found in project ${projectId}`
         )
       }
+      // Evidence (Item W4 — single-feature reads fetch the whole document): the
+      // entire project JSONB was shipped from Postgres and deserialised to
+      // return one feature. Unlike the LIST endpoints (fixed in BMD-933 by
+      // projecting four columns), the by-id reads still select everything.
+      // docBytes is what crossed the wire; featureBytes is what the caller
+      // asked for.
+      logPerf(request.logger, 'single-feature-full-doc', {
+        documentKey,
+        docBytes: utf8Bytes(JSON.stringify(rows[0].project ?? {})),
+        featureBytes: utf8Bytes(JSON.stringify(found.feature))
+      })
       return { type: found.type, feature: found.feature }
     }
   }

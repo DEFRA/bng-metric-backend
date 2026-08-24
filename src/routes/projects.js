@@ -10,6 +10,12 @@ import { toProjectResponse } from '../utilities/project/to-project-response.js'
 import { toProjectListResponses } from '../utilities/project/to-project-list-response.js'
 import { paginationKeys } from '../validation/pagination.js'
 import { projectSchema } from '../validation/project.js'
+import {
+  logPerf,
+  perfNow,
+  msSince,
+  utf8Bytes
+} from '../common/helpers/perf-evidence.js'
 
 /**
  * @openapi
@@ -190,6 +196,7 @@ const getProjects = {
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
     const { limit, offset } = request.query
+    const queryStart = perfNow()
     const rows = await request.drizzle
       .select(projectListColumns)
       .from(projects)
@@ -200,6 +207,20 @@ const getProjects = {
       .orderBy(desc(projects.updatedAt), asc(projects.id))
       .limit(limit)
       .offset(offset)
+    // Evidence (Item W2 — the project list filters on unindexed columns): the
+    // response body itself is no longer the problem (BMD-933 projected it down
+    // to four columns and bounded it with limit/offset), but bng.projects still
+    // carries no index beyond its primary key, so the visibility predicate —
+    // user_id plus a correlated subquery against bng.users for the current
+    // relationship — is evaluated by a sequential scan whose cost grows with the
+    // table, not with the page size the caller asked for.
+    logPerf(request.logger, 'project-list-query', {
+      endpoint: 'projects',
+      rowCount: rows.length,
+      limit,
+      offset,
+      queryMs: msSince(queryStart)
+    })
     return toProjectListResponses(rows)
   }
 }
@@ -292,6 +313,16 @@ const getHabitat = {
         `Habitat ${featureId} not found in project ${projectId}`
       )
     }
+    // Evidence (Item W4 — single-feature reads fetch the whole document): the
+    // full project JSONB was selected and deserialised just to find() one
+    // habitat. docBytes is the whole document shipped from Postgres; only
+    // featureBytes is returned to the caller.
+    logPerf(request.logger, 'single-feature-full-doc', {
+      documentKey: 'baseline',
+      habitatCount: habitats.length,
+      docBytes: utf8Bytes(JSON.stringify(rows[0].project ?? {})),
+      featureBytes: utf8Bytes(JSON.stringify(habitat))
+    })
     return habitat
   }
 }

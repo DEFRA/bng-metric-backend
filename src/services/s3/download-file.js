@@ -3,6 +3,12 @@ import { GetObjectCommand } from '@aws-sdk/client-s3'
 import { config } from '../../config.js'
 import { createS3Client } from './s3-client.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
+import {
+  logPerf,
+  perfNow,
+  msSince,
+  memoryUsageMb
+} from '../../common/helpers/perf-evidence.js'
 
 const logger = createLogger()
 
@@ -72,12 +78,33 @@ async function downloadFile(
     )
   }
 
+  const bufferStart = perfNow()
+  const before = memoryUsageMb()
   try {
     const chunks = []
     for await (const chunk of response.Body) {
       chunks.push(chunk)
     }
     const buffer = Buffer.concat(chunks)
+    // Evidence (Item 4 — the whole file is buffered into memory, up to 100 MB):
+    // the S3 object is accumulated into a single Buffer held for the request
+    // lifecycle, later coexisting with the decoded GeoJSON feature arrays.
+    //
+    // Reported as rss/external/arrayBuffers, NOT heapUsed: Node allocates Buffer
+    // bytes outside the V8 heap, so a 100 MB download barely moves heapUsed and
+    // a heap-only delta made this look free. rss is what an ECS task's memory
+    // limit is measured against; external/arrayBuffers say where it went.
+    const after = memoryUsageMb()
+    logPerf(logger, 'file-buffered-memory', {
+      bytes: buffer.byteLength,
+      rssBeforeMb: before.rssMb,
+      rssAfterMb: after.rssMb,
+      rssDeltaMb: after.rssMb - before.rssMb,
+      externalDeltaMb: after.externalMb - before.externalMb,
+      arrayBuffersDeltaMb: after.arrayBuffersMb - before.arrayBuffersMb,
+      heapUsedDeltaMb: after.heapUsedMb - before.heapUsedMb,
+      bufferMs: msSince(bufferStart)
+    })
     logger.info(
       `Downloaded S3 object - bucket: ${bucket}, key: ${key}, size: ${buffer.byteLength} bytes`
     )

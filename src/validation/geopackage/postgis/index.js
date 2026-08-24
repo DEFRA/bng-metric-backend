@@ -5,6 +5,14 @@ import { fileURLToPath } from 'node:url'
 import { ERROR_CODES } from '../errors.js'
 import { toGeometryJson } from '../geometry-json.js'
 import { ERROR_BUILDERS } from './error-builders.js'
+import { createLogger } from '../../../common/helpers/logging/logger.js'
+import {
+  logPerf,
+  perfNow,
+  msSince
+} from '../../../common/helpers/perf-evidence.js'
+
+const logger = createLogger()
 
 // Single-statement validation: the layer features are passed in as parallel
 // arrays of GeoJSON strings, parsed and reprojected to EPSG:27700 inside the
@@ -580,8 +588,12 @@ export async function validateGeoPackageLayersPostgis(pool, layers) {
   let releaseError
   try {
     await client.query('BEGIN')
+    const materialiseStart = perfNow()
     const { layerNames, idxs, props, geoms, srids } =
       await materialiseIndexedAreas(client, layers)
+    const materialiseMs = msSince(materialiseStart)
+
+    const checkStart = perfNow()
     ;({ rows } = await client.query(CHECK_QUERY, [
       layerNames,
       idxs,
@@ -590,7 +602,24 @@ export async function validateGeoPackageLayersPostgis(pool, layers) {
       srids,
       ENGLAND_GEOMETRY_JSON
     ]))
+    const checkMs = msSince(checkStart)
     await client.query('COMMIT')
+
+    // Evidence (Item 6 — the heavy geometry validation is one giant inline
+    // statement): every check runs as a single awaited query with repeated
+    // ST_MakeValid / ST_Union / overlay work across all layers, so nothing can
+    // fail fast and nothing can be parallelised.
+    //
+    // materialiseMs is the temp-table load plus GiST index build that BMD-911
+    // added to make the parcel-overlap self-join sub-quadratic; it is split out
+    // so the cost of the index is visible against what it saves in checkMs.
+    logPerf(logger, 'postgis-inline-heavy-query', {
+      totalFeatures: geoms.length,
+      areaFeatureCount: layerNames.filter((name) => name === 'areas').length,
+      materialiseMs,
+      checkMs,
+      queryMs: materialiseMs + checkMs
+    })
   } catch (err) {
     releaseError = await client.query('ROLLBACK').then(
       () => undefined,

@@ -19,6 +19,36 @@ import { HTTP_STATUS } from '../../common/helpers/http/status-codes.js'
 import { projects } from '../../db/schema/index.js'
 import { calculateHabitatSizes } from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
+import { metricsMillis } from '../../common/helpers/metrics.js'
+import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
+import {
+  logPerf,
+  perfNow,
+  msSince
+} from '../../common/helpers/perf-evidence.js'
+
+/**
+ * Record one save-stage duration as both a `pipeline-inline` evidence line (for
+ * log search, keyed by uploadId) and an EMF duration metric (for the Grafana
+ * dashboard, dimensioned only by documentKey). See recordStage in
+ * src/routes/validate-geopackage-route.js for why both exist.
+ *
+ * @param {{ info?: Function }} logger
+ * @param {string} metricName one of PERFORMANCE_METRIC
+ * @param {number} durationMs
+ * @param {object} fields evidence-line fields (must include `stage`)
+ * @param {string} documentKey
+ */
+async function recordSaveStage(
+  logger,
+  metricName,
+  durationMs,
+  fields,
+  documentKey
+) {
+  logPerf(logger, 'pipeline-inline', { ...fields, elapsedMs: durationMs })
+  await metricsMillis(metricName, durationMs, { documentKey })
+}
 
 function extractBaselineDocument(layers, meta) {
   return extractHabitatData(layers, { ...meta, variant: 'baseline' })
@@ -203,16 +233,30 @@ export async function saveUploadForProject(
     storedProject,
     config.projectDocumentKey
   )
+  // Evidence (Item 6 — the sizing pass is a second PostGIS round trip): a
+  // separate awaited query that recomputes ST_MakeValid per feature, on top of
+  // the geometry-repair work the validation statement already did.
+  const sizingStart = perfNow()
   const sizing = await sizeUploadedHabitats(pgPool, layersForSizing, {
     logger,
     routeName: config.routeName,
     uploadId,
     h
   })
+  await recordSaveStage(
+    logger,
+    PERFORMANCE_METRIC.sizingMs,
+    msSince(sizingStart),
+    { uploadId, stage: 'sizing' },
+    config.projectDocumentKey
+  )
   if (sizing.response) {
     return sizing.response
   }
 
+  // Evidence (Item 8 — extract and engine enrichment loop every feature inline):
+  // fully synchronous, so this blocks the event loop for its whole duration.
+  const enrichStart = perfNow()
   const handlers = saveHandlersForConfig(config)
   const extracted = extractAndValidateDocument({
     handlers,
@@ -223,6 +267,13 @@ export async function saveUploadForProject(
     config,
     habitatSizes: sizing.habitatSizes
   })
+  await recordSaveStage(
+    logger,
+    PERFORMANCE_METRIC.enrichMs,
+    msSince(enrichStart),
+    { uploadId, stage: 'enrich' },
+    config.projectDocumentKey
+  )
   if (extracted.schemaError) {
     return schemaErrorResponse(extracted.schemaError, {
       logger,
@@ -232,12 +283,22 @@ export async function saveUploadForProject(
     })
   }
 
+  // Evidence (Item 1): the persist transaction — batched geometry inserts plus
+  // the JSONB document update — still on the same request handler.
+  const persistStart = perfNow()
   await persistUploadAndMaybeReEnrich(
     drizzle,
     projectId,
     extracted.document,
     extracted.geometries,
     { uploadId, credentials, logger, config }
+  )
+  await recordSaveStage(
+    logger,
+    PERFORMANCE_METRIC.persistMs,
+    msSince(persistStart),
+    { uploadId, stage: 'persist' },
+    config.projectDocumentKey
   )
   return null
 }
