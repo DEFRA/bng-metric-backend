@@ -4,6 +4,9 @@ import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
+/** Name of the boolean format registered below and used by every flag. */
+const STRICT_BOOLEAN = 'strict-boolean'
+
 /** Environment-variable spellings accepted as true. */
 const TRUTHY_VALUES = new Set(['true', 'yes', 'on', '1'])
 
@@ -21,7 +24,7 @@ const FALSY_VALUES = new Set(['false', 'no', 'off', '0'])
  * leaving a flag in the opposite state to the one intended.
  */
 convict.addFormat({
-  name: 'strict-boolean',
+  name: STRICT_BOOLEAN,
   coerce: (value) => {
     if (typeof value === 'boolean') {
       return value
@@ -38,7 +41,7 @@ convict.addFormat({
   },
   validate: (value) => {
     if (typeof value !== 'boolean') {
-      throw new Error(
+      throw new TypeError(
         `must be one of true/false, yes/no, on/off or 1/0 (got "${value}")`
       )
     }
@@ -102,7 +105,7 @@ const config = convict({
     },
     iamAuthentication: {
       doc: 'Enable IAM authentication for postgres',
-      format: 'strict-boolean',
+      format: STRICT_BOOLEAN,
       default: isProduction,
       env: 'DB_IAM_AUTHENTICATION'
     },
@@ -123,7 +126,7 @@ const config = convict({
     },
     forcePathStyle: {
       doc: 'Use path-style addressing for S3 (required for localstack)',
-      format: 'strict-boolean',
+      format: STRICT_BOOLEAN,
       default: isDevelopment,
       env: 'S3_FORCE_PATH_STYLE'
     }
@@ -151,7 +154,7 @@ const config = convict({
   log: {
     isEnabled: {
       doc: 'Is logging enabled',
-      format: 'strict-boolean',
+      format: STRICT_BOOLEAN,
       default: !isTest,
       env: 'LOG_ENABLED'
     },
@@ -184,7 +187,7 @@ const config = convict({
   },
   isMetricsEnabled: {
     doc: 'Enable metrics reporting',
-    format: 'strict-boolean',
+    format: STRICT_BOOLEAN,
     default: isProduction,
     env: 'ENABLE_METRICS'
   },
@@ -198,7 +201,7 @@ const config = convict({
   },
   useSwagger: {
     doc: 'Enable Swagger API documentation at /docs',
-    format: 'strict-boolean',
+    format: STRICT_BOOLEAN,
     default: false,
     env: 'USE_SWAGGER'
   },
