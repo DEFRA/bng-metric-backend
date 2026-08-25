@@ -22,13 +22,66 @@ import {
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
-import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
+import {
+  metricsCounter,
+  metricsByteSize,
+  metricsMillis,
+  metricsGauge
+} from '../common/helpers/metrics.js'
 import {
   GEOPACKAGE_METRIC,
+  PERFORMANCE_METRIC,
   VALIDATION_CATEGORY
 } from '../common/helpers/metric-names.js'
+import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
 
 const logger = createLogger()
+
+/** Layer keys in a parsed GeoPackage that are not arrays of features. */
+const NON_FEATURE_LAYER_KEYS = new Set(['missingLayers'])
+
+/**
+ * Total features parsed out of a GeoPackage, across every layer. This is the
+ * scale figure that makes every duration below interpretable — a 4 s validate
+ * means nothing without knowing whether it covered 40 parcels or 40,000.
+ *
+ * @param {object} layers
+ * @returns {number}
+ */
+function countFeatures(layers) {
+  let total = 0
+  for (const [key, value] of Object.entries(layers ?? {})) {
+    if (!NON_FEATURE_LAYER_KEYS.has(key) && Array.isArray(value)) {
+      total += value.length
+    }
+  }
+  return total
+}
+
+/**
+ * Record one pipeline stage twice over, because the two destinations answer
+ * different questions and neither substitutes for the other:
+ *
+ *   - a `pipeline-inline` evidence LINE, carrying the high-cardinality detail
+ *     (uploadId, feature counts) that you need when investigating one slow
+ *     upload in the logs;
+ *   - an EMF duration METRIC, carrying only a two-valued `documentKey`
+ *     dimension, which is what CloudWatch aggregates and Grafana charts.
+ *
+ * Both come off the same measurement, so a dashboard and a log line can never
+ * disagree about how long a stage took.
+ *
+ * @param {string} metricName one of PERFORMANCE_METRIC
+ * @param {number} durationMs
+ * @param {object} fields evidence-line fields (must include `stage`)
+ * @param {object} config route config carrying projectDocumentKey
+ */
+async function recordStage(metricName, durationMs, fields, config) {
+  logPerf(logger, 'pipeline-inline', { ...fields, elapsedMs: durationMs })
+  await metricsMillis(metricName, durationMs, {
+    documentKey: config.projectDocumentKey
+  })
+}
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -134,11 +187,27 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
 
 async function validateLayers(layers, drizzle, pgPool, context, h, config) {
   const { uploadId, projectId, credentials, filename, fileSize } = context
+
+  // Evidence (Item 1 — the whole pipeline runs inline on the request handler):
+  // geometry validation is a single awaited PostGIS round trip whose cost scales
+  // with the feature count, and it holds the handler for its full duration.
+  const validateStart = perfNow()
   const result = await validateGeoPackageLayers(
     layers,
     pgPool,
     config.projectDocumentKey
   )
+  await recordStage(
+    PERFORMANCE_METRIC.postgisValidateMs,
+    msSince(validateStart),
+    {
+      uploadId,
+      stage: 'postgis-validate',
+      featureCount: countFeatures(layers)
+    },
+    config
+  )
+
   if (!result.valid) {
     return respondToGeometryRejection(result, uploadId, h, config)
   }
@@ -177,7 +246,31 @@ async function runFullValidation(
   const { uploadId } = context
 
   try {
+    // Evidence (Item 2 — features and geometries are loaded synchronously):
+    // better-sqlite3 is a synchronous binding, so this call blocks the event
+    // loop for its whole duration; nothing else on this instance progresses.
+    // Reading from disk rather than a Buffer does not change that.
+    const parseStart = perfNow()
     const gateResult = validateAndReadGpkgFile(filePath)
+    const parseMs = msSince(parseStart)
+    const featureCount = countFeatures(gateResult.layers)
+
+    await recordStage(
+      PERFORMANCE_METRIC.parseMs,
+      parseMs,
+      {
+        uploadId,
+        stage: 'parse',
+        fileSizeBytes: context.fileSize ?? null,
+        featureCount,
+        valid: gateResult.valid
+      },
+      config
+    )
+    await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
+      documentKey: config.projectDocumentKey
+    })
+
     if (!gateResult.valid) {
       return await respondToGateRejection(gateResult, uploadId, h, config)
     }
@@ -269,6 +362,8 @@ function createValidateGeoPackageRoute(config) {
       // validation is done with it, so concurrent uploads cannot stack up
       // whole files in memory.
       const upload = await fetchUploadFile(bucket, key, uploadId, config)
+
+      const totalStart = perfNow()
       try {
         return await runFullValidation(
           upload.path,
@@ -286,6 +381,17 @@ function createValidateGeoPackageRoute(config) {
             `${config.routeName}: failed to remove the downloaded file for uploadId ${uploadId}: ${err.message}`
           )
         })
+        // Evidence (Item 1): the end-to-end handler time a user waits on, with
+        // every stage above still running on this one request. Recorded in the
+        // `finally` so a failed upload — often the slowest kind — is measured
+        // too, matching how each stage above records before checking for
+        // errors.
+        await recordStage(
+          PERFORMANCE_METRIC.totalMs,
+          msSince(totalStart),
+          { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
+          config
+        )
       }
     }
   }

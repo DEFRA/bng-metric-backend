@@ -4,6 +4,50 @@ import { configDotenv } from 'dotenv'
 
 convict.addFormats(convictFormatWithValidator)
 
+/** Name of the boolean format registered below and used by every flag. */
+const STRICT_BOOLEAN = 'strict-boolean'
+
+/** Environment-variable spellings accepted as true. */
+const TRUTHY_VALUES = new Set(['true', 'yes', 'on', '1'])
+
+/** Environment-variable spellings accepted as false. */
+const FALSY_VALUES = new Set(['false', 'no', 'off', '0'])
+
+/**
+ * Boolean flag read from an environment variable.
+ *
+ * Convict's built-in `Boolean` format only recognises the exact string
+ * 'false' as false, so the conventional `FLAG=0` is coerced to TRUE — silently
+ * enabling whatever the operator meant to switch off. This format accepts the
+ * spellings people actually type (true/false, yes/no, on/off, 1/0, any case)
+ * and rejects anything else outright, so a typo fails at startup rather than
+ * leaving a flag in the opposite state to the one intended.
+ */
+convict.addFormat({
+  name: STRICT_BOOLEAN,
+  coerce: (value) => {
+    if (typeof value === 'boolean') {
+      return value
+    }
+    const normalised = String(value).trim().toLowerCase()
+    if (TRUTHY_VALUES.has(normalised)) {
+      return true
+    }
+    if (FALSY_VALUES.has(normalised)) {
+      return false
+    }
+    // Left unchanged so validate below reports it, naming the bad value.
+    return value
+  },
+  validate: (value) => {
+    if (typeof value !== 'boolean') {
+      throw new TypeError(
+        `must be one of true/false, yes/no, on/off or 1/0 (got "${value}")`
+      )
+    }
+  }
+})
+
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
@@ -61,7 +105,7 @@ const config = convict({
     },
     iamAuthentication: {
       doc: 'Enable IAM authentication for postgres',
-      format: Boolean,
+      format: STRICT_BOOLEAN,
       default: isProduction,
       env: 'DB_IAM_AUTHENTICATION'
     },
@@ -82,7 +126,7 @@ const config = convict({
     },
     forcePathStyle: {
       doc: 'Use path-style addressing for S3 (required for localstack)',
-      format: Boolean,
+      format: STRICT_BOOLEAN,
       default: isDevelopment,
       env: 'S3_FORCE_PATH_STYLE'
     }
@@ -110,7 +154,7 @@ const config = convict({
   log: {
     isEnabled: {
       doc: 'Is logging enabled',
-      format: Boolean,
+      format: STRICT_BOOLEAN,
       default: !isTest,
       env: 'LOG_ENABLED'
     },
@@ -143,9 +187,15 @@ const config = convict({
   },
   isMetricsEnabled: {
     doc: 'Enable metrics reporting',
-    format: Boolean,
+    format: STRICT_BOOLEAN,
     default: isProduction,
     env: 'ENABLE_METRICS'
+  },
+  isPerfEvidenceEnabled: {
+    doc: 'Emit perf-evidence log lines for the System Performance Issues spike',
+    format: STRICT_BOOLEAN,
+    default: true,
+    env: 'ENABLE_PERF_EVIDENCE'
   },
   tracing: {
     header: {
@@ -157,7 +207,7 @@ const config = convict({
   },
   useSwagger: {
     doc: 'Enable Swagger API documentation at /docs',
-    format: Boolean,
+    format: STRICT_BOOLEAN,
     default: false,
     env: 'USE_SWAGGER'
   },

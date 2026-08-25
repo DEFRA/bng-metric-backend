@@ -1,5 +1,12 @@
 import { wkbToGeoJSON } from 'bng-library/gpkg-io'
 
+import { createLogger } from '../../common/helpers/logging/logger.js'
+import {
+  logPerf,
+  perfNow,
+  msSince
+} from '../../common/helpers/perf-evidence.js'
+
 import {
   EPSG_WGS84,
   EPSG_BNG,
@@ -20,6 +27,8 @@ import {
   getWkbType,
   quoteSqliteIdent
 } from './geopackage-internals-sqlite.js'
+
+const logger = createLogger()
 
 /**
  * Single-pass reader for the feature layers of an open GeoPackage.
@@ -354,7 +363,9 @@ function readFeatureTable(db, tableName, decodeGeometry) {
   }
   table.geometryColumnSafe = true
 
+  const fetchStart = perfNow()
   const rows = selectAllRows(db, table)
+  const fetchMs = msSince(fetchStart)
   if (!rows) {
     return table
   }
@@ -363,7 +374,21 @@ function readFeatureTable(db, tableName, decodeGeometry) {
     return table
   }
 
+  const scanStart = perfNow()
   scanRows(rows, table, decodeGeometry)
+  // Evidence (Item 2 — every feature and geometry is loaded synchronously): the
+  // whole table is pulled into memory with .all(), then every blob is classified
+  // (and, when decoding, unpacked to GeoJSON) in this synchronous walk.
+  // better-sqlite3 has no async mode, so the event loop is blocked for
+  // fetchMs + decodeMs together, and both grow with the row count.
+  logPerf(logger, 'sync-feature-load', {
+    table: tableName,
+    rowCount: rows.length,
+    featureCount: table.features.length,
+    decodeGeometry,
+    fetchMs,
+    decodeMs: msSince(scanStart)
+  })
   return table
 }
 

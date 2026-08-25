@@ -7,6 +7,11 @@ import {
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { summarizeFeatureSetUnitsTotals } from '../../features/feature-set-units.js'
 import {
+  logPerf,
+  perfNow,
+  msSince
+} from '../../../common/helpers/perf-evidence.js'
+import {
   LOG_ENRICH_PREFIX,
   calculateAreaHabitatWithCandidates,
   normalizeConditionForEngine,
@@ -185,6 +190,7 @@ export function enrichBaselineDocumentWithUnits(
   baselineDocument,
   logger = NO_OP_LOGGER
 ) {
+  const enrichStart = perfNow()
   // Area-habitat parcels and individual trees enrich on the same path: a tree is
   // a special area habitat whose notional area (set on import from the per-size
   // reference) feeds the area-habitat unit calculation, with the engine resolving
@@ -221,5 +227,16 @@ export function enrichBaselineDocumentWithUnits(
   )
 
   summarizeFeatureSetUnitsTotals(baselineDocument)
+  // Evidence (Item 8 — engine enrichment loops every feature inline): linear in
+  // the feature count, but fully synchronous and on the same request handler,
+  // stacking on top of the parse and validate work that preceded it.
+  logPerf(logger, 'enrich-inline-loop', {
+    enrichedFeatureCount:
+      (baselineDocument?.habitats?.length ?? 0) +
+      (baselineDocument?.trees?.length ?? 0) +
+      (baselineDocument?.hedgerows?.length ?? 0) +
+      (baselineDocument?.watercourses?.length ?? 0),
+    enrichMs: msSince(enrichStart)
+  })
   return baselineDocument
 }

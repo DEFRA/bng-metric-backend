@@ -1,4 +1,12 @@
+import { createLogger } from '../../common/helpers/logging/logger.js'
+import {
+  logPerf,
+  perfNow,
+  msSince
+} from '../../common/helpers/perf-evidence.js'
 import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
+
+const logger = createLogger()
 
 const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 
@@ -110,12 +118,20 @@ async function calculateHabitatSizes(pool, layers) {
     return emptyResult()
   }
 
+  const queryStart = perfNow()
   const { rows } = await pool.query(CALCULATE_HABITAT_SIZES_QUERY, [
     layerNames,
     featureIds,
     geoms,
     srids
   ])
+  // Evidence (Item 6 — the sizing pass overlaps a second PostGIS round trip):
+  // a separate awaited query that recomputes ST_MakeValid per feature,
+  // duplicating the geometry-repair work the validation statement already did.
+  logPerf(logger, 'postgis-sizing-query', {
+    featureCount: geoms.length,
+    queryMs: msSince(queryStart)
+  })
 
   const result = emptyResult()
   appendCalculatedSizes(result, rows)

@@ -10,6 +10,8 @@ import { toProjectResponse } from '../utilities/project/to-project-response.js'
 import { toProjectListResponses } from '../utilities/project/to-project-list-response.js'
 import { paginationKeys } from '../validation/pagination.js'
 import { projectSchema } from '../validation/project.js'
+import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
+import { habitatByIdColumns } from '../db/project-features.js'
 
 /**
  * @openapi
@@ -190,6 +192,7 @@ const getProjects = {
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
     const { limit, offset } = request.query
+    const queryStart = perfNow()
     const rows = await request.drizzle
       .select(projectListColumns)
       .from(projects)
@@ -200,6 +203,20 @@ const getProjects = {
       .orderBy(desc(projects.updatedAt), asc(projects.id))
       .limit(limit)
       .offset(offset)
+    // Evidence (Item W2 — the project list filters on unindexed columns): the
+    // response body itself is no longer the problem (BMD-933 projected it down
+    // to four columns and bounded it with limit/offset), but bng.projects still
+    // carries no index beyond its primary key, so the visibility predicate —
+    // user_id plus a correlated subquery against bng.users for the current
+    // relationship — is evaluated by a sequential scan whose cost grows with the
+    // table, not with the page size the caller asked for.
+    logPerf(request.logger, 'project-list-query', {
+      endpoint: 'projects',
+      rowCount: rows.length,
+      limit,
+      offset,
+      queryMs: msSince(queryStart)
+    })
     return toProjectListResponses(rows)
   }
 }
@@ -276,8 +293,10 @@ const getHabitat = {
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
     const { projectId, featureId } = request.params
+    // Item W4: Postgres returns just the matching habitat rather than the whole
+    // project document — see the header of src/db/project-features.js.
     const rows = await request.drizzle
-      .select()
+      .select(habitatByIdColumns({ featureId }))
       .from(projects)
       .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
@@ -285,8 +304,7 @@ const getHabitat = {
       throw Boom.notFound(`Project ${projectId} not found`)
     }
 
-    const habitats = rows[0].project?.baseline?.habitats ?? []
-    const habitat = habitats.find((h) => h.featureId === featureId)
+    const habitat = rows[0].habitat
     if (!habitat) {
       throw Boom.notFound(
         `Habitat ${featureId} not found in project ${projectId}`
