@@ -53,7 +53,7 @@ async function createServer() {
   await server.register([
     requestLogger,
     // rateEvidence - observability only (spike Item W3): logs uncapped
-    // per-client request bursts. It does NOT rate-limit anything.
+    // service-wide request bursts. It does NOT rate-limit anything.
     rateEvidence,
     requestTracing,
     requestCorrelation,
