@@ -9,6 +9,7 @@ import {
   utf8Bytes,
   PERF_EVIDENCE_MARKER
 } from './perf-evidence.js'
+import { config } from '../../config.js'
 
 describe('#perfEvidence', () => {
   describe('logPerf', () => {
@@ -40,6 +41,21 @@ describe('#perfEvidence', () => {
 
     test('Should no-op for a logger with no info method', () => {
       expect(() => logPerf({}, 'pipeline-inline')).not.toThrow()
+    })
+
+    test('Should emit nothing at all when the evidence flag is off', () => {
+      const info = vi.fn()
+      config.set('isPerfEvidenceEnabled', false)
+
+      try {
+        logPerf({ info }, 'pipeline-inline', { elapsedMs: 42 })
+      } finally {
+        config.set('isPerfEvidenceEnabled', true)
+      }
+
+      // One flag silences all 13 call sites, which is the point of routing
+      // every one of them through this helper.
+      expect(info).not.toHaveBeenCalled()
     })
 
     test('Should swallow a logger that throws rather than fail the caller', () => {

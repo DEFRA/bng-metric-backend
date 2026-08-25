@@ -1,4 +1,4 @@
-// Lightweight, always-on structured logging used to gather EVIDENCE for the
+// Lightweight, on-by-default structured logging used to gather EVIDENCE for the
 // performance issues catalogued in the "System Performance Issues" spike. Each
 // call emits a single structured pino line carrying a stable `perfEvidence`
 // marker (the spike issue id) plus measured fields — durations in ms, byte
@@ -9,11 +9,28 @@
 // does not change behaviour. Kept in one place so the marker and field shape
 // stay consistent across every instrumented site.
 //
+// It is TEMPORARY, and it has a switch and an expiry:
+//
+//   - `isPerfEvidenceEnabled` (ENABLE_PERF_EVIDENCE) silences every evidence
+//     line in one place, per environment, without a code change. Defaults on
+//     while the spike is gathering. Every call site funnels through logPerf,
+//     so the flag is the whole gate.
+//   - It should be DELETED, not merely switched off, once the spike items it
+//     documents (W2, W5, W6, W7) have been triaged — see BMD-XXX. W4's sites
+//     have already gone this way: the by-id reads no longer fetch the whole
+//     document, so the evidence for that item went with the problem.
+//
+// Without both, "temporary" is only an intention: the lines fire on the login
+// path, both project-list queries and the reference-data getters, so the log
+// volume scales with traffic and never ends on its own.
+//
 // Log lines are for INVESTIGATION (high-cardinality detail: uploadId, table
 // names, per-call timings, searchable in the logs UI). They are not charted.
 // The aggregate view lives in CloudWatch/Grafana and is emitted separately via
 // src/common/helpers/metrics.js — see the note in metric-names.js for which
 // measurements are promoted to a metric and why the two are kept apart.
+
+import { config } from '../../config.js'
 
 /** Field name every evidence line carries, set to the spike issue id. */
 const PERF_EVIDENCE_MARKER = 'perfEvidence'
@@ -94,6 +111,10 @@ function utf8Bytes(value) {
  * module-level `createLogger()`. No-ops safely when no such logger is in scope
  * (e.g. the enrich path's NO_OP_LOGGER), so callers never have to guard.
  *
+ * No-ops entirely when `isPerfEvidenceEnabled` is off, checked here rather than
+ * at the 13 call sites — the same shape as withMetrics guarding on
+ * `isMetricsEnabled`.
+ *
  * Never throws. Evidence is now emitted from the login transaction, every
  * upload stage, the project-list query and the reference-data getters, so a
  * throwing logger would fail — or in the login case roll back — a request that
@@ -109,7 +130,7 @@ function utf8Bytes(value) {
  * @param {object} [fields] measured values to attach
  */
 function logPerf(logger, id, fields = {}) {
-  if (!logger?.info) {
+  if (!config.get('isPerfEvidenceEnabled') || !logger?.info) {
     return
   }
   try {

@@ -191,6 +191,12 @@ const config = convict({
     default: isProduction,
     env: 'ENABLE_METRICS'
   },
+  isPerfEvidenceEnabled: {
+    doc: 'Emit perf-evidence log lines for the System Performance Issues spike',
+    format: STRICT_BOOLEAN,
+    default: true,
+    env: 'ENABLE_PERF_EVIDENCE'
+  },
   tracing: {
     header: {
       doc: 'CDP tracing header name',

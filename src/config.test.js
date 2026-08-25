@@ -66,3 +66,32 @@ describe('#config boolean flags from the environment', () => {
     vi.unstubAllEnvs()
   })
 })
+
+describe('#config perf-evidence flag', () => {
+  const reload = async () => {
+    vi.resetModules()
+    const { config } = await import('./config.js')
+    return config
+  }
+
+  test('Should default to on so the spike gathers evidence everywhere', async () => {
+    const config = await reload()
+
+    expect(config.get('isPerfEvidenceEnabled')).toBe(true)
+  })
+
+  test.each([
+    ['false', false],
+    ['0', false],
+    ['off', false],
+    ['true', true]
+  ])('Should read ENABLE_PERF_EVIDENCE=%s as %s', async (value, expected) => {
+    vi.stubEnv('ENABLE_PERF_EVIDENCE', value)
+
+    const config = await reload()
+
+    expect(config.get('isPerfEvidenceEnabled')).toBe(expected)
+
+    vi.unstubAllEnvs()
+  })
+})
