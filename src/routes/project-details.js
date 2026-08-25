@@ -5,6 +5,7 @@ import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { setProjectDetails } from '../db/persist-project.js'
 import { visibleToUser } from '../db/project-visibility.js'
+import { projectDetailsColumns } from '../db/project-details.js'
 import { projectDetailsSchema } from '../validation/project.js'
 
 const getProjectDetails = {
@@ -19,8 +20,10 @@ const getProjectDetails = {
   handler: async (request, _h) => {
     const { id } = request.params
     const credentials = request.auth.credentials
+    // Postgres returns just the details sub-document rather than the whole
+    // project JSONB — see the header of src/db/project-details.js.
     const rows = await request.drizzle
-      .select()
+      .select(projectDetailsColumns)
       .from(projects)
       .where(and(eq(projects.id, id), visibleToUser(credentials)))
 
@@ -28,7 +31,7 @@ const getProjectDetails = {
       throw Boom.notFound(`Project ${id} not found`)
     }
 
-    return rows[0].project?.details ?? {}
+    return rows[0].details ?? {}
   }
 }
 
@@ -57,7 +60,7 @@ const updateProjectDetails = {
     if (!saved) {
       throw Boom.notFound(`Project ${id} not found`)
     }
-    return saved.project?.details ?? {}
+    return saved.details ?? {}
   }
 }
 

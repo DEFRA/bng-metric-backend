@@ -21,6 +21,7 @@ import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
+import { projectDetailsReturning } from './project-details.js'
 import {
   postInterventionDataSchema,
   postInterventionHabitatSchema,
@@ -245,8 +246,9 @@ async function setBaselineFeature(exec, id, params) {
 /**
  * Merge patch into project.details atomically (PATCH /projects/{id}/details).
  * Uses a single UPDATE with a COALESCE || jsonb expression so concurrent
- * writes cannot silently overwrite each other. Returns the updated row, or
- * null when no project matches `where`.
+ * writes cannot silently overwrite each other. Returns `{ details }` — only
+ * the merged sub-document is returned, not the whole project JSONB — or null
+ * when no project matches `where`.
  *
  * `where` defaults to matching the id alone; routes pass a stricter condition
  * (id AND RBAC visibility) so a non-visible project updates nothing and the
@@ -268,7 +270,7 @@ async function setProjectDetails(
       lastModifiedBy: actorId
     })
     .where(where)
-    .returning()
+    .returning(projectDetailsReturning)
   return row ?? null
 }
 

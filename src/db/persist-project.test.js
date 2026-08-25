@@ -43,7 +43,8 @@ function makeDb(returningRows = [{ id: PROJECT_ID, project: {} }]) {
     _insert: insert,
     _values: values,
     _update: update,
-    _set: set
+    _set: set,
+    _returning: returning
   }
 }
 
@@ -94,6 +95,16 @@ describe('setProjectName', () => {
     expect(db._update).toHaveBeenCalledTimes(1)
     expect(row).toEqual({ id: PROJECT_ID })
     expectActorStamped(db)
+  })
+
+  test('returns the whole row, which its route reads project.name from', async () => {
+    const db = makeDb([{ id: PROJECT_ID, project: { name: 'New name' } }])
+
+    await setProjectName(db, PROJECT_ID, 'New name', ACTOR_ID)
+
+    // Guards against the details projection landing here by mistake: this
+    // writer and setProjectDetails are otherwise identical in shape.
+    expect(db._returning).toHaveBeenCalledWith()
   })
 
   test('returns null when no project matches', async () => {
@@ -336,11 +347,24 @@ const validDetails = {
 }
 
 describe('setProjectDetails', () => {
-  test('writes and returns the row for valid details', async () => {
-    const db = makeDb([{ id: PROJECT_ID, project: { details: validDetails } }])
+  test('asks Postgres for the details alone, not the whole row', async () => {
+    const db = makeDb([{ details: validDetails }])
+
+    await setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID)
+
+    // The projection is the point of the change: an unprojected returning()
+    // would ship the entire project JSONB back to echo a few fields.
+    const [projection] = db._returning.mock.calls[0]
+    expect(Object.keys(projection)).toEqual(['details'])
+  })
+
+  test('writes and returns only the merged details', async () => {
+    // The UPDATE returns the details sub-document, not the whole row: echoing
+    // the merged fields never needs the project JSONB back.
+    const db = makeDb([{ details: validDetails }])
     const row = await setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID)
     expect(db._update).toHaveBeenCalledTimes(1)
-    expect(row).toEqual({ id: PROJECT_ID, project: { details: validDetails } })
+    expect(row).toEqual({ details: validDetails })
     expectActorStamped(db)
   })
 
