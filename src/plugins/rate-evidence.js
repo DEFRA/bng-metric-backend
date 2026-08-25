@@ -55,7 +55,7 @@ const IGNORED_PATHS = new Set(['/health'])
  */
 function createCounter() {
   return {
-    buckets: new Array(BUCKET_COUNT).fill(0),
+    buckets: Array.from({ length: BUCKET_COUNT }, () => 0),
     lastBucket: null,
     lastLoggedAt: 0
   }
@@ -68,6 +68,10 @@ function normalisePath(path) {
 
 /** Zero the buckets skipped since the last request, at most a whole window. */
 function expireSkippedBuckets(counter, bucket) {
+  if (counter.lastBucket === null) {
+    // Nothing counted yet, so there is nothing stale: the ring starts zeroed.
+    return
+  }
   const skipped = Math.min(bucket - counter.lastBucket, BUCKET_COUNT)
   for (let i = 1; i <= skipped; i += 1) {
     counter.buckets[(counter.lastBucket + i) % BUCKET_COUNT] = 0
@@ -78,9 +82,7 @@ function expireSkippedBuckets(counter, bucket) {
 function recordRequest(counter, now) {
   const bucket = Math.floor(now / BUCKET_MS)
 
-  if (counter.lastBucket === null) {
-    counter.lastBucket = bucket
-  } else if (bucket !== counter.lastBucket) {
+  if (bucket !== counter.lastBucket) {
     expireSkippedBuckets(counter, bucket)
     counter.lastBucket = bucket
   }
