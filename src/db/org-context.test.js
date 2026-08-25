@@ -20,12 +20,12 @@ const tokenWith = (relationshipId, entry) => ({
 })
 
 describe('resolveCurrentOrgContext', () => {
-  // BMD-936: the write side resolves the org context from bng.users, exactly as
-  // the read side does — a token's `currentRelationshipId` is not authoritative
-  // (a refresh_token grant can blank it, or default it to another relationship),
-  // and a project stamped from the token would be read back through the stored
-  // scope and vanish.
-  test('takes the context from bng.users even when the token carries one', async () => {
+  // BMD-936 (revised): the write side prefers the VERIFIED TOKEN, exactly as the
+  // read side does, so the two always agree. The token is the only per-session
+  // carrier of org context — resolving from bng.users alone cannot tell two
+  // concurrent sessions apart, and would stamp a project with whichever org
+  // signed in most recently on any device.
+  test('takes the context from the verified token when it carries one', async () => {
     const db = mockDb([{ relationshipId: 'rel-stored', orgId: 'org-stored' }])
 
     const result = await resolveCurrentOrgContext(
@@ -34,25 +34,44 @@ describe('resolveCurrentOrgContext', () => {
     )
 
     expect(result).toEqual({
-      relationshipId: 'rel-stored',
-      orgId: 'org-stored'
+      relationshipId: 'rel-token',
+      orgId: 'org-token'
     })
-    expect(db.select).toHaveBeenCalledOnce()
+    // No DB round-trip on the common path.
+    expect(db.select).not.toHaveBeenCalled()
   })
 
-  test('resolves the same context whatever the token claims', async () => {
+  test('stamps each concurrent session under its own org', async () => {
     const stored = [{ relationshipId: 'rel-stored', orgId: 'org-stored' }]
 
-    const fromSignIn = await resolveCurrentOrgContext(
+    const deviceA = await resolveCurrentOrgContext(
       mockDb(stored),
-      tokenWith('rel-stored', 'rel-stored:org-stored:Acme Ltd:0:Employee:1')
+      tokenWith('rel-a', 'rel-a:org-a:Acme Ltd:0:Employee:1')
     )
-    const afterRefresh = await resolveCurrentOrgContext(
+    const deviceB = await resolveCurrentOrgContext(
       mockDb(stored),
-      tokenWith('rel-other', 'rel-other:org-other:Globex:0:Employee:1')
+      tokenWith('rel-b', 'rel-b:org-b:Globex:0:Employee:1')
     )
 
-    expect(afterRefresh).toEqual(fromSignIn)
+    expect(deviceA.relationshipId).toBe('rel-a')
+    expect(deviceB.relationshipId).toBe('rel-b')
+  })
+
+  // Defra ID returns the same GUID in a different case on a refresh grant. The
+  // org id must still resolve, and the stamped value is canonicalised so the
+  // database holds one spelling per relationship.
+  test('matches the relationship case-insensitively and stamps canonically', async () => {
+    const db = mockDb([])
+
+    const result = await resolveCurrentOrgContext(
+      db,
+      tokenWith('REL-TOKEN', 'rel-token:org-token:Acme Ltd:0:Employee:1')
+    )
+
+    expect(result).toEqual({
+      relationshipId: 'rel-token',
+      orgId: 'org-token'
+    })
   })
 
   test('reads the stored context when the claim is missing entirely', async () => {

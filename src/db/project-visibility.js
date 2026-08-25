@@ -21,43 +21,46 @@
 import { and, eq, isNull, or, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
-import { ROLE_STATUS_APPROVED } from '../services/defra-id/claims.js'
+import {
+  currentOrgContext,
+  ROLE_STATUS_APPROVED
+} from '../services/defra-id/claims.js'
 
-// Resolve the relationship the user is currently acting in, ALWAYS from the
-// value bng.users recorded at their last interactive sign-in — never from the
-// token in front of us (BMD-936).
+// Resolve the relationship the user is currently acting in: the VERIFIED TOKEN
+// first, falling back to what bng.users recorded at their last interactive
+// sign-in.
 //
-// Defra ID (Azure AD B2C) runs its relationship/role enrichment only on an
-// interactive sign-in, so the org context in an id_token obtained through a
-// refresh_token grant is not authoritative. It can be blank, and it can also be
-// non-blank but WRONG — a default relationship rather than the one the user
-// actually chose. The frontend pins those claims in its own session, but it
-// forwards the RAW refreshed token, so the backend sees whatever B2C put in it.
-// Preferring that token meant a user's project list could empty out (blank
-// context) or silently switch orgs (defaulted context) purely because a token
-// happened to renew mid-session.
+// Preferring the token is what makes CONCURRENT SESSIONS work. bng.users holds
+// one row per user, so its current_relationship_id records only the most recent
+// sign-in anywhere. A user signed in on two devices under two different orgs is
+// indistinguishable from the database alone — both requests would resolve to
+// whichever org signed in last, silently serving one session the other's
+// projects. The token is the only per-session carrier of that context, so it has
+// to be the primary source (BMD-936).
 //
-// bng.users.current_relationship_id has none of that ambiguity. It is written
-// only by POST /auth/session from a verified token (src/db/persist-session.js),
-// and the org context only ever changes at an interactive sign-in — which always
-// re-posts the session — so the stored value is both authoritative and current.
-// Reading it here keeps the predicate zero-trust (nothing is taken from the
-// request beyond the verified `sub`) and synchronous, so it still drops straight
-// into any `.where(...)`.
+// BMD-936 briefly made this DB-only, because a refreshed id_token appeared to
+// return a DIFFERENT currentRelationshipId. That diagnosis was wrong: the drift
+// classifier in the frontend proved the refreshed value is the SAME id in a
+// DIFFERENT CASE (`differs:case-only`). GUIDs are case-insensitive (RFC 4122),
+// so Defra ID is entitled to emit either; our verbatim comparison was the whole
+// defect. Hence every relationship-id comparison here is lower()-folded, and the
+// token is trusted again.
 //
-// The one behaviour this gives up: if POST /auth/session failed at sign-in, the
-// row is absent and the user is scoped to their org-less projects rather than
-// being rescued by the token. That is the correct trade — a failed session
-// persist is a loud, logged, sign-in-time event (the frontend warns on it),
-// whereas the token fallback silently produced a DIFFERENT scope for reads and
-// writes depending on which grant issued the token.
+// The fallback still matters: a refresh_token grant can return the enrichment
+// claims blank (BMD-829), and a token with no org context must not empty out a
+// user's project list.
+//
+// lower() on the columns means the (user_id, relationship_id) index on bng.roles
+// can only use its leading user_id column for this predicate. user_id is highly
+// selective, so the residual scan is per-user and tiny; a functional index on
+// lower(relationship_id) is the fix if that ever stops being true.
 //
 // The CREATE path must resolve the context identically, or a project can be
 // stamped outside the scope it is read back through and disappear the moment it
 // is made — see resolveCurrentOrgContext in src/db/org-context.js.
-function currentRelationshipExpr(sub) {
-  return sql`(select u.current_relationship_id
-        from bng.users u where u.user_id = ${sub})`
+function currentRelationshipExpr(sub, relationshipId) {
+  return sql`coalesce(lower(${relationshipId}::text), lower((select u.current_relationship_id
+        from bng.users u where u.user_id = ${sub})))`
 }
 
 /**
@@ -66,25 +69,28 @@ function currentRelationshipExpr(sub) {
  * conditions via drizzle's `and(...)`.
  *
  * Takes the whole verified token payload rather than just the `sub`, so no call
- * site can scope by owner and forget the org. Only the `sub` is read from it —
- * the org context comes from bng.users, not the token (see
- * currentRelationshipExpr).
+ * site can scope by owner and forget the org.
  *
  * @param {object} credentials the verified token payload (request.auth.credentials)
  */
 function visibleToUser(credentials) {
   const sub = credentials?.sub
+  const { relationshipId } = currentOrgContext(credentials)
 
   return and(
     eq(projects.userId, sub),
     // `is not distinct from` so the null case matches too: a user with no org
     // context sees exactly their org-less projects, and nobody else's.
-    sql`${projects.relationshipId} is not distinct from ${currentRelationshipExpr(sub)}`,
+    sql`lower(${projects.relationshipId}) is not distinct from ${currentRelationshipExpr(sub, relationshipId)}`,
     or(
       isNull(projects.relationshipId),
+      // Case-folded on both sides: bng.roles rows are written from whatever case
+      // the sign-in token carried, and bng.projects.relationship_id from whatever
+      // the stamping token carried — which need not be the same case for the
+      // same relationship.
       sql`exists (select 1 from bng.roles r
             where r.user_id = ${sub}
-              and r.relationship_id = ${projects.relationshipId}
+              and lower(r.relationship_id) = lower(${projects.relationshipId})
               and r.status = ${ROLE_STATUS_APPROVED})`
     )
   )

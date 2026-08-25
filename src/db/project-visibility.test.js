@@ -58,47 +58,73 @@ describe('visibleToUser', () => {
   test('scopes the row to the relationship the user is currently acting in', () => {
     const { sql } = renderSql(inOrg(REL_A))
 
-    expect(sql).toContain('"relationship_id" is not distinct from')
+    expect(sql).toContain('is not distinct from')
     expect(sql).toContain('u.current_relationship_id')
   })
 
-  // BMD-936: the org context is read from bng.users, never from the token. A
-  // refresh_token grant's id_token can carry a blank currentRelationshipId, or a
-  // non-blank one naming a DIFFERENT relationship from the one the user chose at
-  // sign-in — so binding the token's value made a user's visible project set
-  // depend on which grant last issued their token.
-  test.each([
-    ['carries the current relationship', inOrg(REL_A)],
-    ['carries a different relationship', inOrg(REL_B)],
-    ['carries an empty relationship', claims({ currentRelationshipId: '' })],
-    ['carries no enrichment claims at all', claims()]
-  ])('ignores the token when it %s', (_name, credentials) => {
-    const { sql, params } = renderSql(credentials)
+  // BMD-936 (revised): the org context comes from the VERIFIED TOKEN first,
+  // falling back to bng.users. The token is the only per-session carrier of that
+  // context, so a DB-only scope cannot tell two concurrent sessions apart — a
+  // user signed in on two devices under two orgs would have both served
+  // whichever org signed in last.
+  test('binds the relationship the token carries', () => {
+    const { sql, params } = renderSql(inOrg(REL_A))
 
+    expect(sql).toContain('"relationship_id"')
     expect(sql).toContain('u.current_relationship_id')
-    expect(sql).toContain('bng.users u')
-    expect(params).not.toContain(REL_A)
+    expect(params).toContain(REL_A)
     expect(params).not.toContain(REL_B)
   })
 
-  test('resolves the same context regardless of what the token claims', () => {
-    // The read scope must not shift under a user mid-session. Two tokens for the
-    // same `sub` — one from sign-in, one from a refresh that defaulted the org —
-    // must produce byte-identical SQL and bindings.
-    const atSignIn = inOrg(REL_A)
-    const afterRefresh = claims({
-      currentRelationshipId: REL_B,
-      relationships: [`${REL_B}:org-b:Globex:0:Employee:1`],
-      roles: [`${REL_B}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`]
-    })
+  test('scopes two concurrent sessions to their own org', () => {
+    // The multi-session case this predicate exists to serve: same `sub`, two
+    // live tokens, different orgs — the SQL must differ between them.
+    const deviceA = renderSql(inOrg(REL_A))
+    const deviceB = renderSql(inOrg(REL_B))
 
-    expect(renderSql(afterRefresh)).toEqual(renderSql(atSignIn))
+    expect(deviceA.params).toContain(REL_A)
+    expect(deviceB.params).toContain(REL_B)
+    expect(deviceA.params).not.toEqual(deviceB.params)
   })
 
-  test('binds nothing from the token but the sub, plus the approved status', () => {
-    // owner scope, org-context subquery, role EXISTS — all keyed on `sub`.
+  test.each([
+    ['an empty relationship', claims({ currentRelationshipId: '' })],
+    ['no enrichment claims at all', claims()]
+  ])(
+    'falls back to the stored context when the token carries %s',
+    (_name, credentials) => {
+      // A refresh_token grant can return the enrichment claims blank (BMD-829);
+      // that must not empty out the user's project list.
+      const { sql, params } = renderSql(credentials)
+
+      expect(sql).toContain('u.current_relationship_id')
+      expect(params).not.toContain(REL_A)
+      expect(params).not.toContain(REL_B)
+    }
+  )
+
+  // Defra ID returns the same GUID in a different case on a refresh grant, and
+  // rows written from different tokens can disagree on case too — so every
+  // relationship-id comparison folds case.
+  test('compares every relationship id case-insensitively', () => {
+    const { sql } = renderSql(inOrg(REL_A))
+
+    expect(sql).toContain('lower("bng"."projects"."relationship_id")')
+    expect(sql).toContain('lower(r.relationship_id)')
+    expect(sql).toContain('lower((select u.current_relationship_id')
+  })
+
+  test('binds the sub, the token relationship and the approved status only', () => {
+    // owner scope, the token's org context, the stored-context fallback and the
+    // role EXISTS — nothing else reaches the query.
     const { params } = renderSql(inOrg(REL_A))
 
-    expect(params).toEqual([SUB, SUB, SUB, ROLE_STATUS.COMPLETE_APPROVED])
+    expect(params).toEqual([
+      SUB,
+      REL_A,
+      SUB,
+      SUB,
+      ROLE_STATUS.COMPLETE_APPROVED
+    ])
   })
 })

@@ -172,16 +172,27 @@ describe('#getProjects', () => {
   // only the relationship the user is currently signed in as is queried.
   // BMD-936: the org scope comes from bng.users, not from the token — see
   // currentRelationshipExpr in db/project-visibility.js.
-  test('Should scope the query to the stored org context only', async () => {
+  test('Should scope the query to the org the token is signed in as', async () => {
     const request = listRequest(USER_001, {}, multiOrgClaims(REL_A))
 
     await getProjects.handler(request, {})
 
     const { sql, params } = renderWhere(request.drizzle._chain.where)
-    expect(sql).toContain('"relationship_id" is not distinct from')
-    expect(sql).toContain('u.current_relationship_id')
-    expect(params).not.toContain(REL_A)
+    expect(sql).toContain('is not distinct from')
+    expect(params).toContain(REL_A)
     expect(params).not.toContain(REL_B)
+  })
+
+  // Two devices, one user, two orgs: each list must follow its OWN token.
+  test('Should give concurrent sessions their own org scope', async () => {
+    const deviceA = listRequest(USER_001, {}, multiOrgClaims(REL_A))
+    const deviceB = listRequest(USER_001, {}, multiOrgClaims(REL_B))
+
+    await getProjects.handler(deviceA, {})
+    await getProjects.handler(deviceB, {})
+
+    expect(renderWhere(deviceA.drizzle._chain.where).params).toContain(REL_A)
+    expect(renderWhere(deviceB.drizzle._chain.where).params).toContain(REL_B)
   })
 })
 
@@ -324,10 +335,8 @@ describe('#createProject', () => {
     expect(result).toEqual({ ...newProject, projectId: newProject.id })
   })
 
-  test('Should derive userId from the token and stamp the stored org context', async () => {
-    const drizzle = createMockDrizzleInsert(newProject, [
-      { relationshipId: 'rel-9', orgId: 'org-9' }
-    ])
+  test('Should derive userId and org context from the token', async () => {
+    const drizzle = createMockDrizzleInsert(newProject)
     const request = {
       drizzle,
       ...credsFor(USER_003, {
@@ -350,13 +359,13 @@ describe('#createProject', () => {
     })
   })
 
-  // BMD-936: the stored context wins outright. A refresh_token grant's id_token
-  // can name a different relationship from the one the user signed in under —
-  // stamping that would put the project outside the scope it is read back
-  // through, so it would vanish the moment it was created.
-  test('Should stamp the stored context, not a conflicting one from the token', async () => {
+  // BMD-936 (revised): the token wins, and the stored row is only a fallback.
+  // Resolving from bng.users alone would stamp a project with whichever org
+  // signed in last on ANY device, so a second concurrent session could silently
+  // move where this user's new projects land.
+  test('Should stamp the token context, not a stale stored one', async () => {
     const drizzle = createMockDrizzleInsert(newProject, [
-      { relationshipId: 'rel-signed-in', orgId: 'org-signed-in' }
+      { relationshipId: 'rel-other-device', orgId: 'org-other-device' }
     ])
     const request = {
       drizzle,
@@ -369,10 +378,11 @@ describe('#createProject', () => {
 
     await createProject.handler(request, {})
 
-    expect(drizzle.select).toHaveBeenCalled()
+    // The token answered it, so no fallback query is issued.
+    expect(drizzle.select).not.toHaveBeenCalled()
     expect(drizzle.insert().values.mock.calls[0][0]).toMatchObject({
-      relationshipId: 'rel-signed-in',
-      orgId: 'org-signed-in'
+      relationshipId: 'rel-9',
+      orgId: 'org-9'
     })
   })
 

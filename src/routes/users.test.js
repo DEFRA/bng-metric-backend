@@ -150,30 +150,23 @@ describe('#getUserProjects', () => {
   // BMD-890: a user approved in two orgs must only see the current one's
   // projects. The list endpoint is where the leak was visible.
   //
-  // BMD-936: that scope is now taken from bng.users rather than the token, so
-  // the assertion is that the query reads the stored context and binds no
-  // relationship from the token at all. Switching org still follows the user —
-  // a switch is an interactive re-sign-in, which re-posts /auth/session and
-  // rewrites bng.users.current_relationship_id.
+  // BMD-936 (revised): the scope follows the VERIFIED TOKEN, with bng.users only
+  // as a fallback. That is what lets the same user hold concurrent sessions in
+  // two orgs — the stored row remembers one org, the tokens remember one each.
   test.each([
-    ['signed in as one org', REL_CURRENT],
-    ['switched to the other org', REL_OTHER]
+    ['signed in as one org', REL_CURRENT, REL_OTHER],
+    ['switched to the other org', REL_OTHER, REL_CURRENT]
   ])(
-    'Should scope the list from the stored context when %s',
-    async (_name, tokenRelationship) => {
-      const request = makeRequest(
-        TEST_USER_ID,
-        {},
-        multiOrgClaims(tokenRelationship)
-      )
+    'Should scope the list to the token org when %s',
+    async (_name, signedInAs, otherOrg) => {
+      const request = makeRequest(TEST_USER_ID, {}, multiOrgClaims(signedInAs))
 
       await getUserProjects.handler(request, {})
 
       const { sql: whereSql, params } = renderWhere(request)
-      expect(whereSql).toContain('"relationship_id" is not distinct from')
-      expect(whereSql).toContain('u.current_relationship_id')
-      expect(params).not.toContain(REL_CURRENT)
-      expect(params).not.toContain(REL_OTHER)
+      expect(whereSql).toContain('is not distinct from')
+      expect(params).toContain(signedInAs)
+      expect(params).not.toContain(otherOrg)
     }
   )
 

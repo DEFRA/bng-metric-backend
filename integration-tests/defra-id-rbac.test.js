@@ -191,8 +191,8 @@ describe('POST /auth/session', () => {
   })
 })
 
-describe('createProject stamps the persisted org context', () => {
-  it('stores org_id and relationship_id from the persisted relationship', async () => {
+describe('createProject stamps the org context', () => {
+  it('stores org_id and relationship_id for the relationship in play', async () => {
     const sub = `it-${randomUUID()}`
     const token = await mintToken(
       sessionClaims({
@@ -202,9 +202,8 @@ describe('createProject stamps the persisted org context', () => {
         orgName: 'Stark Industries'
       })
     )
-    // BMD-936: the context is read from bng.users, so it has to have been
-    // persisted — which is what the frontend does at the OIDC callback, before
-    // the user can reach any project page. A token alone no longer carries it.
+    // Signing in first mirrors the real flow (the frontend posts the session at
+    // the OIDC callback) and means the roles rows exist for the RBAC check.
     expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
 
     const created = await createProject(token, 'Stamped Project')
@@ -338,6 +337,62 @@ describe('RBAC visibility', () => {
       ])
     }
   )
+
+  // BMD-936 (revised): the headline reason the org context is taken from the
+  // TOKEN and not from bng.users. The database holds ONE current_relationship_id
+  // per user, so once a second device signs in as another org, a DB-only scope
+  // serves BOTH sessions that second org — the first device silently starts
+  // seeing the wrong organisation's projects without anything having changed on
+  // it. Note there is deliberately no re-sign-in before the final assertions:
+  // each token is used exactly as a live session would still hold it.
+  it('keeps concurrent sessions in different orgs apart', async () => {
+    const sub = `it-${randomUUID()}`
+
+    const deviceA = await signInAs(sub, REL_ORG_A)
+    await createProject(deviceA, 'Org A project')
+
+    // A second device signs in as the other org. bng.users now records org B.
+    const deviceB = await signInAs(sub, REL_ORG_B)
+    await createProject(deviceB, 'Org B project')
+
+    expect(projectNames(await listProjects(deviceB))).toEqual(['Org B project'])
+    // The still-live first session must be unaffected by the second sign-in.
+    expect(projectNames(await listProjects(deviceA))).toEqual(['Org A project'])
+  })
+
+  it("stamps a new project under the creating session's org, not the last sign-in", async () => {
+    const sub = `it-${randomUUID()}`
+
+    const deviceA = await signInAs(sub, REL_ORG_A)
+    await signInAs(sub, REL_ORG_B) // another device moves the stored context
+
+    await createProject(deviceA, 'Made on device A')
+
+    // Created under A, so it is visible to A and invisible to B.
+    expect(projectNames(await listProjects(deviceA))).toEqual([
+      'Made on device A'
+    ])
+  })
+
+  // Defra ID returns the same relationship GUID in a different CASE on a
+  // refresh_token grant than on interactive sign-in. GUIDs are case-insensitive
+  // (RFC 4122), so a refreshed session must keep seeing its own projects.
+  it('scopes a refreshed token whose relationship id is cased differently', async () => {
+    const sub = `it-${randomUUID()}`
+
+    const atSignIn = await signInAs(sub, REL_ORG_A)
+    await createProject(atSignIn, 'Org A project')
+
+    // The same session after a silent refresh: same relationship, upper-cased,
+    // and never re-posted to /auth/session (a refresh does not re-persist).
+    const afterRefresh = await mintToken(
+      multiOrgClaims({ sub, current: REL_ORG_A.toUpperCase() })
+    )
+
+    expect(projectNames(await listProjects(afterRefresh))).toEqual([
+      'Org A project'
+    ])
+  })
 
   it('refuses writes to another organisation’s project', async () => {
     const sub = `it-${randomUUID()}`
