@@ -9,10 +9,9 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
-import { findFeature } from '../utilities/features/find-feature.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
-import { logPerf, utf8Bytes } from '../common/helpers/perf-evidence.js'
+import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
 
 /**
  * @openapi
@@ -88,8 +87,13 @@ function createGetFeatureRoute({ path, documentKey }) {
     handler: async (request, _h) => {
       const credentials = request.auth.credentials
       const { projectId, featureId } = request.params
+      // Item W4: Postgres searches the layers and returns just the matching
+      // feature, so the whole document no longer crosses the wire to be parsed
+      // here — see the header of src/db/project-features.js. A visible project
+      // still returns a row when it holds no such feature, which is what keeps
+      // the two 404s apart.
       const rows = await request.drizzle
-        .select()
+        .select(featureByIdColumns({ documentKey, featureId }))
         .from(projects)
         .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
@@ -97,24 +101,12 @@ function createGetFeatureRoute({ path, documentKey }) {
         throw Boom.notFound(`Project ${projectId} not found`)
       }
 
-      const featureSet = rows[0].project?.[documentKey]
-      const found = findFeature(featureSet, featureId)
+      const found = readFeatureMatch(rows[0], featureId)
       if (!found) {
         throw Boom.notFound(
           `Feature ${featureId} not found in project ${projectId}`
         )
       }
-      // Evidence (Item W4 — single-feature reads fetch the whole document): the
-      // entire project JSONB was shipped from Postgres and deserialised to
-      // return one feature. Unlike the LIST endpoints (fixed in BMD-933 by
-      // projecting four columns), the by-id reads still select everything.
-      // docBytes is what crossed the wire; featureBytes is what the caller
-      // asked for.
-      logPerf(request.logger, 'single-feature-full-doc', {
-        documentKey,
-        docBytes: utf8Bytes(JSON.stringify(rows[0].project ?? {})),
-        featureBytes: utf8Bytes(JSON.stringify(found.feature))
-      })
       return { type: found.type, feature: found.feature }
     }
   }
@@ -261,4 +253,4 @@ async function runFeatureUpdate(
   return { type: result.type, feature: result.feature }
 }
 
-export { getFeature, getPostInterventionFeature, updateFeature, findFeature }
+export { getFeature, getPostInterventionFeature, updateFeature }

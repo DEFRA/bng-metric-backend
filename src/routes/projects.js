@@ -10,12 +10,8 @@ import { toProjectResponse } from '../utilities/project/to-project-response.js'
 import { toProjectListResponses } from '../utilities/project/to-project-list-response.js'
 import { paginationKeys } from '../validation/pagination.js'
 import { projectSchema } from '../validation/project.js'
-import {
-  logPerf,
-  perfNow,
-  msSince,
-  utf8Bytes
-} from '../common/helpers/perf-evidence.js'
+import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
+import { habitatByIdColumns } from '../db/project-features.js'
 
 /**
  * @openapi
@@ -297,8 +293,10 @@ const getHabitat = {
   handler: async (request, _h) => {
     const credentials = request.auth.credentials
     const { projectId, featureId } = request.params
+    // Item W4: Postgres returns just the matching habitat rather than the whole
+    // project document — see the header of src/db/project-features.js.
     const rows = await request.drizzle
-      .select()
+      .select(habitatByIdColumns({ featureId }))
       .from(projects)
       .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
@@ -306,23 +304,12 @@ const getHabitat = {
       throw Boom.notFound(`Project ${projectId} not found`)
     }
 
-    const habitats = rows[0].project?.baseline?.habitats ?? []
-    const habitat = habitats.find((h) => h.featureId === featureId)
+    const habitat = rows[0].habitat
     if (!habitat) {
       throw Boom.notFound(
         `Habitat ${featureId} not found in project ${projectId}`
       )
     }
-    // Evidence (Item W4 — single-feature reads fetch the whole document): the
-    // full project JSONB was selected and deserialised just to find() one
-    // habitat. docBytes is the whole document shipped from Postgres; only
-    // featureBytes is returned to the caller.
-    logPerf(request.logger, 'single-feature-full-doc', {
-      documentKey: 'baseline',
-      habitatCount: habitats.length,
-      docBytes: utf8Bytes(JSON.stringify(rows[0].project ?? {})),
-      featureBytes: utf8Bytes(JSON.stringify(habitat))
-    })
     return habitat
   }
 }

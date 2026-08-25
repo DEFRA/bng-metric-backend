@@ -532,8 +532,20 @@ describe('#getHabitat', () => {
     userId: USER_001
   }
 
+  // getHabitat now asks Postgres for the matching habitat rather than the whole
+  // document, so the stub returns the row habitatByIdColumns yields.
+  const habitatRow = (projectRow, featureId) => ({
+    id: projectRow.id,
+    habitat:
+      projectRow.project?.baseline?.habitats?.find(
+        (h) => h.featureId === featureId
+      ) ?? null
+  })
+
   test('Returns the matching habitat document', async () => {
-    const drizzle = createMockDrizzle([projectWithHabitats])
+    const drizzle = createMockDrizzle([
+      habitatRow(projectWithHabitats, HABITAT_1_ID)
+    ])
     const request = {
       drizzle,
       ...credsFor(USER_001),
@@ -560,7 +572,10 @@ describe('#getHabitat', () => {
 
   test('Throws 404 when the project has no baseline yet', async () => {
     const drizzle = createMockDrizzle([
-      { id: PROJECT_1_ID, project: { name: 'No baseline' }, userId: USER_001 }
+      habitatRow(
+        { id: PROJECT_1_ID, project: { name: 'No baseline' } },
+        HABITAT_1_ID
+      )
     ])
     const request = {
       drizzle,
@@ -573,7 +588,9 @@ describe('#getHabitat', () => {
   })
 
   test('Throws 404 when the habitat featureId does not match', async () => {
-    const drizzle = createMockDrizzle([projectWithHabitats])
+    const drizzle = createMockDrizzle([
+      habitatRow(projectWithHabitats, UNKNOWN_HABITAT_ID)
+    ])
     const request = {
       drizzle,
       ...credsFor(USER_001),
