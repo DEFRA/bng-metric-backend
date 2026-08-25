@@ -4,10 +4,9 @@ import {
   perfNow,
   msSince
 } from '../../common/helpers/perf-evidence.js'
+import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
 
 const logger = createLogger()
-
-import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
 
 const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 
