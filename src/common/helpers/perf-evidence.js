@@ -16,7 +16,7 @@
 //     while the spike is gathering. Every call site funnels through logPerf,
 //     so the flag is the whole gate.
 //   - It should be DELETED, not merely switched off, once the spike items it
-//     documents (W2, W5, W6, W7) have been triaged — see BMD-XXX. W4's sites
+//     documents (W2, W5, W6, W7) have been triaged — see BMD-869. W4's sites
 //     have already gone this way: the by-id reads no longer fetch the whole
 //     document, so the evidence for that item went with the problem.
 //
