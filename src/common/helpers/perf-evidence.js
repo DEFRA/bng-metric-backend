@@ -94,6 +94,16 @@ function utf8Bytes(value) {
  * module-level `createLogger()`. No-ops safely when no such logger is in scope
  * (e.g. the enrich path's NO_OP_LOGGER), so callers never have to guard.
  *
+ * Never throws. Evidence is now emitted from the login transaction, every
+ * upload stage, the project-list query and the reference-data getters, so a
+ * throwing logger would fail — or in the login case roll back — a request that
+ * was only recording a measurement. Same policy as withMetrics in metrics.js:
+ * instrumentation must never break the work it observes.
+ *
+ * Note this guards the EMIT, not the arguments: anything the caller computes to
+ * build `fields` is evaluated before this function is entered, so a throw there
+ * still propagates. withMetrics has the same boundary.
+ *
  * @param {{ info?: Function } | undefined} logger
  * @param {string} id spike issue id, e.g. 'pipeline-inline'
  * @param {object} [fields] measured values to attach
@@ -102,7 +112,17 @@ function logPerf(logger, id, fields = {}) {
   if (!logger?.info) {
     return
   }
-  logger.info({ [PERF_EVIDENCE_MARKER]: id, ...fields }, `perf-evidence: ${id}`)
+  try {
+    logger.info(
+      { [PERF_EVIDENCE_MARKER]: id, ...fields },
+      `perf-evidence: ${id}`
+    )
+  } catch {
+    // The logger itself is what failed, so there is nowhere to report it —
+    // reporting a logging failure through logging is circular, and a fresh
+    // logger would share the broken transport. Drop the evidence instead:
+    // losing a measurement is always preferable to failing the request.
+  }
 }
 
 export {

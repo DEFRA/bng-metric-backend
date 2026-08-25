@@ -41,6 +41,19 @@ describe('#perfEvidence', () => {
     test('Should no-op for a logger with no info method', () => {
       expect(() => logPerf({}, 'pipeline-inline')).not.toThrow()
     })
+
+    test('Should swallow a logger that throws rather than fail the caller', () => {
+      const info = vi.fn(() => {
+        throw new Error('transport closed')
+      })
+
+      // Evidence is emitted from inside the login transaction among other
+      // places — a throw here would roll back work that had succeeded.
+      expect(() =>
+        logPerf({ info }, 'pipeline-inline', { ms: 1 })
+      ).not.toThrow()
+      expect(info).toHaveBeenCalled()
+    })
   })
 
   describe('elapsed-time helpers', () => {
