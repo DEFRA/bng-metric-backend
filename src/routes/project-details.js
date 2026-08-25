@@ -5,7 +5,7 @@ import Joi from 'joi'
 import { projects } from '../db/schema/index.js'
 import { setProjectDetails } from '../db/persist-project.js'
 import { visibleToUser } from '../db/project-visibility.js'
-import { projectDetailsColumns } from '../db/project-details.js'
+import { projectDetailsColumns } from '../db/project-details-columns.js'
 import { projectDetailsSchema } from '../validation/project.js'
 
 const getProjectDetails = {
@@ -21,7 +21,7 @@ const getProjectDetails = {
     const { id } = request.params
     const credentials = request.auth.credentials
     // Postgres returns just the details sub-document rather than the whole
-    // project JSONB — see the header of src/db/project-details.js.
+    // project JSONB — see the header of src/db/project-details-columns.js.
     const rows = await request.drizzle
       .select(projectDetailsColumns)
       .from(projects)

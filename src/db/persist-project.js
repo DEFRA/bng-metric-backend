@@ -21,7 +21,7 @@ import Boom from '@hapi/boom'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
-import { projectDetailsReturning } from './project-details.js'
+import { projectDetailsReturning } from './project-details-columns.js'
 import {
   postInterventionDataSchema,
   postInterventionHabitatSchema,

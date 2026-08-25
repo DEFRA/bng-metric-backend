@@ -15,8 +15,8 @@ import { sql } from 'drizzle-orm'
 import { projects } from './schema/index.js'
 
 /**
- * The `details` sub-document, extracted by Postgres. A fresh expression per
- * call so the two maps below never share one instance.
+ * The `details` sub-document, extracted by Postgres. Built per call so the read
+ * and write maps below each hold their own expression.
  */
 function detailsColumn() {
   return sql`${projects.project} -> 'details'`.as('details')

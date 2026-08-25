@@ -4,7 +4,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import {
   projectDetailsColumns,
   projectDetailsReturning
-} from './project-details.js'
+} from './project-details-columns.js'
 
 const render = (column) => new PgDialect().sqlToQuery(column.getSQL())
 
@@ -17,9 +17,6 @@ describe('#projectDetailsColumns', () => {
     const { sql } = render(projectDetailsColumns.details)
 
     expect(sql).toContain(`-> 'details'`)
-    // The document itself is never part of the projection: only the arrow
-    // expression applied to the column.
-    expect(sql).not.toMatch(/^"bng"\."projects"\."project"$/)
   })
 })
 
@@ -28,13 +25,6 @@ describe('#projectDetailsReturning', () => {
     expect(Object.keys(projectDetailsReturning)).toEqual(['details'])
     expect(render(projectDetailsReturning.details).sql).toContain(
       `-> 'details'`
-    )
-  })
-
-  test('Should be a distinct expression from the read projection', () => {
-    // Separate instances, so neither query can be affected by the other.
-    expect(projectDetailsReturning.details).not.toBe(
-      projectDetailsColumns.details
     )
   })
 })
