@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest'
 import { getProjectDetails, updateProjectDetails } from './project-details.js'
+import { projectDetailsColumns } from '../db/project-details-columns.js'
 
 const PROJECT_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
@@ -39,8 +40,10 @@ function createMockDrizzle(updateRows = []) {
 
 describe('#getProjectDetails', () => {
   test('returns details when project has them', async () => {
+    // Postgres now returns the details sub-document rather than the row's
+    // whole project JSONB — see src/db/project-details-columns.js.
     const drizzle = createMockDrizzleSelect([
-      { id: PROJECT_ID, project: { details: sampleDetails } }
+      { id: PROJECT_ID, details: sampleDetails }
     ])
     const result = await getProjectDetails.handler(
       {
@@ -53,10 +56,8 @@ describe('#getProjectDetails', () => {
     expect(result).toEqual(sampleDetails)
   })
 
-  test('returns {} when project.details is null', async () => {
-    const drizzle = createMockDrizzleSelect([
-      { id: PROJECT_ID, project: { name: 'No details yet' } }
-    ])
+  test('returns {} when the project has no details yet', async () => {
+    const drizzle = createMockDrizzleSelect([{ id: PROJECT_ID, details: null }])
     const result = await getProjectDetails.handler(
       {
         drizzle,
@@ -68,8 +69,8 @@ describe('#getProjectDetails', () => {
     expect(result).toEqual({})
   })
 
-  test('returns {} when project is null', async () => {
-    const drizzle = createMockDrizzleSelect([{ id: PROJECT_ID, project: null }])
+  test('returns {} when the extracted details are undefined', async () => {
+    const drizzle = createMockDrizzleSelect([{ id: PROJECT_ID }])
     const result = await getProjectDetails.handler(
       {
         drizzle,
@@ -79,6 +80,25 @@ describe('#getProjectDetails', () => {
       {}
     )
     expect(result).toEqual({})
+  })
+
+  test('asks Postgres for the projection, not the whole row', async () => {
+    const drizzle = createMockDrizzleSelect([
+      { id: PROJECT_ID, details: sampleDetails }
+    ])
+
+    await getProjectDetails.handler(
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        auth: { credentials: { sub: SUB } }
+      },
+      {}
+    )
+
+    // Reverting to an unprojected select() would return the same body, so no
+    // other test here would notice. This is what pins the saving.
+    expect(drizzle.select).toHaveBeenCalledWith(projectDetailsColumns)
   })
 
   test('throws 404 when project not found', async () => {
@@ -121,9 +141,7 @@ describe('#updateProjectDetails', () => {
   test('returns the persisted details including fields retained by the DB merge', async () => {
     const payload = { localPlanningAuthority: 'New LPA' }
     const persisted = { ...sampleDetails, localPlanningAuthority: 'New LPA' }
-    const drizzle = createMockDrizzle([
-      { id: PROJECT_ID, project: { details: persisted } }
-    ])
+    const drizzle = createMockDrizzle([{ details: persisted }])
     const result = await updateProjectDetails.handler(
       {
         drizzle,
