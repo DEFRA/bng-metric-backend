@@ -42,37 +42,49 @@ function toBuffer(doc) {
   })
 }
 
+/** "Draw the geometry on a plain ground." */
+const NO_BASEMAP = Object.freeze({
+  grid: null,
+  tileSource: null,
+  attribution: null,
+  attributionShort: null
+})
+
 /**
  * Resolve the basemap for this deployment.
  *
- * Returns nulls — meaning "draw the geometry on a plain ground" — unless a
- * basemap is both configured and available. That is the default, and it is a
- * licensing position rather than a technical one: OS have not been asked
- * whether we may embed their mapping in a downloadable PDF, which is a
- * different question from displaying it in a browser because a PDF can be
- * forwarded. The renderer is basemap-ready; enabling it is one config change
- * once the answer arrives.
+ * A basemap is drawn whenever this service holds an OS key — there is no
+ * separate switch. The credit travels with it and is burned into the bottom
+ * corner of every map the report draws, which is what makes the mapping
+ * publishable in a document that can be forwarded.
+ *
+ * That covers attribution. It does not settle whether OS permit their mapping
+ * to be EMBEDDED in a downloadable PDF at all, which is a different question
+ * from displaying it in a browser and one only OS can answer — see
+ * `docs/site-report.md`. Until it is answered, the lever is the key: no key,
+ * no tiles, no OS mapping in the document.
  *
  * A basemap failure degrades to no basemap. A report with a plain ground is
  * still a correct, useful report; refusing to produce one because Ordnance
  * Survey is unreachable would turn a cosmetic dependency into an outage.
  */
 async function resolveBasemap(osTiles) {
-  if (!osTiles || !config.get('report.basemap')) {
-    return { grid: null, tileSource: null, attribution: null }
+  if (!osTiles) {
+    return NO_BASEMAP
   }
 
   try {
     return {
       grid: await osTiles.getPublishedGrid(),
       tileSource: osTileSource(osTiles),
-      attribution: config.get('osMaps.attribution')
+      attribution: config.get('osMaps.attribution'),
+      attributionShort: config.get('osMaps.attributionShort')
     }
   } catch (error) {
     logger.warn(
       `Site report basemap unavailable, rendering without it: ${error.message}`
     )
-    return { grid: null, tileSource: null, attribution: null }
+    return NO_BASEMAP
   }
 }
 
@@ -85,14 +97,16 @@ async function resolveBasemap(osTiles) {
  */
 async function buildSiteReport({ drizzle, projectRow, osTiles = null }) {
   const site = await readSiteData(drizzle, projectRow)
-  const { grid, tileSource, attribution } = await resolveBasemap(osTiles)
+  const { grid, tileSource, attribution, attributionShort } =
+    await resolveBasemap(osTiles)
 
   const { doc, stats } = await buildSiteReportPdf({
     baseline: site.baseline,
     postIntervention: site.postIntervention,
     grid,
     tileSource,
-    attribution
+    attribution,
+    attributionShort
   })
 
   return { pdf: await toBuffer(doc), stats, siteName: site.siteName }

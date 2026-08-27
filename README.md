@@ -72,7 +72,7 @@ npm run test:integration
 ```
 
 For the site report PDF — where its numbers and shapes come from, how it is checked
-against PDF/UA, and why the Ordnance Survey basemap is switched off — see
+against PDF/UA, and how the Ordnance Survey basemap is credited — see
 [`docs/site-report.md`](docs/site-report.md).
 
 ### Production

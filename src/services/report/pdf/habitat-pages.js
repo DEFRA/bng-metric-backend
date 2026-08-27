@@ -19,7 +19,9 @@ import { fitEnvelopeToFrame, makeProjector } from './projector.js'
 import {
   BODY,
   BOLD,
+  drawCredit,
   fillGround,
+  fitCredit,
   labelAsArtifact,
   prepareBasemap
 } from './page-furniture.js'
@@ -66,6 +68,8 @@ async function addHabitatPages({
   grid,
   tileSource,
   withBasemap,
+  attribution,
+  attributionShort,
   stats
 }) {
   const site = postIntervention ?? baseline
@@ -87,6 +91,13 @@ async function addHabitatPages({
   const table = doc.struct('Table')
   section.add(table)
 
+  // Every thumbnail frame is the same square, so one measurement settles the
+  // credit for all of them — and, because no OS mapping is drawn into a frame
+  // that cannot carry its credit, settles whether they get a basemap at all.
+  const credit = withBasemap
+    ? fitCredit(doc, thumbnailFrame(0), [attribution, attributionShort])
+    : null
+
   // Prefetch every thumbnail's tiles before drawing starts. A mini-map frame
   // is always the same size, so its extent — and therefore its tile set — does
   // not depend on where the row lands on the page.
@@ -94,10 +105,20 @@ async function addHabitatPages({
     features,
     grid,
     tileSource,
-    withBasemap
+    withBasemap: Boolean(credit)
   })
 
-  addRows({ doc, table, features, thumbnails, site, style, grid, stats })
+  addRows({
+    doc,
+    table,
+    features,
+    thumbnails,
+    site,
+    style,
+    grid,
+    credit,
+    stats
+  })
 
   table.end()
   section.end()
@@ -133,6 +154,7 @@ function addRows({
   site,
   style,
   grid,
+  credit,
   stats
 }) {
   const columns = habitatColumns()
@@ -158,6 +180,7 @@ function addRows({
         site,
         grid,
         thumbnail: thumbnails.get(feature),
+        credit,
         stats
       })
     )
@@ -252,15 +275,11 @@ function buildHabitatRow({
   site,
   grid,
   thumbnail,
+  credit,
   stats
 }) {
   const values = habitatRowValues(feature)
-  const frame = {
-    x: MARGIN + MINI_MAP_INSET,
-    y: y + HABITAT_ROW_MAP_OFFSET,
-    width: MINI_MAP_SIZE,
-    height: MINI_MAP_SIZE
-  }
+  const frame = thumbnailFrame(y)
 
   // Order matters, and getting it wrong is silent: the marked-content sequence
   // must be OPEN before anything is drawn into it. Drawing first and marking
@@ -279,6 +298,14 @@ function buildHabitatRow({
     thumbnail
   }).tileCount
   doc.endMarkedContent()
+
+  // Outside the Figure's content sequence, as an artifact: the credit is not
+  // part of what the picture shows, and fifty identical announcements would be
+  // fifty interruptions. The tagged paragraph on page 1 carries the wording
+  // into the reading order once.
+  if (thumbnail.tiles) {
+    labelAsArtifact(doc, () => drawCredit(doc, frame, credit))
+  }
 
   const cells = [
     doc.struct('TD', [thumbnailFigure(doc, frame, values, figureContent)]),
@@ -304,6 +331,16 @@ function thumbnailFigure(doc, frame, values, figureContent) {
     },
     [figureContent]
   )
+}
+
+/** Every thumbnail is the same square, at the same inset from the margin. */
+function thumbnailFrame(y) {
+  return {
+    x: MARGIN + MINI_MAP_INSET,
+    y: y + HABITAT_ROW_MAP_OFFSET,
+    width: MINI_MAP_SIZE,
+    height: MINI_MAP_SIZE
+  }
 }
 
 function textCells(doc, columns, values, y) {

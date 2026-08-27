@@ -36,7 +36,8 @@ const DEFAULT_SITE_NAME = 'BNG site'
  * @param {object|null} [options.postIntervention]
  * @param {object|null} [options.grid]            tile matrix set; null with no basemap
  * @param {Function|null} [options.tileSource]    null means no basemap
- * @param {string} [options.attribution]          burned into the page; see summary-page.js
+ * @param {string} [options.attribution]          credit burned into every map
+ * @param {string} [options.attributionShort]     credit for frames too small for the full wording
  * @param {boolean} [options.graticule]           registration overlay, for diagnosis
  * @param {boolean} [options.habitatBasemap]      basemap behind each thumbnail
  * @returns {Promise<{ doc: PDFDocument, stats: object }>}
@@ -47,6 +48,7 @@ async function buildSiteReportPdf({
   grid = null,
   tileSource = null,
   attribution = null,
+  attributionShort = null,
   graticule = false,
   habitatBasemap = true
 }) {
@@ -69,6 +71,7 @@ async function buildSiteReportPdf({
     tileSource,
     basemap,
     attribution,
+    attributionShort,
     stats
   }
 
