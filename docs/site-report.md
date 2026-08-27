@@ -87,29 +87,55 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
   replace the two files in `src/services/report/assets/fonts` and the names in
   `document.js`.
 
-## The basemap is off
+## The basemap, and crediting it
 
-`REPORT_BASEMAP` defaults to **false**, and the `/os-tiles` routes are not registered at
-all unless `OS_API_KEY` is set. That is a licensing position, not a technical one:
+The basemap is drawn whenever this service holds an `OS_API_KEY`. There is no separate
+switch: the `/os-tiles` routes are not registered without a key, so the absence of a
+credential shows up as the absence of a route rather than as an endpoint that always
+401s, and a deployment with no key produces the same correct report on a plain ground.
 
-- **Nobody has asked OS whether we may EMBED their mapping in a downloadable PDF.** That
-  is a different question from displaying it in a browser, because a PDF can be
-  forwarded. It has to be asked directly.
-- **Attribution wording** has to be burned into the page — a PDF cannot carry a dynamic
-  credit control — and the required wording is OS's to dictate.
-  `OS_MAPS_ATTRIBUTION` holds a provisional string.
+**Every map drawn from OS tiles carries its credit in the bottom-right corner** — both
+site maps, and every parcel thumbnail. A PDF cannot carry the dynamic credit control a
+browser map uses, so the wording is part of the picture, on a translucent plate so it
+reads over whatever mapping is underneath. The scale bar has the bottom left.
 
-The renderer is basemap-ready and tested with one. Without it, parcels are drawn on a
-plain ground, which needs no permission from anybody.
+The credit is drawn as an artifact, so assistive technology skips it: the identical
+string on fifty thumbnails would be fifty interruptions. The same wording is written
+once as a tagged paragraph under the site maps (`buildAttribution` in `legend.js`),
+which is where the reading order gets it.
 
-### If the basemap is switched on
+**No OS mapping is drawn into a frame that cannot carry a credit.** `fitCredit` is
+called before the tiles are fetched, and returning null is what withholds the basemap —
+so the guarantee holds by construction rather than by every call site remembering to
+pass the wording down. It is why blanking `OS_MAPS_ATTRIBUTION` and
+`OS_MAPS_ATTRIBUTION_SHORT` produces a report with no OS mapping at all rather than
+uncredited mapping.
 
-| Variable           | Meaning                                                                                                                                     |
-| ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OS_API_KEY`       | OS Data Hub key with the **OS Maps API** product added. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes. |
-| `REPORT_BASEMAP`   | Draw the basemap in the report. No effect without a key.                                                                                    |
-| `OS_MAPS_LAYER`    | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                 |
-| `OS_MAPS_MAX_ZOOM` | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                   |
+`OS_MAPS_ATTRIBUTION_SHORT` exists because a parcel thumbnail is 18 mm square: the full
+sentence cannot fit at any legible size, while `© Crown copyright` fits at 4.5 pt. Both
+strings are **provisional** — the required wording is OS's to dictate and has not been
+confirmed with them.
+
+### What crediting does not settle
+
+Attribution is one of the two licensing questions, and the smaller one.
+
+**Nobody has asked OS whether we may EMBED their mapping in a downloadable PDF.** That
+is a different question from displaying it in a browser, because a PDF can be forwarded,
+and no amount of correct crediting answers it. It has to be asked directly. Until it is,
+the lever is the key itself: no `OS_API_KEY` in an environment means no OS mapping in
+any report that environment produces, and the report renders on a plain ground, which
+needs no permission from anybody.
+
+### Configuration
+
+| Variable                    | Meaning                                                                                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OS_API_KEY`                | OS Data Hub key with the **OS Maps API** product added. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
+| `OS_MAPS_ATTRIBUTION`       | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                            |
+| `OS_MAPS_ATTRIBUTION_SHORT` | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                              |
+| `OS_MAPS_LAYER`             | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                 |
+| `OS_MAPS_MAX_ZOOM`          | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                   |
 
 **The plan caps resolution, and no amount of engineering changes it.** An OpenData-plan
 key serves EPSG:27700 up to z9 (1.75 m/px) and returns `403 "A Premium Plan is required

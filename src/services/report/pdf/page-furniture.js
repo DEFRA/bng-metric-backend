@@ -7,7 +7,18 @@ import path from 'node:path'
 
 import { fetchTiles } from './map.js'
 import { pickZoom } from './grid.js'
-import { MAP_GROUND } from './layout.js'
+import {
+  CREDIT_FONT_SIZE,
+  CREDIT_FONT_STEP,
+  CREDIT_INSET,
+  CREDIT_LINE_HEIGHT,
+  CREDIT_MIN_FONT_SIZE,
+  CREDIT_PLATE_OPACITY,
+  CREDIT_PLATE_PADDING,
+  INK,
+  MAP_GROUND,
+  PAPER
+} from './layout.js'
 
 /**
  * Embed the body fonts.
@@ -68,6 +79,84 @@ async function prepareBasemap({
   return { z, tiles }
 }
 
+/**
+ * The largest credit that fits inside a map frame, or null if none does.
+ *
+ * Called BEFORE the basemap is drawn, not after, because the answer decides
+ * whether there is a basemap at all: this renderer draws no OS mapping into a
+ * frame it cannot credit. That makes the licensing claim true by construction
+ * rather than by everyone remembering to pass the wording down.
+ *
+ * The wordings are tried in order — the full statement first, the short form
+ * second — and each is shrunk to CREDIT_MIN_FONT_SIZE before the next is
+ * tried. A site map is wide enough for the whole sentence; an 18 mm thumbnail
+ * is not, at any legible size, which is the only reason the short form exists.
+ *
+ * @param {object} doc
+ * @param {{width: number}} frame
+ * @param {Array<string|null>} wordings  most preferred first
+ * @returns {{text: string, size: number, width: number}|null}
+ */
+function fitCredit(doc, frame, wordings) {
+  const available = frame.width - (CREDIT_INSET + CREDIT_PLATE_PADDING) * 2
+  doc.font(BODY)
+
+  for (const text of wordings.filter(Boolean)) {
+    for (
+      let size = CREDIT_FONT_SIZE;
+      size >= CREDIT_MIN_FONT_SIZE;
+      size -= CREDIT_FONT_STEP
+    ) {
+      doc.fontSize(size)
+      const width = doc.widthOfString(text)
+      if (width <= available) {
+        return { text, size, width }
+      }
+    }
+  }
+  return null
+}
+
+/**
+ * Burn a credit into the bottom-right corner of a map frame.
+ *
+ * Bottom RIGHT because the scale bar has the bottom left. On a translucent
+ * plate because the credit sits over live mapping whose tone is not knowable
+ * in advance — grey text on a grey roof is not a credit either.
+ *
+ * The caller marks this as an artifact. That is deliberate: the identical
+ * string on fifty thumbnails would be announced fifty times, so the reading
+ * order gets the wording once, from the tagged paragraph `buildAttribution`
+ * writes, and every map carries it visually.
+ *
+ * @param {object} doc
+ * @param {{x: number, y: number, width: number, height: number}} frame
+ * @param {{text: string, size: number, width: number}} credit  from fitCredit
+ */
+function drawCredit(doc, frame, credit) {
+  const height = credit.size * CREDIT_LINE_HEIGHT
+  const x = frame.x + frame.width - CREDIT_INSET - credit.width
+  const y = frame.y + frame.height - CREDIT_INSET - height
+
+  doc.save()
+  doc
+    .rect(
+      x - CREDIT_PLATE_PADDING,
+      y - CREDIT_PLATE_PADDING,
+      credit.width + CREDIT_PLATE_PADDING * 2,
+      height + CREDIT_PLATE_PADDING * 2
+    )
+    .fillColor(PAPER)
+    .fillOpacity(CREDIT_PLATE_OPACITY)
+    .fill()
+  doc.restore()
+
+  doc.save()
+  doc.font(BODY).fontSize(credit.size).fillColor(INK)
+  doc.text(`${credit.text} `, x, y, { lineBreak: false })
+  doc.restore()
+}
+
 /** The plain ground a map frame gets when there is no basemap behind it. */
 function fillGround(doc, frame) {
   doc.save()
@@ -91,7 +180,9 @@ function plural(count, noun) {
 export {
   BODY,
   BOLD,
+  drawCredit,
   fillGround,
+  fitCredit,
   labelAsArtifact,
   plural,
   prepareBasemap,

@@ -21,7 +21,9 @@ import { projectorFor } from './projector.js'
 import {
   BODY,
   BOLD,
+  drawCredit,
   fillGround,
+  fitCredit,
   labelAsArtifact,
   plural,
   prepareBasemap
@@ -130,6 +132,8 @@ async function addSiteMaps({
   grid,
   tileSource,
   basemap,
+  attribution,
+  attributionShort,
   graticule,
   stats
 }) {
@@ -158,9 +162,15 @@ async function addSiteMaps({
       doc.text(`${panel.label} `, frame.x, mapsTop, { width: frame.width })
     })
 
+    // No OS mapping goes into a frame that cannot carry its credit, so the
+    // credit is measured first and its absence is what withholds the basemap.
+    const credit = basemap
+      ? fitCredit(doc, frame, [attribution, attributionShort])
+      : null
+
     // All tile I/O happens before any drawing — see fetchTiles in map.js.
     const projector = projectorFor(sharedEnvelope, frame, { pad: MAP_PAD })
-    const basemapLayer = basemap
+    const basemapLayer = credit
       ? await prepareBasemap({
           grid,
           extent: projector.extent,
@@ -176,6 +186,7 @@ async function addSiteMaps({
       style: panel.style,
       grid,
       basemapLayer,
+      credit,
       graticule,
       projector
     })
@@ -223,6 +234,7 @@ function drawSiteMap({
   style,
   grid,
   basemapLayer,
+  credit,
   graticule,
   projector
 }) {
@@ -256,7 +268,7 @@ function drawSiteMap({
   })
 
   doc.endMarkedContent()
-  drawMapFurniture(doc, frame, projector)
+  drawMapFurniture(doc, frame, projector, basemapLayer && credit)
 
   const z = basemapLayer?.z ?? null
   return {
@@ -269,8 +281,14 @@ function drawSiteMap({
   }
 }
 
-/** Frame edge and scale bar are decoration, not content. */
-function drawMapFurniture(doc, frame, projector) {
+/**
+ * Frame edge, scale bar and basemap credit are decoration, not content.
+ *
+ * The credit is an artifact rather than a paragraph because it appears on
+ * every map in the document; the reading order gets the same wording once,
+ * from the tagged paragraph at the foot of this page.
+ */
+function drawMapFurniture(doc, frame, projector, credit) {
   labelAsArtifact(doc, () => {
     doc.save().lineWidth(RULE_WIDTH.frame).strokeColor(BORDER)
     doc.rect(frame.x, frame.y, frame.width, frame.height).stroke()
@@ -280,6 +298,9 @@ function drawMapFurniture(doc, frame, projector) {
       y: frame.y + frame.height - SCALE_BAR_BOTTOM_OFFSET,
       maxWidth: frame.width / SCALE_BAR_WIDTH_FRACTION
     })
+    if (credit) {
+      drawCredit(doc, frame, credit)
+    }
   })
 }
 

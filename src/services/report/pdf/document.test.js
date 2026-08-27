@@ -95,7 +95,7 @@ describe('#buildSiteReportPdf', () => {
     expect(text).toContain('2 habitat parcels')
   })
 
-  test('renders without a basemap by default, and says nothing about OS', async () => {
+  test('renders without a basemap when given none, and says nothing about OS', async () => {
     const { pdf, stats, text } = await render({ baseline: baselineSite() })
 
     expect(stats.tiles).toBe(0)
@@ -104,7 +104,7 @@ describe('#buildSiteReportPdf', () => {
     expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
   })
 
-  test('draws a basemap, and burns its attribution into the page, when given one', async () => {
+  test('draws a basemap, and credits it, when given one', async () => {
     const plain = await render({ baseline: baselineSite() })
     const mapped = await render({
       baseline: baselineSite(),
@@ -115,20 +115,26 @@ describe('#buildSiteReportPdf', () => {
 
     expect(mapped.stats.tiles).toBeGreaterThan(0)
     expect(mapped.stats.zooms.length).toBe(1)
-    // A PDF cannot carry a dynamic credit control, so the credit has to be a
-    // paragraph of the document — one more than the unmapped version has.
+    // The credit is burned into the corner of every map — drawn text, so not
+    // greppable here (see the note above) and unit-tested in
+    // page-furniture.test.js. What IS assertable is the tagged paragraph that
+    // puts the same wording into the reading order once: one more P than the
+    // unmapped version has.
     expect(countOf(mapped.text, '/S /P')).toBe(countOf(plain.text, '/S /P') + 1)
   })
 
-  test('adds no attribution paragraph when there is no basemap to credit', async () => {
-    const withBasemapButNoWording = await render({
+  test('draws no basemap at all when there is no wording to credit it with', async () => {
+    const uncreditable = await render({
       baseline: baselineSite(),
       grid: TEST_GRID,
       tileSource: syntheticTileSource()
     })
     const plain = await render({ baseline: baselineSite() })
 
-    expect(countOf(withBasemapButNoWording.text, '/S /P')).toBe(
+    // Not "a basemap with no credit" — no basemap. A credit that can be
+    // dropped when it is inconvenient is not a licensing position.
+    expect(uncreditable.stats.tiles).toBe(0)
+    expect(countOf(uncreditable.text, '/S /P')).toBe(
       countOf(plain.text, '/S /P')
     )
   })

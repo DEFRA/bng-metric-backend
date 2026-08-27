@@ -15,6 +15,7 @@ const CONTENT_WIDTH = A4_PORTRAIT_WIDTH - MARGIN * 2
 
 // GOV.UK palette (govuk-frontend colour names).
 const INK = '#0b0c0c'
+const PAPER = '#ffffff'
 const MUTED = '#505a5f'
 const BORDER = '#b1b4b6'
 const MAP_GROUND = '#f3f2f1'
@@ -74,6 +75,19 @@ const LEGEND_HEIGHT = 20
 const LEGEND_LINE_GAP = -1
 const LEGEND_TOP_OFFSET = 1
 
+// The basemap credit burned into the bottom corner of every map. Small, and
+// deliberately so: a printed map's credit is set at the smallest size that
+// stays readable, and a parcel thumbnail is 18 mm square. CREDIT_MIN_FONT_SIZE
+// is the floor below which the renderer would rather draw no basemap at all
+// than an uncreditable one.
+const CREDIT_FONT_SIZE = 6
+const CREDIT_MIN_FONT_SIZE = 4
+const CREDIT_FONT_STEP = 0.5
+const CREDIT_INSET = 3
+const CREDIT_PLATE_PADDING = 1.5
+const CREDIT_PLATE_OPACITY = 0.72
+const CREDIT_LINE_HEIGHT = 1.2
+
 const KEY_FIGURES_COLUMN_WIDTH = 110
 
 /** Column widths as fractions of the space the thumbnail column leaves. */
@@ -107,6 +121,13 @@ export {
   CONTEXT_FILL_OPACITY,
   CONTEXT_LINE_WIDTH,
   CONTEXT_STROKE,
+  CREDIT_FONT_SIZE,
+  CREDIT_FONT_STEP,
+  CREDIT_INSET,
+  CREDIT_LINE_HEIGHT,
+  CREDIT_MIN_FONT_SIZE,
+  CREDIT_PLATE_OPACITY,
+  CREDIT_PLATE_PADDING,
   FONT_SIZE,
   HABITAT_COLUMN_FRACTION,
   HABITAT_ROW_DIVIDER_OFFSET,
@@ -132,6 +153,7 @@ export {
   MINI_MAP_PAD,
   MINI_MAP_SIZE,
   MUTED,
+  PAPER,
   PARCEL_HECTARE_DECIMALS,
   RULE_WIDTH,
   SCALE_BAR_BOTTOM_OFFSET,

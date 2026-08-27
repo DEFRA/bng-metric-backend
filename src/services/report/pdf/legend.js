@@ -1,5 +1,5 @@
 /**
- * The legend and the basemap attribution — the two blocks that close page 1.
+ * The legend and the basemap credit — the two blocks that close page 1.
  */
 
 import { HABITAT_STYLES } from './map.js'
@@ -67,12 +67,16 @@ function buildLegend(doc, panels) {
 }
 
 /**
- * Basemap attribution, burned into the page.
+ * The basemap credit, as a tagged paragraph.
  *
- * A PDF cannot carry a dynamic credit control the way a browser map can, so
- * the credit has to be part of the document. The wording arrives by
- * configuration because it is OS's to dictate and has not yet been confirmed
- * with them — see the licensing questions on BMD-984.
+ * Every map already carries the credit burned into its bottom corner, but
+ * those are artifacts — repeating the identical string on fifty thumbnails
+ * would mean fifty interruptions for a screen-reader user. This is the one
+ * place the wording enters the reading order, so it is written once, here,
+ * where the maps it credits are.
+ *
+ * The wording arrives by configuration because it is OS's to dictate and has
+ * not yet been confirmed with them — see the licensing questions on BMD-984.
  */
 function buildAttribution(doc, attribution) {
   const top = doc.y

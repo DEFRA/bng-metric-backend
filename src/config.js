@@ -242,14 +242,6 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
-  report: {
-    basemap: {
-      doc: 'Draw an Ordnance Survey basemap behind the site report maps. Off by default: OS have not been asked whether their mapping may be EMBEDDED in a downloadable PDF, which is a different question from displaying it in a browser because a PDF can be forwarded. The renderer is basemap-ready — this flag and an OS_API_KEY are all that stand between it and a basemap. Has no effect without a key.',
-      format: STRICT_BOOLEAN,
-      default: false,
-      env: 'REPORT_BASEMAP'
-    }
-  },
   osMaps: {
     apiKey: {
       doc: 'OS Data Hub API key for the OS Maps API (raster). Held by this service alone — the report builder and the browser map both see an internal URL and never the key. Empty disables the /os-tiles routes entirely. Supply as a CDP secret per environment, NOT via cdp-app-config.',
@@ -283,12 +275,18 @@ const config = convict({
       env: 'OS_MAPS_CACHE_MAX_ENTRIES'
     },
     attribution: {
-      doc: "Basemap credit burned into the report page. A PDF cannot carry a dynamic attribution control, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",
+      doc: "Basemap credit burned into the bottom corner of every map drawn from OS tiles, and repeated once as a tagged paragraph so assistive technology reads it too. A PDF cannot carry the dynamic credit control a browser map uses, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",
       format: String,
       default:
         'Contains OS data © Crown copyright and database right ' +
         new Date().getFullYear(),
       env: 'OS_MAPS_ATTRIBUTION'
+    },
+    attributionShort: {
+      doc: 'The credit used where the full wording cannot fit legibly — a parcel thumbnail is 18 mm square and cannot carry a whole sentence at any readable size. Same provisional status as the full wording. Empty means such a map carries no credit at all, which is why the renderer draws no OS tiles behind a frame it cannot credit.',
+      format: String,
+      default: '© Crown copyright',
+      env: 'OS_MAPS_ATTRIBUTION_SHORT'
     }
   },
   oidc: {

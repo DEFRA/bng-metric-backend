@@ -55,7 +55,22 @@ describe('#buildSiteReport', () => {
     expect(stats.habitats).toBe(2)
   })
 
-  test('draws no basemap when the deployment has not enabled one', async () => {
+  test('draws no basemap when the service holds no OS key', async () => {
+    readSiteData.mockResolvedValue(siteData())
+
+    // No key means no OS tiles service is passed at all — the absence of a
+    // credential, not a separate switch, is what keeps OS mapping out of the
+    // document while the embedding question is open.
+    const { stats } = await buildSiteReport({
+      drizzle: {},
+      projectRow: { id: 'project-1', project: {} },
+      osTiles: null
+    })
+
+    expect(stats.tiles).toBe(0)
+  })
+
+  test('draws a basemap whenever OS tiles are available', async () => {
     readSiteData.mockResolvedValue(siteData())
     const osTiles = fakeOsTiles()
 
@@ -65,18 +80,15 @@ describe('#buildSiteReport', () => {
       osTiles
     })
 
-    // report.basemap defaults to false — an OS basemap in a downloadable PDF
-    // is an unanswered licensing question, not a technical one.
-    expect(config.get('report.basemap')).toBe(false)
-    expect(osTiles.getPublishedGrid).not.toHaveBeenCalled()
-    expect(stats.tiles).toBe(0)
+    expect(osTiles.getPublishedGrid).toHaveBeenCalled()
+    expect(stats.tiles).toBeGreaterThan(0)
   })
 
-  test('draws a basemap when one is enabled and available', async () => {
+  test('draws no OS mapping at all when there is no wording to credit it with', async () => {
     readSiteData.mockResolvedValue(siteData())
     const osTiles = fakeOsTiles()
     vi.spyOn(config, 'get').mockImplementation((key) =>
-      key === 'report.basemap' ? true : config.default(key)
+      key.startsWith('osMaps.attribution') ? '' : config.default(key)
     )
 
     const { stats } = await buildSiteReport({
@@ -85,7 +97,9 @@ describe('#buildSiteReport', () => {
       osTiles
     })
 
-    expect(stats.tiles).toBeGreaterThan(0)
+    // The credit is not decoration that can be dropped when it is awkward: a
+    // frame that cannot carry one gets no OS tiles behind it.
+    expect(stats.tiles).toBe(0)
   })
 
   test('degrades to no basemap rather than failing when OS is unreachable', async () => {
@@ -93,9 +107,6 @@ describe('#buildSiteReport', () => {
     const osTiles = fakeOsTiles({
       getPublishedGrid: vi.fn().mockRejectedValue(new Error('upstream down'))
     })
-    vi.spyOn(config, 'get').mockImplementation((key) =>
-      key === 'report.basemap' ? true : config.default(key)
-    )
 
     const { pdf, stats } = await buildSiteReport({
       drizzle: {},
