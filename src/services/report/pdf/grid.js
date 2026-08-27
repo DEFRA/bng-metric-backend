@@ -15,6 +15,8 @@
  * path.
  */
 
+import { smallestStepAtLeast } from './nice-numbers.js'
+
 /**
  * OGC WMTS defines a standardised pixel size of 0.28 mm, so
  *   resolution (CRS units/px) = scaleDenominator * 0.00028
@@ -239,10 +241,6 @@ export function effectiveDpi(grid, z, extent, frameWidthPoints) {
 }
 
 const TARGET_LINES_PER_TILE = 6
-const DECADE = 10
-
-/** The 1/2/5 series people read distances in, plus the next decade. */
-const ROUND_STEPS = Object.freeze([1, 2, 5, DECADE])
 
 /**
  * Ground interval between graticule lines at a given resolution.
@@ -257,12 +255,5 @@ const ROUND_STEPS = Object.freeze([1, 2, 5, DECADE])
 export function gridIntervalMetres(resolution, tileSize) {
   // Aim for roughly 4-8 lines across a tile, snapped to a 1/2/5 series so the
   // interval is always a round number a human can verify by eye.
-  const target = (resolution * tileSize) / TARGET_LINES_PER_TILE
-  const magnitude = 10 ** Math.floor(Math.log10(target))
-  for (const step of ROUND_STEPS) {
-    if (step * magnitude >= target) {
-      return step * magnitude
-    }
-  }
-  return DECADE * magnitude
+  return smallestStepAtLeast((resolution * tileSize) / TARGET_LINES_PER_TILE)
 }

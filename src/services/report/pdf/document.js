@@ -22,7 +22,7 @@ import PDFDocument from 'pdfkit'
 
 import { addHabitatPages } from './habitat-pages.js'
 import { addSummaryPage } from './summary-page.js'
-import { plural, registerFonts } from './page-furniture.js'
+import { registerFonts } from './page-furniture.js'
 import { A4_PORTRAIT, MARGIN } from './layout.js'
 
 const PDF_VERSION = '1.5'
@@ -104,4 +104,5 @@ function createDocument(siteName) {
   })
 }
 
-export { buildSiteReportPdf, plural }
+export { buildSiteReportPdf }
+export { plural } from './page-furniture.js'

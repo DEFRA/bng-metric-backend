@@ -59,7 +59,12 @@ const OPEN_DATA_MAX_ZOOM = Object.freeze({
   'EPSG:3857': 16
 })
 
-const SECONDS_PER_WEEK = 60 * 60 * 24 * 7
+const SECONDS_PER_MINUTE = 60
+const MINUTES_PER_HOUR = 60
+const HOURS_PER_DAY = 24
+const DAYS_PER_WEEK = 7
+const SECONDS_PER_WEEK =
+  SECONDS_PER_MINUTE * MINUTES_PER_HOUR * HOURS_PER_DAY * DAYS_PER_WEEK
 
 /** Tiles are static, so a fetched one is worth keeping for a long time. */
 const DEFAULT_CACHE_TTL_SECONDS = SECONDS_PER_WEEK

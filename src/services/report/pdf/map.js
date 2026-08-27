@@ -8,6 +8,7 @@
  */
 
 import { tileSpanMetres, tilesCovering, tileTopLeft } from './grid.js'
+import { largestStepAtMost } from './nice-numbers.js'
 
 /**
  * Tiles are drawn a whisker larger than their true size.
@@ -45,11 +46,6 @@ const SCALE_BAR_LINE_WIDTH = 1
 const SCALE_BAR_HEIGHT = 3
 const SCALE_BAR_FONT_SIZE = 6.5
 const SCALE_BAR_LABEL_GAP = 5
-const DECADE = 10
-
-/** The 1/2/5 series people read distances in, plus the next decade. */
-const ROUND_STEPS = Object.freeze([1, 2, 5, DECADE])
-
 /** Run `draw` with the map frame as a clipping region. */
 export function withFrameClip(doc, frame, draw) {
   doc.save()
@@ -153,7 +149,7 @@ export function drawGeometry(doc, geometry, projector, style) {
     return
   }
 
-  const draw = GEOMETRY_PAINTERS[geometry.type]
+  const draw = GEOMETRY_PAINTERS.get(geometry.type)
   if (!draw) {
     // Silently drawing nothing would put a parcel on the page that is not
     // there, which is worse than a failed report.
@@ -166,41 +162,60 @@ export function drawGeometry(doc, geometry, projector, style) {
  * One painter per GeoJSON type. A lookup rather than a switch so that adding a
  * type is a single entry, and so the multi- forms are visibly nothing more than
  * their singular counterpart applied to each member.
+ *
+ * A Map rather than an object literal because the key is untrusted: geometry
+ * arrives from the database as parsed JSON, and `PAINTERS[geometry.type]` on a
+ * plain object would resolve `'constructor'` to a function and call it.
  */
-const GEOMETRY_PAINTERS = {
-  Polygon: (doc, geometry, projector, style) =>
-    paintPolygon(doc, geometry.coordinates, projector, style),
-
-  MultiPolygon: (doc, geometry, projector, style) => {
-    for (const polygon of geometry.coordinates) {
-      paintPolygon(doc, polygon, projector, style)
+const GEOMETRY_PAINTERS = new Map([
+  [
+    'Polygon',
+    (doc, geometry, projector, style) =>
+      paintPolygon(doc, geometry.coordinates, projector, style)
+  ],
+  [
+    'MultiPolygon',
+    (doc, geometry, projector, style) => {
+      for (const polygon of geometry.coordinates) {
+        paintPolygon(doc, polygon, projector, style)
+      }
     }
-  },
-
-  LineString: (doc, geometry, projector, style) =>
-    paintLine(doc, geometry.coordinates, projector, style),
-
-  MultiLineString: (doc, geometry, projector, style) => {
-    for (const line of geometry.coordinates) {
-      paintLine(doc, line, projector, style)
+  ],
+  [
+    'LineString',
+    (doc, geometry, projector, style) =>
+      paintLine(doc, geometry.coordinates, projector, style)
+  ],
+  [
+    'MultiLineString',
+    (doc, geometry, projector, style) => {
+      for (const line of geometry.coordinates) {
+        paintLine(doc, line, projector, style)
+      }
     }
-  },
-
-  Point: (doc, geometry, projector, style) =>
-    drawPoint(doc, geometry.coordinates, projector, style),
-
-  MultiPoint: (doc, geometry, projector, style) => {
-    for (const point of geometry.coordinates) {
-      drawPoint(doc, point, projector, style)
+  ],
+  [
+    'Point',
+    (doc, geometry, projector, style) =>
+      drawPoint(doc, geometry.coordinates, projector, style)
+  ],
+  [
+    'MultiPoint',
+    (doc, geometry, projector, style) => {
+      for (const point of geometry.coordinates) {
+        drawPoint(doc, point, projector, style)
+      }
     }
-  },
-
-  GeometryCollection: (doc, geometry, projector, style) => {
-    for (const child of geometry.geometries) {
-      drawGeometry(doc, child, projector, style)
+  ],
+  [
+    'GeometryCollection',
+    (doc, geometry, projector, style) => {
+      for (const child of geometry.geometries) {
+        drawGeometry(doc, child, projector, style)
+      }
     }
-  }
-}
+  ]
+])
 
 function paintPolygon(doc, rings, projector, style) {
   doc.save()
@@ -303,14 +318,7 @@ export function drawScaleBar(
   projector,
   { x, y, maxWidth = DEFAULT_SCALE_BAR_WIDTH }
 ) {
-  const metresAtMax = projector.pointsToMetres(maxWidth)
-  const magnitude = 10 ** Math.floor(Math.log10(metresAtMax))
-  let metres = magnitude
-  for (const step of ROUND_STEPS) {
-    if (step * magnitude <= metresAtMax) {
-      metres = step * magnitude
-    }
-  }
+  const metres = largestStepAtMost(projector.pointsToMetres(maxWidth))
 
   const width = projector.metresToPoints(metres)
   doc.save()
