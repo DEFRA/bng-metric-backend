@@ -244,7 +244,7 @@ const config = convict({
   },
   report: {
     basemap: {
-      doc: 'Draw an Ordnance Survey basemap behind the site report maps. Off by default: OS have not been asked whether their mapping may be EMBEDDED in a downloadable PDF, which is a different question from displaying it in a browser because a PDF can be forwarded. The renderer is basemap-ready — this flag and an OS_MAPS_API_KEY are all that stand between it and a basemap. Has no effect without a key.',
+      doc: 'Draw an Ordnance Survey basemap behind the site report maps. Off by default: OS have not been asked whether their mapping may be EMBEDDED in a downloadable PDF, which is a different question from displaying it in a browser because a PDF can be forwarded. The renderer is basemap-ready — this flag and an OS_API_KEY are all that stand between it and a basemap. Has no effect without a key.',
       format: STRICT_BOOLEAN,
       default: false,
       env: 'REPORT_BASEMAP'
@@ -256,7 +256,7 @@ const config = convict({
       format: String,
       default: '',
       sensitive: true,
-      env: 'OS_MAPS_API_KEY'
+      env: 'OS_API_KEY'
     },
     layer: {
       doc: 'OS Maps raster style. Must be one of the EPSG:27700 styles — British National Grid throughout is what keeps the basemap and the parcel geometry in exact registration.',

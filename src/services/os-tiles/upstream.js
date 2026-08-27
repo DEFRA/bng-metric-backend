@@ -90,7 +90,7 @@ function upstreamError(status, what) {
 function messageFor(status, what) {
   if (status === HTTP_UNAUTHORIZED) {
     return (
-      `Ordnance Survey rejected the request for ${what} (401). Either OS_MAPS_API_KEY ` +
+      `Ordnance Survey rejected the request for ${what} (401). Either OS_API_KEY ` +
       'is unset or wrong, or its OS Data Hub project does not have the "OS Maps API" ' +
       'product added — both fail this way.'
     )
