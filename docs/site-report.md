@@ -90,7 +90,7 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
 ## The basemap is off
 
 `REPORT_BASEMAP` defaults to **false**, and the `/os-tiles` routes are not registered at
-all unless `OS_MAPS_API_KEY` is set. That is a licensing position, not a technical one:
+all unless `OS_API_KEY` is set. That is a licensing position, not a technical one:
 
 - **Nobody has asked OS whether we may EMBED their mapping in a downloadable PDF.** That
   is a different question from displaying it in a browser, because a PDF can be
@@ -106,7 +106,7 @@ plain ground, which needs no permission from anybody.
 
 | Variable           | Meaning                                                                                                                                     |
 | ------------------ | ------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OS_MAPS_API_KEY`  | OS Data Hub key with the **OS Maps API** product added. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes. |
+| `OS_API_KEY`       | OS Data Hub key with the **OS Maps API** product added. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes. |
 | `REPORT_BASEMAP`   | Draw the basemap in the report. No effect without a key.                                                                                    |
 | `OS_MAPS_LAYER`    | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                 |
 | `OS_MAPS_MAX_ZOOM` | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                   |

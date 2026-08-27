@@ -196,7 +196,7 @@ describe('#getTile', () => {
     expect(failure.status).toBe(403)
     expect(failure.message).toMatch(/Premium Plan/)
     expect(failure.message).toMatch(/OS_MAPS_MAX_ZOOM=9/)
-    expect(failure.message).not.toMatch(/OS_MAPS_API_KEY is unset/)
+    expect(failure.message).not.toMatch(/OS_API_KEY is unset/)
   })
 })
 
@@ -209,7 +209,7 @@ describe('startup diagnostics', () => {
     })
 
     expect(warnings.length).toBe(1)
-    expect(warnings[0]).toMatch(/OS_MAPS_API_KEY is not set/)
+    expect(warnings[0]).toMatch(/OS_API_KEY is not set/)
   })
 
   test('rejects an unknown layer at construction, not at request time', () => {

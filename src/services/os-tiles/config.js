@@ -124,7 +124,7 @@ function keyWarning({ apiKey }) {
     return null
   }
   return (
-    'OS_MAPS_API_KEY is not set: every tile request will fail as a 401 from ' +
+    'OS_API_KEY is not set: every tile request will fail as a 401 from ' +
     'Ordnance Survey with no diagnostic. Note the key must belong to an OS Data ' +
     'Hub project with the "OS Maps API" product added — a key without it 401s ' +
     'the same way.'
