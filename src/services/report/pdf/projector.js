@@ -17,6 +17,10 @@
  * increases upward, so the y term inverts it once, via (maxY - N).
  */
 
+function isPositive(value) {
+  return Number.isFinite(value) && value > 0
+}
+
 /**
  * Force an envelope to the frame's aspect ratio by growing its short axis
  * about its centre.
@@ -33,7 +37,11 @@
 export function fitEnvelopeToFrame(envelope, frame) {
   const width = envelope.maxX - envelope.minX
   const height = envelope.maxY - envelope.minY
-  if (!(width > 0) || !(height > 0)) {
+  // Written as an explicit finiteness test rather than `width <= 0`, because
+  // the two are not equivalent: a NaN extent — which is what an empty envelope
+  // reduces to — fails every comparison, so `<= 0` would wave it through and
+  // the page transform would produce NaN coordinates for everything.
+  if (!isPositive(width) || !isPositive(height)) {
     throw new Error(
       'Cannot fit a degenerate envelope to a frame — pad it first (see padEnvelope)'
     )
@@ -74,6 +82,9 @@ export function fitEnvelopeToFrame(envelope, frame) {
  */
 const ASPECT_TOLERANCE = 1e-9
 
+/** Enough places that a mismatch too small to see is still legible in the message. */
+const ASPECT_DECIMALS = 6
+
 export function makeProjector(extent, frame) {
   const worldWidth = extent.maxX - extent.minX
   const worldHeight = extent.maxY - extent.minY
@@ -82,8 +93,8 @@ export function makeProjector(extent, frame) {
   const scaleY = frame.height / worldHeight
   if (Math.abs(scaleX - scaleY) > ASPECT_TOLERANCE * Math.max(scaleX, scaleY)) {
     throw new Error(
-      `Extent aspect ${(worldWidth / worldHeight).toFixed(6)} does not match frame ` +
-        `aspect ${(frame.width / frame.height).toFixed(6)} — call fitEnvelopeToFrame first. ` +
+      `Extent aspect ${(worldWidth / worldHeight).toFixed(ASPECT_DECIMALS)} does not match frame ` +
+        `aspect ${(frame.width / frame.height).toFixed(ASPECT_DECIMALS)} — call fitEnvelopeToFrame first. ` +
         'Unequal x/y scales are what make geometry drift against the basemap.'
     )
   }

@@ -18,14 +18,28 @@ import { deflateSync } from 'node:zlib'
 
 import { gridIntervalMetres, tileSpanMetres, tileTopLeft } from './grid.js'
 
-const PNG_SIGNATURE = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
-])
+// The eight-byte PNG signature, from the spec: a high bit to catch 7-bit
+// transports, "PNG" in ASCII, then a CRLF/EOF/LF sequence that detects a
+// transfer having mangled line endings.
+const PNG_SIGNATURE = Buffer.from('\x89PNG\r\n\x1a\n', 'latin1')
 const BIT_DEPTH_8 = 8
 const COLOUR_TYPE_RGB = 2
 const CHANNELS = 3
+const CHANNEL_MASK = 0xff
+const RED_SHIFT = 16
+const GREEN_SHIFT = 8
 const FILTER_NONE = 0
 const IHDR_LENGTH = 13
+// Byte offsets within IHDR, and the only values this encoder ever writes.
+const IHDR_BIT_DEPTH = 8
+const IHDR_COLOUR_TYPE = 9
+const IHDR_COMPRESSION = 10
+const IHDR_FILTER = 11
+const IHDR_INTERLACE = 12
+const COMPRESSION_DEFLATE = 0
+const FILTER_METHOD_ADAPTIVE = 0
+const INTERLACE_NONE = 0
+const DEFLATE_MAX_LEVEL = 9
 const CRC_TABLE = buildCrcTable()
 
 function buildCrcTable() {
@@ -57,9 +71,27 @@ function chunk(type, data) {
   return Buffer.concat([length, typeAndData, crc])
 }
 
+const WHITE = '#ffffff'
+
+/**
+ * `#rrggbb` → the three channel bytes the raster stores.
+ *
+ * Colours are written as hex here for the same reason `document.js` writes them
+ * that way: it is the spelling a designer recognises, and one string beats three
+ * numbers that have to be read together to mean anything.
+ */
+function rgb(hex) {
+  const value = Number.parseInt(hex.slice(1), 16)
+  return [
+    (value >> RED_SHIFT) & CHANNEL_MASK,
+    (value >> GREEN_SHIFT) & CHANNEL_MASK,
+    value & CHANNEL_MASK
+  ]
+}
+
 /** A mutable RGB raster with just enough drawing to build a test basemap. */
 class Raster {
-  constructor(width, height, fill = [255, 255, 255]) {
+  constructor(width, height, fill = rgb(WHITE)) {
     this.width = width
     this.height = height
     this.data = Buffer.alloc(width * height * CHANNELS)
@@ -109,26 +141,26 @@ class Raster {
     const ihdr = Buffer.alloc(IHDR_LENGTH)
     ihdr.writeUInt32BE(this.width, 0)
     ihdr.writeUInt32BE(this.height, 4)
-    ihdr[8] = BIT_DEPTH_8
-    ihdr[9] = COLOUR_TYPE_RGB
-    ihdr[10] = 0 // compression: deflate
-    ihdr[11] = 0 // filter method: adaptive
-    ihdr[12] = 0 // interlace: none
+    ihdr[IHDR_BIT_DEPTH] = BIT_DEPTH_8
+    ihdr[IHDR_COLOUR_TYPE] = COLOUR_TYPE_RGB
+    ihdr[IHDR_COMPRESSION] = COMPRESSION_DEFLATE
+    ihdr[IHDR_FILTER] = FILTER_METHOD_ADAPTIVE
+    ihdr[IHDR_INTERLACE] = INTERLACE_NONE
 
     return Buffer.concat([
       PNG_SIGNATURE,
       chunk('IHDR', ihdr),
-      chunk('IDAT', deflateSync(raw, { level: 9 })),
+      chunk('IDAT', deflateSync(raw, { level: DEFLATE_MAX_LEVEL })),
       chunk('IEND', Buffer.alloc(0))
     ])
   }
 }
 
-const TILE_SHADE_A = [236, 240, 233]
-const TILE_SHADE_B = [228, 234, 226]
-const GRID_LINE = [176, 190, 176]
-const MAJOR_LINE = [120, 140, 122]
-const TILE_EDGE = [205, 214, 204]
+const TILE_SHADE_A = rgb('#ecf0e9')
+const TILE_SHADE_B = rgb('#e4eae2')
+const GRID_LINE = rgb('#b0beb0')
+const MAJOR_LINE = rgb('#788c7a')
+const TILE_EDGE = rgb('#cdd6cc')
 const MAJOR_EVERY = 5
 const ROUNDING_TOLERANCE = 1e-9
 
@@ -203,14 +235,25 @@ function isMultipleOf(value, step) {
  * GetCapabilities, and an origin out by one tile looks plausible while being
  * wrong.
  */
+// One shared top-left origin, 256 px tiles, and resolutions that halve per
+// level. Generated rather than hand-typed so the halving is stated as the rule
+// it is — a typo in a copied list of fourteen numbers is invisible.
+const TEST_GRID_ORIGIN_X = -238375
+const TEST_GRID_ORIGIN_Y = 1376256
+const TEST_GRID_TILE_SIZE = 256
+const TEST_GRID_BASE_RESOLUTION = 896
+const TEST_GRID_LEVELS = 14
+
 const TEST_GRID = Object.freeze({
-  originX: -238375,
-  originY: 1376256,
-  tileSize: 256,
-  resolutions: [
-    896, 448, 224, 112, 56, 28, 14, 7, 3.5, 1.75, 0.875, 0.4375, 0.21875,
-    0.109375
-  ]
+  originX: TEST_GRID_ORIGIN_X,
+  originY: TEST_GRID_ORIGIN_Y,
+  tileSize: TEST_GRID_TILE_SIZE,
+  resolutions: Object.freeze(
+    Array.from(
+      { length: TEST_GRID_LEVELS },
+      (_, z) => TEST_GRID_BASE_RESOLUTION / 2 ** z
+    )
+  )
 })
 
 export { Raster, TEST_GRID, syntheticTileSource }

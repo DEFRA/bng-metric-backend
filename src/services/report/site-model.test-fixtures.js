@@ -1,26 +1,25 @@
 /**
  * A small site model, shaped exactly as `site-data.js` produces one.
  *
- * Two overlapping-in-context parcels, a hedgerow, a watercourse, a tree and a
- * red line around the lot, in real EPSG:27700 metres. Small enough to read,
- * complete enough that every drawing and tagging path in the document runs.
+ * Two parcels splitting the site down the middle, a hedgerow along its northern
+ * edge, a watercourse across the middle, a tree and a red line around the lot,
+ * in real EPSG:27700 metres. Small enough to read, complete enough that every
+ * drawing and tagging path in the document runs.
+ *
+ * Every coordinate is derived from the four site corners rather than typed out,
+ * so the relationships are visible: A2 starts where A1 ends because both are
+ * expressed against the same midpoint, not because two literals happen to
+ * match.
  */
 
-const RED_LINE = {
-  type: 'MultiPolygon',
-  coordinates: [
-    [
-      [
-        [412000, 287000],
-        [412400, 287000],
-        [412400, 287300],
-        [412000, 287300],
-        [412000, 287000]
-      ]
-    ]
-  ]
-}
+const SITE_WEST = 412_000
+const SITE_EAST = 412_400
+const SITE_SOUTH = 287_000
+const SITE_NORTH = 287_300
+const SITE_MID_EASTING = (SITE_WEST + SITE_EAST) / 2
+const SITE_MID_NORTHING = (SITE_SOUTH + SITE_NORTH) / 2
 
+/** A closed rectangular ring, as a MultiPolygon. */
 function parcel(minX, minY, maxX, maxY) {
   return {
     type: 'MultiPolygon',
@@ -38,92 +37,127 @@ function parcel(minX, minY, maxX, maxY) {
   }
 }
 
+/** A single east-west line at one northing, as a MultiLineString. */
+function eastWestLine(northing) {
+  return {
+    type: 'MultiLineString',
+    coordinates: [
+      [
+        [SITE_WEST, northing],
+        [SITE_EAST, northing]
+      ]
+    ]
+  }
+}
+
+const RED_LINE = parcel(SITE_WEST, SITE_SOUTH, SITE_EAST, SITE_NORTH)
+
+const SITE_AREA_SQ_M = (SITE_EAST - SITE_WEST) * (SITE_NORTH - SITE_SOUTH)
+const PARCEL_AREA_SQ_M = SITE_AREA_SQ_M / 2
+const LINEAR_LENGTH_M = SITE_EAST - SITE_WEST
+
+function properties({
+  ref,
+  type,
+  condition,
+  sizeSquareMetres = null,
+  sizeMetres = null
+}) {
+  return { ref, type, condition, sizeSquareMetres, sizeMetres }
+}
+
+function habitats() {
+  return [
+    {
+      properties: properties({
+        ref: 'A1',
+        type: 'Modified grassland',
+        condition: 'Poor',
+        sizeSquareMetres: PARCEL_AREA_SQ_M
+      }),
+      geometry: parcel(SITE_WEST, SITE_SOUTH, SITE_MID_EASTING, SITE_NORTH)
+    },
+    {
+      properties: properties({
+        ref: 'A2',
+        type: 'Cereal crops',
+        condition: 'Moderate',
+        sizeSquareMetres: PARCEL_AREA_SQ_M
+      }),
+      geometry: parcel(SITE_MID_EASTING, SITE_SOUTH, SITE_EAST, SITE_NORTH)
+    }
+  ]
+}
+
+function hedgerows() {
+  return [
+    {
+      properties: properties({
+        ref: 'H1',
+        type: 'Native hedgerow',
+        condition: 'Good',
+        sizeMetres: LINEAR_LENGTH_M
+      }),
+      geometry: eastWestLine(SITE_NORTH)
+    }
+  ]
+}
+
+function watercourses() {
+  return [
+    {
+      properties: properties({
+        ref: 'W1',
+        type: 'Ditches',
+        condition: 'Moderate',
+        sizeMetres: LINEAR_LENGTH_M
+      }),
+      geometry: eastWestLine(SITE_MID_NORTHING)
+    }
+  ]
+}
+
+function trees() {
+  return [
+    {
+      properties: properties({
+        ref: 'T1',
+        type: 'Urban tree',
+        condition: 'Good'
+      }),
+      geometry: {
+        type: 'MultiPoint',
+        coordinates: [[SITE_MID_EASTING, SITE_MID_NORTHING]]
+      }
+    }
+  ]
+}
+
+const BASELINE_UNITS = Object.freeze({
+  habitatsTotal: 12.5,
+  treesTotal: 0.5,
+  hedgerowsTotal: 2,
+  watercoursesTotal: 1
+})
+
+const POST_INTERVENTION_UNITS = Object.freeze({
+  habitatsTotal: 18.5,
+  treesTotal: 0.5,
+  hedgerowsTotal: 2,
+  watercoursesTotal: 1
+})
+
 function baselineSite(overrides = {}) {
   return {
     siteName: 'Test Farm',
-    units: {
-      habitatsTotal: 12.5,
-      treesTotal: 0.5,
-      hedgerowsTotal: 2,
-      watercoursesTotal: 1
-    },
+    units: { ...BASELINE_UNITS },
     redLine: { geometry: RED_LINE },
-    redLineAreaSqm: 120_000,
+    redLineAreaSqm: SITE_AREA_SQ_M,
     layers: {
-      habitats: [
-        {
-          properties: {
-            ref: 'A1',
-            type: 'Modified grassland',
-            condition: 'Poor',
-            sizeSquareMetres: 60_000,
-            sizeMetres: null
-          },
-          geometry: parcel(412000, 287000, 412200, 287300)
-        },
-        {
-          properties: {
-            ref: 'A2',
-            type: 'Cereal crops',
-            condition: 'Moderate',
-            sizeSquareMetres: 60_000,
-            sizeMetres: null
-          },
-          geometry: parcel(412200, 287000, 412400, 287300)
-        }
-      ],
-      hedgerows: [
-        {
-          properties: {
-            ref: 'H1',
-            type: 'Native hedgerow',
-            condition: 'Good',
-            sizeSquareMetres: null,
-            sizeMetres: 300
-          },
-          geometry: {
-            type: 'MultiLineString',
-            coordinates: [
-              [
-                [412000, 287300],
-                [412400, 287300]
-              ]
-            ]
-          }
-        }
-      ],
-      watercourses: [
-        {
-          properties: {
-            ref: 'W1',
-            type: 'Ditches',
-            condition: 'Moderate',
-            sizeSquareMetres: null,
-            sizeMetres: 300
-          },
-          geometry: {
-            type: 'MultiLineString',
-            coordinates: [
-              [
-                [412000, 287150],
-                [412400, 287150]
-              ]
-            ]
-          }
-        }
-      ],
-      trees: [
-        {
-          properties: {
-            ref: 'T1',
-            type: 'Urban tree',
-            condition: 'Good',
-            sizeSquareMetres: null,
-            sizeMetres: null
-          },
-          geometry: { type: 'MultiPoint', coordinates: [[412100, 287100]] }
-        }
-      ]
+      habitats: habitats(),
+      hedgerows: hedgerows(),
+      watercourses: watercourses(),
+      trees: trees()
     },
     ...overrides
   }
@@ -137,12 +171,7 @@ function postInterventionSite() {
   const site = baselineSite()
   site.layers.habitats[1].properties.type = 'Other neutral grassland'
   site.layers.habitats[1].properties.condition = 'Good'
-  site.units = {
-    habitatsTotal: 18.5,
-    treesTotal: 0.5,
-    hedgerowsTotal: 2,
-    watercoursesTotal: 1
-  }
+  site.units = { ...POST_INTERVENTION_UNITS }
   return site
 }
 
