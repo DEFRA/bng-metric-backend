@@ -242,6 +242,55 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
+  report: {
+    basemap: {
+      doc: 'Draw an Ordnance Survey basemap behind the site report maps. Off by default: OS have not been asked whether their mapping may be EMBEDDED in a downloadable PDF, which is a different question from displaying it in a browser because a PDF can be forwarded. The renderer is basemap-ready — this flag and an OS_MAPS_API_KEY are all that stand between it and a basemap. Has no effect without a key.',
+      format: STRICT_BOOLEAN,
+      default: false,
+      env: 'REPORT_BASEMAP'
+    }
+  },
+  osMaps: {
+    apiKey: {
+      doc: 'OS Data Hub API key for the OS Maps API (raster). Held by this service alone — the report builder and the browser map both see an internal URL and never the key. Empty disables the /os-tiles routes entirely. Supply as a CDP secret per environment, NOT via cdp-app-config.',
+      format: String,
+      default: '',
+      sensitive: true,
+      env: 'OS_MAPS_API_KEY'
+    },
+    layer: {
+      doc: 'OS Maps raster style. Must be one of the EPSG:27700 styles — British National Grid throughout is what keeps the basemap and the parcel geometry in exact registration.',
+      format: String,
+      default: 'Light_27700',
+      env: 'OS_MAPS_LAYER'
+    },
+    maxZoom: {
+      doc: 'Zoom ceiling imposed by the OS PLAN, as distinct from the product. An OpenData key must set this to 9 or every EPSG:27700 tile above it returns 403 "A Premium Plan is required to access Premium Data". Left empty for a Premium/PSGA key, which is why it does not default to 9 — defaulting to the free ceiling would silently discard resolution a Premium key has paid for.',
+      format: String,
+      default: '',
+      env: 'OS_MAPS_MAX_ZOOM'
+    },
+    cacheTtlSeconds: {
+      doc: 'How long a fetched tile stays in the process-local tile cache. Tiles are static, so this is long by default.',
+      format: Number,
+      default: 604800,
+      env: 'OS_MAPS_CACHE_TTL_SECONDS'
+    },
+    cacheMaxEntries: {
+      doc: 'Tile cache size, in tiles. One site map is around 30 tiles; a large site with parcel thumbnails is a few hundred.',
+      format: Number,
+      default: 2000,
+      env: 'OS_MAPS_CACHE_MAX_ENTRIES'
+    },
+    attribution: {
+      doc: "Basemap credit burned into the report page. A PDF cannot carry a dynamic attribution control, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",
+      format: String,
+      default:
+        'Contains OS data © Crown copyright and database right ' +
+        new Date().getFullYear(),
+      env: 'OS_MAPS_ATTRIBUTION'
+    }
+  },
   oidc: {
     discoveryUrl: {
       doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',

@@ -16,6 +16,7 @@
   "GET /upload/{uploadId}/status",
   "POST /baseline/validate/{uploadId}",
   "POST /post-intervention/validate/{uploadId}",
+  "GET /projects/{projectId}/report.pdf",
   "GET /projects/{id}/details",
   "PATCH /projects/{id}/details",
   "GET /users/{userId}/projects",
