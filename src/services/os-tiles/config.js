@@ -59,6 +59,14 @@ const OPEN_DATA_MAX_ZOOM = Object.freeze({
   'EPSG:3857': 16
 })
 
+const SECONDS_PER_WEEK = 60 * 60 * 24 * 7
+
+/** Tiles are static, so a fetched one is worth keeping for a long time. */
+const DEFAULT_CACHE_TTL_SECONDS = SECONDS_PER_WEEK
+
+/** One site map is around 30 tiles; a large site with thumbnails, a few hundred. */
+const DEFAULT_CACHE_MAX_ENTRIES = 2000
+
 /**
  * Resolve the effective configuration, folding the plan ceiling into the
  * product ceiling.
@@ -71,8 +79,8 @@ function resolveOsTilesConfig(overrides = {}) {
     baseUrl: OS_MAPS_RASTER_ZXY,
     wmtsUrl: OS_MAPS_WMTS,
     layer: DEFAULT_LAYER,
-    cacheTtlSeconds: 60 * 60 * 24 * 7,
-    cacheMaxEntries: 2000,
+    cacheTtlSeconds: DEFAULT_CACHE_TTL_SECONDS,
+    cacheMaxEntries: DEFAULT_CACHE_MAX_ENTRIES,
     routePrefix: '/os-tiles',
     // Null means "whatever the product allows" — correct for a Premium/PSGA
     // key. An OpenData key must set OS_MAPS_MAX_ZOOM=9, or every tile above

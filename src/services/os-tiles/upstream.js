@@ -17,7 +17,10 @@ import { TILE_MATRIX_SET } from './config.js'
 /**
  * Fetch one raster tile.
  *
- * @returns {{ png: Buffer, contentType: string }}
+ * @param {{baseUrl: string, layer: string, apiKey: string}} config
+ * @param {{z: number, col: number, row: number}} tile
+ * @param {Function} [fetchImpl]
+ * @returns {Promise<{ png: Buffer, contentType: string }>}
  */
 async function fetchTile(
   { baseUrl, layer, apiKey },
@@ -45,6 +48,11 @@ async function fetchTile(
  * basemap that looks plausible and is wrong, so this service fetches them and
  * serves them onward — which also means the report builder gets the real grid
  * without ever holding a key.
+ *
+ * @param {{wmtsUrl: string, apiKey: string}} config
+ * @param {Function} [fetchImpl]
+ * @param {string} [tileMatrixSet]
+ * @returns {Promise<object>} the parsed tile matrix set
  */
 async function fetchGrid(
   { wmtsUrl, apiKey },

@@ -17,6 +17,7 @@ import {
 } from '../report/pdf/synthetic-tiles.test-fixtures.js'
 
 const HTTP_OK = 200
+const HTTP_REDIRECTION = 300
 const HTTP_UNAUTHORIZED = 401
 const HTTP_NOT_FOUND = 404
 const OGC_STANDARD_PIXEL_METRES = 0.00028
@@ -62,7 +63,7 @@ function stubCapabilities(grid, tileMatrixSetId = 'EPSG:27700') {
 
 function textResponse(body, contentType, status = HTTP_OK) {
   return {
-    ok: status >= 200 && status < 300,
+    ok: status >= HTTP_OK && status < HTTP_REDIRECTION,
     status,
     statusText: status === HTTP_OK ? 'OK' : 'Error',
     headers: { get: (name) => (name === 'content-type' ? contentType : null) },

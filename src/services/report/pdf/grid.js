@@ -105,14 +105,7 @@ export function gridFromWmtsCapabilities(xml, tileMatrixSetId) {
  * upstream.
  */
 export function isTileInGrid(grid, z, col, row) {
-  if (
-    !Number.isInteger(z) ||
-    !Number.isInteger(col) ||
-    !Number.isInteger(row)
-  ) {
-    return false
-  }
-  if (z < 0 || z >= grid.resolutions.length || col < 0 || row < 0) {
+  if (!isAddressable(grid, z, col, row)) {
     return false
   }
 
@@ -147,7 +140,20 @@ function matchTileMatrixSet(xml, id) {
 }
 
 function tagText(xml, tag) {
-  return xml.match(new RegExp(`<${tag}>([\\s\\S]*?)</${tag}>`))?.[1]
+  return xml.match(new RegExp(String.raw`<${tag}>([\s\S]*?)</${tag}>`))?.[1]
+}
+
+/**
+ * Whether (z, col, row) is even the shape of a tile address: three whole,
+ * non-negative numbers, at a zoom this grid has. Anything else is rejected
+ * before the matrix dimensions are consulted at all.
+ */
+function isAddressable(grid, z, col, row) {
+  const indices = [z, col, row]
+  return (
+    indices.every((index) => Number.isInteger(index) && index >= 0) &&
+    z < grid.resolutions.length
+  )
 }
 
 /** Metres covered by one tile edge at zoom z. */
@@ -232,6 +238,12 @@ export function effectiveDpi(grid, z, extent, frameWidthPoints) {
   return pixels / (frameWidthPoints / POINTS_PER_INCH)
 }
 
+const TARGET_LINES_PER_TILE = 6
+const DECADE = 10
+
+/** The 1/2/5 series people read distances in, plus the next decade. */
+const ROUND_STEPS = Object.freeze([1, 2, 5, DECADE])
+
 /**
  * Ground interval between graticule lines at a given resolution.
  *
@@ -245,12 +257,12 @@ export function effectiveDpi(grid, z, extent, frameWidthPoints) {
 export function gridIntervalMetres(resolution, tileSize) {
   // Aim for roughly 4-8 lines across a tile, snapped to a 1/2/5 series so the
   // interval is always a round number a human can verify by eye.
-  const target = (resolution * tileSize) / 6
+  const target = (resolution * tileSize) / TARGET_LINES_PER_TILE
   const magnitude = 10 ** Math.floor(Math.log10(target))
-  for (const step of [1, 2, 5, 10]) {
+  for (const step of ROUND_STEPS) {
     if (step * magnitude >= target) {
       return step * magnitude
     }
   }
-  return 10 * magnitude
+  return DECADE * magnitude
 }
