@@ -18,6 +18,8 @@
  * `synthetic-tiles.test-fixtures.js`.
  */
 
+import { decodeVectorTile } from './mvt.js'
+
 /**
  * Tiles from the OS tiles service, memoised for the life of one document.
  *
@@ -41,4 +43,31 @@ function osTileSource(osTiles) {
   }
 }
 
-export { osTileSource }
+/**
+ * Vector tiles from the same service, decoded here so downstream code holds
+ * geometry, not bytes.
+ *
+ * Returns `{ layers }` (see decodeVectorTile) where the raster source returns
+ * `{ png }` — that shape difference is how drawBasemap knows which kind of
+ * tile it was handed. Memoising the DECODED tile matters more than for
+ * raster: a dense tile decodes to a thousand-odd features, and thumbnails ask
+ * for the same tile dozens of times.
+ */
+function osVectorTileSource(osTiles) {
+  const seen = new Map()
+
+  return async function fromOsVectorTiles(_grid, z, col, row) {
+    const key = `${z}/${col}/${row}`
+    if (!seen.has(key)) {
+      seen.set(
+        key,
+        osTiles
+          .getVectorTile(z, col, row)
+          .then(({ pbf }) => decodeVectorTile(pbf))
+      )
+    }
+    return seen.get(key)
+  }
+}
+
+export { osTileSource, osVectorTileSource }

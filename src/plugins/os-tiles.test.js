@@ -74,7 +74,7 @@ describe('the tile routes', () => {
       .table()
       .filter((route) => route.path.startsWith('/os-tiles'))
 
-    expect(routes.length).toBe(2)
+    expect(routes.length).toBe(4)
     for (const route of routes) {
       expect(route.settings.auth).toBeUndefined()
     }
@@ -140,6 +140,70 @@ describe('GET /os-tiles/{z}/{col}/{row}.png', () => {
     const before = upstream.calls.length
 
     const response = await server.inject('/os-tiles/9/99999999/0.png')
+
+    expect(response.statusCode).toBe(404)
+    expect(upstream.calls.length).toBe(before)
+  })
+})
+
+describe('GET /os-tiles/vector/capabilities', () => {
+  test('serves the vector tiling scheme with the product ceiling folded in', async () => {
+    const { server } = await serverWith()
+
+    const response = await server.inject('/os-tiles/vector/capabilities')
+
+    expect(response.statusCode).toBe(200)
+    const { layer, grid } = JSON.parse(response.payload)
+    expect(layer).toBe('ngd-base')
+    expect(grid.originX).toBe(TEST_GRID.originX)
+    expect(grid.maxZoom).toBe(15)
+  })
+})
+
+describe('GET /os-tiles/vector/{z}/{col}/{row}.pbf', () => {
+  test('serves a vector tile with the MVT content type, then from cache', async () => {
+    const { server } = await serverWith()
+
+    const first = await server.inject('/os-tiles/vector/9/300/400.pbf')
+    const second = await server.inject('/os-tiles/vector/9/300/400.pbf')
+
+    expect(first.statusCode).toBe(200)
+    expect(first.headers['content-type']).toContain(
+      'application/vnd.mapbox-vector-tile'
+    )
+    expect(first.headers['x-tile-cache']).toBe('miss')
+    expect(second.headers['x-tile-cache']).toBe('hit')
+    expect(second.rawPayload.equals(first.rawPayload)).toBe(true)
+  })
+
+  test('does not collide with the raster cache at the same coordinates', async () => {
+    const { server } = await serverWith()
+
+    const vector = await server.inject('/os-tiles/vector/9/300/400.pbf')
+    const raster = await server.inject('/os-tiles/9/300/400.png')
+
+    expect(raster.headers['x-tile-cache']).toBe('miss')
+    expect(vector.rawPayload.equals(raster.rawPayload)).toBe(false)
+  })
+
+  test('never lets the API key reach a response', async () => {
+    const { server } = await serverWith()
+
+    for (const path of [
+      '/os-tiles/vector/capabilities',
+      '/os-tiles/vector/9/300/400.pbf'
+    ]) {
+      const response = await server.inject(path)
+      expect(response.rawPayload.includes(Buffer.from(API_KEY))).toBe(false)
+    }
+  })
+
+  test('rejects a tile outside the grid with a 404, without going upstream', async () => {
+    const { server, upstream } = await serverWith()
+    await server.inject('/os-tiles/vector/capabilities')
+    const before = upstream.calls.length
+
+    const response = await server.inject('/os-tiles/vector/99/0/0.pbf')
 
     expect(response.statusCode).toBe(404)
     expect(upstream.calls.length).toBe(before)

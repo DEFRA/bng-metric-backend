@@ -4,7 +4,11 @@ import Joi from 'joi'
 
 import { projects } from '../db/schema/index.js'
 import { visibleToUser } from '../db/project-visibility.js'
-import { buildSiteReport } from '../services/report/build-site-report.js'
+import {
+  BASEMAP_CHOICES,
+  DEFAULT_BASEMAP,
+  buildSiteReport
+} from '../services/report/build-site-report.js'
 
 const CONTENT_TYPE_PDF = 'application/pdf'
 
@@ -59,6 +63,21 @@ function reportFilename(siteName) {
  *       - bearerAuth: []
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
+ *       - name: basemap
+ *         in: query
+ *         required: false
+ *         schema:
+ *           type: string
+ *           enum: [vector, raster]
+ *           default: vector
+ *         description: |
+ *           Which Ordnance Survey basemap to draw under the habitat geometry.
+ *           `vector` (the default) draws OS NGD API – Tiles geometry as
+ *           crisp PDF paths; `raster` places OS Maps API PNG tiles as
+ *           images. The two need different OS Data Hub products on the
+ *           deployment's key, so the one your key lacks degrades to a plain
+ *           ground rather than failing the report. Both exist side by side
+ *           so the outputs can be compared like for like.
  *     responses:
  *       200:
  *         description: The generated report
@@ -78,6 +97,11 @@ const getProjectReport = {
     validate: {
       params: Joi.object({
         projectId: Joi.string().uuid().required()
+      }),
+      query: Joi.object({
+        basemap: Joi.string()
+          .valid(...BASEMAP_CHOICES)
+          .default(DEFAULT_BASEMAP)
       })
     }
   },
@@ -108,7 +132,8 @@ const getProjectReport = {
     const { pdf, stats, siteName } = await buildSiteReport({
       drizzle: request.drizzle,
       projectRow: rows[0],
-      osTiles: request.server.app.osTiles ?? null
+      osTiles: request.server.app.osTiles ?? null,
+      basemap: request.query.basemap
     })
 
     // Deliberately not routed through perf-evidence.js: that helper is spike
@@ -118,6 +143,7 @@ const getProjectReport = {
     request.logger.info(
       {
         projectId,
+        basemap: request.query.basemap,
         ms: Math.round(performance.now() - started),
         bytes: pdf.length,
         ...stats

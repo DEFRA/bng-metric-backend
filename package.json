@@ -21,6 +21,7 @@
     "docker:dev": "npm run dev",
     "format": "prettier --write \"**/*.{cjs,js,json,md}\"",
     "format:check": "prettier --check \"**/*.{cjs,js,json,md}\"",
+    "extract:ngd-style": "node tools/extract-ngd-style.js",
     "git:pre-commit-hook": "npm run data-dictionary:check && npm run security-audit && npm run format:check && npm run lint && npm test",
     "git:pre-push-hook": "npm run data-dictionary:check && npm run test:integration:full",
     "install:gitleaks": "node scripts/install-gitleaks.mjs",

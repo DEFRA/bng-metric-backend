@@ -1,9 +1,17 @@
 /**
- * OS basemap tiles, as a service.
+ * OS basemap tiles, as a service — in two flavours from one key.
  *
- *   getGrid()             the EPSG:27700 tile matrix set, from OS's own WMTS
- *                         capabilities
- *   getTile(z, col, row)  one raster PNG, cached
+ *   getGrid()                   the raster EPSG:27700 tile matrix set, from
+ *                               OS's own WMTS capabilities
+ *   getTile(z, col, row)        one raster PNG, cached ("OS Maps API")
+ *   getVectorGrid()             the vector tiling scheme, from OS's published
+ *                               TileMatrixSet JSON
+ *   getVectorTile(z, col, row)  one Mapbox Vector Tile, cached
+ *                               ("OS NGD API – Tiles", ngd-base tileset)
+ *
+ * The two flavours need DIFFERENT OS Data Hub products on the key, and a key
+ * may hold either — which is why both exist and why the report route lets a
+ * request choose (`?basemap=vector|raster`).
  *
  * Two consumers, one integration:
  *
@@ -25,7 +33,12 @@
 import { isTileInGrid } from '../report/pdf/grid.js'
 import { memoryTileCache, tileKey } from './cache.js'
 import { keyWarning, resolveOsTilesConfig } from './config.js'
-import { fetchGrid, fetchTile } from './upstream.js'
+import {
+  fetchGrid,
+  fetchTile,
+  fetchVectorGrid,
+  fetchVectorTile
+} from './upstream.js'
 
 const HTTP_NOT_FOUND = 404
 
@@ -105,13 +118,74 @@ function createOsTiles(options = {}) {
     return { png, contentType, cached: false }
   }
 
+  /**
+   * The vector flavour: the same service against the OS NGD API – Tiles
+   * ngd-base tileset. A separate grid (512 px tiles, two more levels than
+   * the raster one) and a separate cache keyspace; the same validation.
+   */
+  let vectorGridPromise = null
+
+  function getVectorGrid() {
+    vectorGridPromise ??= fetchVectorGrid(config, fetchImpl).catch((error) => {
+      vectorGridPromise = null // let a transient failure be retried
+      throw error
+    })
+    return vectorGridPromise
+  }
+
+  async function getPublishedVectorGrid() {
+    return { ...(await getVectorGrid()), maxZoom: config.vectorMaxZoom }
+  }
+
+  async function getVectorTile(z, col, row) {
+    const grid = await getVectorGrid()
+
+    if (!isTileInGrid(grid, z, col, row)) {
+      throw notFound(`Tile ${z}/${col}/${row} is outside the ngd-base grid`)
+    }
+
+    if (z > config.vectorMaxZoom) {
+      throw notFound(
+        `Zoom ${z} exceeds max zoom ${config.vectorMaxZoom} for ngd-base — ` +
+          'the tileset publishes zooms 0-15.'
+      )
+    }
+
+    const key = tileKey({ layer: VECTOR_CACHE_LAYER, z, col, row })
+    const cached = await cache.get(key)
+    if (cached) {
+      return { pbf: cached, contentType: VECTOR_CONTENT_TYPE, cached: true }
+    }
+
+    const { pbf, contentType } = await fetchVectorTile(
+      config,
+      { z, col, row },
+      fetchImpl
+    )
+    await cache.set(key, pbf)
+    return { pbf, contentType, cached: false }
+  }
+
   const warning = keyWarning(config)
   if (warning) {
     logger.warn?.(warning)
   }
 
-  return { config, cache, getGrid, getPublishedGrid, getTile }
+  return {
+    config,
+    cache,
+    getGrid,
+    getPublishedGrid,
+    getTile,
+    getVectorGrid,
+    getPublishedVectorGrid,
+    getVectorTile
+  }
 }
+
+/** Distinct from any raster layer name, so the two flavours never collide. */
+const VECTOR_CACHE_LAYER = 'ngd-base-27700'
+const VECTOR_CONTENT_TYPE = 'application/vnd.mapbox-vector-tile'
 
 function notFound(message) {
   const error = new Error(message)

@@ -13,7 +13,9 @@
 
 import {
   TEST_GRID,
-  syntheticTileSource
+  stubTileMatrixSetJson,
+  syntheticTileSource,
+  syntheticVectorTile
 } from '../report/pdf/synthetic-tiles.test-fixtures.js'
 
 const HTTP_OK = 200
@@ -68,6 +70,7 @@ function textResponse(body, contentType, status = HTTP_OK) {
     statusText: status === HTTP_OK ? 'OK' : 'Error',
     headers: { get: (name) => (name === 'content-type' ? contentType : null) },
     text: async () => body,
+    json: async () => JSON.parse(body),
     arrayBuffer: async () => Buffer.from(body)
   }
 }
@@ -96,6 +99,11 @@ function errorResponse(status, message) {
 
 const TILE_PATH = /\/[^/]+\/(\d+)\/(\d+)\/(\d+)\.png$/
 
+// OGC API Tiles orders the path {tileMatrix}/{tileRow}/{tileCol} — ROW before
+// COLUMN — where the raster ZXY is z/x/y. The stub mirrors the real ngd-base
+// URL shape so a swapped row/col in upstream.js fails here, not in the field.
+const VECTOR_TILE_PATH = /\/tiles\/27700\/(\d+)\/(\d+)\/(\d+)$/
+
 /**
  * @param {object} [grid]  the tile matrix the stub should claim to have
  * @param {object} [options]
@@ -117,6 +125,20 @@ function stubOsFetch(grid = TEST_GRID, { expectKey = null } = {}) {
 
     if (parsed.searchParams.get('request') === 'GetCapabilities') {
       return textResponse(stubCapabilities(grid), 'application/xml')
+    }
+
+    if (parsed.pathname.includes('/tilematrixsets/')) {
+      return textResponse(
+        JSON.stringify(stubTileMatrixSetJson(grid)),
+        'application/json'
+      )
+    }
+
+    const vectorMatch = VECTOR_TILE_PATH.exec(parsed.pathname)
+    if (vectorMatch) {
+      const [, z, row, col] = vectorMatch
+      const pbf = syntheticVectorTile(grid, Number(z), Number(col), Number(row))
+      return binaryResponse(pbf, 'application/vnd.mapbox-vector-tile')
     }
 
     const match = TILE_PATH.exec(parsed.pathname)

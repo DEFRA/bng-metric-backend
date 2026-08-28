@@ -11,7 +11,10 @@
  * This is the same reasoning NRF records in its own proxy.
  */
 
-import { gridFromWmtsCapabilities } from '../report/pdf/grid.js'
+import {
+  gridFromTileMatrixSetJson,
+  gridFromWmtsCapabilities
+} from '../report/pdf/grid.js'
 import { TILE_MATRIX_SET } from './config.js'
 
 /**
@@ -71,15 +74,73 @@ async function fetchGrid(
 }
 
 /**
+ * Fetch one vector tile from the OS NGD API – Tiles ngd-base tileset.
+ *
+ * NOTE the path order: OGC API Tiles is {tileMatrix}/{tileRow}/{tileCol} —
+ * ROW before COLUMN — where the raster ZXY is z/x/y. Getting this wrong does
+ * not error; it returns a plausible tile of somewhere else in Britain, which
+ * is exactly the class of bug the registration proof exists to catch.
+ *
+ * @param {{vectorTilesUrl: string, apiKey: string}} config
+ * @param {{z: number, col: number, row: number}} tile
+ * @param {Function} [fetchImpl]
+ * @returns {Promise<{ pbf: Buffer, contentType: string }>}
+ */
+async function fetchVectorTile(
+  { vectorTilesUrl, apiKey },
+  { z, col, row },
+  fetchImpl = fetch
+) {
+  const url = `${vectorTilesUrl}/${z}/${row}/${col}?key=${encodeURIComponent(apiKey)}`
+  const response = await fetchImpl(url, { redirect: 'follow' })
+
+  if (!response.ok) {
+    throw upstreamError(response.status, `vector tile ${z}/${col}/${row}`)
+  }
+  return {
+    pbf: Buffer.from(await response.arrayBuffer()),
+    contentType: 'application/vnd.mapbox-vector-tile'
+  }
+}
+
+/**
+ * Fetch the EPSG:27700 tiling-scheme definition and parse it into a grid.
+ *
+ * Same policy as fetchGrid: the origin and resolutions come from OS's own
+ * published document, never from a constant in this repo. The vector grid
+ * DIFFERS from the raster one — 512 px tiles against 256, and two more
+ * levels — which is why the two flavours publish separate grids.
+ *
+ * @param {{vectorTileMatrixSetUrl: string, apiKey: string}} config
+ * @param {Function} [fetchImpl]
+ * @returns {Promise<object>} the parsed tile matrix set
+ */
+async function fetchVectorGrid(
+  { vectorTileMatrixSetUrl, apiKey },
+  fetchImpl = fetch
+) {
+  const url = `${vectorTileMatrixSetUrl}?key=${encodeURIComponent(apiKey)}`
+  const response = await fetchImpl(url, { redirect: 'follow' })
+
+  if (!response.ok) {
+    throw upstreamError(response.status, 'the 27700 tile matrix set')
+  }
+  return gridFromTileMatrixSetJson(await response.json())
+}
+
+/**
  * Turn OS's two authentication-shaped failures into messages that say what to
  * do about them. They are NOT the same problem and were both observed live:
  *
- *   401  the key is unset/wrong, or its Data Hub project lacks "OS Maps API".
+ *   401  the key is unset/wrong, or its Data Hub project lacks the product
+ *        THIS request needed — products are granted per-API, so a key can
+ *        hold "OS NGD API – Tiles" (the vector flavour) and not
+ *        "OS Maps API" (the raster one), or vice versa.
  *   403  the key is fine and the project is fine, but the *plan* does not
  *        cover this data. OS returns an OWS ExceptionReport reading
  *        "A Premium Plan is required to access Premium Data". On an OpenData
- *        plan this is what every EPSG:27700 tile above zoom 9 returns, so the
- *        fix is usually OS_MAPS_MAX_ZOOM, not a new key.
+ *        plan this is what every EPSG:27700 raster tile above zoom 9
+ *        returns, so the fix is usually OS_MAPS_MAX_ZOOM, not a new key.
  */
 function upstreamError(status, what) {
   const error = new Error(messageFor(status, what))
@@ -91,7 +152,7 @@ function messageFor(status, what) {
   if (status === HTTP_UNAUTHORIZED) {
     return (
       `Ordnance Survey rejected the request for ${what} (401). Either OS_API_KEY ` +
-      'is unset or wrong, or its OS Data Hub project does not have the "OS Maps API" ' +
+      `is unset or wrong, or its OS Data Hub project does not have the ${productFor(what)} ` +
       'product added — both fail this way.'
     )
   }
@@ -106,7 +167,16 @@ function messageFor(status, what) {
   return `Ordnance Survey returned ${status} for ${what}`
 }
 
+function productFor(what) {
+  // Both vector requests — tiles and the tiling-scheme document — are the
+  // same NGD product; only the raster route needs OS Maps API.
+  if (what.startsWith('vector') || what.includes('tile matrix')) {
+    return '"OS NGD API – Tiles"'
+  }
+  return '"OS Maps API"'
+}
+
 const HTTP_UNAUTHORIZED = 401
 const HTTP_FORBIDDEN = 403
 
-export { fetchGrid, fetchTile }
+export { fetchGrid, fetchTile, fetchVectorGrid, fetchVectorTile }
