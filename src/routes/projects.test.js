@@ -7,6 +7,11 @@ import {
   createProject,
   updateProject
 } from './projects.js'
+import {
+  projectListColumns,
+  DEFAULT_LIST_LIMIT,
+  MAX_LIST_LIMIT
+} from '../db/project-list.js'
 
 const PROJECT_1_ID = '3f1e45b4-2e81-4c70-8a70-083ad958c913'
 const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
@@ -38,6 +43,8 @@ function renderWhere(whereSpy) {
   return new PgDialect().sqlToQuery(predicate)
 }
 
+const PROJECT_2_ID = '52116043-fb84-4144-8bf0-92890a4fe7a6'
+
 const mockProjects = [
   {
     id: PROJECT_1_ID,
@@ -51,7 +58,7 @@ const mockProjects = [
     createdAt: new Date('2024-01-01')
   },
   {
-    id: '52116043-fb84-4144-8bf0-92890a4fe7a6',
+    id: PROJECT_2_ID,
     project: {
       name: 'Oakwood Farm BNG Assessment',
       site: { name: 'Oakwood Farm', grid_ref: 'SP 987 654' },
@@ -80,23 +87,81 @@ function createMockDrizzle(rows) {
   }
 }
 
+// Rows as they come back through projectListColumns — the `project` JSONB
+// document is not selected at all on the list path (BMD-933).
+const mockProjectListRows = [
+  {
+    id: PROJECT_1_ID,
+    name: 'Greenfield Meadow Restoration',
+    hasBaseline: true,
+    createdAt: new Date('2024-01-01'),
+    updatedAt: new Date('2024-01-03')
+  },
+  {
+    id: PROJECT_2_ID,
+    name: 'Oakwood Farm BNG Assessment',
+    hasBaseline: false,
+    createdAt: new Date('2024-02-01'),
+    updatedAt: new Date('2024-02-03')
+  }
+]
+
+// select().from().where().orderBy().limit().offset()
+function createMockListDrizzle(rows) {
+  const chain = {
+    offset: vi.fn().mockResolvedValue(rows)
+  }
+
+  chain.limit = vi.fn().mockReturnValue({ offset: chain.offset })
+  chain.orderBy = vi.fn().mockReturnValue({ limit: chain.limit })
+  chain.where = vi.fn().mockReturnValue({ orderBy: chain.orderBy })
+  chain.from = vi.fn().mockReturnValue({ where: chain.where })
+
+  return {
+    select: vi.fn().mockReturnValue(chain),
+    _chain: chain
+  }
+}
+
+function listRequest(sub, query = {}, extra = {}) {
+  return {
+    drizzle: createMockListDrizzle(mockProjectListRows),
+    query: { limit: DEFAULT_LIST_LIMIT, offset: 0, ...query },
+    ...credsFor(sub, extra)
+  }
+}
+
 describe('#getProjects', () => {
   test('Should return the projects visible to the user', async () => {
-    const drizzle = createMockDrizzle(mockProjects)
-    const request = { drizzle, ...credsFor(USER_001) }
+    const request = listRequest(USER_001)
 
     const result = await getProjects.handler(request, {})
 
-    expect(drizzle.select).toHaveBeenCalled()
-    expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual(
-      mockProjects.map((project) => ({ ...project, projectId: project.id }))
-    )
+    expect(request.drizzle.select).toHaveBeenCalled()
+    expect(request.drizzle._chain.where).toHaveBeenCalled()
+    expect(result).toEqual([
+      {
+        id: PROJECT_1_ID,
+        projectId: PROJECT_1_ID,
+        project: { name: 'Greenfield Meadow Restoration' },
+        has_baseline: true,
+        createdAt: new Date('2024-01-01'),
+        updatedAt: new Date('2024-01-03')
+      },
+      {
+        id: PROJECT_2_ID,
+        projectId: PROJECT_2_ID,
+        project: { name: 'Oakwood Farm BNG Assessment' },
+        has_baseline: false,
+        createdAt: new Date('2024-02-01'),
+        updatedAt: new Date('2024-02-03')
+      }
+    ])
   })
 
   test('Should return empty array when no projects are visible', async () => {
-    const drizzle = createMockDrizzle([])
-    const request = { drizzle, ...credsFor(USER_001) }
+    const request = listRequest(USER_001)
+    request.drizzle._chain.offset.mockResolvedValue([])
 
     const result = await getProjects.handler(request, {})
 
@@ -105,16 +170,123 @@ describe('#getProjects', () => {
 
   // BMD-890: holding an approved role in a second org must not widen the list —
   // only the relationship the user is currently signed in as is queried.
-  test('Should scope the query to the current org context only', async () => {
-    const drizzle = createMockDrizzle(mockProjects)
-    const request = { drizzle, ...credsFor(USER_001, multiOrgClaims(REL_A)) }
+  // BMD-936: the org scope comes from bng.users, not from the token — see
+  // currentRelationshipExpr in db/project-visibility.js.
+  test('Should scope the query to the org the token is signed in as', async () => {
+    const request = listRequest(USER_001, {}, multiOrgClaims(REL_A))
 
     await getProjects.handler(request, {})
 
-    const { sql, params } = renderWhere(drizzle._chain.where)
-    expect(sql).toContain('"relationship_id" is not distinct from')
+    const { sql, params } = renderWhere(request.drizzle._chain.where)
+    expect(sql).toContain('is not distinct from')
     expect(params).toContain(REL_A)
     expect(params).not.toContain(REL_B)
+  })
+
+  // Two devices, one user, two orgs: each list must follow its OWN token.
+  test('Should give concurrent sessions their own org scope', async () => {
+    const deviceA = listRequest(USER_001, {}, multiOrgClaims(REL_A))
+    const deviceB = listRequest(USER_001, {}, multiOrgClaims(REL_B))
+
+    await getProjects.handler(deviceA, {})
+    await getProjects.handler(deviceB, {})
+
+    expect(renderWhere(deviceA.drizzle._chain.where).params).toContain(REL_A)
+    expect(renderWhere(deviceB.drizzle._chain.where).params).toContain(REL_B)
+  })
+})
+
+// BMD-933 — see the same suite in users.test.js; both list endpoints share the
+// projection and the paging bounds.
+describe('#getProjects list projection', () => {
+  test('Should select only the list columns, never the project document', async () => {
+    const request = listRequest(USER_001)
+
+    await getProjects.handler(request, {})
+
+    expect(request.drizzle.select).toHaveBeenCalledWith(projectListColumns)
+  })
+
+  test('Should exclude the document body from the payload', async () => {
+    const request = listRequest(USER_001)
+
+    const result = await getProjects.handler(request, {})
+
+    for (const row of result) {
+      expect(row.project).toEqual({ name: expect.any(String) })
+      expect(row.project).not.toHaveProperty('baseline')
+      expect(row.project).not.toHaveProperty('postIntervention')
+    }
+  })
+
+  test('Should include has_baseline for each row', async () => {
+    const request = listRequest(USER_001)
+
+    const result = await getProjects.handler(request, {})
+
+    expect(result.map((r) => r.has_baseline)).toEqual([true, false])
+  })
+
+  test('Should order the rows so paging is stable', async () => {
+    const request = listRequest(USER_001)
+
+    await getProjects.handler(request, {})
+
+    expect(request.drizzle._chain.orderBy).toHaveBeenCalledOnce()
+    expect(request.drizzle._chain.orderBy.mock.calls[0]).toHaveLength(2)
+  })
+})
+
+describe('#getProjects pagination', () => {
+  test('Should apply the requested limit and offset', async () => {
+    const request = listRequest(USER_001, { limit: 25, offset: 50 })
+
+    await getProjects.handler(request, {})
+
+    expect(request.drizzle._chain.limit).toHaveBeenCalledWith(25)
+    expect(request.drizzle._chain.offset).toHaveBeenCalledWith(50)
+  })
+
+  test('Should always bound the query, even for a caller that asks for neither', async () => {
+    const request = listRequest(USER_001)
+
+    await getProjects.handler(request, {})
+
+    expect(request.drizzle._chain.limit).toHaveBeenCalledWith(
+      DEFAULT_LIST_LIMIT
+    )
+    expect(request.drizzle._chain.offset).toHaveBeenCalledWith(0)
+  })
+})
+
+describe('#getProjects query validation', () => {
+  const schema = getProjects.options.validate.query
+
+  test('Should default limit and offset', () => {
+    const { error, value } = schema.validate({})
+    expect(error).toBeUndefined()
+    expect(value).toEqual({ limit: DEFAULT_LIST_LIMIT, offset: 0 })
+  })
+
+  test('Should accept a limit at the cap', () => {
+    const { error } = schema.validate({ limit: MAX_LIST_LIMIT })
+    expect(error).toBeUndefined()
+  })
+
+  test('Should reject a limit above the cap', () => {
+    const { error } = schema.validate({ limit: MAX_LIST_LIMIT + 1 })
+    expect(error).toBeDefined()
+    expect(error.message).toContain(
+      `"limit" must be less than or equal to ${MAX_LIST_LIMIT}`
+    )
+  })
+
+  test('Should reject a negative offset', () => {
+    const { error } = schema.validate({ offset: -1 })
+    expect(error).toBeDefined()
+    expect(error.message).toContain(
+      '"offset" must be greater than or equal to 0'
+    )
   })
 })
 
@@ -163,7 +335,7 @@ describe('#createProject', () => {
     expect(result).toEqual({ ...newProject, projectId: newProject.id })
   })
 
-  test('Should derive userId from the token and stamp org context', async () => {
+  test('Should derive userId and org context from the token', async () => {
     const drizzle = createMockDrizzleInsert(newProject)
     const request = {
       drizzle,
@@ -187,9 +359,13 @@ describe('#createProject', () => {
     })
   })
 
-  test('Should not read the stored context when the token carries one', async () => {
+  // BMD-936 (revised): the token wins, and the stored row is only a fallback.
+  // Resolving from bng.users alone would stamp a project with whichever org
+  // signed in last on ANY device, so a second concurrent session could silently
+  // move where this user's new projects land.
+  test('Should stamp the token context, not a stale stored one', async () => {
     const drizzle = createMockDrizzleInsert(newProject, [
-      { relationshipId: 'stale-rel', orgId: 'stale-org' }
+      { relationshipId: 'rel-other-device', orgId: 'org-other-device' }
     ])
     const request = {
       drizzle,
@@ -202,10 +378,11 @@ describe('#createProject', () => {
 
     await createProject.handler(request, {})
 
-    // The verified token wins outright — no fallback query is issued.
+    // The token answered it, so no fallback query is issued.
     expect(drizzle.select).not.toHaveBeenCalled()
     expect(drizzle.insert().values.mock.calls[0][0]).toMatchObject({
-      relationshipId: 'rel-9'
+      relationshipId: 'rel-9',
+      orgId: 'org-9'
     })
   })
 
@@ -365,8 +542,20 @@ describe('#getHabitat', () => {
     userId: USER_001
   }
 
+  // getHabitat now asks Postgres for the matching habitat rather than the whole
+  // document, so the stub returns the row habitatByIdColumns yields.
+  const habitatRow = (projectRow, featureId) => ({
+    id: projectRow.id,
+    habitat:
+      projectRow.project?.baseline?.habitats?.find(
+        (h) => h.featureId === featureId
+      ) ?? null
+  })
+
   test('Returns the matching habitat document', async () => {
-    const drizzle = createMockDrizzle([projectWithHabitats])
+    const drizzle = createMockDrizzle([
+      habitatRow(projectWithHabitats, HABITAT_1_ID)
+    ])
     const request = {
       drizzle,
       ...credsFor(USER_001),
@@ -393,7 +582,10 @@ describe('#getHabitat', () => {
 
   test('Throws 404 when the project has no baseline yet', async () => {
     const drizzle = createMockDrizzle([
-      { id: PROJECT_1_ID, project: { name: 'No baseline' }, userId: USER_001 }
+      habitatRow(
+        { id: PROJECT_1_ID, project: { name: 'No baseline' } },
+        HABITAT_1_ID
+      )
     ])
     const request = {
       drizzle,
@@ -406,7 +598,9 @@ describe('#getHabitat', () => {
   })
 
   test('Throws 404 when the habitat featureId does not match', async () => {
-    const drizzle = createMockDrizzle([projectWithHabitats])
+    const drizzle = createMockDrizzle([
+      habitatRow(projectWithHabitats, UNKNOWN_HABITAT_ID)
+    ])
     const request = {
       drizzle,
       ...credsFor(USER_001),

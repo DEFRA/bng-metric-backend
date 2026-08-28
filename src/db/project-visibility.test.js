@@ -56,44 +56,75 @@ describe('visibleToUser', () => {
   // apart. Without it, an approved role in EITHER org satisfied the EXISTS and
   // both orgs' projects came back.
   test('scopes the row to the relationship the user is currently acting in', () => {
-    const { sql, params } = renderSql(inOrg(REL_A))
+    const { sql } = renderSql(inOrg(REL_A))
 
-    expect(sql).toContain('"relationship_id" is not distinct from')
-    expect(params).toContain(REL_A)
+    expect(sql).toContain('is not distinct from')
+    expect(sql).toContain('u.current_relationship_id')
   })
 
-  test('binds the CURRENT relationship, not another the user is approved for', () => {
-    const bothOrgs = claims({
-      currentRelationshipId: REL_A,
-      relationships: [
-        `${REL_A}:org-a:Acme Ltd:0:Employee:1`,
-        `${REL_B}:org-b:Globex:0:Employee:1`
-      ],
-      roles: [
-        `${REL_A}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`,
-        `${REL_B}:bng completer:${ROLE_STATUS.COMPLETE_APPROVED}`
-      ]
-    })
+  // BMD-936 (revised): the org context comes from the VERIFIED TOKEN first,
+  // falling back to bng.users. The token is the only per-session carrier of that
+  // context, so a DB-only scope cannot tell two concurrent sessions apart — a
+  // user signed in on two devices under two orgs would have both served
+  // whichever org signed in last.
+  test('binds the relationship the token carries', () => {
+    const { sql, params } = renderSql(inOrg(REL_A))
 
-    const { params } = renderSql(bothOrgs)
-
+    expect(sql).toContain('"relationship_id"')
+    expect(sql).toContain('u.current_relationship_id')
     expect(params).toContain(REL_A)
     expect(params).not.toContain(REL_B)
   })
 
-  test('falls back to the persisted current relationship when the token has none', () => {
-    // A refreshed id_token can come back with the enrichment claims blanked, so
-    // the org context is resolved from bng.users instead of being dropped.
-    const { sql, params } = renderSql(claims())
+  test('scopes two concurrent sessions to their own org', () => {
+    // The multi-session case this predicate exists to serve: same `sub`, two
+    // live tokens, different orgs — the SQL must differ between them.
+    const deviceA = renderSql(inOrg(REL_A))
+    const deviceB = renderSql(inOrg(REL_B))
 
-    expect(sql).toContain('u.current_relationship_id')
-    expect(sql).toContain('bng.users u')
-    expect(params).toContain(null)
+    expect(deviceA.params).toContain(REL_A)
+    expect(deviceB.params).toContain(REL_B)
+    expect(deviceA.params).not.toEqual(deviceB.params)
   })
 
-  test('treats an empty currentRelationshipId as absent', () => {
-    const { params } = renderSql(claims({ currentRelationshipId: '' }))
-    expect(params).not.toContain('')
-    expect(params).toContain(null)
+  test.each([
+    ['an empty relationship', claims({ currentRelationshipId: '' })],
+    ['no enrichment claims at all', claims()]
+  ])(
+    'falls back to the stored context when the token carries %s',
+    (_name, credentials) => {
+      // A refresh_token grant can return the enrichment claims blank (BMD-829);
+      // that must not empty out the user's project list.
+      const { sql, params } = renderSql(credentials)
+
+      expect(sql).toContain('u.current_relationship_id')
+      expect(params).not.toContain(REL_A)
+      expect(params).not.toContain(REL_B)
+    }
+  )
+
+  // Defra ID returns the same GUID in a different case on a refresh grant, and
+  // rows written from different tokens can disagree on case too — so every
+  // relationship-id comparison folds case.
+  test('compares every relationship id case-insensitively', () => {
+    const { sql } = renderSql(inOrg(REL_A))
+
+    expect(sql).toContain('lower("bng"."projects"."relationship_id")')
+    expect(sql).toContain('lower(r.relationship_id)')
+    expect(sql).toContain('lower((select u.current_relationship_id')
+  })
+
+  test('binds the sub, the token relationship and the approved status only', () => {
+    // owner scope, the token's org context, the stored-context fallback and the
+    // role EXISTS — nothing else reaches the query.
+    const { params } = renderSql(inOrg(REL_A))
+
+    expect(params).toEqual([
+      SUB,
+      REL_A,
+      SUB,
+      SUB,
+      ROLE_STATUS.COMPLETE_APPROVED
+    ])
   })
 })

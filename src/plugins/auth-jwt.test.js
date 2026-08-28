@@ -100,6 +100,29 @@ describe('defra-jwt strategy', () => {
     expect(res.result.sub).toBe('user-42')
   })
 
+  // BMD-936: the frontend forwards the RAW id_token, so after a silent refresh
+  // the backend receives one minted by a refresh_token grant. Defra ID re-runs
+  // its relationship/role enrichment only on an interactive sign-in, so that
+  // token can carry the enrichment claims blank, flattened to a scalar, or
+  // naming a different relationship. Verification must be indifferent to all of
+  // it: it is signature + issuer + audience + exp, and nothing else. The
+  // resulting credentials are still just the verified payload — authorisation
+  // reads the org context and roles from the database (db/project-visibility.js).
+  test.each([
+    [
+      'enrichment claims blank',
+      { roles: [], relationships: [], currentRelationshipId: '' }
+    ],
+    ['enrichment claims absent', {}],
+    ['roles flattened to a scalar', { roles: 'rel-1:bng completer:3' }],
+    ['a different current relationship', { currentRelationshipId: 'rel-other' }]
+  ])('200 for a refreshed token carrying %s', async (_name, enrichment) => {
+    const res = await inject(await mint({ sub: 'user-42', ...enrichment }))
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.sub).toBe('user-42')
+  })
+
   test('401 for a token from the wrong issuer', async () => {
     const res = await inject(
       await mint({ sub: 'x' }, { issuer: 'https://evil' })

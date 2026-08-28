@@ -1,13 +1,14 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
+import { MAX_FILENAME_LENGTH } from '../validation/project-shared-schemas.js'
 import {
   UPLOAD_ID,
   PROJECT_ID,
   SUB,
   MOCK_BUCKET,
   MOCK_KEY,
-  MOCK_BUFFER,
+  makeDownload,
   THROWS_502,
   HTTP_404,
   HTTP_409,
@@ -38,8 +39,7 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateGpkg: vi.fn(),
-  readGeoPackage: vi.fn()
+  validateAndReadGpkgFile: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -56,14 +56,18 @@ vi.mock('../services/upload/calculate-habitat-sizes.js', () => ({
 
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()
-  return { ...actual, downloadFile: vi.fn() }
+  return { ...actual, downloadFileToTemp: vi.fn() }
 })
 
 const { waitForUploadReady, UploadFailedError, UploadTimeoutError } =
   await import('../services/cdp-uploader/cdp-uploader.js')
-const { downloadFile, S3FileTooLargeError, S3TimeoutError, S3ConnectionError } =
-  await import('../services/s3/download-file.js')
-const { validateGpkg, readGeoPackage } =
+const {
+  downloadFileToTemp,
+  S3FileTooLargeError,
+  S3TimeoutError,
+  S3ConnectionError
+} = await import('../services/s3/download-file.js')
+const { validateAndReadGpkgFile } =
   await import('../validation/geopackage/geopackage.js')
 const { extractHabitatData } =
   await import('../validation/geopackage/baseline/extract-habitat-data.js')
@@ -79,9 +83,12 @@ function setupHappyPathMocks() {
     bucket: MOCK_BUCKET,
     key: MOCK_KEY
   })
-  vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-  vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
+  vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+    valid: true,
+    errors: [],
+    layers: STUB_LAYERS
+  })
   vi.mocked(validateGeoPackageLayers).mockResolvedValue({
     valid: true,
     errors: []
@@ -361,9 +368,12 @@ describe('validateBaseline handler upload error handling', () => {
   beforeEach(() => {
     vi.clearAllMocks()
     h = makeH()
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
+    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
@@ -415,7 +425,7 @@ describe('validateBaseline handler upload error handling', () => {
 
       await validateBaseline.handler(request, h).catch(() => {})
 
-      expect(downloadFile).not.toHaveBeenCalled()
+      expect(downloadFileToTemp).not.toHaveBeenCalled()
     })
   })
 })
@@ -435,17 +445,20 @@ describe('validateBaseline handler download error handling', () => {
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
     })
   })
 
-  describe('when downloadFile throws an S3FileTooLargeError', () => {
+  describe('when downloadFileToTemp throws an S3FileTooLargeError', () => {
     it('throws a 413 Entity Too Large', async () => {
-      vi.mocked(downloadFile).mockRejectedValue(
+      vi.mocked(downloadFileToTemp).mockRejectedValue(
         new S3FileTooLargeError('too big')
       )
 
@@ -457,9 +470,11 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an S3TimeoutError', () => {
+  describe('when downloadFileToTemp throws an S3TimeoutError', () => {
     it('throws a 504 Gateway Timeout', async () => {
-      vi.mocked(downloadFile).mockRejectedValue(new S3TimeoutError('timed out'))
+      vi.mocked(downloadFileToTemp).mockRejectedValue(
+        new S3TimeoutError('timed out')
+      )
 
       const err = await validateBaseline.handler(request, h).catch((e) => e)
 
@@ -469,9 +484,9 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an S3ConnectionError', () => {
+  describe('when downloadFileToTemp throws an S3ConnectionError', () => {
     it(THROWS_502, async () => {
-      vi.mocked(downloadFile).mockRejectedValue(
+      vi.mocked(downloadFileToTemp).mockRejectedValue(
         new S3ConnectionError('connection refused')
       )
 
@@ -483,9 +498,9 @@ describe('validateBaseline handler download error handling', () => {
     })
   })
 
-  describe('when downloadFile throws an unexpected error', () => {
+  describe('when downloadFileToTemp throws an unexpected error', () => {
     it(THROWS_502, async () => {
-      vi.mocked(downloadFile).mockRejectedValue(new Error('unexpected'))
+      vi.mocked(downloadFileToTemp).mockRejectedValue(new Error('unexpected'))
 
       const err = await validateBaseline.handler(request, h).catch((e) => e)
 
@@ -510,9 +525,12 @@ describe('validateBaseline handler full validation error handling', () => {
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
-    vi.mocked(downloadFile).mockResolvedValue(MOCK_BUFFER)
-    vi.mocked(validateGpkg).mockReturnValue({ valid: true, errors: [] })
-    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+    vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
+    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+      valid: true,
+      errors: [],
+      layers: STUB_LAYERS
+    })
   })
 
   it('returns 500 when validateGeoPackageLayers throws', async () => {
@@ -573,9 +591,39 @@ describe('validateBaseline handler — document schema validation', () => {
     setupHappyPathMocks()
   })
 
-  it('returns INVALID_FILE_METADATA when filename exceeds the allowed length', async () => {
+  it('returns INVALID_FILENAME when filename exceeds the allowed length', async () => {
     vi.mocked(extractHabitatData).mockReturnValue({
-      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      document: {
+        ...STUB_EXTRACTED.document,
+        filename: 'x'.repeat(MAX_FILENAME_LENGTH + 1)
+      },
+      geometries: STUB_EXTRACTED.geometries
+    })
+    const { drizzle } = makeDrizzle()
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle, payload: { projectId: PROJECT_ID } }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith(
+      expect.objectContaining({
+        valid: false,
+        errors: [
+          expect.objectContaining({ code: ERROR_CODES.INVALID_FILENAME })
+        ]
+      })
+    )
+  })
+
+  it('returns INVALID_FILE_METADATA when a feature rather than the filename is malformed', async () => {
+    const [firstHabitat, ...otherHabitats] = STUB_EXTRACTED.document.habitats
+    vi.mocked(extractHabitatData).mockReturnValue({
+      document: {
+        ...STUB_EXTRACTED.document,
+        habitats: [
+          { ...firstHabitat, featureId: 'not-a-uuid' },
+          ...otherHabitats
+        ]
+      },
       geometries: STUB_EXTRACTED.geometries
     })
     const { drizzle } = makeDrizzle()
@@ -595,7 +643,10 @@ describe('validateBaseline handler — document schema validation', () => {
 
   it('does not open a transaction when document schema validation fails', async () => {
     vi.mocked(extractHabitatData).mockReturnValue({
-      document: { ...STUB_EXTRACTED.document, filename: 'x'.repeat(256) },
+      document: {
+        ...STUB_EXTRACTED.document,
+        filename: 'x'.repeat(MAX_FILENAME_LENGTH + 1)
+      },
       geometries: STUB_EXTRACTED.geometries
     })
     const { drizzle, log } = makeDrizzle()

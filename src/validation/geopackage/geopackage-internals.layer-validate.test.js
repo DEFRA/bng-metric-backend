@@ -32,6 +32,12 @@ const {
   validateHedgerows,
   validateWatercourses
 } = await import('./geopackage-internals.js')
+const { readFeatureTables } = await import('./read-feature-tables.js')
+
+/** The feature-layer scan the format gate hands its validators. */
+function gateFeatureTables(db) {
+  return readFeatureTables(db).tables
+}
 
 const habitatsLayer = baselineSchema.layers.find(
   (l) => l.tableName === 'Habitats'
@@ -358,7 +364,7 @@ describe('validateRedLineBoundary — Red Line Boundary absent', () => {
   it('returns early with no errors', () => {
     const db = openMinimalGpkgContentsStub()
     const errors = []
-    validateRedLineBoundary(db, errors)
+    validateRedLineBoundary(gateFeatureTables(db), errors)
     expect(errors).toEqual([])
     db.close()
   })
@@ -393,7 +399,7 @@ describe('validateRedLineBoundary — big-endian WKB', () => {
     )
 
     const errors = []
-    validateRedLineBoundary(db, errors)
+    validateRedLineBoundary(gateFeatureTables(db), errors)
     expect(errors).toEqual([])
     db.close()
   })
@@ -409,7 +415,9 @@ describe('validateRedLineBoundary — geom registration mismatch, no explicit lo
     })
 
     const errors = []
-    expect(() => validateRedLineBoundary(db, errors)).not.toThrow()
+    expect(() =>
+      validateRedLineBoundary(gateFeatureTables(db), errors)
+    ).not.toThrow()
     expect(errors).toEqual([])
     db.close()
   })
@@ -426,7 +434,7 @@ describe('validateRedLineBoundary — geom registration mismatch vs table DDL', 
 
     const warn = vi.fn()
     const errors = []
-    validateRedLineBoundary(db, errors, { warn })
+    validateRedLineBoundary(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).toHaveBeenCalledTimes(1)
@@ -440,7 +448,7 @@ describe('validateHabitats — absent from contents', () => {
   it('returns early with no errors', () => {
     const db = openMinimalGpkgContentsStub()
     const errors = []
-    validateHabitats(db, errors)
+    validateHabitats(gateFeatureTables(db), errors)
     expect(errors).toEqual([])
     db.close()
   })
@@ -457,7 +465,7 @@ describe('validateHabitats — SELECT fails after registration', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateHabitats(db, errors, { warn })
+    validateHabitats(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).toHaveBeenCalledTimes(1)
@@ -477,7 +485,7 @@ describe('validateHabitats — unsafe geometry column identifier', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateHabitats(db, errors, { warn })
+    validateHabitats(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).not.toHaveBeenCalled()
@@ -489,7 +497,7 @@ describe('validateHedgerows — layer absent from gpkg_contents', () => {
   it('returns early with no errors when the layer is not registered', () => {
     const db = openMinimalGpkgContentsStub()
     const errors = []
-    validateHedgerows(db, errors)
+    validateHedgerows(gateFeatureTables(db), errors)
     expect(errors).toEqual([])
     db.close()
   })
@@ -506,7 +514,7 @@ describe('validateHedgerows — layer registered in contents but physical table 
     // Physical table not created — countTableRows SELECT will throw and return 0
 
     const errors = []
-    validateHedgerows(db, errors)
+    validateHedgerows(gateFeatureTables(db), errors)
     expect(errors).toEqual([])
     db.close()
   })
@@ -527,7 +535,7 @@ describe('validateHedgerows — optional layer edge cases', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateHedgerows(db, errors, { warn })
+    validateHedgerows(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).not.toHaveBeenCalled()
@@ -547,7 +555,7 @@ describe('validateHedgerows — optional layer edge cases', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateHedgerows(db, errors, { warn })
+    validateHedgerows(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).not.toHaveBeenCalled()
@@ -567,7 +575,7 @@ describe('validateHedgerows — optional layer edge cases', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateHedgerows(db, errors, { warn })
+    validateHedgerows(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).toHaveBeenCalledTimes(1)
@@ -590,7 +598,7 @@ describe('validateWatercourses — optional layer edge cases', () => {
 
     const warn = vi.fn()
     const errors = []
-    validateWatercourses(db, errors, { warn })
+    validateWatercourses(gateFeatureTables(db), errors, { warn })
 
     expect(errors).toEqual([])
     expect(warn).not.toHaveBeenCalled()

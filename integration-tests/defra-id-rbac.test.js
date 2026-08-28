@@ -191,8 +191,8 @@ describe('POST /auth/session', () => {
   })
 })
 
-describe('createProject stamps org context from the token', () => {
-  it('stores org_id and relationship_id from the current relationship', async () => {
+describe('createProject stamps the org context', () => {
+  it('stores org_id and relationship_id for the relationship in play', async () => {
     const sub = `it-${randomUUID()}`
     const token = await mintToken(
       sessionClaims({
@@ -202,6 +202,10 @@ describe('createProject stamps org context from the token', () => {
         orgName: 'Stark Industries'
       })
     )
+    // Signing in first mirrors the real flow (the frontend posts the session at
+    // the OIDC callback) and means the roles rows exist for the RBAC check.
+    expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+
     const created = await createProject(token, 'Stamped Project')
 
     const row = await dbClient.query(
@@ -301,37 +305,91 @@ describe('RBAC visibility', () => {
     expect(direct.statusCode).toBe(HTTP_NOT_FOUND)
   })
 
-  it('gives each organisation its own project list for the same user', async () => {
+  // BMD-936: the org scope follows the SIGN-IN, not the token. Switching org is
+  // an interactive re-sign-in, which re-posts /auth/session and moves
+  // bng.users.current_relationship_id — so each org still gets its own list, and
+  // switching back restores the other. What no longer happens is a stale token
+  // carrying its own org context: the backend reads the persisted one, so a user
+  // signed in twice (two browsers, two orgs) sees their most recent sign-in's
+  // org in both. That is the deliberate trade for a single, unambiguous source
+  // of org context — a token from a refresh_token grant can name the wrong
+  // relationship, and acting on it silently switched a user's org mid-session.
+  it.each([['/projects'], ['/users/:sub/projects']])(
+    'gives each organisation its own project list for the same user (%s)',
+    async (path) => {
+      const sub = `it-${randomUUID()}`
+      const url = path.replace(':sub', sub)
+
+      const orgAToken = await signInAs(sub, REL_ORG_A)
+      await createProject(orgAToken, 'Org A project')
+
+      const orgBToken = await signInAs(sub, REL_ORG_B)
+      await createProject(orgBToken, 'Org B project')
+
+      expect(projectNames(await listProjects(orgBToken, url))).toEqual([
+        'Org B project'
+      ])
+
+      // Switching back shows org A's again — the projects are scoped, not lost.
+      const backToOrgA = await signInAs(sub, REL_ORG_A)
+      expect(projectNames(await listProjects(backToOrgA, url))).toEqual([
+        'Org A project'
+      ])
+    }
+  )
+
+  // BMD-936 (revised): the headline reason the org context is taken from the
+  // TOKEN and not from bng.users. The database holds ONE current_relationship_id
+  // per user, so once a second device signs in as another org, a DB-only scope
+  // serves BOTH sessions that second org — the first device silently starts
+  // seeing the wrong organisation's projects without anything having changed on
+  // it. Note there is deliberately no re-sign-in before the final assertions:
+  // each token is used exactly as a live session would still hold it.
+  it('keeps concurrent sessions in different orgs apart', async () => {
     const sub = `it-${randomUUID()}`
 
-    const orgAToken = await signInAs(sub, REL_ORG_A)
-    await createProject(orgAToken, 'Org A project')
+    const deviceA = await signInAs(sub, REL_ORG_A)
+    await createProject(deviceA, 'Org A project')
 
-    const orgBToken = await signInAs(sub, REL_ORG_B)
-    await createProject(orgBToken, 'Org B project')
+    // A second device signs in as the other org. bng.users now records org B.
+    const deviceB = await signInAs(sub, REL_ORG_B)
+    await createProject(deviceB, 'Org B project')
 
-    expect(projectNames(await listProjects(orgBToken))).toEqual([
-      'Org B project'
-    ])
-    // Switching back shows org A's again — the projects are scoped, not lost.
-    expect(projectNames(await listProjects(orgAToken))).toEqual([
-      'Org A project'
+    expect(projectNames(await listProjects(deviceB))).toEqual(['Org B project'])
+    // The still-live first session must be unaffected by the second sign-in.
+    expect(projectNames(await listProjects(deviceA))).toEqual(['Org A project'])
+  })
+
+  it("stamps a new project under the creating session's org, not the last sign-in", async () => {
+    const sub = `it-${randomUUID()}`
+
+    const deviceA = await signInAs(sub, REL_ORG_A)
+    await signInAs(sub, REL_ORG_B) // another device moves the stored context
+
+    await createProject(deviceA, 'Made on device A')
+
+    // Created under A, so it is visible to A and invisible to B.
+    expect(projectNames(await listProjects(deviceA))).toEqual([
+      'Made on device A'
     ])
   })
 
-  it('scopes GET /users/{userId}/projects to the current organisation too', async () => {
+  // Defra ID returns the same relationship GUID in a different CASE on a
+  // refresh_token grant than on interactive sign-in. GUIDs are case-insensitive
+  // (RFC 4122), so a refreshed session must keep seeing its own projects.
+  it('scopes a refreshed token whose relationship id is cased differently', async () => {
     const sub = `it-${randomUUID()}`
 
-    const orgAToken = await signInAs(sub, REL_ORG_A)
-    await createProject(orgAToken, 'Org A project')
-    const orgBToken = await signInAs(sub, REL_ORG_B)
-    await createProject(orgBToken, 'Org B project')
+    const atSignIn = await signInAs(sub, REL_ORG_A)
+    await createProject(atSignIn, 'Org A project')
 
-    const url = `/users/${sub}/projects`
-    expect(projectNames(await listProjects(orgBToken, url))).toEqual([
-      'Org B project'
-    ])
-    expect(projectNames(await listProjects(orgAToken, url))).toEqual([
+    // The same session after a silent refresh: same relationship, upper-cased,
+    // and never re-posted to /auth/session (a refresh does not re-persist).
+    const afterRefresh = await mintToken(
+      multiOrgClaims({ sub, current: REL_ORG_A.toUpperCase() })
+    )
+
+    expect(projectNames(await listProjects(afterRefresh))).toEqual([
       'Org A project'
     ])
   })

@@ -34,6 +34,54 @@ describe('pickProp', () => {
   })
 })
 
+describe('pickProp key index caching', () => {
+  // The case-insensitive fallback caches a lowercased key index per properties
+  // bag. These pin that the cache cannot leak between bags or go stale.
+  it('gives the same answer on repeated calls against one bag', () => {
+    const props = { 'Site Name': 'Meadow Farm' }
+
+    expect(pickProp(props, ['site name'])).toBe('Meadow Farm')
+    expect(pickProp(props, ['site name'])).toBe('Meadow Farm')
+    expect(pickProp(props, ['SITE NAME'])).toBe('Meadow Farm')
+  })
+
+  it('keeps separate bags separate', () => {
+    const first = { 'Site Name': 'Meadow Farm' }
+    const second = { site_name: 'Brook Field' }
+
+    expect(pickProp(first, ['site name'])).toBe('Meadow Farm')
+    expect(pickProp(second, ['site name'])).toBeNull()
+    expect(pickProp(second, ['SITE_NAME'])).toBe('Brook Field')
+    // Re-reading the first must not pick up the second's index.
+    expect(pickProp(first, ['site name'])).toBe('Meadow Farm')
+  })
+
+  it('does not confuse two bags that carry the same value under different keys', () => {
+    const upper = { COMMENT: 'a' }
+    const lower = { comment: 'b' }
+
+    expect(pickProp(upper, ['Comment'])).toBe('a')
+    expect(pickProp(lower, ['Comment'])).toBe('b')
+  })
+
+  it('keeps returning null for a key that is absent', () => {
+    // The miss path is what builds and caches the index, so it is the one that
+    // must stay correct when called repeatedly.
+    const props = { 'Site Name': 'Meadow Farm' }
+
+    expect(pickProp(props, ['nope'])).toBeNull()
+    expect(pickProp(props, ['nope'])).toBeNull()
+    expect(pickProp(props, ['site name'])).toBe('Meadow Farm')
+  })
+
+  it('reads a bag whose keys were added before the first lookup', () => {
+    const props = {}
+    props['Survey Date'] = '2026-01-01'
+
+    expect(pickProp(props, ['survey date'])).toBe('2026-01-01')
+  })
+})
+
 describe('buildHabitatLookupKey', () => {
   it('returns null when habitatType is absent', () => {
     expect(buildHabitatLookupKey({})).toBeNull()

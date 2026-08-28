@@ -4,8 +4,8 @@ import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readGeoPackage } from './geopackage.js'
 import { validateGeoPackageLayersPostgis } from './postgis/index.js'
 
-// MERGE NOTE (PR #16): the geometry checks below assume validateGpkg already
-// ran and passed — caller must run that format gate first.
+// The geometry checks below assume the format gate already ran and passed —
+// the upload route gets both from validateAndReadGpkg in one read.
 
 /**
  * Run every geometry check against an open baseline GeoPackage file.

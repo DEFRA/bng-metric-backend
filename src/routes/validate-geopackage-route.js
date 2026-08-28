@@ -1,7 +1,3 @@
-import fs from 'node:fs/promises'
-import os from 'node:os'
-import path from 'node:path'
-
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 
@@ -11,35 +7,83 @@ import {
   UploadTimeoutError
 } from '../services/cdp-uploader/cdp-uploader.js'
 import {
-  downloadFile,
+  downloadFileToTemp,
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import {
-  validateGpkg,
-  readGeoPackage
-} from '../validation/geopackage/geopackage.js'
+import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import { validateStagedGeoPackage } from '../validation/geopackage/lineage/validate-staged-geopackage.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import { saveStagedUploadForProject } from '../services/upload/save-staged-upload-for-project.js'
-import { ERROR_CODES, makeError } from '../validation/geopackage/errors.js'
+import {
+  ERROR_CODES,
+  makeError,
+  makeMetadataError
+} from '../validation/geopackage/errors.js'
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
-import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
+import {
+  metricsCounter,
+  metricsByteSize,
+  metricsMillis,
+  metricsGauge
+} from '../common/helpers/metrics.js'
 import {
   GEOPACKAGE_METRIC,
+  PERFORMANCE_METRIC,
   VALIDATION_CATEGORY
 } from '../common/helpers/metric-names.js'
+import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
 
 const logger = createLogger()
 
-/** Prefix for ephemeral GeoPackage staging directories under os.tmpdir(). */
-const UPLOAD_TEMP_PREFIX = 'baseline-'
+/** Layer keys in a parsed GeoPackage that are not arrays of features. */
+const NON_FEATURE_LAYER_KEYS = new Set(['missingLayers'])
 
-/** Fixed filename inside the staging directory (not derived from user input). */
-const UPLOAD_TEMP_FILENAME = 'baseline.gpkg'
+/**
+ * Total features parsed out of a GeoPackage, across every layer. This is the
+ * scale figure that makes every duration below interpretable — a 4 s validate
+ * means nothing without knowing whether it covered 40 parcels or 40,000.
+ *
+ * @param {object} layers
+ * @returns {number}
+ */
+function countFeatures(layers) {
+  let total = 0
+  for (const [key, value] of Object.entries(layers ?? {})) {
+    if (!NON_FEATURE_LAYER_KEYS.has(key) && Array.isArray(value)) {
+      total += value.length
+    }
+  }
+  return total
+}
+
+/**
+ * Record one pipeline stage twice over, because the two destinations answer
+ * different questions and neither substitutes for the other:
+ *
+ *   - a `pipeline-inline` evidence LINE, carrying the high-cardinality detail
+ *     (uploadId, feature counts) that you need when investigating one slow
+ *     upload in the logs;
+ *   - an EMF duration METRIC, carrying only a two-valued `documentKey`
+ *     dimension, which is what CloudWatch aggregates and Grafana charts.
+ *
+ * Both come off the same measurement, so a dashboard and a log line can never
+ * disagree about how long a stage took.
+ *
+ * @param {string} metricName one of PERFORMANCE_METRIC
+ * @param {number} durationMs
+ * @param {object} fields evidence-line fields (must include `stage`)
+ * @param {object} config route config carrying projectDocumentKey
+ */
+async function recordStage(metricName, durationMs, fields, config) {
+  logPerf(logger, 'pipeline-inline', { ...fields, elapsedMs: durationMs })
+  await metricsMillis(metricName, durationMs, {
+    documentKey: config.projectDocumentKey
+  })
+}
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -68,9 +112,15 @@ async function resolveUploadLocation(uploadId, config) {
   }
 }
 
-async function fetchUploadBuffer(bucket, key, uploadId, config) {
+/**
+ * Stream the upload out of S3 onto local disk. The caller owns the returned
+ * file and must `cleanup()` it — see {@link downloadFileToTemp}.
+ *
+ * @returns {Promise<{ path: string, size: number, cleanup: () => Promise<void> }>}
+ */
+async function fetchUploadFile(bucket, key, uploadId, config) {
   try {
-    return await downloadFile(bucket, key)
+    return await downloadFileToTemp(bucket, key)
   } catch (err) {
     if (err instanceof S3FileTooLargeError) {
       logger.error(
@@ -96,17 +146,45 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
     { uploadId, filename, fileSize },
     { allowUnknown: true }
   )
-  if (!metaError) {
-    return null
+  if (metaError) {
+    logger.info(
+      `${config.routeName} - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+    )
+    return h.response({
+      valid: false,
+      errors: [makeMetadataError(metaError)]
+    })
   }
 
+  return null
+}
+
+/**
+ * The format gate rejected the file before any shape was unpacked.
+ */
+async function respondToGateRejection(gateResult, uploadId, h, config) {
   logger.info(
-    `${config.routeName} - metadata schema rejected uploadId ${uploadId}: ${metaError.message}`
+    `${config.routeName} - rejected at gpkg gate uploadId ${uploadId}`
   )
-  return h.response({
-    valid: false,
-    errors: [makeError(ERROR_CODES.INVALID_FILE_METADATA, metaError.message)]
+  await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+    category: VALIDATION_CATEGORY.internalData
   })
+  return h.response({ valid: gateResult.valid, errors: gateResult.errors })
+}
+
+/**
+ * The shapes parsed, but the geometry or data-quality checks failed.
+ */
+async function respondToGeometryRejection(result, uploadId, h, config) {
+  logger.info(
+    `${config.routeName} - rejected uploadId ${uploadId}: ${result.errors
+      .map((e) => `${e.code}: ${e.message}`)
+      .join(' | ')}`
+  )
+  await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
+    category: VALIDATION_CATEGORY.geometric
+  })
+  return h.response(result)
 }
 
 /**
@@ -161,57 +239,114 @@ async function runStagedValidation(localPath, deps, context, h, config) {
   return h.response(responseBody)
 }
 
-async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
-  const { uploadId, projectId, credentials, filename, fileSize, staged } =
-    context
-  const tmpDir = await fs.mkdtemp(path.join(os.tmpdir(), UPLOAD_TEMP_PREFIX))
-  const localPath = path.join(tmpDir, UPLOAD_TEMP_FILENAME)
+async function validateLayers(layers, drizzle, pgPool, context, h, config) {
+  const { uploadId, projectId, credentials, filename, fileSize } = context
+
+  // Evidence (Item 1 — the whole pipeline runs inline on the request handler):
+  // geometry validation is a single awaited PostGIS round trip whose cost scales
+  // with the feature count, and it holds the handler for its full duration.
+  const validateStart = perfNow()
+  const result = await validateGeoPackageLayers(
+    layers,
+    pgPool,
+    config.projectDocumentKey
+  )
+  await recordStage(
+    PERFORMANCE_METRIC.postgisValidateMs,
+    msSince(validateStart),
+    {
+      uploadId,
+      stage: 'postgis-validate',
+      featureCount: countFeatures(layers)
+    },
+    config
+  )
+
+  if (!result.valid) {
+    return respondToGeometryRejection(result, uploadId, h, config)
+  }
+
+  logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
+  await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
+  if (!projectId) {
+    return h.response(result)
+  }
+
+  const errorResponse = await saveUploadForProject(
+    { drizzle, pgPool, logger },
+    projectId,
+    layers,
+    { uploadId, credentials, filename, fileSize },
+    h,
+    config
+  )
+  return errorResponse ?? h.response(result)
+}
+
+/**
+ * Validate the downloaded file end to end. The GeoPackage is opened once, in
+ * place on disk: the format gate rejects a structurally broken file before any
+ * shape is unpacked, and an accepted file hands back its parsed layers from
+ * the same read.
+ */
+async function runFullValidation(
+  filePath,
+  drizzle,
+  pgPool,
+  context,
+  h,
+  config
+) {
+  const { uploadId } = context
 
   try {
-    await fs.writeFile(localPath, buffer)
-    if (staged) {
-      return await runStagedValidation(
-        localPath,
-        { drizzle, pgPool },
-        { uploadId, projectId, credentials, filename, fileSize },
-        h,
-        config
-      )
-    }
-    const layers = readGeoPackage(localPath)
-    const result = await validateGeoPackageLayers(
-      layers,
-      pgPool,
-      config.projectDocumentKey
+    // Evidence (Item 2 — features and geometries are loaded synchronously):
+    // better-sqlite3 is a synchronous binding, so this call blocks the event
+    // loop for its whole duration; nothing else on this instance progresses.
+    // Reading from disk rather than a Buffer does not change that.
+    const parseStart = perfNow()
+    const gateResult = validateAndReadGpkgFile(filePath)
+    const parseMs = msSince(parseStart)
+    const featureCount = countFeatures(gateResult.layers)
+
+    await recordStage(
+      PERFORMANCE_METRIC.parseMs,
+      parseMs,
+      {
+        uploadId,
+        stage: 'parse',
+        fileSizeBytes: context.fileSize ?? null,
+        featureCount,
+        valid: gateResult.valid
+      },
+      config
     )
-    if (!result.valid) {
-      logger.info(
-        `${config.routeName} - rejected uploadId ${uploadId}: ${result.errors
-          .map((e) => `${e.code}: ${e.message}`)
-          .join(' | ')}`
-      )
-      await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-        category: VALIDATION_CATEGORY.geometric
-      })
-      return h.response(result)
+    await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
+      documentKey: config.projectDocumentKey
+    })
+
+    if (!gateResult.valid) {
+      return await respondToGateRejection(gateResult, uploadId, h, config)
     }
-    logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
-    await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
-    if (projectId) {
-      const errorResponse = await saveUploadForProject(
-        { drizzle, pgPool, logger },
-        projectId,
-        layers,
-        { uploadId, credentials, filename, fileSize },
+    if (gateResult.staged) {
+      // The gate has the table names open already, so it is the cheapest place
+      // to tell the two formats apart. Absent means single-stage.
+      return await runStagedValidation(
+        filePath,
+        { drizzle, pgPool },
+        context,
         h,
         config
       )
-      if (errorResponse) {
-        return errorResponse
-      }
-      return h.response(result)
     }
-    return h.response(result)
+    return await validateLayers(
+      gateResult.layers,
+      drizzle,
+      pgPool,
+      context,
+      h,
+      config
+    )
   } catch (error) {
     if (error?.isBoom) {
       throw error
@@ -230,8 +365,6 @@ async function runFullValidation(buffer, drizzle, pgPool, context, h, config) {
         ]
       })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-  } finally {
-    await fs.rm(tmpDir, { recursive: true, force: true }).catch(() => {})
   }
 }
 
@@ -290,36 +423,41 @@ function createValidateGeoPackageRoute(config) {
         }
       }
 
-      const buffer = await fetchUploadBuffer(bucket, key, uploadId, config)
+      // Streamed to disk rather than buffered, and removed as soon as
+      // validation is done with it, so concurrent uploads cannot stack up
+      // whole files in memory.
+      const upload = await fetchUploadFile(bucket, key, uploadId, config)
 
-      const gateResult = validateGpkg(buffer)
-      if (!gateResult.valid) {
-        logger.info(
-          `${config.routeName} - rejected at gpkg gate uploadId ${uploadId}`
+      const totalStart = perfNow()
+      try {
+        return await runFullValidation(
+          upload.path,
+          request.drizzle,
+          request.pg,
+          { uploadId, projectId, credentials, filename, fileSize },
+          h,
+          config
         )
-        await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
-          category: VALIDATION_CATEGORY.internalData
+      } finally {
+        // A file we could not delete is a disk problem to chase in the logs,
+        // not a reason to fail a validation that already succeeded.
+        await upload.cleanup().catch((err) => {
+          logger.warn(
+            `${config.routeName}: failed to remove the downloaded file for uploadId ${uploadId}: ${err.message}`
+          )
         })
-        return h.response(gateResult)
+        // Evidence (Item 1): the end-to-end handler time a user waits on, with
+        // every stage above still running on this one request. Recorded in the
+        // `finally` so a failed upload — often the slowest kind — is measured
+        // too, matching how each stage above records before checking for
+        // errors.
+        await recordStage(
+          PERFORMANCE_METRIC.totalMs,
+          msSince(totalStart),
+          { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
+          config
+        )
       }
-
-      return runFullValidation(
-        buffer,
-        request.drizzle,
-        request.pg,
-        {
-          uploadId,
-          projectId,
-          credentials,
-          filename,
-          fileSize,
-          // The gate has the table names open already, so it is the cheapest
-          // place to tell the two formats apart. Absent means single-stage.
-          staged: gateResult.staged === true
-        },
-        h,
-        config
-      )
     }
   }
 }

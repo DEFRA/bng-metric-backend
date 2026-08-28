@@ -1,0 +1,91 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="36" author="bng-team">
+        <comment>
+            Canonicalise every stored Defra Identity relationship id to
+            lower-case, and de-duplicate the rows that case variation may already
+            have created.
+
+            Relationship ids are GUIDs, which are case-insensitive (RFC 4122),
+            and Defra ID does not emit a single canonical spelling: the id_token
+            from a refresh_token grant carries the same currentRelationshipId as
+            the sign-in token in a different case. The application now compares
+            them case-insensitively and writes them canonicalised
+            (src/db/persist-session.js), but uq_roles_user_rel_name and
+            uq_relationships_user_rel are plain text uniques — so without this
+            migration a canonicalised write would MISS an existing differently
+            cased row and insert a second one instead of updating it. A later
+            status change (access removed, status 6) would then land on only one
+            of the pair, leaving a stale approved row that the case-folded RBAC
+            EXISTS in src/db/project-visibility.js would still honour: access
+            retained after revocation.
+
+            Where a case-duplicate pair exists, the most recently updated row
+            wins — that is the one the latest sign-in wrote, so it carries the
+            current enrolment status. On data that is already lower-case (the
+            expected case in every environment) every statement here matches no
+            rows and the changeset is a no-op.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            -- bng.projects carries the audit and updated_at triggers. This is a
+            -- metadata-only normalisation, not a user project change, so suppress
+            -- them exactly as changeSet 32 does: otherwise every affected project
+            -- gains a false audit entry attributed to its owner and has its last
+            -- genuine modification timestamp overwritten. PostgreSQL DDL is
+            -- transactional, so a failed changeset restores the enabled state
+            -- when Liquibase rolls the transaction back.
+            ALTER TABLE bng.projects DISABLE TRIGGER write_audit_log;
+            ALTER TABLE bng.projects DISABLE TRIGGER set_updated_at;
+
+            -- Drop the older half of any case-duplicate pair before folding case,
+            -- or the UPDATE below would violate the unique constraints. ctid
+            -- breaks ties so the delete is deterministic when two rows share a
+            -- last_updated.
+            DELETE FROM bng.roles a
+            USING bng.roles b
+            WHERE a.ctid &lt;&gt; b.ctid
+              AND a.user_id = b.user_id
+              AND a.name = b.name
+              AND lower(a.relationship_id) = lower(b.relationship_id)
+              AND (a.last_updated &lt; b.last_updated
+                   OR (a.last_updated = b.last_updated AND a.ctid &lt; b.ctid));
+
+            DELETE FROM bng.relationships a
+            USING bng.relationships b
+            WHERE a.ctid &lt;&gt; b.ctid
+              AND a.user_id = b.user_id
+              AND lower(a.relationship_id) = lower(b.relationship_id)
+              AND (a.last_updated &lt; b.last_updated
+                   OR (a.last_updated = b.last_updated AND a.ctid &lt; b.ctid));
+
+            UPDATE bng.roles SET relationship_id = lower(relationship_id)
+              WHERE relationship_id &lt;&gt; lower(relationship_id);
+
+            UPDATE bng.relationships SET relationship_id = lower(relationship_id)
+              WHERE relationship_id &lt;&gt; lower(relationship_id);
+
+            UPDATE bng.users
+              SET current_relationship_id = lower(current_relationship_id)
+              WHERE current_relationship_id &lt;&gt; lower(current_relationship_id);
+
+            UPDATE bng.projects SET relationship_id = lower(relationship_id)
+              WHERE relationship_id &lt;&gt; lower(relationship_id);
+
+            ALTER TABLE bng.projects ENABLE TRIGGER write_audit_log;
+            ALTER TABLE bng.projects ENABLE TRIGGER set_updated_at;
+
+            -- The RBAC EXISTS join folds case on both sides, which makes the
+            -- plain idx_roles_user_rel usable only via its leading user_id
+            -- column. This functional index restores an index-only path for the
+            -- folded comparison.
+            CREATE INDEX IF NOT EXISTS idx_roles_user_rel_lower
+              ON bng.roles (user_id, lower(relationship_id));
+        </sql>
+    </changeSet>
+
+</databaseChangeLog>

@@ -19,6 +19,14 @@ import {
   distinctivenessByHabitatType,
   distinctivenessScores
 } from './habitat-distinctiveness.js'
+import { createLogger } from '../../common/helpers/logging/logger.js'
+import {
+  logPerf,
+  perfNow,
+  microsSince
+} from '../../common/helpers/perf-evidence.js'
+
+const logger = createLogger()
 
 // Hedgerow scores differ from area scores at V.Low (1 vs 0) per the statutory
 // metric tables, so the hedgerow path must read its own scores table.
@@ -111,11 +119,23 @@ function getHabitatsByBroad(options = {}) {
  * @returns {string[]}
  */
 function getAreaBroadHabitats() {
+  const start = perfNow()
   const broads = new Set()
   for (const row of getHabitatsByBroad({ areaOnly: true })) {
     broads.add(row.broadHabitat)
   }
-  return [...broads].sort((a, b) => a.localeCompare(b))
+  const result = [...broads].sort((a, b) => a.localeCompare(b))
+  // Evidence (Item W5 — reference lookups recompute per request, and the
+  // responses carry no cache headers): this Set build + sort runs over static,
+  // per-build data, so the answer is identical every time. The /reference/*
+  // handlers set no Cache-Control or ETag, so neither the process nor the
+  // client can skip the work — it repeats on every single request.
+  logPerf(logger, 'reference-recompute', {
+    getter: 'areaBroadHabitats',
+    resultCount: result.length,
+    buildMicros: microsSince(start)
+  })
+  return result
 }
 
 /**
@@ -149,6 +169,7 @@ function getAreaHabitatTypes(broadHabitat) {
  * @returns {Object<string, Array<{ name: string, distinctiveness: string, distinctivenessScore: number }>>}
  */
 function getAreaHabitatTypesByBroad() {
+  const start = perfNow()
   const grouped = {}
   for (const row of getHabitatsByBroad({ areaOnly: true })) {
     const list = grouped[row.broadHabitat] ?? []
@@ -162,6 +183,14 @@ function getAreaHabitatTypesByBroad() {
   for (const broad of Object.keys(grouped)) {
     grouped[broad].sort((a, b) => a.name.localeCompare(b.name))
   }
+  // Evidence (Item W5 — reference lookups recompute per request): the full
+  // group-by plus a per-broad sort, rebuilt on every call, with no response
+  // cache headers to let a client skip the round trip entirely.
+  logPerf(logger, 'reference-recompute', {
+    getter: 'areaHabitatTypesByBroad',
+    resultCount: Object.keys(grouped).length,
+    buildMicros: microsSince(start)
+  })
   return grouped
 }
 

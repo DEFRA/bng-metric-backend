@@ -94,6 +94,31 @@ describe('buildLayerArrays', () => {
     expect(result.srids).toEqual([BNG_SRID, WGS84_SRID, WGS84_SRID])
   })
 
+  it('reuses the geometryJson cached at decode rather than re-serialising', () => {
+    // BMD-914: readGeoPackage stringifies each geometry once; sizing reads it.
+    const result = buildLayerArrays({
+      areas: [
+        {
+          nativeGeometry: { type: 'Polygon', coordinates: [] },
+          geometryJson: '{"cached":"area"}',
+          nativeSrid: BNG_SRID,
+          featureId: 'fid-area-1'
+        }
+      ]
+    })
+
+    expect(result.geoms).toEqual(['{"cached":"area"}'])
+  })
+
+  it('serialises the geometry when no cached string is present', () => {
+    const geometry = { type: 'Polygon', coordinates: [] }
+    const result = buildLayerArrays({
+      areas: [{ nativeGeometry: geometry, nativeSrid: BNG_SRID }]
+    })
+
+    expect(result.geoms).toEqual([JSON.stringify(geometry)])
+  })
+
   it('skips features without geometry', () => {
     const result = buildLayerArrays({
       areas: [{ nativeSrid: BNG_SRID, featureId: 'fid-no-geom' }]

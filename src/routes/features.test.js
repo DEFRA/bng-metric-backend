@@ -89,6 +89,21 @@ const projectWithPostIntervention = {
   }
 }
 
+// The handlers now ask Postgres for the matching feature in each layer instead
+// of the whole document, so the stub returns the row that projection yields:
+// one column per layer, null where that layer holds no match. Mirrors
+// featureByIdColumns in src/db/project-features.js.
+const LAYER_KEYS = ['habitats', 'trees', 'hedgerows', 'watercourses']
+
+function featureRow(projectRow, featureId, documentKey = 'baseline') {
+  const featureSet = projectRow.project?.[documentKey] ?? {}
+  const row = { id: projectRow.id }
+  for (const key of LAYER_KEYS) {
+    row[key] = featureSet[key]?.find((f) => f?.featureId === featureId) ?? null
+  }
+  return row
+}
+
 function getFeatureMockDrizzle(rows) {
   const chain = {
     where: vi.fn().mockResolvedValue(rows)
@@ -126,7 +141,9 @@ function makeTxDrizzle(projectRow, { lockError = null } = {}) {
 
 describe('#getFeature', () => {
   test('returns { type, feature } for a habitat', async () => {
-    const drizzle = getFeatureMockDrizzle([makeProject()])
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(makeProject(), HABITAT_ID)
+    ])
     const request = {
       drizzle,
       auth: AUTH,
@@ -137,7 +154,9 @@ describe('#getFeature', () => {
   })
 
   test('returns { type, feature } for a hedgerow', async () => {
-    const drizzle = getFeatureMockDrizzle([makeProject()])
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(makeProject(), HEDGEROW_ID)
+    ])
     const request = {
       drizzle,
       auth: AUTH,
@@ -160,7 +179,9 @@ describe('#getFeature', () => {
   })
 
   test('throws 404 when the feature is absent from every layer', async () => {
-    const drizzle = getFeatureMockDrizzle([makeProject()])
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(makeProject(), UNKNOWN_FEATURE_ID)
+    ])
     const request = {
       drizzle,
       auth: AUTH,
@@ -173,7 +194,10 @@ describe('#getFeature', () => {
 
   test('throws 404 when the project has no baseline', async () => {
     const drizzle = getFeatureMockDrizzle([
-      { id: PROJECT_ID, project: { name: 'No baseline yet' } }
+      featureRow(
+        { id: PROJECT_ID, project: { name: 'No baseline yet' } },
+        HABITAT_ID
+      )
     ])
     const request = {
       drizzle,
@@ -188,7 +212,9 @@ describe('#getFeature', () => {
 
 describe('#getPostInterventionFeature', () => {
   test('returns { type, feature } from postIntervention', async () => {
-    const drizzle = getFeatureMockDrizzle([projectWithPostIntervention])
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(projectWithPostIntervention, HEDGEROW_ID, 'postIntervention')
+    ])
     const request = {
       drizzle,
       auth: AUTH,
@@ -199,7 +225,9 @@ describe('#getPostInterventionFeature', () => {
   })
 
   test('throws 404 when the project has no postIntervention data', async () => {
-    const drizzle = getFeatureMockDrizzle([makeProject()])
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(makeProject(), HABITAT_ID, 'postIntervention')
+    ])
     const request = {
       drizzle,
       auth: AUTH,

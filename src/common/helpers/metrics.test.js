@@ -1,10 +1,17 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 
 import { config } from '../../config.js'
-import { metricsCounter, metricsByteSize } from './metrics.js'
+import {
+  metricsCounter,
+  metricsByteSize,
+  metricsMillis,
+  metricsGauge
+} from './metrics.js'
 
 const mockCounter = vi.fn()
 const mockByteSize = vi.fn()
+const mockMillis = vi.fn()
+const mockGauge = vi.fn()
 const mockLoggerError = vi.fn()
 
 vi.mock('@defra/cdp-metrics', () => ({
@@ -16,6 +23,14 @@ vi.mock('@defra/cdp-metrics', () => ({
     byteSize(...args) {
       return mockByteSize(...args)
     }
+
+    millis(...args) {
+      return mockMillis(...args)
+    }
+
+    gauge(...args) {
+      return mockGauge(...args)
+    }
   }
 }))
 vi.mock('./logging/logger.js', () => ({
@@ -26,6 +41,7 @@ const mockMetricsName = 'mock-metrics-name'
 const defaultMetricsValue = 1
 const mockValue = 200
 const mockDimensions = { category: 'geometric' }
+const mockDocumentDimensions = { documentKey: 'baseline' }
 
 describe('#metrics', () => {
   beforeEach(() => {
@@ -37,6 +53,8 @@ describe('#metrics', () => {
       config.set('isMetricsEnabled', false)
       await metricsCounter(mockMetricsName, mockValue)
       await metricsByteSize(mockMetricsName, mockValue)
+      await metricsMillis(mockMetricsName, mockValue)
+      await metricsGauge(mockMetricsName, mockValue)
     })
 
     test('Should not emit a counter', () => {
@@ -45,6 +63,14 @@ describe('#metrics', () => {
 
     test('Should not emit a byte size', () => {
       expect(mockByteSize).not.toHaveBeenCalled()
+    })
+
+    test('Should not emit a duration', () => {
+      expect(mockMillis).not.toHaveBeenCalled()
+    })
+
+    test('Should not emit a gauge', () => {
+      expect(mockGauge).not.toHaveBeenCalled()
     })
   })
 
@@ -77,6 +103,28 @@ describe('#metrics', () => {
       await metricsByteSize(mockMetricsName, mockValue)
 
       expect(mockByteSize).toHaveBeenCalledWith(mockMetricsName, mockValue, {})
+    })
+
+    test('Should emit a duration with a value', async () => {
+      await metricsMillis(mockMetricsName, mockValue)
+
+      expect(mockMillis).toHaveBeenCalledWith(mockMetricsName, mockValue, {})
+    })
+
+    test('Should emit a duration with dimensions', async () => {
+      await metricsMillis(mockMetricsName, mockValue, mockDocumentDimensions)
+
+      expect(mockMillis).toHaveBeenCalledWith(
+        mockMetricsName,
+        mockValue,
+        mockDocumentDimensions
+      )
+    })
+
+    test('Should emit a gauge with a value', async () => {
+      await metricsGauge(mockMetricsName, mockValue)
+
+      expect(mockGauge).toHaveBeenCalledWith(mockMetricsName, mockValue, {})
     })
   })
 

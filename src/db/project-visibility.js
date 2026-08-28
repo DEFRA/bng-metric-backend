@@ -26,32 +26,41 @@ import {
   ROLE_STATUS_APPROVED
 } from '../services/defra-id/claims.js'
 
-// Resolve the relationship the user is currently acting in, preferring the
-// verified token and falling back to the value bng.users recorded at their last
+// Resolve the relationship the user is currently acting in: the VERIFIED TOKEN
+// first, falling back to what bng.users recorded at their last interactive
 // sign-in.
 //
-// The fallback is not belt-and-braces: Defra ID (Azure AD B2C) runs its
-// relationship/role enrichment only on an interactive sign-in, so an id_token
-// obtained through a refresh_token grant can come back with `relationships`,
-// `roles` and `currentRelationshipId` BLANK. The frontend re-merges those claims
-// into its session (see bng-metric-frontend refresh-session.js) but forwards the
-// RAW refreshed token, so the backend can legitimately see a token with no org
-// context for a user who very much has one. Without the fallback that user's
-// project list would silently empty out after a silent refresh.
+// Preferring the token is what makes CONCURRENT SESSIONS work. bng.users holds
+// one row per user, so its current_relationship_id records only the most recent
+// sign-in anywhere. A user signed in on two devices under two different orgs is
+// indistinguishable from the database alone — both requests would resolve to
+// whichever org signed in last, silently serving one session the other's
+// projects. The token is the only per-session carrier of that context, so it has
+// to be the primary source (BMD-936).
 //
-// bng.users.current_relationship_id is written only by POST /auth/session from a
-// verified token (src/db/persist-session.js), and the org context only ever
-// changes at an interactive sign-in — which always re-posts the session — so the
-// stored value stays in step. Reading it here keeps the predicate zero-trust
-// (nothing is taken from the request beyond the verified token) and synchronous,
-// so it still drops straight into any `.where(...)`.
+// BMD-936 briefly made this DB-only, because a refreshed id_token appeared to
+// return a DIFFERENT currentRelationshipId. That diagnosis was wrong: the drift
+// classifier in the frontend proved the refreshed value is the SAME id in a
+// DIFFERENT CASE (`differs:case-only`). GUIDs are case-insensitive (RFC 4122),
+// so Defra ID is entitled to emit either; our verbatim comparison was the whole
+// defect. Hence every relationship-id comparison here is lower()-folded, and the
+// token is trusted again.
+//
+// The fallback still matters: a refresh_token grant can return the enrichment
+// claims blank (BMD-829), and a token with no org context must not empty out a
+// user's project list.
+//
+// lower() on the columns means the (user_id, relationship_id) index on bng.roles
+// can only use its leading user_id column for this predicate. user_id is highly
+// selective, so the residual scan is per-user and tiny; a functional index on
+// lower(relationship_id) is the fix if that ever stops being true.
 //
 // The CREATE path must resolve the context identically, or a project can be
 // stamped outside the scope it is read back through and disappear the moment it
 // is made — see resolveCurrentOrgContext in src/db/org-context.js.
 function currentRelationshipExpr(sub, relationshipId) {
-  return sql`coalesce(${relationshipId}::text, (select u.current_relationship_id
-        from bng.users u where u.user_id = ${sub}))`
+  return sql`coalesce(lower(${relationshipId}::text), lower((select u.current_relationship_id
+        from bng.users u where u.user_id = ${sub})))`
 }
 
 /**
@@ -72,12 +81,16 @@ function visibleToUser(credentials) {
     eq(projects.userId, sub),
     // `is not distinct from` so the null case matches too: a user with no org
     // context sees exactly their org-less projects, and nobody else's.
-    sql`${projects.relationshipId} is not distinct from ${currentRelationshipExpr(sub, relationshipId)}`,
+    sql`lower(${projects.relationshipId}) is not distinct from ${currentRelationshipExpr(sub, relationshipId)}`,
     or(
       isNull(projects.relationshipId),
+      // Case-folded on both sides: bng.roles rows are written from whatever case
+      // the sign-in token carried, and bng.projects.relationship_id from whatever
+      // the stamping token carried — which need not be the same case for the
+      // same relationship.
       sql`exists (select 1 from bng.roles r
             where r.user_id = ${sub}
-              and r.relationship_id = ${projects.relationshipId}
+              and lower(r.relationship_id) = lower(${projects.relationshipId})
               and r.status = ${ROLE_STATUS_APPROVED})`
     )
   )

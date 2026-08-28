@@ -18,7 +18,22 @@ import { sql } from 'drizzle-orm'
 
 import { users, relationships, roles } from './schema/index.js'
 import { insertLoginAudit } from './persist-login-audit.js'
-import { parseRelationships, parseRoles } from '../services/defra-id/claims.js'
+import {
+  canonicalRelationshipId,
+  parseRelationships,
+  parseRoles
+} from '../services/defra-id/claims.js'
+import { createLogger } from '../common/helpers/logging/logger.js'
+import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
+
+const logger = createLogger()
+
+/**
+ * Round trips the login transaction makes regardless of how many relationships
+ * or roles the user holds: the single user upsert and the single audit insert
+ * that bracket the per-relationship and per-role loops.
+ */
+const BRACKETING_ROUND_TRIPS = 2
 
 function userValues(claims) {
   return {
@@ -30,7 +45,12 @@ function userValues(claims) {
     sessionId: claims.sessionId ?? claims.sid ?? null,
     // The org context the user is currently acting in. Identifies which of the
     // user's relationships/roles is the active one (an Agent can hold several).
-    currentRelationshipId: claims.currentRelationshipId ?? null
+    // Canonicalised (lower-case): Defra ID emits the same GUID in different
+    // cases across grant types, and the UNIQUE constraints below are
+    // case-SENSITIVE — so storing the token's spelling verbatim would let one
+    // relationship occupy two rows, and a status update (e.g. access removed)
+    // would land on only one of them.
+    currentRelationshipId: canonicalRelationshipId(claims.currentRelationshipId)
   }
 }
 
@@ -58,7 +78,7 @@ async function upsertRelationships(tx, userId, rels) {
       .insert(relationships)
       .values({
         userId,
-        relationshipId: rel.relationshipId,
+        relationshipId: canonicalRelationshipId(rel.relationshipId),
         orgId: rel.orgId ?? null,
         orgName: rel.orgName ?? null,
         relationship: rel.relationship ?? null
@@ -81,7 +101,12 @@ async function upsertRoles(tx, userId, userRoles) {
       .insert(roles)
       .values({
         userId,
-        relationshipId: role.relationshipId,
+        // Canonicalised for the same reason as bng.relationships above: the
+        // UNIQUE (user_id, relationship_id, name) is case-sensitive, so a
+        // differently-cased id would create a SECOND role row — and a later
+        // revocation would update only one of them, leaving a stale approved
+        // row that the (case-insensitive) RBAC EXISTS would still honour.
+        relationshipId: canonicalRelationshipId(role.relationshipId),
         name: role.name,
         status: role.status
       })
@@ -108,11 +133,24 @@ async function persistSession(drizzle, claims) {
   const rels = parseRelationships(claims)
   const userRoles = parseRoles(claims)
 
+  const txStart = perfNow()
   await drizzle.transaction(async (tx) => {
     await upsertUser(tx, claims)
     await upsertRelationships(tx, claims.sub, rels)
     await upsertRoles(tx, claims.sub, userRoles)
     await insertLoginAudit(tx, claims)
+  })
+
+  // Evidence (Item W6 — login-time serial upserts): each relationship and each
+  // role is upserted in its own awaited round trip inside the login
+  // transaction, so both the round-trip count and txMs grow linearly with how
+  // many the user holds — a multi-org user pays for it on every sign-in.
+  // PII-safe: only counts and timing are logged, never the claims themselves.
+  logPerf(logger, 'login-serial-upserts', {
+    relationshipCount: rels.length,
+    roleCount: userRoles.length,
+    upsertRoundTrips: BRACKETING_ROUND_TRIPS + rels.length + userRoles.length,
+    txMs: msSince(txStart)
   })
 }
 

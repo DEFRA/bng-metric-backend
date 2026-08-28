@@ -141,9 +141,12 @@ describe('persistUpload', () => {
     // The FOR UPDATE lock must enforce RBAC visibility (ownership + the current
     // org context + an approved role for it), not just match the project id — so
     // a user cannot overwrite another org's baseline by supplying its UUID.
+    // The org context comes from the verified token, with bng.users as the
+    // fallback (BMD-936 revised), so the token's relationship is bound.
     expect(lockSql).toContain('bng.roles')
     expect(lockSql).toContain('status')
     expect(lockSql).toContain('is not distinct from')
+    expect(lockSql).toContain('u.current_relationship_id')
     expect(params).toContain(SUB)
     expect(params).toContain(RELATIONSHIP_ID)
     expect(params).toContain(PROJECT_ID)
@@ -222,6 +225,67 @@ describe('persistUpload', () => {
         { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
       )
     ).rejects.toBe(err)
+  })
+
+  it('binds the geometryJson cached at decode rather than re-serialising', async () => {
+    // BMD-914: the extract functions copy readGeoPackage's cached string onto
+    // each geometry row, so persist binds that string straight into the INSERT.
+    const { drizzle, log } = makeDrizzle()
+    // A geometry that would throw if stringified proves the cached string is
+    // what gets bound, and that JSON.stringify is never reached.
+    const unserialisable = { type: 'Polygon' }
+    unserialisable.self = unserialisable
+    const geometries = makeGeometries({
+      habitats: [
+        {
+          featureId: FEATURE_ID_HAB,
+          ref: 'P1',
+          geometry: unserialisable,
+          geometryJson: '{"cached":"habitat"}',
+          srid: EPSG_BNG
+        }
+      ]
+    })
+
+    await persistUpload(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      geometries,
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
+    )
+
+    const boundParams = log.executes.flatMap(
+      (statement) => new PgDialect().sqlToQuery(statement).params
+    )
+    expect(boundParams).toContain('{"cached":"habitat"}')
+  })
+
+  it('serialises a geometry row that carries no cached string', async () => {
+    const { drizzle, log } = makeDrizzle()
+    const geometries = makeGeometries({
+      habitats: [
+        {
+          featureId: FEATURE_ID_HAB,
+          ref: 'P1',
+          geometry: SAMPLE_GEOM,
+          srid: EPSG_BNG
+        }
+      ]
+    })
+
+    await persistUpload(
+      drizzle,
+      PROJECT_ID,
+      STUB_EXTRACTED.document,
+      geometries,
+      { uploadId: UPLOAD_ID, logger, credentials: CREDENTIALS }
+    )
+
+    const boundParams = log.executes.flatMap(
+      (statement) => new PgDialect().sqlToQuery(statement).params
+    )
+    expect(boundParams).toContain(JSON.stringify(SAMPLE_GEOM))
   })
 
   it('persists rows with a null ref when ref is omitted', async () => {

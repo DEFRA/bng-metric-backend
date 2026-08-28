@@ -85,6 +85,7 @@ function buildHabitat(feature, keys) {
     featureId,
     ref,
     geometry: feature.nativeGeometry,
+    geometryJson: feature.geometryJson,
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
@@ -150,6 +151,7 @@ function buildTree(feature, keys) {
     featureId,
     ref,
     geometry: feature.nativeGeometry,
+    geometryJson: feature.geometryJson,
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
@@ -180,6 +182,7 @@ function buildLinearFeature(
     featureId,
     ref,
     geometry: feature.nativeGeometry,
+    geometryJson: feature.geometryJson,
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
@@ -246,6 +249,7 @@ function buildRedLine(features) {
     geometryRow: {
       featureId,
       geometry: feature.nativeGeometry,
+      geometryJson: feature.geometryJson,
       srid: feature.nativeSrid
     }
   }

@@ -4,8 +4,7 @@ import {
   ROLE_STATUS,
   ROLE_STATUS_APPROVED,
   parseRelationships,
-  parseRoles,
-  currentOrgContext
+  parseRoles
 } from './claims.js'
 
 const REL_A = 'rel-1'
@@ -145,51 +144,6 @@ describe('parseRoles', () => {
       ]
     }
     expect(parseRoles(claims)).toEqual([])
-  })
-})
-
-describe('currentOrgContext', () => {
-  test('resolves orgId from the matching relationship', () => {
-    const claims = {
-      currentRelationshipId: REL_B,
-      relationships: [
-        relString(REL_A, 'org-1', 'Acme Ltd'),
-        relString(REL_B, 'org-2', 'Globex')
-      ]
-    }
-    expect(currentOrgContext(claims)).toEqual({
-      relationshipId: REL_B,
-      orgId: 'org-2'
-    })
-  })
-
-  test('resolves a citizen current relationship to orgId null', () => {
-    const claims = {
-      currentRelationshipId: REL_A,
-      relationships: [`${REL_A}:::0:Citizen:0`]
-    }
-    expect(currentOrgContext(claims)).toEqual({
-      relationshipId: REL_A,
-      orgId: null
-    })
-  })
-
-  test('returns orgId null when currentRelationshipId has no match', () => {
-    const claims = {
-      currentRelationshipId: 'rel-unknown',
-      relationships: [relString(REL_A, 'org-1', 'Acme Ltd')]
-    }
-    expect(currentOrgContext(claims)).toEqual({
-      relationshipId: 'rel-unknown',
-      orgId: null
-    })
-  })
-
-  test('returns nulls when currentRelationshipId is missing', () => {
-    expect(currentOrgContext({ relationships: [] })).toEqual({
-      relationshipId: null,
-      orgId: null
-    })
   })
 })
 

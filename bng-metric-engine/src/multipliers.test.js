@@ -15,6 +15,25 @@ import {
 const H = 'Grassland - Modified grassland'
 const H_30PLUS = 'Grassland - Lowland dry acid grassland'
 
+// Habitats whose statutory creation table records Poor condition as "Not Possible"
+// (no route to Poor). Regression fixtures for BMD-938.
+const NO_POOR_ROUTE_CROPLAND = 'Cropland - Cereal crops'
+const NO_POOR_ROUTE_CROPLAND_TARGET = 'Condition Assessment N/A'
+// Felled has no Poor route AND its only valid target (Good) has a 30+ year
+// time-to-target, so a mid-range advance reaches the Poor probe without hitting
+// the "advance meets target => Low" override — exercising the middle branch.
+const NO_POOR_ROUTE_FELLED = 'Woodland and forest - Felled'
+const NO_POOR_ROUTE_FELLED_TARGET = 'Good'
+const FELLED_ADVANCE_BELOW_TARGET = 5
+// A habitat that genuinely discriminates the Creation and Enhancement difficulty
+// branches: its Creation band (High) differs from its Enhancement band (Medium),
+// its Poor target is achievable in 1 year, and the chosen end condition (Good)
+// has a 15-year target so advance=1 does not trip the Low override.
+const DISCRIMINATING_HABITAT =
+  'Coastal saltmarsh - Saltmarshes and saline reedbeds'
+const DISCRIMINATING_TARGET = 'Good'
+const DIFFICULTY_HIGH = 0.33
+
 // Statutory multiplier constants — extracted to avoid magic number literals
 const MULTIPLIER_4_YRS = 0.8671800006
 const MULTIPLIER_OVER_30_YRS = 0.3197967361
@@ -406,5 +425,111 @@ describe('lookupHabitatDifficultyLabel', () => {
     expect(() => lookupHabitatDifficultyLabel(H, 'Unknown')).toThrow(
       'Difficulty not found for habitat'
     )
+  })
+})
+
+// BMD-938: creating a habitat whose statutory creation table marks Poor as
+// "Not Possible" must not throw while probing the Poor time-to-target. The probe
+// answer cannot change the outcome for these habitats, so it resolves to the
+// Creation band instead of aborting the whole calculation.
+describe('creation difficulty for habitats with no route to Poor condition', () => {
+  it('(a) resolves the Creation band at zero advance instead of throwing', () => {
+    // Poor is "Not Possible" for cereal crops; at zero advance the habitat cannot
+    // have reached Poor, so the Creation band applies with no error.
+    expect(() =>
+      getDifficultyLabel(
+        NO_POOR_ROUTE_CROPLAND,
+        'Creation',
+        '',
+        NO_POOR_ROUTE_CROPLAND_TARGET,
+        0,
+        0
+      )
+    ).not.toThrow()
+    expect(
+      getDifficultyMultiplier(
+        NO_POOR_ROUTE_CROPLAND,
+        'Creation',
+        '',
+        NO_POOR_ROUTE_CROPLAND_TARGET,
+        0,
+        0
+      )
+    ).toBe(DIFFICULTY_LOW)
+  })
+
+  it('(b) resolves the Creation band with advance below the target time-to-target', () => {
+    // Felled: advance is above zero (so the zero-advance short-circuit does not
+    // fire) yet below the 30+ year target (so the Low override does not fire),
+    // reaching the Poor probe. Poor being unreachable must resolve to Creation.
+    expect(() =>
+      getDifficultyLabel(
+        NO_POOR_ROUTE_FELLED,
+        'Creation',
+        '',
+        NO_POOR_ROUTE_FELLED_TARGET,
+        FELLED_ADVANCE_BELOW_TARGET,
+        0
+      )
+    ).not.toThrow()
+    expect(
+      getDifficultyLabel(
+        NO_POOR_ROUTE_FELLED,
+        'Creation',
+        '',
+        NO_POOR_ROUTE_FELLED_TARGET,
+        FELLED_ADVANCE_BELOW_TARGET,
+        0
+      )
+    ).toBe(lookupHabitatDifficultyLabel(NO_POOR_ROUTE_FELLED, 'Creation'))
+  })
+
+  it('(c) discriminates Creation and Enhancement bands across the Poor boundary', () => {
+    // At zero advance the Creation band (High) applies; at advance=1 the habitat
+    // has cleared its 1-year Poor target, so the statutory rule reclassifies to
+    // the Enhancement band (Medium). Both bands differ here, so this fails if the
+    // branch selection is wrong — unlike the Modified-grassland cases where both
+    // bands are Low.
+    expect(
+      getDifficultyLabel(
+        DISCRIMINATING_HABITAT,
+        'Creation',
+        '',
+        DISCRIMINATING_TARGET,
+        0,
+        0
+      )
+    ).toBe('High')
+    expect(
+      getDifficultyMultiplier(
+        DISCRIMINATING_HABITAT,
+        'Creation',
+        '',
+        DISCRIMINATING_TARGET,
+        0,
+        0
+      )
+    ).toBe(DIFFICULTY_HIGH)
+
+    expect(
+      getDifficultyLabel(
+        DISCRIMINATING_HABITAT,
+        'Creation',
+        '',
+        DISCRIMINATING_TARGET,
+        1,
+        0
+      )
+    ).toBe('Medium')
+    expect(
+      getDifficultyMultiplier(
+        DISCRIMINATING_HABITAT,
+        'Creation',
+        '',
+        DISCRIMINATING_TARGET,
+        1,
+        0
+      )
+    ).toBe(DIFFICULTY_MEDIUM)
   })
 })

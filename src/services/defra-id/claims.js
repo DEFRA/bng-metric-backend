@@ -142,21 +142,52 @@ function parseRoles(claims) {
 }
 
 /**
+ * Fold a Defra Identity relationship id to its canonical comparable form.
+ *
+ * Relationship ids are GUIDs, and GUIDs are case-insensitive (RFC 4122) — a
+ * provider may emit either case. Defra ID does exactly that: the id_token from a
+ * refresh_token grant carries the same currentRelationshipId as the sign-in
+ * token but in a different case (confirmed by the frontend's drift classifier,
+ * `differs:case-only`). Comparing verbatim therefore rejects a perfectly valid
+ * org context, which is what ended users' sessions in BMD-936. Every comparison
+ * of a relationship id — here, and in the SQL predicates, which lower() both
+ * sides — has to fold case.
+ *
+ * @param {unknown} value
+ * @returns {string|null}
+ */
+function canonicalRelationshipId(value) {
+  if (typeof value !== 'string' || value.trim() === '') {
+    return null
+  }
+  return value.trim().toLowerCase()
+}
+
+/**
  * Resolve the user's current org context from `currentRelationshipId`, matched
- * against the parsed relationships. Returns `orgId: null` when there is no
- * current relationship or it does not appear among the parsed relationships.
+ * case-insensitively against the parsed relationships. Returns `orgId: null`
+ * when there is no current relationship or it does not appear among the parsed
+ * relationships.
+ *
+ * `relationshipId` is returned in CANONICAL (lower-case) form. Everything the
+ * backend writes is canonicalised, so the database holds exactly one spelling of
+ * each id; comparisons still fold case on both sides to cope with rows written
+ * before this was true. RFC 4122 defines lower-case as the output form, so this
+ * is the canonical spelling rather than an arbitrary choice.
+ *
  * @param {object} claims verified token payload
  * @returns {{relationshipId: string|null, orgId: string|null}}
  */
 function currentOrgContext(claims) {
   const relationshipId = claims?.currentRelationshipId ?? null
-  if (!relationshipId) {
+  const canonical = canonicalRelationshipId(relationshipId)
+  if (!canonical) {
     return { relationshipId: null, orgId: null }
   }
   const match = parseRelationships(claims).find(
-    (rel) => rel.relationshipId === relationshipId
+    (rel) => canonicalRelationshipId(rel.relationshipId) === canonical
   )
-  return { relationshipId, orgId: match?.orgId ?? null }
+  return { relationshipId: canonical, orgId: match?.orgId ?? null }
 }
 
 export {
@@ -164,5 +195,6 @@ export {
   ROLE_STATUS_APPROVED,
   parseRelationships,
   parseRoles,
-  currentOrgContext
+  currentOrgContext,
+  canonicalRelationshipId
 }
