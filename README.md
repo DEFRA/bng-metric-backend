@@ -71,6 +71,10 @@ For integration tests that exercise the real Hapi server against a running Postg
 npm run test:integration
 ```
 
+For the site report PDF — where its numbers and shapes come from, how it is checked
+against PDF/UA, and how the Ordnance Survey basemap is credited — see
+[`docs/site-report.md`](docs/site-report.md).
+
 ### Production
 
 To mimic the application running in `production` mode locally run:

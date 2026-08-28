@@ -242,6 +242,53 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
+  osMaps: {
+    apiKey: {
+      doc: 'OS Data Hub API key for the OS Maps API (raster). Held by this service alone — the report builder and the browser map both see an internal URL and never the key. Empty disables the /os-tiles routes entirely. Supply as a CDP secret per environment, NOT via cdp-app-config.',
+      format: String,
+      default: '',
+      sensitive: true,
+      env: 'OS_API_KEY'
+    },
+    layer: {
+      doc: 'OS Maps raster style. Must be one of the EPSG:27700 styles — British National Grid throughout is what keeps the basemap and the parcel geometry in exact registration.',
+      format: String,
+      default: 'Light_27700',
+      env: 'OS_MAPS_LAYER'
+    },
+    maxZoom: {
+      doc: 'Zoom ceiling imposed by the OS PLAN, as distinct from the product. An OpenData key must set this to 9 or every EPSG:27700 tile above it returns 403 "A Premium Plan is required to access Premium Data". Left empty for a Premium/PSGA key, which is why it does not default to 9 — defaulting to the free ceiling would silently discard resolution a Premium key has paid for.',
+      format: String,
+      default: '',
+      env: 'OS_MAPS_MAX_ZOOM'
+    },
+    cacheTtlSeconds: {
+      doc: 'How long a fetched tile stays in the process-local tile cache. Tiles are static, so this is long by default.',
+      format: Number,
+      default: 604800,
+      env: 'OS_MAPS_CACHE_TTL_SECONDS'
+    },
+    cacheMaxEntries: {
+      doc: 'Tile cache size, in tiles. One site map is around 30 tiles; a large site with parcel thumbnails is a few hundred.',
+      format: Number,
+      default: 2000,
+      env: 'OS_MAPS_CACHE_MAX_ENTRIES'
+    },
+    attribution: {
+      doc: "Basemap credit burned into the bottom corner of every map drawn from OS tiles, and repeated once as a tagged paragraph so assistive technology reads it too. A PDF cannot carry the dynamic credit control a browser map uses, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",
+      format: String,
+      default:
+        'Contains OS data © Crown copyright and database right ' +
+        new Date().getFullYear(),
+      env: 'OS_MAPS_ATTRIBUTION'
+    },
+    attributionShort: {
+      doc: 'The credit used where the full wording cannot fit legibly — a parcel thumbnail is 18 mm square and cannot carry a whole sentence at any readable size. Same provisional status as the full wording. Empty means such a map carries no credit at all, which is why the renderer draws no OS tiles behind a frame it cannot credit.',
+      format: String,
+      default: '© Crown copyright',
+      env: 'OS_MAPS_ATTRIBUTION_SHORT'
+    }
+  },
   oidc: {
     discoveryUrl: {
       doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',
