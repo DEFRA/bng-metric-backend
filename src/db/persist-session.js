@@ -18,7 +18,11 @@ import { sql } from 'drizzle-orm'
 
 import { users, relationships, roles } from './schema/index.js'
 import { insertLoginAudit } from './persist-login-audit.js'
-import { parseRelationships, parseRoles } from '../services/defra-id/claims.js'
+import {
+  canonicalRelationshipId,
+  parseRelationships,
+  parseRoles
+} from '../services/defra-id/claims.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
 
@@ -41,7 +45,12 @@ function userValues(claims) {
     sessionId: claims.sessionId ?? claims.sid ?? null,
     // The org context the user is currently acting in. Identifies which of the
     // user's relationships/roles is the active one (an Agent can hold several).
-    currentRelationshipId: claims.currentRelationshipId ?? null
+    // Canonicalised (lower-case): Defra ID emits the same GUID in different
+    // cases across grant types, and the UNIQUE constraints below are
+    // case-SENSITIVE — so storing the token's spelling verbatim would let one
+    // relationship occupy two rows, and a status update (e.g. access removed)
+    // would land on only one of them.
+    currentRelationshipId: canonicalRelationshipId(claims.currentRelationshipId)
   }
 }
 
@@ -69,7 +78,7 @@ async function upsertRelationships(tx, userId, rels) {
       .insert(relationships)
       .values({
         userId,
-        relationshipId: rel.relationshipId,
+        relationshipId: canonicalRelationshipId(rel.relationshipId),
         orgId: rel.orgId ?? null,
         orgName: rel.orgName ?? null,
         relationship: rel.relationship ?? null
@@ -92,7 +101,12 @@ async function upsertRoles(tx, userId, userRoles) {
       .insert(roles)
       .values({
         userId,
-        relationshipId: role.relationshipId,
+        // Canonicalised for the same reason as bng.relationships above: the
+        // UNIQUE (user_id, relationship_id, name) is case-sensitive, so a
+        // differently-cased id would create a SECOND role row — and a later
+        // revocation would update only one of them, leaving a stale approved
+        // row that the (case-insensitive) RBAC EXISTS would still honour.
+        relationshipId: canonicalRelationshipId(role.relationshipId),
         name: role.name,
         status: role.status
       })
