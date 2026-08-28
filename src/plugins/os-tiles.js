@@ -1,8 +1,10 @@
 /**
  * The OS tiles routes, and the service both they and the report builder use.
  *
- *   GET /os-tiles/capabilities         the EPSG:27700 grid, as JSON
- *   GET /os-tiles/{z}/{col}/{row}.png  one raster tile
+ *   GET /os-tiles/capabilities                the raster EPSG:27700 grid, as JSON
+ *   GET /os-tiles/{z}/{col}/{row}.png         one raster tile (OS Maps API)
+ *   GET /os-tiles/vector/capabilities         the vector tiling scheme, as JSON
+ *   GET /os-tiles/vector/{z}/{col}/{row}.pbf  one vector tile (NGD ngd-base)
  *
  * Registered ONLY when an OS Maps key is configured. Without a key every tile
  * would 401 from Ordnance Survey, so publishing the routes would mean
@@ -109,6 +111,44 @@ const osTiles = {
                 .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
             } catch (error) {
               return errorResponse(h, `tile ${z}/${col}/${row}`, error)
+            }
+          }
+        },
+        // The vector flavour: same service, the OS NGD API – Tiles ngd-base
+        // tileset upstream. `/vector` in the path keeps the two capability
+        // documents distinct — their grids differ (512 px tiles against 256,
+        // and a deeper zoom range).
+        {
+          method: 'GET',
+          path: '/os-tiles/vector/capabilities',
+          handler: async (_request, h) => {
+            try {
+              return h.response({
+                layer: 'ngd-base',
+                grid: await service.getPublishedVectorGrid()
+              })
+            } catch (error) {
+              return errorResponse(h, 'vector capabilities', error)
+            }
+          }
+        },
+        {
+          method: 'GET',
+          path: '/os-tiles/vector/{z}/{col}/{row}.pbf',
+          handler: async (request, h) => {
+            const { z, col, row } = request.params
+            try {
+              const tile = await service.getVectorTile(
+                Number(z),
+                Number(col),
+                Number(row)
+              )
+              return h
+                .response(tile.pbf)
+                .type(tile.contentType)
+                .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
+            } catch (error) {
+              return errorResponse(h, `vector tile ${z}/${col}/${row}`, error)
             }
           }
         }

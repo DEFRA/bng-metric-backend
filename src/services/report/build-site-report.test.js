@@ -4,7 +4,8 @@ import { buildSiteReport } from './build-site-report.js'
 import { baselineSite } from './site-model.test-fixtures.js'
 import {
   TEST_GRID,
-  syntheticTileSource
+  syntheticTileSource,
+  syntheticVectorTile
 } from './pdf/synthetic-tiles.test-fixtures.js'
 import { config } from '../../config.js'
 
@@ -29,6 +30,12 @@ function fakeOsTiles(overrides = {}) {
     getTile: vi.fn(async (z, col, row) => ({
       png: syntheticTileSource()(TEST_GRID, z, col, row).png,
       contentType: 'image/png',
+      cached: false
+    })),
+    getPublishedVectorGrid: vi.fn().mockResolvedValue(TEST_GRID),
+    getVectorTile: vi.fn(async (z, col, row) => ({
+      pbf: syntheticVectorTile(TEST_GRID, z, col, row),
+      contentType: 'application/vnd.mapbox-vector-tile',
       cached: false
     })),
     ...overrides
@@ -70,7 +77,7 @@ describe('#buildSiteReport', () => {
     expect(stats.tiles).toBe(0)
   })
 
-  test('draws a basemap whenever OS tiles are available', async () => {
+  test('draws the vector basemap by default whenever OS tiles are available', async () => {
     readSiteData.mockResolvedValue(siteData())
     const osTiles = fakeOsTiles()
 
@@ -80,7 +87,24 @@ describe('#buildSiteReport', () => {
       osTiles
     })
 
+    expect(osTiles.getPublishedVectorGrid).toHaveBeenCalled()
+    expect(osTiles.getPublishedGrid).not.toHaveBeenCalled()
+    expect(stats.tiles).toBeGreaterThan(0)
+  })
+
+  test('draws the raster basemap when the request asks for it', async () => {
+    readSiteData.mockResolvedValue(siteData())
+    const osTiles = fakeOsTiles()
+
+    const { stats } = await buildSiteReport({
+      drizzle: {},
+      projectRow: { id: 'project-1', project: {} },
+      osTiles,
+      basemap: 'raster'
+    })
+
     expect(osTiles.getPublishedGrid).toHaveBeenCalled()
+    expect(osTiles.getPublishedVectorGrid).not.toHaveBeenCalled()
     expect(stats.tiles).toBeGreaterThan(0)
   })
 
@@ -105,7 +129,9 @@ describe('#buildSiteReport', () => {
   test('degrades to no basemap rather than failing when OS is unreachable', async () => {
     readSiteData.mockResolvedValue(siteData())
     const osTiles = fakeOsTiles({
-      getPublishedGrid: vi.fn().mockRejectedValue(new Error('upstream down'))
+      getPublishedVectorGrid: vi
+        .fn()
+        .mockRejectedValue(new Error('upstream down'))
     })
 
     const { pdf, stats } = await buildSiteReport({

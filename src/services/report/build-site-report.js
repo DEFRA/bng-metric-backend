@@ -17,7 +17,7 @@
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { buildSiteReportPdf } from './pdf/document.js'
-import { osTileSource } from './pdf/tile-source.js'
+import { osTileSource, osVectorTileSource } from './pdf/tile-source.js'
 import { readSiteData } from './site-data.js'
 
 const logger = createLogger()
@@ -51,7 +51,30 @@ const NO_BASEMAP = Object.freeze({
 })
 
 /**
- * Resolve the basemap for this deployment.
+ * The two basemap flavours a request can choose between.
+ *
+ * They need DIFFERENT OS Data Hub products on the key — "OS NGD API – Tiles"
+ * for vector, "OS Maps API" for raster — and a key may hold either, so the
+ * choice is per-request rather than per-deployment (see the report route's
+ * `basemap` query parameter). Vector is the default: it is the product the
+ * project's key holds, it has shown no plan zoom ceiling, and being drawn as
+ * geometry it stays crisp at any print size.
+ */
+const BASEMAP_KINDS = Object.freeze({
+  vector: {
+    grid: (osTiles) => osTiles.getPublishedVectorGrid(),
+    tileSource: osVectorTileSource
+  },
+  raster: {
+    grid: (osTiles) => osTiles.getPublishedGrid(),
+    tileSource: osTileSource
+  }
+})
+
+const DEFAULT_BASEMAP = 'vector'
+
+/**
+ * Resolve the basemap for this request.
  *
  * A basemap is drawn whenever this service holds an OS key — there is no
  * separate switch. The credit travels with it and is burned into the bottom
@@ -68,21 +91,22 @@ const NO_BASEMAP = Object.freeze({
  * still a correct, useful report; refusing to produce one because Ordnance
  * Survey is unreachable would turn a cosmetic dependency into an outage.
  */
-async function resolveBasemap(osTiles) {
+async function resolveBasemap(osTiles, basemap) {
   if (!osTiles) {
     return NO_BASEMAP
   }
 
+  const kind = BASEMAP_KINDS[basemap] ?? BASEMAP_KINDS[DEFAULT_BASEMAP]
   try {
     return {
-      grid: await osTiles.getPublishedGrid(),
-      tileSource: osTileSource(osTiles),
+      grid: await kind.grid(osTiles),
+      tileSource: kind.tileSource(osTiles),
       attribution: config.get('osMaps.attribution'),
       attributionShort: config.get('osMaps.attributionShort')
     }
   } catch (error) {
     logger.warn(
-      `Site report basemap unavailable, rendering without it: ${error.message}`
+      `Site report ${basemap} basemap unavailable, rendering without it: ${error.message}`
     )
     return NO_BASEMAP
   }
@@ -93,12 +117,18 @@ async function resolveBasemap(osTiles) {
  * @param {object} options.drizzle
  * @param {{ id: string, project: object }} options.projectRow
  * @param {object|null} [options.osTiles]  the OS tiles service, when configured
+ * @param {'vector'|'raster'} [options.basemap]  which basemap flavour to draw
  * @returns {Promise<{ pdf: Buffer, stats: object, siteName: string }>}
  */
-async function buildSiteReport({ drizzle, projectRow, osTiles = null }) {
+async function buildSiteReport({
+  drizzle,
+  projectRow,
+  osTiles = null,
+  basemap = DEFAULT_BASEMAP
+}) {
   const site = await readSiteData(drizzle, projectRow)
   const { grid, tileSource, attribution, attributionShort } =
-    await resolveBasemap(osTiles)
+    await resolveBasemap(osTiles, basemap)
 
   const { doc, stats } = await buildSiteReportPdf({
     baseline: site.baseline,
@@ -112,4 +142,7 @@ async function buildSiteReport({ drizzle, projectRow, osTiles = null }) {
   return { pdf: await toBuffer(doc), stats, siteName: site.siteName }
 }
 
-export { buildSiteReport, toBuffer }
+/** The values the report route's `basemap` query parameter accepts. */
+const BASEMAP_CHOICES = Object.freeze(Object.keys(BASEMAP_KINDS))
+
+export { BASEMAP_CHOICES, DEFAULT_BASEMAP, buildSiteReport, toBuffer }

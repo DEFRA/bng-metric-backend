@@ -94,6 +94,36 @@ switch: the `/os-tiles` routes are not registered without a key, so the absence 
 credential shows up as the absence of a route rather than as an endpoint that always
 401s, and a deployment with no key produces the same correct report on a plain ground.
 
+### Two flavours, chosen per request
+
+One key, two basemap sources, because Ordnance Survey grants API access
+product-by-product and a key may hold either:
+
+|                     | `?basemap=vector` (default)                                       | `?basemap=raster`                |
+| ------------------- | ----------------------------------------------------------------- | -------------------------------- |
+| OS Data Hub product | **OS NGD API – Tiles** (`ngd-base` tileset)                       | **OS Maps API**                  |
+| What arrives        | Mapbox Vector Tiles, z0–15                                        | 256 px PNG rasters, z0–13        |
+| Plan ceiling        | none observed — z0–15 all serve                                   | OpenData stops at z9 (see below) |
+| In the PDF          | drawn as vector paths — crisp at any print size                   | placed as images                 |
+| Styling             | `ngd-light-style.js`, machine-extracted from OS's published style | OS's, baked into the pixels      |
+| Labels              | omitted (the report's tables carry the facts)                     | rendered by OS into the tile     |
+
+The report route takes `GET /projects/{id}/report.pdf?basemap=vector|raster`, so the
+two outputs can be compared like for like. Everything downstream of the tile source —
+`pickZoom`, the projector, the document builder — is shared; `drawBasemap` dispatches
+on the tile object itself (`{ png }` vs `{ layers }`). A flavour the key's products
+cannot serve degrades to a plain ground like any other basemap failure, it does not
+fail the report.
+
+The vector flavour uses the NGD API rather than the older OS Vector Tile API because
+OS have marked that product for retirement. Its style is not interpreted at runtime:
+`npm run extract:ngd-style` distils OS's published `light-27700` GL style into
+committed data (`src/services/report/pdf/ngd-light-style.js`), so builds and tests
+need no network and a style revision arrives as a reviewable diff. One consequence of
+NGD data worth knowing before judging output: at z12+ the tiles carry _surveyed
+topography_ (kerbs, walls, fences as they exist on the ground), so urban edge lines
+genuinely stop and start — that is the data, not a rendering fault.
+
 **Every map drawn from OS tiles carries its credit in the bottom-right corner** — both
 site maps, and every parcel thumbnail. A PDF cannot carry the dynamic credit control a
 browser map uses, so the wording is part of the picture, on a translucent plate so it
@@ -129,15 +159,16 @@ needs no permission from anybody.
 
 ### Configuration
 
-| Variable                    | Meaning                                                                                                                                                     |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OS_API_KEY`                | OS Data Hub key with the **OS Maps API** product added. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
-| `OS_MAPS_ATTRIBUTION`       | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                            |
-| `OS_MAPS_ATTRIBUTION_SHORT` | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                              |
-| `OS_MAPS_LAYER`             | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                 |
-| `OS_MAPS_MAX_ZOOM`          | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                   |
+| Variable                    | Meaning                                                                                                                                                                                                     |
+| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OS_API_KEY`                | OS Data Hub key. Needs **OS NGD API – Tiles** for the vector flavour and/or **OS Maps API** for raster. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
+| `OS_MAPS_ATTRIBUTION`       | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                                                                            |
+| `OS_MAPS_ATTRIBUTION_SHORT` | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                                                                              |
+| `OS_MAPS_LAYER`             | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                                                                 |
+| `OS_MAPS_MAX_ZOOM`          | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                                                                   |
 
-**The plan caps resolution, and no amount of engineering changes it.** An OpenData-plan
+**The plan caps resolution on the RASTER flavour only, and no amount of engineering
+changes it.** The vector flavour has shown no such ceiling. An OpenData-plan
 key serves EPSG:27700 up to z9 (1.75 m/px) and returns `403 "A Premium Plan is required
 to access Premium Data"` from z10 up, while `GetCapabilities` keeps succeeding — so the
 failure presents as a tile problem rather than a licensing one. Premium/PSGA reaches z13

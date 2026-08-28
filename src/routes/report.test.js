@@ -3,7 +3,9 @@ import { describe, expect, test, vi } from 'vitest'
 import { getProjectReport, reportFilename } from './report.js'
 
 vi.mock('../services/report/build-site-report.js', () => ({
-  buildSiteReport: vi.fn()
+  buildSiteReport: vi.fn(),
+  BASEMAP_CHOICES: ['vector', 'raster'],
+  DEFAULT_BASEMAP: 'vector'
 }))
 
 const { buildSiteReport } =
@@ -27,9 +29,10 @@ function mockResponse() {
   return { response: vi.fn().mockReturnValue(response), _response: response }
 }
 
-function request(rows, { osTiles = null } = {}) {
+function request(rows, { osTiles = null, basemap = 'vector' } = {}) {
   return {
     params: { projectId: PROJECT_ID },
+    query: { basemap },
     auth: { credentials: { sub: 'user-1' } },
     drizzle: mockDrizzle(rows),
     logger: { info: vi.fn() },
@@ -123,6 +126,32 @@ describe('#getProjectReport', () => {
     expect(buildSiteReport).toHaveBeenCalledWith(
       expect.objectContaining({ osTiles })
     )
+  })
+
+  test('passes the requested basemap flavour through to the builder', async () => {
+    buildSiteReport.mockResolvedValue({
+      pdf: PDF,
+      stats: {},
+      siteName: 'Test Farm'
+    })
+
+    await getProjectReport.handler(
+      request([projectRow], { basemap: 'raster' }),
+      mockResponse()
+    )
+
+    expect(buildSiteReport).toHaveBeenCalledWith(
+      expect.objectContaining({ basemap: 'raster' })
+    )
+  })
+
+  test('validates the basemap query parameter against the known flavours', () => {
+    const schema = getProjectReport.options.validate.query
+
+    expect(schema.validate({ basemap: 'vector' }).error).toBeUndefined()
+    expect(schema.validate({ basemap: 'raster' }).error).toBeUndefined()
+    expect(schema.validate({}).value.basemap).toBe('vector')
+    expect(schema.validate({ basemap: 'satellite' }).error).toBeDefined()
   })
 })
 
