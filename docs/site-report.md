@@ -121,13 +121,13 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
 Page 2 onwards presents the parcels one of two ways, chosen with
 `?layout=table|cards`. Same data, same mini-map, different shape.
 
-|                  | `table` (default)                  | `cards`                                                                                                    |
-| ---------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
-| Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute                                                                |
-| Attributes shown | Ref, habitat type, condition, size | Those plus broad habitat, distinctiveness, strategic significance, retention category and calculated units |
-| Mini-map         | 52 pt square                       | 96 pt square                                                                                               |
-| Parcels per page | More                               | Fewer                                                                                                      |
-| Structure        | `Table` / `TR` / `TH` / `TD`       | `Sect` / `H3` / `P`, one `Figure` per card                                                                 |
+|                  | `table` (default)                  | `cards`                                     |
+| ---------------- | ---------------------------------- | ------------------------------------------- |
+| Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute |
+| Attributes shown | Ref, habitat type, condition, size | Those plus twelve more — see below          |
+| Mini-map         | 52 pt square                       | 96 pt square                                |
+| Parcels per page | More                               | Fewer                                       |
+| Structure        | `Table` / `TR` / `TH` / `TD`       | `Sect` / `H3` / `P`, one `Figure` per card  |
 
 **Why cards exist.** A table's attribute count is bounded by the width of the page —
 five columns already leaves "Modified grassland" wrapping in a 90-point cell, and the
@@ -141,10 +141,57 @@ has no columns to associate: each line is a paragraph reading "Condition: Poor",
 needs no table navigation at all. If the NVDA pass finds the table hard to move around,
 this is the answer that already exists.
 
-Cards are sized from their content. A project that has not been through the metric engine
-has no distinctiveness and no units, and those lines are omitted rather than printed blank
-— an empty row invites the reader to wonder what is missing, whereas a shorter card simply
-says less. Both layouts pass PDF/UA-1.
+### What a card shows
+
+Sixteen fields, in reading order: what the parcel **is**, then how it is **judged**, then
+how the number was **arrived at**, then what was **recorded** about it on the ground.
+
+| Group        | Fields                                                                                          |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Identity     | Ref and habitat type (the card heading), broad habitat                                          |
+| Judgement    | Condition, distinctiveness, strategic significance, retention, spatial risk, size               |
+| The workings | Creation difficulty, time to target, advance or delay, final time to target, biodiversity units |
+| Recorded     | Calculation status, survey date, survey details, comment                                        |
+
+Three conventions, all of them borrowed from the service's own habitat detail screens so
+the report and the page it was generated from do not describe the same parcel differently:
+
+- **A band and its score share a line** — "Low (2)", not two lines. Same for condition and
+  for creation difficulty and its multiplier.
+- **A retention category is normalised.** The backend strips the GeoPackage's `1. ` list
+  prefix when it decides which calculation to run but never writes the normalised value
+  back, so the document keeps whatever the upload carried. The report strips it again.
+- **A bare number of years is worded** — "10 years", not "10". Values the engine has
+  already phrased (`finalTimeToTargetCondition` arrives as "8 years (0.7)") pass through
+  untouched.
+
+**The workings group is post-intervention only.** A baseline parcel is not being created
+or enhanced, so it has no difficulty, no time to target and nothing to advance or delay.
+Its card is simply shorter — which is the general rule: cards are sized from their
+content, and an unrecorded attribute is omitted rather than printed blank. An empty row
+invites the reader to wonder what is missing; a shorter card simply says less.
+
+**Two fields wrap.** Survey details and comment are free text of unbounded length, so
+their height is _measured_ rather than counted — `heightOfString`, at the same width, size
+and face the renderer will use. They sit last on the card on purpose: an unbounded field
+in the middle would push the fixed ones around from card to card, and a reader comparing
+two parcels would lose the ability to find the same fact in the same place on both.
+
+Two measurement traps came out of building it, both invisible to any test that counts
+lines and both visible on the page:
+
+- **Measure in the face you draw in.** Values are drawn bold, and bold is the wider face.
+  Measuring the wrap in the regular face reports fewer lines than the renderer goes on to
+  draw, and the overflow lands outside the card's own border.
+- **Size the label column from the labels.** "Strategic significance:" needs 94 pt of the
+  96 pt a fixed constant gave it. A label that overflows wraps to a second line, but a
+  non-wrapping field advances by exactly one line height — so the wrapped label would be
+  drawn straight through the row beneath it. The column is now measured from the widest
+  label plus a gutter, which matters because [the typeface is a deployment
+  option](#the-typeface-and-where-it-comes-from): a face a shade wider than Noto Sans would have started overlapping rows
+  with every test still green.
+
+Both layouts pass PDF/UA-1.
 
 ### One bug this surfaced: ligatures and `/CIDSet`
 

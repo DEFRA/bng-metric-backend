@@ -66,7 +66,19 @@ function properties({
   retentionCategory = null,
   units = null,
   sizeSquareMetres = null,
-  sizeMetres = null
+  sizeMetres = null,
+  conditionScore = null,
+  distinctivenessScore = null,
+  spatialRiskCategory = null,
+  status = null,
+  surveyDate = null,
+  surveyDetails = null,
+  comment = null,
+  difficulty = null,
+  difficultyMultiplier = null,
+  standardTimeToTargetCondition = null,
+  finalTimeToTargetCondition = null,
+  advanceOrDelay = null
 }) {
   return {
     ref,
@@ -78,9 +90,37 @@ function properties({
     retentionCategory,
     units,
     sizeSquareMetres,
-    sizeMetres
+    sizeMetres,
+    conditionScore,
+    distinctivenessScore,
+    spatialRiskCategory,
+    status,
+    surveyDate,
+    surveyDetails,
+    comment,
+    difficulty,
+    difficultyMultiplier,
+    standardTimeToTargetCondition,
+    finalTimeToTargetCondition,
+    advanceOrDelay
   }
 }
+
+/**
+ * Long enough to wrap in the card's value column, which is the point: the two
+ * free-text fields are the only ones whose height cannot be counted, so a
+ * fixture that kept them to a few words would leave the measuring path untested
+ * in every end-to-end render.
+ */
+const SURVEY_DETAILS =
+  'UKHab Level 3 survey walked on foot in dry conditions, with quadrats at ' +
+  'twenty-metre intervals along the western boundary and a full species list ' +
+  'recorded for each.'
+
+const PARCEL_COMMENT =
+  'Grazed by cattle until the previous season and now rank. Adjoins the ' +
+  'watercourse along its northern edge, so the buffer strip is excluded from ' +
+  'the measured area.'
 
 function habitats() {
   return [
@@ -94,7 +134,16 @@ function habitats() {
         strategicSignificance: 'Location ecologically desirable',
         retentionCategory: 'Retained',
         units: 3.6,
-        sizeSquareMetres: PARCEL_AREA_SQ_M
+        sizeSquareMetres: PARCEL_AREA_SQ_M,
+        // The scores behind the two bands, and the fields the GeoPackage
+        // records against a parcel rather than the engine calculating them.
+        conditionScore: 2,
+        distinctivenessScore: 2,
+        spatialRiskCategory: 'Within LPA',
+        status: 'Complete',
+        surveyDate: '2025-06-14',
+        surveyDetails: SURVEY_DETAILS,
+        comment: PARCEL_COMMENT
       }),
       geometry: parcel(SITE_WEST, SITE_SOUTH, SITE_MID_EASTING, SITE_NORTH)
     },
@@ -197,6 +246,18 @@ function postInterventionSite() {
   site.layers.habitats[1].properties.type = 'Other neutral grassland'
   site.layers.habitats[1].properties.condition = 'Good'
   site.units = { ...POST_INTERVENTION_UNITS }
+
+  // How the number was arrived at. These exist ONLY after intervention — a
+  // baseline parcel is not being created or enhanced, so it has no difficulty,
+  // no time to target and nothing to advance or delay. Putting them on the
+  // baseline fixture would test a shape the service never produces.
+  Object.assign(site.layers.habitats[0].properties, {
+    difficulty: 'Medium',
+    difficultyMultiplier: 0.67,
+    standardTimeToTargetCondition: 10,
+    finalTimeToTargetCondition: '8',
+    advanceOrDelay: 'Advance - 2 years'
+  })
   return site
 }
 
