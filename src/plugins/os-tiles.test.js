@@ -19,7 +19,7 @@ const CONFIG_VALUES = {
   'osMaps.layer': 'Light_27700',
   'osMaps.maxZoom': '',
   'osMaps.cacheTtlSeconds': 3600,
-  'osMaps.cacheMaxEntries': 100
+  'osMaps.cacheMaxBytes': 1048576
 }
 
 function stubConfig(overrides = {}) {

@@ -96,8 +96,16 @@ const SECONDS_PER_WEEK =
 /** Tiles are static, so a fetched one is worth keeping for a long time. */
 const DEFAULT_CACHE_TTL_SECONDS = SECONDS_PER_WEEK
 
-/** One site map is around 30 tiles; a large site with thumbnails, a few hundred. */
-const DEFAULT_CACHE_MAX_ENTRIES = 2000
+/**
+ * The tile cache's byte budget.
+ *
+ * catbox measures a memory cache in bytes rather than entries, which suits
+ * tiles: a sparse rural raster tile is a couple of kilobytes and a dense urban
+ * vector one is tens. One site map is around 30 tiles and a large site with
+ * parcel thumbnails a few hundred, so 64 MB holds several whole reports.
+ */
+const BYTES_PER_MEGABYTE = 1024 * 1024
+const DEFAULT_CACHE_MAX_BYTES = 64 * BYTES_PER_MEGABYTE
 
 /**
  * Resolve the effective configuration, folding the plan ceiling into the
@@ -115,7 +123,7 @@ function resolveOsTilesConfig(overrides = {}) {
     vectorMaxZoom: OS_VECTOR_MAX_ZOOM,
     layer: DEFAULT_LAYER,
     cacheTtlSeconds: DEFAULT_CACHE_TTL_SECONDS,
-    cacheMaxEntries: DEFAULT_CACHE_MAX_ENTRIES,
+    cacheMaxBytes: DEFAULT_CACHE_MAX_BYTES,
     routePrefix: '/os-tiles',
     // Null means "whatever the product allows" — correct for a Premium/PSGA
     // key. An OpenData key must set OS_MAPS_MAX_ZOOM=9, or every tile above

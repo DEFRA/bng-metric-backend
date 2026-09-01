@@ -7,12 +7,21 @@
  * from the geometry would give the report a second opinion, and a report that
  * disagrees with the screen it was generated from is worse than no report.
  *
- * What is left is envelope walking, which nothing else provides in this shape:
- * the site extent comes from PostGIS (`ST_Extent`), but each parcel thumbnail
- * needs its own extent, and asking the database for one bounding box per parcel
- * is a round trip per row for arithmetic we can do on coordinates already in
- * memory.
+ * `@turf/bbox` does the coordinate walking — it handles every GeoJSON nesting
+ * depth including GeometryCollection, which is what `envelopeOfAll` uses to
+ * fold a whole layer into one call. Only turf's BOUNDING-BOX helpers are safe
+ * in this coordinate system: `@turf/area` and the other measurement functions
+ * are geodesic and assume WGS84 degrees, so on British National Grid metres
+ * they return nonsense (a 100 m square measures 1.07e14 m²). A bounding box is
+ * pure min/max over the coordinates and carries no such assumption.
+ *
+ * The site extent itself comes from PostGIS (`ST_Extent`); this is for the
+ * per-parcel thumbnails, where asking the database for one bounding box per
+ * parcel would be a round trip per row for arithmetic we can do on
+ * coordinates already in memory.
  */
+
+import { bbox } from '@turf/bbox'
 
 /** An envelope is { minX, minY, maxX, maxY } in CRS units. */
 function emptyEnvelope() {
@@ -28,66 +37,35 @@ function isEmptyEnvelope(envelope) {
   return !(envelope.minX <= envelope.maxX && envelope.minY <= envelope.maxY)
 }
 
-function extendEnvelope(envelope, [x, y]) {
-  if (x < envelope.minX) {
-    envelope.minX = x
-  }
-  if (x > envelope.maxX) {
-    envelope.maxX = x
-  }
-  if (y < envelope.minY) {
-    envelope.minY = y
-  }
-  if (y > envelope.maxY) {
-    envelope.maxY = y
-  }
-  return envelope
+function fromBbox([minX, minY, maxX, maxY]) {
+  return { minX, minY, maxX, maxY }
 }
 
 /**
- * Walk every coordinate pair of any GeoJSON geometry, whatever its nesting
- * depth, and hand each one to `visit`.
+ * The envelope of one geometry, or an empty envelope if there is none.
+ *
+ * A feature with no geometry is dropped upstream (`site-data.js`), so a null
+ * here means a caller has reached past that; an empty envelope keeps it a
+ * missing thumbnail rather than a failed report.
  */
-function forEachCoordinate(geometry, visit) {
-  if (!geometry) {
-    return
-  }
-  if (geometry.type === 'GeometryCollection') {
-    for (const child of geometry.geometries) {
-      forEachCoordinate(child, visit)
-    }
-    return
-  }
-  walkCoordinates(geometry.coordinates, visit)
-}
-
-// A coordinate is a [number, number]; anything else is a list of them.
-function walkCoordinates(node, visit) {
-  if (typeof node?.[0] === 'number') {
-    visit(node)
-    return
-  }
-  for (const child of node ?? []) {
-    walkCoordinates(child, visit)
-  }
-}
-
 function envelopeOf(geometry) {
-  const envelope = emptyEnvelope()
-  forEachCoordinate(geometry, (coordinate) =>
-    extendEnvelope(envelope, coordinate)
-  )
-  return envelope
+  return geometry ? fromBbox(bbox(geometry)) : emptyEnvelope()
 }
 
+/**
+ * The envelope of many geometries at once.
+ *
+ * Wrapping them in a GeometryCollection is what lets one `bbox` call do the
+ * whole layer: turf walks the collection's members like any other nesting,
+ * and an empty collection yields the same infinities `emptyEnvelope` does.
+ */
 function envelopeOfAll(geometries) {
-  const envelope = emptyEnvelope()
-  for (const geometry of geometries) {
-    forEachCoordinate(geometry, (coordinate) =>
-      extendEnvelope(envelope, coordinate)
-    )
-  }
-  return envelope
+  return fromBbox(
+    bbox({
+      type: 'GeometryCollection',
+      geometries: geometries.filter(Boolean)
+    })
+  )
 }
 
 /**
@@ -117,8 +95,6 @@ export {
   emptyEnvelope,
   envelopeOf,
   envelopeOfAll,
-  extendEnvelope,
-  forEachCoordinate,
   isEmptyEnvelope,
   padEnvelope
 }

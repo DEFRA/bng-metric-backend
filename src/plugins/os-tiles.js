@@ -24,6 +24,8 @@
  * odd tiles would buy nothing. Both paths run the same two functions.
  */
 
+import { Engine as CatboxMemory } from '@hapi/catbox-memory'
+
 import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createOsTiles } from '../services/os-tiles/index.js'
@@ -47,8 +49,49 @@ function osTilesConfig() {
     layer: config.get('osMaps.layer'),
     maxZoom: maxZoomFromConfig(),
     cacheTtlSeconds: config.get('osMaps.cacheTtlSeconds'),
-    cacheMaxEntries: config.get('osMaps.cacheMaxEntries')
+    cacheMaxBytes: config.get('osMaps.cacheMaxBytes')
   }
+}
+
+const CACHE_NAME = 'os-tiles'
+const CACHE_SEGMENT = 'tiles'
+const MS_PER_SECOND = 1000
+
+/**
+ * The tile cache: hapi's own, provisioned here rather than written here.
+ *
+ * Caching matters more for a generated PDF than for a browser map. A browser
+ * user pans once and their own browser caches the result; a report re-fetches
+ * the same site's tiles on every download. One site map is ~30 tiles, and the
+ * per-parcel thumbnails push that well past 100 on a large site, most of them
+ * repeats because neighbouring parcels overlap.
+ *
+ * A dedicated catbox client rather than the server's default cache, so the
+ * tiles' byte budget and TTL are its own and a busy report cannot evict
+ * whatever else the service caches later. catbox's `get`/`set` IS the
+ * interface the service wants, so the policy is passed straight in.
+ *
+ * Process-local is a deliberate starting point: this service has no Redis (the
+ * frontend has `ioredis` + `catbox-redis`; this side has neither). Per-instance
+ * caching already collapses the repeats *within* a single report, which is
+ * where the bulk of the duplication is. Cross-instance reuse, if it turns out
+ * to matter, is then a provisioning change — swap the provider for
+ * `@hapi/catbox-redis` — rather than a code change.
+ */
+async function provisionTileCache(server, { cacheTtlSeconds, cacheMaxBytes }) {
+  await server.cache.provision({
+    name: CACHE_NAME,
+    provider: {
+      constructor: CatboxMemory,
+      options: { maxByteSize: cacheMaxBytes }
+    }
+  })
+
+  return server.cache({
+    cache: CACHE_NAME,
+    segment: CACHE_SEGMENT,
+    expiresIn: cacheTtlSeconds * MS_PER_SECOND
+  })
 }
 
 function errorResponse(h, what, error) {
@@ -65,15 +108,16 @@ const osTiles = {
     /**
      * `options` exists so the two injectable seams the service already has —
      * the upstream `fetch` and the cache — stay reachable from outside. Tests
-     * use the first; a future Redis cache would arrive through the second
-     * without this file changing.
+     * use the first; the second lets a caller substitute the catbox policy
+     * provisioned below.
      */
-    register(server, options = {}) {
+    async register(server, options = {}) {
+      const tilesConfig = osTilesConfig()
       const service = createOsTiles({
-        config: osTilesConfig(),
+        config: tilesConfig,
         logger,
         fetchImpl: options.fetchImpl,
-        cache: options.cache
+        cache: options.cache ?? (await provisionTileCache(server, tilesConfig))
       })
       server.app.osTiles = service
 

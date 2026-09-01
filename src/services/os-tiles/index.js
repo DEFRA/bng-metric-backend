@@ -31,7 +31,6 @@
  */
 
 import { isTileInGrid } from '../report/pdf/grid.js'
-import { memoryTileCache, tileKey } from './cache.js'
 import { keyWarning, resolveOsTilesConfig } from './config.js'
 import {
   fetchGrid,
@@ -42,10 +41,29 @@ import {
 
 const HTTP_NOT_FOUND = 404
 
+function tileKey({ layer, z, col, row }) {
+  return `${layer}/${z}/${col}/${row}`
+}
+
+/**
+ * What this service does without a cache: nothing, every time.
+ *
+ * Production always has one — the plugin provisions a catbox policy and
+ * injects it (`plugins/os-tiles.js`), which is also how a Redis cache would
+ * arrive, as provisioning rather than code. Constructing the service directly
+ * without one is a test doing so deliberately, and it should get uncached
+ * behaviour rather than a second, differently-behaved cache implementation
+ * living here to serve that case.
+ */
+const NO_CACHE = Object.freeze({
+  get: async () => null,
+  set: async () => {}
+})
+
 /**
  * @param {object} options
  * @param {object} [options.config]     see resolveOsTilesConfig
- * @param {object} [options.cache]      get/set; defaults to an in-process cache
+ * @param {object} [options.cache]      get/set; without one, nothing is cached
  * @param {object} [options.logger]     console-compatible
  * @param {Function} [options.fetchImpl]
  */
@@ -53,12 +71,7 @@ function createOsTiles(options = {}) {
   const config = resolveOsTilesConfig(options.config)
   const logger = options.logger ?? console
   const fetchImpl = options.fetchImpl ?? fetch
-  const cache =
-    options.cache ??
-    memoryTileCache({
-      maxEntries: config.cacheMaxEntries,
-      ttlSeconds: config.cacheTtlSeconds
-    })
+  const cache = options.cache ?? NO_CACHE
 
   // Capabilities are fetched once and reused. The grid is static for the life
   // of the product, and every tile request needs it for bounds validation.
@@ -173,7 +186,6 @@ function createOsTiles(options = {}) {
 
   return {
     config,
-    cache,
     getGrid,
     getPublishedGrid,
     getTile,
