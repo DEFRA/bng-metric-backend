@@ -504,14 +504,27 @@ function withScore(value, score) {
 }
 
 /**
- * Time to target arrives as a number of years or as text the engine already
- * worded. A bare number reads wrong on a line labelled only "Time to target".
+ * Put the unit on a bare count of years.
+ *
+ * The engine writes these two fields in different shapes, and only real uploads
+ * show it: `standardTimeToTargetCondition` arrives as the numeric STRING "10",
+ * while `finalTimeToTargetCondition` arrives already worded, as
+ * "10 years (0.7002822742)". So the test cannot be "is it a number" — a numeric
+ * string needs the unit exactly as much as a number does, and "10" on a line
+ * labelled only "Time to target" reads as an identifier rather than a duration.
+ *
+ * Anything the engine has already worded contains something other than a
+ * number, so it fails the parse and passes through untouched.
  */
 function yearsOrNull(value) {
-  if (Number.isFinite(value)) {
-    return `${value} ${value === 1 ? 'year' : 'years'}`
+  if (value === null || value === undefined || String(value).trim() === '') {
+    return null
   }
-  return value || null
+  const years = Number(value)
+  if (Number.isFinite(years)) {
+    return `${years} ${years === 1 ? 'year' : 'years'}`
+  }
+  return String(value)
 }
 
 export { CARD_FIELDS, addHabitatCards, cardHeight, cardValues, labelWidth }

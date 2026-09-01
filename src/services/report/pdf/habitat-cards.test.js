@@ -135,12 +135,24 @@ describe('#cardValues', () => {
     ).toBe('1 year')
   })
 
-  test('leaves already-worded time values alone', () => {
-    // The engine sometimes supplies these as text it has already phrased.
+  test('words a bare number that arrived as a string', () => {
+    // Which is how the engine actually supplies standardTimeToTargetCondition
+    // on a real upload — "10", not 10. Testing only the number shape passed
+    // while every real report printed a naked "10".
     expect(
-      cardValues({ properties: { finalTimeToTargetCondition: '8' } })
-        .finalTimeToTargetCondition
-    ).toBe('8')
+      cardValues({ properties: { standardTimeToTargetCondition: '10' } })
+        .standardTimeToTargetCondition
+    ).toBe('10 years')
+  })
+
+  test('leaves already-worded time values alone', () => {
+    // finalTimeToTargetCondition arrives phrased, with the time multiplier the
+    // engine used: it contains more than a number, so it passes through.
+    expect(
+      cardValues({
+        properties: { finalTimeToTargetCondition: '10 years (0.7002822742)' }
+      }).finalTimeToTargetCondition
+    ).toBe('10 years (0.7002822742)')
   })
 
   test('strips the list prefix a GeoPackage puts on a retention category', () => {
@@ -163,7 +175,7 @@ describe('#cardValues', () => {
       difficulty: 'Medium (0.67)',
       standardTimeToTargetCondition: '10 years',
       advanceOrDelay: 'Advance - 2 years',
-      finalTimeToTargetCondition: '8'
+      finalTimeToTargetCondition: '8 years (0.7002822742)'
     })
   })
 

@@ -161,8 +161,8 @@ describe('#attributesOf', () => {
         distinctivenessScore: 4,
         difficulty: 'Medium',
         difficultyMultiplier: 0.67,
-        standardTimeToTargetCondition: 10,
-        finalTimeToTargetCondition: '8',
+        standardTimeToTargetCondition: '10',
+        finalTimeToTargetCondition: '8 years (0.7)',
         advanceOrDelay: 'Advance - 2 years'
       }
     })
@@ -172,8 +172,8 @@ describe('#attributesOf', () => {
       distinctivenessScore: 4,
       difficulty: 'Medium',
       difficultyMultiplier: 0.67,
-      standardTimeToTargetCondition: 10,
-      finalTimeToTargetCondition: '8',
+      standardTimeToTargetCondition: '10',
+      finalTimeToTargetCondition: '8 years (0.7)',
       advanceOrDelay: 'Advance - 2 years'
     })
   })

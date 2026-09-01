@@ -254,8 +254,11 @@ function postInterventionSite() {
   Object.assign(site.layers.habitats[0].properties, {
     difficulty: 'Medium',
     difficultyMultiplier: 0.67,
-    standardTimeToTargetCondition: 10,
-    finalTimeToTargetCondition: '8',
+    // Both as the engine actually writes them on a real upload: the standard
+    // time as a numeric STRING, the final time already worded and carrying the
+    // time multiplier it used.
+    standardTimeToTargetCondition: '10',
+    finalTimeToTargetCondition: '8 years (0.7002822742)',
     advanceOrDelay: 'Advance - 2 years'
   })
   return site
