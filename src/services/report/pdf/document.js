@@ -20,10 +20,22 @@
 
 import PDFDocument from 'pdfkit'
 
+import { addHabitatCards } from './habitat-cards.js'
 import { addHabitatPages } from './habitat-pages.js'
 import { addSummaryPage } from './summary-page.js'
 import { registerFonts } from './page-furniture.js'
 import { A4_PORTRAIT, MARGIN } from './layout.js'
+
+/**
+ * How the habitat parcels are presented. A table fits more parcels per page; a
+ * card carries more attributes per parcel, because each one gets a line rather
+ * than a column. See habitat-cards.js.
+ */
+const HABITAT_LAYOUTS = Object.freeze({
+  table: addHabitatPages,
+  cards: addHabitatCards
+})
+const DEFAULT_LAYOUT = 'table'
 
 const PDF_VERSION = '1.5'
 const DEFAULT_SITE_NAME = 'BNG site'
@@ -40,6 +52,7 @@ const DEFAULT_SITE_NAME = 'BNG site'
  * @param {string} [options.attributionShort]     credit for frames too small for the full wording
  * @param {boolean} [options.graticule]           registration overlay, for diagnosis
  * @param {boolean} [options.habitatBasemap]      basemap behind each thumbnail
+ * @param {'table'|'cards'} [options.layout]     habitat parcel presentation
  * @param {{regular: Buffer, bold: Buffer}|null} [options.fonts]  embedded
  *        typeface, resolved at startup; null uses the committed Noto Sans
  * @returns {Promise<{ doc: PDFDocument, stats: object }>}
@@ -53,7 +66,8 @@ async function buildSiteReportPdf({
   attributionShort = null,
   graticule = false,
   habitatBasemap = true,
-  fonts = null
+  fonts = null,
+  layout = DEFAULT_LAYOUT
 }) {
   const siteName = baseline.siteName ?? DEFAULT_SITE_NAME
   const basemap = Boolean(grid && tileSource)
@@ -79,7 +93,8 @@ async function buildSiteReportPdf({
   }
 
   await addSummaryPage({ ...context, graticule, siteName })
-  await addHabitatPages({
+  const addHabitats = HABITAT_LAYOUTS[layout] ?? HABITAT_LAYOUTS[DEFAULT_LAYOUT]
+  await addHabitats({
     ...context,
     withBasemap: basemap && habitatBasemap
   })
@@ -110,5 +125,5 @@ function createDocument(siteName) {
   })
 }
 
-export { buildSiteReportPdf }
+export { DEFAULT_LAYOUT, HABITAT_LAYOUTS, buildSiteReportPdf }
 export { plural } from './page-furniture.js'

@@ -5,7 +5,9 @@ import { getProjectReport, reportFilename } from './report.js'
 vi.mock('../services/report/build-site-report.js', () => ({
   buildSiteReport: vi.fn(),
   BASEMAP_CHOICES: ['vector', 'raster'],
-  DEFAULT_BASEMAP: 'vector'
+  DEFAULT_BASEMAP: 'vector',
+  LAYOUT_CHOICES: ['table', 'cards'],
+  DEFAULT_LAYOUT: 'table'
 }))
 
 const { buildSiteReport } =
@@ -31,11 +33,16 @@ function mockResponse() {
 
 function request(
   rows,
-  { osTiles = null, basemap = 'vector', reportFonts = null } = {}
+  {
+    osTiles = null,
+    basemap = 'vector',
+    layout = 'table',
+    reportFonts = null
+  } = {}
 ) {
   return {
     params: { projectId: PROJECT_ID },
-    query: { basemap },
+    query: { basemap, layout },
     auth: { credentials: { sub: 'user-1' } },
     drizzle: mockDrizzle(rows),
     logger: { info: vi.fn() },
@@ -128,6 +135,23 @@ describe('#getProjectReport', () => {
 
     expect(buildSiteReport).toHaveBeenCalledWith(
       expect.objectContaining({ osTiles })
+    )
+  })
+
+  test('passes the requested habitat layout through to the builder', async () => {
+    buildSiteReport.mockResolvedValue({
+      pdf: PDF,
+      stats: {},
+      siteName: 'Test Farm'
+    })
+
+    await getProjectReport.handler(
+      request([projectRow], { layout: 'cards' }),
+      mockResponse()
+    )
+
+    expect(buildSiteReport).toHaveBeenCalledWith(
+      expect.objectContaining({ layout: 'cards' })
     )
   })
 

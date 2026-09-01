@@ -34,7 +34,18 @@ function attributesOf(feature) {
   return {
     ref: feature.ref ?? null,
     type: proposed.type ?? feature.type ?? null,
+    broadType: proposed.broadType ?? feature.broadType ?? null,
     condition: proposed.condition ?? feature.condition ?? null,
+    // Set by the enrichment step from the metric engine, so absent on a project
+    // that has not been calculated yet. The report shows what is there and says
+    // nothing about what is not — see habitat-cards.js.
+    distinctiveness:
+      proposed.distinctiveness ?? feature.distinctiveness ?? null,
+    strategicSignificance:
+      proposed.strategicSignificance ?? feature.strategicSignificance ?? null,
+    retentionCategory:
+      proposed.retentionCategory ?? feature.retentionCategory ?? null,
+    units: numberOrNull(proposed.units ?? feature.units),
     sizeSquareMetres: numberOrNull(feature.sizeSquareMetres),
     sizeMetres: numberOrNull(feature.sizeMetres)
   }

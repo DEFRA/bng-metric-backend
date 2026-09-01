@@ -49,7 +49,12 @@ describe('#attributesOf', () => {
     ).toEqual({
       ref: 'A1',
       type: 'Modified grassland',
+      broadType: null,
       condition: 'Poor',
+      distinctiveness: null,
+      strategicSignificance: null,
+      retentionCategory: null,
+      units: null,
       sizeSquareMetres: 10_000,
       sizeMetres: null
     })
@@ -74,10 +79,53 @@ describe('#attributesOf', () => {
     expect(attributesOf({})).toEqual({
       ref: null,
       type: null,
+      broadType: null,
       condition: null,
+      distinctiveness: null,
+      strategicSignificance: null,
+      retentionCategory: null,
+      units: null,
       sizeSquareMetres: null,
       sizeMetres: null
     })
+  })
+
+  test('carries the enriched values the card layout shows', () => {
+    // distinctiveness and units are written back by the enrichment step from
+    // the metric engine, so they exist only on a calculated project.
+    const attributes = attributesOf({
+      ref: 'A1',
+      type: 'Modified grassland',
+      broadType: 'Grassland',
+      condition: 'Poor',
+      distinctiveness: 'Low',
+      strategicSignificance: 'Location ecologically desirable',
+      retentionCategory: 'Retained',
+      units: 3.6
+    })
+
+    expect(attributes).toMatchObject({
+      broadType: 'Grassland',
+      distinctiveness: 'Low',
+      strategicSignificance: 'Location ecologically desirable',
+      retentionCategory: 'Retained',
+      units: 3.6
+    })
+  })
+
+  test('prefers proposed values for the enriched fields too', () => {
+    const attributes = attributesOf({
+      distinctiveness: 'Low',
+      units: 3.6,
+      proposed: { distinctiveness: 'Medium', units: 8.2 }
+    })
+
+    expect(attributes.distinctiveness).toBe('Medium')
+    expect(attributes.units).toBe(8.2)
+  })
+
+  test('rejects non-finite units the same way it rejects a bad size', () => {
+    expect(attributesOf({ units: Number.NaN }).units).toBeNull()
   })
 
   test('rejects a non-finite size instead of formatting NaN onto the page', () => {

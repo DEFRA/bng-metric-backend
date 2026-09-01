@@ -52,6 +52,21 @@ const SCALE_BAR_INSET = 6
 const SCALE_BAR_BOTTOM_OFFSET = 14
 const SCALE_BAR_WIDTH_FRACTION = 3
 
+// The card layout (?layout=cards). A card gives each parcel a heading and one
+// labelled line per attribute, instead of cramming every attribute into a
+// column narrow enough to fit five of them across the page. The map is bigger
+// because there is room for it, and the card is sized from its content rather
+// than fixed — a parcel with no calculated units is a shorter card, not one
+// with a gap in it.
+const CARD_MAP_SIZE = 96
+const CARD_GUTTER = 12
+const CARD_PADDING = 10
+const CARD_HEADING_HEIGHT = 16
+const CARD_LINE_HEIGHT = 12
+const CARD_LABEL_WIDTH = 96
+const CARD_GAP = 10
+const CARD_TOP_GAP = 10
+
 const MINI_MAP_SIZE = 52
 const MINI_MAP_COLUMN_PADDING = 10
 const MINI_MAP_INSET = 2
@@ -151,6 +166,14 @@ export {
   MINI_MAP_COLUMN_PADDING,
   MINI_MAP_INSET,
   MINI_MAP_PAD,
+  CARD_GAP,
+  CARD_GUTTER,
+  CARD_HEADING_HEIGHT,
+  CARD_LABEL_WIDTH,
+  CARD_LINE_HEIGHT,
+  CARD_MAP_SIZE,
+  CARD_PADDING,
+  CARD_TOP_GAP,
   MINI_MAP_SIZE,
   MUTED,
   PAPER,

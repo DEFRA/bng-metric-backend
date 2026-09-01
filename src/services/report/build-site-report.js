@@ -16,7 +16,11 @@
 
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
-import { buildSiteReportPdf } from './pdf/document.js'
+import {
+  DEFAULT_LAYOUT,
+  HABITAT_LAYOUTS,
+  buildSiteReportPdf
+} from './pdf/document.js'
 import { osTileSource, osVectorTileSource } from './pdf/tile-source.js'
 import { readSiteData } from './site-data.js'
 
@@ -118,6 +122,7 @@ async function resolveBasemap(osTiles, basemap) {
  * @param {{ id: string, project: object }} options.projectRow
  * @param {object|null} [options.osTiles]  the OS tiles service, when configured
  * @param {'vector'|'raster'} [options.basemap]  which basemap flavour to draw
+ * @param {'table'|'cards'} [options.layout]  how habitat parcels are presented
  * @param {{regular: Buffer, bold: Buffer}|null} [options.fonts]  the fonts
  *        resolved at startup by plugins/report-fonts.js
  * @returns {Promise<{ pdf: Buffer, stats: object, siteName: string }>}
@@ -127,7 +132,8 @@ async function buildSiteReport({
   projectRow,
   osTiles = null,
   basemap = DEFAULT_BASEMAP,
-  fonts = null
+  fonts = null,
+  layout = DEFAULT_LAYOUT
 }) {
   const site = await readSiteData(drizzle, projectRow)
   const { grid, tileSource, attribution, attributionShort } =
@@ -140,7 +146,8 @@ async function buildSiteReport({
     tileSource,
     attribution,
     attributionShort,
-    fonts
+    fonts,
+    layout
   })
 
   return { pdf: await toBuffer(doc), stats, siteName: site.siteName }
@@ -149,4 +156,14 @@ async function buildSiteReport({
 /** The values the report route's `basemap` query parameter accepts. */
 const BASEMAP_CHOICES = Object.freeze(Object.keys(BASEMAP_KINDS))
 
-export { BASEMAP_CHOICES, DEFAULT_BASEMAP, buildSiteReport, toBuffer }
+/** The values the report route's `layout` query parameter accepts. */
+const LAYOUT_CHOICES = Object.freeze(Object.keys(HABITAT_LAYOUTS))
+
+export {
+  BASEMAP_CHOICES,
+  DEFAULT_BASEMAP,
+  DEFAULT_LAYOUT,
+  LAYOUT_CHOICES,
+  buildSiteReport,
+  toBuffer
+}

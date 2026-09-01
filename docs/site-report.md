@@ -116,6 +116,56 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
   [The typeface, and where it comes from](#the-typeface-and-where-it-comes-from) — and
   what remains is a licensing answer, not a change.
 
+## Two habitat layouts
+
+Page 2 onwards presents the parcels one of two ways, chosen with
+`?layout=table|cards`. Same data, same mini-map, different shape.
+
+|                  | `table` (default)                  | `cards`                                                                                                    |
+| ---------------- | ---------------------------------- | ---------------------------------------------------------------------------------------------------------- |
+| Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute                                                                |
+| Attributes shown | Ref, habitat type, condition, size | Those plus broad habitat, distinctiveness, strategic significance, retention category and calculated units |
+| Mini-map         | 52 pt square                       | 96 pt square                                                                                               |
+| Parcels per page | More                               | Fewer                                                                                                      |
+| Structure        | `Table` / `TR` / `TH` / `TD`       | `Sect` / `H3` / `P`, one `Figure` per card                                                                 |
+
+**Why cards exist.** A table's attribute count is bounded by the width of the page —
+five columns already leaves "Modified grassland" wrapping in a 90-point cell, and the
+project document holds a good deal more than four useful facts per parcel. A card turns
+that ninety degrees.
+
+**It also sidesteps the `/Headers` gap.** The table is hand-laid, because a `doc.table()`
+cell cannot hold a drawing and pdfkit only emits `/Headers` inside `doc.table()`. Its cells
+therefore carry `/Scope` and nothing links a value back to the header describing it. A card
+has no columns to associate: each line is a paragraph reading "Condition: Poor", which
+needs no table navigation at all. If the NVDA pass finds the table hard to move around,
+this is the answer that already exists.
+
+Cards are sized from their content. A project that has not been through the metric engine
+has no distinctiveness and no units, and those lines are omitted rather than printed blank
+— an empty row invites the reader to wonder what is missing, whereas a shorter card simply
+says less. Both layouts pass PDF/UA-1.
+
+### One bug this surfaced: ligatures and `/CIDSet`
+
+Adding the card layout made the report fail veraPDF on a rule that had nothing to do with
+cards — `7.21.4.2-2`, "a CIDSet shall identify all CIDs present in the font program".
+
+pdfkit builds `/CIDSet` from its own width table, but fontkit's subsetter also pulls in the
+**component glyphs of any composite glyph**. Noto Sans Bold's `fi` is a composite ligature,
+so its component landed in the embedded font program without pdfkit ever assigning it a
+CID, and the CIDSet came out one glyph short. The document rendered perfectly.
+
+The trigger was the word **"Modified"** — as in _Modified grassland_, one of the commonest
+UKHab types. The table layout escaped it only because it sets no user data in bold, and
+Noto Sans Regular's `fi` is not composite. That is luck, not design, and it would not
+survive swapping the typeface.
+
+The fix is `dataText()` in `page-furniture.js`: ligatures off for user-supplied text, which
+is the text whose characters we cannot predict. Both layouts use it. `cidset.test.js`
+asserts the invariant directly — every glyph in an embedded subset has a CID — so the whole
+class is caught in the normal test suite without needing veraPDF.
+
 ## The typeface, and where it comes from
 
 PDF/UA requires every font PROGRAM to be embedded, so a report always carries a subset

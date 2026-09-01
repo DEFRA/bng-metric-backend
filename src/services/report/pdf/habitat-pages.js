@@ -8,32 +8,20 @@
  * position.
  */
 
-import {
-  HABITAT_STYLES,
-  drawBasemap,
-  drawGeometry,
-  withFrameClip
-} from './map.js'
-import { envelopeOf, padEnvelope } from './envelope.js'
-import { fitEnvelopeToFrame, makeProjector } from './projector.js'
+import { HABITAT_STYLES } from './map.js'
 import {
   BODY,
   BOLD,
+  dataText,
   drawCredit,
-  fillGround,
   fitCredit,
-  labelAsArtifact,
-  prepareBasemap
+  labelAsArtifact
 } from './page-furniture.js'
 import {
   A4_PORTRAIT_HEIGHT,
   BORDER,
   CELL_PADDING,
   CONTENT_WIDTH,
-  CONTEXT_FILL,
-  CONTEXT_FILL_OPACITY,
-  CONTEXT_LINE_WIDTH,
-  CONTEXT_STROKE,
   FONT_SIZE,
   HABITAT_COLUMN_FRACTION,
   HABITAT_ROW_DIVIDER_OFFSET,
@@ -46,15 +34,13 @@ import {
   MARGIN,
   MINI_MAP_COLUMN_PADDING,
   MINI_MAP_INSET,
-  MINI_MAP_PAD,
   MINI_MAP_SIZE,
   MUTED,
   PARCEL_HECTARE_DECIMALS,
   RULE_WIDTH,
-  SQ_M_PER_HECTARE,
-  SUBJECT_LINE_WIDTH,
-  THUMBNAIL_TARGET_DPI
+  SQ_M_PER_HECTARE
 } from './layout.js'
+import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
 import { BASELINE, POST_INTERVENTION } from './labels.js'
 
 const TABLE_TOP_GAP = 10
@@ -105,7 +91,8 @@ async function addHabitatPages({
     features,
     grid,
     tileSource,
-    withBasemap: Boolean(credit)
+    withBasemap: Boolean(credit),
+    size: MINI_MAP_SIZE
   })
 
   addRows({
@@ -187,33 +174,6 @@ function addRows({
     y += HABITAT_ROW_HEIGHT
     stats.habitats += 1
   }
-}
-
-/**
- * Work out each thumbnail's extent and fetch its tiles, before any drawing.
- */
-async function prepareThumbnails({ features, grid, tileSource, withBasemap }) {
-  const square = { x: 0, y: 0, width: MINI_MAP_SIZE, height: MINI_MAP_SIZE }
-  const thumbnails = new Map()
-
-  for (const feature of features) {
-    const padded = padEnvelope(envelopeOf(feature.geometry), MINI_MAP_PAD)
-    const extent = fitEnvelopeToFrame(padded, square)
-
-    if (!withBasemap) {
-      thumbnails.set(feature, { extent, z: null, tiles: null })
-      continue
-    }
-    const basemapLayer = await prepareBasemap({
-      grid,
-      extent,
-      tileSource,
-      frameWidth: square.width,
-      targetDpi: THUMBNAIL_TARGET_DPI
-    })
-    thumbnails.set(feature, { extent, ...basemapLayer })
-  }
-  return thumbnails
 }
 
 function habitatColumns() {
@@ -351,7 +311,7 @@ function textCells(doc, columns, values, y) {
         `${values[key]} `,
         columnX(columns, index + 1),
         y + HABITAT_ROW_TEXT_OFFSET,
-        { width: columns[index + 1].width - CELL_PADDING }
+        { width: columns[index + 1].width - CELL_PADDING, ...dataText() }
       )
     })
   )
@@ -378,64 +338,6 @@ function habitatRowValues({ properties }) {
     area: Number.isFinite(sqm)
       ? (sqm / SQ_M_PER_HECTARE).toFixed(PARCEL_HECTARE_DECIMALS)
       : NOT_RECORDED
-  }
-}
-
-/**
- * A parcel thumbnail, zoomed to the parcel itself so its shape is legible.
- *
- * Neighbouring parcels and the site boundary are drawn faintly underneath for
- * orientation — without them a lone polygon on a blank square tells you the
- * shape but not where it sits.
- */
-function drawMiniMap({ doc, frame, feature, style, site, grid, thumbnail }) {
-  // The extent was computed against an identically sized frame, so rebuilding
-  // the projector here only moves the origin — the scale is unchanged.
-  const projector = makeProjector(thumbnail.extent, frame)
-
-  fillGround(doc, frame)
-
-  let tileCount = 0
-  withFrameClip(doc, frame, () => {
-    if (thumbnail.tiles) {
-      tileCount = drawBasemap(doc, {
-        grid,
-        z: thumbnail.z,
-        projector,
-        tiles: thumbnail.tiles
-      }).tileCount
-    }
-    drawContext(doc, site, feature, projector)
-    drawGeometry(doc, feature.geometry, projector, {
-      ...style,
-      lineWidth: SUBJECT_LINE_WIDTH
-    })
-  })
-
-  doc.save().lineWidth(RULE_WIDTH.miniMapFrame).strokeColor(BORDER)
-  doc.rect(frame.x, frame.y, frame.width, frame.height).stroke()
-  doc.restore()
-
-  return { tileCount, projector }
-}
-
-/** Neighbours and the boundary, drawn first so the subject sits over them. */
-function drawContext(doc, site, feature, projector) {
-  for (const other of site.layers.habitats ?? []) {
-    if (other !== feature) {
-      drawGeometry(doc, other.geometry, projector, {
-        fill: CONTEXT_FILL,
-        stroke: CONTEXT_STROKE,
-        fillOpacity: CONTEXT_FILL_OPACITY,
-        lineWidth: CONTEXT_LINE_WIDTH
-      })
-    }
-  }
-  if (site.redLine) {
-    drawGeometry(doc, site.redLine.geometry, projector, {
-      stroke: HABITAT_STYLES.redLine.stroke,
-      lineWidth: SUBJECT_LINE_WIDTH
-    })
   }
 }
 

@@ -7,6 +7,8 @@ import { visibleToUser } from '../db/project-visibility.js'
 import {
   BASEMAP_CHOICES,
   DEFAULT_BASEMAP,
+  DEFAULT_LAYOUT,
+  LAYOUT_CHOICES,
   buildSiteReport
 } from '../services/report/build-site-report.js'
 
@@ -101,7 +103,10 @@ const getProjectReport = {
       query: Joi.object({
         basemap: Joi.string()
           .valid(...BASEMAP_CHOICES)
-          .default(DEFAULT_BASEMAP)
+          .default(DEFAULT_BASEMAP),
+        layout: Joi.string()
+          .valid(...LAYOUT_CHOICES)
+          .default(DEFAULT_LAYOUT)
       })
     }
   },
@@ -134,6 +139,7 @@ const getProjectReport = {
       projectRow: rows[0],
       osTiles: request.server.app.osTiles ?? null,
       basemap: request.query.basemap,
+      layout: request.query.layout,
       fonts: request.server.app.reportFonts ?? null
     })
 
@@ -145,6 +151,7 @@ const getProjectReport = {
       {
         projectId,
         basemap: request.query.basemap,
+        layout: request.query.layout,
         ms: Math.round(performance.now() - started),
         bytes: pdf.length,
         ...stats
