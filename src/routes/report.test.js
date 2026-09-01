@@ -29,14 +29,17 @@ function mockResponse() {
   return { response: vi.fn().mockReturnValue(response), _response: response }
 }
 
-function request(rows, { osTiles = null, basemap = 'vector' } = {}) {
+function request(
+  rows,
+  { osTiles = null, basemap = 'vector', reportFonts = null } = {}
+) {
   return {
     params: { projectId: PROJECT_ID },
     query: { basemap },
     auth: { credentials: { sub: 'user-1' } },
     drizzle: mockDrizzle(rows),
     logger: { info: vi.fn() },
-    server: { app: { osTiles } }
+    server: { app: { osTiles, reportFonts } }
   }
 }
 
@@ -125,6 +128,28 @@ describe('#getProjectReport', () => {
 
     expect(buildSiteReport).toHaveBeenCalledWith(
       expect.objectContaining({ osTiles })
+    )
+  })
+
+  test('passes the startup-resolved fonts through to the builder', async () => {
+    buildSiteReport.mockResolvedValue({
+      pdf: PDF,
+      stats: {},
+      siteName: 'Test Farm'
+    })
+    const reportFonts = {
+      regular: Buffer.from('r'),
+      bold: Buffer.from('b'),
+      source: 's3'
+    }
+
+    await getProjectReport.handler(
+      request([projectRow], { reportFonts }),
+      mockResponse()
+    )
+
+    expect(buildSiteReport).toHaveBeenCalledWith(
+      expect.objectContaining({ fonts: reportFonts })
     )
   })
 

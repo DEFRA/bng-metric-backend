@@ -133,7 +133,8 @@ const getProjectReport = {
       drizzle: request.drizzle,
       projectRow: rows[0],
       osTiles: request.server.app.osTiles ?? null,
-      basemap: request.query.basemap
+      basemap: request.query.basemap,
+      fonts: request.server.app.reportFonts ?? null
     })
 
     // Deliberately not routed through perf-evidence.js: that helper is spike

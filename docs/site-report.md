@@ -112,10 +112,92 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
   "1 watercourses", which a unit test now prevents. Roughly a third of PDF/UA's failure
   conditions are human judgement. **This is the go/no-go.**
 - **GDS Transport instead of Noto Sans.** GOV.UK sets GDS Transport in the browser and
-  that is what this should eventually embed. It is licensed for GOV.UK services but is
-  not redistributable here, so swapping it in is a licensing step, not a code change:
-  replace the two files in `src/services/report/assets/fonts` and the names in
-  `document.js`.
+  that is what this should eventually embed. The code is ready for it — see
+  [The typeface, and where it comes from](#the-typeface-and-where-it-comes-from) — and
+  what remains is a licensing answer, not a change.
+
+## The typeface, and where it comes from
+
+PDF/UA requires every font PROGRAM to be embedded, so a report always carries a subset
+of whatever it was drawn with, and that subset travels to everyone the document is
+forwarded to. Which typeface it is, then, is a licensing question before it is a
+typographic one.
+
+Two sources, chosen by `REPORT_FONT_BUCKET`:
+
+| Unset (the default)                                                 | Set                                                     |
+| ------------------------------------------------------------------- | ------------------------------------------------------- |
+| The Noto Sans files committed in `src/services/report/assets/fonts` | Two objects fetched from a private S3 bucket at startup |
+| SIL OFL 1.1, so safe to hold in a public repository                 | For a typeface this repository is not allowed to hold   |
+
+**Why a bucket rather than two more committed files.** GDS Transport is licensed to GDS
+under a bilateral agreement with its designers; its own name table records the licence as
+"Contact Margaret Calvert and Henrik Kubel … Special license agreement" and the font as
+"customised exclusively for the UK Government Digital Services … not commercially
+available". `DEFRA/bng-metric-backend` is a **public** repository, so committing the files
+would publish the font to anyone who clones. A private bucket separates the two exposures:
+
+| Exposure                                      | Fixed by a private bucket?                                                                                                                                                                    |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The font file in every clone of a public repo | **Yes.** This is the one the licence does not permit                                                                                                                                          |
+| A subset inside every generated report        | **No, and nothing can** — that is what embedding is. It is also the sanctioned case: the font's `fsType` bit is _Preview & Print embedding_, which is the rights holder allowing exactly this |
+
+That does not answer whether GDS permit it; it makes the question a reasonable one to ask,
+and holding the font privately is the precondition for asking it. **Ask before enabling.**
+
+### What was verified
+
+Against `govuk-frontend@6.4.0`, which ships GDS Transport as WOFF and WOFF2:
+
+| Check                            | Result                                                              |
+| -------------------------------- | ------------------------------------------------------------------- |
+| pdfkit can embed it              | **Yes** — fontkit reads WOFF and WOFF2 directly, no conversion step |
+| PDF/UA-1 under veraPDF           | **PASS**, on the full 20-parcel report                              |
+| Glyph coverage for this document | Complete — nothing missing, including `²` and `£`                   |
+| Output size                      | 221.9 kB, slightly **smaller** than the same report in Noto Sans    |
+| Embedding permission (`fsType`)  | Preview & Print — embedding allowed                                 |
+
+One defect to fix on the way in: govuk-frontend blanks the font's name table for web
+delivery, so pdfkit emits `/BaseFont /CZZZZZ+` with no name after the subset prefix.
+Injecting a name table before upload gives `/CZZZZZ+GDSTransportWebsite-Light`, and it
+still passes. Do that once, to the objects that go in the bucket — not at runtime.
+
+### Configuration
+
+| Variable                  | Default                         | Meaning                                                        |
+| ------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `REPORT_FONT_BUCKET`      | _(empty)_                       | Bucket holding the fonts. Empty embeds the committed Noto Sans |
+| `REPORT_FONT_REGULAR_KEY` | `GDSTransportWebsite-Light.ttf` | Regular-weight object key                                      |
+| `REPORT_FONT_BOLD_KEY`    | `GDSTransportWebsite-Bold.ttf`  | Bold-weight object key                                         |
+| `REPORT_FONT_TIMEOUT_MS`  | `10000`                         | Per-object timeout for the startup fetch                       |
+| `REPORT_FONT_MAX_BYTES`   | `5242880`                       | Size ceiling per object                                        |
+
+Credentials come from the SDK's default provider chain — IAM in CDP, `S3_ENDPOINT` against
+LocalStack in development, where `compose/start-localstack.sh` creates an empty
+`bng-metric-report-fonts` bucket to copy a licensed font into.
+
+### Loaded once, at boot
+
+`plugins/report-fonts.js` resolves the fonts during `createServer()` and hangs them on
+`server.app.reportFonts`; the route passes them to the builder. Never per request, for
+three reasons in ascending order of how much they would hurt:
+
+1. `registerFonts` is synchronous **by design**. All I/O completes before any drawing
+   starts, because pdfkit's drawing is sequential and stateful and an `await` in the middle
+   of it silently corrupts both layout and the tagged reading order — see
+   [Four rules the code depends on](#four-rules-the-code-depends-on). An await inside
+   document construction is precisely that bug.
+2. It would add a failure mode to a path that cannot currently fail, and both answers are
+   bad: fall back to a different typeface and ship inconsistent-looking documents, or turn
+   a font problem into a report outage.
+3. A font is build-time-static data. Fetching it per request buys nothing.
+
+So a configured bucket that cannot be read **fails the boot**, not the report. An
+environment told to use a specific typeface and silently rendering in another one is worse
+than a deployment that refuses to start. The bytes are also checked at startup — size, and
+the leading four bytes against the font container signatures — because S3 will serve a
+README under a `.ttf` key perfectly happily, and pdfkit would only discover that inside the
+first request, long after the deployment reported itself healthy.
 
 ## The basemap, and crediting it
 

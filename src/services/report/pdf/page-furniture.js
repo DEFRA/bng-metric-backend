@@ -29,19 +29,34 @@ import {
  * can never pass however well tagged it is. Nothing about the rendered page
  * looks different either way; only a conformance checker can see it.
  *
- * Noto Sans is used because it is SIL OFL 1.1 and therefore safe to commit.
- * GOV.UK sets GDS Transport in the browser and that is what this should
- * eventually embed; it is licensed for GOV.UK services but is not
- * redistributable here, so swapping it in is a licensing step, not a code
- * change — replace the two files in `assets/fonts` and the names below.
+ * Which typeface arrives here is decided at startup, not here — see
+ * `services/report/fonts.js`. Noto Sans is what the repository can hold: it is
+ * SIL OFL 1.1, so it is safe to commit. GOV.UK sets GDS Transport, which is
+ * licensed to GDS under a bilateral agreement, is not redistributable, and so
+ * reaches this function as buffers read from a private bucket instead.
+ *
+ * `pdfkit` takes a path or a buffer interchangeably, which is the whole reason
+ * the two sources cost nothing to support: the bundled files stay the default
+ * for every caller that passes no fonts at all — tests, and the CLI.
  */
 const FONT_DIR = path.resolve(import.meta.dirname, '..', 'assets', 'fonts')
 const BODY = 'Body'
 const BOLD = 'Bold'
 
-function registerFonts(doc) {
-  doc.registerFont(BODY, path.join(FONT_DIR, 'NotoSans-Regular.ttf'))
-  doc.registerFont(BOLD, path.join(FONT_DIR, 'NotoSans-Bold.ttf'))
+/**
+ * @param {PDFDocument} doc
+ * @param {{ regular: Buffer, bold: Buffer }|null} [fonts]  null uses the
+ *   committed Noto Sans files
+ */
+function registerFonts(doc, fonts = null) {
+  doc.registerFont(
+    BODY,
+    fonts?.regular ?? path.join(FONT_DIR, 'NotoSans-Regular.ttf')
+  )
+  doc.registerFont(
+    BOLD,
+    fonts?.bold ?? path.join(FONT_DIR, 'NotoSans-Bold.ttf')
+  )
   // pdfkit starts every document on Helvetica; without this, anything drawn
   // before the first explicit font() call would reintroduce the failure.
   doc.font(BODY)

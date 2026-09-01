@@ -289,6 +289,38 @@ const config = convict({
       env: 'OS_MAPS_ATTRIBUTION_SHORT'
     }
   },
+  reportFonts: {
+    bucket: {
+      doc: 'S3 bucket holding the report body fonts. Empty — the default — embeds the Noto Sans files committed alongside the code. Set it to embed GDS Transport instead, which is licensed to GDS under a bilateral agreement with its designers and is NOT redistributable: this repository is public, so the font cannot be committed here. A private bucket keeps the font file out of every clone while still letting the service embed a Preview-&-Print subset in the generated report, which is the use its own embedding permission bits allow. See docs/site-report.md.',
+      format: String,
+      default: '',
+      env: 'REPORT_FONT_BUCKET'
+    },
+    regularKey: {
+      doc: 'Object key of the regular-weight font within reportFonts.bucket. Ignored when no bucket is set.',
+      format: String,
+      default: 'GDSTransportWebsite-Light.ttf',
+      env: 'REPORT_FONT_REGULAR_KEY'
+    },
+    boldKey: {
+      doc: 'Object key of the bold-weight font within reportFonts.bucket. Ignored when no bucket is set.',
+      format: String,
+      default: 'GDSTransportWebsite-Bold.ttf',
+      env: 'REPORT_FONT_BOLD_KEY'
+    },
+    timeoutMs: {
+      doc: 'Per-object timeout for the startup font fetch. Short, because this runs once at boot and a slow bucket should fail the deployment rather than stall it.',
+      format: Number,
+      default: 10000,
+      env: 'REPORT_FONT_TIMEOUT_MS'
+    },
+    maxBytes: {
+      doc: 'Size ceiling per font object. A body font is tens of kilobytes; this only exists so a mistyped key cannot stream something large into memory at boot.',
+      format: Number,
+      default: 5242880,
+      env: 'REPORT_FONT_MAX_BYTES'
+    }
+  },
   oidc: {
     discoveryUrl: {
       doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',

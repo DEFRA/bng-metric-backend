@@ -10,7 +10,7 @@
 
 import { describe, expect, test } from 'vitest'
 
-import { drawCredit, fitCredit } from './page-furniture.js'
+import { drawCredit, fitCredit, registerFonts } from './page-furniture.js'
 import {
   CREDIT_FONT_SIZE,
   CREDIT_INSET,
@@ -140,5 +140,58 @@ describe('#drawCredit', () => {
     drawCredit(doc, SITE_MAP_FRAME, credit)
 
     expect(callTo(doc, 'text').args[0]).toContain(FULL)
+  })
+})
+
+/**
+ * The seam that lets a typeface this repository is not allowed to hold reach
+ * the document anyway: `services/report/fonts.js` resolves it at startup, as
+ * buffers, and pdfkit takes a buffer wherever it takes a path.
+ */
+describe('#registerFonts', () => {
+  function recordingDoc() {
+    const registered = []
+    return {
+      registered,
+      registerFont: (name, source) => registered.push({ name, source }),
+      font: () => {}
+    }
+  }
+
+  test('embeds the committed Noto Sans when given no fonts', () => {
+    const doc = recordingDoc()
+
+    registerFonts(doc)
+
+    expect(doc.registered.map(({ source }) => source)).toEqual([
+      expect.stringContaining('NotoSans-Regular.ttf'),
+      expect.stringContaining('NotoSans-Bold.ttf')
+    ])
+  })
+
+  test('embeds supplied buffers in preference to the committed files', () => {
+    const doc = recordingDoc()
+    const regular = Buffer.from('regular font program')
+    const bold = Buffer.from('bold font program')
+
+    registerFonts(doc, { regular, bold })
+
+    expect(doc.registered).toEqual([
+      { name: 'Body', source: regular },
+      { name: 'Bold', source: bold }
+    ])
+  })
+
+  test('starts the document on the body font', () => {
+    // pdfkit opens every document on Helvetica, which is a base-14 font and is
+    // never embedded — anything drawn before the first explicit font() call
+    // would fail PDF/UA 7.21.4.1 on its own.
+    const doc = recordingDoc()
+    const fontCalls = []
+    doc.font = (name) => fontCalls.push(name)
+
+    registerFonts(doc)
+
+    expect(fontCalls).toEqual(['Body'])
   })
 })

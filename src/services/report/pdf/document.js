@@ -40,6 +40,8 @@ const DEFAULT_SITE_NAME = 'BNG site'
  * @param {string} [options.attributionShort]     credit for frames too small for the full wording
  * @param {boolean} [options.graticule]           registration overlay, for diagnosis
  * @param {boolean} [options.habitatBasemap]      basemap behind each thumbnail
+ * @param {{regular: Buffer, bold: Buffer}|null} [options.fonts]  embedded
+ *        typeface, resolved at startup; null uses the committed Noto Sans
  * @returns {Promise<{ doc: PDFDocument, stats: object }>}
  */
 async function buildSiteReportPdf({
@@ -50,13 +52,14 @@ async function buildSiteReportPdf({
   attribution = null,
   attributionShort = null,
   graticule = false,
-  habitatBasemap = true
+  habitatBasemap = true,
+  fonts = null
 }) {
   const siteName = baseline.siteName ?? DEFAULT_SITE_NAME
   const basemap = Boolean(grid && tileSource)
   const doc = createDocument(siteName)
 
-  registerFonts(doc)
+  registerFonts(doc, fonts)
 
   const stats = { maps: 0, tiles: 0, habitats: 0, zooms: [] }
   const root = doc.struct('Document', { title: documentTitle(siteName) })

@@ -7,6 +7,7 @@ import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { rateEvidence } from './plugins/rate-evidence.js'
+import { reportFonts } from './plugins/report-fonts.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
@@ -50,6 +51,7 @@ async function createServer() {
   // pulse          - provides shutdown handlers
   // authJwt        - 'defra-jwt' scheme/strategy (must be registered BEFORE the
   //                  default is set and before the router adds routes)
+  // reportFonts    - resolves the report's embedded fonts once, at boot
   await server.register([
     requestLogger,
     // rateEvidence - observability only (spike Item W3): logs uncapped
@@ -74,7 +76,8 @@ async function createServer() {
     {
       plugin: authJwt.plugin,
       options: resolveOidcAuthOptions()
-    }
+    },
+    reportFonts
   ])
 
   // Secure by default: every route requires the 'defra-jwt' strategy unless it
