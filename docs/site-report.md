@@ -161,9 +161,18 @@ the report and the page it was generated from do not describe the same parcel di
 - **A retention category is normalised.** The backend strips the GeoPackage's `1. ` list
   prefix when it decides which calculation to run but never writes the normalised value
   back, so the document keeps whatever the upload carried. The report strips it again.
-- **A bare number of years is worded** — "10 years", not "10". Values the engine has
-  already phrased (`finalTimeToTargetCondition` arrives as "8 years (0.7)") pass through
-  untouched.
+- **A bare number of years is worded** — "10 years", not "10". The engine writes its two
+  time fields in different shapes, and only a real upload shows it:
+  `standardTimeToTargetCondition` arrives as the numeric **string** `"10"`, while
+  `finalTimeToTargetCondition` arrives already phrased as `"10 years (0.7002822742)"`. So
+  the test is "does it parse as a number", not "is it a number" — a numeric string needs
+  the unit just as much. Anything already worded fails the parse and passes through.
+
+Two things the report deliberately does **not** tidy, because the service does not either
+and a report that disagrees with the screen it came from is worse than one that repeats
+its warts: `finalTimeToTargetCondition` carries the time multiplier at full precision
+("3 years (0.898632125)"), and the engine writes "1 years" for a single year. Both are
+worth fixing at source rather than in the report.
 
 **The workings group is post-intervention only.** A baseline parcel is not being created
 or enhanced, so it has no difficulty, no time to target and nothing to advance or delay.
