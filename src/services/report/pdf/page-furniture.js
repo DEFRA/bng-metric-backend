@@ -63,6 +63,38 @@ function registerFonts(doc, fonts = null) {
 }
 
 /**
+ * Text options for anything the USER supplied — a habitat type, a parcel ref, a
+ * site name. Ligatures off.
+ *
+ * Not a typographic preference. pdfkit derives a font's `/CIDSet` from its own
+ * width table, but fontkit's subsetter also pulls in the COMPONENT glyphs of any
+ * composite glyph it includes. A composite ligature therefore lands in the
+ * embedded font program carrying a component that pdfkit never assigned a CID
+ * to, the CIDSet comes out one short, and the document fails PDF/UA 7.21.4.2-2
+ * — while looking perfectly normal.
+ *
+ * Noto Sans Bold's "fi" is exactly such a ligature, and "Modified grassland" is
+ * one of the commonest UKHab types, so this is not a rare edge: any report
+ * setting user data in bold would have hit it on real data. It is confined to
+ * user text because that is the text we cannot predict — and because the
+ * typeface itself is now configurable (see services/report/fonts.js), a fix
+ * that depends on which faces happen to have composite ligatures would not
+ * survive swapping the font.
+ *
+ * Losing the ligature costs nothing here: at 9pt in a sans face the difference
+ * is invisible, and an unligated "fi" extracts back to two characters without
+ * relying on the ToUnicode map to split one glyph.
+ */
+/**
+ * A FRESH object every call: fontkit's shaper writes the features it resolved
+ * back into the object it was handed, so a shared (or frozen) one is either
+ * mutated across calls or throws.
+ */
+function dataText() {
+  return { features: { liga: false } }
+}
+
+/**
  * Mark drawing as an artifact — decoration that carries no information and
  * must be skipped by assistive technology. Tagged PDF requires that all
  * non-structure content be marked this way.
@@ -195,6 +227,7 @@ function plural(count, noun) {
 export {
   BODY,
   BOLD,
+  dataText,
   drawCredit,
   fillGround,
   fitCredit,

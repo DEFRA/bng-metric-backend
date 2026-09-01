@@ -60,10 +60,26 @@ function properties({
   ref,
   type,
   condition,
+  broadType = null,
+  distinctiveness = null,
+  strategicSignificance = null,
+  retentionCategory = null,
+  units = null,
   sizeSquareMetres = null,
   sizeMetres = null
 }) {
-  return { ref, type, condition, sizeSquareMetres, sizeMetres }
+  return {
+    ref,
+    type,
+    condition,
+    broadType,
+    distinctiveness,
+    strategicSignificance,
+    retentionCategory,
+    units,
+    sizeSquareMetres,
+    sizeMetres
+  }
 }
 
 function habitats() {
@@ -72,15 +88,24 @@ function habitats() {
       properties: properties({
         ref: 'A1',
         type: 'Modified grassland',
+        broadType: 'Grassland',
         condition: 'Poor',
+        distinctiveness: 'Low',
+        strategicSignificance: 'Location ecologically desirable',
+        retentionCategory: 'Retained',
+        units: 3.6,
         sizeSquareMetres: PARCEL_AREA_SQ_M
       }),
       geometry: parcel(SITE_WEST, SITE_SOUTH, SITE_MID_EASTING, SITE_NORTH)
     },
     {
+      // Deliberately uncalculated: no distinctiveness, no units. A project that
+      // has not been through the engine still has to produce a report, and the
+      // card layout must shorten rather than print blanks.
       properties: properties({
         ref: 'A2',
         type: 'Cereal crops',
+        broadType: 'Cropland',
         condition: 'Moderate',
         sizeSquareMetres: PARCEL_AREA_SQ_M
       }),

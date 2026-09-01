@@ -256,3 +256,31 @@ describe('#buildSiteReportPdf font source', () => {
     expect(new Set(subsets(fromBuffers.text)).size).toBe(2)
   })
 })
+
+describe('#buildSiteReportPdf habitat layout', () => {
+  test('defaults to the table layout', async () => {
+    const { text } = await render({ baseline: baselineSite() })
+
+    // Column headers exist only in the table layout; card headings only in the
+    // card one. Each is a clean fingerprint for which builder ran.
+    expect(countOf(text, '/S /TH')).toBeGreaterThan(0)
+    expect(countOf(text, '/S /H3')).toBe(0)
+  })
+
+  test('draws cards when asked for them', async () => {
+    const { text } = await render({ baseline: baselineSite(), layout: 'cards' })
+
+    expect(countOf(text, '/S /H3')).toBe(2)
+  })
+
+  test('falls back to the table for a layout it does not have', async () => {
+    // The route validates the parameter, so this is defence in depth: an
+    // unknown layout produces the standard report rather than a blank one.
+    const { text } = await render({
+      baseline: baselineSite(),
+      layout: 'trellis'
+    })
+
+    expect(countOf(text, '/S /TH')).toBeGreaterThan(0)
+  })
+})
