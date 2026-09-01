@@ -31,15 +31,21 @@
  *      tagged reading order. An await inside document construction is the exact
  *      shape of that bug.
  *   2. A per-request fetch would put a new failure mode on a path that cannot
- *      currently fail, and the only answers are both bad: fall back to a
- *      different typeface and produce inconsistent-looking documents, or turn a
- *      font problem into a report outage.
+ *      currently fail.
  *   3. A font is build-time-static data. Fetching it per request buys nothing.
  *
- * A configured bucket that cannot be read therefore fails the BOOT, not the
- * report. That is deliberate: an environment told to use a specific typeface and
- * silently rendering in another one is a worse outcome than a deployment that
- * refuses to start.
+ * A configured bucket that cannot be read DEGRADES to the committed fonts,
+ * warning as it does so — the same choice the basemap makes, and for the same
+ * reason: a report in the fallback typeface is a correct, complete, accessible
+ * report, and refusing to produce one because a bucket is unreachable would turn
+ * a cosmetic dependency into an outage.
+ *
+ * The cost of that choice, stated plainly because it is not visible in the
+ * output: unlike a missing basemap, a substituted typeface looks like a design
+ * decision rather than a fault. The warning below is the ONLY signal that an
+ * environment configured for a privately held font is not using it, so it names
+ * the bucket, the reason and the consequence, and is logged at `warn` rather
+ * than `info` so it survives a production log level.
  */
 
 import path from 'node:path'
@@ -157,6 +163,17 @@ async function bucketFonts(bucket) {
 }
 
 /**
+ * End a fragment with exactly one full stop.
+ *
+ * The warning below stitches an SDK message onto our own, and the SDK is not
+ * consistent about punctuating: "The specified key does not exist." arrives with
+ * one, "AccessDenied" without.
+ */
+function sentence(text) {
+  return text.endsWith('.') ? text : `${text}.`
+}
+
+/**
  * Resolve the fonts this deployment embeds.
  *
  * @returns {Promise<{ regular: Buffer, bold: Buffer, source: 'bundled'|'s3' }>}
@@ -173,12 +190,24 @@ async function loadReportFonts() {
     return fonts
   }
 
-  const fonts = await bucketFonts(bucket)
-  logger.info(
-    `Report fonts: s3://${bucket} ` +
-      `(${fonts.regular.length} + ${fonts.bold.length} bytes)`
-  )
-  return fonts
+  try {
+    const fonts = await bucketFonts(bucket)
+    logger.info(
+      `Report fonts: s3://${bucket} ` +
+        `(${fonts.regular.length} + ${fonts.bold.length} bytes)`
+    )
+    return fonts
+  } catch (error) {
+    // Deliberately not rethrown: see the header. Every report this instance
+    // produces from here on is in the fallback typeface, and nothing in the
+    // document says so, which is why this line has to.
+    logger.warn(
+      `${sentence(error.message)} Falling back to the bundled ${BUNDLED_REGULAR} / ` +
+        `${BUNDLED_BOLD}: reports will render in Noto Sans, not the typeface ` +
+        `s3://${bucket} was configured to supply.`
+    )
+    return bundledFonts()
+  }
 }
 
 export { loadReportFonts }

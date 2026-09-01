@@ -187,17 +187,35 @@ three reasons in ascending order of how much they would hurt:
    of it silently corrupts both layout and the tagged reading order — see
    [Four rules the code depends on](#four-rules-the-code-depends-on). An await inside
    document construction is precisely that bug.
-2. It would add a failure mode to a path that cannot currently fail, and both answers are
-   bad: fall back to a different typeface and ship inconsistent-looking documents, or turn
-   a font problem into a report outage.
+2. It would add a failure mode to a path that cannot currently fail.
 3. A font is build-time-static data. Fetching it per request buys nothing.
 
-So a configured bucket that cannot be read **fails the boot**, not the report. An
-environment told to use a specific typeface and silently rendering in another one is worse
-than a deployment that refuses to start. The bytes are also checked at startup — size, and
-the leading four bytes against the font container signatures — because S3 will serve a
-README under a `.ttf` key perfectly happily, and pdfkit would only discover that inside the
-first request, long after the deployment reported itself healthy.
+The bytes are checked as they arrive — size, and the leading four bytes against the font
+container signatures — because S3 will serve a README under a `.ttf` key perfectly happily,
+and pdfkit would otherwise only discover that inside the first request.
+
+### When the bucket cannot be read
+
+It **degrades to the committed Noto Sans and warns**; it does not fail the boot. Same
+choice the basemap makes, for the same reason: a report in the fallback typeface is still
+correct, complete and accessible, so a bucket outage should not become a report outage.
+
+That choice has a cost worth stating, because it is not visible in the output. A missing
+basemap is _visibly_ missing; a substituted typeface just reads as a design decision. So
+the warning is the only signal an operator gets, and it is built to be one — logged at
+`warn` so it survives a production log level, and naming the bucket, the reason and the
+consequence:
+
+```
+Report fonts could not be read from s3://bng-metric-report-fonts: The specified key does
+not exist. Falling back to the bundled NotoSans-Regular.ttf / NotoSans-Bold.ttf: reports
+will render in Noto Sans, not the typeface s3://bng-metric-report-fonts was configured to
+supply.
+```
+
+**Alert on that line** in any environment where the bucket is set. It fires once per
+instance start, and it is the difference between finding out at deploy time and finding out
+when somebody notices the letterforms.
 
 ## The basemap, and crediting it
 

@@ -4,14 +4,26 @@
  *
  * Two behaviours matter more than the plumbing: with no bucket configured the
  * service is unchanged (it embeds the committed Noto Sans), and with a bucket
- * configured that cannot be read it FAILS rather than quietly falling back —
- * because an environment told to use a specific typeface and silently using a
- * different one is the outcome this seam exists to prevent.
+ * configured that cannot be read it DEGRADES to those same fonts rather than
+ * failing — a report in the fallback typeface is still correct, complete and
+ * accessible, and a bucket outage should not become a report outage.
+ *
+ * The substitution is invisible in the output, so the warning is the only
+ * signal an operator gets. It is asserted on as carefully as the bytes are.
  */
 
 import { beforeEach, describe, expect, test, vi } from 'vitest'
 
 vi.mock('../s3/s3-client.js')
+
+// One logger object, not one per call: fonts.js calls createLogger() once at
+// module load, so the spy has to outlive that.
+const { logger } = vi.hoisted(() => ({
+  logger: { info: () => {}, warn: () => {}, error: () => {} }
+}))
+vi.mock('../../common/helpers/logging/logger.js', () => ({
+  createLogger: () => logger
+}))
 
 const { loadReportFonts } = await import('./fonts.js')
 const { createS3Client } = await import('../s3/s3-client.js')
@@ -60,8 +72,15 @@ function configure(overrides = {}) {
   vi.spyOn(config, 'get').mockImplementation((key) => values[key])
 }
 
+/** Everything logged at warn since the last test, as strings. */
+function warnings() {
+  return vi.mocked(logger.warn).mock.calls.map(([message]) => message)
+}
+
 beforeEach(() => {
   vi.restoreAllMocks()
+  vi.spyOn(logger, 'warn').mockImplementation(() => {})
+  vi.spyOn(logger, 'info').mockImplementation(() => {})
 })
 
 describe('#loadReportFonts with no bucket configured', () => {
@@ -122,24 +141,16 @@ describe('#loadReportFonts with a bucket configured', () => {
     expect(destroy).toHaveBeenCalledTimes(1)
   })
 
-  test('names the bucket when an object is missing', async () => {
-    s3Returning({ 'Regular.ttf': objectOf(fontBytes()) })
-    configure()
-
-    await expect(loadReportFonts()).rejects.toThrow(
-      `Report fonts could not be read from s3://${BUCKET}`
-    )
-  })
-
   test('releases the client even when the fetch fails', async () => {
     const { destroy } = s3Returning({})
     configure()
 
-    await expect(loadReportFonts()).rejects.toThrow()
+    await loadReportFonts()
+
     expect(destroy).toHaveBeenCalledTimes(1)
   })
 
-  test('rejects an object that is not a font pdfkit can embed', async () => {
+  test('refuses an object that is not a font pdfkit can embed', async () => {
     s3Returning({
       'Regular.ttf': objectOf(Buffer.from('# Fonts live here\n')),
       'Bold.ttf': objectOf(fontBytes())
@@ -147,10 +158,12 @@ describe('#loadReportFonts with a bucket configured', () => {
     configure()
 
     // The point of the check: S3 serves a README under a .ttf key perfectly
-    // happily, and without this the failure surfaces inside the first request
-    // long after the deployment reported itself healthy.
-    await expect(loadReportFonts()).rejects.toThrow(
-      'is not a font pdfkit can embed'
+    // happily, and without it pdfkit only finds out inside the first request.
+    const fonts = await loadReportFonts()
+
+    expect(fonts.source).toBe('bundled')
+    expect(warnings()).toContainEqual(
+      expect.stringContaining('is not a font pdfkit can embed')
     )
   })
 
@@ -180,7 +193,11 @@ describe('#loadReportFonts with a bucket configured', () => {
     })
     configure()
 
-    await expect(loadReportFonts()).rejects.toThrow('over the 5242880-byte')
+    await loadReportFonts()
+
+    expect(warnings()).toContainEqual(
+      expect.stringContaining('over the 5242880-byte')
+    )
   })
 
   test('refuses an oversized object that declared no length', async () => {
@@ -197,6 +214,62 @@ describe('#loadReportFonts with a bucket configured', () => {
     })
     configure({ 'reportFonts.maxBytes': 100 })
 
-    await expect(loadReportFonts()).rejects.toThrow('over the 100-byte')
+    await loadReportFonts()
+
+    expect(warnings()).toContainEqual(
+      expect.stringContaining('over the 100-byte')
+    )
+  })
+})
+
+describe('#loadReportFonts falling back', () => {
+  test('embeds the committed fonts when the bucket cannot be read', async () => {
+    s3Returning({})
+    configure()
+
+    const fonts = await loadReportFonts()
+
+    // Degrading, not failing: a report in the fallback typeface is still
+    // correct, complete and accessible, and a bucket outage should not become
+    // a report outage.
+    expect(fonts.source).toBe('bundled')
+    expect(fonts.regular.subarray(0, 4).toString('hex')).toBe('00010000')
+  })
+
+  test('warns with the bucket, the reason and the consequence', async () => {
+    s3Returning({})
+    configure()
+
+    await loadReportFonts()
+
+    // The substitution is invisible in the document — it reads as a design
+    // decision, not a fault — so this line is the only signal an operator
+    // gets that a configured typeface is not being used.
+    const [warning] = warnings()
+    expect(warning).toContain(`s3://${BUCKET}`)
+    expect(warning).toContain('NoSuchKey')
+    expect(warning).toContain('Falling back to the bundled')
+    expect(warning).toContain('Noto Sans')
+  })
+
+  test('does not double the full stop on an SDK message that has one', async () => {
+    // "The specified key does not exist." arrives punctuated; "AccessDenied"
+    // does not. Both get stitched onto our sentence.
+    const send = vi.fn().mockRejectedValue(new Error('Access is denied.'))
+    vi.mocked(createS3Client).mockReturnValue({ send, destroy: vi.fn() })
+    configure()
+
+    await loadReportFonts()
+
+    expect(warnings()[0]).toContain('Access is denied. Falling back')
+  })
+
+  test('warns rather than informs, so it survives a production log level', async () => {
+    s3Returning({})
+    configure()
+
+    await loadReportFonts()
+
+    expect(warnings()).toHaveLength(1)
   })
 })
