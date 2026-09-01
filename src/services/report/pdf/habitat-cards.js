@@ -65,6 +65,12 @@ import { BASELINE, POST_INTERVENTION } from './labels.js'
 
 const UNIT_DECIMALS = 2
 
+/** Clear space between the end of the longest label and the value column. */
+const CARD_LABEL_GAP = 8
+
+/** Per-document, because the width depends on the fonts registered on it. */
+const LABEL_WIDTHS = new WeakMap()
+
 /**
  * The attributes a card can show, in reading order.
  *
@@ -78,8 +84,22 @@ const CARD_FIELDS = Object.freeze([
   { key: 'distinctiveness', label: 'Distinctiveness' },
   { key: 'strategicSignificance', label: 'Strategic significance' },
   { key: 'retentionCategory', label: 'Retention' },
+  { key: 'spatialRiskCategory', label: 'Spatial risk' },
   { key: 'area', label: 'Size' },
-  { key: 'units', label: 'Biodiversity units' }
+  // Post-intervention only. Every one of these is absent on a baseline parcel,
+  // and absent lines are omitted, so a baseline card is simply shorter.
+  { key: 'difficulty', label: 'Creation difficulty' },
+  { key: 'standardTimeToTargetCondition', label: 'Time to target' },
+  { key: 'advanceOrDelay', label: 'Advance or delay' },
+  { key: 'finalTimeToTargetCondition', label: 'Final time to target' },
+  { key: 'units', label: 'Biodiversity units' },
+  { key: 'status', label: 'Calculation' },
+  { key: 'surveyDate', label: 'Surveyed' },
+  // Free text, so these wrap. Last, because an unbounded field in the middle
+  // would push the fixed ones around from card to card and stop a reader
+  // finding the same fact in the same place on each.
+  { key: 'surveyDetails', label: 'Survey details', wraps: true },
+  { key: 'comment', label: 'Comment', wraps: true }
 ])
 
 async function addHabitatCards({
@@ -177,7 +197,7 @@ function addCards({
 
   for (const feature of features) {
     const values = cardValues(feature)
-    const height = cardHeight(values)
+    const height = cardHeight(doc, values)
 
     if (y + height > A4_PORTRAIT_HEIGHT - MARGIN) {
       doc.addPage()
@@ -209,12 +229,78 @@ function addCards({
  *
  * The map is the tallest fixed thing on the card, so a parcel with only two
  * recorded attributes still gets a card big enough to draw it in.
+ *
+ * Measured rather than counted, because two of the fields are free text and
+ * wrap. `heightOfString` asks pdfkit the same question the renderer will answer
+ * when it draws, at the same width and font — the alternative is guessing at a
+ * line count and finding out it was wrong by overrunning the card's own frame.
  */
-function cardHeight(values) {
-  const lines = presentFields(values).length
+function cardHeight(doc, values) {
   const textHeight =
-    CARD_HEADING_HEIGHT + lines * CARD_LINE_HEIGHT + CARD_PADDING * 2
+    CARD_HEADING_HEIGHT + fieldsHeight(doc, values) + CARD_PADDING * 2
   return Math.max(textHeight, CARD_MAP_SIZE + CARD_PADDING * 2)
+}
+
+/** The stacked height of every line this card will draw. */
+function fieldsHeight(doc, values) {
+  return presentFields(values).reduce(
+    (total, field) => total + fieldHeight(doc, values, field),
+    0
+  )
+}
+
+function fieldHeight(doc, values, { key, wraps }) {
+  if (!wraps) {
+    return CARD_LINE_HEIGHT
+  }
+  // BOLD, not BODY: the value is drawn bold, and bold is the wider of the two.
+  // Measuring in the lighter face reports fewer lines than the renderer will
+  // draw, and the overflow lands outside the card's own border.
+  doc.font(BOLD).fontSize(FONT_SIZE.bodySmall)
+  const measured = doc.heightOfString(`${values[key]} `, {
+    width: valueWidth(doc),
+    ...dataText()
+  })
+  return Math.max(CARD_LINE_HEIGHT, measured)
+}
+
+/** Text column geometry, in one place so measuring and drawing cannot disagree. */
+function textWidth() {
+  return CONTENT_WIDTH - CARD_PADDING * 2 - CARD_MAP_SIZE - CARD_GUTTER
+}
+
+/**
+ * The label column, measured from the labels rather than assumed.
+ *
+ * A label that does not fit its column wraps to a second line, and a
+ * non-wrapping field advances by exactly one line height — so the wrapped label
+ * would be drawn straight through the row beneath it. Sizing the column to the
+ * widest label makes that impossible instead of merely unlikely.
+ *
+ * Measured rather than fixed because the typeface is a deployment option (see
+ * services/report/fonts.js). "Strategic significance:" needs 94pt of the 96pt a
+ * constant would have given it, so any face a shade wider than Noto Sans would
+ * have started overlapping rows — on the page only, with every test still green.
+ */
+function labelWidth(doc) {
+  const cached = LABEL_WIDTHS.get(doc)
+  if (cached !== undefined) {
+    return cached
+  }
+  doc.font(BODY).fontSize(FONT_SIZE.bodySmall)
+  const widest = Math.max(
+    ...CARD_FIELDS.map(({ label }) => doc.widthOfString(`${label}: `))
+  )
+  const measured = Math.max(
+    CARD_LABEL_WIDTH,
+    Math.ceil(widest) + CARD_LABEL_GAP
+  )
+  LABEL_WIDTHS.set(doc, measured)
+  return measured
+}
+
+function valueWidth(doc) {
+  return textWidth() - labelWidth(doc)
 }
 
 /** Only the fields this parcel actually has a value for. */
@@ -272,19 +358,11 @@ function buildCard({
   }
 
   const textX = MARGIN + CARD_PADDING + CARD_MAP_SIZE + CARD_GUTTER
-  const textWidth =
-    CONTENT_WIDTH - CARD_PADDING * 2 - CARD_MAP_SIZE - CARD_GUTTER
 
   return doc.struct('Sect', [
-    cardHeading(doc, values, textX, y + CARD_PADDING, textWidth),
+    cardHeading(doc, values, textX, y + CARD_PADDING, textWidth()),
     cardFigure(doc, frame, values, figureContent),
-    ...cardLines(
-      doc,
-      values,
-      textX,
-      y + CARD_PADDING + CARD_HEADING_HEIGHT,
-      textWidth
-    )
+    ...cardLines(doc, values, textX, y + CARD_PADDING + CARD_HEADING_HEIGHT)
   ])
 }
 
@@ -309,23 +387,25 @@ function cardHeading(doc, values, x, y, width) {
  * what removes the need for the table `/Headers` the hand-laid layout cannot
  * emit — there is no cell to associate with a header, because there is no cell.
  */
-function cardLines(doc, values, x, top, width) {
-  return presentFields(values).map(({ key, label }, index) =>
-    doc.struct('P', () => {
-      const lineY = top + index * CARD_LINE_HEIGHT
+function cardLines(doc, values, x, top) {
+  let lineY = top
+  return presentFields(values).map((field) => {
+    const at = lineY
+    lineY += fieldHeight(doc, values, field)
+    return doc.struct('P', () => {
       doc.fontSize(FONT_SIZE.bodySmall)
       doc.font(BODY).fillColor(MUTED)
-      doc.text(`${label}: `, x, lineY, {
-        width: CARD_LABEL_WIDTH,
+      doc.text(`${field.label}: `, x, at, {
+        width: labelWidth(doc),
         continued: false
       })
       doc.font(BOLD).fillColor(INK)
-      doc.text(`${values[key]} `, x + CARD_LABEL_WIDTH, lineY, {
-        width: width - CARD_LABEL_WIDTH,
+      doc.text(`${values[field.key]} `, x + labelWidth(doc), at, {
+        width: valueWidth(doc),
         ...dataText()
       })
     })
-  )
+  })
 }
 
 /**
@@ -364,17 +444,74 @@ function cardValues({ properties }) {
     ref: properties.ref ?? '—',
     type: properties.type ?? '—',
     broadType: properties.broadType ?? null,
-    condition: properties.condition ?? null,
-    distinctiveness: properties.distinctiveness ?? null,
+    // "Poor (1)" rather than two lines: the same shape the habitat detail
+    // screens use, so a reader moving between the service and the report sees
+    // the band and its score written the same way.
+    condition: withScore(properties.condition, properties.conditionScore),
+    distinctiveness: withScore(
+      properties.distinctiveness,
+      properties.distinctivenessScore
+    ),
     strategicSignificance: properties.strategicSignificance ?? null,
-    retentionCategory: properties.retentionCategory ?? null,
+    retentionCategory: normaliseRetentionCategory(properties.retentionCategory),
+    spatialRiskCategory: properties.spatialRiskCategory ?? null,
     area: Number.isFinite(sqm)
       ? `${(sqm / SQ_M_PER_HECTARE).toFixed(PARCEL_HECTARE_DECIMALS)} ha`
       : null,
+    difficulty: withScore(
+      properties.difficulty,
+      properties.difficultyMultiplier
+    ),
+    standardTimeToTargetCondition: yearsOrNull(
+      properties.standardTimeToTargetCondition
+    ),
+    advanceOrDelay: properties.advanceOrDelay ?? null,
+    finalTimeToTargetCondition: yearsOrNull(
+      properties.finalTimeToTargetCondition
+    ),
     units: Number.isFinite(properties.units)
       ? properties.units.toFixed(UNIT_DECIMALS)
-      : null
+      : null,
+    status: properties.status ?? null,
+    surveyDate: properties.surveyDate ?? null,
+    surveyDetails: properties.surveyDetails ?? null,
+    comment: properties.comment ?? null
   }
 }
 
-export { CARD_FIELDS, addHabitatCards, cardHeight, cardValues }
+/**
+ * "1. Retained" -> "Retained".
+ *
+ * The backend normalises the raw GeoPackage value when it decides which engine
+ * calculation to run, but never writes the normalised value back, so the
+ * project document keeps whatever the upload carried. The service normalises
+ * again on display; the report has to do the same, or the report and the screen
+ * it was generated from describe the same parcel differently.
+ */
+function normaliseRetentionCategory(value) {
+  if (typeof value !== 'string') {
+    return null
+  }
+  return value.trim().replace(/^\d+\.\s*/u, '') || null
+}
+
+/** "Low (2)" where a score is known, "Low" where it is not, null where neither. */
+function withScore(value, score) {
+  if (!value) {
+    return null
+  }
+  return Number.isFinite(score) ? `${value} (${score})` : String(value)
+}
+
+/**
+ * Time to target arrives as a number of years or as text the engine already
+ * worded. A bare number reads wrong on a line labelled only "Time to target".
+ */
+function yearsOrNull(value) {
+  if (Number.isFinite(value)) {
+    return `${value} ${value === 1 ? 'year' : 'years'}`
+  }
+  return value || null
+}
+
+export { CARD_FIELDS, addHabitatCards, cardHeight, cardValues, labelWidth }

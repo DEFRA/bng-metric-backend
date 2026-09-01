@@ -56,7 +56,19 @@ describe('#attributesOf', () => {
       retentionCategory: null,
       units: null,
       sizeSquareMetres: 10_000,
-      sizeMetres: null
+      sizeMetres: null,
+      distinctivenessScore: null,
+      conditionScore: null,
+      difficulty: null,
+      difficultyMultiplier: null,
+      standardTimeToTargetCondition: null,
+      finalTimeToTargetCondition: null,
+      advanceOrDelay: null,
+      spatialRiskCategory: null,
+      status: null,
+      surveyDate: null,
+      surveyDetails: null,
+      comment: null
     })
   })
 
@@ -86,7 +98,19 @@ describe('#attributesOf', () => {
       retentionCategory: null,
       units: null,
       sizeSquareMetres: null,
-      sizeMetres: null
+      sizeMetres: null,
+      distinctivenessScore: null,
+      conditionScore: null,
+      difficulty: null,
+      difficultyMultiplier: null,
+      standardTimeToTargetCondition: null,
+      finalTimeToTargetCondition: null,
+      advanceOrDelay: null,
+      spatialRiskCategory: null,
+      status: null,
+      surveyDate: null,
+      surveyDetails: null,
+      comment: null
     })
   })
 
@@ -122,6 +146,63 @@ describe('#attributesOf', () => {
 
     expect(attributes.distinctiveness).toBe('Medium')
     expect(attributes.units).toBe(8.2)
+  })
+
+  test('carries the calculation fields the card layout shows', () => {
+    // The "how was this number arrived at" set. Written by the enrichment step
+    // onto `proposed`, so they exist only on a calculated post-intervention
+    // feature — which is why every one of them is optional on a card.
+    const attributes = attributesOf({
+      ref: 'A1',
+      proposed: {
+        condition: 'Good',
+        conditionScore: 3,
+        distinctiveness: 'Medium',
+        distinctivenessScore: 4,
+        difficulty: 'Medium',
+        difficultyMultiplier: 0.67,
+        standardTimeToTargetCondition: 10,
+        finalTimeToTargetCondition: '8',
+        advanceOrDelay: 'Advance - 2 years'
+      }
+    })
+
+    expect(attributes).toMatchObject({
+      conditionScore: 3,
+      distinctivenessScore: 4,
+      difficulty: 'Medium',
+      difficultyMultiplier: 0.67,
+      standardTimeToTargetCondition: 10,
+      finalTimeToTargetCondition: '8',
+      advanceOrDelay: 'Advance - 2 years'
+    })
+  })
+
+  test('reads the surveyed-and-recorded fields off the feature itself', () => {
+    // These come from the GeoPackage columns rather than the engine, so they
+    // are read from the feature and never from `proposed`.
+    const attributes = attributesOf({
+      spatialRiskCategory: 'Within LPA',
+      status: 'Complete',
+      surveyDate: '2025-06-14',
+      surveyDetails: 'UKHab survey, dry conditions.',
+      comment: 'Adjoins the watercourse on the north edge.',
+      proposed: { spatialRiskCategory: 'Ignored' }
+    })
+
+    expect(attributes).toMatchObject({
+      spatialRiskCategory: 'Within LPA',
+      status: 'Complete',
+      surveyDate: '2025-06-14',
+      surveyDetails: 'UKHab survey, dry conditions.',
+      comment: 'Adjoins the watercourse on the north edge.'
+    })
+  })
+
+  test('rejects a non-finite difficulty multiplier the way it rejects units', () => {
+    expect(
+      attributesOf({ difficultyMultiplier: Number.NaN }).difficultyMultiplier
+    ).toBeNull()
   })
 
   test('rejects non-finite units the same way it rejects a bad size', () => {

@@ -47,7 +47,39 @@ function attributesOf(feature) {
       proposed.retentionCategory ?? feature.retentionCategory ?? null,
     units: numberOrNull(proposed.units ?? feature.units),
     sizeSquareMetres: numberOrNull(feature.sizeSquareMetres),
-    sizeMetres: numberOrNull(feature.sizeMetres)
+    sizeMetres: numberOrNull(feature.sizeMetres),
+
+    // The scores behind the bands. The service shows these as "Low (2)" rather
+    // than on a line of their own, and the report follows it.
+    distinctivenessScore: numberOrNull(
+      proposed.distinctivenessScore ?? feature.distinctivenessScore
+    ),
+    conditionScore: numberOrNull(
+      proposed.conditionScore ?? feature.conditionScore
+    ),
+
+    // Post-intervention only: how the parcel's number was arrived at. Absent on
+    // a baseline feature, which is why every one of them is optional on a card.
+    difficulty: proposed.difficulty ?? feature.difficulty ?? null,
+    difficultyMultiplier: numberOrNull(
+      proposed.difficultyMultiplier ?? feature.difficultyMultiplier
+    ),
+    standardTimeToTargetCondition:
+      proposed.standardTimeToTargetCondition ??
+      feature.standardTimeToTargetCondition ??
+      null,
+    finalTimeToTargetCondition:
+      proposed.finalTimeToTargetCondition ??
+      feature.finalTimeToTargetCondition ??
+      null,
+    advanceOrDelay: proposed.advanceOrDelay ?? feature.advanceOrDelay ?? null,
+
+    // Recorded against the parcel in the GeoPackage rather than calculated.
+    spatialRiskCategory: feature.spatialRiskCategory ?? null,
+    status: feature.status ?? null,
+    surveyDate: feature.surveyDate ?? null,
+    surveyDetails: feature.surveyDetails ?? null,
+    comment: feature.comment ?? null
   }
 }
 
