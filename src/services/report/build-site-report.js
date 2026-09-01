@@ -118,13 +118,16 @@ async function resolveBasemap(osTiles, basemap) {
  * @param {{ id: string, project: object }} options.projectRow
  * @param {object|null} [options.osTiles]  the OS tiles service, when configured
  * @param {'vector'|'raster'} [options.basemap]  which basemap flavour to draw
+ * @param {{regular: Buffer, bold: Buffer}|null} [options.fonts]  the fonts
+ *        resolved at startup by plugins/report-fonts.js
  * @returns {Promise<{ pdf: Buffer, stats: object, siteName: string }>}
  */
 async function buildSiteReport({
   drizzle,
   projectRow,
   osTiles = null,
-  basemap = DEFAULT_BASEMAP
+  basemap = DEFAULT_BASEMAP,
+  fonts = null
 }) {
   const site = await readSiteData(drizzle, projectRow)
   const { grid, tileSource, attribution, attributionShort } =
@@ -136,7 +139,8 @@ async function buildSiteReport({
     grid,
     tileSource,
     attribution,
-    attributionShort
+    attributionShort,
+    fonts
   })
 
   return { pdf: await toBuffer(doc), stats, siteName: site.siteName }

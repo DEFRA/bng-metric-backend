@@ -15,6 +15,9 @@ import {
   TEST_GRID,
   syntheticTileSource
 } from './synthetic-tiles.test-fixtures.js'
+import path from 'node:path'
+import { readFile } from 'node:fs/promises'
+
 import { toBuffer } from '../build-site-report.js'
 import {
   baselineSite,
@@ -201,5 +204,55 @@ describe('#plural', () => {
     expect(plural(0, 'watercourse')).toBe('0 watercourses')
     expect(plural(2, 'hedgerow')).toBe('2 hedgerows')
     expect(plural(20, 'habitat parcel')).toBe('20 habitat parcels')
+  })
+})
+
+/**
+ * A typeface held outside this repository still has to end up EMBEDDED, which
+ * is what PDF/UA 7.21.4.1 requires and what pdfkit's base-14 defaults never do.
+ * Asserting the call reached pdfkit is not enough — the proof is a font program
+ * in the finished file.
+ *
+ * The committed Noto Sans stands in for the privately held font here: read as
+ * bytes, it travels the same path an object fetched from S3 does.
+ */
+describe('#buildSiteReportPdf font source', () => {
+  async function bundledAsBuffers() {
+    const dir = path.resolve(import.meta.dirname, '..', 'assets', 'fonts')
+    const [regular, bold] = await Promise.all([
+      readFile(path.join(dir, 'NotoSans-Regular.ttf')),
+      readFile(path.join(dir, 'NotoSans-Bold.ttf'))
+    ])
+    return { regular, bold }
+  }
+
+  test('embeds font programs from buffers, not by reference', async () => {
+    const { text } = await render({
+      baseline: baselineSite(),
+      fonts: await bundledAsBuffers()
+    })
+
+    // /FontFile2 is the embedded TrueType program itself. Its absence — with
+    // /BaseFont naming Helvetica instead — is exactly the failure veraPDF
+    // reported as 7.21.4.1-1, and it is invisible on screen.
+    expect(countOf(text, '/FontFile2')).toBe(2)
+    expect(text).not.toContain('/BaseFont /Helvetica')
+  })
+
+  test('produces the same embedded structure as the committed files', async () => {
+    const fromBuffers = await render({
+      baseline: baselineSite(),
+      fonts: await bundledAsBuffers()
+    })
+    const fromFiles = await render({ baseline: baselineSite() })
+
+    // Same fonts, two ways of reaching pdfkit: the subset names it assigns are
+    // derived from the font program, so matching names mean matching programs.
+    // Each weight contributes two entries — the Type0 font and its descendant
+    // CIDFontType2 — so two weights is four names and two distinct ones.
+    const subsets = (text) =>
+      [...text.matchAll(/\/BaseFont \/(\S+)/g)].map(([, name]) => name)
+    expect(subsets(fromBuffers.text)).toEqual(subsets(fromFiles.text))
+    expect(new Set(subsets(fromBuffers.text)).size).toBe(2)
   })
 })
