@@ -9,15 +9,15 @@
 import { describe, expect, test } from 'vitest'
 
 import { createOsTiles } from './index.js'
-import { memoryTileCache } from './cache.js'
 import { stubOsFetch } from './stub-upstream.test-fixtures.js'
+import { stubTileCache } from './tile-cache.test-fixtures.js'
 import { TEST_GRID } from '../report/pdf/synthetic-tiles.test-fixtures.js'
 import { decodeVectorTile } from '../report/pdf/mvt.js'
 
 const API_KEY = 'test-key'
 const silent = { warn() {}, error() {}, info() {} }
 
-function serviceWith({ config = {}, cache, fetchImpl } = {}) {
+function serviceWith({ config = {}, cache = stubTileCache(), fetchImpl } = {}) {
   const upstream = stubOsFetch(TEST_GRID, { expectKey: API_KEY })
   const service = createOsTiles({
     config: { apiKey: API_KEY, ...config },
@@ -78,7 +78,7 @@ describe('#getVectorTile', () => {
   })
 
   test('caches separately from the raster flavour at the same z/col/row', async () => {
-    const cache = memoryTileCache({ ttlSeconds: 60 })
+    const cache = stubTileCache()
     const { service } = serviceWith({ cache })
 
     const vector = await service.getVectorTile(9, 300, 400)

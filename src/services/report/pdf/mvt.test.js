@@ -1,11 +1,13 @@
 /**
- * The hand-rolled MVT codec.
+ * The vector-tile adapter.
  *
- * Encode and decode are tested against each other, so a bug has to exist in
- * BOTH directions in a mutually-cancelling way to slip through — and the
- * decoder was additionally verified byte-for-byte against
- * @mapbox/vector-tile on a live 18-layer, 1,054-feature Ordnance Survey tile
- * during the spike.
+ * `@mapbox/vector-tile` does the format work and is not retested here. What
+ * these cover is the layer either side of it: that a tile written the way
+ * Ordnance Survey writes one comes back in the shape `map.js` draws from, and
+ * that the one normalisation this module applies — opening closed polygon
+ * rings — actually happens. Encode and decode are exercised against each
+ * other, so a bug has to exist in BOTH directions in a mutually-cancelling way
+ * to slip through.
  */
 
 import { describe, expect, test } from 'vitest'
@@ -15,10 +17,9 @@ import {
   GEOMETRY_LINE,
   GEOMETRY_POINT,
   GEOMETRY_POLYGON,
-  decodeGeometry,
-  decodeVectorTile,
-  encodeVectorTile
+  decodeVectorTile
 } from './mvt.js'
+import { encodeVectorTile } from './vector-tile-writer.test-fixtures.js'
 
 describe('#decodeVectorTile', () => {
   test('a polygon with a hole round-trips', () => {
@@ -105,7 +106,8 @@ describe('#decodeVectorTile', () => {
           name: 'Props',
           features: [
             { type: GEOMETRY_POINT, properties, paths: [[[1, 2]]] },
-            // A second feature sharing keys/values exercises the pools.
+            // A second feature sharing keys and values exercises the
+            // layer's shared string pools.
             {
               type: GEOMETRY_POINT,
               properties: { _symbol: 13, other: 'x' },
@@ -164,20 +166,53 @@ describe('#decodeVectorTile', () => {
   })
 })
 
-describe('#decodeGeometry', () => {
-  test('handles the spec worked example', () => {
-    // From the MVT 2.1 spec, section 4.3.5.2: a multi-line
-    //   MoveTo(+2,+2), LineTo(+2,+2)  then  MoveTo(-3,-3), LineTo(+2,+2)
-    const commands = [9, 4, 4, 10, 4, 4, 9, 5, 5, 10, 4, 4]
-    expect(decodeGeometry(commands)).toEqual([
-      [
-        [2, 2],
-        [4, 4]
-      ],
-      [
-        [1, 1],
-        [3, 3]
-      ]
-    ])
+describe('closing vertices', () => {
+  test('a polygon ring comes back OPEN, however it was written', () => {
+    // On the wire a ring is closed: ClosePath, and the encoder writes the
+    // first vertex again if the caller has not. `map.js` closes its own
+    // paths, so a repeated vertex here would add a zero-length segment to
+    // every ring of every basemap polygon.
+    const closed = [
+      [0, 0],
+      [10, 0],
+      [10, 10],
+      [0, 10],
+      [0, 0]
+    ]
+
+    const tile = decodeVectorTile(
+      encodeVectorTile([
+        {
+          name: 'Closed',
+          features: [
+            { type: GEOMETRY_POLYGON, properties: {}, paths: [closed] }
+          ]
+        }
+      ])
+    )
+
+    expect(tile.layers.Closed.features[0].paths).toEqual([closed.slice(0, -1)])
+  })
+
+  test('a line is left exactly as written, first vertex repeated or not', () => {
+    // A closed LINE is a legitimate shape — a roundabout, a field boundary
+    // drawn as a line — and dropping its last vertex would open it.
+    const ring = [
+      [0, 0],
+      [5, 0],
+      [5, 5],
+      [0, 0]
+    ]
+
+    const tile = decodeVectorTile(
+      encodeVectorTile([
+        {
+          name: 'Lines',
+          features: [{ type: GEOMETRY_LINE, properties: {}, paths: [ring] }]
+        }
+      ])
+    )
+
+    expect(tile.layers.Lines.features[0].paths).toEqual([ring])
   })
 })

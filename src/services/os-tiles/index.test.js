@@ -8,9 +8,9 @@
 import { describe, expect, test } from 'vitest'
 
 import { createOsTiles } from './index.js'
-import { memoryTileCache } from './cache.js'
 import { resolveOsTilesConfig } from './config.js'
 import { stubOsFetch } from './stub-upstream.test-fixtures.js'
+import { stubTileCache } from './tile-cache.test-fixtures.js'
 import { TEST_GRID } from '../report/pdf/synthetic-tiles.test-fixtures.js'
 import { pickZoom } from '../report/pdf/grid.js'
 
@@ -29,8 +29,12 @@ function serviceWith({ config = {}, cache, fetchImpl } = {}) {
   return { service, upstream }
 }
 
+// Calls are recorded as path + query, so the extension has to be matched
+// before the `?key=` — otherwise this counts nothing and every assertion
+// built on it passes vacuously.
 function tileCalls(upstream) {
-  return upstream.calls.filter((call) => call.endsWith('.png')).length
+  return upstream.calls.filter((call) => call.split('?')[0].endsWith('.png'))
+    .length
 }
 
 describe('#getPublishedGrid', () => {
@@ -109,7 +113,7 @@ describe('#getTile', () => {
   })
 
   test('serves a repeat request from cache', async () => {
-    const cache = memoryTileCache({ ttlSeconds: 60 })
+    const cache = stubTileCache()
     const { service, upstream } = serviceWith({ cache })
 
     const first = await service.getTile(9, 300, 400)
@@ -120,6 +124,21 @@ describe('#getTile', () => {
     expect(second.cached).toBe(true)
     expect(tileCalls(upstream)).toBe(callsAfterFirst)
     expect(second.png).toEqual(first.png)
+    expect(cache.size()).toBe(1)
+  })
+
+  test('without a cache, every request goes upstream', async () => {
+    // The service's default. Production always injects a cache; a caller that
+    // does not should get uncached behaviour rather than a surprise.
+    const { service, upstream } = serviceWith()
+
+    const first = await service.getTile(9, 300, 400)
+    const callsAfterFirst = tileCalls(upstream)
+    const second = await service.getTile(9, 300, 400)
+
+    expect(first.cached).toBe(false)
+    expect(second.cached).toBe(false)
+    expect(tileCalls(upstream)).toBe(callsAfterFirst + 1)
   })
 
   test('rejects out-of-range coordinates without going upstream', async () => {
@@ -239,29 +258,5 @@ describe('the plan ceiling', () => {
 
     expect(pickZoom(TEST_GRID, extent, 400)).toBeGreaterThan(9)
     expect(pickZoom(capped, extent, 400)).toBe(9)
-  })
-})
-
-describe('#memoryTileCache', () => {
-  test('evicts the oldest entry and honours the TTL', async () => {
-    const cache = memoryTileCache({ maxEntries: 2, ttlSeconds: 10 })
-    await cache.set('a', Buffer.from('1'), 0)
-    await cache.set('b', Buffer.from('2'), 0)
-    await cache.set('c', Buffer.from('3'), 0)
-
-    expect(await cache.get('a', 0)).toBeNull()
-    expect(await cache.get('c', 0)).not.toBeNull()
-    expect(await cache.get('c', 20_000)).toBeNull()
-  })
-
-  test('counts hits and misses, and can be emptied', async () => {
-    const cache = memoryTileCache({ ttlSeconds: 10 })
-    await cache.set('a', Buffer.from('1'), 0)
-    await cache.get('a', 0)
-    await cache.get('missing', 0)
-
-    expect(cache.stats()).toMatchObject({ hits: 1, misses: 1, size: 1 })
-    expect(await cache.clear()).toBe(1)
-    expect(cache.stats().size).toBe(0)
   })
 })

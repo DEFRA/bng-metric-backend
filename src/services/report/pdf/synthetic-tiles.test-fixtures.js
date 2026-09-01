@@ -17,12 +17,8 @@
 import { deflateSync } from 'node:zlib'
 
 import { gridIntervalMetres, tileSpanMetres, tileTopLeft } from './grid.js'
-import {
-  DEFAULT_EXTENT,
-  GEOMETRY_LINE,
-  GEOMETRY_POLYGON,
-  encodeVectorTile
-} from './mvt.js'
+import { DEFAULT_EXTENT, GEOMETRY_LINE, GEOMETRY_POLYGON } from './mvt.js'
+import { encodeVectorTile } from './vector-tile-writer.test-fixtures.js'
 
 // The eight-byte PNG signature, from the spec: a high bit to catch 7-bit
 // transports, "PNG" in ASCII, then a CRLF/EOF/LF sequence that detects a

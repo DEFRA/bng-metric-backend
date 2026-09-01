@@ -268,11 +268,11 @@ const config = convict({
       default: 604800,
       env: 'OS_MAPS_CACHE_TTL_SECONDS'
     },
-    cacheMaxEntries: {
-      doc: 'Tile cache size, in tiles. One site map is around 30 tiles; a large site with parcel thumbnails is a few hundred.',
+    cacheMaxBytes: {
+      doc: 'Tile cache budget, in bytes — catbox measures a memory cache by size rather than by entry count, which suits tiles because a sparse rural tile and a dense urban one differ by an order of magnitude. One site map is around 30 tiles; a large site with parcel thumbnails is a few hundred, so the default holds several whole reports.',
       format: Number,
-      default: 2000,
-      env: 'OS_MAPS_CACHE_MAX_ENTRIES'
+      default: 67108864,
+      env: 'OS_MAPS_CACHE_MAX_BYTES'
     },
     attribution: {
       doc: "Basemap credit burned into the bottom corner of every map drawn from OS tiles, and repeated once as a tagged paragraph so assistive technology reads it too. A PDF cannot carry the dynamic credit control a browser map uses, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",

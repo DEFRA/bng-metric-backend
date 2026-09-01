@@ -35,8 +35,38 @@ document (`ST_Area`), because the red line is a boundary, not a habitat, and car
 | `src/services/report/pdf/grid.js`          | tile matrix maths; WMTS capabilities parsing                                 |
 | `src/services/report/pdf/map.js`           | tile and geometry drawing                                                    |
 | `src/services/report/pdf/document.js`      | the tagged document: structure tree, tables, figures                         |
+| `src/services/report/pdf/mvt.js`           | vector tiles, decoded into the shape `map.js` draws from                     |
 | `src/services/os-tiles/`                   | the OS tiles service — the only code that knows the API key                  |
-| `src/plugins/os-tiles.js`                  | the `/os-tiles` routes over that service                                     |
+| `src/plugins/os-tiles.js`                  | the `/os-tiles` routes, and the tile cache, over that service                |
+
+## What is delegated to libraries, and what is not
+
+The report has a small runtime dependency list on purpose, but only where a library
+genuinely removes work. What it delegates:
+
+| Job                     | Library                                   | Why not ours                                                                                                                            |
+| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| PDF writing and tagging | `pdfkit`                                  | Structure tree, marked content, `/Alt`, `/Scope` and font embedding — the whole PDF/UA surface                                          |
+| Vector tile decoding    | `@mapbox/vector-tile` over `pbf`          | The reference MVT implementation, and what MapLibre itself reads tiles with. `mvt.js` is now only the adapter to this repo's tile shape |
+| Vector tile writing     | `@maplibre/vt-pbf` (test fixtures only)   | Nothing in production writes a tile; the fixtures do, so decode is proven by round-trip                                                 |
+| Bounding boxes          | `@turf/bbox`                              | Walks every GeoJSON nesting depth, GeometryCollection included                                                                          |
+| Tile caching            | `@hapi/catbox-memory`, via `server.cache` | Already in hapi's own dependency tree, and makes a future Redis cache a provisioning change rather than a code one                      |
+
+And what it deliberately keeps:
+
+- **`projector.js` and `grid.js`.** The ground-to-page transform and the EPSG:27700 tile
+  matrix. `@mapbox/tilebelt` and friends are Web Mercator only, which is exactly the
+  projection this report does not use. OpenLayers' `WMTSCapabilities` parser does produce
+  an identical grid from OS's document — it was checked against ours — but it needs
+  `DOMParser` and `Node` globals, so running it here means jsdom: ~55 MB of dependency to
+  delete ~90 lines of parsing.
+- **Areas and lengths.** Not computed at all — the project document carries them. Note
+  that turf's measurement functions could not do it anyway: they are geodesic and assume
+  WGS84 degrees, so on British National Grid metres `@turf/area` measures a 100 m square
+  as 1.07e14 m². Only turf's bounding-box helpers are safe in this coordinate system.
+- **The page layout in `summary-page.js` / `habitat-pages.js`.** `pdfmake` is declarative
+  and built on pdfkit, but exposes no structure-tree API, so it cannot produce a tagged
+  document.
 
 ## Four rules the code depends on
 
@@ -185,12 +215,25 @@ exact registration, so it is not an option.
 
 ### Caching
 
-The tile cache is process-local (`src/services/os-tiles/cache.js`). This service has no
-Redis — the frontend has `ioredis` and `catbox-redis`, this side has neither — and
-per-instance caching already collapses the repeats _within_ one report, which is where
-the bulk of the duplication is (neighbouring parcels overlap). If cross-instance reuse
-turns out to matter, `get`/`set` is the seam a Redis implementation drops into, and
-NRF's `nrf-frontend/src/server/common/services/tile-cache.js` is the shape to copy.
+The tile cache is hapi's own. `plugins/os-tiles.js` provisions a dedicated catbox client
+(`@hapi/catbox-memory`, `maxByteSize` from `OS_MAPS_CACHE_MAX_BYTES`, TTL from
+`OS_MAPS_CACHE_TTL_SECONDS`) and hands the resulting policy to the service, whose
+`get`/`set` calls are catbox's own — so there is no cache implementation in this
+repository to maintain. A dedicated client rather than the server's default cache, so
+the tiles' byte budget is theirs alone and a busy report cannot evict whatever else the
+service caches later.
+
+It is measured in bytes rather than entries because that is what catbox counts, and it
+suits tiles: a sparse rural tile is a couple of kilobytes and a dense urban vector one
+is tens.
+
+Process-local is a deliberate starting point. This service has no Redis — the frontend
+has `ioredis` and `catbox-redis`, this side has neither — and per-instance caching
+already collapses the repeats _within_ one report, which is where the bulk of the
+duplication is (neighbouring parcels overlap). If cross-instance reuse turns out to
+matter it is now a **provisioning** change rather than a code one: swap the provider for
+`@hapi/catbox-redis` in `provisionTileCache`. NRF's
+`nrf-frontend/src/server/common/services/tile-cache.js` is the shape to copy.
 
 ## Cost
 
