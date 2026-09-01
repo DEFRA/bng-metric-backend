@@ -29,16 +29,19 @@ describe('#reportFonts', () => {
     expect(loadReportFonts).toHaveBeenCalledTimes(1)
   })
 
-  test('fails the boot when the configured fonts cannot be read', async () => {
-    // The deliberate choice: a deployment told to use a privately held
-    // typeface either has it before it serves a request, or does not start.
-    // Falling back would render a document in the wrong typeface and say
-    // nothing about it.
-    vi.mocked(loadReportFonts).mockRejectedValue(
-      new Error('Report fonts could not be read from s3://fonts: AccessDenied')
-    )
+  test('registers whatever the loader resolved, including a fallback', async () => {
+    // An unreadable bucket degrades to the committed fonts inside the loader
+    // (see services/report/fonts.js), so this plugin has nothing to catch and
+    // a bucket outage never costs a boot.
+    vi.mocked(loadReportFonts).mockResolvedValue({
+      regular: Buffer.from('noto'),
+      bold: Buffer.from('noto bold'),
+      source: 'bundled'
+    })
     const server = Hapi.server()
 
-    await expect(server.register(reportFonts)).rejects.toThrow('AccessDenied')
+    await server.register(reportFonts)
+
+    expect(server.app.reportFonts.source).toBe('bundled')
   })
 })

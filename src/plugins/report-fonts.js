@@ -4,11 +4,10 @@
  *
  * Registered unconditionally, because unlike the OS tiles plugin this always
  * has an answer: with no bucket configured it resolves the committed Noto Sans
- * and the service behaves exactly as it did before this seam existed. What it
- * buys is that a deployment TOLD to use a privately held typeface — GDS
- * Transport, which cannot be committed to a public repository — either has it
- * before it serves a single request, or does not start at all. See
- * `services/report/fonts.js` for why that failure belongs at boot.
+ * and the service behaves exactly as it did before this seam existed. A
+ * configured bucket that cannot be read degrades to the same committed fonts
+ * with a warning, so this never fails a boot — see `services/report/fonts.js`
+ * for that trade and for the warning it turns on.
  */
 
 import { loadReportFonts } from '../services/report/fonts.js'
