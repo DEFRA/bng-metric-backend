@@ -50,9 +50,16 @@ vi.mock('../validation/geopackage/index.js', () => ({
   validateGeoPackageLayers: vi.fn()
 }))
 
-vi.mock('../services/upload/calculate-habitat-sizes.js', () => ({
-  calculateHabitatSizes: vi.fn()
-}))
+// Partial mock: `calculateHabitatSizes` is stubbed, but `attachGeometrySizes`
+// is the real one, so the size-stamping the save path now does is exercised
+// rather than replaced.
+vi.mock(
+  '../services/upload/calculate-habitat-sizes.js',
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    calculateHabitatSizes: vi.fn()
+  })
+)
 
 vi.mock('../services/s3/download-file.js', async (importOriginal) => {
   const actual = await importOriginal()

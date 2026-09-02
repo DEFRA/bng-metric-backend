@@ -100,13 +100,41 @@ The pipeline is therefore file-based end to end:
 fixtures are built in memory. Production paths take a path.
 
 What this does **not** bound is the parsed geometry: the layers stay on the
-heap while the PostGIS checks run, so concurrent validations still add up.
+heap while the geometry checks run, so concurrent validations still add up.
 Capping how many run at once is the fix for that — a Node `--max-old-space-size`
 is not. Hitting V8's heap limit aborts the process (SIGABRT), it does not throw
 something a route can catch; and the streamed chunks and better-sqlite3's pages
 are off-heap, so the flag never sees them anyway. On Fargate each task is a
 microVM sized to the task definition, so Node's default heap already derives
 from the task's own memory rather than a shared host's.
+
+## Two geometry validation engines
+
+`VALIDATION_ENGINE` selects how the fifteen geometry rules are run: `postgis`
+(one large SQL statement — **the default**), `geos` (the same GEOS library
+compiled to WebAssembly, on a worker thread in this process), or `shadow` (both,
+returning the PostGIS answer and reporting any divergence). Any GEOS-side
+failure falls back to PostGIS, so a bad day is a slower upload, not a failed one.
+
+The two must agree, and three structural choices make that so rather than merely
+likely: the error builders are shared (`postgis/error-builders.js` is called by
+both), the tolerances are shared (`geometry-constants.js` is read by both), and
+the England reference polygon the GEOS path uses is PostGIS's own `ST_Transform`
+output. `integration-tests/validation-engine-parity.test.js` then runs both over
+every GeoPackage in the harness's `example-files/`.
+
+Two things to know before touching this code:
+
+- **The worker takes a file path, not layers.** Cloning parsed layers across the
+  thread boundary would cost ~17 MB per upload and leave the synchronous parse on
+  the main thread. `filePath` must be threaded from the route through
+  `validateGeoPackageLayers`, or the GEOS engine cannot run.
+- **Each worker holds a few hundred MB.** WebAssembly memory grows to its
+  high-water mark and is never returned. Check the ECS task limit before raising
+  `VALIDATION_WORKER_COUNT`.
+
+Full detail, including the coordinate-system caveat and the rollout sequence, is
+in [`docs/geometry-validation-engines.md`](docs/geometry-validation-engines.md).
 
 ## Tests
 

@@ -117,6 +117,29 @@ git config --global core.autocrlf false
 | `GET: /example    `  | Example API (remove as needed) |
 | `GET: /example/<id>` | Example API (remove as needed) |
 
+## Geometry validation engines
+
+Uploaded GeoPackages are checked against fifteen geometry rules, and there are
+two engines that can run them:
+
+| `VALIDATION_ENGINE` | Behaviour                                                                                                                                          |
+| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `postgis`           | One large PostGIS statement. **The default.**                                                                                                      |
+| `geos`              | The same GEOS library compiled to WebAssembly, on a worker thread in this process. No database connection. Falls back to `postgis` on any failure. |
+| `shadow`            | Runs both, returns the `postgis` answer, reports any divergence.                                                                                   |
+
+The two are required to give identical verdicts, payloads and messages;
+`integration-tests/validation-engine-parity.test.js` asserts it over every
+GeoPackage in the harness's `example-files/`.
+
+Related settings: `VALIDATION_WORKER_COUNT` (default 2, capped at
+`availableParallelism() - 1`), `VALIDATION_WORKER_QUEUE_LIMIT` (8),
+`VALIDATION_WORKER_TIMEOUT_MS` (60000). Each worker settles at a few hundred MB
+of WebAssembly heap, so the worker count is a memory budget as much as a
+throughput setting.
+
+See [`docs/geometry-validation-engines.md`](docs/geometry-validation-engines.md).
+
 ## Development helpers
 
 ### Proxy

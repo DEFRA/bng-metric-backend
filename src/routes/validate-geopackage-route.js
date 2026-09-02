@@ -186,16 +186,23 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
 }
 
 async function validateLayers(layers, drizzle, pgPool, context, h, config) {
-  const { uploadId, projectId, credentials, filename, fileSize } = context
+  const { uploadId, projectId, credentials, filename, fileSize, filePath } =
+    context
 
   // Evidence (Item 1 — the whole pipeline runs inline on the request handler):
-  // geometry validation is a single awaited PostGIS round trip whose cost scales
-  // with the feature count, and it holds the handler for its full duration.
+  // with the PostGIS engine this is a single awaited round trip whose cost
+  // scales with the feature count, and it holds the handler for its full
+  // duration. With the GEOS engine the work goes to a worker thread and the
+  // handler only awaits the verdict — `filePath` is what makes that possible,
+  // because the worker parses the file itself rather than being sent a clone
+  // of the layers. Sizes are only worth asking for when there is a project to
+  // persist them against.
   const validateStart = perfNow()
   const result = await validateGeoPackageLayers(
     layers,
     pgPool,
-    config.projectDocumentKey
+    config.projectDocumentKey,
+    { filePath, includeSizes: Boolean(projectId) }
   )
   await recordStage(
     PERFORMANCE_METRIC.postgisValidateMs,
@@ -222,7 +229,7 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
     { drizzle, pgPool, logger },
     projectId,
     layers,
-    { uploadId, credentials, filename, fileSize },
+    { uploadId, credentials, filename, fileSize, geometrySizes: result.sizes },
     h,
     config
   )
@@ -278,7 +285,7 @@ async function runFullValidation(
       gateResult.layers,
       drizzle,
       pgPool,
-      context,
+      { ...context, filePath },
       h,
       config
     )

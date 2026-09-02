@@ -10,6 +10,13 @@ const logger = createLogger()
 
 const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 
+/**
+ * Field the geometry engine's per-feature measurement is stamped onto, by
+ * {@link attachGeometrySizes}. In-memory only, for the life of one request —
+ * never persisted, and never read by anything but this module.
+ */
+const GEOMETRY_SIZE_FIELD = 'geometrySize'
+
 const CALCULATE_HABITAT_SIZES_QUERY = /* sql */ `
 WITH features_in AS (
   SELECT layer,
@@ -107,7 +114,90 @@ function appendCalculatedSizes(result, rows) {
   }
 }
 
+/**
+ * Stamp the geometry engine's per-feature measurements onto the features they
+ * belong to.
+ *
+ * The engine returns sizes keyed by a feature's position within its layer,
+ * because that is all a worker thread knows: `featureId` is assigned on the main
+ * thread, after validation. This is where the two meet — and it has to happen
+ * BEFORE the post-intervention path drops its Lost features, because that filter
+ * changes the positions the sizes are keyed by.
+ *
+ * Sizes are a pure function of geometry and the filter only ever removes
+ * features, so measuring everything and then discarding some is correct.
+ *
+ * @param {object} layers layers with featureIds already assigned
+ * @param {Record<string, Array<{ idx: number, value: number }>>} [sizes]
+ * @returns {object} a new layers object; the input is left untouched
+ */
+function attachGeometrySizes(layers, sizes) {
+  if (!sizes) {
+    return layers
+  }
+  const stamped = { ...layers }
+  for (const layerName of HABITAT_SIZE_LAYERS) {
+    const byIdx = new Map(
+      (sizes[layerName] ?? []).map((entry) => [entry.idx, entry.value])
+    )
+    stamped[layerName] = (layers[layerName] ?? []).map((feature, index) =>
+      byIdx.has(index)
+        ? { ...feature, [GEOMETRY_SIZE_FIELD]: byIdx.get(index) }
+        : feature
+    )
+  }
+  return stamped
+}
+
+/**
+ * Build the sizing result from measurements the geometry engine already made,
+ * or return null if it did not make them all.
+ *
+ * The all-or-nothing rule is deliberate: a partial result would silently record
+ * some habitats with a size and others without, which is far worse than paying
+ * for one more PostGIS round trip. Anything unexpected — the PostGIS engine ran,
+ * a worker fell back, a caller assembled layers by hand — lands on the query.
+ *
+ * @param {object} layers
+ * @returns {object|null}
+ */
+function habitatSizesFromGeometry(layers) {
+  const result = emptyResult()
+  let measured = 0
+
+  for (const layerName of HABITAT_SIZE_LAYERS) {
+    for (const feature of layers[layerName] ?? []) {
+      if (!feature?.nativeGeometry) {
+        continue
+      }
+      const sizeValue = feature[GEOMETRY_SIZE_FIELD]
+      if (typeof sizeValue !== 'number') {
+        return null
+      }
+      appendCalculatedSizes(result, [
+        {
+          layer: layerName,
+          feature_id: feature.featureId,
+          size_value: sizeValue
+        }
+      ])
+      measured++
+    }
+  }
+
+  return measured === 0 ? null : result
+}
+
 async function calculateHabitatSizes(pool, layers) {
+  // The geometry engine holds the repaired geometry for every one of these
+  // features by the time the checks have finished, so when it has handed the
+  // measurements over there is nothing left to ask PostGIS for — no query, no
+  // connection, and no fourth parse of the same shapes.
+  const fromGeometry = habitatSizesFromGeometry(layers)
+  if (fromGeometry) {
+    return fromGeometry
+  }
+
   if (!pool) {
     throw new Error('calculateHabitatSizes requires a pg pool')
   }
@@ -141,6 +231,9 @@ async function calculateHabitatSizes(pool, layers) {
 export {
   HABITAT_SIZE_LAYERS,
   CALCULATE_HABITAT_SIZES_QUERY,
+  GEOMETRY_SIZE_FIELD,
+  attachGeometrySizes,
   buildLayerArrays,
-  calculateHabitatSizes
+  calculateHabitatSizes,
+  habitatSizesFromGeometry
 }

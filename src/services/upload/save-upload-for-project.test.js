@@ -26,7 +26,11 @@ import {
 } from '../../validation/project.js'
 import { persistUpload } from './persist-upload.js'
 
-vi.mock('./calculate-habitat-sizes.js', () => ({
+// Partial mock: `calculateHabitatSizes` is stubbed, but `attachGeometrySizes`
+// is the real one, so the size-stamping the save path now does is exercised
+// rather than replaced.
+vi.mock('./calculate-habitat-sizes.js', async (importOriginal) => ({
+  ...(await importOriginal()),
   calculateHabitatSizes: vi.fn()
 }))
 

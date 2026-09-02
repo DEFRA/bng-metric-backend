@@ -78,9 +78,16 @@ vi.mock('../validation/geopackage/index.js', () => ({
   validateGeoPackageLayers: vi.fn()
 }))
 
-vi.mock('../services/upload/calculate-habitat-sizes.js', () => ({
-  calculateHabitatSizes: vi.fn()
-}))
+// Partial mock: `calculateHabitatSizes` is stubbed, but `attachGeometrySizes`
+// is the real one, so the size-stamping the save path now does is exercised
+// rather than replaced.
+vi.mock(
+  '../services/upload/calculate-habitat-sizes.js',
+  async (importOriginal) => ({
+    ...(await importOriginal()),
+    calculateHabitatSizes: vi.fn()
+  })
+)
 
 vi.mock('../utilities/enrichment/baseline/enrich-baseline-units.js', () => ({
   enrichBaselineDocumentWithUnits: vi.fn()
@@ -326,10 +333,13 @@ describe('validateBaseline handler — pipeline calls', () => {
     )
     // One parse for both jobs: no second read of the file (BMD-910).
     expect(validateAndReadGpkgFile).toHaveBeenCalledTimes(1)
+    // The downloaded file's path travels with the layers, so the GEOS engine
+    // can hand it to a worker instead of cloning a 17 MB layers object.
     expect(validateGeoPackageLayers).toHaveBeenCalledWith(
       STUB_LAYERS,
       undefined,
-      'baseline'
+      'baseline',
+      { filePath: MOCK_DOWNLOAD_PATH, includeSizes: false }
     )
   })
 })
