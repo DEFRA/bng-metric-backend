@@ -126,11 +126,11 @@ Note that the PostGIS row is not lag-free either — 126 ms, from synchronously
 marshalling 9,500 geometries into query parameters and parsing the result back.
 That work stays on the main thread whichever engine runs.
 
-| Setting                         | Default | What it is                                       |
-| ------------------------------- | ------: | ------------------------------------------------ |
-| `VALIDATION_WORKER_COUNT`       |       2 | Workers, capped at `availableParallelism() - 1`. |
-| `VALIDATION_WORKER_QUEUE_LIMIT` |       8 | Validations allowed to wait for a free worker.   |
-| `VALIDATION_WORKER_TIMEOUT_MS`  |   60000 | Per-job budget; on overrun the worker is killed. |
+| Setting                         | Default | What it is                                                           |
+| ------------------------------- | ------: | -------------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`       |       2 | Workers, capped at `availableParallelism() - 1`.                     |
+| `VALIDATION_WORKER_QUEUE_LIMIT` |       8 | Validations allowed to wait for a free worker. Not free — see below. |
+| `VALIDATION_WORKER_TIMEOUT_MS`  |   60000 | Per-job budget; on overrun the worker is killed.                     |
 
 The pool cap **is** the admission control. It is the same protective bounding the
 connection pool used to provide, except the rationed resource is CPU on an
@@ -175,6 +175,31 @@ before shipping at all.** The default of 2 workers wants roughly 565 MB of
 headroom on top of Node's own baseline and the parsed layers an in-flight upload
 holds on the heap. At a 2 GB task that is comfortable; at 1 GB it is one worker
 at most; below that this does not ship in the shape it is built.
+
+### What a deep queue costs
+
+The queue holds job objects — an id, a file path, two callbacks — so the array
+itself is a couple of kilobytes at the default limit and can be ignored. What
+cannot be ignored is what each _waiting request_ is holding somewhere else.
+
+A queued validation belongs to a request sitting inside
+`validateGeoPackageLayers`, and that request still has the parsed GeoPackage the
+format gate produced. Measured on the 5,000-parcel fixture, that is **~29 MB of
+heap per in-flight upload**. Eight queued plus two in flight is therefore up to
+~290 MB on top of the workers' own ~500 MB.
+
+Two things stop that being as bad as it sounds, and one makes it worse:
+
+- Unlike the workers' WebAssembly heap, this memory is **transient** — garbage
+  once the request ends, not a high-water mark held for the process's life.
+- The GEOS engine holds it for far LESS time than the SQL one. Under load the
+  PostGIS path parked requests for eighteen seconds waiting on a connection, each
+  still holding its layers; here the wait is a fraction of that, so fewer uploads
+  are resident at once for the same arrival rate.
+- But **raising `VALIDATION_WORKER_QUEUE_LIMIT` raises that ceiling directly**,
+  and the limit is admission control for CPU rather than for memory: over it a
+  request does not shed — it falls back to PostGIS and goes on holding its layers
+  there.
 
 ### Why the worker is given a file path, not the layers
 
