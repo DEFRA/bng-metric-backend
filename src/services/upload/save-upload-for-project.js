@@ -21,7 +21,10 @@ import {
 } from '../../validation/project.js'
 import { HTTP_STATUS } from '../../common/helpers/http/status-codes.js'
 import { projects } from '../../db/schema/index.js'
-import { calculateHabitatSizes } from './calculate-habitat-sizes.js'
+import {
+  attachGeometrySizes,
+  calculateHabitatSizes
+} from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
@@ -141,11 +144,28 @@ function saveHandlersForConfig(config) {
   }
 }
 
-function layersForUpload(layers, storedProject, projectDocumentKey) {
+/**
+ * @param {object} layers
+ * @param {object|undefined} storedProject
+ * @param {string} projectDocumentKey
+ * @param {object} [geometrySizes] per-feature measurements from the geometry
+ *   engine, keyed by position within the layer
+ */
+function layersForUpload(
+  layers,
+  storedProject,
+  projectDocumentKey,
+  geometrySizes
+) {
   const featureIdByRef = buildFeatureIdByRef(
     storedProject?.[projectDocumentKey]
   )
-  const layersWithIds = assignFeatureIds(layers, featureIdByRef)
+  // Sizes are stamped on BEFORE the post-intervention Lost filter, because they
+  // are keyed by a feature's position and that filter renumbers what is left.
+  const layersWithIds = attachGeometrySizes(
+    assignFeatureIds(layers, featureIdByRef),
+    geometrySizes
+  )
   const layersForSizing =
     projectDocumentKey === 'postIntervention'
       ? filterLostPostInterventionLayers(layersWithIds)
@@ -333,7 +353,7 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
  * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null }} context
+ * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null, geometrySizes?: object }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -362,7 +382,8 @@ export async function saveUploadForProject(
   const { layersWithIds, layersForSizing } = layersForUpload(
     layers,
     storedProject,
-    projectDocumentKey
+    projectDocumentKey,
+    context.geometrySizes
   )
 
   const sizing = await runSizingStage(pgPool, layersForSizing, stageContext, {

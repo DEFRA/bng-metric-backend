@@ -8,7 +8,24 @@
 export const GEOPACKAGE_METRIC = {
   validationSucceeded: 'GeoPackageValidationSucceeded',
   validationFailed: 'GeoPackageValidationFailed',
-  uploadSizeBytes: 'GeoPackageUploadSizeBytes'
+  uploadSizeBytes: 'GeoPackageUploadSizeBytes',
+  /**
+   * Files where the PostGIS and GEOS engines disagreed, sliced by a three-valued
+   * `kind` dimension (codes / payload / wkt — see geos/shadow.js). Emitted only
+   * in shadow mode. The rollout gate: `kind=codes` reaching and staying at zero
+   * over a soak is what says the in-process engine can be trusted with the
+   * default.
+   */
+  validationEngineDivergence: 'GeoPackageValidationEngineDivergence',
+  /**
+   * Validations where the GEOS engine could not produce an answer — a full
+   * queue, a worker timeout, a crash, or no file path to give a worker — sliced
+   * by a low-cardinality `reason`. Under `engine=geos` that means the request
+   * fell back to the PostGIS statement; under `engine=shadow` it means there was
+   * nothing to compare against. Either way a rising rate says the worker pool is
+   * undersized or unwell, not that verdicts are wrong.
+   */
+  validationEngineFallback: 'GeoPackageValidationEngineFallback'
 }
 
 /**

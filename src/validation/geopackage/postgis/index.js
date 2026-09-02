@@ -3,6 +3,18 @@ import path from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { ERROR_CODES } from '../errors.js'
+import {
+  AREA_SUM_TOLERANCE_SQ_M,
+  ERROR_LIST_SAMPLE_CAP,
+  LAYER_NAMES,
+  MAX_REDLINE_AREA_SQ_M,
+  MIN_PARCEL_AREA_SQ_M,
+  OUTSIDE_BOUNDARY_TOLERANCE_M,
+  OVERLAP_TOLERANCE_SQ_M,
+  OVERLAY_GRID_SIZE_M,
+  PARCEL_OUTSIDE_TOLERANCE_SQ_M,
+  REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M
+} from '../geometry-constants.js'
 import { toGeometryJson } from '../geometry-json.js'
 import { ERROR_BUILDERS } from './error-builders.js'
 import { createLogger } from '../../../common/helpers/logging/logger.js'
@@ -28,52 +40,16 @@ const englandGeoJson = JSON.parse(
 )
 const ENGLAND_GEOMETRY_JSON = JSON.stringify(englandGeoJson.geometry)
 
-// Tolerance / threshold constants — interpolated into CHECK_QUERY at module
-// load time (they're static JS values, not user input, so direct string
+// Tolerance / threshold constants come from ../geometry-constants.js, shared
+// with the in-process GEOS engine, and are interpolated into CHECK_QUERY at
+// module load time (they're static JS values, not user input, so direct string
 // interpolation is safe and makes the SQL self-documenting).
-
-// Minimum area for a habitat parcel. Below this it is a digitising artefact
-// rather than a habitat anyone intended to record. Purely an area test —
-// shape is not considered, so a compact 0.9 m × 0.9 m parcel fails while a
-// 100 m × 1 m one passes. Applied to the parcel's own footprint as supplied in
-// the file; gaps *between* parcels are not checked, because the
-// redline-vs-total-parcel-area comparison (AREA_SUM_MISMATCH) already accounts
-// for any land the parcels fail to cover.
-const MIN_PARCEL_AREA_SQ_M = 1
-const OVERLAP_TOLERANCE_SQ_M = 0.5
-const AREA_SUM_TOLERANCE_SQ_M = 0.5
-const MAX_REDLINE_AREA_SQ_M = 100 * 1000 * 1000
-
-// Tolerance for the "parcel falls outside the redline" check. We compare the
-// area of the difference rather than relying on a Boolean predicate so that
-// parcels sharing boundary edges with the redline (the normal case) aren't
-// false-positive-flagged by GEOS robustness wobbles on shared vertices.
-const PARCEL_OUTSIDE_TOLERANCE_SQ_M = 0.5
-
-// gridSize for PostGIS overlay ops (ST_Difference / ST_Intersection). With a
-// fixed-precision grid GEOS computes overlays in deterministic integer
-// arithmetic, eliminating the floating-point ghost components that otherwise
-// turn shared-edge tilings into spurious zero-area slivers.
-const OVERLAY_GRID_SIZE_M = 0.001
-
-// Tolerance for boundary-grazing linear and point features. For lines: the
-// total length lying outside the redline must exceed this before the feature
-// is flagged. For points: the perpendicular distance to the redline must
-// exceed this. Same numeric value because both serve the same purpose —
-// allowing features that QGIS has snapped to the redline edge.
-const OUTSIDE_BOUNDARY_TOLERANCE_M = 0.1
-
-// Tolerance for "redline outside England". The reference England polygon's
-// coastline isn't perfectly aligned with any digitised redline, so a strict
-// ST_Within trips on sub-mm numerical noise; same area-difference pattern as
-// the habitat-parcel-outside-redline check.
-const REDLINE_OUTSIDE_ENGLAND_TOLERANCE_SQ_M = 0.5
-
-// Per-error-code cap on the number of offending features included in the
-// `details.sample` array of the response. The total `details.count` is always
-// truthful; the sample is bounded so a malformed file with thousands of
-// offenders can't blow up the response. Tunable.
-const ERROR_LIST_SAMPLE_CAP = 50
+//
+// They used to be declared here. They moved when the second engine arrived:
+// two copies of a tolerance agree right up until someone tunes one of them, and
+// a validator that quietly applies 0.5 sq m in SQL and 0.4 in JS is a much worse
+// problem than the import is a cost. Read the constants file for what each one
+// is for.
 
 // SQL fragment that resolves each layer's user-facing reference column.
 // Different layers carry the value under different property names: Parcel Ref
@@ -484,15 +460,6 @@ SELECT 'AREA_SUM_MISMATCH',
 FROM c_redline_total rtot CROSS JOIN c_habitats_total htot
 WHERE rtot.n > 0 AND htot.n > 0 AND abs(rtot.total - htot.total) > ${AREA_SUM_TOLERANCE_SQ_M}
 `
-
-const LAYER_NAMES = [
-  'redline',
-  'areas',
-  'hedgerows',
-  'watercourses',
-  'iggis',
-  'trees'
-]
 
 // Order matches the Turf-engine sequence so error output is stable across
 // engines.

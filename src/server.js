@@ -12,6 +12,7 @@ import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { requestCorrelation } from './common/helpers/correlation-id.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
+import { closeGeosWorkerPool } from './validation/geopackage/geos/worker-pool.js'
 
 async function createServer() {
   setupProxy()
@@ -88,6 +89,14 @@ async function createServer() {
   server.auth.default('defra-jwt')
 
   await server.register([router])
+
+  // Worker threads outlive a Hapi stop unless something ends them. They are
+  // unref'd, so they never hold the process open — but a test suite or a
+  // hot-reload that creates a server per run would otherwise accumulate a pool
+  // per server, each holding its own WebAssembly heap.
+  server.ext('onPostStop', async () => {
+    await closeGeosWorkerPool()
+  })
 
   return server
 }

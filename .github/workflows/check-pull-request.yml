@@ -205,6 +205,12 @@ jobs:
           npm run lint
           npm test
 
+      # The GEOS validation engine reads a pre-projected copy of the England
+      # reference polygon rather than reprojecting it on every request. This is
+      # what stops that copy silently going stale if england.geojson is edited.
+      - name: England reference polygon is in step with its source
+        run: npm run england-27700:check
+
       - name: Data dictionary is up to date
         run: |
           npm run data-dictionary

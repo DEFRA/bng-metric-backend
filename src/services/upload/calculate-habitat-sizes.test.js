@@ -1,8 +1,11 @@
 import { describe, it, expect, vi } from 'vitest'
 
 import {
+  attachGeometrySizes,
   buildLayerArrays,
   calculateHabitatSizes,
+  habitatSizesFromGeometry,
+  GEOMETRY_SIZE_FIELD,
   HABITAT_SIZE_LAYERS,
   CALCULATE_HABITAT_SIZES_QUERY
 } from './calculate-habitat-sizes.js'
@@ -191,5 +194,118 @@ describe('calculateHabitatSizes', () => {
         totalMetres: 0.25
       }
     })
+  })
+})
+
+describe('sizes measured by the geometry engine', () => {
+  const feature = (
+    featureId,
+    geometry = { type: 'Point', coordinates: [0, 0] }
+  ) => ({
+    featureId,
+    nativeGeometry: geometry,
+    nativeSrid: 27_700,
+    properties: {}
+  })
+
+  it('stamps engine measurements onto features by their layer position', () => {
+    const layers = {
+      areas: [feature('a'), feature('b')],
+      hedgerows: [feature('h')],
+      watercourses: []
+    }
+    const stamped = attachGeometrySizes(layers, {
+      areas: [
+        { idx: 0, value: 10 },
+        { idx: 1, value: 20 }
+      ],
+      hedgerows: [{ idx: 0, value: 30 }],
+      watercourses: []
+    })
+    expect(stamped.areas.map((f) => f[GEOMETRY_SIZE_FIELD])).toEqual([10, 20])
+    expect(stamped.hedgerows[0][GEOMETRY_SIZE_FIELD]).toBe(30)
+  })
+
+  it('leaves the caller’s layers untouched', () => {
+    const layers = { areas: [feature('a')], hedgerows: [], watercourses: [] }
+    attachGeometrySizes(layers, { areas: [{ idx: 0, value: 10 }] })
+    expect(layers.areas[0][GEOMETRY_SIZE_FIELD]).toBeUndefined()
+  })
+
+  it('skips positions the engine did not measure, so gaps do not shift sizes', () => {
+    const layers = {
+      areas: [
+        { featureId: 'skipped', nativeGeometry: null },
+        feature('measured')
+      ],
+      hedgerows: [],
+      watercourses: []
+    }
+    const stamped = attachGeometrySizes(layers, {
+      areas: [{ idx: 1, value: 99 }]
+    })
+    expect(stamped.areas[0][GEOMETRY_SIZE_FIELD]).toBeUndefined()
+    expect(stamped.areas[1][GEOMETRY_SIZE_FIELD]).toBe(99)
+  })
+
+  it('is a no-op when the engine measured nothing', () => {
+    const layers = { areas: [feature('a')], hedgerows: [], watercourses: [] }
+    expect(attachGeometrySizes(layers, undefined)).toBe(layers)
+  })
+
+  it('builds the sizing result without a database when every feature is measured', async () => {
+    const layers = attachGeometrySizes(
+      {
+        areas: [feature('a1'), feature('a2')],
+        hedgerows: [feature('h1')],
+        watercourses: [feature('w1')]
+      },
+      {
+        areas: [
+          { idx: 0, value: 100 },
+          { idx: 1, value: 250 }
+        ],
+        hedgerows: [{ idx: 0, value: 40 }],
+        watercourses: [{ idx: 0, value: 60 }]
+      }
+    )
+    // No pool at all: reaching PostGIS would throw.
+    const sizes = await calculateHabitatSizes(null, layers)
+    expect(sizes.areaHabitats).toEqual({
+      individualSquareMetres: [
+        { featureId: 'a1', sizeSquareMetres: 100 },
+        { featureId: 'a2', sizeSquareMetres: 250 }
+      ],
+      totalSquareMetres: 350
+    })
+    expect(sizes.hedgerows.totalMetres).toBe(40)
+    expect(sizes.watercourses.totalMetres).toBe(60)
+  })
+
+  it('falls back to the query when even one feature is unmeasured', () => {
+    const layers = attachGeometrySizes(
+      {
+        areas: [feature('a1'), feature('a2')],
+        hedgerows: [],
+        watercourses: []
+      },
+      { areas: [{ idx: 0, value: 100 }] }
+    )
+    expect(habitatSizesFromGeometry(layers)).toBeNull()
+  })
+
+  it('falls back to the query when nothing was measured at all', () => {
+    const layers = {
+      areas: [feature('a1')],
+      hedgerows: [],
+      watercourses: []
+    }
+    expect(habitatSizesFromGeometry(layers)).toBeNull()
+  })
+
+  it('reports nothing to measure as nothing, so an empty file still hits the empty result', () => {
+    expect(
+      habitatSizesFromGeometry({ areas: [], hedgerows: [], watercourses: [] })
+    ).toBeNull()
   })
 })
