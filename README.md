@@ -124,20 +124,27 @@ in-process on worker threads using GEOS compiled to WebAssembly. **Validation
 takes no database connection.** The PostGIS statement that used to do this has
 been removed; the database remains the system of record for storage.
 
-There is no fallback. A full queue returns **503** with `Retry-After` and a
-`VALIDATION_BUSY` error, which the frontend turns into "try again in a few
-moments" — the file was never looked at, so it is not a validation failure.
+There is no fallback. When the pool is saturated the route refuses **before**
+downloading the file and returns **503 `VALIDATION_BUSY`**; the frontend keeps the
+user on its polling page and retries, jittered, until a worker frees up or it
+gives up after two minutes. The file was never looked at, so it is not a
+validation failure.
 
 | Setting                               | Default | Notes                                                 |
 | :------------------------------------ | ------: | :---------------------------------------------------- |
 | `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each. |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.        |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   30000 | Per-job budget; the worker is terminated on overrun.  |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.  |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused. |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` value on the 503.                       |
+| `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.       |
+| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.              |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
-returned, so the worker count is a memory budget as much as a throughput
-setting.
+returned, so the worker count is a memory budget as much as a throughput setting.
+
+These timeouts form a ladder that must nest inside the frontend's per-request
+validate timeout, which must in turn nest inside the CDP ingress idle timeout.
 
 See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 
