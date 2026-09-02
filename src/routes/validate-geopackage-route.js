@@ -13,6 +13,7 @@ import {
 } from '../services/s3/download-file.js'
 import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
+import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -34,6 +35,9 @@ import {
   VALIDATION_CATEGORY
 } from '../common/helpers/metric-names.js'
 import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
+// Aliased: every function in this file takes a route `config` object, and the
+// application config is a different thing entirely.
+import { config as appConfig } from '../config.js'
 
 const logger = createLogger()
 
@@ -171,6 +175,38 @@ async function respondToGateRejection(gateResult, uploadId, h, config) {
 }
 
 /**
+ * Every validation worker was busy and the queue was full, so the file was
+ * never looked at.
+ *
+ * This is the one rejection that is NOT about the user's file, and it is
+ * answered differently on purpose. A 503 with Retry-After says "come back",
+ * which is both true and actionable; returning the usual 200-with-errors would
+ * put a capacity problem on the same screen as "your polygons overlap" and
+ * invite the user to go and edit a file that is perfectly fine.
+ */
+async function respondToBusy(uploadId, h, config) {
+  logger.warn(
+    `${config.routeName} - validation queue full for uploadId ${uploadId}; asked the caller to retry`
+  )
+  await metricsCounter(GEOPACKAGE_METRIC.validationBusy)
+  return h
+    .response({
+      valid: false,
+      errors: [
+        makeError(
+          ERROR_CODES.VALIDATION_BUSY,
+          'The service is busy checking other files. Please try again in a few moments.'
+        )
+      ]
+    })
+    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
+    .header(
+      'Retry-After',
+      String(appConfig.get('validation.busyRetryAfterSeconds'))
+    )
+}
+
+/**
  * The shapes parsed, but the geometry or data-quality checks failed.
  */
 async function respondToGeometryRejection(result, uploadId, h, config) {
@@ -185,7 +221,7 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
   return h.response(result)
 }
 
-async function validateLayers(layers, drizzle, pgPool, context, h, config) {
+async function validateLayers(layers, drizzle, context, h, config) {
   const { uploadId, projectId, credentials, filename, fileSize, filePath } =
     context
 
@@ -200,16 +236,15 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
   const validateStart = perfNow()
   const result = await validateGeoPackageLayers(
     layers,
-    pgPool,
     config.projectDocumentKey,
     { filePath, includeSizes: Boolean(projectId) }
   )
   await recordStage(
-    PERFORMANCE_METRIC.postgisValidateMs,
+    PERFORMANCE_METRIC.geometryValidateMs,
     msSince(validateStart),
     {
       uploadId,
-      stage: 'postgis-validate',
+      stage: 'geometry-validate',
       featureCount: countFeatures(layers)
     },
     config
@@ -226,7 +261,7 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
   }
 
   const errorResponse = await saveUploadForProject(
-    { drizzle, pgPool, logger },
+    { drizzle, logger },
     projectId,
     layers,
     { uploadId, credentials, filename, fileSize, geometrySizes: result.sizes },
@@ -242,14 +277,7 @@ async function validateLayers(layers, drizzle, pgPool, context, h, config) {
  * shape is unpacked, and an accepted file hands back its parsed layers from
  * the same read.
  */
-async function runFullValidation(
-  filePath,
-  drizzle,
-  pgPool,
-  context,
-  h,
-  config
-) {
+async function runFullValidation(filePath, drizzle, context, h, config) {
   const { uploadId } = context
 
   try {
@@ -284,7 +312,6 @@ async function runFullValidation(
     return await validateLayers(
       gateResult.layers,
       drizzle,
-      pgPool,
       { ...context, filePath },
       h,
       config
@@ -292,6 +319,11 @@ async function runFullValidation(
   } catch (error) {
     if (error?.isBoom) {
       throw error
+    }
+    // A full queue means the file was never looked at — a capacity condition,
+    // not a fault, and the only one of these worth telling the user to retry.
+    if (error instanceof ValidationQueueFullError) {
+      return await respondToBusy(uploadId, h, config)
     }
     logger.error(
       `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`
@@ -375,7 +407,6 @@ function createValidateGeoPackageRoute(config) {
         return await runFullValidation(
           upload.path,
           request.drizzle,
-          request.pg,
           { uploadId, projectId, credentials, filename, fileSize },
           h,
           config

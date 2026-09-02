@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
+import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
 import {
   GEOPACKAGE_METRIC,
   VALIDATION_CATEGORY
@@ -202,7 +203,7 @@ function setupHappyPathMocks() {
     errors: []
   })
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
-  vi.mocked(calculateHabitatSizes).mockResolvedValue(EMPTY_HABITAT_SIZES)
+  vi.mocked(calculateHabitatSizes).mockReturnValue(EMPTY_HABITAT_SIZES)
   vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
 }
 
@@ -333,14 +334,70 @@ describe('validateBaseline handler — pipeline calls', () => {
     )
     // One parse for both jobs: no second read of the file (BMD-910).
     expect(validateAndReadGpkgFile).toHaveBeenCalledTimes(1)
-    // The downloaded file's path travels with the layers, so the GEOS engine
-    // can hand it to a worker instead of cloning a 17 MB layers object.
+    // No pool argument: geometry validation takes no database connection at
+    // all now. The file's PATH travels with the layers so the worker can parse
+    // its own copy off the event loop.
     expect(validateGeoPackageLayers).toHaveBeenCalledWith(
       STUB_LAYERS,
-      undefined,
       'baseline',
       { filePath: MOCK_DOWNLOAD_PATH, includeSizes: false }
     )
+  })
+})
+
+// A full validation queue is the one rejection that is not about the user's
+// file. It has to come back as a 503 with a Retry-After, so the frontend can
+// say "try again" rather than sending someone off to re-draw good polygons.
+describe('validateBaseline handler — service busy', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    const queueFull = new Error('Geometry validation queue is full (8 waiting)')
+    queueFull.name = 'ValidationQueueFullError'
+    Object.setPrototypeOf(queueFull, ValidationQueueFullError.prototype)
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(queueFull)
+  })
+
+  it('answers 503 rather than 500 when every worker is busy', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(503)
+  })
+
+  it('reports VALIDATION_BUSY, not a validation failure', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [expect.objectContaining({ code: ERROR_CODES.VALIDATION_BUSY })]
+    })
+  })
+
+  it('tells the caller when to come back', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.header).toHaveBeenCalledWith('Retry-After', expect.any(String))
+  })
+
+  it('does not persist anything', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+    expect(drizzleHarness.log.transactionCalls).toBe(0)
   })
 })
 

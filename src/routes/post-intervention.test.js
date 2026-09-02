@@ -135,7 +135,7 @@ function setupHappyPathMocks() {
     errors: []
   })
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
-  vi.mocked(calculateHabitatSizes).mockResolvedValue(EMPTY_HABITAT_SIZES)
+  vi.mocked(calculateHabitatSizes).mockReturnValue(EMPTY_HABITAT_SIZES)
   vi.mocked(extractPostIntervention).mockReturnValue(
     STUB_POST_INTERVENTION_EXTRACTED
   )

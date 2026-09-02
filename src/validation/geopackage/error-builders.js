@@ -1,4 +1,4 @@
-import { ERROR_CODES, makeError } from '../errors.js'
+import { ERROR_CODES, makeError } from './errors.js'
 
 // ---------------------------------------------------------------------------
 // Per-feature description helpers

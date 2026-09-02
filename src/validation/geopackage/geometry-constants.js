@@ -1,13 +1,10 @@
 /**
  * Tolerances, thresholds and caps shared by every geometry-validation engine.
  *
- * These numbers are the validation policy. They used to live inside
- * `postgis/index.js`, interpolated into the SQL at module load. With a second
- * engine (`geos/`) running the same fifteen checks in-process, a copied
- * constant is a silent divergence waiting to happen — the two engines would
- * agree until someone tuned one of them. Holding them here means the PostGIS
- * statement and the GEOS checks cannot disagree about a threshold: they read
- * the same value.
+ * These numbers are the validation policy. They used to be interpolated into a
+ * PostGIS statement at module load; that statement has been replaced by the
+ * in-process GEOS engine in `geos/`, and they live here so the policy is stated
+ * in one place rather than buried in the checks that apply it.
  *
  * Everything is in EPSG:27700 units — metres and square metres.
  */

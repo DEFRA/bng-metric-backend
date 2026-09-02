@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 
-import { ERROR_CODES } from '../errors.js'
+import { ERROR_CODES } from './errors.js'
 import { ERROR_BUILDERS } from './error-builders.js'
 
 // Sample-cap fixtures for the "(and N more)" assertion. Values match the

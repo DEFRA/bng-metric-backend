@@ -10,22 +10,15 @@ export const GEOPACKAGE_METRIC = {
   validationFailed: 'GeoPackageValidationFailed',
   uploadSizeBytes: 'GeoPackageUploadSizeBytes',
   /**
-   * Files where the PostGIS and GEOS engines disagreed, sliced by a three-valued
-   * `kind` dimension (codes / payload / wkt — see geos/shadow.js). Emitted only
-   * in shadow mode. The rollout gate: `kind=codes` reaching and staying at zero
-   * over a soak is what says the in-process engine can be trusted with the
-   * default.
+   * Uploads refused with a 503 because every validation worker was busy and the
+   * queue was full. Not a validation failure — the file was never looked at —
+   * which is why it is counted apart from `validationFailed`.
+   *
+   * This is the capacity signal. A non-zero rate means the worker pool is
+   * undersized for the traffic, and the levers are VALIDATION_WORKER_COUNT (if
+   * the task has the memory) or more backend instances.
    */
-  validationEngineDivergence: 'GeoPackageValidationEngineDivergence',
-  /**
-   * Validations where the GEOS engine could not produce an answer — a full
-   * queue, a worker timeout, a crash, or no file path to give a worker — sliced
-   * by a low-cardinality `reason`. Under `engine=geos` that means the request
-   * fell back to the PostGIS statement; under `engine=shadow` it means there was
-   * nothing to compare against. Either way a rising rate says the worker pool is
-   * undersized or unwell, not that verdicts are wrong.
-   */
-  validationEngineFallback: 'GeoPackageValidationEngineFallback'
+  validationBusy: 'GeoPackageValidationBusy'
 }
 
 /**
@@ -54,9 +47,21 @@ export const VALIDATION_CATEGORY = {
 export const PERFORMANCE_METRIC = {
   /** Opening the GeoPackage and decoding every feature — synchronous, blocking. */
   parseMs: 'UploadParseMs',
-  /** The single large PostGIS geometry-validation statement. */
-  postgisValidateMs: 'UploadPostgisValidateMs',
-  /** The separate PostGIS round trip that sizes each habitat. */
+  /**
+   * The geometry-validation stage.
+   *
+   * The EMITTED NAME still says Postgis, and that is deliberate. The stage no
+   * longer runs in PostGIS — it runs on a worker thread — but keeping the name
+   * keeps the Grafana history continuous across the switch, which is exactly the
+   * comparison anyone watching this rollout wants to make. Rename it in a
+   * follow-up once the dashboards have been repointed, not before.
+   */
+  geometryValidateMs: 'UploadPostgisValidateMs',
+  /**
+   * The habitat-sizing stage. Now a pure map over measurements the validation
+   * worker already made, rather than the second PostGIS round trip it used to
+   * be — kept so the drop is visible on the dashboard rather than vanishing.
+   */
   sizingMs: 'UploadSizingMs',
   /** Document extract + engine enrichment, inline on the request handler. */
   enrichMs: 'UploadEnrichMs',

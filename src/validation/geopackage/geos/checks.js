@@ -1,12 +1,12 @@
 /**
  * The fifteen geometry rules, run against GEOS in-process.
  *
- * Every function here is a transliteration of one CTE in
- * `postgis/index.js` — same tolerance, same predicate, same choice between the
- * geometry as supplied and its MakeValid repair. Where the SQL comment explains
- * *why* a check is written the way it is, that reasoning is not repeated; read
- * it there. What is recorded here is anything the translation had to decide,
- * because those are the places the two engines could drift apart.
+ * Every function here began as a transliteration of one CTE in the PostGIS
+ * statement this engine replaced — same tolerance, same predicate, same choice
+ * between the geometry as supplied and its MakeValid repair. That statement is
+ * gone now, so this file is the only remaining statement of what each rule is;
+ * the verdicts the SQL used to produce are preserved as a regression fixture
+ * (integration-tests/fixtures/postgis-geometry-verdicts.json).
  *
  * The raw/repaired split is the subtlest of them, and it is not arbitrary:
  *
