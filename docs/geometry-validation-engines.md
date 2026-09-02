@@ -136,12 +136,45 @@ The pool cap **is** the admission control. It is the same protective bounding th
 connection pool used to provide, except the rationed resource is CPU on an
 instance CDP can add more of.
 
-**Memory is why the pool is small.** WebAssembly linear memory grows to the
-high-water mark of the work done and is never returned to the OS, so a worker
-that has validated a large file keeps that footprint — measured plateauing at
-~375 MB and staying flat from run 20 to run 100. Two workers is therefore roughly
-800 MB of steady state. **Check the ECS task memory limit before raising
-`VALIDATION_WORKER_COUNT`.**
+### Memory is why the pool is small
+
+WebAssembly linear memory grows to the high-water mark of the work done and is
+never handed back, so a worker that has validated one large file keeps that
+footprint for the rest of its life. Worker threads live in the SAME process as
+the server, so this counts against the same container limit — it is not budget
+that sits somewhere else.
+
+Measured on the 5,000-parcel fixture (9,500 features), as whole-process RSS:
+
+|                                        |                               RSS |
+| -------------------------------------- | --------------------------------: |
+| Server modules loaded, no workers      |                             58 MB |
+| 1 worker, after one validation         |                            233 MB |
+| 2 workers, after one validation each   |                            339 MB |
+| 2 workers, after five validations each | **565 MB** (flat from the fourth) |
+
+So roughly **250 MB per worker**, and it plateaus rather than leaking — flat
+across the last two rounds, and the spike saw the same thing out to a hundred
+runs.
+
+Two properties follow, and they are easy to get wrong:
+
+- **It is the LARGEST file a worker has ever seen that sets its footprint, not
+  the average.** Most real submissions are tens of features and would settle far
+  lower — but one 5,000-parcel upload pins that worker at ~250 MB permanently.
+  Size the pool for the worst file you accept, not the typical one.
+- **Recycling workers would not reclaim it.** Killing a worker and starting a
+  fresh one does not return the memory to the OS; the replacement reuses the
+  pages instead. Measured over six kill-and-restart cycles, RSS settles at
+  ~279 MB and stops climbing, so the timeout / crash path is safe — but there is
+  no point building a "restart every N jobs" mechanism, because it would buy
+  nothing.
+
+**Check the ECS task memory limit before raising `VALIDATION_WORKER_COUNT`, and
+before shipping at all.** The default of 2 workers wants roughly 565 MB of
+headroom on top of Node's own baseline and the parsed layers an in-flight upload
+holds on the heap. At a 2 GB task that is comfortable; at 1 GB it is one worker
+at most; below that this does not ship in the shape it is built.
 
 ### Why the worker is given a file path, not the layers
 
