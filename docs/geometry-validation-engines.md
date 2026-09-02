@@ -7,13 +7,13 @@ watercourses, IGGIs and trees must sit inside the boundary; the parcels must sum
 to the redline. There are two engines that can run those rules, and they are
 required to give the same answer.
 
-|                                 | `postgis`                   | `geos`                          |
-| ------------------------------- | --------------------------- | ------------------------------- |
-| Where the geometry work happens | one large SQL statement     | a worker thread in this process |
-| Database connections held       | 1, for the whole validation | 0                               |
-| Library doing the geometry      | GEOS, inside PostGIS        | GEOS, compiled to WebAssembly   |
-| Event loop                      | free (the query is awaited) | free (the work is on a worker)  |
-| Scales with                     | database capacity           | backend instances               |
+|                                 | `postgis`                                                  | `geos`                          |
+| ------------------------------- | ---------------------------------------------------------- | ------------------------------- |
+| Where the geometry work happens | one large SQL statement                                    | a worker thread in this process |
+| Database connections held       | 1, for the whole validation                                | 0                               |
+| Library doing the geometry      | GEOS, inside PostGIS                                       | GEOS, compiled to WebAssembly   |
+| Event loop                      | mostly free (the query is awaited, but marshalling is not) | free (the work is on a worker)  |
+| Scales with                     | database capacity                                          | backend instances               |
 
 `VALIDATION_ENGINE` selects between them, and it takes a third value:
 
@@ -30,19 +30,45 @@ PostGIS is a restart rather than a deploy.
 
 Geometry validation was rationing itself on database connections — a resource
 shared with every login and page load, and one the service cannot scale on its
-own. Measured with a light project-list probe running alongside:
+own. With a light pooled-query probe running alongside, against the same
+`max: 10` pool the app uses:
 
-|                                              | Requests served in 12 s | Connection acquire p50 |
-| -------------------------------------------- | ----------------------: | ---------------------: |
-| Idle                                         |                  60,574 |                   0 ms |
-| 12 concurrent validations, PostGIS           |                   **5** |               1,091 ms |
-| 2 workers validating continuously, GEOS-WASM |              **71,651** |                   0 ms |
+|                                     | Probe requests served in 12 s | Connection acquire p50 |
+| ----------------------------------- | ----------------------------: | ---------------------: |
+| Idle                                |                       ~73,000 |                   0 ms |
+| 12 concurrent no-op loops (control) |                       ~98,000 |                   0 ms |
+| 12 concurrent validations, PostGIS  |                         **1** |          **18,162 ms** |
+| 12 concurrent validations, GEOS     |                      ~116,000 |                   0 ms |
 
-The in-process engine is also faster in absolute terms — 575 ms against 1,129 ms
-on a 5,000-parcel file, and 20–50× faster on the smaller real submissions in
-`example-files/`, where the SQL round trip dominates. But the throughput column
-is the reason it was built: validation stops competing with everything else the
-service does.
+Read the GEOS row against the _control_, not against idle. Merely having twelve
+async loops pending raises the probe rate above idle — an artefact of the event
+loop polling harder when it has work to do — so the honest statement is that GEOS
+load is **indistinguishable from no validation at all**, while PostGIS load is a
+collapse to a single served request with an eighteen-second wait for a
+connection. All ten pool connections are held by validations; nothing else gets
+one.
+
+The spike measured the same shape on larger hardware: 60,574 idle, 5 under
+PostGIS load, 71,651 under GEOS load (`evidence/geos-wasm-spike.txt`).
+
+The in-process engine is also faster in absolute terms. Measured on the same
+fixtures, GEOS run inline so the comparison is engine against engine:
+
+| Parcels | Features |   PostGIS |   GEOS | Verdicts  |
+| ------: | -------: | --------: | -----: | --------- |
+|     250 |      475 |    715 ms |  38 ms | identical |
+|   1,000 |    1,900 |  2,585 ms | 141 ms | identical |
+|   5,000 |    9,500 | 13,483 ms | 683 ms | identical |
+
+**Do not quote that ratio as a production expectation.** These come off a 2-vCPU
+box with PostgreSQL co-resident, which starves the SQL side of CPU far more than
+a real deployment would; the spike measured 1,129 ms against 575 ms at 5,000
+parcels on larger hardware, and roughly 2× is the figure to plan with. What the
+table is genuinely good for is its last column: the engines still agree exactly
+at 5,000 parcels, an order of magnitude past anything in `example-files/`.
+
+But the throughput table is why this was built. Validation stops competing with
+everything else the service does.
 
 ## How parity is guaranteed rather than hoped for
 
@@ -82,9 +108,23 @@ punctuation conventions.
 
 ## The worker pool
 
-GEOS is synchronous C code. Run inline it blocked the event loop for 2,344 ms on
-a 5,000-parcel file; on a worker that becomes 0 ms p50, 38 ms max. Worker threads
-are a precondition, not an optimisation.
+GEOS is synchronous C code, and running it inline freezes the process. Measured
+on the 5,000-parcel file, by sampling how late a 10 ms interval actually fires:
+
+|                                |  Duration | Loop lag p50 | Loop lag max | Timer ticks |
+| ------------------------------ | --------: | -----------: | -----------: | ----------: |
+| PostGIS (awaited query)        | 13,532 ms |       1.3 ms |       126 ms |       1,173 |
+| GEOS inline on the main thread |    694 ms |       1.2 ms |   **684 ms** |       **4** |
+| GEOS on a worker thread        |    756 ms |       1.0 ms |        18 ms |          70 |
+
+Four timer ticks in 694 ms is the whole story: run inline, the loop gets almost
+no turns at all and the process serves nothing else for the duration. On a worker
+it ticks 70 times and the longest stall is 18 ms. Worker threads are a
+precondition here, not an optimisation.
+
+Note that the PostGIS row is not lag-free either — 126 ms, from synchronously
+marshalling 9,500 geometries into query parameters and parsing the result back.
+That work stays on the main thread whichever engine runs.
 
 | Setting                         | Default | What it is                                       |
 | ------------------------------- | ------: | ------------------------------------------------ |
