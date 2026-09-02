@@ -251,6 +251,56 @@ the whole validation.
 `validateGeoPackageLayers`, which throws without one rather than silently
 skipping the geometry checks.
 
+## What to watch
+
+Three questions, and the metric that answers each.
+
+**Is it keeping up?** These are the leading indicators — they move before anyone
+is turned away.
+
+| Metric                        | Meaning                                                                    |
+| ----------------------------- | -------------------------------------------------------------------------- |
+| `UploadValidationQueueWaitMs` | Time spent waiting for a free worker. Climbing = too few workers.          |
+| `ValidationWorkerQueueDepth`  | Validations queued, sampled as each is served.                             |
+| `UploadPostgisValidateMs`     | Time spent actually validating. Climbing = bigger files, not more of them. |
+
+Wait and work are separated on purpose: they look identical in a total, and they
+have opposite remedies. (`UploadPostgisValidateMs` keeps its name for dashboard
+continuity across the engine change — see `metric-names.js`.)
+
+**Is it turning people away?** `GeoPackageValidationBusy`, sliced by `reason`:
+
+| `reason`      | Means                                                          | Remedy                                                 |
+| ------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
+| `no_capacity` | Refused before doing any work. The expected case under load.   | More workers, or more instances.                       |
+| `queue_full`  | Same, reached through a race — the capacity check is advisory. | As above.                                              |
+| `queue_wait`  | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first. |
+
+Counted apart from `GeoPackageValidationFailed`, because the file was never
+looked at — a busy spike is a capacity story, not a data-quality one, and mixing
+them would hide both.
+
+**Can it be given more workers?** `BackendProcessResidentMb`, sampled after each
+validation. This is the telemetry for the rollout's one open question. Worker
+threads share this process and their WebAssembly heaps never shrink, so the
+figure to compare against the ECS task limit is the whole-process one, not a
+per-worker estimate. `ValidationWorkerRestarts` rising alongside it is the OOM
+signature; `ValidationWorkerTimeouts` should be flat at zero, and a non-zero rate
+means a file is defeating the engine rather than merely being large.
+
+Alongside these, the `geos-worker-validate` evidence line carries the
+high-cardinality detail for investigating one upload — GEOS version (which ties a
+divergence to a build), pool stats, and the wait and work split again. It rides
+on `ENABLE_PERF_EVIDENCE` and will go when that does; the metrics above are the
+durable surface and none of them depend on it.
+
+**Not measured, deliberately:** how many times a user polled before getting
+through, and how many gave up at the two-minute cap. That is the user-facing
+shape of a busy period and it lives in the frontend, which has no metrics
+pipeline. `GeoPackageValidationBusy` is a reasonable proxy — one busy response
+per poll — but it cannot distinguish ten users retrying once from one user
+retrying ten times.
+
 ## Habitat sizing comes along for free
 
 `calculateHabitatSizes` used to send the same geometry to PostGIS a second time

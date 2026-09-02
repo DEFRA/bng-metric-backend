@@ -10,15 +10,63 @@ export const GEOPACKAGE_METRIC = {
   validationFailed: 'GeoPackageValidationFailed',
   uploadSizeBytes: 'GeoPackageUploadSizeBytes',
   /**
-   * Uploads refused with a 503 because every validation worker was busy and the
-   * queue was full. Not a validation failure — the file was never looked at —
-   * which is why it is counted apart from `validationFailed`.
+   * Uploads refused with a 503 because the validator was saturated. Not a
+   * validation failure — the file was never looked at — which is why it is
+   * counted apart from `validationFailed`.
    *
-   * This is the capacity signal. A non-zero rate means the worker pool is
-   * undersized for the traffic, and the levers are VALIDATION_WORKER_COUNT (if
-   * the task has the memory) or more backend instances.
+   * This is the capacity signal, sliced by a three-valued `reason` because the
+   * three ways of being refused have different remedies. See
+   * {@link VALIDATION_BUSY_REASON}.
    */
   validationBusy: 'GeoPackageValidationBusy'
+}
+
+/**
+ * Values for the `reason` dimension on GeoPackageValidationBusy. Three ways to
+ * be told "not now", and they are not interchangeable:
+ *
+ *   no_capacity  The route refused before doing any work, because the pool was
+ *                already full. The cheap, expected case under load.
+ *   queue_full   The pool refused at the point of running. Same meaning as
+ *                above, reached through a race — the capacity check is advisory.
+ *   queue_wait   A job sat in the queue longer than it was worth starting. This
+ *                one says jobs are slow, not that arrivals are many, so the
+ *                remedy is different: look at file sizes before adding workers.
+ */
+export const VALIDATION_BUSY_REASON = Object.freeze({
+  noCapacity: 'no_capacity',
+  queueFull: 'queue_full',
+  queueWait: 'queue_wait'
+})
+
+/**
+ * Health of the geometry-validation worker pool.
+ *
+ * These are the leading indicators. `GeoPackageValidationBusy` only moves once
+ * users are already being turned away; queue depth and wait time start climbing
+ * well before that, and the memory figure is the one that decides whether adding
+ * workers is even an option.
+ */
+export const VALIDATION_METRIC = {
+  /** Validations waiting for a free worker, sampled as each one is served. */
+  workerQueueDepth: 'ValidationWorkerQueueDepth',
+  /**
+   * Workers replaced after dying — a crash, or the WebAssembly heap running out.
+   * Should be flat at zero. A rising rate alongside memory is the OOM signature.
+   */
+  workerRestarts: 'ValidationWorkerRestarts',
+  /** Validations killed for overrunning VALIDATION_WORKER_TIMEOUT_MS. */
+  workerTimeouts: 'ValidationWorkerTimeouts',
+  /**
+   * Whole-process resident memory, sampled after each validation.
+   *
+   * Process-wide on purpose: worker threads share this process, their
+   * WebAssembly heaps grow to the largest file each has ever seen and are never
+   * returned, and it is the TOTAL that has to fit the ECS task limit. This is
+   * the telemetry for the one question the rollout still has open — whether the
+   * task can hold the workers it is configured for.
+   */
+  processResidentMb: 'BackendProcessResidentMb'
 }
 
 /**
@@ -67,6 +115,12 @@ export const PERFORMANCE_METRIC = {
   enrichMs: 'UploadEnrichMs',
   /** The persist transaction: geometry inserts plus the document update. */
   persistMs: 'UploadPersistMs',
+  /**
+   * Time a validation spent waiting for a free worker, before any geometry work
+   * began. Separated from geometryValidateMs because the two have opposite
+   * remedies: waiting means too few workers, working means too much geometry.
+   */
+  queueWaitMs: 'UploadValidationQueueWaitMs',
   /** Whole validate-and-save handler, end to end. */
   totalMs: 'UploadTotalMs',
   /** Features carried through the pipeline — the scale behind every duration. */

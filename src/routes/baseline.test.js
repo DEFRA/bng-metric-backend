@@ -126,7 +126,7 @@ const { validateGeoPackageLayers } =
   await import('../validation/geopackage/index.js')
 const { calculateHabitatSizes } =
   await import('../services/upload/calculate-habitat-sizes.js')
-const { metricsCounter, metricsByteSize } =
+const { metricsCounter, metricsByteSize, metricsGauge, metricsMillis } =
   await import('../common/helpers/metrics.js')
 const { validateBaseline } = await import('./baseline.js')
 
@@ -399,6 +399,28 @@ describe('validateBaseline handler — service busy', () => {
     )
   })
 
+  it('counts the refusal with the reason, so the remedy is distinguishable', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).toHaveBeenCalledWith('GeoPackageValidationBusy', 1, {
+      reason: 'queue_full'
+    })
+  })
+
+  it('does not count it as a validation failure — the file was never read', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      'GeoPackageValidationFailed',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
   it('does not persist anything', async () => {
     await validateBaseline.handler(
       makeBaselineRequest({
@@ -408,6 +430,73 @@ describe('validateBaseline handler — service busy', () => {
       h
     )
     expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+})
+
+// The leading indicators for the worker pool. GeoPackageValidationBusy only
+// moves once users are already being turned away; these start climbing before
+// that, and the memory figure is what says whether more workers are an option.
+describe('validateBaseline handler — worker pool telemetry', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
+      valid: true,
+      errors: [],
+      poolTelemetry: { queueWaitMs: 42, queueDepth: 3 }
+    })
+  })
+
+  it('records how long the validation waited for a worker', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsMillis).toHaveBeenCalledWith(
+      'UploadValidationQueueWaitMs',
+      42,
+      { documentKey: 'baseline' }
+    )
+  })
+
+  it('records how deep the queue was', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsGauge).toHaveBeenCalledWith('ValidationWorkerQueueDepth', 3)
+  })
+
+  // The open question on this rollout is whether the ECS task can hold the
+  // workers it is configured for. Without this metric that is unobservable.
+  it('records resident memory, which is what bounds the worker count', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsGauge).toHaveBeenCalledWith(
+      'BackendProcessResidentMb',
+      expect.any(Number)
+    )
+  })
+
+  it('skips the pool metrics when there is no telemetry to report', async () => {
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
+      valid: true,
+      errors: []
+    })
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsGauge).not.toHaveBeenCalledWith(
+      'ValidationWorkerQueueDepth',
+      expect.anything()
+    )
   })
 })
 
