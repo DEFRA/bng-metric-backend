@@ -31,8 +31,24 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createLogger } from '../../../common/helpers/logging/logger.js'
+import { metricsCounter } from '../../../common/helpers/metrics.js'
+import { VALIDATION_METRIC } from '../../../common/helpers/metric-names.js'
 
 const logger = createLogger()
+
+/**
+ * Count an event without making the caller wait for the flush.
+ *
+ * The pool's lifecycle hooks are synchronous — a worker dies, a timer fires —
+ * and metric emission is async. `withMetrics` already swallows its own failures,
+ * so the only thing left to handle is the floating promise.
+ */
+function count(name) {
+  metricsCounter(name).catch(() => {
+    // Unreachable: withMetrics never rejects. Here so a future change to that
+    // contract cannot turn a metric into an unhandled rejection.
+  })
+}
 
 const WORKER_PATH = join(dirname(fileURLToPath(import.meta.url)), 'worker.js')
 
@@ -164,7 +180,9 @@ export class GeosWorkerPool {
       error.stack = message.error.stack
       job.reject(error)
     } else {
-      job.resolve(message.result)
+      // The wait is the caller's to record: only the pool knows it, and it is
+      // the number that separates "too few workers" from "too much geometry".
+      job.resolve({ ...message.result, queueWaitMs: job.queueWaitMs })
     }
     this.release(record)
   }
@@ -191,6 +209,7 @@ export class GeosWorkerPool {
     logger.warn(
       `geos validation worker exited${error ? `: ${error.message}` : ''} — replacing it`
     )
+    count(VALIDATION_METRIC.workerRestarts)
     this.release(this.spawn())
   }
 
@@ -239,6 +258,7 @@ export class GeosWorkerPool {
       this.release(record)
       return
     }
+    job.queueWaitMs = waited
     record.job = job
     record.worker.ref()
     record.timer = setTimeout(() => this.onTimeout(record, job), this.timeoutMs)
@@ -263,6 +283,7 @@ export class GeosWorkerPool {
     logger.error(
       `geos validation exceeded ${this.timeoutMs} ms for ${job.filePath} — terminating the worker`
     )
+    count(VALIDATION_METRIC.workerTimeouts)
     record.worker.terminate()
   }
 

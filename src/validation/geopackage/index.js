@@ -76,13 +76,16 @@ export async function validateGeoPackageLayers(layers, variant, options = {}) {
 
   const pool = workerPool()
   const start = perfNow()
-  const { valid, errors, sizes, geosVersion } = await pool.run(filePath, {
-    includeSizes
-  })
+  const { valid, errors, sizes, geosVersion, queueWaitMs } = await pool.run(
+    filePath,
+    { includeSizes }
+  )
+  const stats = pool.stats()
   logPerf(logger, 'geos-worker-validate', {
     validateMs: msSince(start),
+    queueWaitMs,
     geosVersion,
-    ...pool.stats()
+    ...stats
   })
 
   // JS-side checks that don't need geometry. Surface ahead of geometry errors so
@@ -93,8 +96,18 @@ export async function validateGeoPackageLayers(layers, variant, options = {}) {
     checkAdvanceAndDelayNotBothSet(layers)
   ].filter(Boolean)
 
+  // Handed back so the route can promote them to metrics. They are measured
+  // here because this is the only place that sees both the pool and the clock,
+  // and emitted there because the route owns the per-request metric budget.
+  const poolTelemetry = { queueWaitMs, queueDepth: stats.queued }
+
   if (dataQualityErrors.length === 0) {
-    return { valid, errors, sizes }
+    return { valid, errors, sizes, poolTelemetry }
   }
-  return { valid: false, errors: [...dataQualityErrors, ...errors], sizes }
+  return {
+    valid: false,
+    errors: [...dataQualityErrors, ...errors],
+    sizes,
+    poolTelemetry
+  }
 }

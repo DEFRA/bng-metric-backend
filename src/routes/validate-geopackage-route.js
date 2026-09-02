@@ -36,8 +36,11 @@ import {
 import {
   GEOPACKAGE_METRIC,
   PERFORMANCE_METRIC,
-  VALIDATION_CATEGORY
+  VALIDATION_BUSY_REASON,
+  VALIDATION_CATEGORY,
+  VALIDATION_METRIC
 } from '../common/helpers/metric-names.js'
+import { memoryUsageMb } from '../common/helpers/perf-evidence.js'
 import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
 // Aliased: every function in this file takes a route `config` object, and the
 // application config is a different thing entirely.
@@ -202,18 +205,21 @@ function validationPool() {
 }
 
 /** Both ways the pool can refuse a file without looking at it. */
-function isBusyError(error) {
-  return (
-    error instanceof ValidationQueueFullError ||
-    error instanceof ValidationQueueWaitError
-  )
+function busyReason(error) {
+  if (error instanceof ValidationQueueFullError) {
+    return VALIDATION_BUSY_REASON.queueFull
+  }
+  if (error instanceof ValidationQueueWaitError) {
+    return VALIDATION_BUSY_REASON.queueWait
+  }
+  return null
 }
 
-async function respondToBusy(uploadId, h, config) {
+async function respondToBusy(uploadId, h, config, reason) {
   logger.warn(
-    `${config.routeName} - validation queue full for uploadId ${uploadId}; asked the caller to retry`
+    `${config.routeName} - validation refused as busy (${reason}) for uploadId ${uploadId}; asked the caller to retry`
   )
-  await metricsCounter(GEOPACKAGE_METRIC.validationBusy)
+  await metricsCounter(GEOPACKAGE_METRIC.validationBusy, 1, { reason })
   return h
     .response({
       valid: false,
@@ -246,6 +252,35 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
   return h.response(result)
 }
 
+/**
+ * Promote the worker pool's own numbers to metrics.
+ *
+ * These are the LEADING indicators. `GeoPackageValidationBusy` only moves once
+ * users are being turned away; queue depth and wait time start climbing well
+ * before that. Resident memory rides along because it is the figure that decides
+ * whether adding workers is even an option — the workers share this process, and
+ * their WebAssembly heaps never shrink.
+ *
+ * Sampled once per validation rather than on a timer: uploads are infrequent
+ * enough that this is a handful of flushes a minute, and the moment just after a
+ * validation is exactly when the high-water mark is worth reading.
+ */
+async function recordPoolHealth(poolTelemetry, config) {
+  if (!poolTelemetry) {
+    return
+  }
+  await metricsMillis(
+    PERFORMANCE_METRIC.queueWaitMs,
+    poolTelemetry.queueWaitMs,
+    { documentKey: config.projectDocumentKey }
+  )
+  await metricsGauge(
+    VALIDATION_METRIC.workerQueueDepth,
+    poolTelemetry.queueDepth
+  )
+  await metricsGauge(VALIDATION_METRIC.processResidentMb, memoryUsageMb().rssMb)
+}
+
 async function validateLayers(layers, drizzle, context, h, config) {
   const { uploadId, projectId, credentials, filename, fileSize, filePath } =
     context
@@ -264,6 +299,7 @@ async function validateLayers(layers, drizzle, context, h, config) {
     config.projectDocumentKey,
     { filePath, includeSizes: Boolean(projectId) }
   )
+  await recordPoolHealth(result.poolTelemetry, config)
   await recordStage(
     PERFORMANCE_METRIC.geometryValidateMs,
     msSince(validateStart),
@@ -347,8 +383,9 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     }
     // A full queue means the file was never looked at — a capacity condition,
     // not a fault, and the only one of these worth telling the user to retry.
-    if (isBusyError(error)) {
-      return await respondToBusy(uploadId, h, config)
+    const busy = busyReason(error)
+    if (busy) {
+      return await respondToBusy(uploadId, h, config, busy)
     }
     logger.error(
       `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`
@@ -408,7 +445,12 @@ function createValidateGeoPackageRoute(config) {
       // answer to a refusal is to try again in a few seconds. Advisory only:
       // the pool re-checks, and can still refuse later.
       if (!validationPool().hasCapacity()) {
-        return respondToBusy(uploadId, h, config)
+        return respondToBusy(
+          uploadId,
+          h,
+          config,
+          VALIDATION_BUSY_REASON.noCapacity
+        )
       }
 
       const { bucket, key, filename, fileSize } = await resolveUploadLocation(
