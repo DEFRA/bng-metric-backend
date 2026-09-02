@@ -1,63 +1,27 @@
-import { createLogger } from '../../common/helpers/logging/logger.js'
-import {
-  logPerf,
-  perfNow,
-  msSince
-} from '../../common/helpers/perf-evidence.js'
-import { toGeometryJson } from '../../validation/geopackage/geometry-json.js'
-
-const logger = createLogger()
+/**
+ * Habitat sizes, taken straight off the back of validation.
+ *
+ * This used to be a second PostGIS round trip that re-parsed and re-repaired
+ * every geometry purely to call ST_Area / ST_Length on it — a fourth pass over
+ * shapes the validator had already parsed, repaired and measured. The GEOS
+ * worker holds the repaired geometry at the moment it finishes checking, so the
+ * numbers now cost a pointer dereference each and come back with the verdict.
+ *
+ * What is left here is the join. The worker keys its measurements by a feature's
+ * position within its layer, because that is all it can know: `featureId` is
+ * assigned on the main thread, after validation. {@link attachGeometrySizes}
+ * puts the two together, and {@link calculateHabitatSizes} shapes the result the
+ * document extract expects.
+ */
 
 const HABITAT_SIZE_LAYERS = ['areas', 'hedgerows', 'watercourses']
 
 /**
  * Field the geometry engine's per-feature measurement is stamped onto, by
  * {@link attachGeometrySizes}. In-memory only, for the life of one request —
- * never persisted, and never read by anything but this module.
+ * never persisted, and never read outside this module.
  */
 const GEOMETRY_SIZE_FIELD = 'geometrySize'
-
-const CALCULATE_HABITAT_SIZES_QUERY = /* sql */ `
-WITH features_in AS (
-  SELECT layer,
-         feature_id,
-         ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(g), srid), 27700) AS geom
-  FROM unnest($1::text[], $2::text[], $3::text[], $4::int[])
-    AS t(layer, feature_id, g, srid)
-)
-SELECT layer,
-       feature_id,
-       CASE
-         WHEN layer = 'areas' THEN ST_Area(ST_MakeValid(geom))
-         ELSE ST_Length(ST_MakeValid(geom))
-       END AS size_value
-FROM features_in
-ORDER BY layer, feature_id
-`
-
-function buildLayerArrays(layers) {
-  const layerNames = []
-  const featureIds = []
-  const geoms = []
-  const srids = []
-
-  for (const layerName of HABITAT_SIZE_LAYERS) {
-    const features = layers[layerName] ?? []
-
-    for (const feature of features) {
-      if (!feature?.nativeGeometry) {
-        continue
-      }
-
-      layerNames.push(layerName)
-      featureIds.push(feature.featureId)
-      geoms.push(toGeometryJson(feature.geometryJson, feature.nativeGeometry))
-      srids.push(feature.nativeSrid)
-    }
-  }
-
-  return { layerNames, featureIds, geoms, srids }
-}
 
 function emptyResult() {
   return {
@@ -90,27 +54,24 @@ function mapLayerToKey(layerName) {
   return null
 }
 
-function appendCalculatedSizes(result, rows) {
-  for (const row of rows) {
-    const key = mapLayerToKey(row.layer)
-    if (!key) {
-      continue
-    }
-
-    const sizeValue = Number(row.size_value)
-    if (key === 'areaHabitats') {
-      result[key].individualSquareMetres.push({
-        featureId: row.feature_id,
-        sizeSquareMetres: sizeValue
-      })
-      result[key].totalSquareMetres += sizeValue
-    } else {
-      result[key].individualMetres.push({
-        featureId: row.feature_id,
-        sizeMetres: sizeValue
-      })
-      result[key].totalMetres += sizeValue
-    }
+/**
+ * Add one feature's measurement to the result, under the shape the document
+ * extract reads: areas carry a square-metre size, the linear layers a metre one.
+ */
+function appendSize(result, layerName, featureId, sizeValue) {
+  const key = mapLayerToKey(layerName)
+  if (!key) {
+    return
+  }
+  if (key === 'areaHabitats') {
+    result[key].individualSquareMetres.push({
+      featureId,
+      sizeSquareMetres: sizeValue
+    })
+    result[key].totalSquareMetres += sizeValue
+  } else {
+    result[key].individualMetres.push({ featureId, sizeMetres: sizeValue })
+    result[key].totalMetres += sizeValue
   }
 }
 
@@ -118,14 +79,10 @@ function appendCalculatedSizes(result, rows) {
  * Stamp the geometry engine's per-feature measurements onto the features they
  * belong to.
  *
- * The engine returns sizes keyed by a feature's position within its layer,
- * because that is all a worker thread knows: `featureId` is assigned on the main
- * thread, after validation. This is where the two meet — and it has to happen
- * BEFORE the post-intervention path drops its Lost features, because that filter
- * changes the positions the sizes are keyed by.
- *
- * Sizes are a pure function of geometry and the filter only ever removes
- * features, so measuring everything and then discarding some is correct.
+ * Must run BEFORE the post-intervention path drops its Lost features, because
+ * that filter changes the positions the measurements are keyed by. Sizes are a
+ * pure function of geometry and the filter only ever removes features, so
+ * measuring everything and then discarding some is correct.
  *
  * @param {object} layers layers with featureIds already assigned
  * @param {Record<string, Array<{ idx: number, value: number }>>} [sizes]
@@ -150,20 +107,19 @@ function attachGeometrySizes(layers, sizes) {
 }
 
 /**
- * Build the sizing result from measurements the geometry engine already made,
- * or return null if it did not make them all.
+ * Build the habitat-size result from the measurements the geometry engine made.
  *
- * The all-or-nothing rule is deliberate: a partial result would silently record
- * some habitats with a size and others without, which is far worse than paying
- * for one more PostGIS round trip. Anything unexpected — the PostGIS engine ran,
- * a worker fell back, a caller assembled layers by hand — lands on the query.
+ * Throws when a feature that should have been measured was not. That is
+ * deliberately fatal rather than silently partial: recording some habitats with
+ * a size and others without would corrupt the project document in a way nobody
+ * would notice until the units came out wrong. The route turns it into a
+ * SIZING_FAILED response.
  *
- * @param {object} layers
- * @returns {object|null}
+ * @param {object} layers layers carrying featureIds and stamped sizes
+ * @returns {object}
  */
-function habitatSizesFromGeometry(layers) {
+function calculateHabitatSizes(layers) {
   const result = emptyResult()
-  let measured = 0
 
   for (const layerName of HABITAT_SIZE_LAYERS) {
     for (const feature of layers[layerName] ?? []) {
@@ -172,68 +128,20 @@ function habitatSizesFromGeometry(layers) {
       }
       const sizeValue = feature[GEOMETRY_SIZE_FIELD]
       if (typeof sizeValue !== 'number') {
-        return null
+        throw new Error(
+          `Geometry validation did not measure ${layerName} feature ${feature.featureId ?? '(no id)'}`
+        )
       }
-      appendCalculatedSizes(result, [
-        {
-          layer: layerName,
-          feature_id: feature.featureId,
-          size_value: sizeValue
-        }
-      ])
-      measured++
+      appendSize(result, layerName, feature.featureId, sizeValue)
     }
   }
 
-  return measured === 0 ? null : result
-}
-
-async function calculateHabitatSizes(pool, layers) {
-  // The geometry engine holds the repaired geometry for every one of these
-  // features by the time the checks have finished, so when it has handed the
-  // measurements over there is nothing left to ask PostGIS for — no query, no
-  // connection, and no fourth parse of the same shapes.
-  const fromGeometry = habitatSizesFromGeometry(layers)
-  if (fromGeometry) {
-    return fromGeometry
-  }
-
-  if (!pool) {
-    throw new Error('calculateHabitatSizes requires a pg pool')
-  }
-
-  const { layerNames, featureIds, geoms, srids } = buildLayerArrays(layers)
-
-  if (layerNames.length === 0) {
-    return emptyResult()
-  }
-
-  const queryStart = perfNow()
-  const { rows } = await pool.query(CALCULATE_HABITAT_SIZES_QUERY, [
-    layerNames,
-    featureIds,
-    geoms,
-    srids
-  ])
-  // Evidence (Item 6 — the sizing pass overlaps a second PostGIS round trip):
-  // a separate awaited query that recomputes ST_MakeValid per feature,
-  // duplicating the geometry-repair work the validation statement already did.
-  logPerf(logger, 'postgis-sizing-query', {
-    featureCount: geoms.length,
-    queryMs: msSince(queryStart)
-  })
-
-  const result = emptyResult()
-  appendCalculatedSizes(result, rows)
   return result
 }
 
 export {
   HABITAT_SIZE_LAYERS,
-  CALCULATE_HABITAT_SIZES_QUERY,
   GEOMETRY_SIZE_FIELD,
   attachGeometrySizes,
-  buildLayerArrays,
-  calculateHabitatSizes,
-  habitatSizesFromGeometry
+  calculateHabitatSizes
 }

@@ -108,33 +108,43 @@ are off-heap, so the flag never sees them anyway. On Fargate each task is a
 microVM sized to the task definition, so Node's default heap already derives
 from the task's own memory rather than a shared host's.
 
-## Two geometry validation engines
+## Geometry validation runs in-process, not in the database
 
-`VALIDATION_ENGINE` selects how the fifteen geometry rules are run: `postgis`
-(one large SQL statement — **the default**), `geos` (the same GEOS library
-compiled to WebAssembly, on a worker thread in this process), or `shadow` (both,
-returning the PostGIS answer and reporting any divergence). Any GEOS-side
-failure falls back to PostGIS, so a bad day is a slower upload, not a failed one.
+The fifteen geometry rules run on a worker thread with GEOS compiled to
+WebAssembly. **Validation takes no database connection at all** — the database is
+still the system of record and `persist-upload.js` still writes geometry through
+PostGIS, but nothing checks shapes there any more.
 
-The two must agree, and three structural choices make that so rather than merely
-likely: the error builders are shared (`postgis/error-builders.js` is called by
-both), the tolerances are shared (`geometry-constants.js` is read by both), and
-the England reference polygon the GEOS path uses is PostGIS's own `ST_Transform`
-output. `integration-tests/validation-engine-parity.test.js` then runs both over
-every GeoPackage in the harness's `example-files/`.
+The PostGIS statement that used to do this has been removed, along with any
+fallback to it. A fallback would mean the same file getting different answers
+depending on how busy the box was, and would push load back onto the database
+exactly when capacity got tight. Instead a full queue returns **503
+`VALIDATION_BUSY`** with a `Retry-After` — the file was never looked at, so the
+frontend says "try again" rather than sending the user to the file-problem page.
 
-Two things to know before touching this code:
+Its correctness was kept without keeping its code:
+`integration-tests/fixtures/postgis-geometry-verdicts.json` records what the SQL
+engine said about all 98 readable GeoPackages in the harness's `example-files/`,
+and `geometry-verdict-regression.test.js` replays every one through the real
+worker pool. `geometry-validate-baseline-layers.test.js` is the rule-by-rule spec
+and was written against the old engine — the fixtures are unchanged, it was just
+pointed at the new one.
+
+Three things to know before touching this code:
 
 - **The worker takes a file path, not layers.** Cloning parsed layers across the
-  thread boundary would cost ~17 MB per upload and leave the synchronous parse on
+  thread boundary would cost ~29 MB per upload and leave the synchronous parse on
   the main thread. `filePath` must be threaded from the route through
-  `validateGeoPackageLayers`, or the GEOS engine cannot run.
-- **Each worker holds a few hundred MB.** WebAssembly memory grows to its
-  high-water mark and is never returned. Check the ECS task limit before raising
-  `VALIDATION_WORKER_COUNT`.
+  `validateGeoPackageLayers`, which throws without one.
+- **Each worker holds ~250 MB.** WebAssembly memory grows to the largest file
+  that worker has ever seen and is never returned. Check the ECS task limit
+  before raising `VALIDATION_WORKER_COUNT`.
+- **Habitat sizes come back with the verdict.** `calculateHabitatSizes` is a pure
+  function over measurements the worker already made; there is no sizing query
+  any more.
 
-Full detail, including the coordinate-system caveat and the rollout sequence, is
-in [`docs/geometry-validation-engines.md`](docs/geometry-validation-engines.md).
+Full detail, including the coordinate-system caveat, is in
+[`docs/geometry-validation.md`](docs/geometry-validation.md).
 
 ## Tests
 

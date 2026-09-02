@@ -99,7 +99,7 @@ describe('saveUploadForProject', () => {
     h = makeH()
     const { drizzle } = makeDrizzle()
     deps = { drizzle, pgPool: {}, logger }
-    calculateHabitatSizes.mockResolvedValue({ areaHabitats: {} })
+    calculateHabitatSizes.mockReturnValue({ areaHabitats: {} })
     extractHabitatData.mockReturnValue({
       document: { habitats: [] },
       geometries: { habitats: [] }
@@ -161,7 +161,12 @@ describe('saveUploadForProject', () => {
   })
 
   it('returns a 500 response when habitat sizing fails', async () => {
-    calculateHabitatSizes.mockRejectedValue(new Error('PostGIS unavailable'))
+    // Sizing is synchronous now — it reads measurements the validation worker
+    // already made, and throws if any are missing rather than persisting a
+    // document with half its habitats unsized.
+    calculateHabitatSizes.mockImplementation(() => {
+      throw new Error('did not measure areas feature a1')
+    })
 
     const result = await saveUploadForProject(
       deps,

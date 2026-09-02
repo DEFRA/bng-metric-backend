@@ -1,11 +1,10 @@
 /**
- * Builders for the `details` payloads the shared `postgis/error-builders.js`
- * consumes.
+ * Builders for the `details` payloads `error-builders.js` consumes.
  *
- * This module is the parity contract. `error-builders.js` is reused verbatim by
- * both engines, so as long as the GEOS checks hand it the same payload shape
- * the PostGIS statement produces, the user-facing message is identical *by
- * construction* — there is no second copy of the wording to keep in step.
+ * This module is the compatibility contract with the PostGIS statement this
+ * engine replaced. `error-builders.js` renders the user-facing message from
+ * these payloads and is unchanged from when the SQL produced them, so keeping
+ * the payload shape keeps the wording identical.
  *
  * That makes three things load-bearing, and all three are reproduced here:
  *

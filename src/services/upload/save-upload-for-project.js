@@ -174,14 +174,11 @@ function layersForUpload(
 }
 
 async function sizeUploadedHabitats(
-  pgPool,
   layersForSizing,
   { logger, routeName, uploadId, h }
 ) {
   try {
-    return {
-      habitatSizes: await calculateHabitatSizes(pgPool, layersForSizing)
-    }
+    return { habitatSizes: calculateHabitatSizes(layersForSizing) }
   } catch (err) {
     logger.error(
       `${routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
@@ -251,19 +248,19 @@ async function persistUploadAndMaybeReEnrich(
 }
 
 /**
- * Time the PostGIS sizing pass.
+ * Time the sizing pass.
  *
- * Evidence (Item 6 — the sizing pass is a second PostGIS round trip): a
- * separate awaited query that recomputes ST_MakeValid per feature, on top of
- * the geometry-repair work the validation statement already did.
+ * Kept as a timed stage even though it no longer does any real work — the
+ * measurements now arrive with the validation verdict, so this is a map over
+ * features rather than the second PostGIS round trip it used to be. The metric
+ * stays so the drop is visible on the dashboard rather than silently vanishing.
  *
- * @param {import('pg').Pool} pgPool
  * @param {object} layersForSizing
  * @param {{ logger: object, uploadId: string, documentKey: string }} stageContext
  * @param {{ config: object, h: import('@hapi/hapi').ResponseToolkit }} deps
  * @returns {Promise<{ habitatSizes?: object, response?: object }>}
  */
-function runSizingStage(pgPool, layersForSizing, stageContext, { config, h }) {
+function runSizingStage(layersForSizing, stageContext, { config, h }) {
   const { logger, uploadId } = stageContext
   return timeSaveStage(
     {
@@ -272,7 +269,7 @@ function runSizingStage(pgPool, layersForSizing, stageContext, { config, h }) {
       stage: 'sizing'
     },
     () =>
-      sizeUploadedHabitats(pgPool, layersForSizing, {
+      sizeUploadedHabitats(layersForSizing, {
         logger,
         routeName: config.routeName,
         uploadId,
@@ -350,7 +347,7 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
  * document for a known-valid set of layers. Returns a Hapi response on any
  * recoverable error, or `null` on success.
  *
- * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
+ * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
  * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null, geometrySizes?: object }} context
@@ -365,7 +362,7 @@ export async function saveUploadForProject(
   h,
   config
 ) {
-  const { drizzle, pgPool, logger } = deps
+  const { drizzle, logger } = deps
   const { projectDocumentKey } = config
   const stageContext = {
     logger,
@@ -386,7 +383,7 @@ export async function saveUploadForProject(
     context.geometrySizes
   )
 
-  const sizing = await runSizingStage(pgPool, layersForSizing, stageContext, {
+  const sizing = await runSizingStage(layersForSizing, stageContext, {
     config,
     h
   })

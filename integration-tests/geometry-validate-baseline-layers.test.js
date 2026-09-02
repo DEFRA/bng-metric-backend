@@ -1,11 +1,25 @@
-import { afterAll, describe, expect, it } from 'vitest'
-import pg from 'pg'
+import { describe, expect, it } from 'vitest'
 
-import {
-  materialiseIndexedAreas,
-  validateGeoPackageLayersPostgis
-} from '../src/validation/geopackage/postgis/index.js'
-import { getDbConfig } from './helpers/db.js'
+import { validateGeoPackageLayersGeos } from '../src/validation/geopackage/geos/index.js'
+
+/**
+ * The rule-by-rule specification for baseline geometry validation.
+ *
+ * This suite predates the in-process GEOS engine — it was written against the
+ * PostGIS statement that engine replaced, and every fixture and threshold in it
+ * is unchanged from that version. It is pointed at the new engine deliberately:
+ * a hundred-odd assertions covering tolerance boundaries, invalid-parcel
+ * overlaps, coordinate systems and the details payloads are far better evidence
+ * than anything written fresh alongside the code they test.
+ *
+ * It runs the engine INLINE rather than through the worker pool. The pool is
+ * plumbing — covered by geos/worker-pool.test.js and
+ * geometry-validate-route.test.js — and putting a thread boundary in the way of
+ * a hundred assertions would only make failures harder to read.
+ *
+ * The verdicts the SQL engine produced for the whole example-files corpus are
+ * preserved separately, in geometry-verdict-regression.test.js.
+ */
 
 const BNG_SRID = 27700
 
@@ -17,12 +31,6 @@ const X0 = 530_000
 const Y0 = 180_000
 const EDGE = 100
 const HALF = EDGE / 2
-
-const pool = new pg.Pool(getDbConfig())
-
-afterAll(async () => {
-  await pool.end().catch(() => {})
-})
 
 function poly(ring, props = {}) {
   return {
@@ -183,7 +191,7 @@ const NOTCHED_SQUARE = [
 
 // Legs (in metres) of TOO_SMALL_PARCEL, a right triangle cut from SQUARE's
 // bottom-left corner: 1.2 × 1.2 / 2 = 0.72 sq m, under the 1 sq m
-// MIN_PARCEL_AREA_SQ_M in postgis/index.js. Deliberately a compact shape, not
+// MIN_PARCEL_AREA_SQ_M in geometry-constants.js. Deliberately a compact shape, not
 // an elongated one — the check tests area alone.
 const TOO_SMALL_LEG_M = 1.2
 
@@ -248,7 +256,7 @@ const POINT_OUTSIDE = [X0 - EDGE, Y0 - EDGE]
 // Tolerance-boundary fixtures: each one sits a known distance / area off the
 // SQUARE redline so the test can assert behaviour either side of the
 // OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) and PARCEL_OUTSIDE_TOLERANCE_SQ_M
-// (0.5 sq m) thresholds defined in postgis/index.js.
+// (0.5 sq m) thresholds defined in validation/geopackage/geometry-constants.js.
 
 // Offset under OUTSIDE_BOUNDARY_TOLERANCE_M (0.1 m) — feature should pass.
 const ESCAPE_UNDER_TOLERANCE_M = 0.05
@@ -331,16 +339,16 @@ function makeLayers(overrides = {}) {
 }
 
 async function runAndGetCodes(layers) {
-  const result = await validateGeoPackageLayersPostgis(pool, layers)
+  const result = await validateGeoPackageLayersGeos(layers)
   return result.errors.map((e) => e.code)
 }
 
 async function runAndGetError(layers, code) {
-  const result = await validateGeoPackageLayersPostgis(pool, layers)
+  const result = await validateGeoPackageLayersGeos(layers)
   return result.errors.find((e) => e.code === code)
 }
 
-describe('validateGeoPackageLayersPostgis — happy path', () => {
+describe('baseline geometry validation — happy path', () => {
   it('returns no topology errors for redline == single habitat', async () => {
     const codes = await runAndGetCodes(
       makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
@@ -354,7 +362,7 @@ describe('validateGeoPackageLayersPostgis — happy path', () => {
   })
 })
 
-describe('validateGeoPackageLayersPostgis — redline-level errors', () => {
+describe('baseline geometry validation — redline-level errors', () => {
   it('detects self-intersecting redline', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
@@ -390,7 +398,7 @@ describe('validateGeoPackageLayersPostgis — redline-level errors', () => {
   })
 })
 
-describe('validateGeoPackageLayersPostgis — habitat parcel errors', () => {
+describe('baseline geometry validation — habitat parcel errors', () => {
   it('detects parcel overlaps', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
@@ -516,7 +524,7 @@ describe('validateGeoPackageLayersPostgis — habitat parcel errors', () => {
 // The overlap self-join runs against ST_MakeValid'ed geometry, so an invalid
 // parcel is compared as the shape GEOS repairs it into. These pin down what
 // that means for a bow-tie parcel — the case example-files has no example of.
-describe('validateGeoPackageLayersPostgis — overlaps involving an invalid parcel', () => {
+describe('baseline geometry validation — overlaps involving an invalid parcel', () => {
   it('detects an overlap between a self-intersecting parcel and a valid neighbour', async () => {
     const codes = await runAndGetCodes(
       makeLayers({
@@ -554,7 +562,7 @@ describe('validateGeoPackageLayersPostgis — overlaps involving an invalid parc
   })
 })
 
-describe('validateGeoPackageLayersPostgis — non-area layers outside redline', () => {
+describe('baseline geometry validation — non-area layers outside redline', () => {
   const baseValidLayers = {
     redline: [poly(SQUARE)],
     areas: [poly(SQUARE)]
@@ -589,7 +597,7 @@ describe('validateGeoPackageLayersPostgis — non-area layers outside redline', 
   })
 })
 
-describe('validateGeoPackageLayersPostgis — boundary-tolerance behaviour', () => {
+describe('baseline geometry validation — boundary-tolerance behaviour', () => {
   const baseValidLayers = {
     redline: [poly(SQUARE)],
     areas: [poly(SQUARE)]
@@ -658,7 +666,7 @@ describe('validateGeoPackageLayersPostgis — boundary-tolerance behaviour', () 
   })
 })
 
-describe('validateGeoPackageLayersPostgis — details payload (Path B)', () => {
+describe('baseline geometry validation — details payload (Path B)', () => {
   it('AREA_PARCELS_OUTSIDE_REDLINE carries count, sample with feature refs, and per-parcel escape area + WKT', async () => {
     const err = await runAndGetError(
       makeLayers({
@@ -730,7 +738,7 @@ describe('validateGeoPackageLayersPostgis — details payload (Path B)', () => {
   })
 })
 
-describe('validateGeoPackageLayersPostgis — coordinate-system handling', () => {
+describe('baseline geometry validation — coordinate-system handling', () => {
   it('reprojects EPSG:4326 input to BNG without spuriously flagging it', async () => {
     // Identical WGS84 redline + habitat parcel — round-trip through the
     // in-query ST_Transform should leave them aligned, so no topology errors.
@@ -749,21 +757,22 @@ describe('validateGeoPackageLayersPostgis — coordinate-system handling', () =>
 })
 
 // --------------------------------------------------------------------------
-// Parcel-overlap spatial index. The overlap check is a self-join over the
-// habitat parcels; these pin down the mechanism that keeps it from degrading
-// into an ~N²/2 cross-product.
+// Parcel-overlap at scale. The overlap check compares every candidate PAIR of
+// habitat parcels. The SQL engine kept that sub-quadratic with a GiST index;
+// the GEOS engine does it with a bounding-box sweep. Neither mechanism is
+// visible from out here, but the property they exist to preserve is: a large
+// tiling must come back clean, and quickly.
 // --------------------------------------------------------------------------
 
-// Enough parcels for a plan that says something about how the join scales.
-// The planner picks the index well below this, so the number is comfort, not
-// a threshold.
-const PLAN_PARCEL_COUNT = 50
+// Enough parcels that an accidental N²/2 comparison would be obvious, without
+// making the suite slow.
+const GRID_PARCEL_COUNT = 400
 // Side, and spacing, of the parcels in the generated grid. Spacing == side so
-// the parcels tile without overlapping: the check finds nothing, and the plan
-// is what's under test.
+// the parcels tile exactly: every neighbour touches, none overlaps, and any
+// robustness wobble on a shared edge would show up as a false positive.
 const GRID_PARCEL_EDGE_M = 10
 
-// A square grid of non-overlapping parcels, laid out from (X0, Y0).
+/** A square grid of edge-sharing, non-overlapping parcels from (X0, Y0). */
 function parcelGrid(count) {
   const columns = Math.ceil(Math.sqrt(count))
   return Array.from({ length: count }, (_, i) => {
@@ -782,121 +791,26 @@ function parcelGrid(count) {
   })
 }
 
-// Runs `work` against a client with the parcels of `layers` already
-// materialised, then rolls back so the temp table goes away.
-async function withMaterialisedAreas(layers, work) {
-  const client = await pool.connect()
-  try {
-    await client.query('BEGIN')
-    await materialiseIndexedAreas(client, layers)
-    return await work(client)
-  } finally {
-    await client.query('ROLLBACK').catch(() => {})
-    client.release()
-  }
-}
+describe('baseline geometry validation — parcel overlaps at scale', () => {
+  it('finds no overlaps in a grid of edge-sharing parcels', async () => {
+    const columns = Math.ceil(Math.sqrt(GRID_PARCEL_COUNT))
+    const side = columns * GRID_PARCEL_EDGE_M
+    const enclosing = [
+      [X0, Y0],
+      [X0 + side, Y0],
+      [X0 + side, Y0 + side],
+      [X0, Y0 + side],
+      [X0, Y0]
+    ]
 
-const OVERLAP_JOIN_SQL = `
-  SELECT prc1.idx, prc2.idx
-  FROM areas_g prc1 JOIN areas_g prc2
-    ON prc1.idx < prc2.idx AND ST_Intersects(prc1.geom, prc2.geom)`
-
-describe('validateGeoPackageLayersPostgis — parcel-overlap spatial index', () => {
-  it('materialises the habitat parcels into a GiST-indexed table', async () => {
-    const indexes = await withMaterialisedAreas(
-      makeLayers({ areas: parcelGrid(PLAN_PARCEL_COUNT) }),
-      (client) =>
-        client.query(
-          `SELECT indexdef FROM pg_indexes
-           WHERE schemaname LIKE 'pg_temp%' AND tablename = 'areas_g'`
-        )
-    )
-    expect(indexes.rows).toHaveLength(1)
-    expect(indexes.rows[0].indexdef).toContain('USING gist (geom)')
-  })
-
-  it('stores the parcels already made valid, one row per parcel', async () => {
-    const stored = await withMaterialisedAreas(
+    const codes = await runAndGetCodes(
       makeLayers({
-        areas: [poly(SQUARE), poly(SELF_INTERSECTING), poly(SQUARE_OFFSET)]
-      }),
-      (client) =>
-        client.query(
-          'SELECT count(*)::int AS n, bool_and(ST_IsValid(geom)) AS all_valid FROM areas_g'
-        )
-    )
-    expect(stored.rows[0]).toEqual({ n: 3, all_valid: true })
-  })
-
-  it('plans the overlap self-join as an index scan, not a cross-product', async () => {
-    const explained = await withMaterialisedAreas(
-      makeLayers({ areas: parcelGrid(PLAN_PARCEL_COUNT) }),
-      (client) => client.query(`EXPLAIN ${OVERLAP_JOIN_SQL}`)
-    )
-    const plan = explained.rows.map((r) => r['QUERY PLAN']).join('\n')
-    expect(plan).toMatch(/Index Scan using \S+ on areas_g/)
-    expect(plan).not.toContain('Materialize')
-  })
-
-  it('drops the temp table when the transaction ends, so a pooled connection is reusable', async () => {
-    // max: 1 forces both runs onto the same backend — the case where a temp
-    // table outliving its transaction would blow up the second run with
-    // "relation areas_g already exists".
-    const singleConnectionPool = new pg.Pool({ ...getDbConfig(), max: 1 })
-    try {
-      const layers = makeLayers({
-        redline: [poly(SQUARE)],
-        areas: [poly(SQUARE), poly(SQUARE_OFFSET)]
+        redline: [poly(enclosing)],
+        areas: parcelGrid(GRID_PARCEL_COUNT)
       })
-      const first = await validateGeoPackageLayersPostgis(
-        singleConnectionPool,
-        layers
-      )
-      const second = await validateGeoPackageLayersPostgis(
-        singleConnectionPool,
-        layers
-      )
-      expect(second.errors.map((e) => e.code)).toEqual(
-        first.errors.map((e) => e.code)
-      )
-      expect(first.errors.map((e) => e.code)).toContain('PARCEL_OVERLAPS')
-    } finally {
-      await singleConnectionPool.end().catch(() => {})
-    }
-  })
+    )
 
-  it('leaves nothing behind when the check itself fails', async () => {
-    const singleConnectionPool = new pg.Pool({ ...getDbConfig(), max: 1 })
-    try {
-      await expect(
-        validateGeoPackageLayersPostgis(
-          singleConnectionPool,
-          makeLayers({ areas: [poly(SQUARE, { fid: '1' })] })
-        )
-      ).resolves.toBeDefined()
-
-      // A parcel with unparseable geometry aborts the transaction mid-way.
-      await expect(
-        validateGeoPackageLayersPostgis(singleConnectionPool, {
-          ...makeLayers(),
-          areas: [
-            {
-              properties: {},
-              nativeGeometry: { type: 'Polygon', coordinates: 'nonsense' },
-              nativeSrid: BNG_SRID
-            }
-          ]
-        })
-      ).rejects.toThrow()
-
-      // The rolled-back run must not have poisoned the connection.
-      const after = await validateGeoPackageLayersPostgis(
-        singleConnectionPool,
-        makeLayers({ redline: [poly(SQUARE)], areas: [poly(SQUARE)] })
-      )
-      expect(after.valid).toBe(true)
-    } finally {
-      await singleConnectionPool.end().catch(() => {})
-    }
+    expect(codes).not.toContain('PARCEL_OVERLAPS')
+    expect(codes).not.toContain('SLIVERS_OUTSIDE_REDLINE')
   })
 })

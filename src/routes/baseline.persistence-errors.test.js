@@ -101,7 +101,7 @@ function setupHappyPathMocks() {
     errors: []
   })
   vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
-  vi.mocked(calculateHabitatSizes).mockResolvedValue({
+  vi.mocked(calculateHabitatSizes).mockReturnValue({
     areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
     hedgerows: { individualMetres: [], totalMetres: 0 },
     watercourses: { individualMetres: [], totalMetres: 0 }
@@ -251,7 +251,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       hedgerows: { individualMetres: [], totalMetres: 0 },
       watercourses: { individualMetres: [], totalMetres: 0 }
     }
-    vi.mocked(calculateHabitatSizes).mockResolvedValue(sizes)
+    vi.mocked(calculateHabitatSizes).mockReturnValue(sizes)
 
     const { drizzle } = makeDrizzle()
     await validateBaseline.handler(
@@ -564,9 +564,9 @@ describe('validateBaseline handler full validation error handling', () => {
       valid: true,
       errors: []
     })
-    vi.mocked(calculateHabitatSizes).mockRejectedValue(
-      new Error('DB connection lost')
-    )
+    vi.mocked(calculateHabitatSizes).mockImplementation(() => {
+      throw new Error('geometry validation did not measure areas feature a1')
+    })
 
     const { drizzle } = makeDrizzle()
     await validateBaseline.handler(

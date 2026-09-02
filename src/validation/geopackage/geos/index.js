@@ -9,16 +9,19 @@
  *
  * Two things it deliberately does NOT do:
  *
- *  - build its own error messages. `postgis/error-builders.js` is reused
- *    verbatim, which is what makes message parity structural rather than
- *    something to keep in step by hand.
+ *  - build its own error messages. `error-builders.js` renders every one of
+ *    them, and it is the same module — and the same wording — the PostGIS engine
+ *    used before it was removed. The verdicts it produced for the whole
+ *    example-files corpus are recorded in
+ *    integration-tests/fixtures/postgis-geometry-verdicts.json and asserted
+ *    against on every run.
  *  - run on the main thread in production. GEOS is synchronous C code; a
  *    5,000-parcel file measured 2,344 ms of event-loop lag when run inline.
  *    `worker-pool.js` is how it is meant to be called. This entry point is
  *    synchronous-by-design so the worker, the unit tests and the parity suite
  *    can all drive it directly.
  */
-import { ERROR_BUILDERS } from '../postgis/error-builders.js'
+import { ERROR_BUILDERS } from '../error-builders.js'
 import { LAYER_NAMES } from '../geometry-constants.js'
 import { ERROR_CODES } from '../errors.js'
 import { loadGeosRuntime } from './geos-runtime.js'
@@ -52,9 +55,8 @@ const ERROR_ORDER = [
 /**
  * Run every baseline geometry check against parsed layers, using GEOS-WASM.
  *
- * Signature-compatible with `validateGeoPackageLayersPostgis(pool, layers)`
- * minus the pool, which is the point: nothing else in the pipeline knows or
- * cares which engine produced the verdict.
+ * Takes no database handle of any kind. Everything below is GEOS arithmetic on
+ * geometry this thread already holds.
  *
  * @param {object} layers output of readGeoPackage
  * @param {object} [options]

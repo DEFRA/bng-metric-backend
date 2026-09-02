@@ -117,28 +117,29 @@ git config --global core.autocrlf false
 | `GET: /example    `  | Example API (remove as needed) |
 | `GET: /example/<id>` | Example API (remove as needed) |
 
-## Geometry validation engines
+## Geometry validation
 
-Uploaded GeoPackages are checked against fifteen geometry rules, and there are
-two engines that can run them:
+Uploaded GeoPackages are checked against fifteen geometry rules, which run
+in-process on worker threads using GEOS compiled to WebAssembly. **Validation
+takes no database connection.** The PostGIS statement that used to do this has
+been removed; the database remains the system of record for storage.
 
-| `VALIDATION_ENGINE` | Behaviour                                                                                                                                          |
-| :------------------ | :------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `postgis`           | One large PostGIS statement. **The default.**                                                                                                      |
-| `geos`              | The same GEOS library compiled to WebAssembly, on a worker thread in this process. No database connection. Falls back to `postgis` on any failure. |
-| `shadow`            | Runs both, returns the `postgis` answer, reports any divergence.                                                                                   |
+There is no fallback. A full queue returns **503** with `Retry-After` and a
+`VALIDATION_BUSY` error, which the frontend turns into "try again in a few
+moments" — the file was never looked at, so it is not a validation failure.
 
-The two are required to give identical verdicts, payloads and messages;
-`integration-tests/validation-engine-parity.test.js` asserts it over every
-GeoPackage in the harness's `example-files/`.
+| Setting                               | Default | Notes                                                 |
+| :------------------------------------ | ------: | :---------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each. |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.        |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |   30000 | Per-job budget; the worker is terminated on overrun.  |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` value on the 503.                       |
 
-Related settings: `VALIDATION_WORKER_COUNT` (default 2, capped at
-`availableParallelism() - 1`), `VALIDATION_WORKER_QUEUE_LIMIT` (8),
-`VALIDATION_WORKER_TIMEOUT_MS` (60000). Each worker settles at a few hundred MB
-of WebAssembly heap, so the worker count is a memory budget as much as a
-throughput setting.
+Each worker settles at a few hundred MB of WebAssembly heap that is never
+returned, so the worker count is a memory budget as much as a throughput
+setting.
 
-See [`docs/geometry-validation-engines.md`](docs/geometry-validation-engines.md).
+See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 
 ## Development helpers
 

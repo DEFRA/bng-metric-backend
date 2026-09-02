@@ -2,10 +2,10 @@
  * Shared geometry fixtures for the GEOS engine's unit tests.
  *
  * Deliberately the same shapes, at the same coordinates, as
- * `integration-tests/postgis-validate-baseline-layers.test.js` builds. Two
- * engines tested against two different sets of squares would prove much less
- * than two engines tested against one — and when a check does diverge, an
- * identical fixture makes the two failures directly comparable.
+ * `integration-tests/geometry-validate-baseline-layers.test.js` builds — the
+ * rule-by-rule spec that was written against the PostGIS engine this one
+ * replaced. Sharing the coordinates means a unit failure here and a spec failure
+ * there are directly comparable.
  */
 
 /** EPSG:27700 metres, central-London-ish. Far from the origin, inside England. */

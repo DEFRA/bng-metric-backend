@@ -1,21 +1,20 @@
 #!/usr/bin/env node
 /**
- * The benchmarks behind the tables in docs/geometry-validation-engines.md.
+ * Capacity benchmarks for the in-process geometry validator.
  *
- * Three questions, because they are three different claims and only one of them
- * is about speed:
+ * Three questions, because they are three different properties:
  *
- *   latency     How long does each engine take on the same file? Runs GEOS
- *               inline, so it is engine against engine with no worker in the
- *               way. Also re-checks that the two still agree at a scale well
- *               past anything in example-files/.
- *   lag         How much does each engine block the event loop? This is the one
- *               that decides whether worker threads are optional.
- *   throughput  How much of the service's capacity does validation consume
- *               while it runs? This is the reason the GEOS engine exists.
+ *   latency     How long does one validation take, by file size? Runs the
+ *               engine inline, with no worker in the way.
+ *   lag         How much does a validation block the event loop, inline versus
+ *               on a worker? This is what makes the worker pool mandatory
+ *               rather than an optimisation.
+ *   throughput  What does sustained validation load cost the rest of the
+ *               service? Drives concurrent validations through the real pool
+ *               while a light pooled query loops alongside.
  *
  * Usage:
- *   node scripts/bench-validation-engines.mjs <fixture-dir> [latency|lag|throughput|all]
+ *   node scripts/bench-geometry-validation.mjs <fixture-dir> [latency|lag|throughput|all]
  *
  * BENCH_WINDOW_MS shortens each throughput scenario (default 12000).
  *
@@ -26,13 +25,20 @@
  *     node scripts/gen-gpkg.mjs --size $n --seed 1 --outdir <fixture-dir>/p$n
  *   done
  *
- * Needs a running PostGIS (docker compose up -d in this repo).
+ * The `throughput` benchmark needs a running Postgres for its probe (docker
+ * compose up -d). Nothing else here touches the database — which is the point.
  *
- * READ THE NUMBERS IN CONTEXT. The ratios depend heavily on how much CPU the
- * database has relative to Node; on a small box with PostgreSQL co-resident the
- * SQL side is starved and the comparison flatters GEOS. What is durable here is
- * the SHAPE of the throughput collapse and of the loop-lag difference, not the
- * multiple.
+ * A NOTE ON THE COMPARISON. The figures in docs/geometry-validation.md that put
+ * this engine against the PostGIS statement it replaced were taken while both
+ * existed. That statement has since been deleted, so this script no longer
+ * measures it; to reproduce the comparison, check the old engine out of history
+ * (see the `recordedAtCommit` in integration-tests/fixtures/
+ * postgis-geometry-verdicts.json).
+ *
+ * READ THE NUMBERS IN CONTEXT. Absolute timings depend heavily on how much CPU
+ * the box has. What is durable is the SHAPE — the loop-lag difference between
+ * inline and worker, and the fact that validation load leaves the probe rate
+ * untouched.
  */
 import fs from 'node:fs'
 import path from 'node:path'
@@ -40,17 +46,16 @@ import path from 'node:path'
 import pg from 'pg'
 
 // Silence the perf-evidence log lines before anything reads the config. They are
-// emitted per layer and per query, and at 5,000 parcels they bury the results.
-// This has to happen before the modules below are evaluated, which is why they
-// are imported dynamically: ESM hoists static imports above any statement here.
+// emitted per layer and per validation, and at 5,000 parcels they bury the
+// results. This has to happen before the modules below are evaluated, which is
+// why they are imported dynamically: ESM hoists static imports above any
+// statement here.
 process.env.ENABLE_PERF_EVIDENCE = 'false'
 
 const { readGeoPackage } =
   await import('../src/validation/geopackage/geopackage.js')
 const { validateGeoPackageLayersGeos } =
   await import('../src/validation/geopackage/geos/index.js')
-const { validateGeoPackageLayersPostgis } =
-  await import('../src/validation/geopackage/postgis/index.js')
 const { GeosWorkerPool } =
   await import('../src/validation/geopackage/geos/worker-pool.js')
 
@@ -75,12 +80,7 @@ const LAG_INTERVAL_MS = 10
 /** Ticks to wait before stopping the lag meter — see {@link lagMeter}. */
 const LAG_SETTLE_TICKS = 4
 
-/**
- * Measurement window for each throughput scenario, in ms. Overridable so a
- * quick sanity run can be done in well under a minute — the collapse it
- * measures is stark enough to show up in a few seconds, and the default is
- * only there to average out more noise.
- */
+/** Measurement window for each throughput scenario, in ms. */
 const THROUGHPUT_WINDOW_MS = Number(process.env.BENCH_WINDOW_MS ?? 12_000)
 
 /** Concurrent validations driven during the throughput benchmark. */
@@ -92,7 +92,7 @@ const PROBE_WARMUP_MS = 3000
 const [, , fixtureDir, mode = 'all'] = process.argv
 if (!fixtureDir) {
   console.error(
-    'usage: node scripts/bench-validation-engines.mjs <fixture-dir> [latency|lag|throughput|all]'
+    'usage: node scripts/bench-geometry-validation.mjs <fixture-dir> [latency|lag|throughput|all]'
   )
   process.exit(1)
 }
@@ -126,49 +126,38 @@ const percentile = (values, p) =>
   values.length ? [...values].sort((a, b) => a - b)[(values.length * p) | 0] : 0
 
 /**
- * Comparable form of a verdict — codes and counts only. Enough to catch the two
- * engines disagreeing at a size no fixture covers; the exhaustive payload
- * comparison lives in integration-tests/validation-engine-parity.test.js.
+ * A pool sized for the benchmark rather than for production: the queue is left
+ * effectively unbounded so concurrent jobs QUEUE instead of being refused, which
+ * keeps the throughput numbers about the engine rather than about admission
+ * control.
  */
-function verdictShape(result) {
-  return JSON.stringify({
-    valid: result.valid,
-    codes: result.errors.map((error) => error.code),
-    counts: result.errors.map((error) => error.details?.count ?? null)
+function benchWorkerPool() {
+  return new GeosWorkerPool({
+    size: 2,
+    queueLimit: 1000,
+    timeoutMs: 300_000
   })
 }
 
 async function benchLatency() {
-  console.log('\nLatency — GEOS run inline, so it is engine against engine')
+  console.log('\nLatency — run inline, so no worker boundary is in the way')
   console.log(`(median of ${LATENCY_RUNS} runs)\n`)
-  console.log('parcels | features |   PostGIS |    GEOS | ratio | verdicts')
+  console.log('parcels | features |   inline | valid')
 
   for (const name of ['p250', 'p1000', 'p5000']) {
     const layers = readGeoPackage(fixture(name))
-    const postgisMs = []
-    const geosMs = []
-    let postgisResult
-    let geosResult
+    const timings = []
+    let result
 
     for (let run = 0; run < LATENCY_RUNS; run++) {
-      let start = performance.now()
-      postgisResult = await validateGeoPackageLayersPostgis(pool, layers)
-      postgisMs.push(performance.now() - start)
-      start = performance.now()
-      geosResult = await validateGeoPackageLayersGeos(layers)
-      geosMs.push(performance.now() - start)
+      const start = performance.now()
+      result = await validateGeoPackageLayersGeos(layers)
+      timings.push(performance.now() - start)
     }
 
-    const postgis = median(postgisMs)
-    const geos = median(geosMs)
-    const agree =
-      verdictShape(postgisResult) === verdictShape(geosResult)
-        ? 'identical'
-        : 'DIFFER'
     console.log(
       `${name.slice(1).padStart(7)} | ${String(featureCount(layers)).padStart(8)} | ` +
-        `${postgis.toFixed(0).padStart(7)}ms | ${geos.toFixed(0).padStart(5)}ms | ` +
-        `${(geos / postgis).toFixed(2).padStart(5)} | ${agree}`
+        `${median(timings).toFixed(0).padStart(6)}ms | ${result.valid}`
     )
   }
 }
@@ -228,35 +217,19 @@ async function benchLag() {
     'scenario                         | duration | lag p50 | lag max | ticks'
   )
 
-  await measureLag('PostGIS (awaited query)', () =>
-    validateGeoPackageLayersPostgis(pool, layers)
-  )
-  await measureLag('GEOS inline on the main thread', () =>
+  await measureLag('inline on the main thread', () =>
     validateGeoPackageLayersGeos(layers)
   )
 
   const workers = benchWorkerPool()
-  await measureLag('GEOS on a worker thread', () => workers.run(file))
+  await measureLag('on a worker thread', () => workers.run(file))
   await workers.close()
 }
 
 /**
- * A pool sized for the benchmark rather than for production: the queue is left
- * effectively unbounded so concurrent jobs QUEUE instead of being refused, which
- * is what makes the throughput numbers about the engine rather than about
- * admission control.
- */
-function benchWorkerPool() {
-  return new GeosWorkerPool({
-    size: 2,
-    queueLimit: 1000,
-    timeoutMs: 300_000
-  })
-}
-
-/**
- * Stand-in for the light reads that share this pool with validation — a login
- * check, a project list. What matters is that it needs a CONNECTION.
+ * Stand-in for the light reads that share the connection pool with everything
+ * else — a login check, a project list. Validation no longer competes with
+ * these for a connection, and this is what demonstrates it.
  */
 async function probe(deadline, stats) {
   while (performance.now() < deadline) {
@@ -297,7 +270,6 @@ async function throughputScenario(name, startLoad) {
 
 async function benchThroughput() {
   const file = fixture('p1000')
-  const layers = readGeoPackage(file)
   console.log(
     `\nProbe throughput — a light pooled query in a loop for ${THROUGHPUT_WINDOW_MS / 1000}s, with`
   )
@@ -306,27 +278,24 @@ async function benchThroughput() {
   )
 
   // Warm the probe loop before the first measured window. Measured cold, the
-  // idle baseline comes out LOWER than the loaded GEOS run, which reads as
-  // nonsense and is purely a JIT artefact.
+  // idle baseline comes out LOWER than the loaded run, which reads as nonsense
+  // and is purely a JIT artefact.
   await probe(performance.now() + PROBE_WARMUP_MS, { served: 0, acquire: [] })
 
   console.log(
     'scenario                               | served  | acq p50 | validations'
   )
   await throughputScenario('idle (no validation running)', () => [])
-  await throughputScenario('12 concurrent validations, PostGIS', (deadline) =>
-    spin(deadline, () => validateGeoPackageLayersPostgis(pool, layers))
-  )
   // Control. Twelve pending async loops doing NO geometry work at all raise the
-  // probe rate well above idle on their own — the loop polls harder when it has
-  // work — so the GEOS row below has to be read against THIS, not against idle.
+  // probe rate above idle on their own — the loop polls harder when it has work
+  // — so the validation row below has to be read against THIS, not against idle.
   await throughputScenario('12 concurrent no-op loops (control)', (deadline) =>
     spin(deadline, () => new Promise((resolve) => setImmediate(resolve)))
   )
 
   const workers = benchWorkerPool()
   console.log(`  (worker pool resolved to ${workers.size} worker(s))`)
-  await throughputScenario('12 concurrent validations, GEOS', (deadline) =>
+  await throughputScenario('12 concurrent validations', (deadline) =>
     spin(deadline, () => workers.run(file))
   )
   await workers.close()

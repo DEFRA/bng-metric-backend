@@ -227,29 +227,29 @@ const config = convict({
     }
   },
   validation: {
-    engine: {
-      doc: 'Geometry validation engine: postgis (the SQL statement, default), geos (in-process GEOS-WASM on worker threads), or shadow (run both, return the postgis answer, log any divergence). Changing this needs no code deploy, so postgis is always one environment-variable change away as a rollback.',
-      format: ['postgis', 'geos', 'shadow'],
-      default: 'postgis',
-      env: 'VALIDATION_ENGINE'
-    },
     workerCount: {
-      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1. Each worker settles at a few hundred MB of WebAssembly heap after a large file, so this is a memory budget as much as a throughput setting — check the ECS task memory limit before raising it.',
+      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1. Each worker settles at ~250 MB of WebAssembly heap after a large file and never gives it back, so this is a memory budget as much as a throughput setting — check the ECS task memory limit before raising it.',
       format: 'int',
       default: 2,
       env: 'VALIDATION_WORKER_COUNT'
     },
     workerQueueLimit: {
-      doc: 'Validations allowed to wait for a free worker before new ones are rejected and fall back to PostGIS. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on.',
+      doc: 'Validations allowed to wait for a free worker before new ones are refused with a 503 telling the user to try again. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on, and each waiting request also pins ~29 MB of parsed GeoPackage on the heap.',
       format: 'int',
       default: 8,
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
-      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request falls back to PostGIS. Generous by design — the largest measured file validates in well under a second.',
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails. Kept well inside a typical load-balancer timeout so the user gets a real error rather than a dropped connection: the slowest validation measured, on a 5,000-parcel file on a contended box, was under two seconds.',
       format: 'int',
-      default: 60000,
+      default: 30000,
       env: 'VALIDATION_WORKER_TIMEOUT_MS'
+    },
+    busyRetryAfterSeconds: {
+      doc: 'Value of the Retry-After header sent with the 503 when the validation queue is full. Short, because a full queue clears in the time it takes the workers to drain it.',
+      format: 'int',
+      default: 30,
+      env: 'VALIDATION_BUSY_RETRY_AFTER_SECONDS'
     }
   },
   upload: {
