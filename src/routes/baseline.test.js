@@ -4,6 +4,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
+import { config } from '../config.js'
 import {
   GEOPACKAGE_METRIC,
   VALIDATION_CATEGORY
@@ -385,12 +386,17 @@ describe('validateBaseline handler — service busy', () => {
     })
   })
 
-  it('tells the caller when to come back', async () => {
+  // The frontend paces its polling from this header, so it is load-bearing
+  // rather than decoration: it must carry the configured value, not a constant.
+  it('tells the caller when to come back, from config', async () => {
     await validateBaseline.handler(
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(h.header).toHaveBeenCalledWith('Retry-After', expect.any(String))
+    expect(h.header).toHaveBeenCalledWith(
+      'Retry-After',
+      String(config.get('validation.busyRetryAfterSeconds'))
+    )
   })
 
   it('does not persist anything', async () => {

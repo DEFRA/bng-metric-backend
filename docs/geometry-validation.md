@@ -87,7 +87,7 @@ a precondition here, not an optimisation.
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                 |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.        |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` on the 503.                                            |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                 |
 
 The pool cap **is** the admission control. It is the same protective bounding the
 connection pool used to provide, except the rationed resource is CPU on an
@@ -104,10 +104,13 @@ design makes the browser the queue:
    seconds.
 2. A refusal is a **503 `VALIDATION_BUSY`**.
 3. The frontend keeps the user on the "Checking your file" page, whose existing
-   `<meta http-equiv="refresh">` retries. The interval is jittered so waiting
-   browsers do not all return on the same tick — a small fixed pool sees a burst
-   every five seconds and idles in between, which is the worst possible arrival
-   pattern for it.
+   `<meta http-equiv="refresh">` retries. **How soon comes from the 503's
+   `Retry-After`** — the backend is the side that knows how loaded it is, so the
+   pace is decided in one place rather than duplicated. The frontend treats it as
+   a hint, ignoring anything unparseable or outside 1–30 s, and adds its own
+   jitter on top so waiting browsers do not all return on the same tick: a small
+   fixed pool seeing a burst every five seconds and idling in between is the
+   worst possible arrival pattern for it.
 4. After `MAX_WAIT_SECONDS` (120 s) the frontend gives up and says so. A service
    that has been saturated for two minutes will not be free in another five.
 

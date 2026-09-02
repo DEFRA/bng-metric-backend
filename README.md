@@ -136,7 +136,7 @@ validation failure.
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.        |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.  |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused. |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` value on the 503.                       |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.    |
 | `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.       |
 | `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.              |
 
