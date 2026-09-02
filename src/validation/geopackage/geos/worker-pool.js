@@ -54,6 +54,18 @@ export class ValidationQueueFullError extends Error {
   }
 }
 
+/**
+ * Error thrown when a job waited longer than the pool's queue-wait limit before
+ * a worker came free. Reported to the caller as busy, exactly like a full queue:
+ * both mean "we did not look at your file, come back".
+ */
+export class ValidationQueueWaitError extends Error {
+  constructor(waitedMs, limitMs) {
+    super(`Waited ${waitedMs} ms for a validation worker (limit ${limitMs} ms)`)
+    this.name = 'ValidationQueueWaitError'
+  }
+}
+
 /** Error thrown when a job outlives its timeout and its worker was killed. */
 export class ValidationTimeoutError extends Error {
   constructor(timeoutMs) {
@@ -67,11 +79,13 @@ export class ValidationTimeoutError extends Error {
  * @property {number} size workers to run
  * @property {number} queueLimit jobs allowed to wait for a free worker
  * @property {number} timeoutMs per-job budget before the worker is killed
+ * @property {number} queueWaitLimitMs longest a job may wait to START before it
+ *   is refused instead
  */
 
 export class GeosWorkerPool {
   /** @param {PoolOptions} options */
-  constructor({ size, queueLimit, timeoutMs }) {
+  constructor({ size, queueLimit, timeoutMs, queueWaitLimitMs = Infinity }) {
     // Never more workers than there are cores to run them on: oversubscribing
     // CPU-bound threads adds context switching and memory, and no throughput.
     this.size = Math.max(
@@ -80,6 +94,7 @@ export class GeosWorkerPool {
     )
     this.queueLimit = queueLimit
     this.timeoutMs = timeoutMs
+    this.queueWaitLimitMs = queueWaitLimitMs
     this.nextJobId = 1
     /** Jobs waiting for a free worker. */
     this.queue = []
@@ -94,7 +109,26 @@ export class GeosWorkerPool {
       this.spawn()
     }
     logger.info(
-      `geos worker pool started with ${this.size} worker(s), queue limit ${queueLimit}, job timeout ${timeoutMs} ms`
+      `geos worker pool started with ${this.size} worker(s), queue limit ${queueLimit}, ` +
+        `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms`
+    )
+  }
+
+  /**
+   * Would `run` accept a job right now?
+   *
+   * Exposed so a caller can ask BEFORE doing expensive preparation. The upload
+   * route checks this before streaming the file out of S3: refusing after a
+   * 100 MB download wastes the download, and a refusal has to be cheap for
+   * clients to be able to retry it every few seconds.
+   *
+   * Advisory, not a reservation — the answer can be stale by the time `run` is
+   * called, which is why `run` re-checks and can still refuse.
+   */
+  hasCapacity() {
+    return (
+      !this.closed &&
+      (this.idle.length > 0 || this.queue.length < this.queueLimit)
     )
   }
 
@@ -188,8 +222,23 @@ export class GeosWorkerPool {
     }
   }
 
-  /** Hand one job to one worker, and start its clock. */
+  /**
+   * Hand one job to one worker, and start its clock.
+   *
+   * A job that has been queued longer than `queueWaitLimitMs` is refused here
+   * rather than started. By this point the caller has very likely given up — and
+   * without this the worst-case wait is `queueLimit x timeoutMs`, which can far
+   * exceed any client's patience. Refusing lets the client retry into a pool
+   * that is actually free, instead of receiving work nobody is waiting for.
+   */
   dispatch(record, job) {
+    const waited = Date.now() - job.enqueuedAt
+    if (waited > this.queueWaitLimitMs) {
+      job.settled = true
+      job.reject(new ValidationQueueWaitError(waited, this.queueWaitLimitMs))
+      this.release(record)
+      return
+    }
     record.job = job
     record.worker.ref()
     record.timer = setTimeout(() => this.onTimeout(record, job), this.timeoutMs)
@@ -236,6 +285,7 @@ export class GeosWorkerPool {
         id: this.nextJobId++,
         filePath,
         includeSizes,
+        enqueuedAt: Date.now(),
         settled: false,
         resolve: (value) => {
           job.settled = true

@@ -5,6 +5,7 @@ import { afterEach, describe, expect, it } from 'vitest'
 import {
   GeosWorkerPool,
   ValidationQueueFullError,
+  ValidationQueueWaitError,
   ValidationTimeoutError,
   closeGeosWorkerPool,
   getGeosWorkerPool
@@ -114,6 +115,90 @@ describe('GeosWorkerPool', () => {
     const pool = openPool()
     await pool.close()
     await expect(pool.run(MISSING_FILE)).rejects.toThrow(/closed/)
+  })
+})
+
+describe('GeosWorkerPool — capacity, checked before the caller does any work', () => {
+  it('reports capacity while the queue has room', () => {
+    expect(openPool({ size: 1, queueLimit: 4 }).hasCapacity()).toBe(true)
+  })
+
+  it('reports none once the queue is full', async () => {
+    const pool = openPool({ size: 1, queueLimit: 1 })
+    const jobs = Promise.allSettled([
+      pool.run(MISSING_FILE),
+      pool.run(MISSING_FILE)
+    ])
+    // Both are in flight or queued, so a third would be refused.
+    expect(pool.hasCapacity()).toBe(false)
+    await jobs
+  })
+
+  it('reports none once closed', async () => {
+    const pool = openPool()
+    await pool.close()
+    expect(pool.hasCapacity()).toBe(false)
+  })
+
+  it('agrees with what run() actually does', async () => {
+    const pool = openPool({ size: 1, queueLimit: 1 })
+    const jobs = Promise.allSettled([
+      pool.run(MISSING_FILE),
+      pool.run(MISSING_FILE)
+    ])
+    expect(pool.hasCapacity()).toBe(false)
+    await expect(pool.run(MISSING_FILE)).rejects.toBeInstanceOf(
+      ValidationQueueFullError
+    )
+    await jobs
+  })
+})
+
+describe('GeosWorkerPool — queue wait limit', () => {
+  // Without this bound the worst case is queueLimit x timeoutMs, which is far
+  // past any client's patience — and starting work nobody is waiting for helps
+  // nobody.
+  it('refuses a job that waited too long instead of starting it', async () => {
+    const pool = openPool({ size: 1, queueLimit: 10, queueWaitLimitMs: 0 })
+    const outcomes = await Promise.allSettled([
+      pool.run(MISSING_FILE),
+      pool.run(MISSING_FILE),
+      pool.run(MISSING_FILE)
+    ])
+    const waited = outcomes.filter(
+      (outcome) => outcome.reason instanceof ValidationQueueWaitError
+    )
+    expect(waited.length).toBeGreaterThan(0)
+  })
+
+  it('does not refuse work handed straight to an idle worker', async () => {
+    const pool = openPool({ size: 1, queueLimit: 10, queueWaitLimitMs: 0 })
+    // Warm first: on a cold pool even the FIRST job queues, because it waits
+    // for the worker to compile the WebAssembly module. That startup counts as
+    // queue wait, which is correct — the client is waiting for it either way —
+    // but it means only a warm pool can dispatch with zero elapsed time.
+    await pool.run(MISSING_FILE).catch(() => {})
+    await expect(pool.run(MISSING_FILE)).rejects.not.toBeInstanceOf(
+      ValidationQueueWaitError
+    )
+  })
+
+  it('leaves the pool usable after refusing a stale job', async () => {
+    const pool = openPool({ size: 1, queueLimit: 10, queueWaitLimitMs: 0 })
+    await Promise.allSettled([pool.run(MISSING_FILE), pool.run(MISSING_FILE)])
+    expect(pool.stats().size).toBe(pool.size)
+    await expect(pool.run(MISSING_FILE)).rejects.toThrow()
+  })
+
+  it('waits indefinitely when no limit is configured', async () => {
+    const pool = openPool({ size: 1, queueLimit: 10 })
+    const outcomes = await Promise.allSettled([
+      pool.run(MISSING_FILE),
+      pool.run(MISSING_FILE)
+    ])
+    for (const outcome of outcomes) {
+      expect(outcome.reason).not.toBeInstanceOf(ValidationQueueWaitError)
+    }
   })
 })
 

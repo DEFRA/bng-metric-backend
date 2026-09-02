@@ -240,10 +240,16 @@ const config = convict({
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
-      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails. Kept well inside a typical load-balancer timeout so the user gets a real error rather than a dropped connection: the slowest validation measured, on a 5,000-parcel file on a contended box, was under two seconds.',
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md — it must fit, together with the S3 download and the upload-ready wait, inside the frontend request budget. Generous against measurement: the slowest validation seen, a 5,000-parcel file on a contended box, was under two seconds.',
       format: 'int',
-      default: 30000,
+      default: 10000,
       env: 'VALIDATION_WORKER_TIMEOUT_MS'
+    },
+    queueWaitLimitMs: {
+      doc: 'Longest a validation may wait for a free worker before it is refused as busy instead of started. Without it the worst case is queueLimit x workerTimeoutMs, far past any client patience — and starting work nobody is waiting for helps nobody. The client retries into a pool that is actually free.',
+      format: 'int',
+      default: 5000,
+      env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     busyRetryAfterSeconds: {
       doc: 'Value of the Retry-After header sent with the 503 when the validation queue is full. Short, because a full queue clears in the time it takes the workers to drain it.',
@@ -253,6 +259,18 @@ const config = convict({
     }
   },
   upload: {
+    readyTimeoutMs: {
+      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net, sized small so it cannot eat the request budget.',
+      format: 'int',
+      default: 3000,
+      env: 'UPLOAD_READY_TIMEOUT_MS'
+    },
+    downloadTimeoutMs: {
+      doc: 'Budget for streaming the uploaded file out of S3. Another rung of the timeout ladder: it has to leave room for validation and persistence inside the frontend request budget, which is what bounds the file size this synchronous pipeline can actually handle.',
+      format: 'int',
+      default: 10000,
+      env: 'UPLOAD_DOWNLOAD_TIMEOUT_MS'
+    },
     maxFileSizeBytes: {
       doc: 'Maximum upload file size in bytes. Sent to the CDP Uploader on initiate so oversized files are rejected at source, and enforced again by the S3 download guard. Defaults to 100 MB.',
       format: Number,

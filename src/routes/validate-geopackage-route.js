@@ -13,7 +13,11 @@ import {
 } from '../services/s3/download-file.js'
 import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
-import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
+import {
+  getGeosWorkerPool,
+  ValidationQueueFullError,
+  ValidationQueueWaitError
+} from '../validation/geopackage/geos/worker-pool.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -89,7 +93,9 @@ async function recordStage(metricName, durationMs, fields, config) {
 
 async function resolveUploadLocation(uploadId, config) {
   try {
-    return await waitForUploadReady(uploadId)
+    return await waitForUploadReady(uploadId, {
+      timeoutMs: appConfig.get('upload.readyTimeoutMs')
+    })
   } catch (err) {
     if (err instanceof UploadTimeoutError) {
       logger.error(
@@ -122,7 +128,9 @@ async function resolveUploadLocation(uploadId, config) {
  */
 async function fetchUploadFile(bucket, key, uploadId, config) {
   try {
-    return await downloadFileToTemp(bucket, key)
+    return await downloadFileToTemp(bucket, key, {
+      timeoutMs: appConfig.get('upload.downloadTimeoutMs')
+    })
   } catch (err) {
     if (err instanceof S3FileTooLargeError) {
       logger.error(
@@ -184,6 +192,23 @@ async function respondToGateRejection(gateResult, uploadId, h, config) {
  * put a capacity problem on the same screen as "your polygons overlap" and
  * invite the user to go and edit a file that is perfectly fine.
  */
+function validationPool() {
+  return getGeosWorkerPool({
+    size: appConfig.get('validation.workerCount'),
+    queueLimit: appConfig.get('validation.workerQueueLimit'),
+    timeoutMs: appConfig.get('validation.workerTimeoutMs'),
+    queueWaitLimitMs: appConfig.get('validation.queueWaitLimitMs')
+  })
+}
+
+/** Both ways the pool can refuse a file without looking at it. */
+function isBusyError(error) {
+  return (
+    error instanceof ValidationQueueFullError ||
+    error instanceof ValidationQueueWaitError
+  )
+}
+
 async function respondToBusy(uploadId, h, config) {
   logger.warn(
     `${config.routeName} - validation queue full for uploadId ${uploadId}; asked the caller to retry`
@@ -322,7 +347,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     }
     // A full queue means the file was never looked at — a capacity condition,
     // not a fault, and the only one of these worth telling the user to retry.
-    if (error instanceof ValidationQueueFullError) {
+    if (isBusyError(error)) {
       return await respondToBusy(uploadId, h, config)
     }
     logger.error(
@@ -376,6 +401,15 @@ function createValidateGeoPackageRoute(config) {
       const projectId = request.payload?.projectId ?? null
       // Persisting to a project is scoped to this user's current org context.
       const credentials = request.auth.credentials
+
+      // Refuse BEFORE doing any work. The pool would refuse this file anyway,
+      // and finding that out after streaming up to 100 MB out of S3 and parsing
+      // it would make a refusal expensive — which matters, because the client's
+      // answer to a refusal is to try again in a few seconds. Advisory only:
+      // the pool re-checks, and can still refuse later.
+      if (!validationPool().hasCapacity()) {
+        return respondToBusy(uploadId, h, config)
+      }
 
       const { bucket, key, filename, fileSize } = await resolveUploadLocation(
         uploadId,
