@@ -85,12 +85,44 @@ a precondition here, not an optimisation.
 | ------------------------------------- | ------: | -------------------------------------------------------------------- |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                     |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below. |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   30000 | Per-job budget; on overrun the worker is terminated.                 |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` on the 503 sent when the queue is full.                |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                 |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.        |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |      30 | `Retry-After` on the 503.                                            |
 
 The pool cap **is** the admission control. It is the same protective bounding the
 connection pool used to provide, except the rationed resource is CPU on an
 instance CDP can add more of.
+
+### Being busy is a poll, not a failure
+
+There is no fallback, so saturation has to be handled rather than absorbed. The
+design makes the browser the queue:
+
+1. The route asks the pool `hasCapacity()` **before** streaming the file out of
+   S3. Refusing after a 100 MB download would make a refusal expensive, and the
+   whole scheme depends on refusals being cheap enough to retry every few
+   seconds.
+2. A refusal is a **503 `VALIDATION_BUSY`**.
+3. The frontend keeps the user on the "Checking your file" page, whose existing
+   `<meta http-equiv="refresh">` retries. The interval is jittered so waiting
+   browsers do not all return on the same tick — a small fixed pool sees a burst
+   every five seconds and idles in between, which is the worst possible arrival
+   pattern for it.
+4. After `MAX_WAIT_SECONDS` (120 s) the frontend gives up and says so. A service
+   that has been saturated for two minutes will not be free in another five.
+
+Two properties follow. **Only `busy` is retried** — a 500 or a timeout is not,
+because a pathological file that wedges a worker would otherwise be re-fed to the
+pool twenty-four times. And **the wait is bounded at both ends**: `hasCapacity()`
+stops a request joining a hopeless queue, while `VALIDATION_QUEUE_WAIT_LIMIT_MS`
+refuses a job that has already waited too long by the time a worker frees up.
+Without the second, the worst case is `queueLimit x workerTimeoutMs` — 80
+seconds, long past any client's patience, and spent on work nobody is waiting for.
+
+What this does **not** give you is fairness. Retries are a lottery, not FIFO, so
+under sustained load an unlucky user can lose repeatedly and hit the 120 s bound
+while others get through. A server-side job queue would preserve arrival order;
+that is the main reason to reach for one if this ever proves insufficient.
 
 ### What happens when the pool cannot cope
 
@@ -119,10 +151,34 @@ upload timeout already gets. It must never reach `/error-file`, which is the
 the levers are `VALIDATION_WORKER_COUNT` (if the task has the memory) or more
 backend instances.
 
-The timeout is 30 s rather than something larger precisely because there is no
-fallback — it has to fire while there is still a request to fail, well inside a
-load-balancer timeout. The slowest validation measured, on a 5,000-parcel file on
-a contended box, was under two seconds.
+### The timeout ladder
+
+Every layer has to sit strictly inside the one outside it, or a failure surfaces
+as a dropped connection rather than as an error anyone can act on. It previously
+did not: the backend was willing to spend ~91 s (30 s waiting for the uploader,
+30 s downloading, 30 s validating) inside a frontend budget of 10 s.
+
+| Layer                           | Setting                          |                  Budget |
+| ------------------------------- | -------------------------------- | ----------------------: |
+| CDP ingress / load balancer     | _platform_                       | **unknown — see below** |
+| Frontend validate call          | `BACKEND_VALIDATE_TIMEOUT_MS`    |                    25 s |
+| Wait for CDP Uploader ready     | `UPLOAD_READY_TIMEOUT_MS`        |                     3 s |
+| Stream the file out of S3       | `UPLOAD_DOWNLOAD_TIMEOUT_MS`     |                    10 s |
+| Wait for a free worker          | `VALIDATION_QUEUE_WAIT_LIMIT_MS` |                     5 s |
+| Run the validation              | `VALIDATION_WORKER_TIMEOUT_MS`   |                    10 s |
+| Parse, extract, enrich, persist | _unbounded_                      |         ~1.2 s measured |
+
+The frontend budget is **per-request**, not the global `BACKEND_TIMEOUT_MS` — that
+stays at 10 s, because a hung project list or login should fail fast rather than
+hold a page for half a minute. Validation is the only call that legitimately
+takes seconds.
+
+> **25 s is a guess, and deliberately a conservative one.** The real ceiling is
+> the CDP ingress idle timeout, which is not in either repo. 25 s is safe under
+> either a 30 s or a 60 s ingress. Once that number is known, raise
+> `BACKEND_VALIDATE_TIMEOUT_MS` toward it and widen the download and worker rungs
+> to match — that is what governs the largest file this synchronous pipeline can
+> accept.
 
 ### Memory is why the pool is small
 

@@ -308,7 +308,9 @@ describe('validateBaseline handler — pipeline calls', () => {
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID)
+    expect(waitForUploadReady).toHaveBeenCalledWith(UPLOAD_ID, {
+      timeoutMs: expect.any(Number)
+    })
   })
 
   it('downloads the file using the resolved bucket and key', async () => {
@@ -316,7 +318,9 @@ describe('validateBaseline handler — pipeline calls', () => {
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(downloadFileToTemp).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY)
+    expect(downloadFileToTemp).toHaveBeenCalledWith(MOCK_BUCKET, MOCK_KEY, {
+      timeoutMs: expect.any(Number)
+    })
   })
 
   it('runs the gpkg gate against the downloaded file', async () => {
