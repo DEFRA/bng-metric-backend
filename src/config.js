@@ -252,9 +252,9 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     busyRetryAfterSeconds: {
-      doc: 'Value of the Retry-After header sent with the 503 when the validation queue is full. Short, because a full queue clears in the time it takes the workers to drain it.',
+      doc: 'Value of the Retry-After header sent with the 503 when validation is refused. The frontend HONOURS this — it is the base for how soon its polling page comes back — so it is the one place the retry pace is decided, rather than being duplicated on both sides. Short, because a full queue drains in the time it takes the workers to finish what they are holding.',
       format: 'int',
-      default: 30,
+      default: 5,
       env: 'VALIDATION_BUSY_RETRY_AFTER_SECONDS'
     }
   },
