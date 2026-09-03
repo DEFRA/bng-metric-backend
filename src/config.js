@@ -251,6 +251,24 @@ const config = convict({
       default: 5000,
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
+    parseBudgetBytes: {
+      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. Scope note: this used to be the main memory defence, because the route unpacked every shape before the worker pool was consulted and so a queued request held its whole object graph. The route now gates without unpacking and reads the shapes only once a worker is free, which cut what a full queue of eight 12,000-parcel uploads holds from ~514 MB to ~53 MB. What remains for this to bound is the window AFTER the geometry verdict, where a request holds its layers through the data-quality checks and persistence. Each upload charges an ESTIMATE of its unpack cost — 8 MB + 14x the file size — not its measured cost, so these are credit-bytes rather than heap-bytes; the ratio is calibrated on unpacking a file ALONE, the case that must never be under-estimated. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      format: 'int',
+      default: 576716800,
+      env: 'VALIDATION_PARSE_BUDGET_BYTES'
+    },
+    maxRssBytes: {
+      doc: "Process RSS above which Hapi refuses new requests with a 503, before the handler runs. This is the backstop the parse budget cannot be: that budget rations bytes it knows about — the files being parsed — and measurement showed RSS reaching 1.2 GB while the budget was never exceeded, because most of the growth is the GEOS workers' WebAssembly heaps, V8's retained heap and native allocator arenas. None of those are visible to a JS-level count; all of them are visible in RSS, which is also the number the kernel OOM-killer reads. Sampled rather than exact (see loadSampleIntervalMs), so several requests can slip through between samples. Zero disables it. Set it BELOW the task memory limit with room for one in-flight request, not at it.",
+      format: 'int',
+      default: 0,
+      env: 'VALIDATION_MAX_RSS_BYTES'
+    },
+    loadSampleIntervalMs: {
+      doc: 'How often Hapi samples process load. Required to be non-zero for maxRssBytes to do anything at all — @hapi/heavy asserts on a zero interval with any limit set, so this is not merely a tuning knob. Short enough that a burst is noticed within a request or two, long enough not to sample on every event loop turn.',
+      format: 'int',
+      default: 1000,
+      env: 'VALIDATION_LOAD_SAMPLE_INTERVAL_MS'
+    },
     busyRetryAfterSeconds: {
       doc: 'Value of the Retry-After header sent with the 503 when validation is refused. The frontend HONOURS this — it is the base for how soon its polling page comes back — so it is the one place the retry pace is decided, rather than being duplicated on both sides. Short, because a full queue drains in the time it takes the workers to finish what they are holding.',
       format: 'int',

@@ -124,7 +124,8 @@ in-process on worker threads using GEOS compiled to WebAssembly. **Validation
 takes no database connection.** The PostGIS statement that used to do this has
 been removed; the database remains the system of record for storage.
 
-There is no fallback. When the pool is saturated the route refuses **before**
+There is no fallback. When the pool is saturated — or when the files already
+being parsed have committed the parse budget — the route refuses **before**
 downloading the file and returns **503 `VALIDATION_BUSY`**; the frontend keeps the
 user on its polling page and retries, jittered, until a worker frees up or it
 gives up after two minutes. The file was never looked at, so it is not a
@@ -136,12 +137,19 @@ validation failure.
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.        |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.  |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused. |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  400 MB | Heap rationed across the files parsed concurrently.   |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.    |
 | `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.       |
 | `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.              |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
 returned, so the worker count is a memory budget as much as a throughput setting.
+
+Parsing is budgeted separately from validating, because it happens first: a
+request refused by the pool has already parsed its file. `VALIDATION_PARSE_BUDGET_BYTES`
+bounds how much parsed GeoPackage may be in flight at once (~8 MB + 14x the file
+size each), and the route reserves against it from the uploader's reported file
+size before opening anything.
 
 These timeouts form a ladder that must nest inside the frontend's per-request
 validate timeout, which must in turn nest inside the CDP ingress idle timeout.
