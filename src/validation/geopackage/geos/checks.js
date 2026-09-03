@@ -245,20 +245,22 @@ function checkAreaParcelsOutside(context, emit) {
     if (coveredByRedline(context, feature.valid)) {
       continue
     }
-    const escape = context.runtime.geos.GEOSDifferencePrec(
+    // Not `escape`: that is a global function, and shadowing it is the kind of
+    // name collision that reads fine here and confuses everything else.
+    const escaped = context.runtime.geos.GEOSDifferencePrec(
       feature.valid,
       context.redlineUnion,
       OVERLAY_GRID_SIZE_M
     )
-    const escapeAreaSqM = context.runtime.area(escape)
+    const escapeAreaSqM = context.runtime.area(escaped)
     if (escapeAreaSqM > PARCEL_OUTSIDE_TOLERANCE_SQ_M) {
       offenders.push({
         feature,
         escapeAreaSqM,
-        escapeWkt: context.runtime.toWkt(escape)
+        escapeWkt: context.runtime.toWkt(escaped)
       })
     }
-    context.runtime.free(escape)
+    context.runtime.free(escaped)
   }
 
   if (offenders.length > 0) {

@@ -35,6 +35,9 @@ import { EPSG_WGS84 } from '../src/validation/geopackage/geopackage-constants.js
  */
 const DRIFT_TOLERANCE_M = 0.01
 
+/** Decimal places for the reported drift — sub-millimetre, since the tolerance is 10 mm. */
+const DRIFT_DECIMALS = 4
+
 const scriptDir = dirname(fileURLToPath(import.meta.url))
 const sourcePath = join(
   scriptDir,
@@ -93,10 +96,14 @@ if (process.argv.includes('--check')) {
   const committed = JSON.parse(readFileSync(targetPath, 'utf8'))
   const drift = worstDrift(committed, projected)
   if (drift > DRIFT_TOLERANCE_M) {
+    // A non-finite drift means the two files do not even have the same vertex
+    // count, so there is no distance to report.
+    const howFar = Number.isFinite(drift)
+      ? `${drift.toFixed(DRIFT_DECIMALS)} m`
+      : 'a shape mismatch'
     console.error(
       `england-27700.json is stale: worst drift from england.geojson is ` +
-        `${Number.isFinite(drift) ? `${drift.toFixed(4)} m` : 'a shape mismatch'}, ` +
-        `over the ${DRIFT_TOLERANCE_M} m tolerance.\n` +
+        `${howFar}, over the ${DRIFT_TOLERANCE_M} m tolerance.\n` +
         `Regenerate it with: node scripts/gen-england-27700.mjs`
     )
     process.exit(1)

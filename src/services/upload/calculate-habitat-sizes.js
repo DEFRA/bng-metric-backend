@@ -128,7 +128,7 @@ function calculateHabitatSizes(layers) {
       }
       const sizeValue = feature[GEOMETRY_SIZE_FIELD]
       if (typeof sizeValue !== 'number') {
-        throw new Error(
+        throw new TypeError(
           `Geometry validation did not measure ${layerName} feature ${feature.featureId ?? '(no id)'}`
         )
       }

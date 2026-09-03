@@ -81,13 +81,36 @@ const LAG_INTERVAL_MS = 10
 const LAG_SETTLE_TICKS = 4
 
 /** Measurement window for each throughput scenario, in ms. */
-const THROUGHPUT_WINDOW_MS = Number(process.env.BENCH_WINDOW_MS ?? 12_000)
+const DEFAULT_THROUGHPUT_WINDOW_MS = 12_000
+const THROUGHPUT_WINDOW_MS = Number(
+  process.env.BENCH_WINDOW_MS ?? DEFAULT_THROUGHPUT_WINDOW_MS
+)
 
 /** Concurrent validations driven during the throughput benchmark. */
 const THROUGHPUT_CONCURRENCY = 12
 
 /** Warm-up for the probe loop before the first measured window, in ms. */
 const PROBE_WARMUP_MS = 3000
+
+/** The 50th percentile, as a fraction — the argument `percentile` takes. */
+const MEDIAN = 0.5
+
+/** Default Postgres port, for the probe's pool. */
+const DEFAULT_DB_PORT = 5432
+
+/**
+ * Column widths for the three result tables. Gathered here rather than left as
+ * bare arguments to padStart/padEnd, where a row and its header drift apart the
+ * moment either is edited.
+ */
+const LATENCY_COLUMNS = { file: 7, features: 8, median: 6 }
+const LAG_COLUMNS = { scenario: 32, elapsed: 8, p50: 7, max: 7, ticks: 5 }
+const THROUGHPUT_COLUMNS = {
+  scenario: 38,
+  served: 7,
+  acquire: 7,
+  completed: 11
+}
 
 const [, , fixtureDir, mode = 'all'] = process.argv
 if (!fixtureDir) {
@@ -99,7 +122,7 @@ if (!fixtureDir) {
 
 const pool = new pg.Pool({
   host: process.env.DB_HOST ?? '127.0.0.1',
-  port: Number(process.env.DB_PORT ?? 5432),
+  port: Number(process.env.DB_PORT ?? DEFAULT_DB_PORT),
   user: process.env.DB_USER ?? 'dev',
   password: process.env.DB_LOCAL_PASSWORD ?? 'dev',
   database: process.env.DB_DATABASE ?? 'bng_metric_backend',
@@ -123,7 +146,9 @@ function featureCount(layers) {
 const median = (values) => [...values].sort((a, b) => a - b)[values.length >> 1]
 
 const percentile = (values, p) =>
-  values.length ? [...values].sort((a, b) => a - b)[(values.length * p) | 0] : 0
+  values.length
+    ? [...values].sort((a, b) => a - b)[Math.trunc(values.length * p)]
+    : 0
 
 /**
  * A pool sized for the benchmark rather than for production: the queue is left
@@ -156,8 +181,9 @@ async function benchLatency() {
     }
 
     console.log(
-      `${name.slice(1).padStart(7)} | ${String(featureCount(layers)).padStart(8)} | ` +
-        `${median(timings).toFixed(0).padStart(6)}ms | ${result.valid}`
+      `${name.slice(1).padStart(LATENCY_COLUMNS.file)} | ` +
+        `${String(featureCount(layers)).padStart(LATENCY_COLUMNS.features)} | ` +
+        `${median(timings).toFixed(0).padStart(LATENCY_COLUMNS.median)}ms | ${result.valid}`
     )
   }
 }
@@ -187,8 +213,8 @@ function lagMeter() {
       )
       clearInterval(timer)
       return {
-        p50: percentile(samples, 0.5),
-        max: samples.length ? Math.max(...samples) : NaN,
+        p50: percentile(samples, MEDIAN),
+        max: samples.length ? Math.max(...samples) : Number.NaN,
         ticks: samples.length
       }
     }
@@ -203,9 +229,11 @@ async function measureLag(name, run) {
   const elapsed = performance.now() - start
   const lag = await meter.stop()
   console.log(
-    `${name.padEnd(32)} | ${elapsed.toFixed(0).padStart(8)}ms | ` +
-      `${lag.p50.toFixed(1).padStart(7)}ms | ${lag.max.toFixed(0).padStart(7)}ms | ` +
-      `${String(lag.ticks).padStart(5)}`
+    `${name.padEnd(LAG_COLUMNS.scenario)} | ` +
+      `${elapsed.toFixed(0).padStart(LAG_COLUMNS.elapsed)}ms | ` +
+      `${lag.p50.toFixed(1).padStart(LAG_COLUMNS.p50)}ms | ` +
+      `${lag.max.toFixed(0).padStart(LAG_COLUMNS.max)}ms | ` +
+      `${String(lag.ticks).padStart(LAG_COLUMNS.ticks)}`
   )
 }
 
@@ -262,9 +290,10 @@ async function throughputScenario(name, startLoad) {
   await probe(deadline, stats)
   const completed = (await Promise.all(load)).reduce((total, n) => total + n, 0)
   console.log(
-    `${name.padEnd(38)} | ${String(stats.served).padStart(7)} | ` +
-      `${percentile(stats.acquire, 0.5).toFixed(0).padStart(7)}ms | ` +
-      `${String(completed).padStart(11)}`
+    `${name.padEnd(THROUGHPUT_COLUMNS.scenario)} | ` +
+      `${String(stats.served).padStart(THROUGHPUT_COLUMNS.served)} | ` +
+      `${percentile(stats.acquire, MEDIAN).toFixed(0).padStart(THROUGHPUT_COLUMNS.acquire)}ms | ` +
+      `${String(completed).padStart(THROUGHPUT_COLUMNS.completed)}`
   )
 }
 

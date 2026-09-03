@@ -40,8 +40,12 @@ import {
   VALIDATION_CATEGORY,
   VALIDATION_METRIC
 } from '../common/helpers/metric-names.js'
-import { memoryUsageMb } from '../common/helpers/perf-evidence.js'
-import { logPerf, perfNow, msSince } from '../common/helpers/perf-evidence.js'
+import {
+  logPerf,
+  memoryUsageMb,
+  msSince,
+  perfNow
+} from '../common/helpers/perf-evidence.js'
 // Aliased: every function in this file takes a route `config` object, and the
 // application config is a different thing entirely.
 import { config as appConfig } from '../config.js'
@@ -404,7 +408,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // not a fault, and the only one of these worth telling the user to retry.
     const busy = busyReason(error)
     if (busy) {
-      return await respondToBusy(uploadId, h, config, busy)
+      return respondToBusy(uploadId, h, config, busy)
     }
     logger.error(
       `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`

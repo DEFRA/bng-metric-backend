@@ -94,6 +94,16 @@ export function bbox(geometry) {
 }
 
 /**
+ * Slots in a bounding box — the flat `[minX, minY, maxX, maxY]` that `bbox`
+ * above returns. Named because a sweep line comparing one box's maxX against
+ * another's minX is unreadable as bare subscripts.
+ */
+const MIN_X = 0
+const MIN_Y = 1
+const MAX_X = 2
+const MAX_Y = 3
+
+/**
  * Every pair of features whose bounding boxes overlap — the candidate set the
  * exact overlap test then runs against.
  *
@@ -114,7 +124,7 @@ export function bbox(geometry) {
 export function candidatePairs(boxes) {
   const byMinX = boxes
     .map((_, index) => index)
-    .sort((a, b) => boxes[a][0] - boxes[b][0])
+    .sort((a, b) => boxes[a][MIN_X] - boxes[b][MIN_X])
   const pairs = []
   const active = []
 
@@ -122,14 +132,17 @@ export function candidatePairs(boxes) {
     const box = boxes[index]
     for (let slot = active.length - 1; slot >= 0; slot--) {
       const other = active[slot]
-      if (boxes[other][2] < box[0]) {
+      if (boxes[other][MAX_X] < box[MIN_X]) {
         // Swept past this box's maxX: it can never overlap anything further
         // along, so drop it by swapping in the tail rather than splicing.
-        active[slot] = active[active.length - 1]
+        active[slot] = active.at(-1)
         active.pop()
         continue
       }
-      if (boxes[other][1] <= box[3] && boxes[other][3] >= box[1]) {
+      if (
+        boxes[other][MIN_Y] <= box[MAX_Y] &&
+        boxes[other][MAX_Y] >= box[MIN_Y]
+      ) {
         pairs.push(index < other ? [index, other] : [other, index])
       }
     }
