@@ -68,11 +68,27 @@ export async function validateBaselineFile(filePath, variant) {
  * @param {boolean} [options.includeSizes] also return per-feature areas and
  *   lengths, so the sizing pass need not re-measure the same geometry
  */
-export async function validateGeoPackageLayers(layers, variant, options = {}) {
+export async function validateGeoPackageLayers(
+  layersOrLoad,
+  variant,
+  options = {}
+) {
   const { filePath, includeSizes = false } = options
   if (!filePath) {
     throw new Error('validateGeoPackageLayers requires a GeoPackage file path')
   }
+
+  // A FUNCTION here means "unpack the shapes only once a worker is free".
+  //
+  // The geometry work needs the file, not the parsed layers — the worker opens
+  // `filePath` itself. Only the data-quality checks below need layers, and they
+  // run after the pool has answered. So a caller that passes a loader keeps
+  // nothing but a path while it waits in the queue, where a caller that passes
+  // layers is holding the whole unpacked object graph for the entire wait —
+  // 57 MB per 5,000-parcel file, 121 MB per 12,000-parcel one, times the queue
+  // depth. Both forms are supported because most callers already have layers in
+  // hand and are not queueing behind anything.
+  const deferLayers = typeof layersOrLoad === 'function'
 
   const pool = workerPool()
   const start = perfNow()
@@ -87,6 +103,10 @@ export async function validateGeoPackageLayers(layers, variant, options = {}) {
     geosVersion,
     ...stats
   })
+
+  // Now — and only now — are the shapes needed. Unpacking here rather than
+  // before the queue is the whole point: the wait costs a path, not a heap.
+  const layers = deferLayers ? layersOrLoad() : layersOrLoad
 
   // JS-side checks that don't need geometry. Surface ahead of geometry errors so
   // the user sees blocking policy/data-quality issues first.

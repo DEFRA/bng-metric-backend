@@ -1,9 +1,13 @@
-import { beforeEach, describe, expect, it, vi } from 'vitest'
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
+import {
+  getParseBudget,
+  resetParseBudget
+} from '../validation/geopackage/parse-budget.js'
 import { config } from '../config.js'
 import {
   GEOPACKAGE_METRIC,
@@ -50,7 +54,10 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateAndReadGpkgFile: vi.fn()
+  // The gate no longer unpacks: it answers valid/invalid from the file, and the
+  // shapes are read separately once a worker is free.
+  validateGpkgFile: vi.fn(),
+  readGeoPackage: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -116,7 +123,7 @@ const {
   S3TimeoutError,
   S3ConnectionError
 } = await import('../services/s3/download-file.js')
-const { validateAndReadGpkgFile } =
+const { validateGpkgFile, readGeoPackage } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
   await import('../validation/geopackage/assign-feature-ids.js')
@@ -194,15 +201,19 @@ function setupHappyPathMocks() {
     fileSize: MOCK_FILE_SIZE
   })
   vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
-  vi.mocked(validateAndReadGpkgFile).mockReturnValue({
-    valid: true,
-    errors: [],
-    layers: STUB_LAYERS
-  })
-  vi.mocked(validateGeoPackageLayers).mockResolvedValue({
-    valid: true,
-    errors: []
-  })
+  vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
+  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  // Honours the real contract: when handed a loader rather than layers, the
+  // pool calls it once a worker is free. A double that ignored the loader
+  // would let a route that never unpacks its file still pass.
+  vi.mocked(validateGeoPackageLayers).mockImplementation(
+    async (layersOrLoad) => {
+      if (typeof layersOrLoad === 'function') {
+        layersOrLoad()
+      }
+      return { valid: true, errors: [] }
+    }
+  )
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
   vi.mocked(calculateHabitatSizes).mockReturnValue(EMPTY_HABITAT_SIZES)
   vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
@@ -329,24 +340,47 @@ describe('validateBaseline handler — pipeline calls', () => {
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    expect(validateAndReadGpkgFile).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
+    expect(validateGpkgFile).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
   })
 
-  it('runs full baseline validation on the layers the gate already parsed', async () => {
+  // The gate and the unpack are now two reads of the same file, where BMD-910
+  // had deliberately made them one. That is a knowing trade: the second read
+  // costs ~14 ms of SQLite fetch on a 5,000-parcel file, and it buys not
+  // holding 57 MB of unpacked shapes for the whole time the request waits for
+  // a worker. Memory was the scarcer resource.
+  it('hands the pool a loader, not layers, so the wait costs a path', async () => {
     await validateBaseline.handler(
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
     )
-    // One parse for both jobs: no second read of the file (BMD-910).
-    expect(validateAndReadGpkgFile).toHaveBeenCalledTimes(1)
-    // No pool argument: geometry validation takes no database connection at
-    // all now. The file's PATH travels with the layers so the worker can parse
-    // its own copy off the event loop.
+    expect(validateGpkgFile).toHaveBeenCalledTimes(1)
     expect(validateGeoPackageLayers).toHaveBeenCalledWith(
-      STUB_LAYERS,
+      expect.any(Function),
       'baseline',
       { filePath: MOCK_DOWNLOAD_PATH, includeSizes: false }
     )
+  })
+
+  // The property the whole reorder exists for. If the file were unpacked before
+  // the pool were consulted, every queued request would be holding its shapes
+  // again and the change would have bought nothing.
+  it('does not unpack the file until the pool asks for it', async () => {
+    let unpackedBeforePool = true
+    vi.mocked(validateGeoPackageLayers).mockImplementation(
+      async (layersOrLoad) => {
+        unpackedBeforePool = vi.mocked(readGeoPackage).mock.calls.length > 0
+        layersOrLoad()
+        return { valid: true, errors: [] }
+      }
+    )
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(unpackedBeforePool).toBe(false)
+    expect(readGeoPackage).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
   })
 })
 
@@ -430,6 +464,181 @@ describe('validateBaseline handler — service busy', () => {
       h
     )
     expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+})
+
+// The other way the service can be too busy, and the one the pool cannot see:
+// worker slots free, but the files already parsed leave no heap to parse
+// another. Refused BEFORE the download, so a turned-away request costs nothing
+// — which is the entire point of deciding from the size rather than after the
+// read.
+describe('validateBaseline handler — parse budget exhausted', () => {
+  let h
+  let drizzleHarness
+  let release
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    resetParseBudget()
+    // One enormous reservation fills the budget: the first file in is always
+    // admitted however big it is, so nothing else fits behind it.
+    const budgetBytes = config.get('validation.parseBudgetBytes')
+    release = getParseBudget(budgetBytes).reserve(budgetBytes)
+  })
+
+  afterEach(() => {
+    release()
+    resetParseBudget()
+  })
+
+  it('answers 503 rather than running the validation anyway', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(503)
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [expect.objectContaining({ code: ERROR_CODES.VALIDATION_BUSY })]
+    })
+  })
+
+  // The saving is the whole feature: refusing after the download and parse
+  // costs exactly as much memory as accepting, which is why the existing
+  // post-parse limit protected nothing.
+  it('refuses without downloading or parsing the file', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(downloadFileToTemp).not.toHaveBeenCalled()
+    expect(validateGpkgFile).not.toHaveBeenCalled()
+    expect(validateGeoPackageLayers).not.toHaveBeenCalled()
+  })
+
+  it('tells the caller when to come back, from config', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.header).toHaveBeenCalledWith(
+      'Retry-After',
+      String(config.get('validation.busyRetryAfterSeconds'))
+    )
+  })
+
+  // A refusal for memory and a refusal for a full queue have different
+  // remedies — more heap versus more workers — so the metric has to tell them
+  // apart, or the dashboard says "busy" and nothing more.
+  it('counts the refusal against memory, not the queue', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).toHaveBeenCalledWith('GeoPackageValidationBusy', 1, {
+      reason: 'memory_budget'
+    })
+  })
+
+  it('does not count it as a validation failure — the file was never read', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      'GeoPackageValidationFailed',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  it('does not persist anything', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+    expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+})
+
+// A budget that is taken but never given back would refuse everything after
+// the first few files, which is worse than not having one — so the release is
+// worth pinning down on both the success and the failure path.
+describe('validateBaseline handler — parse budget accounting', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    vi.clearAllMocks()
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    resetParseBudget()
+  })
+
+  afterEach(() => {
+    resetParseBudget()
+  })
+
+  function budget() {
+    return getParseBudget(config.get('validation.parseBudgetBytes'))
+  }
+
+  it('holds the file for the length of the validation and no longer', async () => {
+    let inFlightDuringParse = 0
+    vi.mocked(readGeoPackage).mockImplementation(() => {
+      inFlightDuringParse = budget().inFlightBytes
+      return { valid: true, errors: [], layers: STUB_LAYERS }
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(inFlightDuringParse).toBeGreaterThan(0)
+    expect(budget().inFlightBytes).toBe(0)
+  })
+
+  // The gap between the advisory check and the reservation is real: another
+  // request can take the last of the budget while this one is still streaming
+  // its file out of S3. The reservation re-checks for exactly that, and the
+  // answer has to be the same 503 rather than an unhandled error.
+  it('still refuses when the budget goes while the file is downloading', async () => {
+    vi.mocked(downloadFileToTemp).mockImplementation(async () => {
+      budget().reserve(config.get('validation.parseBudgetBytes'))
+      return makeDownload()
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(503)
+    expect(validateGpkgFile).not.toHaveBeenCalled()
+    expect(metricsCounter).toHaveBeenCalledWith('GeoPackageValidationBusy', 1, {
+      reason: 'memory_budget'
+    })
+  })
+
+  it('gives the budget back when the validation throws', async () => {
+    vi.mocked(readGeoPackage).mockImplementation(() => {
+      throw new Error('gpkg gate exploded')
+    })
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(budget().inFlightBytes).toBe(0)
   })
 })
 
@@ -526,7 +735,7 @@ describe('validateBaseline handler — downloaded file cleanup', () => {
   })
 
   it('removes the temporary file when the gate rejects the file', async () => {
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+    vi.mocked(validateGpkgFile).mockReturnValue({
       valid: false,
       errors: [{ code: ERROR_CODES.GPKG_INVALID_FILE, message: 'nope' }],
       layers: null
@@ -554,7 +763,7 @@ describe('validateBaseline handler — downloaded file cleanup', () => {
   })
 
   it('removes the temporary file when validation throws', async () => {
-    vi.mocked(validateAndReadGpkgFile).mockImplementation(() => {
+    vi.mocked(readGeoPackage).mockImplementation(() => {
       throw new Error('boom')
     })
 
@@ -633,7 +842,7 @@ describe('validateBaseline handler — response shape', () => {
       ],
       layers: null
     }
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue(gateResult)
+    vi.mocked(validateGpkgFile).mockReturnValue(gateResult)
     await validateBaseline.handler(
       makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
       h
@@ -844,11 +1053,8 @@ describe('validateBaseline handler upload error handling', () => {
     vi.clearAllMocks()
     h = makeH()
     vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
-      valid: true,
-      errors: [],
-      layers: STUB_LAYERS
-    })
+    vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
@@ -920,11 +1126,8 @@ describe('validateBaseline handler download error handling', () => {
       bucket: MOCK_BUCKET,
       key: MOCK_KEY
     })
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
-      valid: true,
-      errors: [],
-      layers: STUB_LAYERS
-    })
+    vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
     vi.mocked(validateGeoPackageLayers).mockResolvedValue({
       valid: true,
       errors: []
@@ -1001,11 +1204,8 @@ describe('validateBaseline handler full validation error handling', () => {
       key: MOCK_KEY
     })
     vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
-      valid: true,
-      errors: [],
-      layers: STUB_LAYERS
-    })
+    vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
+    vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
   })
 
   it('returns 500 when validateGeoPackageLayers throws', async () => {
@@ -1049,7 +1249,7 @@ describe('validateBaseline handler — metrics', () => {
   })
 
   it('emits an internal_data failure when the gpkg gate rejects', async () => {
-    vi.mocked(validateAndReadGpkgFile).mockReturnValue({
+    vi.mocked(validateGpkgFile).mockReturnValue({
       valid: false,
       errors: ['bad'],
       layers: null

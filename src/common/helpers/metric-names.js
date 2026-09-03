@@ -22,7 +22,7 @@ export const GEOPACKAGE_METRIC = {
 }
 
 /**
- * Values for the `reason` dimension on GeoPackageValidationBusy. Three ways to
+ * Values for the `reason` dimension on GeoPackageValidationBusy. Four ways to
  * be told "not now", and they are not interchangeable:
  *
  *   no_capacity  The route refused before doing any work, because the pool was
@@ -32,11 +32,16 @@ export const GEOPACKAGE_METRIC = {
  *   queue_wait   A job sat in the queue longer than it was worth starting. This
  *                one says jobs are slow, not that arrivals are many, so the
  *                remedy is different: look at file sizes before adding workers.
+ *   memory_budget  There were worker slots free, but not enough heap left to
+ *                parse this file alongside the ones already in flight. Says the
+ *                arrivals are BIG rather than many — the remedy is the parse
+ *                budget or the task memory limit, not more workers.
  */
 export const VALIDATION_BUSY_REASON = Object.freeze({
   noCapacity: 'no_capacity',
   queueFull: 'queue_full',
-  queueWait: 'queue_wait'
+  queueWait: 'queue_wait',
+  memoryBudget: 'memory_budget'
 })
 
 /**

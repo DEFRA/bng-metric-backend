@@ -87,11 +87,14 @@ a precondition here, not an optimisation.
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                 |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.        |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  400 MB | Heap rationed across the files being PARSED at once. See below.      |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                 |
 
-The pool cap **is** the admission control. It is the same protective bounding the
-connection pool used to provide, except the rationed resource is CPU on an
-instance CDP can add more of.
+The pool cap is **half** the admission control: it rations CPU, which is the
+same protective bounding the connection pool used to provide, except on a
+resource CDP can add more of. It does not ration memory, and memory is what a
+burst of large files actually exhausts — hence the parse budget below, which
+refuses on size before the file is opened.
 
 ### Being busy is a poll, not a failure
 
@@ -224,19 +227,108 @@ The queue holds job objects — an id, a file path, two callbacks — so the arr
 itself is a couple of kilobytes at the default limit and can be ignored. What
 cannot be ignored is what each _waiting request_ holds elsewhere.
 
-A queued validation belongs to a request sitting inside
-`validateGeoPackageLayers`, and that request still has the parsed GeoPackage the
-format gate produced: measured at **~29 MB of heap per in-flight upload** on the
-5,000-parcel fixture. Eight queued plus two in flight is therefore up to ~290 MB
-on top of the workers' own ~500 MB.
+**This was true until the read was reordered, and is kept here because the
+reasoning still explains the shape of the cost.** A queued validation used to
+sit inside `validateGeoPackageLayers` still holding the parsed GeoPackage the
+format gate produced, so a deep queue was a deep pile of object graphs. Measured
+on the perf fixtures, eight queued uploads held **278 MB** (5,000 parcels) or
+**514 MB** (12,000 parcels).
+
+The gate no longer unpacks. It answers valid/invalid from the file and the
+shapes are read on the far side of the pool wait, so the same eight queued
+uploads now hold **11 MB** and **53 MB** respectively — a queued request holds a
+path, not a heap. `VALIDATION_WORKER_QUEUE_LIMIT` is therefore close to free
+again, which is what it always looked like and never was.
 
 Unlike the workers' WebAssembly heap this memory is **transient** — garbage once
-the request ends, not a high-water mark. But **raising
-`VALIDATION_WORKER_QUEUE_LIMIT` raises that ceiling directly**, and it is worth
-being clear that the limit rations CPU rather than memory. If a task is tight on
-memory, lowering the queue limit is a better lever than lowering the worker
-count: the workers are what earn the throughput, and the queue is what quietly
-eats the headroom.
+the request ends, not a high-water mark. Before the reorder, raising
+`VALIDATION_WORKER_QUEUE_LIMIT` raised the memory ceiling directly and lowering
+it was the best lever a memory-tight task had. That is no longer the trade: the
+queue now costs a path per waiting request, so the limit rations CPU, which is
+what it was always meant to ration.
+
+### Refusing on size, before the read
+
+The section above describes a ceiling nothing enforced. The order of work was
+the wrong way round. The route does ask the pool `hasCapacity()` before doing
+anything, but that answer is **advisory**; the refusal that actually sticks is
+raised inside the pool, and `validateAndReadGpkgFile` runs before it. So a
+request that lost the race had already parsed its own copy of every feature in
+the file — and held it until the response was sent. Twenty concurrent 5,000-parcel
+uploads therefore pinned their parsed layers no matter what
+`VALIDATION_WORKER_QUEUE_LIMIT` said, because the queue limit counts requests
+waiting for a worker and every one of them is already holding its layers. On
+Fargate, with no swap to absorb the peak, that is an OOM kill rather than a slow
+patch: the task dies and takes every in-flight upload with it.
+
+The fix is to decide from the **file size**, which the uploader reports before
+the file is opened. `parse-budget.js` holds a process-wide byte budget; the
+route reserves an estimated parse cost against it before downloading, and
+releases it once the response is built. A file that does not fit gets the same
+503 + `Retry-After` a full queue gives, having cost nothing.
+
+The estimate is **8 MB fixed + 14x the file size**, from measuring RSS either
+side of a parse of each perf fixture:
+
+| Fixture        | File size | Parse cost |
+| -------------- | --------: | ---------: |
+| 80 parcels     |    140 KB |       6 MB |
+| 800 parcels    |    704 KB |      16 MB |
+| 5,000 parcels  |    4.0 MB |      48 MB |
+| 12,000 parcels |    9.5 MB |     131 MB |
+
+(Higher than the ~29 MB quoted above for the same fixture because that figure is
+V8 heap and these are whole-process RSS — the native allocations better-sqlite3
+makes do not show up in the heap number, and they are just as real against the
+task limit.) The ratio is rounded **up** from the steepest measured value, 13.3:
+an estimate that comes in low admits a file the process cannot afford, which is
+the failure this exists to prevent, while one that comes in high only costs
+throughput and says so in the metric.
+
+At the 400 MB default that admits roughly six 5,000-parcel files or three
+12,000-parcel ones at once. Raise it **with** the task memory limit, not on its
+own: the process also needs its warm baseline (~450 MB after sustained work) and
+one worker's copy of the largest file it is validating.
+
+Two properties are deliberate:
+
+- **The first file in is always admitted, however big it is.** With nothing else
+  in flight there is no one to wait for, so refusing would mean that file could
+  never be validated at all — a permanent failure dressed as back-pressure. The
+  worker timeout is what catches a file genuinely too big to handle.
+- **The check before the download is advisory; the reservation re-checks.**
+  Another request can take the last of the budget while this one is streaming
+  its file out of S3, so the reservation can still refuse — and answers with the
+  same 503 rather than an error. Exactly the contract `hasCapacity()` already
+  has with the pool.
+
+It counts reservations rather than sampling RSS on purpose. RSS lags, and it
+never falls back to where it started — V8 keeps its heap reserved and glibc
+keeps its arenas — so a limit read off RSS would tighten as the process ages and
+refuse bursts in the afternoon it served in the morning. What admission control
+needs to know is how much work is in flight _right now_, and the route is the
+one thing that knows it exactly.
+
+### The gate does not unpack, and why the file is read twice
+
+The order used to be: unpack everything, then ask the pool. That put the most
+expensive thing the handler does in front of the cheapest decision it makes.
+
+It is now: gate without unpacking, wait for a worker, then unpack. A structurally
+broken file is still rejected before it costs a worker slot — which is why the
+check was in front of the queue in the first place — but a file that passes
+carries a path into the queue rather than its shapes.
+
+The cost is a **second read of the same file**, which BMD-910 had deliberately
+removed by having the gate hand back the layers from its own pass. That decision
+was right when the alternative was two full unpacks; it is wrong when the
+alternative is holding one unpack for the length of a queue wait. The second read
+re-fetches the rows — about 14 ms on the 5,000-parcel fixture — and buys not
+holding 57 MB per waiting request. Memory was the scarcer resource.
+
+`validateGeoPackageLayers` therefore accepts a LOADER as well as layers. Handed a
+function, it calls it after the pool answers. Callers that already have layers in
+hand and are not queueing behind anything can still pass them directly.
 
 ### Why the worker is given a file path, not the layers
 
@@ -270,11 +362,12 @@ continuity across the engine change — see `metric-names.js`.)
 
 **Is it turning people away?** `GeoPackageValidationBusy`, sliced by `reason`:
 
-| `reason`      | Means                                                          | Remedy                                                 |
-| ------------- | -------------------------------------------------------------- | ------------------------------------------------------ |
-| `no_capacity` | Refused before doing any work. The expected case under load.   | More workers, or more instances.                       |
-| `queue_full`  | Same, reached through a race — the capacity check is advisory. | As above.                                              |
-| `queue_wait`  | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first. |
+| `reason`        | Means                                                          | Remedy                                                                                                   |
+| --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                         |
+| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                |
+| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                   |
+| `memory_budget` | The parse budget was committed to other files in flight.       | Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower the queue limit. |
 
 Counted apart from `GeoPackageValidationFailed`, because the file was never
 looked at — a busy spike is a capacity story, not a data-quality one, and mixing

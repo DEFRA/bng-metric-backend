@@ -11,13 +11,20 @@ import {
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import { validateAndReadGpkgFile } from '../validation/geopackage/geopackage.js'
+import {
+  readGeoPackage,
+  validateGpkgFile
+} from '../validation/geopackage/geopackage.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
   ValidationQueueFullError,
   ValidationQueueWaitError
 } from '../validation/geopackage/geos/worker-pool.js'
+import {
+  getParseBudget,
+  ParseBudgetExceededError
+} from '../validation/geopackage/parse-budget.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -208,13 +215,24 @@ function validationPool() {
   })
 }
 
-/** Both ways the pool can refuse a file without looking at it. */
+/**
+ * The process-wide parse budget. Separate from the pool on purpose: the pool
+ * rations worker time, this rations heap, and a file can be refused by either.
+ */
+function parseBudget() {
+  return getParseBudget(appConfig.get('validation.parseBudgetBytes'))
+}
+
+/** Every way a file can be refused without being looked at. */
 function busyReason(error) {
   if (error instanceof ValidationQueueFullError) {
     return VALIDATION_BUSY_REASON.queueFull
   }
   if (error instanceof ValidationQueueWaitError) {
     return VALIDATION_BUSY_REASON.queueWait
+  }
+  if (error instanceof ParseBudgetExceededError) {
+    return VALIDATION_BUSY_REASON.memoryBudget
   }
   return null
 }
@@ -304,9 +322,26 @@ async function recordPoolHealth(poolTelemetry, config) {
   await metricsGauge(VALIDATION_METRIC.processResidentMb, memoryUsageMb().rssMb)
 }
 
-async function validateLayers(layers, drizzle, context, h, config) {
-  const { uploadId, projectId, credentials, filename, fileSize, filePath } =
-    context
+async function validateLayers(loadLayers, drizzle, context, h, config) {
+  const {
+    uploadId,
+    projectId,
+    credentials,
+    filename,
+    fileSize,
+    filePath,
+    gateMs
+  } = context
+
+  // The unpacked layers, once the pool hands them back. Captured here so the
+  // metrics below can report on what was actually read — `validateGeoPackageLayers`
+  // calls the loader on the far side of the queue wait, so this is set by the
+  // time the await returns.
+  let layers = null
+  const loadAndRemember = () => {
+    layers = loadLayers()
+    return layers
+  }
 
   // Evidence (Item 1 — the whole pipeline runs inline on the request handler):
   // with the PostGIS engine this is a single awaited round trip whose cost
@@ -318,10 +353,31 @@ async function validateLayers(layers, drizzle, context, h, config) {
   // persist them against.
   const validateStart = perfNow()
   const result = await validateGeoPackageLayers(
-    layers,
+    loadAndRemember,
     config.projectDocumentKey,
     { filePath, includeSizes: Boolean(projectId) }
   )
+  const featureCount = countFeatures(layers)
+
+  // Recorded here rather than before the queue because that is where the read
+  // now happens. `gateMs` is the cheap structural pass in front of the queue;
+  // the rest of this stage's time is the unpack, which the pool wait separates
+  // from it.
+  await recordStage(
+    PERFORMANCE_METRIC.parseMs,
+    gateMs,
+    {
+      uploadId,
+      stage: 'parse',
+      fileSizeBytes: fileSize ?? null,
+      featureCount,
+      valid: true
+    },
+    config
+  )
+  await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
+    documentKey: config.projectDocumentKey
+  })
   await recordPoolHealth(result.poolTelemetry, config)
   await recordStage(
     PERFORMANCE_METRIC.geometryValidateMs,
@@ -329,7 +385,7 @@ async function validateLayers(layers, drizzle, context, h, config) {
     {
       uploadId,
       stage: 'geometry-validate',
-      featureCount: countFeatures(layers)
+      featureCount
     },
     config
   )
@@ -365,38 +421,41 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
   const { uploadId } = context
 
   try {
+    // The gate WITHOUT unpacking any shapes. A structurally broken file is
+    // still rejected here, before it costs a worker slot — which is why the
+    // check was in front of the queue in the first place — but a file that
+    // passes now carries a path into the queue rather than its whole unpacked
+    // object graph. The unpack happens on the far side of the wait, in
+    // `validateLayers`.
+    //
     // Evidence (Item 2 — features and geometries are loaded synchronously):
-    // better-sqlite3 is a synchronous binding, so this call blocks the event
-    // loop for its whole duration; nothing else on this instance progresses.
-    // Reading from disk rather than a Buffer does not change that.
-    const parseStart = perfNow()
-    const gateResult = validateAndReadGpkgFile(filePath)
-    const parseMs = msSince(parseStart)
-    const featureCount = countFeatures(gateResult.layers)
-
-    await recordStage(
-      PERFORMANCE_METRIC.parseMs,
-      parseMs,
-      {
-        uploadId,
-        stage: 'parse',
-        fileSizeBytes: context.fileSize ?? null,
-        featureCount,
-        valid: gateResult.valid
-      },
-      config
-    )
-    await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
-      documentKey: config.projectDocumentKey
-    })
+    // better-sqlite3 is a synchronous binding, so both this pass and the later
+    // unpack block the event loop for their duration. Splitting them does not
+    // change that; it changes how long each upload's memory is held.
+    const gateStart = perfNow()
+    const gateResult = validateGpkgFile(filePath)
+    const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {
+      await recordStage(
+        PERFORMANCE_METRIC.parseMs,
+        gateMs,
+        {
+          uploadId,
+          stage: 'parse',
+          fileSizeBytes: context.fileSize ?? null,
+          featureCount: 0,
+          valid: false
+        },
+        config
+      )
       return await respondToGateRejection(gateResult, uploadId, h, config)
     }
+
     return await validateLayers(
-      gateResult.layers,
+      () => readGeoPackage(filePath),
       drizzle,
-      { ...context, filePath },
+      { ...context, filePath, gateMs },
       h,
       config
     )
@@ -496,13 +555,31 @@ function createValidateGeoPackageRoute(config) {
         }
       }
 
+      // The second half of the same "refuse before doing the work" idea, now
+      // that the uploader has told us how big the file is. The check above asks
+      // whether a worker will be free; this one asks whether there is heap to
+      // parse the file when it gets there. Advisory for the same reason: the
+      // reservation below re-checks and can still refuse.
+      if (!parseBudget().hasRoomFor(fileSize)) {
+        return respondToBusy(
+          uploadId,
+          h,
+          config,
+          VALIDATION_BUSY_REASON.memoryBudget
+        )
+      }
+
       // Streamed to disk rather than buffered, and removed as soon as
       // validation is done with it, so concurrent uploads cannot stack up
       // whole files in memory.
       const upload = await fetchUploadFile(bucket, key, uploadId, config)
 
       const totalStart = perfNow()
+      let releaseParseBudget = null
       try {
+        // Held for exactly as long as the layers are: taken before the parse,
+        // dropped in the `finally` once the response has been built.
+        releaseParseBudget = parseBudget().reserve(fileSize)
         return await runFullValidation(
           upload.path,
           request.drizzle,
@@ -510,7 +587,18 @@ function createValidateGeoPackageRoute(config) {
           h,
           config
         )
+      } catch (error) {
+        if (!(error instanceof ParseBudgetExceededError)) {
+          throw error
+        }
+        return await respondToBusy(
+          uploadId,
+          h,
+          config,
+          VALIDATION_BUSY_REASON.memoryBudget
+        )
       } finally {
+        releaseParseBudget?.()
         // A file we could not delete is a disk problem to chase in the logs,
         // not a reason to fail a validation that already succeeded.
         await upload.cleanup().catch((err) => {

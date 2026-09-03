@@ -22,7 +22,10 @@ vi.mock('../services/cdp-uploader/cdp-uploader.js', () => ({
 }))
 
 vi.mock('../validation/geopackage/geopackage.js', () => ({
-  validateAndReadGpkgFile: vi.fn()
+  // The gate no longer unpacks: it answers valid/invalid from the file, and the
+  // shapes are read separately once a worker is free.
+  validateGpkgFile: vi.fn(),
+  readGeoPackage: vi.fn()
 }))
 
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
@@ -83,7 +86,7 @@ vi.mock('../common/helpers/metrics.js', () => ({
 const { waitForUploadReady } =
   await import('../services/cdp-uploader/cdp-uploader.js')
 const { downloadFileToTemp } = await import('../services/s3/download-file.js')
-const { validateAndReadGpkgFile } =
+const { validateGpkgFile, readGeoPackage } =
   await import('../validation/geopackage/geopackage.js')
 const { assignFeatureIds } =
   await import('../validation/geopackage/assign-feature-ids.js')
@@ -125,15 +128,19 @@ function setupHappyPathMocks() {
     fileSize: MOCK_FILE_SIZE
   })
   vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
-  vi.mocked(validateAndReadGpkgFile).mockReturnValue({
-    valid: true,
-    errors: [],
-    layers: STUB_LAYERS
-  })
-  vi.mocked(validateGeoPackageLayers).mockResolvedValue({
-    valid: true,
-    errors: []
-  })
+  vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
+  vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  // Honours the real contract: when handed a loader rather than layers, the
+  // pool calls it once a worker is free. A double that ignored the loader
+  // would let a route that never unpacks its file still pass.
+  vi.mocked(validateGeoPackageLayers).mockImplementation(
+    async (layersOrLoad) => {
+      if (typeof layersOrLoad === 'function') {
+        layersOrLoad()
+      }
+      return { valid: true, errors: [] }
+    }
+  )
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
   vi.mocked(calculateHabitatSizes).mockReturnValue(EMPTY_HABITAT_SIZES)
   vi.mocked(extractPostIntervention).mockReturnValue(

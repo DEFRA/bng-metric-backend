@@ -276,6 +276,34 @@ function runGpkgGate(db, decodeGeometry) {
  *   layers: ReturnType<typeof toLayers> | null
  * }}
  */
+/**
+ * The format gate alone, against a file on disk — the same verdict
+ * {@link validateAndReadGpkgFile} reaches, without unpacking a single shape.
+ *
+ * This exists so a request can be judged BEFORE it queues for a worker. The
+ * combined gate-and-read costs 57 MB on the 5,000-parcel fixture and 121 MB on
+ * the 12,000-parcel one, and every request waiting for a worker was holding
+ * that; this costs a fraction of it, because the rows are walked and their
+ * geometry TYPES classified — which is all the feature checks count — without
+ * the WKB blobs being expanded into GeoJSON object graphs.
+ *
+ * The two gates are held to the same verdict by a test over every fixture in
+ * the repo, because a cheap gate that disagreed with the real one would reject
+ * good files.
+ *
+ * @param {string} filePath
+ * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
+ */
+function validateGpkgFile(filePath) {
+  return withGpkgFileDatabase(filePath, (db) => {
+    const { valid, errors } = runGpkgGate(db, false)
+    // Deliberately returns the verdict ONLY. Handing back the tables would
+    // defeat the purpose: the caller would keep them alive across the queue
+    // wait, which is the memory this call exists to avoid.
+    return { valid, errors }
+  })
+}
+
 function validateAndReadGpkgFile(filePath) {
   const result = withGpkgFileDatabase(filePath, gateAndReadLayers)
   return { layers: null, ...result }
@@ -415,4 +443,4 @@ export function readGeoPackage(filePath) {
   }
 }
 
-export { validateGpkg, validateAndReadGpkgFile }
+export { validateGpkg, validateGpkgFile, validateAndReadGpkgFile }
