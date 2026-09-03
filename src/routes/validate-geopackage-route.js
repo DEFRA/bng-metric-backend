@@ -238,6 +238,25 @@ async function respondToBusy(uploadId, h, config, reason) {
 }
 
 /**
+ * The validate routes answer with exactly `{ valid, errors }`, and nothing else.
+ *
+ * `validateGeoPackageLayers` hands back more than that — per-feature `sizes` for
+ * the persistence step, and `poolTelemetry` for the metrics — because both are
+ * measured in the same pass and there is nowhere cheaper to get them. Neither is
+ * the user's business: sizes are an implementation detail of how habitats are
+ * stored, and queue depth is a fact about this instance's load, not about the
+ * file. Narrowing here, at the one place a verdict becomes a response, is what
+ * keeps an internal field from silently becoming part of the API the day it is
+ * added to the result object.
+ *
+ * @param {{ valid: boolean, errors: Array<object> }} result
+ * @param {object} h hapi response toolkit
+ */
+function validationResponse(result, h) {
+  return h.response({ valid: result.valid, errors: result.errors })
+}
+
+/**
  * The shapes parsed, but the geometry or data-quality checks failed.
  */
 async function respondToGeometryRejection(result, uploadId, h, config) {
@@ -249,7 +268,7 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
   await metricsCounter(GEOPACKAGE_METRIC.validationFailed, 1, {
     category: VALIDATION_CATEGORY.geometric
   })
-  return h.response(result)
+  return validationResponse(result, h)
 }
 
 /**
@@ -318,7 +337,7 @@ async function validateLayers(layers, drizzle, context, h, config) {
   logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
   await metricsCounter(GEOPACKAGE_METRIC.validationSucceeded)
   if (!projectId) {
-    return h.response(result)
+    return validationResponse(result, h)
   }
 
   const errorResponse = await saveUploadForProject(
@@ -329,7 +348,7 @@ async function validateLayers(layers, drizzle, context, h, config) {
     h,
     config
   )
-  return errorResponse ?? h.response(result)
+  return errorResponse ?? validationResponse(result, h)
 }
 
 /**
