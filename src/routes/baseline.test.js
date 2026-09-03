@@ -588,6 +588,25 @@ describe('validateBaseline handler — response shape', () => {
     expect(h.response).toHaveBeenCalledWith(result)
   })
 
+  // The verdict carries more than the wire contract: `sizes` feeds persistence
+  // and `poolTelemetry` feeds the metrics. Neither belongs in the body — sizes
+  // are an implementation detail of storage, and queue depth describes this
+  // instance's load rather than the user's file. Asserted on the exact object so
+  // a field added to the result cannot become part of the API by accident.
+  it('answers with the verdict alone, not the internals measured alongside it', async () => {
+    vi.mocked(validateGeoPackageLayers).mockResolvedValue({
+      valid: true,
+      errors: [],
+      sizes: { areas: [{ idx: 0, value: 675.28 }] },
+      poolTelemetry: { queueWaitMs: 42, queueDepth: 3 }
+    })
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith({ valid: true, errors: [] })
+  })
+
   it('returns the baseline validation result when invalid', async () => {
     const result = {
       valid: false,
