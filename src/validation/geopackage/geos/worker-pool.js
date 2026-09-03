@@ -209,7 +209,12 @@ export class GeosWorkerPool {
     const cause = error ? `: ${error.message}` : ''
     logger.warn(`geos validation worker exited${cause} — replacing it`)
     count(VALIDATION_METRIC.workerRestarts)
-    this.release(this.spawn())
+    // Spawn only. The replacement releases ITSELF when it posts `ready`, the
+    // same way the workers built in the constructor do — releasing it here as
+    // well put one worker into `idle` twice, and two concurrent validations
+    // could then be handed to the same thread. Waiting for `ready` also stops a
+    // job spending part of its timeout budget on the WebAssembly compile.
+    this.spawn()
   }
 
   /** Clear a worker's in-flight job and its timeout. */
@@ -231,6 +236,12 @@ export class GeosWorkerPool {
     if (this.closed || !this.workers.has(record)) {
       return
     }
+    if (record.job || this.idle.includes(record)) {
+      // Already busy, or already free. Either way this call would double-count
+      // the worker; the version of this bug that shipped as a double release
+      // ended with a job that never settled at all.
+      return
+    }
     const next = this.queue.shift()
     if (next) {
       this.dispatch(record, next)
@@ -250,6 +261,17 @@ export class GeosWorkerPool {
    * that is actually free, instead of receiving work nobody is waiting for.
    */
   dispatch(record, job) {
+    if (record.job) {
+      // Unreachable while `release` and `run` are the only callers, and fatal if
+      // it ever stops being: overwriting `record.job` orphans the job that was
+      // there, whose timer no longer matches and so never fires. Its caller
+      // waits for a promise nothing will ever settle.
+      this.queue.unshift(job)
+      logger.error(
+        'geos validation dispatch to a busy worker — requeued rather than dropping the job in flight'
+      )
+      return
+    }
     const waited = Date.now() - job.enqueuedAt
     if (waited > this.queueWaitLimitMs) {
       job.settled = true
