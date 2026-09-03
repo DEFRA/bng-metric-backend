@@ -98,7 +98,7 @@ export function toBritishNationalGrid(geometry, srid) {
     )
   }
   if (!Array.isArray(geometry?.coordinates)) {
-    throw new Error(
+    throw new TypeError(
       `Cannot reproject a ${geometry?.type ?? 'null'} geometry: no coordinates array`
     )
   }

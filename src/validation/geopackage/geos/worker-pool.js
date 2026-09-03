@@ -206,9 +206,8 @@ export class GeosWorkerPool {
     if (this.closed) {
       return
     }
-    logger.warn(
-      `geos validation worker exited${error ? `: ${error.message}` : ''} — replacing it`
-    )
+    const cause = error ? `: ${error.message}` : ''
+    logger.warn(`geos validation worker exited${cause} — replacing it`)
     count(VALIDATION_METRIC.workerRestarts)
     this.release(this.spawn())
   }
@@ -301,9 +300,10 @@ export class GeosWorkerPool {
     if (this.idle.length === 0 && this.queue.length >= this.queueLimit) {
       return Promise.reject(new ValidationQueueFullError(this.queueLimit))
     }
+    const id = this.nextJobId++
     return new Promise((resolve, reject) => {
       const job = {
-        id: this.nextJobId++,
+        id,
         filePath,
         includeSizes,
         enqueuedAt: Date.now(),
