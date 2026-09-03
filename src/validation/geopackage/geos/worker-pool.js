@@ -300,7 +300,11 @@ export class GeosWorkerPool {
     if (this.idle.length === 0 && this.queue.length >= this.queueLimit) {
       return Promise.reject(new ValidationQueueFullError(this.queueLimit))
     }
-    const id = this.nextJobId++
+    // Read then advance, rather than `this.nextJobId++`: the rule is about
+    // consuming the operator's value, which hoisting it out of the object
+    // literal did not stop.
+    const id = this.nextJobId
+    this.nextJobId += 1
     return new Promise((resolve, reject) => {
       const job = {
         id,
