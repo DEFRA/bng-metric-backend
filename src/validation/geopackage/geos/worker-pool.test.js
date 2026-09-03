@@ -24,6 +24,46 @@ import {
 const MISSING_FILE = '/nonexistent/not-a-real-upload.gpkg'
 const GENEROUS_TIMEOUT_MS = 30_000
 
+/** Polling interval and deadline for "has the replacement announced itself yet". */
+const POLL_INTERVAL_MS = 25
+const READY_DEADLINE_MS = 15_000
+
+/**
+ * How long a job gets to settle before the test calls it hung, and the budget
+ * the two worker-replacement tests run under. The deadline sits well inside the
+ * budget so a hung job fails on the assertion — which names what went wrong —
+ * rather than on vitest's own timeout, which does not.
+ */
+const SETTLE_DEADLINE_MS = 8000
+const REPLACEMENT_TEST_TIMEOUT_MS = 20_000
+
+const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
+
+/** Resolve once the pool has a free worker, or give up and let the test assert. */
+async function waitForIdleWorker(pool) {
+  const deadline = Date.now() + READY_DEADLINE_MS
+  while (pool.stats().idle === 0 && Date.now() < deadline) {
+    await delay(POLL_INTERVAL_MS)
+  }
+}
+
+/**
+ * 'settled' if the promise finishes either way, 'hung' if it does neither.
+ *
+ * A job that never settles is the failure being guarded against, and it does
+ * not throw — it simply never comes back — so the test has to put a clock on it
+ * rather than await it.
+ */
+function settlesWithin(promise) {
+  return Promise.race([
+    promise.then(
+      () => 'settled',
+      () => 'settled'
+    ),
+    delay(SETTLE_DEADLINE_MS).then(() => 'hung')
+  ])
+}
+
 /** Pools opened by a test, closed afterwards whatever the test did. */
 const opened = []
 
@@ -90,6 +130,55 @@ describe('GeosWorkerPool', () => {
     // shrunk in the meantime.
     expect(pool.stats().size).toBe(pool.size)
   })
+
+  // A replaced worker used to be released twice — once by `onExit`, once by its
+  // own `ready` message — so a single thread sat in `idle` under two entries.
+  // Two concurrent validations were then handed to the same worker, the second
+  // overwriting the first's job and timer. The first promise never settled at
+  // all: no result, no timeout, no rejection. Its request hung until the client
+  // gave up, holding the temp file and the parsed layers the whole time.
+  it(
+    'releases a replaced worker once, not twice',
+    async () => {
+      const pool = openPool()
+      await waitForIdleWorker(pool)
+
+      const [victim] = [...pool.workers]
+      await victim.worker.terminate()
+      await waitForIdleWorker(pool)
+
+      // Running a job through the replacement is what makes this deterministic:
+      // a worker posts `ready` before it posts any result, so by the time this
+      // resolves every release that was going to happen has happened. Polling
+      // the idle count alone races the `ready` message and passes either way.
+      await pool.run(MISSING_FILE).catch(() => {})
+
+      expect(pool.stats().size).toBe(pool.size)
+      expect(pool.stats().idle).toBe(1)
+    },
+    REPLACEMENT_TEST_TIMEOUT_MS
+  )
+
+  it(
+    'settles every job after a worker has been replaced',
+    async () => {
+      const pool = openPool()
+      await waitForIdleWorker(pool)
+
+      const [victim] = [...pool.workers]
+      await victim.worker.terminate()
+      await waitForIdleWorker(pool)
+
+      // Two at once, because one alone cannot collide with anything.
+      await expect(
+        Promise.all([
+          settlesWithin(pool.run(MISSING_FILE)),
+          settlesWithin(pool.run(MISSING_FILE))
+        ])
+      ).resolves.toEqual(['settled', 'settled'])
+    },
+    REPLACEMENT_TEST_TIMEOUT_MS
+  )
 
   it('reports the GEOS version its workers are running', async () => {
     const pool = openPool()
