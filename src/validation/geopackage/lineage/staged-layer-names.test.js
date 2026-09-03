@@ -32,7 +32,21 @@ describe('resolveStagedLayer', () => {
       STAGE.POST_INTERVENTION,
       HABITAT_TYPES.WATERCOURSES
     ],
-    ['Trees Baseline', STAGE.BASELINE, HABITAT_TYPES.TREES]
+    ['Trees Baseline', STAGE.BASELINE, HABITAT_TYPES.TREES],
+    // the template renamed these two layers; both spellings must resolve, so
+    // that files made before and after the rename validate identically
+    ['Area Habitats Baseline', STAGE.BASELINE, HABITAT_TYPES.AREAS],
+    [
+      'Area Habitats Post-Intervention',
+      STAGE.POST_INTERVENTION,
+      HABITAT_TYPES.AREAS
+    ],
+    ['Individual Trees Baseline', STAGE.BASELINE, HABITAT_TYPES.TREES],
+    [
+      'Individual Trees Post-Intervention',
+      STAGE.POST_INTERVENTION,
+      HABITAT_TYPES.TREES
+    ]
   ])('resolves %s', (table, stage, type) => {
     expect(resolveStagedLayer(table)).toEqual({ stage, type })
   })
@@ -55,6 +69,17 @@ describe('resolveStagedLayer', () => {
     // existing LAYER_ALIASES path, not this one
     expect(resolveStagedLayer('Habitats')).toBeNull()
     expect(resolveStagedLayer('Urban Trees')).toBeNull()
+  })
+
+  it('does not confuse the renamed area layer with vertical area habitats', () => {
+    expect(resolveStagedLayer('Area Habitats Baseline')).toEqual({
+      stage: STAGE.BASELINE,
+      type: HABITAT_TYPES.AREAS
+    })
+    expect(resolveStagedLayer('Vertical Area Habitats Baseline')).toEqual({
+      stage: STAGE.BASELINE,
+      type: HABITAT_TYPES.VERTICAL_AREAS
+    })
   })
 
   it('returns null rather than throwing for junk', () => {

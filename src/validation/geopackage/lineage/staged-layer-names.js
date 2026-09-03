@@ -30,6 +30,7 @@ const TYPE_BY_STEM = Object.freeze({
   watercourses: HABITAT_TYPES.WATERCOURSES,
   rivers: HABITAT_TYPES.WATERCOURSES,
   trees: HABITAT_TYPES.TREES,
+  'individual trees': HABITAT_TYPES.TREES,
   'urban trees': HABITAT_TYPES.TREES
 })
 
