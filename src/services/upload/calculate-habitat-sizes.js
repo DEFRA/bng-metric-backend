@@ -107,6 +107,21 @@ function attachGeometrySizes(layers, sizes) {
 }
 
 /**
+ * Did this row carry a geometry at all?
+ *
+ * A presence test, not a read — nothing here looks at a coordinate. It spans
+ * both geometry-bearing read modes because the persistence read keeps the
+ * serialisation and drops the object graph, so testing `nativeGeometry` alone
+ * would silently skip every feature and produce an empty size set.
+ *
+ * @param {object} feature
+ * @returns {boolean}
+ */
+function hasGeometry(feature) {
+  return Boolean(feature?.nativeGeometry ?? feature?.geometryJson)
+}
+
+/**
  * Build the habitat-size result from the measurements the geometry engine made.
  *
  * Throws when a feature that should have been measured was not. That is
@@ -123,7 +138,7 @@ function calculateHabitatSizes(layers) {
 
   for (const layerName of HABITAT_SIZE_LAYERS) {
     for (const feature of layers[layerName] ?? []) {
-      if (!feature?.nativeGeometry) {
+      if (!hasGeometry(feature)) {
         continue
       }
       const sizeValue = feature[GEOMETRY_SIZE_FIELD]
