@@ -339,17 +339,29 @@ function scanRows(rows, table, mode) {
       continue
     }
     geometryTypes.push(getWkbType(blob))
-    if (!wantFeatures || table.decodeFailure) {
-      continue
-    }
-    if (decode) {
-      collectFeature(row, blob, table, keepGeometryObject)
-    } else {
-      collectProperties(row, table)
+    if (wantFeatures && !table.decodeFailure) {
+      collectRow(row, blob, table, { decode, keepGeometryObject })
     }
   }
 
   table.geometryTypes = geometryTypes
+}
+
+/**
+ * Collect one row at the requested depth: a decoded feature for the
+ * geometry-bearing modes, attributes only for `properties`.
+ *
+ * @param {object} row
+ * @param {Buffer} blob
+ * @param {FeatureTable} table
+ * @param {{ decode: boolean, keepGeometryObject: boolean }} depth
+ */
+function collectRow(row, blob, table, { decode, keepGeometryObject }) {
+  if (decode) {
+    collectFeature(row, blob, table, keepGeometryObject)
+  } else {
+    collectProperties(row, table)
+  }
 }
 
 /**
