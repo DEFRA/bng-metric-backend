@@ -39,7 +39,16 @@ jobs:
           npm test
 
       - name: Build and Publish
-        uses: DEFRA/cdp-build-action/build@main
+        # Pinned, not @main. DEFRA/cdp-build-action#124 shipped an unbalanced
+        # quote in the build-stage loop on 2026-09-04, and because @main is a
+        # moving target every publish here began failing the moment it merged —
+        # `unexpected EOF while looking for matching '"'`, a PARSE error, so it
+        # fired whether or not we set build-secrets. Nothing in this repo
+        # changed. 458fd8d is the commit our last green publish ran against.
+        # Fix proposed upstream in DEFRA/cdp-build-action#128; move back to a
+        # newer pin once it lands. Every other action here is SHA-pinned — this
+        # one was the exception, and that is what let it break us.
+        uses: DEFRA/cdp-build-action/build@458fd8d25ebbd1bde485b0ecf446a7977b533ebc # last green before #124
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
