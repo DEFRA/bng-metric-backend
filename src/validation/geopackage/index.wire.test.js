@@ -5,6 +5,7 @@ import { join } from 'node:path'
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
 import { ERROR_CODES } from './errors.js'
+import { FEATURE_READ_MODE } from './read-feature-tables.js'
 
 vi.mock('./geopackage.js', () => ({
   readGeoPackage: vi.fn(() => ({
@@ -60,9 +61,13 @@ describe('validateBaselineFile wired to the worker pool', () => {
     try {
       const out = await validateBaselineFile(filePath)
 
-      // The main thread still parses for the data-quality checks; the worker
-      // gets the path and parses its own copy off the event loop.
-      expect(readGeoPackage).toHaveBeenCalledWith(filePath)
+      // The main thread still reads for the data-quality checks — attributes
+      // only, since those checks never look at a coordinate; the worker gets
+      // the path and parses its own copy off the event loop.
+      expect(readGeoPackage).toHaveBeenCalledWith(
+        filePath,
+        FEATURE_READ_MODE.properties
+      )
       expect(run).toHaveBeenCalledWith(filePath, { includeSizes: false })
       expect(out).toMatchObject({
         valid: false,

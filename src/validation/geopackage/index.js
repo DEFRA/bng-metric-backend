@@ -2,6 +2,7 @@ import { checkAdvanceAndDelayNotBothSet } from './advance-delay-check.js'
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readGeoPackage } from './geopackage.js'
+import { FEATURE_READ_MODE } from './read-feature-tables.js'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import {
@@ -37,7 +38,9 @@ function workerPool() {
  * @returns {Promise<{ valid: boolean, errors: Array<{ code: string, message: string }> }>}
  */
 export async function validateBaselineFile(filePath, variant) {
-  const layers = readGeoPackage(filePath)
+  // Attributes only: the geometry work happens in the worker against the file,
+  // and the data-quality checks below read properties.
+  const layers = readGeoPackage(filePath, FEATURE_READ_MODE.properties)
   return validateGeoPackageLayers(layers, variant, { filePath })
 }
 

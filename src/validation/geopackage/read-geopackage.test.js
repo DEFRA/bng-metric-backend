@@ -21,6 +21,45 @@ import {
 } from '../../../test/helpers/gpkg.js'
 
 const { readGeoPackage } = await import('./geopackage.js')
+const { FEATURE_READ_MODE } = await import('./read-feature-tables.js')
+
+// ---------------------------------------------------------------------------
+
+// The property phase 1 exists for. Decoding a geometry blob into a GeoJSON
+// object graph costs roughly 14x the file size, and the only consumer that
+// needs the result is persistence — so a file that never reaches persistence
+// must never pay for it.
+describe('readGeoPackage properties mode', () => {
+  it('returns attributes without decoding a single geometry', async () => {
+    await withTempGpkgFile(fullReadBuffer(), (filePath) => {
+      const r = readGeoPackage(filePath, FEATURE_READ_MODE.properties)
+
+      // Same features, same count, same attributes as a full read...
+      const full = readGeoPackage(filePath, FEATURE_READ_MODE.full)
+      expect(r.redline).toHaveLength(full.redline.length)
+      expect(r.areas).toHaveLength(full.areas.length)
+      expect(r.areas[0].properties).toEqual(full.areas[0].properties)
+
+      // ...and none of the geometry a full read carries. Both fields matter:
+      // `nativeGeometry` is the object graph and `geometryJson` its
+      // serialisation, so a feature that kept either would still be paying.
+      for (const layer of ['redline', 'areas', 'hedgerows', 'watercourses']) {
+        for (const feature of r[layer]) {
+          expect(feature.nativeGeometry).toBeUndefined()
+          expect(feature.geometryJson).toBeUndefined()
+        }
+      }
+      expect(full.areas[0].nativeGeometry).toBeDefined()
+    })
+  })
+
+  it('still reports missing layers, so the checks see the same shape', async () => {
+    await withTempGpkgFile(fullReadBuffer(), (filePath) => {
+      const r = readGeoPackage(filePath, FEATURE_READ_MODE.properties)
+      expect(r.missingLayers).toEqual(['iggis'])
+    })
+  })
+})
 
 // ---------------------------------------------------------------------------
 

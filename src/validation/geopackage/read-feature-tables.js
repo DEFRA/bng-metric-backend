@@ -4,7 +4,8 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 import {
   logPerf,
   perfNow,
-  msSince
+  msSince,
+  memoryUsageMb
 } from '../../common/helpers/perf-evidence.js'
 
 import {
@@ -47,6 +48,30 @@ const logger = createLogger()
 
 /** SRIDs the service can hand on to PostGIS. */
 const SUPPORTED_SRIDS = new Set([EPSG_WGS84, EPSG_BNG])
+
+/**
+ * How much of a feature layer a read should materialise.
+ *
+ * Three modes rather than a boolean, because the middle one is the whole point:
+ * decoding a geometry blob into a GeoJSON object graph costs roughly 14x the
+ * file size, and the only consumer that needs the result is persistence. The
+ * data-quality checks read `feature.properties` and nothing else, so making
+ * them pay for the decode meant a rejected file was charged ~122 MB it never
+ * used.
+ *
+ * - `classify`   geometry TYPES only; `features` stays empty. What the format
+ *                gate needs to answer valid/invalid without unpacking.
+ * - `properties` one feature per row carrying its attribute columns, with the
+ *                geometry left as an undecoded blob. What the data-quality
+ *                checks need.
+ * - `full`       properties plus the decoded geometry and its serialisation.
+ *                What persistence needs, and only once the file has passed.
+ */
+export const FEATURE_READ_MODE = Object.freeze({
+  classify: 'classify',
+  properties: 'properties',
+  full: 'full'
+})
 
 /**
  * LAYER_ALIASES: underscored + QGIS spaced names; logical layers resolve
@@ -286,10 +311,12 @@ function decodeFeature(row, blob, table) {
  *
  * @param {object[]} rows
  * @param {FeatureTable} table
- * @param {boolean} decodeGeometry
+ * @param {string} mode one of {@link FEATURE_READ_MODE}
  */
-function scanRows(rows, table, decodeGeometry) {
+function scanRows(rows, table, mode) {
   const geometryTypes = []
+  const decode = mode === FEATURE_READ_MODE.full
+  const wantFeatures = decode || mode === FEATURE_READ_MODE.properties
 
   for (const row of rows) {
     const blob = row[table.geometryColumn]
@@ -297,8 +324,13 @@ function scanRows(rows, table, decodeGeometry) {
       continue
     }
     geometryTypes.push(getWkbType(blob))
-    if (decodeGeometry && !table.decodeFailure) {
+    if (!wantFeatures || table.decodeFailure) {
+      continue
+    }
+    if (decode) {
       collectFeature(row, blob, table)
+    } else {
+      collectProperties(row, table)
     }
   }
 
@@ -319,6 +351,25 @@ function collectFeature(row, blob, table) {
   } catch (err) {
     table.decodeFailure = err
   }
+}
+
+/**
+ * The properties-only counterpart of {@link collectFeature}: the attribute
+ * columns, and deliberately no geometry.
+ *
+ * The SRID check that {@link decodeFeature} performs is skipped along with the
+ * decode, which is safe here because nothing downstream of a properties-only
+ * read touches a coordinate — an unsupported SRID still surfaces from the `full`
+ * read on the persistence path, before anything is written.
+ *
+ * @param {object} row
+ * @param {FeatureTable} table
+ */
+function collectProperties(row, table) {
+  table.features.push({
+    type: 'Feature',
+    properties: featureProperties(row, table.geometryColumn)
+  })
 }
 
 /**
@@ -344,10 +395,10 @@ function emptyFeatureTable(tableName) {
  * Read one registered feature layer end to end.
  * @param {import('better-sqlite3').Database} db
  * @param {string} tableName
- * @param {boolean} decodeGeometry decode geometries as well as classify them
+ * @param {string} mode one of {@link FEATURE_READ_MODE}
  * @returns {FeatureTable}
  */
-function readFeatureTable(db, tableName, decodeGeometry) {
+function readFeatureTable(db, tableName, mode) {
   const table = emptyFeatureTable(tableName)
   table.rowCount = countTableRows(db, tableName)
 
@@ -363,9 +414,20 @@ function readFeatureTable(db, tableName, decodeGeometry) {
   }
   table.geometryColumnSafe = true
 
+  // Heap is sampled either side of each stage so the evidence separates the two
+  // costs this read carries: pulling the raw WKB blobs out of SQLite, and
+  // expanding them into GeoJSON object graphs. They scale very differently —
+  // the fetch tracks the file size, the decode multiplies it — and knowing the
+  // split is what tells us whether batching the decode is worth the work.
+  //
+  // heapUsed moves under GC as well as under allocation, so a single delta is
+  // indicative rather than exact, and a negative one just means a collection
+  // landed mid-stage. Read these across several files, not off one line.
+  const heapBefore = memoryUsageMb().heapUsedMb
   const fetchStart = perfNow()
   const rows = selectAllRows(db, table)
   const fetchMs = msSince(fetchStart)
+  const heapAfterFetch = memoryUsageMb().heapUsedMb
   if (!rows) {
     return table
   }
@@ -375,7 +437,7 @@ function readFeatureTable(db, tableName, decodeGeometry) {
   }
 
   const scanStart = perfNow()
-  scanRows(rows, table, decodeGeometry)
+  scanRows(rows, table, mode)
   // Evidence (Item 2 — every feature and geometry is loaded synchronously): the
   // whole table is pulled into memory with .all(), then every blob is classified
   // (and, when decoding, unpacked to GeoJSON) in this synchronous walk.
@@ -385,9 +447,11 @@ function readFeatureTable(db, tableName, decodeGeometry) {
     table: tableName,
     rowCount: rows.length,
     featureCount: table.features.length,
-    decodeGeometry,
+    mode,
     fetchMs,
-    decodeMs: msSince(scanStart)
+    decodeMs: msSince(scanStart),
+    fetchHeapMb: heapAfterFetch - heapBefore,
+    decodeHeapMb: memoryUsageMb().heapUsedMb - heapAfterFetch
   })
   return table
 }
@@ -402,7 +466,7 @@ function readFeatureTable(db, tableName, decodeGeometry) {
  * file a second time to get at the shapes.
  *
  * @param {import('better-sqlite3').Database} db
- * @param {{ decodeGeometry?: boolean }} [options]
+ * @param {{ mode?: string }} [options] `mode` is one of {@link FEATURE_READ_MODE}
  * @returns {{
  *   tables: Map<string, FeatureTable>,
  *   logicalTables: Map<string, string>,
@@ -410,20 +474,30 @@ function readFeatureTable(db, tableName, decodeGeometry) {
  *   tableNames: string[]
  * }}
  */
-export function readFeatureTables(db, { decodeGeometry = false } = {}) {
+export function readFeatureTables(
+  db,
+  { mode = FEATURE_READ_MODE.classify } = {}
+) {
   const tableNames = featureTableNames(db)
   const { logicalTables, missingLayers } = resolveLogicalTables(tableNames)
-  const decodedTables = decodeGeometry
-    ? new Set(logicalTables.values())
-    : new Set()
+  // Only the layers that carry data are read at the requested mode; everything
+  // else the gate looks at is classified, which is all it ever wanted.
+  const dataTables =
+    mode === FEATURE_READ_MODE.classify
+      ? new Set()
+      : new Set(logicalTables.values())
 
   const tables = new Map()
   for (const tableName of tableNames) {
-    const decodeTable = decodedTables.has(tableName)
-    if (decodeTable || GATE_LAYER_KEYS.has(tableName.toLowerCase())) {
+    const isDataTable = dataTables.has(tableName)
+    if (isDataTable || GATE_LAYER_KEYS.has(tableName.toLowerCase())) {
       tables.set(
         tableName.toLowerCase(),
-        readFeatureTable(db, tableName, decodeTable)
+        readFeatureTable(
+          db,
+          tableName,
+          isDataTable ? mode : FEATURE_READ_MODE.classify
+        )
       )
     }
   }

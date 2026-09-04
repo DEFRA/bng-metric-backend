@@ -3,6 +3,7 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
+import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
 import {
   getParseBudget,
@@ -380,7 +381,12 @@ describe('validateBaseline handler — pipeline calls', () => {
     )
 
     expect(unpackedBeforePool).toBe(false)
-    expect(readGeoPackage).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
+    // And when it does read, it reads attributes only — the shapes are decoded
+    // on the persistence path, which a rejected file never reaches.
+    expect(readGeoPackage).toHaveBeenCalledWith(
+      MOCK_DOWNLOAD_PATH,
+      FEATURE_READ_MODE.properties
+    )
   })
 })
 
