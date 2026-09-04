@@ -21,9 +21,11 @@
  *  - RESTART on exit. A worker lost to a timeout, a crash or the WebAssembly
  *    heap running out must be replaced, or the pool silently shrinks to nothing.
  *
- * Every failure mode surfaces as a rejected promise, and the caller
- * (`validation/geopackage/index.js`) falls back to PostGIS. A bad day for this
- * pool is a slow upload, not a failed one.
+ * Every failure mode surfaces as a rejected promise. There is no fallback
+ * engine: a full queue or busy pool surfaces to the client as a retryable
+ * busy response, and any other failure fails the validation outright — the
+ * same file must never get a different answer depending on how busy the box
+ * was.
  */
 import { Worker } from 'node:worker_threads'
 import { availableParallelism } from 'node:os'
