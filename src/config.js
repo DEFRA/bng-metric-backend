@@ -240,9 +240,9 @@ const config = convict({
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
-      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md — it must fit, together with the S3 download and the upload-ready wait, inside the frontend request budget. Generous against measurement: the slowest validation seen, a 5,000-parcel file on a contended box, was under two seconds.',
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md, and the rungs SUM rather than nest — they are sequential stages of one request — so this had to come down for the ladder to fit inside the frontend budget at all. Still generous against measurement: over 672 validations in a full perf run on a contended 2-vCPU box the worst was 2,155 ms (p95 1,094 ms), so this leaves more than double.',
       format: 'int',
-      default: 10000,
+      default: 5000,
       env: 'VALIDATION_WORKER_TIMEOUT_MS'
     },
     queueWaitLimitMs: {
@@ -276,9 +276,9 @@ const config = convict({
   },
   upload: {
     readyTimeoutMs: {
-      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net, sized small so it cannot eat the request budget.',
+      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net against losing a race, NOT a budget for the virus scan. Sized small because the ladder rungs sum: every second here is a second the download and validation rungs cannot have. A caller that has not polled will still be refused, and should be.',
       format: 'int',
-      default: 3000,
+      default: 2000,
       env: 'UPLOAD_READY_TIMEOUT_MS'
     },
     downloadTimeoutMs: {
