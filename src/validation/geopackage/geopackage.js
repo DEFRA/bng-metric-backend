@@ -17,7 +17,11 @@ import {
   validateHedgerows,
   validateWatercourses
 } from './geopackage-internals.js'
-import { readFeatureTables, toLayers } from './read-feature-tables.js'
+import {
+  FEATURE_READ_MODE,
+  readFeatureTables,
+  toLayers
+} from './read-feature-tables.js'
 
 const logger = createLogger()
 
@@ -244,15 +248,16 @@ function useAndClose(db, withDb) {
  * types the feature checks count.
  *
  * @param {import('better-sqlite3').Database} db
- * @param {boolean} decodeGeometry also unpack the shapes in that same pass
+ * @param {string} mode one of {@link FEATURE_READ_MODE}; how much of each data
+ *   layer to materialise in that same pass
  */
-function runGpkgGate(db, decodeGeometry) {
+function runGpkgGate(db, mode) {
   const structural = runStructuralChecks(db)
   if (!structural.valid) {
     return { ...structural, featureTables: null }
   }
 
-  const featureTables = readFeatureTables(db, { decodeGeometry })
+  const featureTables = readFeatureTables(db, { mode })
   const errors = runFeatureChecks(featureTables)
   return { valid: errors.length === 0, errors, featureTables }
 }
@@ -296,7 +301,7 @@ function runGpkgGate(db, decodeGeometry) {
  */
 function validateGpkgFile(filePath) {
   return withGpkgFileDatabase(filePath, (db) => {
-    const { valid, errors } = runGpkgGate(db, false)
+    const { valid, errors } = runGpkgGate(db, FEATURE_READ_MODE.classify)
     // Deliberately returns the verdict ONLY. Handing back the tables would
     // defeat the purpose: the caller would keep them alive across the queue
     // wait, which is the memory this call exists to avoid.
@@ -311,7 +316,7 @@ function validateAndReadGpkgFile(filePath) {
 
 /** The gate, plus the layers from the same read when the file passes it. */
 function gateAndReadLayers(db) {
-  const gate = runGpkgGate(db, true)
+  const gate = runGpkgGate(db, FEATURE_READ_MODE.full)
   if (!gate.valid) {
     return logGateResult({ valid: false, errors: gate.errors })
   }
@@ -339,7 +344,7 @@ function logGateResult(result) {
  */
 function validateGpkg(buffer) {
   return withGpkgDatabase(buffer, (db) => {
-    const { valid, errors } = runGpkgGate(db, false)
+    const { valid, errors } = runGpkgGate(db, FEATURE_READ_MODE.classify)
     return logGateResult({ valid, errors })
   })
 }
@@ -428,12 +433,15 @@ function getTableNames(db) {
  * {@link validateAndReadGpkgFile}, which validates and reads in one pass.
  *
  * @param {string} filePath
+ * @param {string} [mode] one of {@link FEATURE_READ_MODE}. Defaults to `full`,
+ *   which is what the GEOS worker and the persistence path need; callers that
+ *   only read attributes should ask for `properties` and skip the decode.
  * @returns {ReturnType<typeof toLayers>}
  */
-export function readGeoPackage(filePath) {
+export function readGeoPackage(filePath, mode = FEATURE_READ_MODE.full) {
   const db = new Database(filePath, { readonly: true, fileMustExist: true })
   try {
-    const featureTables = readFeatureTables(db, { decodeGeometry: true })
+    const featureTables = readFeatureTables(db, { mode })
     logger.info(
       `readGeoPackage - file: ${filePath}, feature tables: ${JSON.stringify(featureTables.tableNames)}`
     )

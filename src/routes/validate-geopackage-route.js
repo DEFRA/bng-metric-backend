@@ -15,6 +15,7 @@ import {
   readGeoPackage,
   validateGpkgFile
 } from '../validation/geopackage/geopackage.js'
+import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
@@ -358,6 +359,11 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     { filePath, includeSizes: Boolean(projectId) }
   )
   const featureCount = countFeatures(layers)
+  // Attributes have told us everything they can — the checks have run and the
+  // count is taken. Dropped before the shapes are decoded below, so an accepted
+  // file never holds the properties set and the geometry set at the same time;
+  // without this, phase 1 would have made accepted files dearer, not cheaper.
+  layers = null
 
   // Recorded here rather than before the queue because that is where the read
   // now happens. `gateMs` is the cheap structural pass in front of the queue;
@@ -400,10 +406,16 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     return validationResponse(result, h)
   }
 
+  // The file passed and there is a project to persist it against, so now — and
+  // only now — the shapes are worth decoding. This is the one consumer that
+  // needs them, and it is reached only by files that earned the cost. The
+  // re-read is the same ~14 ms trade the queue reorder already accepted.
+  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.full)
+
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
     projectId,
-    layers,
+    geometryLayers,
     { uploadId, credentials, filename, fileSize, geometrySizes: result.sizes },
     h,
     config
@@ -453,7 +465,11 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     }
 
     return await validateLayers(
-      () => readGeoPackage(filePath),
+      // Attributes only. The geometry checks run in the worker against the file
+      // itself, and the data-quality checks read properties — so nothing before
+      // the accept decision needs a decoded shape, and a file we reject never
+      // pays for one.
+      () => readGeoPackage(filePath, FEATURE_READ_MODE.properties),
       drizzle,
       { ...context, filePath, gateMs },
       h,
