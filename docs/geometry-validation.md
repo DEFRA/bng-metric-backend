@@ -81,20 +81,27 @@ Four timer ticks in 694 ms is the whole story: run inline, the loop gets almost
 no turns and the process serves nothing else for the duration. Worker threads are
 a precondition here, not an optimisation.
 
-| Setting                               | Default | What it is                                                           |
-| ------------------------------------- | ------: | -------------------------------------------------------------------- |
-| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                     |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below. |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                 |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.        |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  400 MB | Heap rationed across the files being PARSED at once. See below.      |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                 |
+| Setting                               | Default | What it is                                                               |
+| ------------------------------------- | ------: | ------------------------------------------------------------------------ |
+| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                     |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
 
 The pool cap is **half** the admission control: it rations CPU, which is the
 same protective bounding the connection pool used to provide, except on a
 resource CDP can add more of. It does not ration memory, and memory is what a
 burst of large files actually exhausts — hence the parse budget below, which
 refuses on size before the file is opened.
+
+In practice the memory half does nearly all the refusing. Over a full perf run
+the split was **310 `memory_budget`, 6 `queue_wait`, 0 `queue_full`**: the queue
+depth limit was never reached, because the budget turns requests away first. So
+`VALIDATION_PARSE_BUDGET_BYTES` is the knob that decides how much load the
+service accepts, and `VALIDATION_WORKER_QUEUE_LIMIT` is the backstop behind it —
+tune them in that order.
 
 ### Being busy is a poll, not a failure
 
@@ -362,12 +369,12 @@ continuity across the engine change — see `metric-names.js`.)
 
 **Is it turning people away?** `GeoPackageValidationBusy`, sliced by `reason`:
 
-| `reason`        | Means                                                          | Remedy                                                                                                   |
-| --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
-| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                         |
-| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                |
-| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                   |
-| `memory_budget` | The parse budget was committed to other files in flight.       | Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower the queue limit. |
+| `reason`        | Means                                                          | Remedy                                                                                                                                                              |
+| --------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                                                                                    |
+| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                                                                           |
+| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                                                                              |
+| `memory_budget` | The parse budget was committed to other files in flight.       | The usual reason to be refused — 310 of 316 in a full run. Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower the queue limit. |
 
 Counted apart from `GeoPackageValidationFailed`, because the file was never
 looked at — a busy spike is a capacity story, not a data-quality one, and mixing
