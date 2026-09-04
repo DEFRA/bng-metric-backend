@@ -22,7 +22,13 @@ export default defineConfig({
         // Re-export-only facade; exercised by geopackage-internals.test.js — no executable lines to cover.
         'src/validation/geopackage/geopackage-internals.js',
         // Pure re-exports for `bng-metric-engine` package entrypoint.
-        'bng-metric-engine/src/index.js'
+        'bng-metric-engine/src/index.js',
+        // Worker-thread entry point. It only ever executes inside a Worker, so
+        // v8 coverage collected in the main thread cannot see it and reports 0%
+        // however well it is exercised. Its behaviour is covered by
+        // geos/worker-pool.test.js (which drives real workers) and by
+        // integration-tests/validation-engine-modes.test.js.
+        'src/validation/geopackage/geos/worker.js'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

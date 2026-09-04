@@ -21,7 +21,10 @@ import {
 } from '../../validation/project.js'
 import { HTTP_STATUS } from '../../common/helpers/http/status-codes.js'
 import { projects } from '../../db/schema/index.js'
-import { calculateHabitatSizes } from './calculate-habitat-sizes.js'
+import {
+  attachGeometrySizes,
+  calculateHabitatSizes
+} from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
@@ -141,11 +144,28 @@ function saveHandlersForConfig(config) {
   }
 }
 
-function layersForUpload(layers, storedProject, projectDocumentKey) {
+/**
+ * @param {object} layers
+ * @param {object|undefined} storedProject
+ * @param {string} projectDocumentKey
+ * @param {object} [geometrySizes] per-feature measurements from the geometry
+ *   engine, keyed by position within the layer
+ */
+function layersForUpload(
+  layers,
+  storedProject,
+  projectDocumentKey,
+  geometrySizes
+) {
   const featureIdByRef = buildFeatureIdByRef(
     storedProject?.[projectDocumentKey]
   )
-  const layersWithIds = assignFeatureIds(layers, featureIdByRef)
+  // Sizes are stamped on BEFORE the post-intervention Lost filter, because they
+  // are keyed by a feature's position and that filter renumbers what is left.
+  const layersWithIds = attachGeometrySizes(
+    assignFeatureIds(layers, featureIdByRef),
+    geometrySizes
+  )
   const layersForSizing =
     projectDocumentKey === 'postIntervention'
       ? filterLostPostInterventionLayers(layersWithIds)
@@ -154,14 +174,11 @@ function layersForUpload(layers, storedProject, projectDocumentKey) {
 }
 
 async function sizeUploadedHabitats(
-  pgPool,
   layersForSizing,
   { logger, routeName, uploadId, h }
 ) {
   try {
-    return {
-      habitatSizes: await calculateHabitatSizes(pgPool, layersForSizing)
-    }
+    return { habitatSizes: calculateHabitatSizes(layersForSizing) }
   } catch (err) {
     logger.error(
       `${routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
@@ -231,19 +248,19 @@ async function persistUploadAndMaybeReEnrich(
 }
 
 /**
- * Time the PostGIS sizing pass.
+ * Time the sizing pass.
  *
- * Evidence (Item 6 — the sizing pass is a second PostGIS round trip): a
- * separate awaited query that recomputes ST_MakeValid per feature, on top of
- * the geometry-repair work the validation statement already did.
+ * Kept as a timed stage even though it no longer does any real work — the
+ * measurements now arrive with the validation verdict, so this is a map over
+ * features rather than the second PostGIS round trip it used to be. The metric
+ * stays so the drop is visible on the dashboard rather than silently vanishing.
  *
- * @param {import('pg').Pool} pgPool
  * @param {object} layersForSizing
  * @param {{ logger: object, uploadId: string, documentKey: string }} stageContext
  * @param {{ config: object, h: import('@hapi/hapi').ResponseToolkit }} deps
  * @returns {Promise<{ habitatSizes?: object, response?: object }>}
  */
-function runSizingStage(pgPool, layersForSizing, stageContext, { config, h }) {
+function runSizingStage(layersForSizing, stageContext, { config, h }) {
   const { logger, uploadId } = stageContext
   return timeSaveStage(
     {
@@ -252,7 +269,7 @@ function runSizingStage(pgPool, layersForSizing, stageContext, { config, h }) {
       stage: 'sizing'
     },
     () =>
-      sizeUploadedHabitats(pgPool, layersForSizing, {
+      sizeUploadedHabitats(layersForSizing, {
         logger,
         routeName: config.routeName,
         uploadId,
@@ -330,10 +347,10 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
  * document for a known-valid set of layers. Returns a Hapi response on any
  * recoverable error, or `null` on success.
  *
- * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, pgPool: import('pg').Pool, logger: { info: Function, error: Function, warn: Function } }} deps
+ * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null }} context
+ * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null, geometrySizes?: object }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -345,7 +362,7 @@ export async function saveUploadForProject(
   h,
   config
 ) {
-  const { drizzle, pgPool, logger } = deps
+  const { drizzle, logger } = deps
   const { projectDocumentKey } = config
   const stageContext = {
     logger,
@@ -362,10 +379,11 @@ export async function saveUploadForProject(
   const { layersWithIds, layersForSizing } = layersForUpload(
     layers,
     storedProject,
-    projectDocumentKey
+    projectDocumentKey,
+    context.geometrySizes
   )
 
-  const sizing = await runSizingStage(pgPool, layersForSizing, stageContext, {
+  const sizing = await runSizingStage(layersForSizing, stageContext, {
     config,
     h
   })

@@ -226,7 +226,67 @@ const config = convict({
       env: 'CDP_UPLOADER_BUCKET'
     }
   },
+  validation: {
+    workerCount: {
+      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1. Each worker settles at ~250 MB of WebAssembly heap after a large file and never gives it back, so this is a memory budget as much as a throughput setting — check the ECS task memory limit before raising it.',
+      format: 'int',
+      default: 2,
+      env: 'VALIDATION_WORKER_COUNT'
+    },
+    workerQueueLimit: {
+      doc: 'Validations allowed to wait for a free worker before new ones are refused with a 503 telling the user to try again. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on, and each waiting request also pins ~29 MB of parsed GeoPackage on the heap.',
+      format: 'int',
+      default: 8,
+      env: 'VALIDATION_WORKER_QUEUE_LIMIT'
+    },
+    workerTimeoutMs: {
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md — it must fit, together with the S3 download and the upload-ready wait, inside the frontend request budget. Generous against measurement: the slowest validation seen, a 5,000-parcel file on a contended box, was under two seconds.',
+      format: 'int',
+      default: 10000,
+      env: 'VALIDATION_WORKER_TIMEOUT_MS'
+    },
+    queueWaitLimitMs: {
+      doc: 'Longest a validation may wait for a free worker before it is refused as busy instead of started. Without it the worst case is queueLimit x workerTimeoutMs, far past any client patience — and starting work nobody is waiting for helps nobody. The client retries into a pool that is actually free.',
+      format: 'int',
+      default: 5000,
+      env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
+    },
+    parseBudgetBytes: {
+      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. THE PRIMARY LOAD SHED, not a secondary one: across a full perf run it produced 310 of 316 busy refusals, against 6 from the queue-wait limit and none at all from the queue depth limit — the queue never filled, because this refuses first. Size and tune this before touching VALIDATION_WORKER_QUEUE_LIMIT, which is the backstop behind it. Each upload charges an ESTIMATE of its unpack cost — 8 MB + 14x the file size — not its measured cost, so these are credit-bytes rather than heap-bytes. TREAT THAT RATIO AS UNVERIFIED: measured against the 9.3 MB / 16,801-feature fixture, a full read retains ~50 MB of heap (nearer 5x the file, and mostly attributes rather than shapes), while repeated reads drove RSS ~237 MB above baseline. Those two point in opposite directions and neither was measured under CONCURRENCY, which is what this bounds; re-derive the ratio from N simultaneous validations before trusting it. Too tight and the service refuses work it could carry; too loose and it refuses nothing in time. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      env: 'VALIDATION_PARSE_BUDGET_BYTES'
+    },
+    maxRssBytes: {
+      doc: "Process RSS above which Hapi refuses new requests with a 503, before the handler runs. This is the backstop the parse budget cannot be: that budget rations bytes it knows about — the files being parsed — and measurement showed RSS reaching 1.2 GB while the budget was never exceeded, because most of the growth is the GEOS workers' WebAssembly heaps, V8's retained heap and native allocator arenas. None of those are visible to a JS-level count; all of them are visible in RSS, which is also the number the kernel OOM-killer reads. Sampled rather than exact (see loadSampleIntervalMs), so several requests can slip through between samples. Zero disables it. Set it BELOW the task memory limit with room for one in-flight request, not at it.",
+      format: 'int',
+      default: 0,
+      env: 'VALIDATION_MAX_RSS_BYTES'
+    },
+    loadSampleIntervalMs: {
+      doc: 'How often Hapi samples process load. Required to be non-zero for maxRssBytes to do anything at all — @hapi/heavy asserts on a zero interval with any limit set, so this is not merely a tuning knob. Short enough that a burst is noticed within a request or two, long enough not to sample on every event loop turn.',
+      format: 'int',
+      default: 1000,
+      env: 'VALIDATION_LOAD_SAMPLE_INTERVAL_MS'
+    },
+    busyRetryAfterSeconds: {
+      doc: 'Value of the Retry-After header sent with the 503 when validation is refused. The frontend HONOURS this — it is the base for how soon its polling page comes back — so it is the one place the retry pace is decided, rather than being duplicated on both sides. Short, because a full queue drains in the time it takes the workers to finish what they are holding.',
+      format: 'int',
+      default: 5,
+      env: 'VALIDATION_BUSY_RETRY_AFTER_SECONDS'
+    }
+  },
   upload: {
+    readyTimeoutMs: {
+      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net, sized small so it cannot eat the request budget.',
+      format: 'int',
+      default: 3000,
+      env: 'UPLOAD_READY_TIMEOUT_MS'
+    },
+    downloadTimeoutMs: {
+      doc: 'Budget for streaming the uploaded file out of S3. Another rung of the timeout ladder: it has to leave room for validation and persistence inside the frontend request budget, which is what bounds the file size this synchronous pipeline can actually handle.',
+      format: 'int',
+      default: 10000,
+      env: 'UPLOAD_DOWNLOAD_TIMEOUT_MS'
+    },
     maxFileSizeBytes: {
       doc: 'Maximum upload file size in bytes. Sent to the CDP Uploader on initiate so oversized files are rejected at source, and enforced again by the S3 download guard. Defaults to 100 MB.',
       format: Number,

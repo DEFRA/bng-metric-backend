@@ -12,12 +12,29 @@ import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { requestCorrelation } from './common/helpers/correlation-id.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
+import { closeGeosWorkerPool } from './validation/geopackage/geos/worker-pool.js'
 
 async function createServer() {
   setupProxy()
+  // The memory backstop. Deliberately separate from the parse budget: that one
+  // counts the bytes it hands out and so can only see files being parsed, while
+  // this reads the process's actual RSS — which is what the OOM-killer reads
+  // too, and what measurement showed climbing to 1.2 GB from workers and
+  // retained heap while the parse budget sat unexhausted. Off by default (0),
+  // because the right ceiling depends on the task memory limit, which the app
+  // cannot discover for itself.
+  const maxRssBytes = config.get('validation.maxRssBytes')
+  const load = maxRssBytes
+    ? {
+        maxRssBytes,
+        sampleInterval: config.get('validation.loadSampleIntervalMs')
+      }
+    : {}
+
   const server = Hapi.server({
     host: config.get('host'),
     port: config.get('port'),
+    load,
     routes: {
       validate: {
         options: {
@@ -88,6 +105,14 @@ async function createServer() {
   server.auth.default('defra-jwt')
 
   await server.register([router])
+
+  // Worker threads outlive a Hapi stop unless something ends them. They are
+  // unref'd, so they never hold the process open — but a test suite or a
+  // hot-reload that creates a server per run would otherwise accumulate a pool
+  // per server, each holding its own WebAssembly heap.
+  server.ext('onPostStop', async () => {
+    await closeGeosWorkerPool()
+  })
 
   return server
 }

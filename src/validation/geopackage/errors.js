@@ -53,7 +53,7 @@ export const ERROR_CODES = Object.freeze({
   /** A feature carries both advance and delay years; the statutory metric allows only one. */
   ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
 
-  /** PostGIS query to calculate habitat sizes failed (e.g. temporary DB connection problem). */
+  /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
 
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
@@ -63,7 +63,18 @@ export const ERROR_CODES = Object.freeze({
   INVALID_FILENAME: 'INVALID_FILENAME',
 
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
-  VALIDATION_FAILED: 'VALIDATION_FAILED'
+  VALIDATION_FAILED: 'VALIDATION_FAILED',
+
+  /**
+   * Every geometry-validation worker was busy and the queue was full, so the
+   * file was never looked at.
+   *
+   * Deliberately NOT a validation error: there is nothing wrong with the user's
+   * file and nothing for them to fix. It is capacity, it is temporary, and the
+   * only sensible instruction is to try again — which is why the route answers
+   * it with a 503 and a Retry-After rather than the usual 200-with-errors.
+   */
+  VALIDATION_BUSY: 'VALIDATION_BUSY'
 })
 
 export function makeError(code, message, details) {

@@ -100,13 +100,51 @@ The pipeline is therefore file-based end to end:
 fixtures are built in memory. Production paths take a path.
 
 What this does **not** bound is the parsed geometry: the layers stay on the
-heap while the PostGIS checks run, so concurrent validations still add up.
+heap while the geometry checks run, so concurrent validations still add up.
 Capping how many run at once is the fix for that — a Node `--max-old-space-size`
 is not. Hitting V8's heap limit aborts the process (SIGABRT), it does not throw
 something a route can catch; and the streamed chunks and better-sqlite3's pages
 are off-heap, so the flag never sees them anyway. On Fargate each task is a
 microVM sized to the task definition, so Node's default heap already derives
 from the task's own memory rather than a shared host's.
+
+## Geometry validation runs in-process, not in the database
+
+The fifteen geometry rules run on a worker thread with GEOS compiled to
+WebAssembly. **Validation takes no database connection at all** — the database is
+still the system of record and `persist-upload.js` still writes geometry through
+PostGIS, but nothing checks shapes there any more.
+
+The PostGIS statement that used to do this has been removed, along with any
+fallback to it. A fallback would mean the same file getting different answers
+depending on how busy the box was, and would push load back onto the database
+exactly when capacity got tight. Instead a full queue returns **503
+`VALIDATION_BUSY`** with a `Retry-After` — the file was never looked at, so the
+frontend says "try again" rather than sending the user to the file-problem page.
+
+Its correctness was kept without keeping its code:
+`integration-tests/fixtures/postgis-geometry-verdicts.json` records what the SQL
+engine said about all 98 readable GeoPackages in the harness's `example-files/`,
+and `geometry-verdict-regression.test.js` replays every one through the real
+worker pool. `geometry-validate-baseline-layers.test.js` is the rule-by-rule spec
+and was written against the old engine — the fixtures are unchanged, it was just
+pointed at the new one.
+
+Three things to know before touching this code:
+
+- **The worker takes a file path, not layers.** Cloning parsed layers across the
+  thread boundary would cost ~29 MB per upload and leave the synchronous parse on
+  the main thread. `filePath` must be threaded from the route through
+  `validateGeoPackageLayers`, which throws without one.
+- **Each worker holds ~250 MB.** WebAssembly memory grows to the largest file
+  that worker has ever seen and is never returned. Check the ECS task limit
+  before raising `VALIDATION_WORKER_COUNT`.
+- **Habitat sizes come back with the verdict.** `calculateHabitatSizes` is a pure
+  function over measurements the worker already made; there is no sizing query
+  any more.
+
+Full detail, including the coordinate-system caveat, is in
+[`docs/geometry-validation.md`](docs/geometry-validation.md).
 
 ## Tests
 

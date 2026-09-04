@@ -1,0 +1,823 @@
+{
+  "_meta": {
+    "description": "Verdicts recorded from the PostGIS geometry-validation engine, for every GeoPackage in the harness example-files/ corpus. Captured before that engine was removed, so the in-process GEOS engine stays regression-tested against what PostGIS actually said.",
+    "recordedFrom": "src/validation/geopackage/postgis/index.js",
+    "recordedAtCommit": "3c2c3f98965f0dae37f90e3aa2dc2dff3f4e60e5",
+    "fileCount": 98,
+    "regenerate": "The PostGIS engine no longer exists on main. To re-record: git checkout <recordedAtCommit> -- src/validation/geopackage/postgis/ and re-run the capture against a local PostGIS."
+  },
+  "verdicts": {
+    "attribute-problems/Baseline - duplicate habitat ref.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "attribute-problems/Baseline - habitat distinctiveness out of scope.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "attribute-problems/Post-intervention - advance and delay both set.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "attribute-problems/Post-intervention - missing proposed habitat data.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "bng-500/BROADLAND_2024_3282-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "bng-500/BROADLAND_2024_3282-post-intervention.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (12470.00 sq m) does not equal redline boundary area (82447.96 sq m)"
+        }
+      ]
+    },
+    "bng-500/BarkingandDagenham2400625FULL-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "bng-500/BarkingandDagenham2400625FULL-post-intervention.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (6122.00 sq m) does not equal redline boundary area (17389.85 sq m)"
+        }
+      ]
+    },
+    "bng-500/CAMBRIDGE_24_03964_FUL-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "bng-500/CAMBRIDGE_24_03964_FUL-post-intervention.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (10030.00 sq m) does not equal redline boundary area (13684.78 sq m)"
+        }
+      ]
+    },
+    "bng-500/Sunderland_24_00723_FU4-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "bng-500/Sunderland_24_00723_FU4-post-intervention.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (424183.00 sq m) does not equal redline boundary area (959337.97 sq m)"
+        }
+      ]
+    },
+    "bng-500/Wiltshire_PL_2024_08441-baseline.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (223304.82 sq m) does not equal redline boundary area (223316.78 sq m)"
+        }
+      ]
+    },
+    "bng-500/Wiltshire_PL_2024_08441-post-intervention.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (107953.84 sq m) does not equal redline boundary area (223316.78 sq m)"
+        }
+      ]
+    },
+    "empty-layer/Baseline - no habitats (full site).gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_HABITAT_AREAS",
+          "message": "Baseline file contains no area habitat polygons"
+        }
+      ]
+    },
+    "empty-layer/Baseline - no habitats (minimal site).gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_HABITAT_AREAS",
+          "message": "Baseline file contains no area habitat polygons"
+        }
+      ]
+    },
+    "empty-layer/Baseline - no hedgerows.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "empty-layer/Baseline - no rlb polygons.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_REDLINE",
+          "message": "Baseline file contains no redline boundary polygon"
+        }
+      ]
+    },
+    "empty-layer/Baseline - no watercourses.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "filename-problems/Baseline [invalid chars].gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - missing and wrong column names in Habitats.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - missing columns in Habitats.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - no habitats table (three rlb polygons).gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_HABITAT_AREAS",
+          "message": "Baseline file contains no area habitat polygons"
+        }
+      ]
+    },
+    "invalid-schema/Baseline - no habitats table.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_HABITAT_AREAS",
+          "message": "Baseline file contains no area habitat polygons"
+        }
+      ]
+    },
+    "invalid-schema/Baseline - wrong column data types in Habitats.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - wrong column names in Habitats.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - wrong geometry type in Habitats.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_PARCELS_TOO_SMALL",
+          "message": "One or more area habitat parcels are smaller than 1 square metre: Feature Ref H1 — ~0.00 sq m",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "4",
+                "idx": 0,
+                "area_sqm": 0,
+                "feature_ref": "H1"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (0.00 sq m) does not equal redline boundary area (14850.15 sq m)"
+        }
+      ]
+    },
+    "invalid-schema/Baseline - wrong geometry type in Hedgerows.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Baseline - wrong geometry type in Rivers.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Post-intervention - multiple geometry columns in RLB layer.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Post-intervention - no geometry column in RLB layer.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "NO_REDLINE",
+          "message": "Baseline file contains no redline boundary polygon"
+        }
+      ]
+    },
+    "invalid-schema/Post-intervention - wrong geometry column name in RLB layer.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "invalid-schema/Post-intervention - wrong geometry type in RLB layer.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "SLIVERS_OUTSIDE_REDLINE",
+          "message": "Baseline file contains habitat parcel parts outside the redline boundary: ~14850.11 sq m near POLYGON((425954.998 431531.063,425957.31 431528.07,425991.133 431484.285,426013.397 431455.463,425988.949 431446.681,425960.738 431436.547,425932.415 431426.372,425901.708 431415.342,425870.238 431404.037,425838.412 431392.604,425832.659 431406.426,425831.319 431409.646,425809.636 431461.746,425807.832 431466.081,425954.998 431531.063))",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "area_sqm": 14850.105736000238,
+                "location_wkt": "POLYGON((425954.998 431531.063,425957.31 431528.07,425991.133 431484.285,426013.397 431455.463,425988.949 431446.681,425960.738 431436.547,425932.415 431426.372,425901.708 431415.342,425870.238 431404.037,425838.412 431392.604,425832.659 431406.426,425831.319 431409.646,425809.636 431461.746,425807.832 431466.081,425954.998 431531.063))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_PARCELS_OUTSIDE_REDLINE",
+          "message": "One or more area habitat polygons are not entirely within the redline boundary: Feature Ref H2-1 — ~7850.10 sq m near POLYGON((425859.26 431417.445,425855.475 431422.066,425854.463 431421.645,425841.721 431442.031,425842.084 431443.212,425826.718 431469.418,425828.048 431470.015,425836.869 431473.977,425848.238 431479.083,425858.783 431483.819,425867.655 431487.804,425876.509 431491.781,425886.064 431496.072,425895.338 431500.237,425904.767 431504.472,425912.768 431508.065,425921.379 431511.933,425930.293 431515.936,425932.165 431516.777,425949.246 431492.396,425937.891 431487.154,425946.853 431473.195,425950.215 431464.878,425950.746 431461.161,425947.176 431458.739,425960.738 431436.547,425932.415 431426.372,425901.708 431415.342,425870.238 431404.037,425867.65 431407.198,425859.26 431417.445),(425895.307 431418.105,425885.821 431429.714,425876.721 431425.511,425869.081 431421.981,425868.331 431421.635,425868.467 431421.445,425863.81 431419.313,425863.028 431418.955,425866.567 431414.141,425871.684 431416.932,425876.215 431410.576,425884.908 431414.004,425895.307 431418.105),(425914.561 431442.031,425906.308 431438.349,425899.688 431435.394,425898.759 431434.927,425893.724 431432.394,425892.9 431431.979,425895.023 431428.582,425901.105 431431.623,425906.975 431423.355,425914.159 431426.627,425922.489 431430.422,425914.561 431442.031),(425943.159 431454.065,425934.663 431450.295,425929.229 431447.883,425923.887 431445.513,425923.172 431445.195,425925.888 431441.498,425930.842 431444.013,425936.505 431434.386,425943.982 431438.125,425951.511 431441.89,425943.159 431454.065)), Feature Ref H2-2 — ~1619.22 sq m near POLYGON((425826.718 431469.418,425842.084 431443.212,425841.721 431442.031,425854.463 431421.645,425855.475 431422.066,425859.26 431417.445,425867.65 431407.198,425870.238 431404.037,425838.412 431392.604,425832.659 431406.426,425831.319 431409.646,425809.636 431461.746,425826.718 431469.418),(425844.92 431420.636,425843.327 431420.99,425839.611 431421.167,425836.519 431413.13,425836.14 431412.145,425837.867 431406.554,425838.726 431406.124,425839.964 431405.594,425840.141 431405.417,425841.557 431404.178,425842.088 431403.47,425842.265 431403.116,425842.796 431402.231,425843.327 431401.877,425844.212 431401.346,425845.273 431400.992,425847.397 431400.815,425849.167 431400.638,425849.875 431401.169,425850.052 431401.169,425851.644 431403.293,425852.706 431404.886,425853.06 431405.594,425853.591 431407.186,425853.591 431407.717,425853.237 431409.487,425852.883 431411.257,425851.998 431413.026,425850.759 431414.619,425850.052 431414.973,425849.167 431415.504,425848.755 431415.985,425848.355 431416.451,425848.105 431416.743,425846.512 431418.689,425844.92 431420.636)), Feature Ref H2-3 — ~3052.15 sq m near POLYGON((425983.489 431455.392,425988.949 431446.681,425960.738 431436.547,425947.176 431458.739,425950.746 431461.161,425950.215 431464.878,425946.853 431473.195,425937.891 431487.154,425949.246 431492.396,425932.165 431516.777,425949.278 431524.463,425957.31 431528.07,425991.133 431484.285,425990.285 431483.282,425990.002 431481.442,425990.285 431479.884,425990.851 431478.469,425990.993 431474.646,425989.719 431471.39,425985.471 431467.568,425984.168 431465.921,425982.781 431464.17,425983.489 431455.392)), Feature Ref H1 — ~675.24 sq m near POLYGON((425949.278 431524.463,425932.165 431516.777,425930.293 431515.936,425921.379 431511.933,425912.768 431508.065,425904.767 431504.472,425895.338 431500.237,425886.064 431496.072,425876.509 431491.781,425867.655 431487.804,425858.783 431483.819,425848.238 431479.083,425836.869 431473.977,425828.048 431470.015,425826.718 431469.418,425809.636 431461.746,425807.832 431466.081,425954.998 431531.063,425957.31 431528.07,425949.278 431524.463)), Feature Ref H3 — ~567.28 sq m near POLYGON((425983.489 431455.392,425982.781 431464.17,425984.168 431465.921,425985.471 431467.568,425989.719 431471.39,425990.993 431474.646,425990.851 431478.469,425990.285 431479.884,425990.002 431481.442,425990.285 431483.282,425991.133 431484.285,426013.397 431455.463,425988.949 431446.681,425983.489 431455.392)), Feature Ref H2-4 — ~159.25 sq m near POLYGON((425884.908 431414.004,425876.215 431410.576,425871.684 431416.932,425866.567 431414.141,425863.028 431418.955,425863.81 431419.313,425868.467 431421.445,425868.331 431421.635,425869.081 431421.981,425876.721 431425.511,425884.908 431414.004)), Feature Ref H2-5 — ~139.55 sq m near POLYGON((425914.159 431426.627,425906.975 431423.355,425901.105 431431.623,425895.023 431428.582,425892.9 431431.979,425893.724 431432.394,425898.759 431434.927,425899.281 431435.19,425899.459 431435.279,425899.688 431435.394,425906.308 431438.349,425914.159 431426.627)), Feature Ref H2-6 — ~138.02 sq m near POLYGON((425943.982 431438.125,425936.505 431434.386,425930.842 431444.013,425925.888 431441.498,425923.172 431445.195,425923.887 431445.513,425929.229 431447.883,425934.663 431450.295,425943.982 431438.125)), Feature Ref H2-7 — ~242.88 sq m near POLYGON((425836.14 431412.145,425836.519 431413.13,425839.611 431421.167,425843.327 431420.99,425844.92 431420.636,425846.512 431418.689,425848.105 431416.743,425848.355 431416.451,425848.755 431415.985,425849.167 431415.504,425850.052 431414.973,425850.759 431414.619,425851.998 431413.026,425852.883 431411.257,425853.237 431409.487,425853.591 431407.717,425853.591 431407.186,425853.06 431405.594,425852.706 431404.886,425851.644 431403.293,425850.052 431401.169,425849.875 431401.169,425849.167 431400.638,425847.397 431400.815,425845.273 431400.992,425844.212 431401.346,425843.327 431401.877,425842.796 431402.231,425842.265 431403.116,425842.088 431403.47,425841.557 431404.178,425840.141 431405.417,425839.964 431405.594,425838.726 431406.124,425837.867 431406.554,425836.14 431412.145)), Feature Ref H2-8 — ~149.37 sq m near POLYGON((425876.721 431425.511,425885.821 431429.714,425895.307 431418.105,425884.908 431414.004,425876.721 431425.511)), Feature Ref H2-9 — ~126.22 sq m near POLYGON((425906.308 431438.349,425914.561 431442.031,425922.489 431430.422,425914.159 431426.627,425906.308 431438.349)), Feature Ref H2-10 — ~130.82 sq m near POLYGON((425934.663 431450.295,425943.159 431454.065,425951.511 431441.89,425943.982 431438.125,425934.663 431450.295))",
+          "details": {
+            "count": 12,
+            "sample": [
+              {
+                "fid": "1",
+                "idx": 0,
+                "feature_ref": "H2-1",
+                "escape_area_sqm": 7850.097828000853,
+                "escape_location_wkt": "POLYGON((425859.26 431417.445,425855.475 431422.066,425854.463 431421.645,425841.721 431442.031,425842.084 431443.212,425826.718 431469.418,425828.048 431470.015,425836.869 431473.977,425848.238 431479.083,425858.783 431483.819,425867.655 431487.804,425876.509 431491.781,425886.064 431496.072,425895.338 431500.237,425904.767 431504.472,425912.768 431508.065,425921.379 431511.933,425930.293 431515.936,425932.165 431516.777,425949.246 431492.396,425937.891 431487.154,425946.853 431473.195,425950.215 431464.878,425950.746 431461.161,425947.176 431458.739,425960.738 431436.547,425932.415 431426.372,425901.708 431415.342,425870.238 431404.037,425867.65 431407.198,425859.26 431417.445),(425895.307 431418.105,425885.821 431429.714,425876.721 431425.511,425869.081 431421.981,425868.331 431421.635,425868.467 431421.445,425863.81 431419.313,425863.028 431418.955,425866.567 431414.141,425871.684 431416.932,425876.215 431410.576,425884.908 431414.004,425895.307 431418.105),(425914.561 431442.031,425906.308 431438.349,425899.688 431435.394,425898.759 431434.927,425893.724 431432.394,425892.9 431431.979,425895.023 431428.582,425901.105 431431.623,425906.975 431423.355,425914.159 431426.627,425922.489 431430.422,425914.561 431442.031),(425943.159 431454.065,425934.663 431450.295,425929.229 431447.883,425923.887 431445.513,425923.172 431445.195,425925.888 431441.498,425930.842 431444.013,425936.505 431434.386,425943.982 431438.125,425951.511 431441.89,425943.159 431454.065))"
+              },
+              {
+                "fid": "2",
+                "idx": 1,
+                "feature_ref": "H2-2",
+                "escape_area_sqm": 1619.2209089996234,
+                "escape_location_wkt": "POLYGON((425826.718 431469.418,425842.084 431443.212,425841.721 431442.031,425854.463 431421.645,425855.475 431422.066,425859.26 431417.445,425867.65 431407.198,425870.238 431404.037,425838.412 431392.604,425832.659 431406.426,425831.319 431409.646,425809.636 431461.746,425826.718 431469.418),(425844.92 431420.636,425843.327 431420.99,425839.611 431421.167,425836.519 431413.13,425836.14 431412.145,425837.867 431406.554,425838.726 431406.124,425839.964 431405.594,425840.141 431405.417,425841.557 431404.178,425842.088 431403.47,425842.265 431403.116,425842.796 431402.231,425843.327 431401.877,425844.212 431401.346,425845.273 431400.992,425847.397 431400.815,425849.167 431400.638,425849.875 431401.169,425850.052 431401.169,425851.644 431403.293,425852.706 431404.886,425853.06 431405.594,425853.591 431407.186,425853.591 431407.717,425853.237 431409.487,425852.883 431411.257,425851.998 431413.026,425850.759 431414.619,425850.052 431414.973,425849.167 431415.504,425848.755 431415.985,425848.355 431416.451,425848.105 431416.743,425846.512 431418.689,425844.92 431420.636))"
+              },
+              {
+                "fid": "3",
+                "idx": 2,
+                "feature_ref": "H2-3",
+                "escape_area_sqm": 3052.1460934994493,
+                "escape_location_wkt": "POLYGON((425983.489 431455.392,425988.949 431446.681,425960.738 431436.547,425947.176 431458.739,425950.746 431461.161,425950.215 431464.878,425946.853 431473.195,425937.891 431487.154,425949.246 431492.396,425932.165 431516.777,425949.278 431524.463,425957.31 431528.07,425991.133 431484.285,425990.285 431483.282,425990.002 431481.442,425990.285 431479.884,425990.851 431478.469,425990.993 431474.646,425989.719 431471.39,425985.471 431467.568,425984.168 431465.921,425982.781 431464.17,425983.489 431455.392))"
+              },
+              {
+                "fid": "4",
+                "idx": 3,
+                "feature_ref": "H1",
+                "escape_area_sqm": 675.2377055013208,
+                "escape_location_wkt": "POLYGON((425949.278 431524.463,425932.165 431516.777,425930.293 431515.936,425921.379 431511.933,425912.768 431508.065,425904.767 431504.472,425895.338 431500.237,425886.064 431496.072,425876.509 431491.781,425867.655 431487.804,425858.783 431483.819,425848.238 431479.083,425836.869 431473.977,425828.048 431470.015,425826.718 431469.418,425809.636 431461.746,425807.832 431466.081,425954.998 431531.063,425957.31 431528.07,425949.278 431524.463))"
+              },
+              {
+                "fid": "5",
+                "idx": 4,
+                "feature_ref": "H3",
+                "escape_area_sqm": 567.2843189995352,
+                "escape_location_wkt": "POLYGON((425983.489 431455.392,425982.781 431464.17,425984.168 431465.921,425985.471 431467.568,425989.719 431471.39,425990.993 431474.646,425990.851 431478.469,425990.285 431479.884,425990.002 431481.442,425990.285 431483.282,425991.133 431484.285,426013.397 431455.463,425988.949 431446.681,425983.489 431455.392))"
+              },
+              {
+                "fid": "6",
+                "idx": 5,
+                "feature_ref": "H2-4",
+                "escape_area_sqm": 159.2484570003059,
+                "escape_location_wkt": "POLYGON((425884.908 431414.004,425876.215 431410.576,425871.684 431416.932,425866.567 431414.141,425863.028 431418.955,425863.81 431419.313,425868.467 431421.445,425868.331 431421.635,425869.081 431421.981,425876.721 431425.511,425884.908 431414.004))"
+              },
+              {
+                "fid": "7",
+                "idx": 6,
+                "feature_ref": "H2-5",
+                "escape_area_sqm": 139.5545674997955,
+                "escape_location_wkt": "POLYGON((425914.159 431426.627,425906.975 431423.355,425901.105 431431.623,425895.023 431428.582,425892.9 431431.979,425893.724 431432.394,425898.759 431434.927,425899.281 431435.19,425899.459 431435.279,425899.688 431435.394,425906.308 431438.349,425914.159 431426.627))"
+              },
+              {
+                "fid": "8",
+                "idx": 7,
+                "feature_ref": "H2-6",
+                "escape_area_sqm": 138.02245899982947,
+                "escape_location_wkt": "POLYGON((425943.982 431438.125,425936.505 431434.386,425930.842 431444.013,425925.888 431441.498,425923.172 431445.195,425923.887 431445.513,425929.229 431447.883,425934.663 431450.295,425943.982 431438.125))"
+              },
+              {
+                "fid": "9",
+                "idx": 8,
+                "feature_ref": "H2-7",
+                "escape_area_sqm": 242.88046900019043,
+                "escape_location_wkt": "POLYGON((425836.14 431412.145,425836.519 431413.13,425839.611 431421.167,425843.327 431420.99,425844.92 431420.636,425846.512 431418.689,425848.105 431416.743,425848.355 431416.451,425848.755 431415.985,425849.167 431415.504,425850.052 431414.973,425850.759 431414.619,425851.998 431413.026,425852.883 431411.257,425853.237 431409.487,425853.591 431407.717,425853.591 431407.186,425853.06 431405.594,425852.706 431404.886,425851.644 431403.293,425850.052 431401.169,425849.875 431401.169,425849.167 431400.638,425847.397 431400.815,425845.273 431400.992,425844.212 431401.346,425843.327 431401.877,425842.796 431402.231,425842.265 431403.116,425842.088 431403.47,425841.557 431404.178,425840.141 431405.417,425839.964 431405.594,425838.726 431406.124,425837.867 431406.554,425836.14 431412.145))"
+              },
+              {
+                "fid": "10",
+                "idx": 9,
+                "feature_ref": "H2-8",
+                "escape_area_sqm": 149.37386899928666,
+                "escape_location_wkt": "POLYGON((425876.721 431425.511,425885.821 431429.714,425895.307 431418.105,425884.908 431414.004,425876.721 431425.511))"
+              },
+              {
+                "fid": "11",
+                "idx": 10,
+                "feature_ref": "H2-9",
+                "escape_area_sqm": 126.21938900017715,
+                "escape_location_wkt": "POLYGON((425906.308 431438.349,425914.561 431442.031,425922.489 431430.422,425914.159 431426.627,425906.308 431438.349))"
+              },
+              {
+                "fid": "12",
+                "idx": 11,
+                "feature_ref": "H2-10",
+                "escape_area_sqm": 130.8199024998783,
+                "escape_location_wkt": "POLYGON((425934.663 431450.295,425943.159 431454.065,425951.511 431441.89,425943.982 431438.125,425934.663 431450.295))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (14850.15 sq m) does not equal redline boundary area (0.00 sq m)"
+        }
+      ]
+    },
+    "permutations/advance-delay/created-advance-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/advance-delay/created-advance-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/advance-delay/created-delay-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/advance-delay/created-delay-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/conditions/area-spread-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/conditions/area-spread-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/data-completeness/data-complete-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/data-completeness/data-complete-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/data-completeness/data-incomplete-mix-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/data-completeness/data-incomplete-mix-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-created-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-created-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-enhanced-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-enhanced-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-retained-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/area-retained-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-created-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-created-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-enhanced-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-enhanced-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-retained-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/hedgerow-retained-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-created-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-created-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-enhanced-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-enhanced-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-retained-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/intervention/watercourse-retained-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/net-gain/met-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/net-gain/met-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/net-gain/unmet-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/net-gain/unmet-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/strategic-significance/spread-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/strategic-significance/spread-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/trading-rules/trading-low-to-medium-baseline.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "permutations/trading-rules/trading-low-to-medium-post-intervention.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "spatial-problems/Baseline - area sum mismatch.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (11600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - bowtie parcel.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_PARCELS_INVALID_GEOMETRY",
+          "message": "One or more area habitat polygons have invalid geometry: Feature Ref H002 (Self-intersection)",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "reason": "Self-intersection",
+                "feature_ref": "H002"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - hedgerow outside.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "HEDGEROWS_OUTSIDE_REDLINE",
+          "message": "One or more hedgerow habitats are not entirely within the redline boundary: Feature Ref HG002",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "feature_ref": "HG002"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - iggi outside.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "IGGIS_OUTSIDE_REDLINE",
+          "message": "One or more IGGIs are not entirely within the redline boundary: fid 1",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "1",
+                "idx": 0,
+                "feature_ref": null
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - overlapping parcels.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "PARCEL_OVERLAPS",
+          "message": "One or more area habitat parcels overlap with other parcels: Feature Ref H002 ↔ Feature Ref H003",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid_a": "2",
+                "fid_b": "3",
+                "idx_a": 1,
+                "idx_b": 2,
+                "feature_ref_a": "H002",
+                "feature_ref_b": "H003"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (21600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - parcel outside redline.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "SLIVERS_OUTSIDE_REDLINE",
+          "message": "Baseline file contains habitat parcel parts outside the redline boundary: ~10000.00 sq m near POLYGON((530500 180500,530500 180400,530400 180400,530400 180500,530500 180500))",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "area_sqm": 10000,
+                "location_wkt": "POLYGON((530500 180500,530500 180400,530400 180400,530400 180500,530500 180500))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_PARCELS_OUTSIDE_REDLINE",
+          "message": "One or more area habitat polygons are not entirely within the redline boundary: Feature Ref H002 — ~10000.00 sq m near POLYGON((530400 180500,530500 180500,530500 180400,530400 180400,530400 180500))",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "feature_ref": "H002",
+                "escape_area_sqm": 10000,
+                "escape_location_wkt": "POLYGON((530400 180500,530500 180500,530500 180400,530400 180400,530400 180500))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (11600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - parcel too small.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_PARCELS_TOO_SMALL",
+          "message": "One or more area habitat parcels are smaller than 1 square metre: Feature Ref H002 — ~0.81 sq m",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "area_sqm": 0.810000000015716,
+                "feature_ref": "H002"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.81 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - redline not in england.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "REDLINE_OUTSIDE_ENGLAND",
+          "message": "Redline boundary is outside England"
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - self intersecting redline.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "REDLINE_INVALID_GEOMETRY",
+          "message": "Redline boundary geometry is invalid: Self-intersection at POINT(530000 180000)"
+        },
+        {
+          "code": "SLIVERS_OUTSIDE_REDLINE",
+          "message": "Baseline file contains habitat parcel parts outside the redline boundary: ~800.00 sq m near POLYGON((529830 180170,529870 180170,529870 180130,529830 180170))",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "area_sqm": 800,
+                "location_wkt": "POLYGON((529830 180170,529870 180170,529870 180130,529830 180170))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_PARCELS_OUTSIDE_REDLINE",
+          "message": "One or more area habitat polygons are not entirely within the redline boundary: Feature Ref H001 — ~800.00 sq m near POLYGON((529830 180170,529870 180170,529870 180130,529830 180170))",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "1",
+                "idx": 0,
+                "feature_ref": "H001",
+                "escape_area_sqm": 800,
+                "escape_location_wkt": "POLYGON((529830 180170,529870 180170,529870 180130,529830 180170))"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (0.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - tree outside.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "TREES_OUTSIDE_REDLINE",
+          "message": "One or more trees are not entirely within the redline boundary: Feature Ref T002",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "feature_ref": "T002"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "spatial-problems/Baseline - watercourse outside.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "WATERCOURSES_OUTSIDE_REDLINE",
+          "message": "One or more watercourse habitats are not entirely within the redline boundary: Feature Ref R002",
+          "details": {
+            "count": 1,
+            "sample": [
+              {
+                "fid": "2",
+                "idx": 1,
+                "feature_ref": "R002"
+              }
+            ]
+          }
+        },
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (1600.00 sq m) does not equal redline boundary area (160000.00 sq m)"
+        }
+      ]
+    },
+    "valid/Baseline - IGGI habitat.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - all unit and intervention types.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - complete but null area refs.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - complete with area refs.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - created linear features.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - retained areas hedgerows and watercourses.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - retained hedgerow.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - retained watercourse.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Baseline - three rlb polygons.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (14850.15 sq m) does not equal redline boundary area (27086.29 sq m)"
+        }
+      ]
+    },
+    "valid/Baseline - tiny gap between parcels.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - IGGI habitat.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - all unit and intervention types.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - complete (bng-500 variant).gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - complete.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - created linear features.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - retained areas hedgerows and watercourses.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - retained hedgerow.gpkg": {
+      "valid": true,
+      "errors": []
+    },
+    "valid/Post-intervention - retained watercourse.gpkg": {
+      "valid": true,
+      "errors": []
+    }
+  }
+}

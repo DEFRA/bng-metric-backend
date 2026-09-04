@@ -1,195 +1,147 @@
-import { describe, it, expect, vi } from 'vitest'
+import { describe, expect, it } from 'vitest'
 
 import {
-  buildLayerArrays,
+  attachGeometrySizes,
   calculateHabitatSizes,
-  HABITAT_SIZE_LAYERS,
-  CALCULATE_HABITAT_SIZES_QUERY
+  GEOMETRY_SIZE_FIELD,
+  HABITAT_SIZE_LAYERS
 } from './calculate-habitat-sizes.js'
 
-const BNG_SRID = 27700
-const WGS84_SRID = 4326
+const feature = (featureId, extra = {}) => ({
+  featureId,
+  nativeGeometry: { type: 'Point', coordinates: [0, 0] },
+  nativeSrid: 27_700,
+  properties: {},
+  ...extra
+})
 
-const FEAT_ID_AREA_0 = 'area0000-0000-0000-0000-000000000000'
-const FEAT_ID_AREA_1 = 'area1111-0000-0000-0000-000000000000'
-const FEAT_ID_HEDGE_0 = 'hedg0000-0000-0000-0000-000000000000'
-const FEAT_ID_WRCRS_0 = 'wrcs0000-0000-0000-0000-000000000000'
-
-const MOCK_SIZE_QUERY_ROWS = [
-  { layer: 'areas', feature_id: FEAT_ID_AREA_0, size_value: '1.25' },
-  { layer: 'areas', feature_id: FEAT_ID_AREA_1, size_value: '0.75' },
-  { layer: 'hedgerows', feature_id: FEAT_ID_HEDGE_0, size_value: '0.5' },
-  { layer: 'watercourses', feature_id: FEAT_ID_WRCRS_0, size_value: '0.25' }
-]
-
-const LAYERS_FOR_SIZE_QUERY = {
-  areas: [
-    {
-      nativeGeometry: { type: 'Polygon', coordinates: [] },
-      nativeSrid: BNG_SRID,
-      featureId: FEAT_ID_AREA_0
-    },
-    {
-      nativeGeometry: { type: 'Polygon', coordinates: [] },
-      nativeSrid: BNG_SRID,
-      featureId: FEAT_ID_AREA_1
-    }
-  ],
-  hedgerows: [
-    {
-      nativeGeometry: { type: 'LineString', coordinates: [] },
-      nativeSrid: WGS84_SRID,
-      featureId: FEAT_ID_HEDGE_0
-    }
-  ],
-  watercourses: [
-    {
-      nativeGeometry: { type: 'LineString', coordinates: [] },
-      nativeSrid: WGS84_SRID,
-      featureId: FEAT_ID_WRCRS_0
-    }
-  ]
-}
+/** Layers with every sized layer present, so a test names only what it cares about. */
+const layers = (overrides = {}) => ({
+  areas: [],
+  hedgerows: [],
+  watercourses: [],
+  ...overrides
+})
 
 describe('HABITAT_SIZE_LAYERS', () => {
-  it('includes only layers used by baseline size calculations', () => {
+  it('covers the three layers the document records a size for', () => {
     expect(HABITAT_SIZE_LAYERS).toEqual(['areas', 'hedgerows', 'watercourses'])
   })
 })
 
-describe('buildLayerArrays', () => {
-  it('builds parallel arrays for areas, hedgerows and watercourses', () => {
-    const layers = {
-      areas: [
-        {
-          nativeGeometry: { type: 'Polygon', coordinates: [] },
-          nativeSrid: BNG_SRID,
-          featureId: 'fid-area-1'
-        }
-      ],
-      hedgerows: [
-        {
-          nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: WGS84_SRID,
-          featureId: 'fid-hedg-1'
-        }
-      ],
-      watercourses: [
-        {
-          nativeGeometry: { type: 'LineString', coordinates: [] },
-          nativeSrid: WGS84_SRID,
-          featureId: 'fid-wrcs-1'
-        }
-      ]
-    }
-
-    const result = buildLayerArrays(layers)
-
-    expect(result.layerNames).toEqual(['areas', 'hedgerows', 'watercourses'])
-    expect(result.featureIds).toEqual([
-      'fid-area-1',
-      'fid-hedg-1',
-      'fid-wrcs-1'
-    ])
-    expect(result.srids).toEqual([BNG_SRID, WGS84_SRID, WGS84_SRID])
+describe('attachGeometrySizes', () => {
+  it('stamps engine measurements onto features by their layer position', () => {
+    const stamped = attachGeometrySizes(
+      layers({
+        areas: [feature('a'), feature('b')],
+        hedgerows: [feature('h')]
+      }),
+      {
+        areas: [
+          { idx: 0, value: 10 },
+          { idx: 1, value: 20 }
+        ],
+        hedgerows: [{ idx: 0, value: 30 }],
+        watercourses: []
+      }
+    )
+    expect(stamped.areas.map((f) => f[GEOMETRY_SIZE_FIELD])).toEqual([10, 20])
+    expect(stamped.hedgerows[0][GEOMETRY_SIZE_FIELD]).toBe(30)
   })
 
-  it('reuses the geometryJson cached at decode rather than re-serialising', () => {
-    // BMD-914: readGeoPackage stringifies each geometry once; sizing reads it.
-    const result = buildLayerArrays({
-      areas: [
-        {
-          nativeGeometry: { type: 'Polygon', coordinates: [] },
-          geometryJson: '{"cached":"area"}',
-          nativeSrid: BNG_SRID,
-          featureId: 'fid-area-1'
-        }
-      ]
-    })
-
-    expect(result.geoms).toEqual(['{"cached":"area"}'])
+  it('leaves the caller’s layers untouched', () => {
+    const input = layers({ areas: [feature('a')] })
+    attachGeometrySizes(input, { areas: [{ idx: 0, value: 10 }] })
+    expect(input.areas[0][GEOMETRY_SIZE_FIELD]).toBeUndefined()
   })
 
-  it('serialises the geometry when no cached string is present', () => {
-    const geometry = { type: 'Polygon', coordinates: [] }
-    const result = buildLayerArrays({
-      areas: [{ nativeGeometry: geometry, nativeSrid: BNG_SRID }]
-    })
-
-    expect(result.geoms).toEqual([JSON.stringify(geometry)])
+  it('skips positions the engine did not measure, so gaps do not shift sizes', () => {
+    const stamped = attachGeometrySizes(
+      layers({
+        areas: [
+          { featureId: 'skipped', nativeGeometry: null },
+          feature('measured')
+        ]
+      }),
+      { areas: [{ idx: 1, value: 99 }] }
+    )
+    expect(stamped.areas[0][GEOMETRY_SIZE_FIELD]).toBeUndefined()
+    expect(stamped.areas[1][GEOMETRY_SIZE_FIELD]).toBe(99)
   })
 
-  it('skips features without geometry', () => {
-    const result = buildLayerArrays({
-      areas: [{ nativeSrid: BNG_SRID, featureId: 'fid-no-geom' }]
-    })
+  it('is a no-op when the engine measured nothing', () => {
+    const input = layers({ areas: [feature('a')] })
+    expect(attachGeometrySizes(input, undefined)).toBe(input)
+  })
 
-    expect(result.layerNames).toEqual([])
-    expect(result.featureIds).toEqual([])
-    expect(result.geoms).toEqual([])
-    expect(result.srids).toEqual([])
+  it('carries layers it does not size through unchanged', () => {
+    const trees = [feature('t')]
+    const stamped = attachGeometrySizes(layers({ trees }), { areas: [] })
+    expect(stamped.trees).toBe(trees)
   })
 })
 
 describe('calculateHabitatSizes', () => {
-  it('throws when pool is missing', async () => {
-    await expect(calculateHabitatSizes(undefined, {})).rejects.toThrow(
-      /requires a pg pool/
+  it('shapes the measurements into the result the document extract reads', () => {
+    const sizes = calculateHabitatSizes(
+      attachGeometrySizes(
+        layers({
+          areas: [feature('a1'), feature('a2')],
+          hedgerows: [feature('h1')],
+          watercourses: [feature('w1')]
+        }),
+        {
+          areas: [
+            { idx: 0, value: 100 },
+            { idx: 1, value: 250 }
+          ],
+          hedgerows: [{ idx: 0, value: 40 }],
+          watercourses: [{ idx: 0, value: 60 }]
+        }
+      )
     )
-  })
 
-  it('returns empty shape when there are no calculable features', async () => {
-    const pool = { query: vi.fn() }
-
-    const result = await calculateHabitatSizes(pool, {
-      areas: [],
-      hedgerows: [],
-      watercourses: []
-    })
-
-    expect(pool.query).not.toHaveBeenCalled()
-    expect(result).toEqual({
-      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
-      hedgerows: { individualMetres: [], totalMetres: 0 },
-      watercourses: { individualMetres: [], totalMetres: 0 }
-    })
-  })
-
-  it('aggregates individual and total size values from query rows', async () => {
-    const pool = {
-      query: vi.fn().mockResolvedValue({ rows: MOCK_SIZE_QUERY_ROWS })
-    }
-
-    const result = await calculateHabitatSizes(pool, LAYERS_FOR_SIZE_QUERY)
-
-    expect(pool.query).toHaveBeenCalledWith(CALCULATE_HABITAT_SIZES_QUERY, [
-      ['areas', 'areas', 'hedgerows', 'watercourses'],
-      [FEAT_ID_AREA_0, FEAT_ID_AREA_1, FEAT_ID_HEDGE_0, FEAT_ID_WRCRS_0],
-      [
-        JSON.stringify({ type: 'Polygon', coordinates: [] }),
-        JSON.stringify({ type: 'Polygon', coordinates: [] }),
-        JSON.stringify({ type: 'LineString', coordinates: [] }),
-        JSON.stringify({ type: 'LineString', coordinates: [] })
+    expect(sizes.areaHabitats).toEqual({
+      individualSquareMetres: [
+        { featureId: 'a1', sizeSquareMetres: 100 },
+        { featureId: 'a2', sizeSquareMetres: 250 }
       ],
-      [BNG_SRID, BNG_SRID, WGS84_SRID, WGS84_SRID]
-    ])
-
-    expect(result).toEqual({
-      areaHabitats: {
-        individualSquareMetres: [
-          { featureId: FEAT_ID_AREA_0, sizeSquareMetres: 1.25 },
-          { featureId: FEAT_ID_AREA_1, sizeSquareMetres: 0.75 }
-        ],
-        totalSquareMetres: 2
-      },
-      hedgerows: {
-        individualMetres: [{ featureId: FEAT_ID_HEDGE_0, sizeMetres: 0.5 }],
-        totalMetres: 0.5
-      },
-      watercourses: {
-        individualMetres: [{ featureId: FEAT_ID_WRCRS_0, sizeMetres: 0.25 }],
-        totalMetres: 0.25
-      }
+      totalSquareMetres: 350
     })
+    expect(sizes.hedgerows).toEqual({
+      individualMetres: [{ featureId: 'h1', sizeMetres: 40 }],
+      totalMetres: 40
+    })
+    expect(sizes.watercourses).toEqual({
+      individualMetres: [{ featureId: 'w1', sizeMetres: 60 }],
+      totalMetres: 60
+    })
+  })
+
+  it('returns empty totals for a file with nothing to size', () => {
+    const sizes = calculateHabitatSizes(layers())
+    expect(sizes.areaHabitats.totalSquareMetres).toBe(0)
+    expect(sizes.hedgerows.individualMetres).toEqual([])
+  })
+
+  it('ignores features with no geometry, which were never measured', () => {
+    const sizes = calculateHabitatSizes(
+      layers({ areas: [{ featureId: 'no-geometry', nativeGeometry: null }] })
+    )
+    expect(sizes.areaHabitats.individualSquareMetres).toEqual([])
+  })
+
+  // Fatal rather than partial on purpose: half a document's habitats silently
+  // recorded without a size would surface much later, as wrong units.
+  it('throws when a feature that should have been measured was not', () => {
+    expect(() =>
+      calculateHabitatSizes(layers({ areas: [feature('a1')] }))
+    ).toThrow(/did not measure areas feature a1/)
+  })
+
+  it('names the layer as well as the feature when it throws', () => {
+    expect(() =>
+      calculateHabitatSizes(layers({ watercourses: [feature('w9')] }))
+    ).toThrow(/watercourses feature w9/)
   })
 })

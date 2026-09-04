@@ -213,7 +213,9 @@ const STUB_POST_INTERVENTION_EXTRACTED = {
 function makeH() {
   return {
     response: vi.fn().mockReturnThis(),
-    code: vi.fn().mockReturnThis()
+    code: vi.fn().mockReturnThis(),
+    // The busy path sets Retry-After, so the stub has to be chainable past it.
+    header: vi.fn().mockReturnThis()
   }
 }
 
