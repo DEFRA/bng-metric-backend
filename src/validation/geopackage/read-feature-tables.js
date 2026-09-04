@@ -52,24 +52,30 @@ const SUPPORTED_SRIDS = new Set([EPSG_WGS84, EPSG_BNG])
 /**
  * How much of a feature layer a read should materialise.
  *
- * Three modes rather than a boolean, because the middle one is the whole point:
- * decoding a geometry blob into a GeoJSON object graph costs roughly 14x the
- * file size, and the only consumer that needs the result is persistence. The
- * data-quality checks read `feature.properties` and nothing else, so making
- * them pay for the decode meant a rejected file was charged ~122 MB it never
- * used.
+ * Four modes rather than a boolean, because the two in the middle are the whole
+ * point: decoding a geometry blob into a GeoJSON object graph costs roughly 14x
+ * the file size, and almost nothing needs the result. The data-quality checks
+ * read `feature.properties` and never touch a coordinate; persistence needs the
+ * geometry only as the JSON text it binds into SQL. GEOS is the sole consumer
+ * of the object graph, and it opens the file itself in its worker.
  *
  * - `classify`   geometry TYPES only; `features` stays empty. What the format
  *                gate needs to answer valid/invalid without unpacking.
  * - `properties` one feature per row carrying its attribute columns, with the
  *                geometry left as an undecoded blob. What the data-quality
  *                checks need.
- * - `full`       properties plus the decoded geometry and its serialisation.
- *                What persistence needs, and only once the file has passed.
+ * - `serialised` properties plus the geometry as JSON TEXT, with the decoded
+ *                object graph dropped. What persistence needs: the insert binds
+ *                the text straight into ST_GeomFromGeoJSON and never reads a
+ *                coordinate. The object graph costs roughly three times its own
+ *                serialisation, so holding only the text is most of the saving.
+ * - `full`       properties plus BOTH the object graph and its serialisation.
+ *                What GEOS needs — it walks coordinates — and nothing else.
  */
 export const FEATURE_READ_MODE = Object.freeze({
   classify: 'classify',
   properties: 'properties',
+  serialised: 'serialised',
   full: 'full'
 })
 
@@ -277,8 +283,11 @@ function featureProperties(row, geometryColumn) {
  * @param {object} row
  * @param {Buffer} blob
  * @param {FeatureTable} table
+ * @param {boolean} keepGeometryObject retain the decoded object graph as well
+ *   as its serialisation. False for the persistence read, which binds the text
+ *   into SQL and never looks at a coordinate.
  */
-function decodeFeature(row, blob, table) {
+function decodeFeature(row, blob, table, keepGeometryObject) {
   const decoded = decodeGpkgBlob(blob)
   if (!decoded) {
     return null
@@ -292,15 +301,20 @@ function decodeFeature(row, blob, table) {
     )
   }
 
-  return {
+  const feature = {
     type: 'Feature',
     properties: featureProperties(row, table.geometryColumn),
-    nativeGeometry: decoded.geometry,
     // Stringified once here so validation, sizing and persist can all reuse
     // it rather than each re-serialising the same geometry. In-memory only.
     geometryJson: JSON.stringify(decoded.geometry),
     nativeSrid: featureSrid
   }
+  if (keepGeometryObject) {
+    feature.nativeGeometry = decoded.geometry
+  }
+  // Otherwise `decoded.geometry` goes out of scope here and the object graph
+  // becomes garbage immediately, leaving only the text behind.
+  return feature
 }
 
 /**
@@ -315,7 +329,8 @@ function decodeFeature(row, blob, table) {
  */
 function scanRows(rows, table, mode) {
   const geometryTypes = []
-  const decode = mode === FEATURE_READ_MODE.full
+  const keepGeometryObject = mode === FEATURE_READ_MODE.full
+  const decode = keepGeometryObject || mode === FEATURE_READ_MODE.serialised
   const wantFeatures = decode || mode === FEATURE_READ_MODE.properties
 
   for (const row of rows) {
@@ -328,7 +343,7 @@ function scanRows(rows, table, mode) {
       continue
     }
     if (decode) {
-      collectFeature(row, blob, table)
+      collectFeature(row, blob, table, keepGeometryObject)
     } else {
       collectProperties(row, table)
     }
@@ -342,9 +357,9 @@ function scanRows(rows, table, mode) {
  * @param {Buffer} blob
  * @param {FeatureTable} table
  */
-function collectFeature(row, blob, table) {
+function collectFeature(row, blob, table, keepGeometryObject) {
   try {
-    const feature = decodeFeature(row, blob, table)
+    const feature = decodeFeature(row, blob, table, keepGeometryObject)
     if (feature) {
       table.features.push(feature)
     }

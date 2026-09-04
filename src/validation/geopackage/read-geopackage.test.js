@@ -53,6 +53,29 @@ describe('readGeoPackage properties mode', () => {
     })
   })
 
+  it('serialised mode keeps the geometry text and drops the object graph', async () => {
+    await withTempGpkgFile(fullReadBuffer(), (filePath) => {
+      const serialised = readGeoPackage(filePath, FEATURE_READ_MODE.serialised)
+      const full = readGeoPackage(filePath, FEATURE_READ_MODE.full)
+
+      const area = serialised.areas[0]
+      // The text persistence binds into ST_GeomFromGeoJSON, byte for byte the
+      // same as the full read produces...
+      expect(area.geometryJson).toBe(full.areas[0].geometryJson)
+      expect(area.nativeSrid).toBe(full.areas[0].nativeSrid)
+      expect(area.properties).toEqual(full.areas[0].properties)
+      // ...without the object graph, which costs about three times the text
+      // and which no consumer on this path ever reads.
+      expect(area.nativeGeometry).toBeUndefined()
+      expect(full.areas[0].nativeGeometry).toBeDefined()
+
+      // And it is still parseable text, not a truncated cache.
+      expect(JSON.parse(area.geometryJson)).toEqual(
+        full.areas[0].nativeGeometry
+      )
+    })
+  })
+
   it('still reports missing layers, so the checks see the same shape', async () => {
     await withTempGpkgFile(fullReadBuffer(), (filePath) => {
       const r = readGeoPackage(filePath, FEATURE_READ_MODE.properties)

@@ -410,7 +410,11 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // only now — the shapes are worth decoding. This is the one consumer that
   // needs them, and it is reached only by files that earned the cost. The
   // re-read is the same ~14 ms trade the queue reorder already accepted.
-  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.full)
+  //
+  // `serialised`, not `full`: the inserts bind geometry as JSON text into
+  // ST_GeomFromGeoJSON and never read a coordinate, so the decoded object graph
+  // would be built, held across the whole transaction, and never used.
+  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.serialised)
 
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
