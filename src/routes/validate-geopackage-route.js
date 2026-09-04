@@ -487,6 +487,71 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
 }
 
 /**
+ * Everything that must pass before the file is worth fetching from S3: pool
+ * capacity, upload metadata, and the parse budget.
+ *
+ * @returns {Promise<{ response: object } | { location: {
+ *   bucket: string, key: string, filename: string, fileSize: number | null
+ * } }>} an early `response` when a check refuses, otherwise the upload's
+ *   `location` and size
+ */
+async function admitUpload(uploadId, projectId, h, config) {
+  // Refuse BEFORE doing any work. The pool would refuse this file anyway,
+  // and finding that out after streaming up to 100 MB out of S3 and parsing
+  // it would make a refusal expensive — which matters, because the client's
+  // answer to a refusal is to try again in a few seconds. Advisory only:
+  // the pool re-checks, and can still refuse later.
+  if (!validationPool().hasCapacity()) {
+    return {
+      response: await respondToBusy(
+        uploadId,
+        h,
+        config,
+        VALIDATION_BUSY_REASON.noCapacity
+      )
+    }
+  }
+
+  const { bucket, key, filename, fileSize } = await resolveUploadLocation(
+    uploadId,
+    config
+  )
+  if (fileSize != null) {
+    await metricsByteSize(GEOPACKAGE_METRIC.uploadSizeBytes, fileSize)
+  }
+  if (projectId) {
+    const metadataErrorResponse = validateUploadMetadata(
+      uploadId,
+      filename,
+      fileSize,
+      h,
+      config
+    )
+    if (metadataErrorResponse) {
+      return { response: metadataErrorResponse }
+    }
+  }
+
+  // The second half of the same "refuse before doing the work" idea, now
+  // that the uploader has told us how big the file is. The check above asks
+  // whether a worker will be free; this one asks whether there is heap to
+  // parse the file when it gets there. Advisory for the same reason: the
+  // reservation below re-checks and can still refuse.
+  if (!parseBudget().hasRoomFor(fileSize)) {
+    return {
+      response: await respondToBusy(
+        uploadId,
+        h,
+        config,
+        VALIDATION_BUSY_REASON.memoryBudget
+      )
+    }
+  }
+
+  return { location: { bucket, key, filename, fileSize } }
+}
+
+/**
  * Shared Hapi route factory for baseline and post-intervention GeoPackage
  * validate endpoints. Callers supply a frozen config with path, document key,
  * and user-facing labels.
@@ -521,53 +586,11 @@ function createValidateGeoPackageRoute(config) {
       // Persisting to a project is scoped to this user's current org context.
       const credentials = request.auth.credentials
 
-      // Refuse BEFORE doing any work. The pool would refuse this file anyway,
-      // and finding that out after streaming up to 100 MB out of S3 and parsing
-      // it would make a refusal expensive — which matters, because the client's
-      // answer to a refusal is to try again in a few seconds. Advisory only:
-      // the pool re-checks, and can still refuse later.
-      if (!validationPool().hasCapacity()) {
-        return respondToBusy(
-          uploadId,
-          h,
-          config,
-          VALIDATION_BUSY_REASON.noCapacity
-        )
+      const admission = await admitUpload(uploadId, projectId, h, config)
+      if (admission.response) {
+        return admission.response
       }
-
-      const { bucket, key, filename, fileSize } = await resolveUploadLocation(
-        uploadId,
-        config
-      )
-      if (fileSize != null) {
-        await metricsByteSize(GEOPACKAGE_METRIC.uploadSizeBytes, fileSize)
-      }
-      if (projectId) {
-        const metadataErrorResponse = validateUploadMetadata(
-          uploadId,
-          filename,
-          fileSize,
-          h,
-          config
-        )
-        if (metadataErrorResponse) {
-          return metadataErrorResponse
-        }
-      }
-
-      // The second half of the same "refuse before doing the work" idea, now
-      // that the uploader has told us how big the file is. The check above asks
-      // whether a worker will be free; this one asks whether there is heap to
-      // parse the file when it gets there. Advisory for the same reason: the
-      // reservation below re-checks and can still refuse.
-      if (!parseBudget().hasRoomFor(fileSize)) {
-        return respondToBusy(
-          uploadId,
-          h,
-          config,
-          VALIDATION_BUSY_REASON.memoryBudget
-        )
-      }
+      const { bucket, key, filename, fileSize } = admission.location
 
       // Streamed to disk rather than buffered, and removed as soon as
       // validation is done with it, so concurrent uploads cannot stack up
