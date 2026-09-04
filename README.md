@@ -131,25 +131,38 @@ user on its polling page and retries, jittered, until a worker frees up or it
 gives up after two minutes. The file was never looked at, so it is not a
 validation failure.
 
-| Setting                               | Default | Notes                                                 |
-| :------------------------------------ | ------: | :---------------------------------------------------- |
-| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each. |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.        |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.  |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused. |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  400 MB | Heap rationed across the files parsed concurrently.   |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.    |
-| `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.       |
-| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.              |
+| Setting                               | Default | Notes                                                            |
+| :------------------------------------ | ------: | :--------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.                   |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.             |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
+| `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.                  |
+| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                         |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
 returned, so the worker count is a memory budget as much as a throughput setting.
 
-Parsing is budgeted separately from validating, because it happens first: a
-request refused by the pool has already parsed its file. `VALIDATION_PARSE_BUDGET_BYTES`
-bounds how much parsed GeoPackage may be in flight at once (~8 MB + 14x the file
-size each), and the route reserves against it from the uploader's reported file
-size before opening anything.
+Parsing is budgeted separately from validating, and this is the control that
+actually does the shedding: across a full perf run it produced **310 of 316**
+busy refusals, against 6 from the queue-wait limit and none from the queue depth
+limit — the queue never filled, because the budget refuses first. Tune this
+before `VALIDATION_WORKER_QUEUE_LIMIT`, which sits behind it as a backstop.
+
+`VALIDATION_PARSE_BUDGET_BYTES` bounds how much parsed GeoPackage may be in
+flight at once, charging each upload an estimated `~8 MB + 14x the file size`,
+and the route reserves against it from the uploader's reported file size before
+opening anything.
+
+That `14x` is **unverified**. Measured against the 9.3 MB / 16,801-feature
+fixture, a full read retains ~50 MB — nearer 5x, and mostly attributes rather
+than shapes — while repeated reads pushed RSS ~237 MB above baseline. The two
+measurements disagree, and neither was taken under concurrency, which is what
+the budget bounds. Re-derive it from N simultaneous validations before relying
+on it: too tight and the service turns away load it could carry, too loose and
+it does not refuse in time.
 
 These timeouts form a ladder that must nest inside the frontend's per-request
 validate timeout, which must in turn nest inside the CDP ingress idle timeout.
