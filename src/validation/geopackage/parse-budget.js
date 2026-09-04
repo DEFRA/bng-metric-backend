@@ -19,12 +19,23 @@
  * its layers through the data-quality checks and persistence, both of which
  * happen after the geometry verdict. That is a real but much smaller window.
  *
- * Measured cost of unpacking one file:
+ * WHICH COST TO CHARGE. The first numbers here were RSS for ONE upload read
+ * alone, and that is the wrong regime for a budget rationing CONCURRENT ones:
+ * a single read pays for process growth that the second and third do not pay
+ * again. Re-measured holding N uploads alive at once, each in a fresh process
+ * (RSS never comes back down, so measuring several in one process makes every
+ * run after the first start from an inflated baseline):
  *
- *   80 parcels     (140 KB)     6 MB
- *   800 parcels    (704 KB)    16 MB
- *   5,000 parcels  (4.0 MB)    48 MB
- *   12,000 parcels (9.5 MB)   131 MB
+ *   file            N=1 RSS   N=8 RSS/upload   retained heap/upload
+ *   140 KB             7 MB           1.8 MB                 0.5 MB
+ *   704 KB            15 MB           6.9 MB                 2.8 MB
+ *   4.0 MB            56 MB          34.1 MB                16.2 MB
+ *   9.3 MB           109 MB          58.1 MB                38.6 MB
+ *
+ * The N=1 column reproduces the original figures, so that measurement was
+ * sound — it just answered a different question. The old 8 MB + 14x charged
+ * every upload as though it were the first, and over-stated the concurrent cost
+ * by 1.8x to 5.6x depending on file size.
  *
  * Refusing here is still free, and the caller already knows what to do with the
  * answer — it is the same 503 with Retry-After a full queue gives.
@@ -32,20 +43,35 @@
 
 /**
  * Fixed cost of parsing any GeoPackage, however small — the sqlite handle, the
- * layer scaffolding and the per-layer GeoJSON wrappers. Taken from the 80-parcel
- * fixture, which costs 6 MB for 140 KB of file.
+ * layer scaffolding and the per-layer GeoJSON wrappers.
+ *
+ * Small, because this is the cost of one MORE concurrent parse, not of the
+ * first: the 140 KB fixture costs 1.8 MB per upload at N=8 against 7 MB read
+ * alone. It exists at all because per-MB cost falls as files grow, so the fit
+ * needs an intercept.
  */
-const PARSE_FIXED_BYTES = 8 * 1024 * 1024
+const PARSE_FIXED_BYTES = 2 * 1024 * 1024
 
 /**
  * Parsed bytes per byte of file, above {@link PARSE_FIXED_BYTES}.
  *
- * Deliberately rounded UP from the measurements (the steepest real ratio is
- * 13.3, on the 12,000-parcel fixture): an admission check that under-estimates
- * admits a file it cannot afford, which is the failure this module exists to
- * prevent. Over-estimating only costs throughput, and says so in the metric.
+ * Still rounded UP, for the same reason as before: an admission check that
+ * under-estimates admits a file it cannot afford, and over-estimating only
+ * costs throughput and says so in the metric. What changed is the measurement
+ * it rounds up FROM — the concurrent column above rather than the single-upload
+ * one.
+ *
+ * 2 MB + 10x is the tightest pair that clears every fixture with headroom to
+ * spare and none by more than the factor of two the tests allow: 1.9x on the
+ * smallest file, 1.2x on the 4 MB one, 1.6x on the largest. Per-MB cost FALLS
+ * as files grow — 12.8x down to 6.3x across the four — so a fixed term plus a
+ * slope fits it and a bare multiplier does not.
+ *
+ * The previous 8 MB + 14x charged every upload the process growth only the
+ * first one causes. At 550 MB of budget that admitted three 9.3 MB uploads
+ * where the memory was there for five.
  */
-const PARSE_BYTES_PER_FILE_BYTE = 14
+const PARSE_BYTES_PER_FILE_BYTE = 10
 
 /**
  * Estimated heap cost of parsing a file of this size.

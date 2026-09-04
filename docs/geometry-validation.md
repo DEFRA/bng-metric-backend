@@ -166,20 +166,39 @@ backend instances.
 
 ### The timeout ladder
 
-Every layer has to sit strictly inside the one outside it, or a failure surfaces
-as a dropped connection rather than as an error anyone can act on. It previously
+The backend's budget has to fit inside the frontend's, or a failure surfaces as
+a dropped connection rather than as an error anyone can act on. It previously
 did not: the backend was willing to spend ~91 s (30 s waiting for the uploader,
 30 s downloading, 30 s validating) inside a frontend budget of 10 s.
+
+**The rungs below the frontend SUM, they do not nest.** They are sequential
+stages of one request — wait for ready, then download, then queue, then
+validate — so the number that has to fit is their total. Reading the table as
+nested layers is how it came to add up to 29.2 s inside a 25 s budget: each rung
+looked comfortably smaller than the frontend's, and together they were not.
 
 | Layer                           | Setting                          |                  Budget |
 | ------------------------------- | -------------------------------- | ----------------------: |
 | CDP ingress / load balancer     | _platform_                       | **unknown — see below** |
 | Frontend validate call          | `BACKEND_VALIDATE_TIMEOUT_MS`    |                    25 s |
-| Wait for CDP Uploader ready     | `UPLOAD_READY_TIMEOUT_MS`        |                     3 s |
+| — of which the backend may use: |                                  |                         |
+| Wait for CDP Uploader ready     | `UPLOAD_READY_TIMEOUT_MS`        |                     2 s |
 | Stream the file out of S3       | `UPLOAD_DOWNLOAD_TIMEOUT_MS`     |                    10 s |
 | Wait for a free worker          | `VALIDATION_QUEUE_WAIT_LIMIT_MS` |                     5 s |
-| Run the validation              | `VALIDATION_WORKER_TIMEOUT_MS`   |                    10 s |
+| Run the validation              | `VALIDATION_WORKER_TIMEOUT_MS`   |                     5 s |
 | Parse, extract, enrich, persist | _unbounded_                      |         ~1.2 s measured |
+| **Backend worst case**          |                                  |    **23.2 s of the 25** |
+
+The worker rung came down from 10 s on measurement rather than taste: across 672
+validations in a full perf run, on a contended 2-vCPU box, the slowest was
+**2,155 ms** (p95 1,094 ms). 5 s still leaves more than double. The ready rung
+came down from 3 s because the frontend polls `/upload/{id}/status` to `ready`
+before it calls validate at all — that rung catches a lost race, not a virus
+scan, and a caller that has not polled should be refused.
+
+That leaves **1.8 s** of margin for TLS, routing and the parts nobody has
+measured. If a rung needs to grow, another has to shrink, or the frontend budget
+has to rise first.
 
 The frontend budget is **per-request**, not the global `BACKEND_TIMEOUT_MS` — that
 stays at 10 s, because a hung project list or login should fail fast rather than
