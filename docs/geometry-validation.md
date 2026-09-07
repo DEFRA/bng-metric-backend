@@ -85,8 +85,9 @@ a precondition here, not an optimisation.
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below.     |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                     |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
+| `VALIDATION_MAX_PARCEL_COUNT`         |   25000 | Features the gate accepts before refusing the file — see below.          |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
 
@@ -210,6 +211,52 @@ takes seconds.
 > `BACKEND_VALIDATE_TIMEOUT_MS` toward it and widen the download and worker rungs
 > to match — that is what governs the largest file this synchronous pipeline can
 > accept.
+
+### The size limit that keeps files inside the ladder
+
+A ladder only holds if the work fits inside it, and nothing used to stop a file
+arriving that could not. The upload cap is **100 MB**, and the frontend tells the
+user so; the ladder's own arithmetic says the pipeline finishes something closer
+to 14 MB. A file in between was accepted, downloaded, queued, handed to a worker
+and then killed on the worker timeout — reaching the user as a **500
+`VALIDATION_FAILED`**, which the frontend renders as "there is a problem with
+your file". There was not. The service simply could not finish it.
+
+`VALIDATION_MAX_PARCEL_COUNT` closes that gap. The format gate counts the rows in
+the boundary, habitat, hedgerow and watercourse layers and refuses a file over the
+limit with **`GPKG_TOO_MANY_PARCELS`** — a validation error, on the file's own
+terms, raised before it costs a worker slot or an unpack.
+
+It counts **features, not habitat parcels alone**. A limit that counted only
+parcels would let a file of half a million hedgerows straight through, and every
+geometry costs the same to validate whichever layer it sits in. The count comes
+from the `COUNT(*)` the reader already takes before it classifies anything, so
+the check adds no read of its own, and it is taken over exactly the four layers
+the gate reads — so the cheap classify pass and the full gate-and-read reach the
+same verdict.
+
+**Where 25,000 comes from.** The largest fixture in the repo is 16,801 features
+(12,000 habitat parcels, 4,000 hedgerows, 800 rivers, 1 boundary) in 9.3 MB, and
+its slowest validation across a full perf run was 2,155 ms. At that rate:
+
+| Feature count | Worker rung (5 s) | Parse and persist (~1.8 s of margin) |
+| ------------: | ----------------: | -----------------------------------: |
+|        16,801 |             2.2 s |                                1.2 s |
+|        25,000 |             3.2 s |                                1.8 s |
+|        39,000 |             5.0 s |                                2.8 s |
+
+39,000 is where the worker rung runs out, so the limit sits below it with room
+for a slower box. 25,000 is also the point at which the unbounded parse-and-persist
+stage uses the whole of the ladder's remaining margin, which is the tighter of
+the two constraints and the one that decided the number.
+
+Two caveats. The fixtures stop at 16,801, so everything above that line is
+**extrapolated** from a linear fit — measure before raising it. And feature count
+is a proxy: the real driver is vertices, so a few thousand pathological polygons
+can outcost twenty thousand simple ones. The worker timeout remains the backstop
+for that case.
+
+Zero disables the check.
 
 ### Memory is why the pool is small
 
