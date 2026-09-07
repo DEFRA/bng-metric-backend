@@ -156,7 +156,10 @@ flight at once, charging each upload an estimated `~2 MB + 10x the file size`,
 and the route reserves against it from the uploader's reported file size before
 opening anything. The ratio is fitted to RSS per upload with eight held alive at
 once, which is the regime the budget bounds: too tight and the service turns
-away load it could carry, too loose and it does not refuse in time.
+away load it could carry, too loose and it does not refuse in time. (**RSS** is
+resident set size — the memory the process holds in physical RAM, counting
+native and WebAssembly allocations a JavaScript heap figure cannot see, and what
+the task memory limit is enforced against.)
 
 The backend's timeouts are sequential stages of one request, so they **sum**,
 and the total must fit inside the frontend's per-request validate timeout, which

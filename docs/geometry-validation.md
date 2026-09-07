@@ -219,6 +219,12 @@ footprint for the rest of its life. Worker threads live in the SAME process as
 the server, so this counts against the same container limit — it is not budget
 that sits somewhere else.
 
+**RSS** here and throughout is resident set size — the memory the process holds
+in physical RAM. It counts the V8 heap, better-sqlite3's native allocations, the
+workers' WebAssembly heaps and the allocator's arenas alike, and it is what the
+task memory limit and the OOM killer read; a JavaScript heap figure sees only
+the first of those.
+
 Measured on a 5,000-parcel fixture, as whole-process RSS:
 
 |                                        |                               RSS |
