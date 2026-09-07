@@ -72,6 +72,7 @@ describe('geopackage-internals.js (barrel)', () => {
       'pragmaTableInfoByLowerName',
       'validateHabitats',
       'validateHedgerows',
+      'validateParcelCount',
       'validateRedLineBoundary',
       'validateWatercourses'
     ])
