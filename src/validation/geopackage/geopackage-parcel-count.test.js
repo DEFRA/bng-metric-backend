@@ -65,6 +65,19 @@ describe('validateParcelCount', () => {
     expect(errors[0].message).toContain('25,000')
   })
 
+  // The frontend renders both numbers, and should not have to parse them back
+  // out of the message to do it.
+  it('carries both counts as details', () => {
+    const errors = []
+
+    validateParcelCount(tables({ [HABITATS_LYR]: 30000 }), errors, 25000)
+
+    expect(errors[0].details).toEqual({
+      featureCount: 30000,
+      maxFeatureCount: 25000
+    })
+  })
+
   it('counts a layer the file does not have as zero rather than failing', () => {
     const errors = []
 

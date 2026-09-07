@@ -379,7 +379,10 @@ export function validateParcelCount(featureTables, errors, maxParcelCount) {
       ERROR_CODES.GPKG_TOO_MANY_PARCELS,
       `GeoPackage contains ${total.toLocaleString('en-GB')} features across its ` +
         `boundary, habitat, hedgerow and watercourse layers; the maximum this ` +
-        `service can validate is ${maxParcelCount.toLocaleString('en-GB')}`
+        `service can validate is ${maxParcelCount.toLocaleString('en-GB')}`,
+      // Both numbers, so the frontend can tell the user how far over they are
+      // without parsing them back out of the sentence above.
+      { featureCount: total, maxFeatureCount: maxParcelCount }
     )
   )
 }
