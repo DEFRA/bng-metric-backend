@@ -1,24 +1,20 @@
 /**
  * Admission control for the GeoPackage unpack.
  *
- * No longer the main defence, and should not be described as one. It was written
- * when the route unpacked every shape at the top of the handler, before the
- * worker pool was consulted, so a request the pool was about to refuse had
- * already paid for a copy of every feature and held it for the whole queue wait
- * — eight queued 12,000-parcel uploads pinned ~514 MB. The format gate now runs
- * without unpacking and the shapes are read on the far side of the pool wait, so
- * those same eight hold ~53 MB between them.
+ * No longer the main defence. It was written when the route unpacked every shape
+ * at the top of the handler, so a request the pool was about to refuse had
+ * already copied every feature and held it for the whole queue wait — eight
+ * queued 12,000-parcel uploads pinned ~514 MB. The gate now runs without
+ * unpacking and the shapes are read past the pool wait, so those eight hold
+ * ~53 MB.
  *
- * What it still does is bound how many uploads are unpacked CONCURRENTLY once
- * past the pool, which the worker count alone does not: a request holds its
- * layers through the data-quality checks and persistence, both of which happen
- * after the geometry verdict.
+ * What it still bounds is how many uploads are unpacked CONCURRENTLY once past
+ * the pool, which the worker count does not: a request holds its layers through
+ * the data-quality checks and persistence, both after the geometry verdict.
  *
- * The estimate therefore charges the cost of one MORE concurrent unpack, not of
- * the first — a single read pays for process growth the second and third do not
- * pay again. Measured holding N uploads alive at once, each N in a fresh process
- * (RSS never comes back down, so successive runs in one process would each start
- * from an inflated baseline):
+ * So the estimate charges one MORE concurrent unpack, not the first — a single
+ * read pays for process growth the second and third do not. Measured with N
+ * uploads alive at once, each N in a fresh process (RSS never comes back down):
  *
  *   file        N=1 RSS   N=8 RSS/upload   retained heap/upload
  *   140 KB         7 MB           1.8 MB                 0.5 MB
@@ -26,16 +22,15 @@
  *   4.0 MB        56 MB          34.1 MB                16.2 MB
  *   9.3 MB       109 MB          58.1 MB                38.6 MB
  *
- * Refusing here is free, and the caller already knows what to do with the answer
- * — the same 503 with Retry-After a full queue gives.
+ * Refusing here is free: the same 503 with Retry-After a full queue gives.
  */
 
 /**
  * Fixed cost of parsing any GeoPackage, however small — the sqlite handle, the
- * layer scaffolding and the per-layer GeoJSON wrappers. Small because it is the
- * cost of one more concurrent parse: 1.8 MB per upload at N=8 for the 140 KB
- * fixture, against 7 MB read alone. It exists at all because per-MB cost falls
- * as files grow, so the fit needs an intercept.
+ * layer scaffolding and the per-layer GeoJSON wrappers. Small because it prices
+ * one more concurrent parse: 1.8 MB per upload at N=8 for the 140 KB fixture,
+ * against 7 MB read alone. It exists because per-MB cost falls as files grow, so
+ * the fit needs an intercept.
  */
 const PARSE_FIXED_BYTES = 2 * 1024 * 1024
 
