@@ -85,7 +85,7 @@ a precondition here, not an optimisation.
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below.     |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; on overrun the worker is terminated.                     |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
@@ -166,20 +166,38 @@ backend instances.
 
 ### The timeout ladder
 
-Every layer has to sit strictly inside the one outside it, or a failure surfaces
-as a dropped connection rather than as an error anyone can act on. It previously
+The backend's budget has to fit inside the frontend's, or a failure surfaces as
+a dropped connection rather than as an error anyone can act on. It previously
 did not: the backend was willing to spend ~91 s (30 s waiting for the uploader,
 30 s downloading, 30 s validating) inside a frontend budget of 10 s.
+
+**The rungs below the frontend sum; they do not nest.** They are sequential
+stages of one request — wait for ready, download, queue, validate — so what has
+to fit is their total. Reading the table as nested layers is how it came to add
+up to 29.2 s inside a 25 s budget: each rung looked comfortably smaller than the
+frontend's, and together they were not.
 
 | Layer                           | Setting                          |                  Budget |
 | ------------------------------- | -------------------------------- | ----------------------: |
 | CDP ingress / load balancer     | _platform_                       | **unknown — see below** |
 | Frontend validate call          | `BACKEND_VALIDATE_TIMEOUT_MS`    |                    25 s |
-| Wait for CDP Uploader ready     | `UPLOAD_READY_TIMEOUT_MS`        |                     3 s |
+| — of which the backend may use: |                                  |                         |
+| Wait for CDP Uploader ready     | `UPLOAD_READY_TIMEOUT_MS`        |                     2 s |
 | Stream the file out of S3       | `UPLOAD_DOWNLOAD_TIMEOUT_MS`     |                    10 s |
 | Wait for a free worker          | `VALIDATION_QUEUE_WAIT_LIMIT_MS` |                     5 s |
-| Run the validation              | `VALIDATION_WORKER_TIMEOUT_MS`   |                    10 s |
+| Run the validation              | `VALIDATION_WORKER_TIMEOUT_MS`   |                     5 s |
 | Parse, extract, enrich, persist | _unbounded_                      |         ~1.2 s measured |
+| **Backend worst case**          |                                  |    **23.2 s of the 25** |
+
+The worker rung came down from 10 s on measurement: the slowest of 672
+validations in a full perf run, on a contended 2-vCPU box, was **2,155 ms** (p95
+1,094 ms). The ready rung came down from 3 s because the frontend polls
+`/upload/{id}/status` to `ready` before calling validate at all — it catches a
+lost race, not a virus scan.
+
+That leaves **1.8 s** of margin for TLS, routing and the parts nobody has
+measured. If a rung needs to grow, another has to shrink, or the frontend budget
+has to rise first.
 
 The frontend budget is **per-request**, not the global `BACKEND_TIMEOUT_MS` — that
 stays at 10 s, because a hung project list or login should fail fast rather than
@@ -200,6 +218,12 @@ never handed back, so a worker that has validated one large file keeps that
 footprint for the rest of its life. Worker threads live in the SAME process as
 the server, so this counts against the same container limit — it is not budget
 that sits somewhere else.
+
+**RSS** here and throughout is resident set size — the memory the process holds
+in physical RAM. It counts the V8 heap, better-sqlite3's native allocations, the
+workers' WebAssembly heaps and the allocator's arenas alike, and it is what the
+task memory limit and the OOM killer read; a JavaScript heap figure sees only
+the first of those.
 
 Measured on a 5,000-parcel fixture, as whole-process RSS:
 
@@ -274,28 +298,30 @@ route reserves an estimated parse cost against it before downloading, and
 releases it once the response is built. A file that does not fit gets the same
 503 + `Retry-After` a full queue gives, having cost nothing.
 
-The estimate is **8 MB fixed + 14x the file size**, from measuring RSS either
-side of a parse of each perf fixture:
+The estimate is **2 MB fixed + 10x the file size**, fitted to what one _more_
+concurrent unpack costs rather than the first — a single read pays for process
+growth the second and third do not pay again. Measured as RSS per upload with
+eight held alive at once, each in a fresh process:
 
-| Fixture        | File size | Parse cost |
-| -------------- | --------: | ---------: |
-| 80 parcels     |    140 KB |       6 MB |
-| 800 parcels    |    704 KB |      16 MB |
-| 5,000 parcels  |    4.0 MB |      48 MB |
-| 12,000 parcels |    9.5 MB |     131 MB |
+| Fixture        | File size | Read alone | Per upload at N=8 |
+| -------------- | --------: | ---------: | ----------------: |
+| 80 parcels     |    140 KB |       7 MB |            1.8 MB |
+| 800 parcels    |    704 KB |      15 MB |            6.9 MB |
+| 5,000 parcels  |    4.0 MB |      56 MB |           34.1 MB |
+| 12,000 parcels |    9.3 MB |     109 MB |           58.1 MB |
 
-(Higher than the ~29 MB quoted above for the same fixture because that figure is
-V8 heap and these are whole-process RSS — the native allocations better-sqlite3
-makes do not show up in the heap number, and they are just as real against the
-task limit.) The ratio is rounded **up** from the steepest measured value, 13.3:
-an estimate that comes in low admits a file the process cannot afford, which is
-the failure this exists to prevent, while one that comes in high only costs
-throughput and says so in the metric.
+Whole-process RSS, not the V8-heap figure quoted above: better-sqlite3's native
+allocations never reach the heap number and count against the task limit just the
+same. The ratio is rounded **up**, because under-estimating admits a file the
+process cannot afford while over-estimating only costs throughput and says so in
+the metric; the fixed term exists because per-MB cost falls as files grow, 12.8x
+to 6.3x across the four. The earlier **8 MB + 14x** was fitted to the read-alone
+column and over-charged concurrent uploads by 1.8x to 5.6x.
 
-At the 400 MB default that admits roughly six 5,000-parcel files or three
-12,000-parcel ones at once. Raise it **with** the task memory limit, not on its
-own: the process also needs its warm baseline (~450 MB after sustained work) and
-one worker's copy of the largest file it is validating.
+At the 550 MB default that admits roughly thirteen 5,000-parcel files or five
+12,000-parcel ones at once, against three before. Raise it **with** the task
+memory limit: the process also needs its warm baseline (~450 MB after sustained
+work) and one worker's copy of the largest file it is validating.
 
 Two properties are deliberate:
 

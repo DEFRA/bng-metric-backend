@@ -1,51 +1,54 @@
 /**
  * Admission control for the GeoPackage unpack.
  *
- * HISTORY MATTERS HERE, because it changes what this is for. Originally the
- * route unpacked every shape at the TOP of the handler, before the worker pool
- * was consulted, so a request the pool was about to refuse had already paid for
- * its own copy of every feature — and held it for the whole queue wait. Eight
- * queued 12,000-parcel uploads pinned ~514 MB that way. This module was written
- * to refuse such a file from its SIZE before any of that was paid.
+ * No longer the main defence. It was written when the route unpacked every shape
+ * at the top of the handler, so a request the pool was about to refuse had
+ * already copied every feature and held it for the whole queue wait — eight
+ * queued 12,000-parcel uploads pinned ~514 MB. The gate now runs without
+ * unpacking and the shapes are read past the pool wait, so those eight hold
+ * ~53 MB.
  *
- * The route no longer works that way. The format gate now runs WITHOUT
- * unpacking, and the shapes are read on the far side of the pool wait, so a
- * queued request holds a file path rather than an object graph — the same eight
- * uploads now hold ~53 MB between them.
+ * What it still bounds is how many uploads are unpacked CONCURRENTLY once past
+ * the pool, which the worker count does not: a request holds its layers through
+ * the data-quality checks and persistence, both after the geometry verdict.
  *
- * So this is no longer the main defence, and it should not be described as one.
- * What it still does is bound how many uploads can be unpacked CONCURRENTLY
- * once past the pool, which the worker count alone does not: a request holds
- * its layers through the data-quality checks and persistence, both of which
- * happen after the geometry verdict. That is a real but much smaller window.
+ * So the estimate charges one MORE concurrent unpack, not the first — a single
+ * read pays for process growth the second and third do not. Measured with N
+ * uploads alive at once, each N in a fresh process (RSS never comes back down):
  *
- * Measured cost of unpacking one file:
+ *   file        N=1 RSS   N=8 RSS/upload   retained heap/upload
+ *   140 KB         7 MB           1.8 MB                 0.5 MB
+ *   704 KB        15 MB           6.9 MB                 2.8 MB
+ *   4.0 MB        56 MB          34.1 MB                16.2 MB
+ *   9.3 MB       109 MB          58.1 MB                38.6 MB
  *
- *   80 parcels     (140 KB)     6 MB
- *   800 parcels    (704 KB)    16 MB
- *   5,000 parcels  (4.0 MB)    48 MB
- *   12,000 parcels (9.5 MB)   131 MB
- *
- * Refusing here is still free, and the caller already knows what to do with the
- * answer — it is the same 503 with Retry-After a full queue gives.
+ * Refusing here is free: the same 503 with Retry-After a full queue gives.
  */
 
 /**
  * Fixed cost of parsing any GeoPackage, however small — the sqlite handle, the
- * layer scaffolding and the per-layer GeoJSON wrappers. Taken from the 80-parcel
- * fixture, which costs 6 MB for 140 KB of file.
+ * layer scaffolding and the per-layer GeoJSON wrappers. Small because it prices
+ * one more concurrent parse: 1.8 MB per upload at N=8 for the 140 KB fixture,
+ * against 7 MB read alone. It exists because per-MB cost falls as files grow, so
+ * the fit needs an intercept.
  */
-const PARSE_FIXED_BYTES = 8 * 1024 * 1024
+const PARSE_FIXED_BYTES = 2 * 1024 * 1024
 
 /**
  * Parsed bytes per byte of file, above {@link PARSE_FIXED_BYTES}.
  *
- * Deliberately rounded UP from the measurements (the steepest real ratio is
- * 13.3, on the 12,000-parcel fixture): an admission check that under-estimates
- * admits a file it cannot afford, which is the failure this module exists to
- * prevent. Over-estimating only costs throughput, and says so in the metric.
+ * Rounded UP from the N=8 column, because an under-estimate admits a file the
+ * heap cannot afford while an over-estimate only costs throughput and says so in
+ * the metric. 2 MB + 10x is the tightest pair that clears every fixture by no
+ * more than the factor of two the tests allow: 1.9x on the smallest, 1.2x at
+ * 4 MB, 1.6x on the largest. A fixed term plus a slope is needed because per-MB
+ * cost falls with size — 12.8x down to 6.3x across the four.
+ *
+ * The previous 8 MB + 14x was fitted to the N=1 column, charging every upload
+ * the process growth only the first causes: at 550 MB of budget it admitted
+ * three 9.3 MB uploads where the memory was there for five.
  */
-const PARSE_BYTES_PER_FILE_BYTE = 14
+const PARSE_BYTES_PER_FILE_BYTE = 10
 
 /**
  * Estimated heap cost of parsing a file of this size.

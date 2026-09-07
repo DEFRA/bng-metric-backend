@@ -135,11 +135,11 @@ validation failure.
 | :------------------------------------ | ------: | :--------------------------------------------------------------- |
 | `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.                   |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |   10000 | Per-job budget; the worker is terminated on overrun.             |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
-| `UPLOAD_READY_TIMEOUT_MS`             |    3000 | Wait for CDP Uploader to report the file ready.                  |
+| `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                  |
 | `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                         |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
@@ -152,20 +152,18 @@ limit — the queue never filled, because the budget refuses first. Tune this
 before `VALIDATION_WORKER_QUEUE_LIMIT`, which sits behind it as a backstop.
 
 `VALIDATION_PARSE_BUDGET_BYTES` bounds how much parsed GeoPackage may be in
-flight at once, charging each upload an estimated `~8 MB + 14x the file size`,
+flight at once, charging each upload an estimated `~2 MB + 10x the file size`,
 and the route reserves against it from the uploader's reported file size before
-opening anything.
+opening anything. The ratio is fitted to RSS per upload with eight held alive at
+once, which is the regime the budget bounds: too tight and the service turns
+away load it could carry, too loose and it does not refuse in time. (**RSS** is
+resident set size — the memory the process holds in physical RAM, counting
+native and WebAssembly allocations a JavaScript heap figure cannot see, and what
+the task memory limit is enforced against.)
 
-That `14x` is **unverified**. Measured against the 9.3 MB / 16,801-feature
-fixture, a full read retains ~50 MB — nearer 5x, and mostly attributes rather
-than shapes — while repeated reads pushed RSS ~237 MB above baseline. The two
-measurements disagree, and neither was taken under concurrency, which is what
-the budget bounds. Re-derive it from N simultaneous validations before relying
-on it: too tight and the service turns away load it could carry, too loose and
-it does not refuse in time.
-
-These timeouts form a ladder that must nest inside the frontend's per-request
-validate timeout, which must in turn nest inside the CDP ingress idle timeout.
+The backend's timeouts are sequential stages of one request, so they **sum**,
+and the total must fit inside the frontend's per-request validate timeout, which
+must in turn fit inside the CDP ingress idle timeout.
 
 See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 

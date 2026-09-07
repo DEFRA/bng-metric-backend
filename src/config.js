@@ -240,9 +240,9 @@ const config = convict({
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
-      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md — it must fit, together with the S3 download and the upload-ready wait, inside the frontend request budget. Generous against measurement: the slowest validation seen, a 5,000-parcel file on a contended box, was under two seconds.',
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. A rung of the timeout ladder in docs/geometry-validation.md, where the rungs sum rather than nest, so it had to come down to fit the frontend budget. Still generous: the slowest of 672 validations in a full perf run, on a contended 2-vCPU box, was 2,155 ms (p95 1,094 ms).',
       format: 'int',
-      default: 10000,
+      default: 5000,
       env: 'VALIDATION_WORKER_TIMEOUT_MS'
     },
     queueWaitLimitMs: {
@@ -252,7 +252,9 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     parseBudgetBytes: {
-      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. THE PRIMARY LOAD SHED, not a secondary one: across a full perf run it produced 310 of 316 busy refusals, against 6 from the queue-wait limit and none at all from the queue depth limit — the queue never filled, because this refuses first. Size and tune this before touching VALIDATION_WORKER_QUEUE_LIMIT, which is the backstop behind it. Each upload charges an ESTIMATE of its unpack cost — 8 MB + 14x the file size — not its measured cost, so these are credit-bytes rather than heap-bytes. TREAT THAT RATIO AS UNVERIFIED: measured against the 9.3 MB / 16,801-feature fixture, a full read retains ~50 MB of heap (nearer 5x the file, and mostly attributes rather than shapes), while repeated reads drove RSS ~237 MB above baseline. Those two point in opposite directions and neither was measured under CONCURRENCY, which is what this bounds; re-derive the ratio from N simultaneous validations before trusting it. Too tight and the service refuses work it could carry; too loose and it refuses nothing in time. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      doc: 'Byte budget rationed across the GeoPackages being UNPACKED at once, and the primary load shed: tune it before VALIDATION_WORKER_QUEUE_LIMIT, which is only the backstop behind it. Each upload is charged an ESTIMATE of its unpack cost — 2 MB + 10x the file size — so these are credit-bytes rather than heap-bytes; docs/geometry-validation.md carries the measurements behind the ratio. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      format: 'int',
+      default: 576716800,
       env: 'VALIDATION_PARSE_BUDGET_BYTES'
     },
     maxRssBytes: {
@@ -276,9 +278,9 @@ const config = convict({
   },
   upload: {
     readyTimeoutMs: {
-      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net, sized small so it cannot eat the request budget.',
+      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. A safety net for a lost race, not a budget for the virus scan: the frontend only calls validate once its own status poll has seen "ready". Kept small because the ladder rungs sum — every second here is one the download and validation rungs cannot have.',
       format: 'int',
-      default: 3000,
+      default: 2000,
       env: 'UPLOAD_READY_TIMEOUT_MS'
     },
     downloadTimeoutMs: {
