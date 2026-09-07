@@ -240,7 +240,7 @@ const config = convict({
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
-      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. One rung of the timeout ladder in docs/geometry-validation.md, and the rungs SUM rather than nest — they are sequential stages of one request — so this had to come down for the ladder to fit inside the frontend budget at all. Still generous against measurement: over 672 validations in a full perf run on a contended 2-vCPU box the worst was 2,155 ms (p95 1,094 ms), so this leaves more than double.',
+      doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. A rung of the timeout ladder in docs/geometry-validation.md, where the rungs sum rather than nest, so it had to come down to fit the frontend budget. Still generous: the slowest of 672 validations in a full perf run, on a contended 2-vCPU box, was 2,155 ms (p95 1,094 ms).',
       format: 'int',
       default: 5000,
       env: 'VALIDATION_WORKER_TIMEOUT_MS'
@@ -252,7 +252,7 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     parseBudgetBytes: {
-      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. THE PRIMARY LOAD SHED, not a secondary one: across a full perf run it produced 310 of 316 busy refusals, against 6 from the queue-wait limit and none at all from the queue depth limit — the queue never filled, because this refuses first. Size and tune this before touching VALIDATION_WORKER_QUEUE_LIMIT, which is the backstop behind it. Each upload charges an ESTIMATE of its unpack cost — 8 MB + 14x the file size — not its measured cost, so these are credit-bytes rather than heap-bytes. TREAT THAT RATIO AS UNVERIFIED: measured against the 9.3 MB / 16,801-feature fixture, a full read retains ~50 MB of heap (nearer 5x the file, and mostly attributes rather than shapes), while repeated reads drove RSS ~237 MB above baseline. Those two point in opposite directions and neither was measured under CONCURRENCY, which is what this bounds; re-derive the ratio from N simultaneous validations before trusting it. Too tight and the service refuses work it could carry; too loose and it refuses nothing in time. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. THE PRIMARY LOAD SHED, not a secondary one: across a full perf run it produced 310 of 316 busy refusals, against 6 from the queue-wait limit and none at all from the queue depth limit — the queue never filled, because this refuses first. Size and tune this before touching VALIDATION_WORKER_QUEUE_LIMIT, which is the backstop behind it. Each upload charges an ESTIMATE of its unpack cost — 2 MB + 10x the file size, derived from RSS per upload with eight held alive at once — not its measured cost, so these are credit-bytes rather than heap-bytes. Too tight and the service refuses work it could carry; too loose and it refuses nothing in time. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
       env: 'VALIDATION_PARSE_BUDGET_BYTES'
     },
     maxRssBytes: {
@@ -276,7 +276,7 @@ const config = convict({
   },
   upload: {
     readyTimeoutMs: {
-      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. Normally instant — the frontend only calls validate once its own status poll has seen "ready" — so this is a safety net against losing a race, NOT a budget for the virus scan. Sized small because the ladder rungs sum: every second here is a second the download and validation rungs cannot have. A caller that has not polled will still be refused, and should be.',
+      doc: 'How long the validate route waits for the CDP Uploader to report the file ready. A safety net for a lost race, not a budget for the virus scan: the frontend only calls validate once its own status poll has seen "ready". Kept small because the ladder rungs sum — every second here is one the download and validation rungs cannot have.',
       format: 'int',
       default: 2000,
       env: 'UPLOAD_READY_TIMEOUT_MS'

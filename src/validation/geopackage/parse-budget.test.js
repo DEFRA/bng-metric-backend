@@ -15,16 +15,14 @@ const KB = 1024
  * What one MORE concurrent parse of each perf fixture costs — RSS per upload
  * with eight held alive at once, each combination measured in a fresh process.
  *
- * These are the numbers the estimate exists to cover, so they are asserted
- * rather than described: an estimate that drops below any of them admits a file
- * the heap cannot afford, which is the whole failure this module prevents.
+ * Asserted rather than described: an estimate that drops below any of them
+ * admits a file the heap cannot afford, which is the failure this module exists
+ * to prevent.
  *
- * They are deliberately NOT the cost of one upload read alone (7 / 15 / 56 /
- * 109 MB for the same four files). That figure includes process growth the
- * first parse causes and the second does not pay again, and this module rations
- * CONCURRENT parses — so charging it made the budget refuse roughly twice as
- * early as the memory required. The single-upload numbers are kept in
- * parse-budget.js for the contrast.
+ * Deliberately not the cost of one upload read alone (7 / 15 / 56 / 109 MB for
+ * the same files), which includes process growth the second parse does not pay
+ * again — charging that made the budget refuse roughly twice as early as the
+ * memory required.
  */
 const MEASURED = [
   { label: '80 parcels', fileBytes: 140 * KB, parsedBytes: 1.8 * MB },
