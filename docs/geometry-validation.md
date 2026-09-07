@@ -292,10 +292,10 @@ route reserves an estimated parse cost against it before downloading, and
 releases it once the response is built. A file that does not fit gets the same
 503 + `Retry-After` a full queue gives, having cost nothing.
 
-The estimate is **2 MB fixed + 10x the file size**. What it has to cover is the
-cost of one _more_ concurrent unpack, not of the first — a single read pays for
-process growth the second and third do not pay again — so it is fitted to RSS
-per upload with eight held alive at once, each measurement in a fresh process:
+The estimate is **2 MB fixed + 10x the file size**, fitted to what one _more_
+concurrent unpack costs rather than the first — a single read pays for process
+growth the second and third do not pay again. Measured as RSS per upload with
+eight held alive at once, each in a fresh process:
 
 | Fixture        | File size | Read alone | Per upload at N=8 |
 | -------------- | --------: | ---------: | ----------------: |
@@ -304,23 +304,18 @@ per upload with eight held alive at once, each measurement in a fresh process:
 | 5,000 parcels  |    4.0 MB |      56 MB |           34.1 MB |
 | 12,000 parcels |    9.3 MB |     109 MB |           58.1 MB |
 
-These are whole-process RSS, not the V8-heap figure quoted above for the same
-fixture: the native allocations better-sqlite3 makes never show up in the heap
-number and are just as real against the task limit. The ratio is rounded **up**,
-because an estimate that comes in low admits a file the process cannot afford —
-the failure this exists to prevent — while one that comes in high only costs
-throughput and says so in the metric. The fixed term is there because per-MB
-cost falls as files grow, 12.8x down to 6.3x across the four.
+Whole-process RSS, not the V8-heap figure quoted above: better-sqlite3's native
+allocations never reach the heap number and count against the task limit just the
+same. The ratio is rounded **up**, because under-estimating admits a file the
+process cannot afford while over-estimating only costs throughput and says so in
+the metric; the fixed term exists because per-MB cost falls as files grow, 12.8x
+to 6.3x across the four. The earlier **8 MB + 14x** was fitted to the read-alone
+column and over-charged concurrent uploads by 1.8x to 5.6x.
 
-The earlier **8 MB + 14x** was fitted to the read-alone column, so it charged
-every upload the process growth only the first causes, over-stating the
-concurrent cost by 1.8x to 5.6x.
-
-At the 550 MB default the current pair admits roughly thirteen 5,000-parcel
-files or five 12,000-parcel ones at once, where the previous pair allowed three.
-Raise it **with** the task memory limit, not on its own: the process also needs
-its warm baseline (~450 MB after sustained work) and one worker's copy of the
-largest file it is validating.
+At the 550 MB default that admits roughly thirteen 5,000-parcel files or five
+12,000-parcel ones at once, against three before. Raise it **with** the task
+memory limit: the process also needs its warm baseline (~450 MB after sustained
+work) and one worker's copy of the largest file it is validating.
 
 Two properties are deliberate:
 
