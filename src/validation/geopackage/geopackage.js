@@ -4,7 +4,6 @@ import { tmpdir } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
-import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import { ERROR_CODES, makeError } from './errors.js'
 import {
@@ -16,8 +15,7 @@ import {
   validateRedLineBoundary,
   validateHabitats,
   validateHedgerows,
-  validateWatercourses,
-  validateParcelCount
+  validateWatercourses
 } from './geopackage-internals.js'
 import {
   FEATURE_READ_MODE,
@@ -155,30 +153,18 @@ function runStructuralChecks(db) {
  * Feature-count and geometry-type checks, run against the geometry types the
  * single reader pass classified. Red Line Boundary must contain exactly one
  * polygon; Habitats at least one. Hedgerows and Rivers are optional layers —
- * the validators skip silently when the layer is absent or empty. The size
- * check runs last, so a file that is both malformed and oversized reports what
- * is wrong with it rather than only that it is large.
+ * the validators skip silently when the layer is absent or empty.
  *
  * @param {ReturnType<typeof readFeatureTables>} featureTables
- * @param {number} maxParcelCount
  * @returns {Array<{ code: string, message: string }>}
  */
-function runFeatureChecks({ tables }, maxParcelCount) {
+function runFeatureChecks({ tables }) {
   const errors = []
   validateRedLineBoundary(tables, errors, logger)
   validateHabitats(tables, errors, logger)
   validateHedgerows(tables, errors, logger)
   validateWatercourses(tables, errors, logger)
-  validateParcelCount(tables, errors, maxParcelCount)
   return errors
-}
-
-/**
- * The configured size limit, read at call time so a test can set it and so the
- * env var is picked up without re-importing the module.
- */
-function configuredMaxParcelCount() {
-  return config.get('validation.maxParcelCount')
 }
 
 /**
@@ -265,14 +251,14 @@ function useAndClose(db, withDb) {
  * @param {string} mode one of {@link FEATURE_READ_MODE}; how much of each data
  *   layer to materialise in that same pass
  */
-function runGpkgGate(db, mode, maxParcelCount) {
+function runGpkgGate(db, mode) {
   const structural = runStructuralChecks(db)
   if (!structural.valid) {
     return { ...structural, featureTables: null }
   }
 
   const featureTables = readFeatureTables(db, { mode })
-  const errors = runFeatureChecks(featureTables, maxParcelCount)
+  const errors = runFeatureChecks(featureTables)
   return { valid: errors.length === 0, errors, featureTables }
 }
 
@@ -289,7 +275,6 @@ function runGpkgGate(db, mode, maxParcelCount) {
  * memory to be validated.
  *
  * @param {string} filePath
- * @param {number} [maxParcelCount] see {@link validateGpkgFile}
  * @returns {{
  *   valid: boolean,
  *   errors: Array<{ code: string, message: string }>,
@@ -312,20 +297,11 @@ function runGpkgGate(db, mode, maxParcelCount) {
  * good files.
  *
  * @param {string} filePath
- * @param {number} [maxParcelCount] rows allowed across the counted layers;
- *   defaults to VALIDATION_MAX_PARCEL_COUNT, and zero turns the check off
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
  */
-function validateGpkgFile(
-  filePath,
-  maxParcelCount = configuredMaxParcelCount()
-) {
+function validateGpkgFile(filePath) {
   return withGpkgFileDatabase(filePath, (db) => {
-    const { valid, errors } = runGpkgGate(
-      db,
-      FEATURE_READ_MODE.classify,
-      maxParcelCount
-    )
+    const { valid, errors } = runGpkgGate(db, FEATURE_READ_MODE.classify)
     // Deliberately returns the verdict ONLY. Handing back the tables would
     // defeat the purpose: the caller would keep them alive across the queue
     // wait, which is the memory this call exists to avoid.
@@ -333,19 +309,14 @@ function validateGpkgFile(
   })
 }
 
-function validateAndReadGpkgFile(
-  filePath,
-  maxParcelCount = configuredMaxParcelCount()
-) {
-  const result = withGpkgFileDatabase(filePath, (db) =>
-    gateAndReadLayers(db, maxParcelCount)
-  )
+function validateAndReadGpkgFile(filePath) {
+  const result = withGpkgFileDatabase(filePath, gateAndReadLayers)
   return { layers: null, ...result }
 }
 
 /** The gate, plus the layers from the same read when the file passes it. */
-function gateAndReadLayers(db, maxParcelCount) {
-  const gate = runGpkgGate(db, FEATURE_READ_MODE.full, maxParcelCount)
+function gateAndReadLayers(db) {
+  const gate = runGpkgGate(db, FEATURE_READ_MODE.full)
   if (!gate.valid) {
     return logGateResult({ valid: false, errors: gate.errors })
   }
@@ -369,16 +340,11 @@ function logGateResult(result) {
  * {@link validateAndReadGpkgFile}, which returns them from the same read.
  *
  * @param {Buffer} buffer
- * @param {number} [maxParcelCount] see {@link validateGpkgFile}
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
  */
-function validateGpkg(buffer, maxParcelCount = configuredMaxParcelCount()) {
+function validateGpkg(buffer) {
   return withGpkgDatabase(buffer, (db) => {
-    const { valid, errors } = runGpkgGate(
-      db,
-      FEATURE_READ_MODE.classify,
-      maxParcelCount
-    )
+    const { valid, errors } = runGpkgGate(db, FEATURE_READ_MODE.classify)
     return logGateResult({ valid, errors })
   })
 }
