@@ -252,7 +252,7 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     parseBudgetBytes: {
-      doc: 'Admission credit rationed across the GeoPackages being UNPACKED at once. THE PRIMARY LOAD SHED, not a secondary one: across a full perf run it produced 310 of 316 busy refusals, against 6 from the queue-wait limit and none at all from the queue depth limit — the queue never filled, because this refuses first. Size and tune this before touching VALIDATION_WORKER_QUEUE_LIMIT, which is the backstop behind it. Each upload charges an ESTIMATE of its unpack cost — 2 MB + 10x the file size, derived from RSS per upload with eight held alive at once — not its measured cost, so these are credit-bytes rather than heap-bytes. Too tight and the service refuses work it could carry; too loose and it refuses nothing in time. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      doc: 'Byte budget rationed across the GeoPackages being UNPACKED at once, and the primary load shed: tune it before VALIDATION_WORKER_QUEUE_LIMIT, which is only the backstop behind it. Each upload is charged an ESTIMATE of its unpack cost — 2 MB + 10x the file size — so these are credit-bytes rather than heap-bytes; docs/geometry-validation.md carries the measurements behind the ratio. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
       format: 'int',
       default: 576716800,
       env: 'VALIDATION_PARSE_BUDGET_BYTES'
