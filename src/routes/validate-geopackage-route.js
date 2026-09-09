@@ -647,7 +647,7 @@ function createValidateGeoPackageRoute(config) {
       // exists to avoid. The counter here moves before the caller is told yes.
       const releaseAdmission = validationPool().admit()
       if (!releaseAdmission) {
-        return await respondToBusy(
+        return respondToBusy(
           uploadId,
           h,
           config,
