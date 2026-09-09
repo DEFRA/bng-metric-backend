@@ -99,11 +99,20 @@ export class ValidationTimeoutError extends Error {
  * @property {number} timeoutMs per-job budget before the worker is killed
  * @property {number} queueWaitLimitMs longest a job may wait to START before it
  *   is refused instead
+ * @property {number} [admissionLimit] requests allowed in flight at once, from
+ *   admission through to response. Bounds I/O rather than CPU, so it is a much
+ *   larger number than `queueLimit`. Unbounded when omitted.
  */
 
 export class GeosWorkerPool {
   /** @param {PoolOptions} options */
-  constructor({ size, queueLimit, timeoutMs, queueWaitLimitMs = Infinity }) {
+  constructor({
+    size,
+    queueLimit,
+    timeoutMs,
+    queueWaitLimitMs = Infinity,
+    admissionLimit = Infinity
+  }) {
     // Never more workers than there are cores to run them on: oversubscribing
     // CPU-bound threads adds context switching and memory, and no throughput.
     this.size = Math.max(
@@ -113,6 +122,9 @@ export class GeosWorkerPool {
     this.queueLimit = queueLimit
     this.timeoutMs = timeoutMs
     this.queueWaitLimitMs = queueWaitLimitMs
+    this.admissionLimit = admissionLimit
+    /** Requests admitted and not yet finished. See {@link admit}. */
+    this.admitted = 0
     this.nextJobId = 1
     /** Jobs waiting for a free worker. */
     this.queue = []
@@ -128,7 +140,8 @@ export class GeosWorkerPool {
     }
     logger.info(
       `geos worker pool started with ${this.size} worker(s), queue limit ${queueLimit}, ` +
-        `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms`
+        `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms, ` +
+        `admission limit ${admissionLimit}`
     )
   }
 
@@ -148,6 +161,43 @@ export class GeosWorkerPool {
       !this.closed &&
       (this.idle.length > 0 || this.queue.length < this.queueLimit)
     )
+  }
+
+  /**
+   * Claim a place in the service BEFORE the file is fetched from S3.
+   *
+   * {@link hasCapacity} cannot do this job, and a saturation run showed why: it
+   * is a CHECK, so every thread of a synchronised burst tests it while the pool
+   * is still empty, all of them pass, and all of them go on to download. The
+   * refusal then lands in {@link run}, after the download the check exists to
+   * avoid — measured as a burst of 24 whose fastest sample was 2,104 ms against
+   * a 2,571 ms mean, with no cheap refusals among them at all.
+   *
+   * A reservation cannot be raced the same way: the counter moves before the
+   * caller is told yes, so the tenth caller of a burst sees the first nine.
+   *
+   * What this bounds is requests IN FLIGHT — admission through to response,
+   * most of which is spent waiting on S3 rather than on a worker. That is why
+   * it is a much larger number than `queueLimit`, which bounds a CPU-bound
+   * queue: sizing admission down to the queue depth would refuse bursts this
+   * service demonstrably serves, 64 concurrent 143 KB uploads among them.
+   *
+   * @returns {(() => void)|null} releases the place, or null when the service
+   *   is full; the release is safe to call more than once
+   */
+  admit() {
+    if (this.closed || this.admitted >= this.admissionLimit) {
+      return null
+    }
+    this.admitted += 1
+    let released = false
+    return () => {
+      if (released) {
+        return
+      }
+      released = true
+      this.admitted -= 1
+    }
   }
 
   /** Start one worker and register its lifecycle handlers. */
@@ -357,6 +407,7 @@ export class GeosWorkerPool {
       size: this.workers.size,
       idle: this.idle.length,
       queued: this.queue.length,
+      admitted: this.admitted,
       geosVersion: this.geosVersion
     }
   }

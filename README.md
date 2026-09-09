@@ -134,7 +134,8 @@ validation failure.
 | Setting                               | Default | Notes                                                            |
 | :------------------------------------ | ------: | :--------------------------------------------------------------- |
 | `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      32 | Waiting validations before new ones get a 503.                   |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                   |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
@@ -154,7 +155,7 @@ before `VALIDATION_WORKER_QUEUE_LIMIT`, which sits behind it as a backstop.
 That ordering holds for **large** files only. A later saturation run showed the
 opposite for small ones: a 143 KB file is charged ~3.5 MB against the budget, so
 160 could be in flight before it refuses, and the depth limit is reached first.
-That is why the depth limit is 32 rather than 8 — see "What a deep queue costs".
+That is why the depth limit is 20 rather than 8 — see "What a deep queue costs".
 
 `VALIDATION_PARSE_BUDGET_BYTES` bounds how much parsed GeoPackage may be in
 flight at once, charging each upload an estimated `~2 MB + 10x the file size`,

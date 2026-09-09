@@ -212,7 +212,8 @@ function validationPool() {
     size: appConfig.get('validation.workerCount'),
     queueLimit: appConfig.get('validation.workerQueueLimit'),
     timeoutMs: appConfig.get('validation.workerTimeoutMs'),
-    queueWaitLimitMs: appConfig.get('validation.queueWaitLimitMs')
+    queueWaitLimitMs: appConfig.get('validation.queueWaitLimitMs'),
+    admissionLimit: appConfig.get('validation.admissionLimit')
   })
 }
 
@@ -435,8 +436,26 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
  */
 async function runFullValidation(filePath, drizzle, context, h, config) {
   const { uploadId } = context
+  // Reserved inside the loader below and released here, so it is held for
+  // exactly as long as the layers are — which is what the reservation always
+  // claimed to do and did not. See the loader's comment.
+  let releaseParseBudget = null
 
   try {
+    // The budget can have gone while the file was streaming out of S3, and the
+    // reservation now sits past the pool wait — so ask again here, before the
+    // gate, rather than discovering it after a worker has already been spent
+    // on this file. Advisory exactly like the check in `admitUpload`; the
+    // reservation in the loader below is what actually decides.
+    if (!parseBudget().hasRoomFor(context.fileSize)) {
+      return await respondToBusy(
+        uploadId,
+        h,
+        config,
+        VALIDATION_BUSY_REASON.memoryBudget
+      )
+    }
+
     // The gate WITHOUT unpacking any shapes. A structurally broken file is
     // still rejected here, before it costs a worker slot — which is why the
     // check was in front of the queue in the first place — but a file that
@@ -473,7 +492,17 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
       // itself, and the data-quality checks read properties — so nothing before
       // the accept decision needs a decoded shape, and a file we reject never
       // pays for one.
-      () => readGeoPackage(filePath, FEATURE_READ_MODE.properties),
+      () => {
+        // The budget is reserved HERE, at the moment the layers come into
+        // existence, and not before `validateLayers` — because the pool wait
+        // sits between the two and a waiting request holds a path, not a heap.
+        // Charging it the full unpack estimate for that wait made queue depth
+        // consume the parse budget: sixteen queued 720 KB uploads reserved
+        // 142 MB while doing no work, and large uploads were refused
+        // `memory_budget` because of it.
+        releaseParseBudget = parseBudget().reserve(context.fileSize)
+        return readGeoPackage(filePath, FEATURE_READ_MODE.properties)
+      },
       drizzle,
       { ...context, filePath, gateMs },
       h,
@@ -503,6 +532,10 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
         ]
       })
       .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+  } finally {
+    // Null unless the loader ran, so a file rejected at the gate or refused by
+    // the pool releases nothing because it reserved nothing.
+    releaseParseBudget?.()
   }
 }
 
@@ -606,62 +639,85 @@ function createValidateGeoPackageRoute(config) {
       // Persisting to a project is scoped to this user's current org context.
       const credentials = request.auth.credentials
 
-      const admission = await admitUpload(uploadId, projectId, h, config)
-      if (admission.response) {
-        return admission.response
-      }
-      const { bucket, key, filename, fileSize } = admission.location
-
-      // Streamed to disk rather than buffered, and removed as soon as
-      // validation is done with it, so concurrent uploads cannot stack up
-      // whole files in memory.
-      const upload = await fetchUploadFile(bucket, key, uploadId, config)
-
-      const totalStart = perfNow()
-      let releaseParseBudget = null
-      try {
-        // Held for exactly as long as the layers are: taken before the parse,
-        // dropped in the `finally` once the response has been built.
-        releaseParseBudget = parseBudget().reserve(fileSize)
-        return await runFullValidation(
-          upload.path,
-          request.drizzle,
-          { uploadId, projectId, credentials, filename, fileSize },
-          h,
-          config
-        )
-      } catch (error) {
-        if (!(error instanceof ParseBudgetExceededError)) {
-          throw error
-        }
+      // A place in the service, taken before anything is fetched and held
+      // until the response is built. A RESERVATION rather than a check, which
+      // is the whole point: every thread of a synchronised burst passes
+      // `hasCapacity()` inside `admitUpload` while the pool is still empty, so
+      // that check refuses nobody and the refusal lands after the download it
+      // exists to avoid. The counter here moves before the caller is told yes.
+      const releaseAdmission = validationPool().admit()
+      if (!releaseAdmission) {
         return await respondToBusy(
           uploadId,
           h,
           config,
-          VALIDATION_BUSY_REASON.memoryBudget
-        )
-      } finally {
-        releaseParseBudget?.()
-        // A file we could not delete is a disk problem to chase in the logs,
-        // not a reason to fail a validation that already succeeded.
-        await upload.cleanup().catch((err) => {
-          logger.warn(
-            `${config.routeName}: failed to remove the downloaded file for uploadId ${uploadId}: ${err.message}`
-          )
-        })
-        // Evidence (Item 1): the end-to-end handler time a user waits on, with
-        // every stage above still running on this one request. Recorded in the
-        // `finally` so a failed upload — often the slowest kind — is measured
-        // too, matching how each stage above records before checking for
-        // errors.
-        await recordStage(
-          PERFORMANCE_METRIC.totalMs,
-          msSince(totalStart),
-          { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
-          config
+          VALIDATION_BUSY_REASON.admissionFull
         )
       }
+
+      try {
+        return await validateAdmittedUpload(
+          { uploadId, projectId, credentials },
+          request,
+          h,
+          config
+        )
+      } finally {
+        releaseAdmission()
+      }
     }
+  }
+}
+
+/**
+ * The request proper, once it holds a place in the service.
+ *
+ * Split out so the admission reservation above has a `finally` of its own that
+ * cannot be confused with the temp file's — they have different lifetimes, and
+ * the release must happen however this returns.
+ */
+async function validateAdmittedUpload(identity, request, h, config) {
+  const { uploadId, projectId, credentials } = identity
+
+  const admission = await admitUpload(uploadId, projectId, h, config)
+  if (admission.response) {
+    return admission.response
+  }
+  const { bucket, key, filename, fileSize } = admission.location
+
+  // Streamed to disk rather than buffered, and removed as soon as
+  // validation is done with it, so concurrent uploads cannot stack up
+  // whole files in memory.
+  const upload = await fetchUploadFile(bucket, key, uploadId, config)
+
+  const totalStart = perfNow()
+  try {
+    return await runFullValidation(
+      upload.path,
+      request.drizzle,
+      { uploadId, projectId, credentials, filename, fileSize },
+      h,
+      config
+    )
+  } finally {
+    // A file we could not delete is a disk problem to chase in the logs,
+    // not a reason to fail a validation that already succeeded.
+    await upload.cleanup().catch((err) => {
+      logger.warn(
+        `${config.routeName}: failed to remove the downloaded file for uploadId ${uploadId}: ${err.message}`
+      )
+    })
+    // Evidence (Item 1): the end-to-end handler time a user waits on, with
+    // every stage above still running on this one request. Recorded in the
+    // `finally` so a failed upload — often the slowest kind — is measured
+    // too, matching how each stage above records before checking for
+    // errors.
+    await recordStage(
+      PERFORMANCE_METRIC.totalMs,
+      msSince(totalStart),
+      { uploadId, stage: 'total', fileSizeBytes: fileSize ?? null },
+      config
+    )
   }
 }
 

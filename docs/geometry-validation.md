@@ -84,7 +84,8 @@ a precondition here, not an optimisation.
 | Setting                               | Default | What it is                                                               |
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      32 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
@@ -291,7 +292,7 @@ temp file** on disk and its **parse-budget reservation**, both taken before
 neither binds before the budget itself does, but a deep queue is a claim on disk
 and on the budget as well as on the queue array.
 
-### Why the depth limit is 32
+### Why the depth limit is 20
 
 Eight slots were sized against a file that occupies a worker for seconds. They
 are the wrong size for one that occupies it for milliseconds.
@@ -310,18 +311,38 @@ Sixty-four is the tell — the larger the burst, the more the concurrent S3
 downloads in front of the pool stagger arrivals, so queue depth peaks *lower*.
 Contention upstream was acting as the admission controller.
 
-Thirty-two slots is ~1-2 s of `normal` work on one worker, comfortably inside
+Twenty slots is ~1-2 s of `normal` work on one worker, comfortably inside
 `VALIDATION_QUEUE_WAIT_LIMIT_MS`, which is the bound that actually decides how
 long anyone waits and is unchanged. Large files never reach the new depth: at
 ~43 MB charged each, the parse budget refuses at ~12 in flight.
 
-One thing raising this does **not** fix. The `hasCapacity()` pre-check is
-advisory and, against a synchronised burst, useless: every thread tests it while
-the pool is still empty and all of them pass, so the refusal lands at the pool
-*after* the S3 download the check exists to avoid. The same run shows it — at a
-burst of 24 the fastest sample was 2,104 ms against a mean of 2,571 ms, with no
-fast refusals at all. Making refusals cheap under burst arrival is a separate
-change.
+Twenty rather than more, because the wait limit already caps the USEFUL depth at
+`5000 / service time` — about 16 for `busy` and 3 for `large`. Slots past ~17
+can only ever be taken by small files, so a larger number buys headroom for one
+size and holds budget and blast radius for all of them.
+
+### Admission is a reservation, not a check
+
+`hasCapacity()` was the only thing standing in front of the S3 download, and
+against a synchronised burst it stands in front of nothing: it is a CHECK, so
+every thread of the burst asks while the pool is still empty, all of them are
+told yes, and all of them download. The refusal then lands at `pool.run()`,
+after the download the check exists to avoid. The same saturation run measures
+it — at a burst of 24 the fastest sample was 2,104 ms against a 2,571 ms mean,
+so not one request was refused cheaply.
+
+`GeosWorkerPool.admit()` is the fix: it moves a counter *before* answering, so
+the tenth caller of a burst sees the first nine. The route takes a place before
+fetching anything and releases it in a `finally`, and a refusal is
+`admission_full` — the only busy reason a burst cannot race past.
+
+What it bounds is requests **in flight**, admission through to response, which
+is mostly time spent on S3 rather than on a worker. `VALIDATION_ADMISSION_LIMIT`
+is therefore its own setting at **64**, not the queue depth: admission bounds
+I/O where the queue bounds CPU, and sizing it down to `workers + queueLimit`
+would have refused ~43 of a 64-deep `normal` burst that the service is measured
+to serve completely. The residue is that between 21 and 64 in flight a request
+can still download and then be refused; below 21 and above 64 it cannot.
 
 ### Refusing on size, before the read
 

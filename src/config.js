@@ -236,8 +236,14 @@ const config = convict({
     workerQueueLimit: {
       doc: 'Validations allowed to wait for a free worker before new ones are refused with a 503 telling the user to try again. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on. Raised from 8 because depth is a poor proxy for wait when service time spans two orders of magnitude: a 143 KB GeoPackage validates in 20-60 ms, so 8 slots was under half a second of work on a one-worker pool and whether a burst was refused came down to arrival jitter rather than load. VALIDATION_QUEUE_WAIT_LIMIT_MS is the real bound on how long anyone waits and applies whatever this is set to. Cheap since the gate stopped unpacking: a queued request holds a file path, not a parsed GeoPackage — see docs/geometry-validation.md. Large files are unaffected, because the parse budget refuses them well before this depth is reached.',
       format: 'int',
-      default: 32,
+      default: 20,
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
+    },
+    admissionLimit: {
+      doc: 'Requests allowed in flight at once, from admission through to response. Reserved ATOMICALLY before the file is fetched from S3, which VALIDATION_WORKER_QUEUE_LIMIT cannot be: that limit is reached through a check, and every thread of a synchronised burst passes it while the pool is still empty, so the refusal lands after the download the check exists to avoid. Much larger than the queue depth on purpose — it bounds I/O, where the queue bounds CPU, and sizing it down to the queue depth would refuse bursts the service demonstrably serves (64 concurrent 143 KB uploads all succeeded on a one-worker pool). Lower it to cap concurrent uploads harder; the cost is refusing work that would have been served.',
+      format: 'int',
+      default: 64,
+      env: 'VALIDATION_ADMISSION_LIMIT'
     },
     workerTimeoutMs: {
       doc: 'Budget for one validation on a worker. On overrun the worker is terminated (GEOS cannot be interrupted from JavaScript) and the request fails with VALIDATION_FAILED. A rung of the timeout ladder in docs/geometry-validation.md, where the rungs sum rather than nest, so it had to come down to fit the frontend budget. Still generous: the slowest of 672 validations in a full perf run, on a contended 2-vCPU box, was 2,155 ms (p95 1,094 ms).',
