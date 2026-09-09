@@ -164,26 +164,23 @@ export class GeosWorkerPool {
   }
 
   /**
-   * Claim a place in the service BEFORE the file is fetched from S3.
+   * Take a place in the service, before the file is fetched from S3.
    *
-   * {@link hasCapacity} cannot do this job, and a saturation run showed why: it
-   * is a CHECK, so every thread of a synchronised burst tests it while the pool
-   * is still empty, all of them pass, and all of them go on to download. The
-   * refusal then lands in {@link run}, after the download the check exists to
-   * avoid — measured as a burst of 24 whose fastest sample was 2,104 ms against
-   * a 2,571 ms mean, with no cheap refusals among them at all.
+   * Use this rather than {@link hasCapacity} to decide whether to accept a
+   * request. `hasCapacity` only asks a question, so when many requests arrive
+   * together they all ask before any of them has taken a place, they are all
+   * told yes, and they all download a file that most of them will then be
+   * refused for. Taking a place first is what stops that: the count goes up
+   * before the caller is told yes, so the tenth arrival sees the first nine.
    *
-   * A reservation cannot be raced the same way: the counter moves before the
-   * caller is told yes, so the tenth caller of a burst sees the first nine.
+   * The limit here counts requests being handled at all, from arrival to
+   * response — mostly time spent downloading. That is a different thing from
+   * `queueLimit`, which counts requests waiting for a worker, so this number
+   * is much larger. Setting it as low as `queueLimit` would refuse bursts the
+   * service handles fine.
    *
-   * What this bounds is requests IN FLIGHT — admission through to response,
-   * most of which is spent waiting on S3 rather than on a worker. That is why
-   * it is a much larger number than `queueLimit`, which bounds a CPU-bound
-   * queue: sizing admission down to the queue depth would refuse bursts this
-   * service demonstrably serves, 64 concurrent 143 KB uploads among them.
-   *
-   * @returns {(() => void)|null} releases the place, or null when the service
-   *   is full; the release is safe to call more than once
+   * @returns {(() => void)|null} call it to give the place back, or null if
+   *   the service is already full. Calling it twice is harmless.
    */
   admit() {
     if (this.closed || this.admitted >= this.admissionLimit) {
