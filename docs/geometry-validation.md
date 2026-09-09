@@ -84,7 +84,7 @@ a precondition here, not an optimisation.
 | Setting                               | Default | What it is                                                               |
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      32 | Validations allowed to wait for a free worker. Not free — see below.     |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
@@ -102,6 +102,13 @@ depth limit was never reached, because the budget turns requests away first. So
 `VALIDATION_PARSE_BUDGET_BYTES` is the knob that decides how much load the
 service accepts, and `VALIDATION_WORKER_QUEUE_LIMIT` is the backstop behind it —
 tune them in that order.
+
+**That split is a property of the file sizes in the run, not of the design.**
+A later saturation run (bng-perf-tests 0.12.0) drove bursts of the 143 KB
+fixture and inverted it. The budget charges `~2 MB + 10x file size`, so a small
+file costs ~3.5 MB and roughly 160 of them fit; the depth limit is reached long
+first. The two controls swap roles at around 1 MB of file size, which is why the
+depth limit can no longer be treated as a backstop that never fires.
 
 ### Being busy is a poll, not a failure
 
@@ -277,6 +284,44 @@ the request ends, not a high-water mark. Before the reorder, raising
 it was the best lever a memory-tight task had. That is no longer the trade: the
 queue now costs a path per waiting request, so the limit rations CPU, which is
 what it was always meant to ration.
+
+A waiting request is not entirely free even so. It still holds its **downloaded
+temp file** on disk and its **parse-budget reservation**, both taken before
+`runFullValidation` and released in the same `finally`. Neither is heap, and
+neither binds before the budget itself does, but a deep queue is a claim on disk
+and on the budget as well as on the queue array.
+
+### Why the depth limit is 32
+
+Eight slots were sized against a file that occupies a worker for seconds. They
+are the wrong size for one that occupies it for milliseconds.
+
+A saturation run (bng-perf-tests 0.12.0, one burst of N concurrent validates per
+rung) put the 143 KB fixture through a one-worker pool. Reading the service time
+off the spread of completion times within each rung — the whole burst finishes
+in a band a few hundred milliseconds wide — a `normal` validation costs
+**20-60 ms**. Eight queue slots is therefore under half a second of work, and
+whether the 9th request in a burst is refused depends on whether it happens to
+land inside that window.
+
+The results show exactly that shape rather than a load curve: bursts of 16, 24,
+32 and 48 refused 1, 5, 2 and 2 requests, while 12, 14 and **64** refused none.
+Sixty-four is the tell — the larger the burst, the more the concurrent S3
+downloads in front of the pool stagger arrivals, so queue depth peaks *lower*.
+Contention upstream was acting as the admission controller.
+
+Thirty-two slots is ~1-2 s of `normal` work on one worker, comfortably inside
+`VALIDATION_QUEUE_WAIT_LIMIT_MS`, which is the bound that actually decides how
+long anyone waits and is unchanged. Large files never reach the new depth: at
+~43 MB charged each, the parse budget refuses at ~12 in flight.
+
+One thing raising this does **not** fix. The `hasCapacity()` pre-check is
+advisory and, against a synchronised burst, useless: every thread tests it while
+the pool is still empty and all of them pass, so the refusal lands at the pool
+*after* the S3 download the check exists to avoid. The same run shows it — at a
+burst of 24 the fastest sample was 2,104 ms against a mean of 2,571 ms, with no
+fast refusals at all. Making refusals cheap under burst arrival is a separate
+change.
 
 ### Refusing on size, before the read
 

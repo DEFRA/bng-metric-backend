@@ -234,9 +234,9 @@ const config = convict({
       env: 'VALIDATION_WORKER_COUNT'
     },
     workerQueueLimit: {
-      doc: 'Validations allowed to wait for a free worker before new ones are refused with a 503 telling the user to try again. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on, and each waiting request also pins ~29 MB of parsed GeoPackage on the heap.',
+      doc: 'Validations allowed to wait for a free worker before new ones are refused with a 503 telling the user to try again. Bounded deliberately: an unbounded queue turns a traffic spike into a backlog of requests the client has already given up on. Raised from 8 because depth is a poor proxy for wait when service time spans two orders of magnitude: a 143 KB GeoPackage validates in 20-60 ms, so 8 slots was under half a second of work on a one-worker pool and whether a burst was refused came down to arrival jitter rather than load. VALIDATION_QUEUE_WAIT_LIMIT_MS is the real bound on how long anyone waits and applies whatever this is set to. Cheap since the gate stopped unpacking: a queued request holds a file path, not a parsed GeoPackage — see docs/geometry-validation.md. Large files are unaffected, because the parse budget refuses them well before this depth is reached.',
       format: 'int',
-      default: 8,
+      default: 32,
       env: 'VALIDATION_WORKER_QUEUE_LIMIT'
     },
     workerTimeoutMs: {
