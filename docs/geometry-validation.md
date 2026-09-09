@@ -308,7 +308,7 @@ land inside that window.
 The results show exactly that shape rather than a load curve: bursts of 16, 24,
 32 and 48 refused 1, 5, 2 and 2 requests, while 12, 14 and **64** refused none.
 Sixty-four is the tell — the larger the burst, the more the concurrent S3
-downloads in front of the pool stagger arrivals, so queue depth peaks *lower*.
+downloads in front of the pool stagger arrivals, so queue depth peaks _lower_.
 Contention upstream was acting as the admission controller.
 
 Twenty slots is ~1-2 s of `normal` work on one worker, comfortably inside
@@ -331,7 +331,7 @@ after the download the check exists to avoid. The same saturation run measures
 it — at a burst of 24 the fastest sample was 2,104 ms against a 2,571 ms mean,
 so not one request was refused cheaply.
 
-`GeosWorkerPool.admit()` is the fix: it moves a counter *before* answering, so
+`GeosWorkerPool.admit()` is the fix: it moves a counter _before_ answering, so
 the tenth caller of a burst sees the first nine. The route takes a place before
 fetching anything and releases it in a `finally`, and a refusal is
 `admission_full` — the only busy reason a burst cannot race past.
