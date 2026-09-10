@@ -497,7 +497,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
         // existence, and not before `validateLayers` — because the pool wait
         // sits between the two and a waiting request holds a path, not a heap.
         // Charging it the full unpack estimate for that wait made queue depth
-        // consume the parse budget: sixteen queued 720 KB uploads reserved
+        // consume the parse budget: sixteen queued 704 KB uploads reserved
         // 142 MB while doing no work, and large uploads were refused
         // `memory_budget` because of it.
         releaseParseBudget = parseBudget().reserve(context.fileSize)
