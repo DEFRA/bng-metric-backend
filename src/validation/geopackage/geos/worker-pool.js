@@ -99,11 +99,20 @@ export class ValidationTimeoutError extends Error {
  * @property {number} timeoutMs per-job budget before the worker is killed
  * @property {number} queueWaitLimitMs longest a job may wait to START before it
  *   is refused instead
+ * @property {number} [admissionLimit] requests allowed in flight at once, from
+ *   admission through to response. Bounds I/O rather than CPU, so it is a much
+ *   larger number than `queueLimit`. Unbounded when omitted.
  */
 
 export class GeosWorkerPool {
   /** @param {PoolOptions} options */
-  constructor({ size, queueLimit, timeoutMs, queueWaitLimitMs = Infinity }) {
+  constructor({
+    size,
+    queueLimit,
+    timeoutMs,
+    queueWaitLimitMs = Infinity,
+    admissionLimit = Infinity
+  }) {
     // Never more workers than there are cores to run them on: oversubscribing
     // CPU-bound threads adds context switching and memory, and no throughput.
     this.size = Math.max(
@@ -113,6 +122,9 @@ export class GeosWorkerPool {
     this.queueLimit = queueLimit
     this.timeoutMs = timeoutMs
     this.queueWaitLimitMs = queueWaitLimitMs
+    this.admissionLimit = admissionLimit
+    /** Requests admitted and not yet finished. See {@link admit}. */
+    this.admitted = 0
     this.nextJobId = 1
     /** Jobs waiting for a free worker. */
     this.queue = []
@@ -128,7 +140,8 @@ export class GeosWorkerPool {
     }
     logger.info(
       `geos worker pool started with ${this.size} worker(s), queue limit ${queueLimit}, ` +
-        `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms`
+        `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms, ` +
+        `admission limit ${admissionLimit}`
     )
   }
 
@@ -148,6 +161,40 @@ export class GeosWorkerPool {
       !this.closed &&
       (this.idle.length > 0 || this.queue.length < this.queueLimit)
     )
+  }
+
+  /**
+   * Take a place in the service, before the file is fetched from S3.
+   *
+   * Use this rather than {@link hasCapacity} to decide whether to accept a
+   * request. `hasCapacity` only asks a question, so when many requests arrive
+   * together they all ask before any of them has taken a place, they are all
+   * told yes, and they all download a file that most of them will then be
+   * refused for. Taking a place first is what stops that: the count goes up
+   * before the caller is told yes, so the tenth arrival sees the first nine.
+   *
+   * The limit here counts requests being handled at all, from arrival to
+   * response — mostly time spent downloading. That is a different thing from
+   * `queueLimit`, which counts requests waiting for a worker, so this number
+   * is much larger. Setting it as low as `queueLimit` would refuse bursts the
+   * service handles fine.
+   *
+   * @returns {(() => void)|null} call it to give the place back, or null if
+   *   the service is already full. Calling it twice is harmless.
+   */
+  admit() {
+    if (this.closed || this.admitted >= this.admissionLimit) {
+      return null
+    }
+    this.admitted += 1
+    let released = false
+    return () => {
+      if (released) {
+        return
+      }
+      released = true
+      this.admitted -= 1
+    }
   }
 
   /** Start one worker and register its lifecycle handlers. */
@@ -357,6 +404,7 @@ export class GeosWorkerPool {
       size: this.workers.size,
       idle: this.idle.length,
       queued: this.queue.length,
+      admitted: this.admitted,
       geosVersion: this.geosVersion
     }
   }

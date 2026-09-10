@@ -134,7 +134,8 @@ validation failure.
 | Setting                               | Default | Notes                                                            |
 | :------------------------------------ | ------: | :--------------------------------------------------------------- |
 | `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Waiting validations before new ones get a 503.                   |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                   |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
 | `VALIDATION_MAX_PARCEL_COUNT`         |   25000 | Features the gate accepts. Bigger files cannot finish in time.   |
@@ -152,12 +153,20 @@ busy refusals, against 6 from the queue-wait limit and none from the queue depth
 limit — the queue never filled, because the budget refuses first. Tune this
 before `VALIDATION_WORKER_QUEUE_LIMIT`, which sits behind it as a backstop.
 
+That ordering holds for **large** files only. A later saturation run showed the
+opposite for small ones: a 143 KB file is charged ~3.5 MB against the budget, so
+160 could be in flight before it refuses, and the depth limit is reached first.
+That is why the depth limit is 20 rather than 8 — see "What a deep queue costs".
+
 `VALIDATION_PARSE_BUDGET_BYTES` bounds how much parsed GeoPackage may be in
 flight at once, charging each upload an estimated `~2 MB + 10x the file size`,
 and the route reserves against it from the uploader's reported file size before
 opening anything. The ratio is fitted to RSS per upload with eight held alive at
 once, which is the regime the budget bounds: too tight and the service turns
-away load it could carry, too loose and it does not refuse in time.
+away load it could carry, too loose and it does not refuse in time. (**RSS** is
+resident set size — the memory the process holds in physical RAM, counting
+native and WebAssembly allocations a JavaScript heap figure cannot see, and what
+the task memory limit is enforced against.)
 
 The backend's timeouts are sequential stages of one request, so they **sum**,
 and the total must fit inside the frontend's per-request validate timeout, which

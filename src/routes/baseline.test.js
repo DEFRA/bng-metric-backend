@@ -388,6 +388,34 @@ describe('validateBaseline handler — pipeline calls', () => {
       FEATURE_READ_MODE.properties
     )
   })
+
+  // The peer of the test above, for the other resource. The budget rations
+  // PARSED heap, so charging it across the pool wait — where a request holds a
+  // path and nothing else — made queue depth consume the budget: sixteen
+  // queued 720 KB uploads reserved 142 MB while doing no work, and large
+  // uploads were refused `memory_budget` on account of small ones waiting.
+  it('does not reserve parse budget until the pool asks for the layers', async () => {
+    resetParseBudget()
+    const budget = getParseBudget(config.get('validation.parseBudgetBytes'))
+    let reservedBeforePool = null
+    vi.mocked(validateGeoPackageLayers).mockImplementation(
+      async (layersOrLoad) => {
+        reservedBeforePool = budget.inFlightBytes
+        layersOrLoad()
+        return { valid: true, errors: [] }
+      }
+    )
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(reservedBeforePool).toBe(0)
+    // And given back once the response is built, so the reservation spans
+    // exactly the layers' lifetime and nothing more.
+    expect(budget.inFlightBytes).toBe(0)
+  })
 })
 
 // A full validation queue is the one rejection that is not about the user's

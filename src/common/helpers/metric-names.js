@@ -22,9 +22,12 @@ export const GEOPACKAGE_METRIC = {
 }
 
 /**
- * Values for the `reason` dimension on GeoPackageValidationBusy. Four ways to
+ * Values for the `reason` dimension on GeoPackageValidationBusy. Five ways to
  * be told "not now", and they are not interchangeable:
  *
+ *   admission_full  Too many requests already in flight. Refused before the
+ *                file was fetched, and the only reason here that a burst
+ *                cannot race past — it is a reservation, not a check.
  *   no_capacity  The route refused before doing any work, because the pool was
  *                already full. The cheap, expected case under load.
  *   queue_full   The pool refused at the point of running. Same meaning as
@@ -38,6 +41,7 @@ export const GEOPACKAGE_METRIC = {
  *                budget or the task memory limit, not more workers.
  */
 export const VALIDATION_BUSY_REASON = Object.freeze({
+  admissionFull: 'admission_full',
   noCapacity: 'no_capacity',
   queueFull: 'queue_full',
   queueWait: 'queue_wait',
