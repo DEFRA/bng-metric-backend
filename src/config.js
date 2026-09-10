@@ -258,7 +258,7 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     maxParcelCount: {
-      doc: 'Features a GeoPackage may contain before the format gate refuses it as too large, counted across the boundary, habitat, hedgerow and watercourse layers — every layer the gate reads, not habitat parcels alone, because a limit that counted only parcels would let a file of half a million hedgerows through. A CAPACITY limit, not a judgement about the data: nothing is wrong with a bigger file except that the synchronous pipeline cannot finish it inside the timeout ladder in docs/geometry-validation.md. Without it such a file is accepted, downloaded, queued and then killed by the worker timeout, which reaches the user as a 500 saying there is a problem with their file when there is not. Sized from the largest fixture measured: 16,801 features validated in 2,155 ms worst case, so 25,000 costs about 3.2 s of the 5 s worker budget and about 1.8 s of the unbounded parse-and-persist rung. Raise it only with VALIDATION_WORKER_TIMEOUT_MS and the frontend request budget, and re-measure first — the fixtures stop at 16,801, so anything above that is extrapolation. Zero disables the check.',
+      doc: 'Features a GeoPackage may contain before the format gate refuses it as too large, counted across the boundary, habitat, hedgerow and watercourse layers — every layer the gate reads, not habitat parcels alone, because a limit that counted only parcels would let a file of half a million hedgerows through.',
       format: 'int',
       default: 25000,
       env: 'VALIDATION_MAX_PARCEL_COUNT'
