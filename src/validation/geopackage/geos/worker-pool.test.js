@@ -243,6 +243,60 @@ describe('GeosWorkerPool — capacity, checked before the caller does any work',
   })
 })
 
+describe('GeosWorkerPool — admission, reserved before the caller does any work', () => {
+  it('hands out places up to the limit and then refuses', () => {
+    const pool = openPool({ admissionLimit: 2 })
+    expect(pool.admit()).toBeInstanceOf(Function)
+    expect(pool.admit()).toBeInstanceOf(Function)
+    expect(pool.admit()).toBeNull()
+  })
+
+  it('cannot be raced the way hasCapacity() can', () => {
+    // The point of the whole mechanism. Every caller of a synchronised burst
+    // asks while the pool is still empty; hasCapacity() says yes to all of
+    // them, admit() says yes to exactly `admissionLimit` of them.
+    const pool = openPool({ admissionLimit: 3 })
+    const burst = Array.from({ length: 10 }, () => ({
+      capacity: pool.hasCapacity(),
+      place: pool.admit()
+    }))
+    expect(burst.filter((r) => r.capacity)).toHaveLength(10)
+    expect(burst.filter((r) => r.place)).toHaveLength(3)
+  })
+
+  it('gives the place back when released', () => {
+    const pool = openPool({ admissionLimit: 1 })
+    const release = pool.admit()
+    expect(pool.admit()).toBeNull()
+    release()
+    expect(pool.admit()).toBeInstanceOf(Function)
+  })
+
+  it('releases once however many times it is called', () => {
+    // The route releases in a `finally` that can run after an early return has
+    // already released; double-counting here would leak capacity upwards.
+    const pool = openPool({ admissionLimit: 1 })
+    const release = pool.admit()
+    release()
+    release()
+    release()
+    expect(pool.admitted).toBe(0)
+  })
+
+  it('is unbounded when no limit is configured', () => {
+    const pool = openPool()
+    expect(Array.from({ length: 50 }, () => pool.admit()).every(Boolean)).toBe(
+      true
+    )
+  })
+
+  it('refuses once closed', async () => {
+    const pool = openPool({ admissionLimit: 4 })
+    await pool.close()
+    expect(pool.admit()).toBeNull()
+  })
+})
+
 describe('GeosWorkerPool — queue wait limit', () => {
   // Without this bound the worst case is queueLimit x timeoutMs, which is far
   // past any client's patience — and starting work nobody is waiting for helps

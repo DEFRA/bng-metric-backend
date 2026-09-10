@@ -84,7 +84,8 @@ a precondition here, not an optimisation.
 | Setting                               | Default | What it is                                                               |
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
 | `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |       8 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.     |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
@@ -102,6 +103,13 @@ depth limit was never reached, because the budget turns requests away first. So
 `VALIDATION_PARSE_BUDGET_BYTES` is the knob that decides how much load the
 service accepts, and `VALIDATION_WORKER_QUEUE_LIMIT` is the backstop behind it —
 tune them in that order.
+
+**That split is a property of the file sizes in the run, not of the design.**
+A later saturation run (bng-perf-tests 0.12.0) drove bursts of the 143 KB
+fixture and inverted it. The budget charges `~2 MB + 10x file size`, so a small
+file costs ~3.5 MB and roughly 160 of them fit; the depth limit is reached long
+first. The two controls swap roles at around 1 MB of file size, which is why the
+depth limit can no longer be treated as a backstop that never fires.
 
 ### Being busy is a poll, not a failure
 
@@ -278,6 +286,78 @@ it was the best lever a memory-tight task had. That is no longer the trade: the
 queue now costs a path per waiting request, so the limit rations CPU, which is
 what it was always meant to ration.
 
+A waiting request is not entirely free even so. It still holds its **downloaded
+temp file** on disk, and the **admission place** it took before anything was
+fetched — so a deep queue is a claim on temp disk and on
+`VALIDATION_ADMISSION_LIMIT` as well as on the queue array. Neither is heap.
+
+What a waiting request does **not** hold is a **parse-budget reservation**. That
+is taken inside the loader, at the moment the layers come into existence on the
+far side of the pool wait, and released in `runFullValidation`'s `finally` — so
+it is held for exactly as long as the layers are. Charging it up front instead
+made queue depth consume the budget: sixteen queued 704 KB uploads committed
+142 MB between them while holding nothing but a file path, and large uploads
+were refused `memory_budget` because of it.
+
+### Why the depth limit is 20
+
+Eight slots were sized against a file that occupies a worker for seconds. They
+are the wrong size for one that occupies it for milliseconds.
+
+A saturation run (bng-perf-tests 0.12.0, one burst of N concurrent validates per
+rung) put the 143 KB fixture through a one-worker pool. Reading the service time
+off the spread of completion times within each rung — the whole burst finishes
+in a band a few hundred milliseconds wide — a `normal` validation costs
+**20-60 ms**. Eight queue slots is therefore under half a second of work, and
+whether the 9th request in a burst is refused depends on whether it happens to
+land inside that window.
+
+The results show exactly that shape rather than a load curve: bursts of 16, 24,
+32 and 48 refused 1, 5, 2 and 2 requests, while 12, 14 and **64** refused none.
+Sixty-four is the tell — the larger the burst, the more the concurrent S3
+downloads in front of the pool stagger arrivals, so queue depth peaks _lower_.
+Contention upstream was acting as the admission controller.
+
+Twenty slots is ~1-2 s of `normal` work on one worker, comfortably inside
+`VALIDATION_QUEUE_WAIT_LIMIT_MS`, which is the bound that actually decides how
+long anyone waits and is unchanged.
+
+Large files are no longer kept out of those slots by the parse budget. They were
+when the reservation was taken before the queue: at ~43 MB charged each it
+refused at ~12 in flight, so the depth was never reached. Now that a waiter
+charges the budget nothing, twenty 4 MB uploads can sit in the queue together —
+what turns them away is the wait limit, because at ~1.5 s of work each anything
+queued more than about three deep is refused `queue_wait` before a worker ever
+reaches it.
+
+Twenty rather than more, for that reason: the wait limit already caps the USEFUL
+depth at `5000 / service time` — about 16 for `busy` and 3 for `large`. Slots
+past ~17 can only ever be taken by small files, so a larger number buys headroom
+for one size while every size pays for it in temp disk and blast radius.
+
+### Admission is a reservation, not a check
+
+`hasCapacity()` was the only thing standing in front of the S3 download, and
+against a synchronised burst it stands in front of nothing: it is a CHECK, so
+every thread of the burst asks while the pool is still empty, all of them are
+told yes, and all of them download. The refusal then lands at `pool.run()`,
+after the download the check exists to avoid. The same saturation run measures
+it — at a burst of 24 the fastest sample was 2,104 ms against a 2,571 ms mean,
+so not one request was refused cheaply.
+
+`GeosWorkerPool.admit()` is the fix: it moves a counter _before_ answering, so
+the tenth caller of a burst sees the first nine. The route takes a place before
+fetching anything and releases it in a `finally`, and a refusal is
+`admission_full` — the only busy reason a burst cannot race past.
+
+What it bounds is requests **in flight**, admission through to response, which
+is mostly time spent on S3 rather than on a worker. `VALIDATION_ADMISSION_LIMIT`
+is therefore its own setting at **64**, not the queue depth: admission bounds
+I/O where the queue bounds CPU, and sizing it down to `workers + queueLimit`
+would have refused ~43 of a 64-deep `normal` burst that the service is measured
+to serve completely. The residue is that between 21 and 64 in flight a request
+can still download and then be refused; below 21 and above 64 it cannot.
+
 ### Refusing on size, before the read
 
 The section above describes a ceiling nothing enforced. The order of work was
@@ -293,10 +373,21 @@ Fargate, with no swap to absorb the peak, that is an OOM kill rather than a slow
 patch: the task dies and takes every in-flight upload with it.
 
 The fix is to decide from the **file size**, which the uploader reports before
-the file is opened. `parse-budget.js` holds a process-wide byte budget; the
-route reserves an estimated parse cost against it before downloading, and
-releases it once the response is built. A file that does not fit gets the same
-503 + `Retry-After` a full queue gives, having cost nothing.
+the file is opened. `parse-budget.js` holds a process-wide byte budget, and the
+route consults it three times. Twice it only ASKS — `hasRoomFor`, once before
+the file is fetched from S3, and again before the gate in case the budget went
+while the file was streaming. Either way the answer is the same 503 +
+`Retry-After` a full queue gives: refused at the first, the file has cost
+nothing; at the second, one download and no worker. The RESERVATION comes last,
+in the loader that unpacks the layers on the far side of the pool wait, and is
+released in `runFullValidation`'s `finally` once the response is built.
+
+Reserving there rather than up front is what keeps queue depth off the budget.
+Charged at admission, a waiting request paid the full unpack estimate for work
+it had not started and might never start, and queue depth ate memory that files
+actually being parsed needed. Held from the unpack to the response, the budget
+rations the files being **unpacked at once** — which is the thing it is named
+for and the thing that costs heap.
 
 The estimate is **2 MB fixed + 10x the file size**, fitted to what one _more_
 concurrent unpack costs rather than the first — a single read pays for process
@@ -329,11 +420,13 @@ Two properties are deliberate:
   in flight there is no one to wait for, so refusing would mean that file could
   never be validated at all — a permanent failure dressed as back-pressure. The
   worker timeout is what catches a file genuinely too big to handle.
-- **The check before the download is advisory; the reservation re-checks.**
+- **The checks before the unpack are advisory; the reservation re-checks.**
   Another request can take the last of the budget while this one is streaming
-  its file out of S3, so the reservation can still refuse — and answers with the
-  same 503 rather than an error. Exactly the contract `hasCapacity()` already
-  has with the pool.
+  its file out of S3 or waiting for a worker, so the reservation can still
+  refuse — and answers with the same 503 rather than an error. Exactly the
+  contract `hasCapacity()` already has with the pool. The residue of deferring
+  it is that such a refusal is now the expensive kind: the file has been
+  downloaded and a worker slot has been waited for by the time it lands.
 
 It counts reservations rather than sampling RSS on purpose. RSS lags, and it
 never falls back to where it started — V8 keeps its heap reserved and glibc
@@ -395,12 +488,12 @@ continuity across the engine change — see `metric-names.js`.)
 
 **Is it turning people away?** `GeoPackageValidationBusy`, sliced by `reason`:
 
-| `reason`        | Means                                                          | Remedy                                                                                                                                                              |
-| --------------- | -------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                                                                                    |
-| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                                                                           |
-| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                                                                              |
-| `memory_budget` | The parse budget was committed to other files in flight.       | The usual reason to be refused — 310 of 316 in a full run. Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower the queue limit. |
+| `reason`        | Means                                                          | Remedy                                                                                                                                                                                                                                                   |
+| --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                                                                                                                                                                         |
+| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                                                                                                                                                                |
+| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                                                                                                                                                                   |
+| `memory_budget` | The parse budget was committed to other files being unpacked.  | The usual reason to be refused — 310 of 316 in a full run. Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower `VALIDATION_WORKER_COUNT`; the queue limit no longer moves this, since a waiter holds no reservation. |
 
 Counted apart from `GeoPackageValidationFailed`, because the file was never
 looked at — a busy spike is a capacity story, not a data-quality one, and mixing
