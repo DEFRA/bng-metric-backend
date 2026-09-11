@@ -289,9 +289,8 @@ raised independently if needed. Two things decide what a size buys:
 - **workers = `max(1, min(VALIDATION_WORKER_COUNT, vCPUs - 1))`.** The count
   changes only at 3 vCPUs, and never again while `VALIDATION_WORKER_COUNT` is 2
   — at 4 or 8 vCPUs the extra cores go unused by the pool.
-- **RSS is roughly flat in vCPUs but rises with workers**, at around 90 MB of
-  base plus what each of the `1 + workers` isolates retains plus ~23 MB of
-  WebAssembly per worker.
+- **RSS rises with workers, not with vCPUs.** Buying cores costs nothing in
+  memory until one of them adds a worker.
 
 Measured against the 13 MB, 11,554-parcel survey from BMD-869:
 
@@ -318,19 +317,18 @@ Two conclusions follow, and the second is the one that surprises:
    workload.
 
 `VALIDATION_MAX_RSS_BYTES` is still worth setting as a backstop, because it is
-the only control that sees the memory the parse budget cannot — native
-allocations and the isolates' retained heaps. Set it below the container limit
-by one request's worth:
+the only control that sees memory the parse budget cannot — native allocations
+and the isolates' retained heaps. It is insurance rather than tuning, so err
+high: it gates EVERY route including `/health`, and a limit low enough to trip
+turns memory pressure into failed liveness probes. Somewhere under the container
+limit and well clear of the peak above — roughly 1.6 GB on a 2 GB container,
+3.5 GB on 4 GB, 5 GB on 6 GB. `BackendProcessResidentMb` reports the real figure
+in production, so set it from observed p99 rather than from this page.
 
-```
-VALIDATION_MAX_RSS_BYTES  =  container memory  -  (2 MB + 10 x largest file served)  -  margin
-```
-
-which for the 13 MB file gives roughly 1.6 GB on a 2 GB container, 3.5 GB on
-4 GB, 5.5 GB on 6 GB. Note that at the 100 MB `UPLOAD_MAX_FILE_SIZE_BYTES`
-default the same formula asks for 1,002 MB of headroom and does not fit a 2 GB
-container at all — size it against the largest file you intend to serve, not the
-largest the uploader will accept.
+One trap worth knowing: the headroom has to fit the largest file you intend to
+serve, not the largest `UPLOAD_MAX_FILE_SIZE_BYTES` accepts. At its 100 MB
+default the parse budget would want 1,002 MB for a single unpack, which does not
+fit a 2 GB container at all.
 
 Measured on a 5,000-parcel fixture, as whole-process RSS:
 
@@ -355,39 +353,11 @@ easy to get wrong:
   stops climbing — so the timeout and crash paths are safe, but there is no point
   building a "restart every N jobs" mechanism, because it would buy nothing.
 
-**Check the ECS task memory limit before raising `VALIDATION_WORKER_COUNT`.**
-With the cap in place the sum is arithmetic rather than guesswork:
-
-```
-RSS_steady  ~=  BASE  +  (1 + W) x RETAINED  +  W x WASM
-
-  BASE     ~=  90 MB   Node, Hapi, reference data, GEOS loaded   (measured)
-  W         =  workers actually running: max(1, min(VALIDATION_WORKER_COUNT, vCPUs - 1))
-  1 + W     =  isolates — one per worker, PLUS the main thread, which parses too
-  RETAINED  =  what each isolate keeps. NOT a constant: bounded by the process
-               heap ceiling, and with no ceiling V8 picks one from host RAM
-  WASM     ~=  23 MB per worker, for a 13 MB file
-```
-
-`RETAINED` is the term to control and `--max-old-space-size` controls it, for
-every isolate at once since workers inherit. Uncapped it is whatever V8 chooses;
-at 448 MB the whole process settled at 673 MB under a five-deep burst.
-
-Then leave room for the request that has not started yet, using the parse
-budget's own estimate so the two controls agree instead of each inventing a
-number:
-
-```
-VALIDATION_MAX_RSS_BYTES  =  task limit  -  (2 MB + 10 x largest file served)  -  margin
-```
-
-The scaling term is **(1 + W), not W**: another worker is another isolate _and_
-more demand on the main thread, which runs the gate and two of the three parses.
-
-Note what that second line says about `UPLOAD_MAX_FILE_SIZE_BYTES`. At its 100 MB
-default the parse budget estimates 1,002 MB to unpack one file, which does not
-fit a 2 GB task at all — so size the headroom against the largest file you
-actually intend to serve. For the 13 MB survey above it is 133 MB.
+**Check the container memory before raising `VALIDATION_WORKER_COUNT`.** A worker
+costs ~23 MB of WebAssembly plus whatever its V8 isolate retains, and the main
+thread counts as an isolate too — it runs the gate and two of the three parses.
+So the cost scales with `1 + workers`, not `workers`. The sizing table above has
+the measured figure for each CDP size; at 2 GB per vCPU none of them is close.
 
 ### What a deep queue costs
 
