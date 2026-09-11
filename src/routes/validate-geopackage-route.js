@@ -17,6 +17,7 @@ import {
 } from '../validation/geopackage/geopackage.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
+import { validationPoolOptions } from '../validation/geopackage/geos/pool-options.js'
 import {
   getGeosWorkerPool,
   ValidationQueueFullError,
@@ -209,13 +210,10 @@ async function respondToGateRejection(gateResult, uploadId, h, config) {
  * invite the user to go and edit a file that is perfectly fine.
  */
 function validationPool() {
-  return getGeosWorkerPool({
-    size: appConfig.get('validation.workerCount'),
-    queueLimit: appConfig.get('validation.workerQueueLimit'),
-    timeoutMs: appConfig.get('validation.workerTimeoutMs'),
-    queueWaitLimitMs: appConfig.get('validation.queueWaitLimitMs'),
-    admissionLimit: appConfig.get('validation.admissionLimit')
-  })
+  // Options come from validationPoolOptions() rather than being read here, so
+  // this call site and the one in validation/geopackage/index.js cannot drift
+  // apart again — the pool is a singleton and whichever asks first wins.
+  return getGeosWorkerPool(validationPoolOptions())
 }
 
 /**

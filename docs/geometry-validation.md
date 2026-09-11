@@ -81,15 +81,15 @@ Four timer ticks in 694 ms is the whole story: run inline, the loop gets almost
 no turns and the process serves nothing else for the duration. Worker threads are
 a precondition here, not an optimisation.
 
-| Setting                               | Default | What it is                                                               |
-| ------------------------------------- | ------: | ------------------------------------------------------------------------ |
-| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.     |
-| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
+| Setting                               | Default | What it is                                                                |
+| ------------------------------------- | ------: | ------------------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`. No effect below 3 vCPUs. |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.      |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.        |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                      |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.             |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below.  |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                      |
 
 The pool cap is **half** the admission control: it rations CPU, which is the
 same protective bounding the connection pool used to provide, except on a
@@ -229,17 +229,106 @@ takes seconds.
 
 ### Memory is why the pool is small
 
-WebAssembly linear memory grows to the high-water mark of the work done and is
-never handed back, so a worker that has validated one large file keeps that
-footprint for the rest of its life. Worker threads live in the SAME process as
-the server, so this counts against the same container limit — it is not budget
-that sits somewhere else.
+A worker that has validated one large file keeps that footprint for the rest of
+its life. Worker threads live in the SAME process as the server, so this counts
+against the same container limit — it is not budget that sits somewhere else.
 
-**RSS** here and throughout is resident set size — the memory the process holds
-in physical RAM. It counts the V8 heap, better-sqlite3's native allocations, the
-workers' WebAssembly heaps and the allocator's arenas alike, and it is what the
-task memory limit and the OOM killer read; a JavaScript heap figure sees only
-the first of those.
+**It is the V8 heap that does this, not WebAssembly.** That attribution was
+wrong here for a while and it matters, because the two have different remedies.
+Measured with `Module.HEAPU8.byteLength`, which _is_ the high-water mark since
+linear memory only ever grows:
+
+| WebAssembly heap                  |       |
+| --------------------------------- | ----: |
+| GEOS loaded, nothing validated    | 16 MB |
+| after a 13 MB, 11,554-parcel file | 23 MB |
+| after three more runs of it       | 23 MB |
+
+Twenty-three megabytes, flat, and a forced GC does not change it. The rest of
+the growth is the V8 heap on either side of the thread boundary, holding the
+GeoJSON object graph a parse produces — and it is retained not because anything
+leaks but because **each worker thread is its own V8 isolate, and without
+`resourceLimits` its old space is sized from HOST RAM**: 2,240 MB on an 8 GB
+box, more on a bigger one. V8 has no reason to collect while its ceiling is two
+gigabytes away, which is exactly what "RSS never comes back down" looks like.
+
+Which isolate holds it matters, because only one of them is worth capping.
+Whole-process RSS on a five-deep burst of that 13 MB file, median of three:
+
+| ceiling                                |   peak RSS |
+| -------------------------------------- | ---------: |
+| nothing capped                         |     890 MB |
+| a 512 MB ceiling on the WORKERS only   |     980 MB |
+| a 128 MB ceiling on the WORKERS only   |     964 MB |
+| main thread `--max-old-space-size=448` | **673 MB** |
+| both                                   |     699 MB |
+
+**Capping the workers does nothing; capping the main thread is worth ~220 MB.**
+That reads backwards until you count the parses: the route runs THREE on the
+main thread — the gate, the `properties` read and the `serialised` read for
+persistence — where a worker runs one. Most of what a parse holds is external
+buffers rather than old space, which a `maxOldGenerationSizeMb` does not govern
+anyway.
+
+So there is no per-worker memory setting, deliberately. Workers are created
+WITHOUT `resourceLimits` so they inherit the process ceiling, which makes
+`NODE_OPTIONS=--max-old-space-size=<MB>` one number governing every isolate at
+once. Nothing sets it today, so V8 sizes old space from host RAM — 2,240 MB per
+isolate on an 8 GB box. That is worth fixing when memory is tight, and as the
+table below shows, on CDP it usually is not.
+
+The peak live heap a validation needs scales at roughly **10x the file size**
+(4 MB file → 57 MB, 9 MB → 109 MB, 13 MB → 144 MB) — the same ratio
+`VALIDATION_PARSE_BUDGET_BYTES` already charges, arrived at independently.
+
+### Sizing a CDP container
+
+CDP Fargate offers 1 to 8 vCPUs at 2 GB of memory each, and the memory can be
+raised independently if needed. Two things decide what a size buys:
+
+- **workers = `max(1, min(VALIDATION_WORKER_COUNT, vCPUs - 1))`.** The count
+  changes only at 3 vCPUs, and never again while `VALIDATION_WORKER_COUNT` is 2
+  — at 4 or 8 vCPUs the extra cores go unused by the pool.
+- **RSS rises with workers, not with vCPUs.** Buying cores costs nothing in
+  memory until one of them adds a worker.
+
+Measured against the 13 MB, 11,554-parcel survey from BMD-869:
+
+| vCPU / memory | Workers | Sustained rate | Simultaneous before a 503 |  Peak RSS | Headroom |
+| ------------- | ------: | -------------: | ------------------------: | --------: | -------: |
+| 1 / 2 GB      |       1 |       46 / min |                    5 to 6 |   ~980 MB |      48% |
+| 2 / 4 GB      |       1 |       61 / min |                    6 to 7 |   ~890 MB |      22% |
+| 3 / 6 GB      |       2 |   ~100 / min\* |                     ~12\* | ~1.2 GB\* |     ~20% |
+| 4 / 8 GB      |       2 |    no change\* |                 no change |         — |        — |
+
+\* Extrapolated. Rates and concurrency for 1 and 2 vCPUs are measured; 3 vCPUs
+is projected from how two concurrent GEOS jobs share two cores (78% efficiency
+each, so ~1.6x, rising toward 2x once they have a core apiece).
+
+Two conclusions follow, and the second is the one that surprises:
+
+1. **3 vCPUs is the step that buys capacity.** It is where the pool finally gets
+   its second worker. Going to 4 or 8 without also raising
+   `VALIDATION_WORKER_COUNT` buys nothing at all.
+2. **At 2 GB per vCPU, memory is not the binding constraint — CPU is.** Even the
+   smallest container runs the largest file we have at under half its memory.
+   So `--max-old-space-size` is worth setting for predictability rather than
+   survival, and the memory-per-CPU ratio does not need raising for this
+   workload.
+
+`VALIDATION_MAX_RSS_BYTES` is still worth setting as a backstop, because it is
+the only control that sees memory the parse budget cannot — native allocations
+and the isolates' retained heaps. It is insurance rather than tuning, so err
+high: it gates EVERY route including `/health`, and a limit low enough to trip
+turns memory pressure into failed liveness probes. Somewhere under the container
+limit and well clear of the peak above — roughly 1.6 GB on a 2 GB container,
+3.5 GB on 4 GB, 5 GB on 6 GB. `BackendProcessResidentMb` reports the real figure
+in production, so set it from observed p99 rather than from this page.
+
+One trap worth knowing: the headroom has to fit the largest file you intend to
+serve, not the largest `UPLOAD_MAX_FILE_SIZE_BYTES` accepts. At its 100 MB
+default the parse budget would want 1,002 MB for a single unpack, which does not
+fit a 2 GB container at all.
 
 Measured on a 5,000-parcel fixture, as whole-process RSS:
 
@@ -250,23 +339,25 @@ Measured on a 5,000-parcel fixture, as whole-process RSS:
 | 2 workers, after one validation each   |                            339 MB |
 | 2 workers, after five validations each | **565 MB** (flat from the fourth) |
 
-So roughly **250 MB per worker**, plateauing rather than leaking. Two properties
-follow, and both are easy to get wrong:
+So roughly **250 MB per worker** at the uncapped default those figures were
+taken under, plateauing rather than leaking. Two properties follow, and both are
+easy to get wrong:
 
 - **It is the LARGEST file a worker has ever seen that sets its footprint, not
   the average.** Most real submissions are tens of features and would settle far
-  lower — but one 5,000-parcel upload pins that worker at ~250 MB permanently.
-  Size the pool for the worst file you accept, not the typical one.
+  lower — but one 5,000-parcel upload pins that worker at its high-water mark
+  permanently. Size the pool for the worst file you accept, not the typical one.
 - **Recycling workers would not reclaim it.** Killing a worker and starting a
   fresh one does not return the memory to the OS; the replacement reuses the
   pages. Measured over six kill-and-restart cycles, RSS settles at ~279 MB and
   stops climbing — so the timeout and crash paths are safe, but there is no point
   building a "restart every N jobs" mechanism, because it would buy nothing.
 
-**Check the ECS task memory limit before raising `VALIDATION_WORKER_COUNT`.** The
-default of 2 wants roughly 565 MB of headroom on top of Node's own baseline and
-the parsed layers in-flight uploads hold. At a 2 GB task that is comfortable; at
-1 GB it is one worker at most.
+**Check the container memory before raising `VALIDATION_WORKER_COUNT`.** A worker
+costs ~23 MB of WebAssembly plus whatever its V8 isolate retains, and the main
+thread counts as an isolate too — it runs the gate and two of the three parses.
+So the cost scales with `1 + workers`, not `workers`. The sizing table above has
+the measured figure for each CDP size; at 2 GB per vCPU none of them is close.
 
 ### What a deep queue costs
 

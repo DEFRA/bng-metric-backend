@@ -11,9 +11,11 @@
  *
  * Four properties the pool has to have, and none of them are optional:
  *
- *  - a FIXED, small size. WebAssembly linear memory grows to its high-water
- *    mark and is never returned, so each worker settles at a few hundred MB
- *    after a large file. Workers are a memory budget, not a throughput dial.
+ *  - a FIXED, small size. A worker is CPU that the instance has to have: the
+ *    count is capped at cores - 1 for that reason, so the setting does nothing
+ *    below three vCPUs. It costs memory too, though less than once thought —
+ *    ~23 MB of WebAssembly heap plus whatever its V8 isolate retains, which is
+ *    governed by the process heap ceiling rather than by the worker itself.
  *  - a BOUNDED queue. An unbounded one converts a traffic spike into a growing
  *    backlog of requests that have already timed out at the client.
  *  - a per-job TIMEOUT that kills the worker. A wedged GEOS call cannot be
@@ -226,9 +228,20 @@ export class GeosWorkerPool {
     }
   }
 
-  /** Start one worker and register its lifecycle handlers. */
+  /**
+   * Start one worker and register its lifecycle handlers.
+   *
+   * Deliberately no `resourceLimits`. A worker thread gets its own V8 isolate,
+   * and left alone it INHERITS the process ceiling — so `--max-old-space-size`
+   * governs every isolate at once and there is one number to reason about
+   * rather than two. Setting a separate per-worker limit here was measured and
+   * changed whole-process RSS by nothing: the main thread runs three parses
+   * where a worker runs one, and most of what a parse holds is external buffers
+   * rather than old space. See the memory section of docs/geometry-validation.md.
+   */
   spawn() {
-    const record = { worker: new Worker(WORKER_PATH), job: null, timer: null }
+    const worker = new Worker(WORKER_PATH)
+    const record = { worker, job: null, timer: null }
     record.worker.on('message', (message) => this.onMessage(record, message))
     record.worker.on('error', (error) => this.onExit(record, error))
     record.worker.on('exit', () => this.onExit(record, null))
