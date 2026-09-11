@@ -133,7 +133,7 @@ validation failure.
 
 | Setting                               | Default | Notes                                                            |
 | :------------------------------------ | ------: | :--------------------------------------------------------------- |
-| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
+| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. Nothing below 3 vCPUs.   |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                   |
 | `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |

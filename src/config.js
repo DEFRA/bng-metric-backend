@@ -228,7 +228,7 @@ const config = convict({
   },
   validation: {
     workerCount: {
-      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1. Each worker settles at ~250 MB of WebAssembly heap after a large file and never gives it back, so this is a memory budget as much as a throughput setting — check the ECS task memory limit before raising it.',
+      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1, so the setting does nothing below 3 vCPUs and nothing above this value however many cores there are. Also a memory setting, though less than it looks: a worker adds only ~23 MB of WebAssembly heap, and measurement shows the main thread holds most of the rest — it runs three parses where a worker runs one. Check the container memory against the sizing table in docs/geometry-validation.md before raising this.',
       format: 'int',
       default: 2,
       env: 'VALIDATION_WORKER_COUNT'
@@ -258,7 +258,7 @@ const config = convict({
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
     parseBudgetBytes: {
-      doc: 'Byte budget rationed across the GeoPackages being UNPACKED at once, and the primary load shed: tune it before VALIDATION_WORKER_QUEUE_LIMIT, which is only the backstop behind it. Each upload is charged an ESTIMATE of its unpack cost — 2 MB + 10x the file size — so these are credit-bytes rather than heap-bytes; docs/geometry-validation.md carries the measurements behind the ratio. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
+      doc: 'Byte budget rationed across the GeoPackages being UNPACKED at once, and the primary load shed: tune it before VALIDATION_WORKER_QUEUE_LIMIT, which is only the backstop behind it. Each upload is charged an ESTIMATE of its unpack cost — 2 MB + 10x the file size — so these are credit-bytes rather than heap-bytes; docs/geometry-validation.md carries the measurements behind the ratio. Size it against the container memory together with VALIDATION_WORKER_COUNT, which sets the floor the budget sits on top of — docs/geometry-validation.md has a table per CDP container size.',
       format: 'int',
       default: 576716800,
       env: 'VALIDATION_PARSE_BUDGET_BYTES'

@@ -3,7 +3,6 @@ import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readGeoPackage } from './geopackage.js'
 import { FEATURE_READ_MODE } from './read-feature-tables.js'
-import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import {
   logPerf,
@@ -11,6 +10,7 @@ import {
   perfNow
 } from '../../common/helpers/perf-evidence.js'
 import { getGeosWorkerPool } from './geos/worker-pool.js'
+import { validationPoolOptions } from './geos/pool-options.js'
 
 const logger = createLogger()
 
@@ -23,11 +23,7 @@ const logger = createLogger()
  * test, a one-off script — never pays for the workers.
  */
 function workerPool() {
-  return getGeosWorkerPool({
-    size: config.get('validation.workerCount'),
-    queueLimit: config.get('validation.workerQueueLimit'),
-    timeoutMs: config.get('validation.workerTimeoutMs')
-  })
+  return getGeosWorkerPool(validationPoolOptions())
 }
 
 /**
