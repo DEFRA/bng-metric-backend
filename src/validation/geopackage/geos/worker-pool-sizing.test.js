@@ -1,6 +1,18 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { resolveWorkerCount } from './worker-pool.js'
+import { logSizing, resolveWorkerCount } from './worker-pool.js'
+
+/**
+ * Held in a hoisted object, like `instance` below, so the suite keeps its own
+ * reference to the very logger worker-pool.js captured at import time — the
+ * module-level `createLogger()` runs once, and `restoreAllMocks` must not be
+ * able to take the spies away from underneath it.
+ */
+const log = vi.hoisted(() => ({ info: vi.fn(), warn: vi.fn() }))
+
+vi.mock('../../../common/helpers/logging/logger.js', () => ({
+  createLogger: () => log
+}))
 
 /**
  * Sizing is tested apart from the rest of the pool because it is the one part
@@ -34,6 +46,8 @@ function given({ cores, hostMemoryBytes = AMPLE_MEMORY, taskMemoryBytes = 0 }) {
 
 afterEach(() => {
   vi.restoreAllMocks()
+  log.info.mockClear()
+  log.warn.mockClear()
 })
 
 describe('resolveWorkerCount — auto-sizing', () => {
@@ -91,6 +105,18 @@ describe('resolveWorkerCount — an explicit setting', () => {
   })
 })
 
+describe('resolveWorkerCount — a value that is not a number', () => {
+  it('auto-sizes on a NaN rather than pinning the pool to no workers', () => {
+    // A malformed VALIDATION_WORKER_COUNT must not be the difference between a
+    // working instance and one that validates nothing.
+    given({ cores: 4 })
+    expect(resolveWorkerCount(Number.NaN)).toMatchObject({
+      size: 3,
+      auto: true
+    })
+  })
+})
+
 describe('resolveWorkerCount — which memory figure it believes', () => {
   it("prefers the container's limit over the host's RAM", () => {
     given({
@@ -104,5 +130,33 @@ describe('resolveWorkerCount — which memory figure it believes', () => {
   it('falls back to the host when the process is under no limit', () => {
     given({ cores: AMPLE_CORES, hostMemoryBytes: 2 * GB, taskMemoryBytes: 0 })
     expect(resolveWorkerCount(AUTO).size).toBe(2)
+  })
+})
+
+describe('logSizing — which budget it reports as binding', () => {
+  it('warns when memory holds the pool below the cores it was given', () => {
+    // The provisioning mistake this exists to surface: vCPU the task has not
+    // been given the memory to use.
+    given({ cores: AMPLE_CORES, hostMemoryBytes: 1 * GB })
+    const sizing = resolveWorkerCount(AUTO)
+
+    logSizing(sizing.size, sizing)
+
+    expect(log.warn).toHaveBeenCalledWith(
+      expect.stringContaining('by MEMORY, not cpu')
+    )
+    expect(log.info).not.toHaveBeenCalled()
+  })
+
+  it('logs at info when the cores are the binding budget', () => {
+    given({ cores: 4 })
+    const sizing = resolveWorkerCount(AUTO)
+
+    logSizing(sizing.size, sizing)
+
+    expect(log.info).toHaveBeenCalledWith(
+      expect.stringContaining('geos worker pool sized to 3 worker(s)')
+    )
+    expect(log.warn).not.toHaveBeenCalled()
   })
 })

@@ -74,7 +74,8 @@ const BYTES_PER_MB = 1024 * 1024
  * per worker rather than a peak — and it is charged against the SAME container
  * limit as the server, because workers are threads in this process.
  */
-const WORKER_RSS_BYTES = 250 * BYTES_PER_MB
+const WORKER_RSS_MB = 250
+const WORKER_RSS_BYTES = WORKER_RSS_MB * BYTES_PER_MB
 
 /**
  * Share of the task's memory the worker heaps may claim.
@@ -131,9 +132,10 @@ export function resolveWorkerCount(requested) {
     1,
     Math.floor((taskMemoryBytes() * WORKER_MEMORY_SHARE) / WORKER_RSS_BYTES)
   )
-  // Negated rather than `requested <= AUTO_SIZE` so a NaN — a malformed
-  // environment variable — auto-sizes instead of resolving to no workers.
-  const auto = !(requested > AUTO_SIZE)
+  // The finite check carries its weight: a bare `requested <= AUTO_SIZE` is
+  // FALSE for a NaN — a malformed environment variable — which would pin the
+  // pool to no workers at all. Anything not a real number auto-sizes instead.
+  const auto = !Number.isFinite(requested) || requested <= AUTO_SIZE
   const wanted = auto ? cpuBudget : requested
   return {
     size: Math.min(wanted, cpuBudget, memoryBudget),
@@ -152,8 +154,13 @@ export function resolveWorkerCount(requested) {
  * instance size is. Being bound by MEMORY is warned rather than logged: it means
  * the task cannot carry the CPU it has been given, which is a provisioning
  * mistake worth seeing without going looking.
+ *
+ * Exported so the memory-bound branch can be asserted without standing up a
+ * pool: the only way to reach it through the constructor is to spawn real
+ * worker threads, which is a different suite and a far heavier way to check
+ * which way round a log line goes.
  */
-function logSizing(size, { cpuBudget, memoryBudget, auto }) {
+export function logSizing(size, { cpuBudget, memoryBudget, auto }) {
   const taskMemoryMb = Math.round(taskMemoryBytes() / BYTES_PER_MB)
   const detail =
     `${auto ? 'auto-sized' : 'requested'} — cpu budget ${cpuBudget} ` +
