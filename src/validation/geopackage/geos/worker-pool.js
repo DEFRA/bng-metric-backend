@@ -84,11 +84,40 @@ export class ValidationQueueWaitError extends Error {
   }
 }
 
-/** Error thrown when a job outlives its timeout and its worker was killed. */
+/**
+ * Error thrown when a job outlives its timeout and its worker was killed.
+ *
+ * Carries what the pool looked like at the moment it fired, because that is the
+ * only evidence available for the question the route has to answer: was this
+ * file too slow, or was the box too busy to finish it? Nobody downstream can
+ * reconstruct it — by the time the rejection is handled the pool has moved on —
+ * so it is stamped here.
+ */
 export class ValidationTimeoutError extends Error {
-  constructor(timeoutMs) {
+  /**
+   * @param {number} timeoutMs the budget that was overrun
+   * @param {{ queueDepth: number, busyWorkers: number }} pressure pool state
+   *   when the timer fired. `busyWorkers` counts the timed-out job's own worker,
+   *   so anything above one means it was sharing the machine.
+   */
+  constructor(timeoutMs, pressure = { queueDepth: 0, busyWorkers: 1 }) {
     super(`Geometry validation exceeded ${timeoutMs} ms`)
     this.name = 'ValidationTimeoutError'
+    this.queueDepth = pressure.queueDepth
+    this.busyWorkers = pressure.busyWorkers
+  }
+
+  /**
+   * Was anything else competing for the machine while this job ran?
+   *
+   * A job that overran with the pool otherwise EMPTY had the box to itself, so
+   * the budget is the ceiling for this file and a retry would only reproduce the
+   * failure. A job that overran alongside other work may well pass once the pool
+   * drains, and is the case worth retrying. The two need different answers to
+   * the user, which is the whole reason this is recorded.
+   */
+  get contended() {
+    return this.queueDepth > 0 || this.busyWorkers > 1
   }
 }
 
@@ -349,9 +378,16 @@ export class GeosWorkerPool {
       return
     }
     job.settled = true
-    job.reject(new ValidationTimeoutError(this.timeoutMs))
+    // Read before terminating: `onExit` empties the record, and the whole point
+    // of these two numbers is what the pool looked like WHILE the job ran.
+    const pressure = {
+      queueDepth: this.queue.length,
+      busyWorkers: this.workers.size - this.idle.length
+    }
+    job.reject(new ValidationTimeoutError(this.timeoutMs, pressure))
     logger.error(
-      `geos validation exceeded ${this.timeoutMs} ms for ${job.filePath} — terminating the worker`
+      `geos validation exceeded ${this.timeoutMs} ms for ${job.filePath} — terminating the worker ` +
+        `(queue depth ${pressure.queueDepth}, ${pressure.busyWorkers} of ${this.size} workers busy)`
     )
     count(VALIDATION_METRIC.workerTimeouts)
     record.worker.terminate()

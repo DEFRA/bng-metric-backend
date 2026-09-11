@@ -363,3 +363,32 @@ describe('getGeosWorkerPool', () => {
     await expect(closeGeosWorkerPool()).resolves.toBeUndefined()
   })
 })
+
+// The route answers a timeout two different ways, and this flag is the only
+// thing it has to tell them apart — so it is asserted on its own rather than
+// only through a pool run, where reproducing "exactly one worker, nothing
+// queued" versus "something else in flight" would be a race.
+describe('ValidationTimeoutError — contention', () => {
+  const timeout = (pressure) => new ValidationTimeoutError(5000, pressure)
+
+  it('is not contended when the job had the pool to itself', () => {
+    // One busy worker is the timed-out job's own.
+    expect(timeout({ queueDepth: 0, busyWorkers: 1 }).contended).toBe(false)
+  })
+
+  it('is contended when something was waiting behind it', () => {
+    expect(timeout({ queueDepth: 1, busyWorkers: 1 }).contended).toBe(true)
+  })
+
+  it('is contended when another worker was running a job as well', () => {
+    expect(timeout({ queueDepth: 0, busyWorkers: 2 }).contended).toBe(true)
+  })
+
+  it('defaults to uncontended, so a caller that says nothing is not retried', () => {
+    expect(new ValidationTimeoutError(5000).contended).toBe(false)
+  })
+
+  it('still reports the budget it overran', () => {
+    expect(timeout({ queueDepth: 0, busyWorkers: 1 }).message).toContain('5000')
+  })
+})

@@ -4,7 +4,10 @@ import { PgDialect } from 'drizzle-orm/pg-core'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
-import { ValidationQueueFullError } from '../validation/geopackage/geos/worker-pool.js'
+import {
+  ValidationQueueFullError,
+  ValidationTimeoutError
+} from '../validation/geopackage/geos/worker-pool.js'
 import {
   getParseBudget,
   resetParseBudget
@@ -498,6 +501,150 @@ describe('validateBaseline handler — service busy', () => {
       h
     )
     expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+})
+
+/** A killed job, with the pool state that decides how it is answered. */
+function timeoutRejection({ queueDepth, busyWorkers }) {
+  const timedOut = new ValidationTimeoutError(5000, { queueDepth, busyWorkers })
+  vi.mocked(validateGeoPackageLayers).mockRejectedValue(timedOut)
+}
+
+// The one capacity failure discovered AFTER the work started, and the only one
+// whose answer depends on what else was happening at the time. Sharing the pool
+// is a capacity problem a retry can fix; having it to yourself and still
+// overrunning is the file's ceiling, and retrying that re-feeds a pathological
+// file to the pool for two minutes.
+describe('validateBaseline handler — timed out while sharing the pool', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    timeoutRejection({ queueDepth: 3, busyWorkers: 1 })
+  })
+
+  it('answers 503 rather than 500, so the caller may retry', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(503)
+  })
+
+  it('reports VALIDATION_BUSY, because nothing was learned about the file', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [expect.objectContaining({ code: ERROR_CODES.VALIDATION_BUSY })]
+    })
+  })
+
+  it('tells the caller when to come back, from config', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.header).toHaveBeenCalledWith(
+      'Retry-After',
+      String(config.get('validation.busyRetryAfterSeconds'))
+    )
+  })
+
+  // Its own reason, not folded in with the queue: this is the only one that
+  // costs a worker restart, so a dashboard has to be able to tell it apart.
+  it('counts the refusal under its own reason', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).toHaveBeenCalledWith('GeoPackageValidationBusy', 1, {
+      reason: 'worker_timeout'
+    })
+  })
+
+  it('does not count it as a validation failure — the file was never judged', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      'GeoPackageValidationFailed',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  it('does not persist anything', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+    expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+
+  it('treats a second busy worker as contention too, not just a queue', async () => {
+    timeoutRejection({ queueDepth: 0, busyWorkers: 2 })
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(503)
+  })
+})
+
+// The other half of the same condition, and the reason it cannot simply be
+// reclassified as busy: nothing was competing, so the budget is this file's
+// ceiling and every retry would burn another whole budget of worker time and
+// another worker restart. It has to stay a 500.
+describe('validateBaseline handler — timed out with the pool to itself', () => {
+  let h
+  let drizzleHarness
+
+  beforeEach(() => {
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    timeoutRejection({ queueDepth: 0, busyWorkers: 1 })
+  })
+
+  it('answers 500, so the frontend does not retry it', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(500)
+  })
+
+  it('reports VALIDATION_FAILED rather than VALIDATION_BUSY', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [expect.objectContaining({ code: ERROR_CODES.VALIDATION_FAILED })]
+    })
+  })
+
+  it('is not counted as a busy refusal', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      'GeoPackageValidationBusy',
+      expect.anything(),
+      expect.anything()
+    )
   })
 })
 

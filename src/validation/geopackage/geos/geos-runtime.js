@@ -39,6 +39,13 @@ const HEAPF64_SHIFT = 3
 const HEAPU32_SHIFT = 2
 
 /**
+ * Bytes for a DE-9IM pattern in wasm memory: nine matrix entries and the NUL
+ * terminator GEOS reads the string up to. GEOS rejects anything that is not
+ * exactly nine characters long, so this size is fixed rather than a maximum.
+ */
+const RELATE_PATTERN_BYTES = 10
+
+/**
  * Flags argument to GEOSisValidDetail. 0 = default behaviour, matching what
  * PostGIS's single-argument ST_IsValidDetail(geom) asks for (the
  * ESRI-self-touching-ring allowance is flag 1, which PostGIS only sets when
@@ -64,6 +71,8 @@ let runtimePromise = null
  * @property {(g: number) => { valid: boolean, reason: string|null, locationWkt: string|null }} validDetail
  * @property {(g: number) => string} toWkt
  * @property {(geoms: number[]) => number} unionAll union of a list of geometries
+ * @property {(a: number, b: number, pattern: string) => boolean} relatePattern
+ *   true when the pair's DE-9IM intersection matrix matches `pattern`
  * @property {(g: number) => void} free
  */
 
@@ -131,6 +140,31 @@ function toPointerArray(geos, pointers) {
 }
 
 /**
+ * Copy a DE-9IM pattern into wasm memory, once per distinct pattern.
+ *
+ * GEOSRelatePattern takes a C string, and the overlap check calls it once per
+ * candidate pair — tens of thousands of times on a large file — so allocating
+ * and freeing ten bytes per call would be the dominant cost of the call. There
+ * are only ever a handful of distinct patterns, all of them module constants,
+ * so they are kept for the life of the thread alongside the other scratch
+ * buffers {@link buildRuntime} allocates.
+ *
+ * @param {object} geos
+ * @param {Map<string, number>} cache
+ * @param {string} pattern nine DE-9IM matrix entries
+ * @returns {number} pointer to the NUL-terminated pattern
+ */
+function patternPointer(geos, cache, pattern) {
+  let pointer = cache.get(pattern)
+  if (pointer === undefined) {
+    pointer = geos.Module._malloc(RELATE_PATTERN_BYTES)
+    geos.Module.stringToUTF8(pattern, pointer, RELATE_PATTERN_BYTES)
+    cache.set(pattern, pointer)
+  }
+  return pointer
+}
+
+/**
  * Wrap a freshly initialised geos-wasm handle in the small typed surface the
  * checks use.
  *
@@ -141,6 +175,8 @@ function buildRuntime(geos) {
   const doubleOut = geos.Module._malloc(DOUBLE_BYTES)
   const reasonOut = geos.Module._malloc(POINTER_BYTES)
   const locationOut = geos.Module._malloc(POINTER_BYTES)
+  /** @type {Map<string, number>} DE-9IM pattern -> wasm pointer. */
+  const patterns = new Map()
 
   // Trim on, rounding precision left at the default: that combination makes
   // GEOS print the shortest representation that round-trips, which is the same
@@ -176,6 +212,9 @@ function buildRuntime(geos) {
         takeString(geos, geos.GEOSWKTWriter_write(wktWriter, g)) ?? ''
       ),
     unionAll: (geoms) => unionAll(geos, geoms, free),
+    relatePattern: (a, b, pattern) =>
+      geos.GEOSRelatePattern(a, b, patternPointer(geos, patterns, pattern)) ===
+      1,
     free
   }
 }

@@ -177,6 +177,54 @@ describe('validateGeoPackageLayersGeos — habitat parcel errors', () => {
     ).not.toContain(ERROR_CODES.PARCEL_OVERLAPS)
   })
 
+  it('ignores an overlap below the tolerance, rather than any pair that meets', async () => {
+    // 100 m x 0.004 m = 0.4 sq m of shared interior, under OVERLAP_TOLERANCE_SQ_M.
+    // The pair's interiors DO meet, so it reaches the overlay; what clears it is
+    // the tolerance. Guards the cheap DE-9IM pre-filter against being mistaken
+    // for the decision itself.
+    expect(
+      await codesFor(
+        layers({
+          redline: [polygon(square(X0, Y0, EDGE * 2))],
+          areas: [
+            polygon(square(X0, Y0, EDGE), { fid: 1 }),
+            polygon(
+              [
+                [X0, Y0 + EDGE - 0.004],
+                [X0 + EDGE, Y0 + EDGE - 0.004],
+                [X0 + EDGE, Y0 + EDGE * 2],
+                [X0, Y0 + EDGE * 2],
+                [X0, Y0 + EDGE - 0.004]
+              ],
+              { fid: 2 }
+            )
+          ]
+        })
+      )
+    ).not.toContain(ERROR_CODES.PARCEL_OVERLAPS)
+  })
+
+  it('flags a parcel wholly inside another, which is containment and not overlap', async () => {
+    // DE-9IM "overlaps" is false here — neither shape sticks out of the other —
+    // but the shared area is the whole inner parcel. The pre-filter asks only
+    // whether the interiors meet, so this is caught; a filter written in terms of
+    // GEOSOverlaps would miss it entirely.
+    const error = await errorFor(
+      layers({
+        redline: [polygon(square())],
+        areas: [
+          polygon(square(X0, Y0, EDGE), { fid: 1, 'Parcel Ref': 'OUTER' }),
+          polygon(square(X0 + 10, Y0 + 10, 20), {
+            fid: 2,
+            'Parcel Ref': 'INNER'
+          })
+        ]
+      }),
+      ERROR_CODES.PARCEL_OVERLAPS
+    )
+    expect(error.details.count).toBe(1)
+  })
+
   it('compares overlaps on the repaired geometry, so a broken parcel is still checked', async () => {
     // The bow-tie repairs into two triangles meeting at (X0+50, Y0+50); the
     // neighbour covers the upper one. GEOS cannot evaluate this pair at all
@@ -257,6 +305,33 @@ describe('validateGeoPackageLayersGeos — habitat parcel errors', () => {
     expect(await codesFor(validLayers())).not.toContain(
       ERROR_CODES.SLIVERS_OUTSIDE_REDLINE
     )
+  })
+
+  it('still finds a sliver assembled from escapes that are individually under tolerance', async () => {
+    // Two parcels, each overhanging the redline by 50 m x 0.006 m = 0.3 sq m —
+    // below PARCEL_OUTSIDE_TOLERANCE_SQ_M, so neither is reported as a parcel
+    // outside the redline. Together they form one 0.6 sq m strip, which is over
+    // it. This is the whole reason the check is cut by piece as well as by
+    // parcel, and it is the case the dissolve must never be skipped for: the
+    // parcels are not COVERED, so the short-circuit does not apply to them.
+    const overhang = (x) => [
+      [x, Y0],
+      [x + HALF, Y0],
+      [x + HALF, Y0 + EDGE + 0.006],
+      [x, Y0 + EDGE + 0.006],
+      [x, Y0]
+    ]
+    const codes = await codesFor(
+      layers({
+        redline: [polygon(square(X0, Y0, EDGE))],
+        areas: [
+          polygon(overhang(X0), { fid: 1 }),
+          polygon(overhang(X0 + HALF), { fid: 2 })
+        ]
+      })
+    )
+    expect(codes).toContain(ERROR_CODES.SLIVERS_OUTSIDE_REDLINE)
+    expect(codes).not.toContain(ERROR_CODES.AREA_PARCELS_OUTSIDE_REDLINE)
   })
 
   it('detects an area sum mismatch, naming both totals', async () => {

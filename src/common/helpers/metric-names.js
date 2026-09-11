@@ -22,7 +22,7 @@ export const GEOPACKAGE_METRIC = {
 }
 
 /**
- * Values for the `reason` dimension on GeoPackageValidationBusy. Five ways to
+ * Values for the `reason` dimension on GeoPackageValidationBusy. Six ways to
  * be told "not now", and they are not interchangeable:
  *
  *   admission_full  Too many requests already in flight. Refused before the
@@ -39,13 +39,25 @@ export const GEOPACKAGE_METRIC = {
  *                parse this file alongside the ones already in flight. Says the
  *                arrivals are BIG rather than many — the remedy is the parse
  *                budget or the task memory limit, not more workers.
+ *   worker_timeout  A job DID start, could not finish inside
+ *                VALIDATION_WORKER_TIMEOUT_MS WHILE SHARING THE POOL, and its
+ *                worker was killed. The only one here discovered after the work
+ *                began, and the only one that costs a worker restart — so unlike
+ *                the rest it is a capacity signal AND a cost. Counted only when
+ *                the pool was contended: a job that overran with the pool empty
+ *                is the file's own ceiling, not a capacity problem, and is still
+ *                a 500. So this is always LOWER than ValidationWorkerTimeouts,
+ *                and the gap between the two is how many files cannot be
+ *                validated inside the budget on an idle box — the number that
+ *                says the budget or the engine needs to move.
  */
 export const VALIDATION_BUSY_REASON = Object.freeze({
   admissionFull: 'admission_full',
   noCapacity: 'no_capacity',
   queueFull: 'queue_full',
   queueWait: 'queue_wait',
-  memoryBudget: 'memory_budget'
+  memoryBudget: 'memory_budget',
+  workerTimeout: 'worker_timeout'
 })
 
 /**

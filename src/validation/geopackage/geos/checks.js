@@ -42,6 +42,15 @@ import {
 } from './payloads.js'
 
 /**
+ * DE-9IM pattern for "the two interiors meet somewhere".
+ *
+ * Only the first cell is constrained: `T` on interior/interior, and every other
+ * cell left as `*`. For two polygons that is precisely the condition for a
+ * shared area greater than zero — see {@link checkParcelOverlaps}.
+ */
+const INTERIORS_INTERSECT = 'T********'
+
+/**
  * Total area of a layer's features, computed on the geometry as supplied.
  *
  * @param {import('./geometry.js').LoadedFeature[]} features
@@ -192,6 +201,18 @@ function checkAreaParcelsInvalid(context, emit) {
  * reads is materialised with `ST_MakeValid` already applied. That is what lets a
  * pair GEOS refuses to evaluate against the raw ring ("side location conflict")
  * be compared at all.
+ *
+ * The DE-9IM test in front of the overlay is not an approximation, and it is
+ * what makes this check affordable on a real file. `GEOSIntersects` is true for
+ * two parcels that merely share an edge, which is the NORMAL case: habitat
+ * parcels tile their site, so most of the candidate pairs the bounding-box sweep
+ * reports are neighbours. Every one of those used to pay for a full
+ * fixed-precision overlay that could only ever return zero area — 38,353 of them
+ * on an 11,554-parcel survey, and 78% of all candidate pairs. Requiring the two
+ * INTERIORS to meet skips exactly those: interiors are open sets, so if they
+ * intersect at all the intersection has positive area, and if they do not the
+ * shared geometry is boundary alone and its area is zero, which is below any
+ * tolerance. The overlay still decides every pair that reaches it.
  */
 function checkParcelOverlaps(context, emit) {
   const parcels = context.layers.areas
@@ -200,7 +221,7 @@ function checkParcelOverlaps(context, emit) {
   for (const [left, right] of candidatePairs(parcels.map((p) => p.bbox))) {
     const a = parcels[left]
     const b = parcels[right]
-    if (context.runtime.geos.GEOSIntersects(a.valid, b.valid) !== 1) {
+    if (!context.runtime.relatePattern(a.valid, b.valid, INTERIORS_INTERSECT)) {
       continue
     }
     const shared = context.runtime.geos.GEOSIntersectionPrec(
@@ -237,14 +258,23 @@ function checkAreaParcelsTooSmall(context, emit) {
 /**
  * AREA_PARCELS_OUTSIDE_REDLINE — parcels whose own footprint leaves the
  * redline, reported per parcel with the area and location of the escaping part.
+ *
+ * @returns {boolean} whether EVERY parcel was covered by the redline outright.
+ *   Reported rather than recomputed because {@link checkSliversOutside} can skip
+ *   its dissolve entirely when it holds, and this check has already paid for the
+ *   `covers` test on every parcel. Returning it rather than stashing it on the
+ *   context keeps the dependency visible in {@link runRedlineDependentChecks},
+ *   which is also where the ordering that makes it safe lives.
  */
 function checkAreaParcelsOutside(context, emit) {
   const offenders = []
+  let allCovered = true
 
   for (const feature of context.layers.areas) {
     if (coveredByRedline(context, feature.valid)) {
       continue
     }
+    allCovered = false
     // Not `escape`: that is a global function, and shadowing it is the kind of
     // name collision that reads fine here and confuses everything else.
     const escaped = context.runtime.geos.GEOSDifferencePrec(
@@ -269,14 +299,39 @@ function checkAreaParcelsOutside(context, emit) {
       outsideRedlinePayload(offenders)
     )
   }
+
+  return allCovered
 }
 
 /**
  * SLIVERS_OUTSIDE_REDLINE — the same escaping land as the check above, but cut
  * the other way: the dissolved parcels minus the dissolved redline, split into
  * pieces. A single sliver spanning four parcels is one row here and four there.
+ *
+ * That difference in how the land is cut is why the check cannot be replaced by
+ * the per-parcel one: four parcels each escaping by 0.3 sq m are all below the
+ * per-parcel tolerance, while the 1.2 sq m sliver they form together is not.
+ *
+ * `allParcelsCovered` is the one case where the two ARE equivalent, and it is
+ * the expensive one. The dissolve is a unary union of every parcel in the file —
+ * 225,748 vertices on a large survey, and the single heaviest call in the check
+ * set. When `covers` held for every parcel individually, each is a subset of the
+ * redline, so their union is too and the difference is empty: no piece can clear
+ * the tolerance because there are no pieces. Note that this is `covers`, which
+ * is exact, and not the tolerance the check above reports on — a parcel escaping
+ * by less than the tolerance is not covered, does not set the flag, and the
+ * dissolve still runs. Same short-circuit, and the same reasoning, as
+ * {@link coveredByRedline}.
+ *
+ * @param {object} context
+ * @param {(code: string, payload: object) => void} emit
+ * @param {boolean} allParcelsCovered from {@link checkAreaParcelsOutside}
  */
-function checkSliversOutside(context, emit) {
+function checkSliversOutside(context, emit, allParcelsCovered) {
+  if (allParcelsCovered) {
+    return
+  }
+
   const parcelsUnion = context.runtime.unionAll(
     context.layers.areas.map((feature) =>
       context.runtime.geos.GEOSGeom_clone(feature.valid)
@@ -385,8 +440,10 @@ function checkAreaSumMismatch(context, emit) {
  */
 function runRedlineDependentChecks(context, emit) {
   checkRedlineOutsideEngland(context, emit)
-  checkAreaParcelsOutside(context, emit)
-  checkSliversOutside(context, emit)
+  // Ordered, not merely sequential: the parcel check is what establishes
+  // whether the sliver check has anything left to look for.
+  const allParcelsCovered = checkAreaParcelsOutside(context, emit)
+  checkSliversOutside(context, emit, allParcelsCovered)
   checkLinearOutside(
     context,
     emit,

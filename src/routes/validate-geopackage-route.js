@@ -20,7 +20,8 @@ import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
   ValidationQueueFullError,
-  ValidationQueueWaitError
+  ValidationQueueWaitError,
+  ValidationTimeoutError
 } from '../validation/geopackage/geos/worker-pool.js'
 import {
   getParseBudget,
@@ -225,13 +226,41 @@ function parseBudget() {
   return getParseBudget(appConfig.get('validation.parseBudgetBytes'))
 }
 
-/** Every way a file can be refused without being looked at. */
+/**
+ * Every way a file can be refused for want of capacity rather than merit.
+ *
+ * All but one of these are decided before the file is looked at. The exception
+ * is a worker timeout, and it only belongs here SOMETIMES — which is the whole
+ * subtlety of this function.
+ *
+ * A burst is the case it was added for. With one worker and a slow file, the
+ * requests behind the first are refused `queue_wait` before they start, retry,
+ * and pass; the one that actually reached a worker was killed mid-job and, as a
+ * 500, was the only one in the burst that could not recover. Same capacity
+ * problem, opposite outcome, purely because of where in the pipeline it was
+ * discovered.
+ *
+ * But a timeout on an EMPTY pool is a different animal. The file had the box to
+ * itself and still could not be validated inside the budget, so a retry only
+ * reproduces the failure — and, because `Retry-After` is shorter than the budget
+ * it just overran, it would do so repeatedly: every attempt burns a full budget
+ * of worker time and costs a worker restart, for the two minutes the frontend
+ * keeps trying. That is the "pathological file re-fed to the pool" the design
+ * note in docs/geometry-validation.md warns about, and it is why a timeout is
+ * not simply reclassified as busy.
+ *
+ * `contended` is what tells them apart, and the pool records it at the moment
+ * the timer fires. Retry only what a retry could plausibly fix.
+ */
 function busyReason(error) {
   if (error instanceof ValidationQueueFullError) {
     return VALIDATION_BUSY_REASON.queueFull
   }
   if (error instanceof ValidationQueueWaitError) {
     return VALIDATION_BUSY_REASON.queueWait
+  }
+  if (error instanceof ValidationTimeoutError && error.contended) {
+    return VALIDATION_BUSY_REASON.workerTimeout
   }
   if (error instanceof ParseBudgetExceededError) {
     return VALIDATION_BUSY_REASON.memoryBudget
