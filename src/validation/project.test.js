@@ -259,6 +259,17 @@ describe('#filename validation', () => {
     expect(error).toBeUndefined()
   })
 
+  test.each([
+    { description: 'opening parenthesis', filename: '(1).gpkg' },
+    { description: 'underscore', filename: '_draft.gpkg' },
+    { description: 'hyphen', filename: '-copy.gpkg' },
+    { description: 'dot', filename: '.survey.gpkg' },
+    { description: 'space', filename: ' survey.gpkg' }
+  ])('Should accept a filename starting with $description', ({ filename }) => {
+    const { error } = withFilename(filename)
+    expect(error).toBeUndefined()
+  })
+
   test('Should accept null filename', () => {
     const { error } = withFilename(null)
     expect(error).toBeUndefined()
