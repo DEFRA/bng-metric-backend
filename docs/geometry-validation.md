@@ -132,9 +132,15 @@ design makes the browser the queue:
 4. After `MAX_WAIT_SECONDS` (120 s) the frontend gives up and says so. A service
    that has been saturated for two minutes will not be free in another five.
 
-Two properties follow. **Only `busy` is retried** — a 500 or a timeout is not,
-because a pathological file that wedges a worker would otherwise be re-fed to the
-pool twenty-four times. And **the wait is bounded at both ends**: `hasCapacity()`
+Two properties follow. **Only `busy` is retried** — a 500 is not, because a
+pathological file that wedges a worker would otherwise be re-fed to the pool
+twenty-four times. A **timeout is retried only when the pool was contended**: the
+same reasoning, applied to the two cases a timeout actually covers. Overrunning
+the budget while sharing the pool is a capacity failure that a retry can fix;
+overrunning it with the pool empty is the file's own ceiling, and retrying that
+is exactly the wedging the rule exists to prevent. `ValidationTimeoutError`
+records queue depth and busy workers when the timer fires, and `busyReason()`
+reads them. And **the wait is bounded at both ends**: `hasCapacity()`
 stops a request joining a hopeless queue, while `VALIDATION_QUEUE_WAIT_LIMIT_MS`
 refuses a job that has already waited too long by the time a worker frees up.
 Without the second, the worst case is `queueLimit x workerTimeoutMs` — 80
@@ -156,10 +162,12 @@ replaced.
 Instead the two failure modes are told apart, because the user's next action
 differs:
 
-| Condition                   | Response                                                | Why                                                                                                     |
-| --------------------------- | ------------------------------------------------------- | ------------------------------------------------------------------------------------------------------- |
-| Queue full                  | **503** + `Retry-After`, body carries `VALIDATION_BUSY` | The file was never looked at. Nothing is wrong with it and there is nothing to fix — come back shortly. |
-| Timeout, crash, worker gone | **500** `VALIDATION_FAILED`                             | Something went wrong looking at this file. Retrying will most likely do the same thing.                 |
+| Condition                   | Response                                                | Why                                                                                                                              |
+| --------------------------- | ------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------- |
+| Queue full                  | **503** + `Retry-After`, body carries `VALIDATION_BUSY` | The file was never looked at. Nothing is wrong with it and there is nothing to fix — come back shortly.                          |
+| Timeout, pool **contended** | **503** + `Retry-After`, body carries `VALIDATION_BUSY` | The job was killed for sharing the box, not for anything found in the file. The pool drains; the retry gets a worker to itself.  |
+| Timeout, pool **empty**     | **500** `VALIDATION_FAILED`                             | The file had the box to itself and still overran. Retrying reproduces it, at a full budget of worker time and a restart each go. |
+| Crash, worker gone          | **500** `VALIDATION_FAILED`                             | Something went wrong looking at this file. Retrying will most likely do the same thing.                                          |
 
 `VALIDATION_BUSY` is deliberately **not** a validation error. The frontend picks
 the 503 out in `services/baseline.js`, returns `{ busy: true }`, and the upload
@@ -488,12 +496,13 @@ continuity across the engine change — see `metric-names.js`.)
 
 **Is it turning people away?** `GeoPackageValidationBusy`, sliced by `reason`:
 
-| `reason`        | Means                                                          | Remedy                                                                                                                                                                                                                                                   |
-| --------------- | -------------------------------------------------------------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `no_capacity`   | Refused before doing any work. The expected case under load.   | More workers, or more instances.                                                                                                                                                                                                                         |
-| `queue_full`    | Same, reached through a race — the capacity check is advisory. | As above.                                                                                                                                                                                                                                                |
-| `queue_wait`    | A job waited longer than it was worth starting.                | Jobs are SLOW, not numerous. Look at file sizes first.                                                                                                                                                                                                   |
-| `memory_budget` | The parse budget was committed to other files being unpacked.  | The usual reason to be refused — 310 of 316 in a full run. Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower `VALIDATION_WORKER_COUNT`; the queue limit no longer moves this, since a waiter holds no reservation. |
+| `reason`         | Means                                                                       | Remedy                                                                                                                                                                                                                                                                                   |
+| ---------------- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `no_capacity`    | Refused before doing any work. The expected case under load.                | More workers, or more instances.                                                                                                                                                                                                                                                         |
+| `queue_full`     | Same, reached through a race — the capacity check is advisory.              | As above.                                                                                                                                                                                                                                                                                |
+| `queue_wait`     | A job waited longer than it was worth starting.                             | Jobs are SLOW, not numerous. Look at file sizes first.                                                                                                                                                                                                                                   |
+| `memory_budget`  | The parse budget was committed to other files being unpacked.               | The usual reason to be refused — 310 of 316 in a full run. Arrivals are BIG, not numerous. Raise the task memory and the budget together, or lower `VALIDATION_WORKER_COUNT`; the queue limit no longer moves this, since a waiter holds no reservation.                                 |
+| `worker_timeout` | A job overran the budget while sharing the pool, and its worker was killed. | The only reason here that costs a worker restart as well as a refusal. Compare it with `ValidationWorkerTimeouts`: the gap between the two counts the files that overran on an IDLE pool, which no amount of capacity will fix — those need the budget raised or the checks made faster. |
 
 Counted apart from `GeoPackageValidationFailed`, because the file was never
 looked at — a busy spike is a capacity story, not a data-quality one, and mixing
