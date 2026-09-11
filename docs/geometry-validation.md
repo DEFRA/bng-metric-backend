@@ -81,15 +81,15 @@ Four timer ticks in 694 ms is the whole story: run inline, the loop gets almost
 no turns and the process serves nothing else for the duration. Worker threads are
 a precondition here, not an optimisation.
 
-| Setting                               | Default | What it is                                                               |
-| ------------------------------------- | ------: | ------------------------------------------------------------------------ |
-| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.     |
-| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
+| Setting                               | Default | What it is                                                                |
+| ------------------------------------- | ------: | ------------------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`. No effect below 3 vCPUs. |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.      |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.        |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                      |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.             |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below.  |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                      |
 
 The pool cap is **half** the admission control: it rations CPU, which is the
 same protective bounding the connection pool used to provide, except on a
