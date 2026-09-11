@@ -91,7 +91,16 @@ describe('GeosWorkerPool', () => {
   })
 
   it('always starts at least one worker, however small the setting', () => {
-    expect(openPool({ size: 0 }).size).toBe(1)
+    expect(openPool({ size: -1 }).size).toBe(1)
+  })
+
+  it('auto-sizes from the instance when the setting is 0, which is the default', () => {
+    // The budgets themselves are covered in worker-pool-sizing.test.js, where
+    // the machine can be described rather than taken as found.
+    expect(openPool({ size: 0 }).size).toBeGreaterThanOrEqual(1)
+    expect(openPool({ size: 0 }).size).toBeLessThanOrEqual(
+      Math.max(1, availableParallelism() - 1)
+    )
   })
 
   it('surfaces a worker-side failure as a rejected promise, not a crash', async () => {

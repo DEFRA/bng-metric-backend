@@ -137,8 +137,11 @@ Three things to know before touching this code:
   the main thread. `filePath` must be threaded from the route through
   `validateGeoPackageLayers`, which throws without one.
 - **Each worker holds ~250 MB.** WebAssembly memory grows to the largest file
-  that worker has ever seen and is never returned. Check the ECS task limit
-  before raising `VALIDATION_WORKER_COUNT`.
+  that worker has ever seen and is never returned. The pool therefore sizes
+  itself from the instance — `VALIDATION_WORKER_COUNT` defaults to 0, meaning
+  the lower of `availableParallelism() - 1` and what the task memory can carry —
+  so a resized task needs no config change. Pinning a number still works, and
+  both budgets still apply to it.
 - **Habitat sizes come back with the verdict.** `calculateHabitatSizes` is a pure
   function over measurements the worker already made; there is no sizing query
   any more.
