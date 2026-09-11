@@ -138,6 +138,7 @@ validation failure.
 | `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
+| `VALIDATION_MAX_PARCEL_COUNT`         |   25000 | Features the gate accepts. Bigger files cannot finish in time.   |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
 | `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                  |

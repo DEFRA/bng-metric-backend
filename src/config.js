@@ -257,6 +257,12 @@ const config = convict({
       default: 5000,
       env: 'VALIDATION_QUEUE_WAIT_LIMIT_MS'
     },
+    maxParcelCount: {
+      doc: 'Features a GeoPackage may contain before the format gate refuses it as too large, counted across the boundary, habitat, hedgerow and watercourse layers — every layer the gate reads, not habitat parcels alone, because a limit that counted only parcels would let a file of half a million hedgerows through.',
+      format: 'int',
+      default: 25000,
+      env: 'VALIDATION_MAX_PARCEL_COUNT'
+    },
     parseBudgetBytes: {
       doc: 'Byte budget rationed across the GeoPackages being UNPACKED at once, and the primary load shed: tune it before VALIDATION_WORKER_QUEUE_LIMIT, which is only the backstop behind it. Each upload is charged an ESTIMATE of its unpack cost — 2 MB + 10x the file size — so these are credit-bytes rather than heap-bytes; docs/geometry-validation.md carries the measurements behind the ratio. Size it against the task memory limit together with VALIDATION_WORKER_COUNT (~250 MB per worker) and VALIDATION_MAX_RSS_BYTES.',
       format: 'int',
