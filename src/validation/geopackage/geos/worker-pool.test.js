@@ -90,8 +90,21 @@ describe('GeosWorkerPool', () => {
     )
   })
 
-  it('always starts at least one worker, however small the setting', () => {
-    expect(openPool({ size: 0 }).size).toBe(1)
+  it('always starts a usable pool, however nonsensical the setting', () => {
+    // Not `toBe(1)`: a non-positive setting auto-sizes, so the answer depends
+    // on the machine the suite is running on. The floor itself is asserted
+    // deterministically in worker-pool-sizing.test.js.
+    expect(openPool({ size: -1 }).size).toBeGreaterThanOrEqual(1)
+  })
+
+  it('auto-sizes from the instance when the setting is 0, which is the default', () => {
+    // One pool, not one per assertion: auto-sizing on a many-core runner spawns
+    // a worker per core, and each one loads its own copy of GEOS.
+    // The budgets themselves are covered in worker-pool-sizing.test.js, where
+    // the machine can be described rather than taken as found.
+    const { size } = openPool({ size: 0 })
+    expect(size).toBeGreaterThanOrEqual(1)
+    expect(size).toBeLessThanOrEqual(Math.max(1, availableParallelism() - 1))
   })
 
   it('surfaces a worker-side failure as a rejected promise, not a crash', async () => {

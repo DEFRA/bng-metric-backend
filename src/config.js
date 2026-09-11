@@ -228,9 +228,9 @@ const config = convict({
   },
   validation: {
     workerCount: {
-      doc: 'Worker threads running GEOS geometry validation. Capped at availableParallelism() - 1. Each worker settles at ~250 MB of WebAssembly heap after a large file and never gives it back, so this is a memory budget as much as a throughput setting — check the ECS task memory limit before raising it.',
+      doc: 'Worker threads running GEOS geometry validation. 0 AUTO-SIZES from the instance, which is the default: the pool takes the lower of a CPU budget (availableParallelism() - 1) and a memory budget (30% of the task memory at ~250 MB per worker), so a task given more vCPU uses them without anyone remembering to change this, and one given more vCPU than memory is held back rather than OOM-killed. It was previously a fixed 2, which silently wasted cores above a 2-vCPU task and was the single most likely setting to be left stale after a resize. Set a number to pin the pool — both budgets still apply, because a worker settles at ~250 MB of WebAssembly heap after a large file and never gives it back, so an over-large pool is an OOM kill rather than a slow patch. The chosen size and the budget that decided it are logged at startup.',
       format: 'int',
-      default: 2,
+      default: 0,
       env: 'VALIDATION_WORKER_COUNT'
     },
     workerQueueLimit: {

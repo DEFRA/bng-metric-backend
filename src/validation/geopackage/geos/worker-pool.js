@@ -28,7 +28,7 @@
  * was.
  */
 import { Worker } from 'node:worker_threads'
-import { availableParallelism } from 'node:os'
+import { availableParallelism, totalmem } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
@@ -63,6 +63,118 @@ const VALIDATE = 'validate'
  * workers spend their time in GEOS rather than contending for it.
  */
 const RESERVED_CORES = 1
+
+const BYTES_PER_MB = 1024 * 1024
+
+/**
+ * Steady-state footprint of one worker, measured on a 5,000-parcel file.
+ *
+ * WebAssembly linear memory grows to the high-water mark of the largest file a
+ * worker has ever seen and is never handed back, so this is a permanent cost
+ * per worker rather than a peak — and it is charged against the SAME container
+ * limit as the server, because workers are threads in this process.
+ */
+const WORKER_RSS_MB = 250
+const WORKER_RSS_BYTES = WORKER_RSS_MB * BYTES_PER_MB
+
+/**
+ * Share of the task's memory the worker heaps may claim.
+ *
+ * What the rest pays for is not slack: Node's own baseline, the parse budget's
+ * files being unpacked, and one worker's working copy of the largest file in
+ * flight. Calibrated against the sizing docs/geometry-validation.md already
+ * gives by hand — one worker at a 1 GB task, two at 2 GB — so auto-sizing lands
+ * where the written guidance did rather than inventing a second answer.
+ */
+const WORKER_MEMORY_SHARE = 0.3
+
+/** `size` at or below this means "work it out from the instance". */
+const AUTO_SIZE = 0
+
+/**
+ * How much memory this process is actually allowed.
+ *
+ * `constrainedMemory()` reads the cgroup limit, which is the number that
+ * matters in a container and the one the OOM killer enforces — `totalmem()`
+ * reports the HOST's RAM and would happily size a pool for 64 GB the task
+ * cannot touch. It answers 0 when there is no limit or it cannot tell, which is
+ * the one case where the host figure is the honest answer.
+ *
+ * On Fargate the fallback is not a downgrade: each task is a microVM sized to
+ * the task definition, so the host IS the task. It matters on anything sharing
+ * a kernel — a dev box, a CI runner, ECS on EC2.
+ */
+function taskMemoryBytes() {
+  return process.constrainedMemory() || totalmem()
+}
+
+/**
+ * Decide how many workers to run, from what was asked for and what the instance
+ * can actually carry.
+ *
+ * Two budgets, and the smaller wins. CPU, because oversubscribing CPU-bound
+ * threads adds context switching and no throughput. MEMORY, because a worker is
+ * a quarter-gigabyte that is never given back, and a pool sized past the task
+ * limit does not run slowly — it is OOM-killed, taking every in-flight upload
+ * with it.
+ *
+ * Both budgets apply to an explicit `VALIDATION_WORKER_COUNT` too, not just to
+ * the automatic default. A number an operator typed is a request, not a
+ * guarantee the box can honour it, and the CPU budget has always been enforced
+ * this way.
+ *
+ * @param {number} requested workers asked for, or `AUTO_SIZE` to derive it
+ * @returns {{ size: number, cpuBudget: number, memoryBudget: number, auto: boolean }}
+ */
+export function resolveWorkerCount(requested) {
+  const cpuBudget = Math.max(1, availableParallelism() - RESERVED_CORES)
+  const memoryBudget = Math.max(
+    1,
+    Math.floor((taskMemoryBytes() * WORKER_MEMORY_SHARE) / WORKER_RSS_BYTES)
+  )
+  // The finite check carries its weight: a bare `requested <= AUTO_SIZE` is
+  // FALSE for a NaN — a malformed environment variable — which would pin the
+  // pool to no workers at all. Anything not a real number auto-sizes instead.
+  const auto = !Number.isFinite(requested) || requested <= AUTO_SIZE
+  const wanted = auto ? cpuBudget : requested
+  return {
+    size: Math.min(wanted, cpuBudget, memoryBudget),
+    cpuBudget,
+    memoryBudget,
+    auto
+  }
+}
+
+/**
+ * Say how the pool was sized and which budget decided it.
+ *
+ * This is the line that answers the rollout's open question — whether
+ * `availableParallelism()` reports the task's CPU quota or the host's cores,
+ * which is not knowable from outside the container and changes what the right
+ * instance size is. Being bound by MEMORY is warned rather than logged: it means
+ * the task cannot carry the CPU it has been given, which is a provisioning
+ * mistake worth seeing without going looking.
+ *
+ * Exported so the memory-bound branch can be asserted without standing up a
+ * pool: the only way to reach it through the constructor is to spawn real
+ * worker threads, which is a different suite and a far heavier way to check
+ * which way round a log line goes.
+ */
+export function logSizing(size, { cpuBudget, memoryBudget, auto }) {
+  const taskMemoryMb = Math.round(taskMemoryBytes() / BYTES_PER_MB)
+  const detail =
+    `${auto ? 'auto-sized' : 'requested'} — cpu budget ${cpuBudget} ` +
+    `(availableParallelism ${availableParallelism()} less ${RESERVED_CORES} reserved), ` +
+    `memory budget ${memoryBudget} (${taskMemoryMb} MB task memory)`
+  if (memoryBudget < cpuBudget) {
+    logger.warn(
+      `geos worker pool limited to ${size} worker(s) by MEMORY, not cpu: ${detail}. ` +
+        'Raise the task memory limit to use the cores this instance has.'
+    )
+    return
+  }
+  logger.info(`geos worker pool sized to ${size} worker(s): ${detail}`)
+}
 
 /** Error thrown when the queue is full — the caller falls back to PostGIS. */
 export class ValidationQueueFullError extends Error {
@@ -142,12 +254,8 @@ export class GeosWorkerPool {
     queueWaitLimitMs = Infinity,
     admissionLimit = Infinity
   }) {
-    // Never more workers than there are cores to run them on: oversubscribing
-    // CPU-bound threads adds context switching and memory, and no throughput.
-    this.size = Math.max(
-      1,
-      Math.min(size, availableParallelism() - RESERVED_CORES)
-    )
+    const sizing = resolveWorkerCount(size)
+    this.size = sizing.size
     this.queueLimit = queueLimit
     this.timeoutMs = timeoutMs
     this.queueWaitLimitMs = queueWaitLimitMs
@@ -167,6 +275,7 @@ export class GeosWorkerPool {
     for (let i = 0; i < this.size; i++) {
       this.spawn()
     }
+    logSizing(this.size, sizing)
     logger.info(
       `geos worker pool started with ${this.size} worker(s), queue limit ${queueLimit}, ` +
         `job timeout ${timeoutMs} ms, queue wait limit ${queueWaitLimitMs} ms, ` +

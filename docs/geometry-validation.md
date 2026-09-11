@@ -83,7 +83,7 @@ a precondition here, not an optimisation.
 
 | Setting                               | Default | What it is                                                               |
 | ------------------------------------- | ------: | ------------------------------------------------------------------------ |
-| `VALIDATION_WORKER_COUNT`             |       2 | Workers, capped at `availableParallelism() - 1`.                         |
+| `VALIDATION_WORKER_COUNT`             |       0 | Workers. 0 auto-sizes from the instance — see below.                     |
 | `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Validations allowed to wait for a free worker. Not free — see below.     |
 | `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
@@ -177,8 +177,8 @@ upload timeout already gets. It must never reach `/error-file`, which is the
 "there is a problem with your file" screen.
 
 `GeoPackageValidationBusy` counts these. A non-zero rate is a capacity signal:
-the levers are `VALIDATION_WORKER_COUNT` (if the task has the memory) or more
-backend instances.
+the levers are a bigger task (the pool sizes itself to the vCPU and memory it is
+given) or more backend instances.
 
 ### The timeout ladder
 
@@ -263,10 +263,53 @@ follow, and both are easy to get wrong:
   stops climbing — so the timeout and crash paths are safe, but there is no point
   building a "restart every N jobs" mechanism, because it would buy nothing.
 
-**Check the ECS task memory limit before raising `VALIDATION_WORKER_COUNT`.** The
-default of 2 wants roughly 565 MB of headroom on top of Node's own baseline and
-the parsed layers in-flight uploads hold. At a 2 GB task that is comfortable; at
+**Check the ECS task memory limit before pinning `VALIDATION_WORKER_COUNT`.** Two
+workers want roughly 565 MB of headroom on top of Node's own baseline and the
+parsed layers in-flight uploads hold. At a 2 GB task that is comfortable; at
 1 GB it is one worker at most.
+
+### The pool sizes itself
+
+`VALIDATION_WORKER_COUNT` defaults to **0**, which means "work it out from the
+instance". It was a fixed 2, and a fixed number is wrong in both directions: on
+a 2-vCPU task the cap already reduced it to one worker, and on anything larger
+it left cores unused until somebody remembered to raise it. Nobody does, because
+the setting lives in a different system from the task size it has to agree with.
+
+`resolveWorkerCount` takes the lower of two budgets:
+
+| Budget     | Formula                       | Why it binds                                                                       |
+| ---------- | ----------------------------- | ---------------------------------------------------------------------------------- |
+| **CPU**    | `availableParallelism() - 1`  | Oversubscribing CPU-bound threads buys context switching, not throughput.          |
+| **Memory** | `30% of task memory / 250 MB` | A worker is a quarter-gigabyte that is never given back. Overshoot is an OOM kill. |
+
+The 30% is not a spare-capacity guess — the other 70% is Node's baseline, the
+parse budget's files being unpacked, and one worker's working copy of the
+largest file in flight. It is calibrated to reproduce the hand-written sizing
+above rather than invent a second answer: 1 GB gives one worker, 2 GB gives two.
+`worker-pool-sizing.test.js` asserts exactly that, so the two cannot drift.
+
+Setting a number still pins the pool, and **both budgets still apply to it** — a
+number an operator typed is a request, not a guarantee the box can honour it,
+and the CPU budget has always been enforced this way. Being held back by memory
+is logged as a WARNING rather than an info line, because it means the task has
+been given cores it has not been given the memory to use, which is a
+provisioning mistake worth seeing without going looking for it.
+
+The task memory figure comes from `process.constrainedMemory()` — the cgroup
+limit, which is what the OOM killer reads — falling back to `os.totalmem()` when
+there is no limit or it cannot be determined. On Fargate that fallback is not a
+downgrade, because each task is a microVM sized to the task definition, so the
+host is the task. It matters on anything sharing a kernel: a dev box, a CI
+runner, ECS on EC2.
+
+**The startup line answers an open question.** The pool logs the size it chose,
+both budgets, and the raw `availableParallelism()` reading. That last number is
+worth reading off a real task: libuv derives it from the CPU affinity mask, and
+whether it reflects a Fargate CPU quota or the underlying host's core count is
+not knowable from outside the container. If it reports the host's cores the CPU
+budget is not binding, and what limits throughput is CFS throttling — which
+looks like slowness rather than refusals, and is diagnosed differently.
 
 ### What a deep queue costs
 
