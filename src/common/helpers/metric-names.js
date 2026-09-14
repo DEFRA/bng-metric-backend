@@ -18,7 +18,14 @@ export const GEOPACKAGE_METRIC = {
    * three ways of being refused have different remedies. See
    * {@link VALIDATION_BUSY_REASON}.
    */
-  validationBusy: 'GeoPackageValidationBusy'
+  validationBusy: 'GeoPackageValidationBusy',
+  /**
+   * Uploads refused because the worker pool has permanently given up — its
+   * workers cannot start. Counted apart from `validationBusy` because the
+   * remedy is an operator restarting the service, not waiting for load to
+   * pass; any non-zero value here is an incident, not a traffic pattern.
+   */
+  validationUnavailable: 'GeoPackageValidationUnavailable'
 }
 
 /**

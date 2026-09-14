@@ -74,7 +74,19 @@ export const ERROR_CODES = Object.freeze({
    * only sensible instruction is to try again — which is why the route answers
    * it with a 503 and a Retry-After rather than the usual 200-with-errors.
    */
-  VALIDATION_BUSY: 'VALIDATION_BUSY'
+  VALIDATION_BUSY: 'VALIDATION_BUSY',
+
+  /**
+   * Geometry validation is permanently down on this instance — its workers
+   * cannot start, and the pool has given up replacing them.
+   *
+   * Kept apart from VALIDATION_BUSY on purpose: busy is temporary and answered
+   * with "come back", and the frontend re-polls on exactly that code. This one
+   * must do the opposite — a retry meets the same wall — so the route answers
+   * 503 WITHOUT a Retry-After and with this code, which drops the caller out
+   * of the polling loop and onto an honest error page.
+   */
+  VALIDATION_UNAVAILABLE: 'VALIDATION_UNAVAILABLE'
 })
 
 export function makeError(code, message, details) {
