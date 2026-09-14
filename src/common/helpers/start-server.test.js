@@ -63,6 +63,30 @@ describe('#startServer', () => {
     })
   })
 
+  // The peer of the better-sqlite3 check below, for the dependency boot cannot
+  // vouch for by importing: geos-wasm is only loaded inside worker threads, on
+  // the first upload, so this preflight is what keeps a missing package from
+  // letting the service run at all.
+  describe('geos-wasm resolvability preflight', () => {
+    test('Throws an actionable npm-install message when the package is missing', () => {
+      const missingPackage = () => {
+        const err = new Error(
+          "Cannot find package 'geos-wasm' imported from geos-runtime.js"
+        )
+        err.code = 'ERR_MODULE_NOT_FOUND'
+        throw err
+      }
+
+      expect(() =>
+        startServerImport.assertGeosWasmResolvable(missingPackage)
+      ).toThrow(/geos-wasm cannot be resolved.*npm install/s)
+    })
+
+    test('Passes with the real resolver on a complete install', () => {
+      expect(() => startServerImport.assertGeosWasmResolvable()).not.toThrow()
+    })
+  })
+
   describe('better-sqlite3 native-binding smoke check', () => {
     test('Throws an actionable rebuild message when the binding is mismatched', async () => {
       vi.mocked(Database).mockImplementationOnce(function () {
