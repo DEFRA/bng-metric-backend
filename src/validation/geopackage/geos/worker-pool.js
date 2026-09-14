@@ -223,9 +223,9 @@ function isMissingModuleError(error) {
  */
 export class ValidationUnavailableError extends Error {
   constructor(cause) {
+    const detail = cause ? `: ${cause.message}` : ''
     super(
-      `Geometry validation is unavailable — its workers cannot start` +
-        `${cause ? `: ${cause.message}` : ''}`,
+      `Geometry validation is unavailable — its workers cannot start${detail}`,
       { cause }
     )
     this.name = 'ValidationUnavailableError'
@@ -544,7 +544,9 @@ export class GeosWorkerPool {
     for (const job of this.queue.splice(0)) {
       job.reject(this.broken)
     }
-    for (const record of [...this.workers]) {
+    // Deleting the entry under iteration is defined behaviour for a Set, and
+    // it is the only mutation this loop makes.
+    for (const record of this.workers) {
       // Delete before terminating, so the terminate's own `exit` event finds
       // nothing to replace — which means any job still on the worker has to be
       // failed here; `onExit` will never see it.
