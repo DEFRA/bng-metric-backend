@@ -10,16 +10,18 @@ import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
 
 export const MAX_FILENAME_LENGTH = 255
 
-// Whitelist-only approach addresses six classes of attack in one rule:
+// Whitelist-only approach addresses seven classes of attack in one rule:
 //   1. Extension spoofing  — bidi overrides (U+202E etc.) not in [a-zA-Z0-9 ._()-]
 //   2. Path traversal      — / excluded, so `../` cannot appear in the name
 //   3. Log injection       — \n, \r and other control chars not in the set
 //   4. Wrong extension     — \.gpkg$ is mandatory (case-insensitive)
 //   5. Invisible chars      — zero-width / formatting codepoints not in the set
-//   6. SQL injection       — ' " ; not in the set; lone - cannot form --
+//   6. SQL injection       — ' " ; not in the set
+//   7. Empty-looking names — the stem must hold at least one alphanumeric, so
+//      `..gpkg` and `   .gpkg` are rejected, while `-copy.gpkg` is accepted
 // Parentheses are included so browser/OS duplicate names such as
-// `survey (1).gpkg` are accepted. Hyphen is last in the class so it is literal.
-export const SAFE_FILENAME_RE = /^[a-z0-9 ._()-]+\.gpkg$/i
+// `survey (1).gpkg` are accepted. Hyphen is last in each class so it is literal.
+export const SAFE_FILENAME_RE = /^[ ._()-]*[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i
 
 /**
  * Every ref-keyed feature's `featureId` carries the same guarantee, so the

@@ -299,6 +299,26 @@ describe('#filename validation', () => {
     {
       description: 'SQL injection characters',
       filename: "survey'; DROP TABLE projects; --.gpkg"
+    },
+    {
+      description: 'punctuation-only stem (..gpkg)',
+      filename: '..gpkg'
+    },
+    {
+      description: 'punctuation-only stem (...gpkg)',
+      filename: '...gpkg'
+    },
+    {
+      description: 'spaces-only stem',
+      filename: '   .gpkg'
+    },
+    {
+      description: 'hyphen-only stem',
+      filename: '-.gpkg'
+    },
+    {
+      description: 'parentheses-only stem',
+      filename: '().gpkg'
     }
   ])('Should reject $description', ({ filename }) => {
     const { error } = withFilename(filename)
