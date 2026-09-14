@@ -176,6 +176,62 @@ export function logSizing(size, { cpuBudget, memoryBudget, auto }) {
   logger.info(`geos worker pool sized to ${size} worker(s): ${detail}`)
 }
 
+/**
+ * Consecutive workers allowed to die before ever posting `ready` before the
+ * pool concludes workers cannot start at all and stops replacing them. Three
+ * gives a transient cause (a memory spike at the wrong moment) a chance to
+ * clear while still cutting a genuine boot failure off within milliseconds —
+ * without a cap, "restart on exit" turns a startup failure into an infinite
+ * spawn-crash-spawn loop that floods the log.
+ */
+const MAX_CONSECUTIVE_BOOT_FAILURES = 3
+
+/**
+ * Grace between deciding to die and actually exiting, so the fatal log line
+ * survives: the pino-pretty transport writes from a worker thread, and an
+ * immediate `process.exit` can drop exactly the message that says why the
+ * service went down.
+ */
+const FATAL_EXIT_FLUSH_MS = 1000
+
+/** What {@link PoolOptions}.onFatal does unless a test injects an observer. */
+function exitProcessAfterFlush() {
+  process.exitCode = 1
+  setTimeout(() => process.exit(1), FATAL_EXIT_FLUSH_MS)
+}
+
+/**
+ * Is this the worker failing to even load its modules — a missing or broken
+ * dependency rather than anything about the job? Matched on the code Node
+ * attaches to ESM resolution failures, with the message as a fallback for the
+ * paths (CommonJS require, some loader errors) that spell it differently.
+ */
+function isMissingModuleError(error) {
+  return (
+    error != null &&
+    (error.code === 'ERR_MODULE_NOT_FOUND' ||
+      error.code === 'MODULE_NOT_FOUND' ||
+      /cannot find (?:package|module)/i.test(error.message ?? ''))
+  )
+}
+
+/**
+ * Error every job is rejected with once the pool has given up: its workers
+ * cannot start, so validation is not degraded but gone. Distinct from "closed"
+ * (an orderly shutdown) and from "busy" (retryable) — a caller seeing this
+ * should fail the request outright, because a retry meets the same wall.
+ */
+export class ValidationUnavailableError extends Error {
+  constructor(cause) {
+    super(
+      `Geometry validation is unavailable — its workers cannot start` +
+        `${cause ? `: ${cause.message}` : ''}`,
+      { cause }
+    )
+    this.name = 'ValidationUnavailableError'
+  }
+}
+
 /** Error thrown when the queue is full — the caller falls back to PostGIS. */
 export class ValidationQueueFullError extends Error {
   constructor(limit) {
@@ -243,6 +299,9 @@ export class ValidationTimeoutError extends Error {
  * @property {number} [admissionLimit] requests allowed in flight at once, from
  *   admission through to response. Bounds I/O rather than CPU, so it is a much
  *   larger number than `queueLimit`. Unbounded when omitted.
+ * @property {() => void} [onFatal] called after the pool hits an unrecoverable
+ *   startup failure (a worker module that cannot be loaded). Defaults to
+ *   ending the process; injectable so tests can observe it instead.
  */
 
 export class GeosWorkerPool {
@@ -252,7 +311,8 @@ export class GeosWorkerPool {
     queueLimit,
     timeoutMs,
     queueWaitLimitMs = Infinity,
-    admissionLimit = Infinity
+    admissionLimit = Infinity,
+    onFatal = exitProcessAfterFlush
   }) {
     const sizing = resolveWorkerCount(size)
     this.size = sizing.size
@@ -271,6 +331,15 @@ export class GeosWorkerPool {
     this.idle = []
     this.closed = false
     this.geosVersion = null
+    this.onFatal = onFatal
+    /**
+     * The error the pool gave up with, or null while it is healthy. Once set,
+     * every entry point refuses with it — see {@link fail}.
+     * @type {ValidationUnavailableError | null}
+     */
+    this.broken = null
+    /** Workers that exited before ever posting `ready`, since the last that did. */
+    this.consecutiveBootFailures = 0
 
     for (let i = 0; i < this.size; i++) {
       this.spawn()
@@ -297,6 +366,7 @@ export class GeosWorkerPool {
   hasCapacity() {
     return (
       !this.closed &&
+      !this.broken &&
       (this.idle.length > 0 || this.queue.length < this.queueLimit)
     )
   }
@@ -321,7 +391,7 @@ export class GeosWorkerPool {
    *   the service is already full. Calling it twice is harmless.
    */
   admit() {
-    if (this.closed || this.admitted >= this.admissionLimit) {
+    if (this.closed || this.broken || this.admitted >= this.admissionLimit) {
       return null
     }
     this.admitted += 1
@@ -337,7 +407,14 @@ export class GeosWorkerPool {
 
   /** Start one worker and register its lifecycle handlers. */
   spawn() {
-    const record = { worker: new Worker(WORKER_PATH), job: null, timer: null }
+    const record = {
+      worker: new Worker(WORKER_PATH),
+      job: null,
+      timer: null,
+      /** Has this worker ever posted `ready`? Separates boot failures (it
+       *  never came up) from deaths in service (timeout, crash, heap). */
+      ready: false
+    }
     record.worker.on('message', (message) => this.onMessage(record, message))
     record.worker.on('error', (error) => this.onExit(record, error))
     record.worker.on('exit', () => this.onExit(record, null))
@@ -351,6 +428,8 @@ export class GeosWorkerPool {
    */
   onMessage(record, message) {
     if (message?.ready) {
+      record.ready = true
+      this.consecutiveBootFailures = 0
       this.geosVersion ??= message.geosVersion
       this.release(record)
       return
@@ -390,7 +469,10 @@ export class GeosWorkerPool {
       job.settled = true
       job.reject(error ?? new Error('Geometry validation worker exited'))
     }
-    if (this.closed) {
+    if (this.closed || this.broken) {
+      return
+    }
+    if (this.isBeyondSaving(record, error)) {
       return
     }
     const cause = error ? `: ${error.message}` : ''
@@ -402,6 +484,82 @@ export class GeosWorkerPool {
     // could then be handed to the same thread. Waiting for `ready` also stops a
     // job spending part of its timeout budget on the WebAssembly compile.
     this.spawn()
+  }
+
+  /**
+   * Decide, on a worker's death, whether replacing it can possibly help — and
+   * give up the moment it cannot. Two ways to conclude that:
+   *
+   *  - the worker died because a module could not be LOADED. That is a broken
+   *    install (geos-wasm missing from node_modules, typically after a pull
+   *    without an `npm install`), it is deterministic, and every replacement
+   *    meets it identically. Retrying is pure log spam. Had the import sat on
+   *    the main thread the process would have refused to boot; being on a
+   *    worker thread must not soften that into an infinite restart loop, so
+   *    the process is shut down just as a main-thread import failure would.
+   *  - workers keep dying before ever posting `ready`, whatever the reason.
+   *    After {@link MAX_CONSECUTIVE_BOOT_FAILURES} in a row the pool stops
+   *    replacing and fails itself, but leaves the process up: the cause may be
+   *    environmental (memory pressure) and the rest of the service still works.
+   *
+   * @returns {boolean} true when the pool has given up (and, for a missing
+   *   module, the process is on its way down)
+   */
+  isBeyondSaving(record, error) {
+    if (isMissingModuleError(error)) {
+      this.fail(error)
+      logger.fatal(
+        `geos validation worker cannot load its modules: ${error.message}. ` +
+          'This install is incomplete — run `npm install` in bng-metric-backend ' +
+          'and restart. Shutting the service down rather than limping without validation.'
+      )
+      this.onFatal()
+      return true
+    }
+    if (record.ready) {
+      return false
+    }
+    this.consecutiveBootFailures += 1
+    if (this.consecutiveBootFailures < MAX_CONSECUTIVE_BOOT_FAILURES) {
+      return false
+    }
+    this.fail(error)
+    logger.error(
+      `geos validation disabled: ${MAX_CONSECUTIVE_BOOT_FAILURES} workers in a row ` +
+        `died before becoming ready (last: ${error?.message ?? 'exited'}). ` +
+        'Not spawning replacements; every validation will be refused until restart.'
+    )
+    return true
+  }
+
+  /**
+   * Give up: stop replacing workers, refuse all current and future work.
+   *
+   * Not `close()` — that is an orderly shutdown that callers are told about as
+   * "closed". This is the pool declaring itself BROKEN, and everything it
+   * rejects carries the underlying cause so the operator's log says why.
+   */
+  fail(error) {
+    this.broken = new ValidationUnavailableError(error)
+    for (const job of this.queue.splice(0)) {
+      job.reject(this.broken)
+    }
+    for (const record of [...this.workers]) {
+      // Delete before terminating, so the terminate's own `exit` event finds
+      // nothing to replace — which means any job still on the worker has to be
+      // failed here; `onExit` will never see it.
+      this.workers.delete(record)
+      const job = record.job
+      this.finish(record)
+      if (job && !job.settled) {
+        job.settled = true
+        job.reject(this.broken)
+      }
+      record.worker.terminate().catch(() => {
+        // A worker that cannot be terminated is already dead.
+      })
+    }
+    this.idle = []
   }
 
   /** Clear a worker's in-flight job and its timeout. */
@@ -510,6 +668,9 @@ export class GeosWorkerPool {
    * @returns {Promise<object>} the verdict from validateGeoPackageLayersGeos
    */
   run(filePath, { includeSizes = false } = {}) {
+    if (this.broken) {
+      return Promise.reject(this.broken)
+    }
     if (this.closed) {
       return Promise.reject(new Error('Geometry validation pool is closed'))
     }
@@ -550,7 +711,8 @@ export class GeosWorkerPool {
       idle: this.idle.length,
       queued: this.queue.length,
       admitted: this.admitted,
-      geosVersion: this.geosVersion
+      geosVersion: this.geosVersion,
+      broken: this.broken !== null
     }
   }
 

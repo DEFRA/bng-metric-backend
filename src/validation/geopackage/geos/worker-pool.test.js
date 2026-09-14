@@ -7,6 +7,7 @@ import {
   ValidationQueueFullError,
   ValidationQueueWaitError,
   ValidationTimeoutError,
+  ValidationUnavailableError,
   closeGeosWorkerPool,
   getGeosWorkerPool
 } from './worker-pool.js'
@@ -36,6 +37,9 @@ const READY_DEADLINE_MS = 15_000
  */
 const SETTLE_DEADLINE_MS = 8000
 const REPLACEMENT_TEST_TIMEOUT_MS = 20_000
+
+/** Budget for the test that boots three replacement workers back to back. */
+const LONG_REPLACEMENT_TEST_TIMEOUT_MS = 45_000
 
 const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms))
 
@@ -355,6 +359,132 @@ describe('GeosWorkerPool — queue wait limit', () => {
     for (const outcome of outcomes) {
       expect(outcome.reason).not.toBeInstanceOf(ValidationQueueWaitError)
     }
+  })
+})
+
+describe('GeosWorkerPool — giving up instead of crash-looping', () => {
+  // These drive `onExit` directly with a synthetic error: the real trigger is
+  // a worker whose import fails at startup, and the only way to produce that
+  // with live threads would be to break the installed node_modules under the
+  // running suite. The stand-in workers below are inert objects, not threads —
+  // deliberately, and not only for speed: terminating a REAL worker mid-boot
+  // can take the whole process down (better-sqlite3's native addon does not
+  // survive its thread dying mid-dlopen), and mid-boot is exactly the window
+  // these tests operate in.
+  class StubWorkerPool extends GeosWorkerPool {
+    spawn() {
+      const record = {
+        worker: {
+          on() {},
+          ref() {},
+          unref() {},
+          postMessage() {},
+          terminate: () => Promise.resolve()
+        },
+        job: null,
+        timer: null,
+        ready: false
+      }
+      this.workers.add(record)
+      return record
+    }
+  }
+
+  function openStubPool(options) {
+    const pool = new StubWorkerPool({
+      size: 1,
+      queueLimit: 4,
+      timeoutMs: GENEROUS_TIMEOUT_MS,
+      ...options
+    })
+    opened.push(pool)
+    return pool
+  }
+
+  function missingModuleError() {
+    const error = new Error(
+      "Cannot find package 'geos-wasm' imported from geos-runtime.js"
+    )
+    error.code = 'ERR_MODULE_NOT_FOUND'
+    return error
+  }
+
+  it('shuts the process down when a worker module cannot be loaded', async () => {
+    let aborted = 0
+    const pool = openStubPool({ onFatal: () => (aborted += 1) })
+    const [record] = [...pool.workers]
+
+    pool.onExit(record, missingModuleError())
+
+    // No replacement, no retry: the pool is broken and the process is going.
+    expect(aborted).toBe(1)
+    expect(pool.stats().size).toBe(0)
+    expect(pool.stats().broken).toBe(true)
+    await expect(pool.run(MISSING_FILE)).rejects.toBeInstanceOf(
+      ValidationUnavailableError
+    )
+  })
+
+  it('stops replacing workers that keep dying before becoming ready', async () => {
+    let aborted = 0
+    const pool = openStubPool({ onFatal: () => (aborted += 1) })
+
+    // Three startup deaths in a row — each `onExit` spawns the replacement
+    // that the next iteration kills, which is the loop being guarded against.
+    for (let i = 0; i < 3; i++) {
+      const [record] = [...pool.workers]
+      pool.onExit(record, new Error('worker crashed during startup'))
+    }
+
+    // Broken, but NOT fatal: the cause may be environmental, and the rest of
+    // the service still works — so the pool refuses rather than the process
+    // exiting.
+    expect(aborted).toBe(0)
+    expect(pool.stats().size).toBe(0)
+    expect(pool.stats().broken).toBe(true)
+    expect(pool.hasCapacity()).toBe(false)
+    expect(pool.admit()).toBeNull()
+    await expect(pool.run(MISSING_FILE)).rejects.toBeInstanceOf(
+      ValidationUnavailableError
+    )
+  })
+
+  it(
+    'still replaces workers that die in service, however many times',
+    async () => {
+      // Deaths AFTER `ready` — timeouts, crashes on bad input, heap exhaustion
+      // — are routine and must never trip the boot-failure guard, or a run of
+      // hostile uploads could turn validation off for everyone. Real threads
+      // here: waiting for idle first means each victim is past its boot.
+      const pool = openPool({ size: 1 })
+      for (let i = 0; i < 3; i++) {
+        await waitForIdleWorker(pool)
+        const [victim] = [...pool.workers]
+        await victim.worker.terminate()
+      }
+      await waitForIdleWorker(pool)
+      expect(pool.stats().size).toBe(1)
+      expect(pool.stats().broken).toBe(false)
+    },
+    LONG_REPLACEMENT_TEST_TIMEOUT_MS
+  )
+
+  it('fails a job that was in flight when the pool gave up', async () => {
+    const pool = openStubPool({ size: 2 })
+    for (const record of [...pool.workers]) {
+      pool.onMessage(record, { ready: true, geosVersion: 'stub' })
+    }
+    // Occupy one worker — the stub never answers, so the job stays in flight —
+    // then break the pool by killing the OTHER worker at boot three times.
+    const inFlight = pool.run(MISSING_FILE)
+    for (let i = 0; i < 3; i++) {
+      const idleRecord = [...pool.workers].find((record) => !record.job)
+      idleRecord.ready = false
+      pool.onExit(idleRecord, new Error('worker crashed during startup'))
+    }
+    // The busy worker was torn down with the pool, so its job must reject
+    // rather than hang.
+    await expect(inFlight).rejects.toBeInstanceOf(ValidationUnavailableError)
   })
 })
 
