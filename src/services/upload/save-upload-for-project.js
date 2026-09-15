@@ -126,7 +126,8 @@ function enrichOptionsForPostIntervention(baseline) {
       baseline?.hedgerows ?? [],
       baseline?.watercourses ?? []
     ),
-    baselineUnits: baseline?.units
+    baselineUnits: baseline?.units,
+    baselineWatercourses: baseline?.watercourses ?? []
   }
 }
 

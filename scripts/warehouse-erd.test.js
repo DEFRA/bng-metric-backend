@@ -184,6 +184,29 @@ describe('#buildWarehouseModel — column layout', () => {
     expect(names).toContain('document_key')
   })
 
+  it('keeps trading-rules leaves off feature_set (they are their own tables)', () => {
+    const names = columnNames('feature_set')
+
+    expect(names.some((name) => name.includes('trading_rules'))).toBe(false)
+    expect(columnNames('feature_set_trading_rules')).toEqual(
+      expect.arrayContaining([
+        'watercourses_medium_surplus',
+        'watercourses_medium_deficit',
+        'watercourses_low_net_change',
+        'watercourses_low_cumulative_availability'
+      ])
+    )
+    expect(
+      columnNames('feature_set_trading_rules_watercourse_habitats')
+    ).toEqual(
+      expect.arrayContaining([
+        'habitat_type',
+        'distinctiveness',
+        'net_unit_change'
+      ])
+    )
+  })
+
   it('keeps properties as a single jsonb column', () => {
     const properties = tableByName
       .get('baseline_habitats')
@@ -206,6 +229,8 @@ describe('#buildWarehouseModel — column layout', () => {
       'feature_set',
       'feature_set_units',
       'feature_set_habitat_sizes',
+      'feature_set_trading_rules',
+      'feature_set_trading_rules_watercourse_habitats',
       'baseline_red_line',
       'baseline_habitats',
       'baseline_trees',
@@ -236,6 +261,12 @@ describe('#renderErdMarkdown', () => {
 
   it('uses one-to-many for arrays and one-to-one for singletons', () => {
     expect(markdown).toContain(
+      '    feature_set ||--o| feature_set_trading_rules : "has"'
+    )
+    expect(markdown).toContain(
+      '    feature_set_trading_rules ||--o{ feature_set_trading_rules_watercourse_habitats : "contains"'
+    )
+    expect(markdown).toContain(
       '    feature_set ||--o{ baseline_habitats : "contains"'
     )
     expect(markdown).toContain(
@@ -259,6 +290,7 @@ describe('#renderErdMarkdown', () => {
     expect(markdown).toContain('`{projectId}:site`')
     expect(markdown).toContain('`{projectId}:{documentKey}`')
     expect(markdown).toContain('`{projectId}:{documentKey}:habitatSizes`')
+    expect(markdown).toContain('`{projectId}:postIntervention:tradingRules`')
   })
 
   it('states the update and stability semantics', () => {

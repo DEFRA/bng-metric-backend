@@ -15,7 +15,8 @@ import {
   baselineUnitsTotalsSchema,
   featureIdDescription,
   redLineSchema,
-  featureDataEnvelopeFields
+  featureDataEnvelopeFields,
+  tradingRulesHabitatNetChangeSchema
 } from '../project-shared-schemas.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
@@ -416,6 +417,52 @@ const postInterventionWatercourseSchema = Joi.object({
 }).description('A post-intervention watercourse (linear) feature.')
 
 // ──────────────────────────────────────────────────────────────────────────────
+// Trading rules (BMD-995)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const watercourseTradingRulesSchema = Joi.object({
+  habitats: Joi.array()
+    .items(tradingRulesHabitatNetChangeSchema)
+    .description(
+      'Per-habitat-type net unit change across baseline and post-intervention watercourses (AC1). One entry per unique watercourse type, ordered by type.'
+    ),
+  medium: Joi.object({
+    surplus: Joi.number()
+      .required()
+      .description(
+        'Total surplus for Medium-distinctiveness watercourses: the sum of Medium net unit changes greater than zero (AC2). Zero or positive.'
+      ),
+    deficit: Joi.number()
+      .required()
+      .description(
+        'Total deficit for Medium-distinctiveness watercourses: the sum of Medium net unit changes less than zero (AC3). Zero or negative.'
+      )
+  }).description(
+    'Medium-distinctiveness watercourse band aggregates (AC2, AC3).'
+  ),
+  low: Joi.object({
+    netChange: Joi.number()
+      .required()
+      .description(
+        'Net change in units for Low-distinctiveness watercourses: the sum of all Low net unit changes regardless of sign (AC4).'
+      ),
+    cumulativeAvailability: Joi.number()
+      .required()
+      .description(
+        'Cumulative availability of units for Low-distinctiveness watercourses: the Medium surplus (AC2) plus the Low net change (AC4), per AC5.'
+      )
+  }).description('Low-distinctiveness watercourse band aggregates (AC4, AC5).')
+}).description(
+  'Watercourse trading-rules unit figures (BMD-995). Unit values only; Met/Not-met statuses are derived separately (BMD-1002).'
+)
+
+const tradingRulesSchema = Joi.object({
+  watercourses: watercourseTradingRulesSchema
+}).description(
+  'Trading-rules unit figures by feature module. Watercourses today; hedgerows and areas follow the same pattern.'
+)
+
+// ──────────────────────────────────────────────────────────────────────────────
 // Top-level post-intervention data schema
 // ──────────────────────────────────────────────────────────────────────────────
 
@@ -435,9 +482,10 @@ const postInterventionDataSchema = Joi.object({
     .items(postInterventionWatercourseSchema)
     .description('Post-intervention watercourse (linear) features.'),
   habitatSizes: habitatSizesSummarySchema,
-  units: baselineUnitsTotalsSchema
+  units: baselineUnitsTotalsSchema,
+  tradingRules: tradingRulesSchema
 }).description(
-  'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes and unit totals.'
+  'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes, unit totals and trading-rules unit figures.'
 )
 
 export {
