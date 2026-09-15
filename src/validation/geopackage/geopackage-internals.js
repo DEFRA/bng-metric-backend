@@ -17,5 +17,5 @@ export {
   validateHabitats,
   validateHedgerows,
   validateWatercourses,
-  validateParcelCount
+  validateFeatureCount
 } from './geopackage-internals-validate-features.js'

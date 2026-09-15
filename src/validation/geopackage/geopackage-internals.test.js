@@ -70,9 +70,9 @@ describe('geopackage-internals.js (barrel)', () => {
       'compareOneLayerToBaselineSchema',
       'formatSrsIdForError',
       'pragmaTableInfoByLowerName',
+      'validateFeatureCount',
       'validateHabitats',
       'validateHedgerows',
-      'validateParcelCount',
       'validateRedLineBoundary',
       'validateWatercourses'
     ])

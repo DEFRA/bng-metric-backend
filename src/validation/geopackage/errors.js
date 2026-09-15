@@ -24,9 +24,9 @@ export const ERROR_CODES = Object.freeze({
     'GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING',
   /**
    * More features than the synchronous validation pipeline can finish inside
-   * its timeout ladder. Sized by VALIDATION_MAX_PARCEL_COUNT.
+   * its timeout ladder. Sized by VALIDATION_MAX_FEATURE_COUNT.
    */
-  GPKG_TOO_MANY_PARCELS: 'GPKG_TOO_MANY_PARCELS',
+  GPKG_TOO_MANY_FEATURES: 'GPKG_TOO_MANY_FEATURES',
 
   NO_REDLINE: 'NO_REDLINE',
   GPKG_HABITATS_NO_GEOMETRY_COLUMN: 'GPKG_HABITATS_NO_GEOMETRY_COLUMN',

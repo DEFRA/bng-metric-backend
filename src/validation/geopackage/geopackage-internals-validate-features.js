@@ -24,7 +24,7 @@ import { caughtValueMessage } from './geopackage-internals-sqlite.js'
 const INTEGER_COUNT_NONE = 0
 
 /** A limit of zero or less turns the size check off. */
-const NO_PARCEL_LIMIT = 0
+const NO_FEATURE_LIMIT = 0
 
 /**
  * Layers whose rows the size check counts. Exactly the four the format gate
@@ -345,7 +345,7 @@ export function validateWatercourses(
  * The file is small enough for the synchronous pipeline to finish it.
  *
  * This is a capacity limit, not a judgement about the data: nothing is wrong
- * with a 40,000-parcel GeoPackage except that validating one takes longer than
+ * with a 40,000-feature GeoPackage except that validating one takes longer than
  * the timeout ladder allows. Without this check such a file is accepted,
  * downloaded, queued and then killed by the worker timeout, which surfaces as a
  * 500 VALIDATION_FAILED — "there is a problem with your file" — when there is
@@ -357,12 +357,15 @@ export function validateWatercourses(
  *
  * @param {Map<string, import('./read-feature-tables.js').FeatureTable>} featureTables
  * @param {string[]} errors
- * @param {number} maxParcelCount rows allowed across {@link COUNTED_LAYER_KEYS}
+ * @param {number} maxFeatureCount rows allowed across {@link COUNTED_LAYER_KEYS}
  */
-export function validateParcelCount(featureTables, errors, maxParcelCount) {
+export function validateFeatureCount(featureTables, errors, maxFeatureCount) {
   // Finite-and-positive rather than `> 0`, so an unset or unparsable limit
   // disables the check instead of refusing every file.
-  if (!Number.isFinite(maxParcelCount) || maxParcelCount <= NO_PARCEL_LIMIT) {
+  if (
+    !Number.isFinite(maxFeatureCount) ||
+    maxFeatureCount <= NO_FEATURE_LIMIT
+  ) {
     return
   }
 
@@ -370,19 +373,19 @@ export function validateParcelCount(featureTables, errors, maxParcelCount) {
   for (const key of COUNTED_LAYER_KEYS) {
     total += featureTables.get(key)?.rowCount ?? INTEGER_COUNT_NONE
   }
-  if (total <= maxParcelCount) {
+  if (total <= maxFeatureCount) {
     return
   }
 
   errors.push(
     makeError(
-      ERROR_CODES.GPKG_TOO_MANY_PARCELS,
+      ERROR_CODES.GPKG_TOO_MANY_FEATURES,
       `GeoPackage contains ${total.toLocaleString('en-GB')} features across its ` +
         `boundary, habitat, hedgerow and watercourse layers; the maximum this ` +
-        `service can validate is ${maxParcelCount.toLocaleString('en-GB')}`,
+        `service can validate is ${maxFeatureCount.toLocaleString('en-GB')}`,
       // Both numbers, so the frontend can tell the user how far over they are
       // without parsing them back out of the sentence above.
-      { featureCount: total, maxFeatureCount: maxParcelCount }
+      { featureCount: total, maxFeatureCount }
     )
   )
 }

@@ -7,7 +7,7 @@ import {
   RIVERS_LYR
 } from './geopackage-constants.js'
 import { ERROR_CODES } from './errors.js'
-import { validateParcelCount } from './geopackage-internals-validate-features.js'
+import { validateFeatureCount } from './geopackage-internals-validate-features.js'
 import { validateGpkg, validateAndReadGpkgFile } from './geopackage.js'
 import {
   fullReadBuffer,
@@ -35,11 +35,11 @@ function habitatFeatures(count) {
   )
 }
 
-describe('validateParcelCount', () => {
+describe('validateFeatureCount', () => {
   it('sums rows across the boundary, habitat, hedgerow and watercourse layers', () => {
     const errors = []
 
-    validateParcelCount(
+    validateFeatureCount(
       tables({
         [RLB_LYR]: 1,
         [HABITATS_LYR]: 12000,
@@ -57,10 +57,10 @@ describe('validateParcelCount', () => {
   it('rejects one row over the limit, naming both numbers', () => {
     const errors = []
 
-    validateParcelCount(tables({ [HABITATS_LYR]: 25001 }), errors, 25000)
+    validateFeatureCount(tables({ [HABITATS_LYR]: 25001 }), errors, 25000)
 
     expect(errors).toHaveLength(1)
-    expect(errors[0].code).toBe(ERROR_CODES.GPKG_TOO_MANY_PARCELS)
+    expect(errors[0].code).toBe(ERROR_CODES.GPKG_TOO_MANY_FEATURES)
     expect(errors[0].message).toContain('25,001')
     expect(errors[0].message).toContain('25,000')
   })
@@ -70,7 +70,7 @@ describe('validateParcelCount', () => {
   it('carries both counts as details', () => {
     const errors = []
 
-    validateParcelCount(tables({ [HABITATS_LYR]: 30000 }), errors, 25000)
+    validateFeatureCount(tables({ [HABITATS_LYR]: 30000 }), errors, 25000)
 
     expect(errors[0].details).toEqual({
       featureCount: 30000,
@@ -81,7 +81,7 @@ describe('validateParcelCount', () => {
   it('counts a layer the file does not have as zero rather than failing', () => {
     const errors = []
 
-    validateParcelCount(tables({ [HABITATS_LYR]: 5 }), errors, 10)
+    validateFeatureCount(tables({ [HABITATS_LYR]: 5 }), errors, 10)
 
     expect(errors).toEqual([])
   })
@@ -91,7 +91,7 @@ describe('validateParcelCount', () => {
   it('is disabled by a limit of zero', () => {
     const errors = []
 
-    validateParcelCount(tables({ [HABITATS_LYR]: 1_000_000 }), errors, 0)
+    validateFeatureCount(tables({ [HABITATS_LYR]: 1_000_000 }), errors, 0)
 
     expect(errors).toEqual([])
   })
@@ -99,13 +99,13 @@ describe('validateParcelCount', () => {
   it('is disabled by a limit that is not a positive number', () => {
     for (const limit of [-1, undefined, null, Number.NaN]) {
       const errors = []
-      validateParcelCount(tables({ [HABITATS_LYR]: 1_000_000 }), errors, limit)
+      validateFeatureCount(tables({ [HABITATS_LYR]: 1_000_000 }), errors, limit)
       expect(errors).toEqual([])
     }
   })
 })
 
-describe('the format gate enforces the parcel limit', () => {
+describe('the format gate enforces the feature limit', () => {
   it('accepts a file on the limit', () => {
     const result = validateGpkg(fullReadBuffer(), FULL_READ_COUNTED)
 
@@ -118,7 +118,7 @@ describe('the format gate enforces the parcel limit', () => {
 
     expect(result.valid).toBe(false)
     expect(result.errors.map((e) => e.code)).toContain(
-      ERROR_CODES.GPKG_TOO_MANY_PARCELS
+      ERROR_CODES.GPKG_TOO_MANY_FEATURES
     )
   })
 

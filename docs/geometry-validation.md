@@ -88,7 +88,7 @@ a precondition here, not an optimisation.
 | `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once, reserved before the fetch — see below.       |
 | `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; on overrun the worker is terminated.                     |
 | `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may WAIT to start before it is refused instead.            |
-| `VALIDATION_MAX_PARCEL_COUNT`         |   25000 | Features the gate accepts before refusing the file — see below.          |
+| `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts before refusing the file — see below.          |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files PARSED at once. The primary shed — see below. |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503. The frontend honours this.                     |
 
@@ -230,9 +230,9 @@ and then killed on the worker timeout — reaching the user as a **500
 `VALIDATION_FAILED`**, which the frontend renders as "there is a problem with
 your file". There was not. The service simply could not finish it.
 
-`VALIDATION_MAX_PARCEL_COUNT` closes that gap. The format gate counts the rows in
+`VALIDATION_MAX_FEATURE_COUNT` closes that gap. The format gate counts the rows in
 the boundary, habitat, hedgerow and watercourse layers and refuses a file over the
-limit with **`GPKG_TOO_MANY_PARCELS`** — a validation error, on the file's own
+limit with **`GPKG_TOO_MANY_FEATURES`** — a validation error, on the file's own
 terms, raised before it costs a worker slot or an unpack.
 
 It counts **features, not habitat parcels alone**. A limit that counted only
