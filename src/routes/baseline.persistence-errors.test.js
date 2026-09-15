@@ -608,7 +608,7 @@ describe('validateBaseline handler — document schema validation', () => {
     setupHappyPathMocks()
   })
 
-  it('returns INVALID_FILENAME when filename exceeds the allowed length', async () => {
+  it('returns FILENAME_TOO_LONG when filename exceeds the allowed length', async () => {
     vi.mocked(extractHabitatData).mockReturnValue({
       document: {
         ...STUB_EXTRACTED.document,
@@ -625,7 +625,7 @@ describe('validateBaseline handler — document schema validation', () => {
       expect.objectContaining({
         valid: false,
         errors: [
-          expect.objectContaining({ code: ERROR_CODES.INVALID_FILENAME })
+          expect.objectContaining({ code: ERROR_CODES.FILENAME_TOO_LONG })
         ]
       })
     )

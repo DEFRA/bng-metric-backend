@@ -59,8 +59,11 @@ export const ERROR_CODES = Object.freeze({
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 
-  /** The uploaded file's own name fails SAFE_FILENAME_RE or the length limit. The user fixes this by renaming the file, so it is reported apart from a malformed document. */
+  /** The uploaded file's own name fails SAFE_FILENAME_RE. The user fixes this by renaming the file, so it is reported apart from a malformed document. */
   INVALID_FILENAME: 'INVALID_FILENAME',
+
+  /** The uploaded file's own name is longer than MAX_FILENAME_LENGTH. */
+  FILENAME_TOO_LONG: 'FILENAME_TOO_LONG',
 
   /** Non-GeoPackage failure while running the baseline validation pipeline (e.g. unexpected exception). */
   VALIDATION_FAILED: 'VALIDATION_FAILED',
@@ -85,25 +88,38 @@ export function makeError(code, message, details) {
 const FILENAME_KEY = 'filename'
 /** Joi `path[0]` is the document root; only that slot is the uploaded file's name. */
 const PATH_ROOT_INDEX = 0
+/** Joi reports `.max()` failures with this `details[].type`. */
+const JOI_STRING_MAX = 'string.max'
 
 /**
  * Choose the error code for a Joi rejection of upload metadata or of the
  * extracted document. A rejected file name is the only one of these the user
  * can act on — they rename the file — so it is reported separately from a
- * document whose structure is wrong.
+ * document whose structure is wrong. Length and character-set failures are
+ * separate codes because they need different messages on the upload page.
  *
- * @param {{message: string, details?: Array<{path?: Array<string|number>}>}} joiError
+ * @param {{message: string, details?: Array<{path?: Array<string|number>, type?: string}>}} joiError
  * @returns {{code: string, message: string}}
  */
 export function makeMetadataError(joiError) {
-  const rejectedFilename = joiError?.details?.some(
+  const details = joiError?.details
+  const filenameTooLong = details?.some(
+    (detail) =>
+      detail?.path?.[PATH_ROOT_INDEX] === FILENAME_KEY &&
+      detail?.type === JOI_STRING_MAX
+  )
+  const rejectedFilename = details?.some(
     (detail) => detail?.path?.[PATH_ROOT_INDEX] === FILENAME_KEY
   )
 
-  return makeError(
-    rejectedFilename
-      ? ERROR_CODES.INVALID_FILENAME
-      : ERROR_CODES.INVALID_FILE_METADATA,
-    joiError.message
-  )
+  let code
+  if (filenameTooLong) {
+    code = ERROR_CODES.FILENAME_TOO_LONG
+  } else if (rejectedFilename) {
+    code = ERROR_CODES.INVALID_FILENAME
+  } else {
+    code = ERROR_CODES.INVALID_FILE_METADATA
+  }
+
+  return makeError(code, joiError.message)
 }

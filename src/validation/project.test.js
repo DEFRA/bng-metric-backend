@@ -259,6 +259,17 @@ describe('#filename validation', () => {
     expect(error).toBeUndefined()
   })
 
+  test.each([
+    { description: 'opening parenthesis', filename: '(1).gpkg' },
+    { description: 'underscore', filename: '_draft.gpkg' },
+    { description: 'hyphen', filename: '-copy.gpkg' },
+    { description: 'dot', filename: '.survey.gpkg' },
+    { description: 'space', filename: ' survey.gpkg' }
+  ])('Should accept a filename starting with $description', ({ filename }) => {
+    const { error } = withFilename(filename)
+    expect(error).toBeUndefined()
+  })
+
   test('Should accept null filename', () => {
     const { error } = withFilename(null)
     expect(error).toBeUndefined()
@@ -288,6 +299,26 @@ describe('#filename validation', () => {
     {
       description: 'SQL injection characters',
       filename: "survey'; DROP TABLE projects; --.gpkg"
+    },
+    {
+      description: 'punctuation-only stem (..gpkg)',
+      filename: '..gpkg'
+    },
+    {
+      description: 'punctuation-only stem (...gpkg)',
+      filename: '...gpkg'
+    },
+    {
+      description: 'spaces-only stem',
+      filename: '   .gpkg'
+    },
+    {
+      description: 'hyphen-only stem',
+      filename: '-.gpkg'
+    },
+    {
+      description: 'parentheses-only stem',
+      filename: '().gpkg'
     }
   ])('Should reject $description', ({ filename }) => {
     const { error } = withFilename(filename)

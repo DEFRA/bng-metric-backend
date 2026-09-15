@@ -26,6 +26,32 @@ describe('makeMetadataError', () => {
     })
   })
 
+  it('reports a file name that exceeds the length limit as FILENAME_TOO_LONG', () => {
+    expect(
+      makeMetadataError({
+        message:
+          '"filename" length must be less than or equal to 255 characters long',
+        details: [{ path: ['filename'], type: 'string.max' }]
+      })
+    ).toEqual({
+      code: ERROR_CODES.FILENAME_TOO_LONG,
+      message:
+        '"filename" length must be less than or equal to 255 characters long'
+    })
+  })
+
+  it('prefers FILENAME_TOO_LONG when length and pattern both fail', () => {
+    expect(
+      makeMetadataError({
+        message: 'multiple filename failures',
+        details: [
+          { path: ['filename'], type: 'string.max' },
+          { path: ['filename'], type: 'string.pattern.base' }
+        ]
+      }).code
+    ).toBe(ERROR_CODES.FILENAME_TOO_LONG)
+  })
+
   it.each([
     ['a feature field', [{ path: ['habitats', 0, 'status'] }]],
     ['the upload envelope', [{ path: ['fileSize'] }]],
