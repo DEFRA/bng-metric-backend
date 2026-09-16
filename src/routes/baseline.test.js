@@ -5,8 +5,10 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import {
+  getGeosWorkerPool,
   ValidationQueueFullError,
-  ValidationTimeoutError
+  ValidationTimeoutError,
+  ValidationUnavailableError
 } from '../validation/geopackage/geos/worker-pool.js'
 import {
   getParseBudget,
@@ -501,6 +503,113 @@ describe('validateBaseline handler — service busy', () => {
       h
     )
     expect(drizzleHarness.log.transactionCalls).toBe(0)
+  })
+})
+
+// A pool that has permanently given up is the one 503 that must NOT invite a
+// retry: unlike busy, the next attempt meets the same wall until an operator
+// restarts the service. The frontend re-polls only on the exact code
+// VALIDATION_BUSY, so the distinct code (and the absent Retry-After) is what
+// drops the user out of the polling loop and onto an honest error page.
+describe('validateBaseline handler — validation permanently unavailable', () => {
+  let h
+  let drizzleHarness
+
+  /** The shared pool the route consults — the same one `validationPool()` returns. */
+  function sharedPool() {
+    return getGeosWorkerPool({
+      size: config.get('validation.workerCount'),
+      queueLimit: config.get('validation.workerQueueLimit'),
+      timeoutMs: config.get('validation.workerTimeoutMs')
+    })
+  }
+
+  beforeEach(() => {
+    h = makeH()
+    drizzleHarness = makeDrizzle()
+    setupHappyPathMocks()
+    // Marked broken directly rather than via fail(): fail() terminates real
+    // worker threads, and the shared pool's may still be mid-boot — the unsafe
+    // window this suite must stay out of. Only the flag matters to the route.
+    sharedPool().broken = new ValidationUnavailableError(
+      new Error("Cannot find package 'geos-wasm'")
+    )
+  })
+
+  afterEach(() => {
+    sharedPool().broken = null
+  })
+
+  it('answers 503 with VALIDATION_UNAVAILABLE, not VALIDATION_BUSY', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.code).toHaveBeenCalledWith(503)
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [
+        expect.objectContaining({ code: ERROR_CODES.VALIDATION_UNAVAILABLE })
+      ]
+    })
+  })
+
+  it('sends no Retry-After, because a retry meets the same wall', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(h.header).not.toHaveBeenCalledWith('Retry-After', expect.anything())
+  })
+
+  it('refuses at the door, before any download or read', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(waitForUploadReady).not.toHaveBeenCalled()
+    expect(downloadFileToTemp).not.toHaveBeenCalled()
+    expect(validateGeoPackageLayers).not.toHaveBeenCalled()
+  })
+
+  it('counts the refusal apart from busy — this one is an incident', async () => {
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+    expect(metricsCounter).toHaveBeenCalledWith(
+      'GeoPackageValidationUnavailable'
+    )
+    expect(metricsCounter).not.toHaveBeenCalledWith(
+      'GeoPackageValidationBusy',
+      expect.anything(),
+      expect.anything()
+    )
+  })
+
+  it('gives the same answer when the pool gives up mid-request', async () => {
+    // The entry check passed — the pool broke while this file was in flight,
+    // so the failure arrives as the job's rejection instead.
+    sharedPool().broken = null
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(
+      new ValidationUnavailableError(
+        new Error("Cannot find package 'geos-wasm'")
+      )
+    )
+
+    await validateBaseline.handler(
+      makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(503)
+    expect(h.response).toHaveBeenCalledWith({
+      valid: false,
+      errors: [
+        expect.objectContaining({ code: ERROR_CODES.VALIDATION_UNAVAILABLE })
+      ]
+    })
+    expect(h.header).not.toHaveBeenCalledWith('Retry-After', expect.anything())
   })
 })
 
