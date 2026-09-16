@@ -72,7 +72,7 @@ Work down this list and stop at the first match.
    on the document key rather than being duplicated per flow.
 4. **Does it turn GeoPackage columns into a document, or a document into
    enriched units, for exactly one flow?** It belongs in that flow's folder.
-5. **Is it an adapter between our shapes and `bng-metric-engine`'s shapes**
+5. **Is it an adapter between our shapes and `bng-library/metric`'s shapes**
    (condition normalisation, habitat-key candidates, encroachment coercion)? It
    is shared, and belongs in `enrichment/shared/` rather than in either flow's
    enrichment module.

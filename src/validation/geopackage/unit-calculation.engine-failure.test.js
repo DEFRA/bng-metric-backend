@@ -10,7 +10,7 @@
 import { describe, test, expect, vi } from 'vitest'
 import { recomputeWatercourse } from './unit-calculation.js'
 
-vi.mock('bng-metric-engine', async (importActual) => {
+vi.mock('bng-library/metric', async (importActual) => {
   const actual = await importActual()
   return {
     ...actual,

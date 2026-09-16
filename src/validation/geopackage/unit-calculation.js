@@ -3,7 +3,7 @@
 // Used by the feature PUT routes (BMD-480 area, BMD-501 hedgerow): when the
 // user edits the dropdowns and clicks Save, the backend recomputes units and
 // completeness before persisting. Both area and hedgerow recompute delegate
-// to bng-metric-engine so the calculator stays the single source of truth.
+// to bng-library/metric so the calculator stays the single source of truth.
 //
 // All recompute functions return the canonical persisted derived shape so
 // `applyFeatureUpdate` can splice the result into any layer without per-type
@@ -22,7 +22,7 @@ import {
   calculateHedgerowBaseline,
   calculateWatercourseBaseline,
   resolveDistinctiveness
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 import {
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
   hedgerowDistinctivenessScores,

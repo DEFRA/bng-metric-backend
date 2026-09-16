@@ -1,5 +1,5 @@
 // Adapters between the shapes the GeoPackage gives us and the shapes
-// bng-metric-engine expects. Shared by the baseline and post-intervention
+// bng-library/metric expects. Shared by the baseline and post-intervention
 // enrichment modules — neither flow owns these, so nothing here may depend on
 // baseline- or post-intervention-specific logic.
 
@@ -9,7 +9,7 @@ import {
   isRecognisedEncroachmentValue,
   WATERCOURSE_ENCROACHMENT_MULTIPLIER,
   WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 import { stripConditionPrefix } from './condition.js'
 

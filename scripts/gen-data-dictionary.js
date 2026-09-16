@@ -341,13 +341,13 @@ function renderNotesSection() {
     `  key resolution lives in ${repoFileLink(PROP_KEYS_REF)}.`,
     '- **Derived unit fields** (`distinctiveness`, `distinctivenessScore`,',
     '  `conditionScore`, `units`) are set on habitats, hedgerows and watercourses',
-    '  by bng-metric-engine — during baseline import enrichment and again when a',
+    '  by bng-library/metric — during baseline import enrichment and again when a',
     '  feature is edited. `units` is the single field read by the frontend display',
     '  and the baseline unit totals. Watercourses additionally carry',
     '  `waterEncroachmentMultiplier` / `riparianEncroachmentMultiplier`.',
     '- **Enum values** for habitat type, broad type, condition, distinctiveness',
     '  etc. are not enumerated in the Joi schema; they are resolved at runtime',
-    '  from `bng-metric-engine` via `src/validation/reference/*`.',
+    '  from `bng-library/metric` via `src/validation/reference/*`.',
     ''
   ].join('\n')
 }

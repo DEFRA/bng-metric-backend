@@ -1,13 +1,13 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 
-import { BaselineLookupError } from 'bng-metric-engine'
+import { BaselineLookupError } from 'bng-library/metric'
 
 import { enrichBaselineDocumentWithUnits } from './enrich-baseline-units.js'
 
 const calculateAreaHabitatBaselineMock = vi.hoisted(() => vi.fn())
 const engineActual = vi.hoisted(() => ({ calculateAreaHabitatBaseline: null }))
 
-vi.mock('bng-metric-engine', async (importOriginal) => {
+vi.mock('bng-library/metric', async (importOriginal) => {
   const actual = await importOriginal()
   engineActual.calculateAreaHabitatBaseline =
     actual.calculateAreaHabitatBaseline

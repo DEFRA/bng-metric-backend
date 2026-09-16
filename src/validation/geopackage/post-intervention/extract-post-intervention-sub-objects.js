@@ -1,4 +1,4 @@
-import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-metric-engine'
+import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'

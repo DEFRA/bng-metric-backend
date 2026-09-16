@@ -7,9 +7,6 @@
   "engines": {
     "node": ">=24.11.1"
   },
-  "workspaces": [
-    "bng-metric-engine"
-  ],
   "scripts": {
     "data-dictionary": "node scripts/gen-data-dictionary.js && node scripts/gen-warehouse-erd.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
     "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
@@ -60,8 +57,7 @@
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "better-sqlite3": "13.0.3",
-    "bng-library": "github:DEFRA/bng-library#c281fd332b619a36e1817fa13f4cd4146df27500",
-    "bng-metric-engine": "workspace:*",
+    "bng-library": "github:DEFRA/bng-library#b2454fb14efb0a626adeb44b630eeeb6b3539641",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
     "dotenv": "17.4.2",

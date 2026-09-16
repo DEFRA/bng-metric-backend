@@ -1,4 +1,4 @@
-import { calculatePostInterventionNetUnitChanges } from 'bng-metric-engine'
+import { calculatePostInterventionNetUnitChanges } from 'bng-library/metric'
 import { describe, expect, it } from 'vitest'
 
 import { HTTP_OK } from './helpers/http-status.js'

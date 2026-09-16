@@ -20,7 +20,7 @@ describe('habitat reference data integrity', () => {
   })
 })
 
-// Real hedgerow reference data is bundled in bng-metric-engine (BMD-427/428).
+// Real hedgerow reference data is bundled in bng-library/metric (BMD-427/428).
 // These tests exercise the filtering and ordering logic with fixtures so they
 // stay decoupled from the engine's data choices; production wiring is
 // covered by the default-argument test in each block.

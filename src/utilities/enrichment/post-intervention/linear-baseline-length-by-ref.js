@@ -1,4 +1,4 @@
-import { BaselineLookupError } from 'bng-metric-engine'
+import { BaselineLookupError } from 'bng-library/metric'
 
 import { METRES_PER_KM } from '../shared/enrich-units-shared.js'
 

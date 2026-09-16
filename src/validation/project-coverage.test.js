@@ -47,7 +47,7 @@ const UPLOAD_ID = '55555555-5555-5555-5555-555555555555'
 // Build a baseline document the way production does — parsed GeoPackage layers
 // through extractHabitatData + the unit enrichment — so the produced keys are the
 // real ones, not a hand-written guess. The type/condition values are chosen to
-// resolve in bng-metric-engine so every feature type actually enriches (and
+// resolve in bng-library/metric so every feature type actually enriches (and
 // therefore exercises the derived unit fields, including the watercourse
 // encroachment multipliers).
 function buildBaselineDocument() {

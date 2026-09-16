@@ -1,6 +1,6 @@
 import { describe, it, expect, vi } from 'vitest'
 
-import * as bngMetricEngine from 'bng-metric-engine'
+import * as bngMetricEngine from 'bng-library/metric'
 
 import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervention-units.js'
 import {

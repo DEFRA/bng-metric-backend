@@ -6,23 +6,28 @@ export default defineConfig({
     environment: 'node',
     clearMocks: true,
     fileParallelism: false,
-    include: [
-      'src/**/*.test.js',
-      'scripts/**/*.test.js',
-      'bng-metric-engine/src/**/*.test.js'
-    ],
+    include: ['src/**/*.test.js', 'scripts/**/*.test.js'],
+    // The statutory calculations used to be an in-repo workspace, so Vitest
+    // transformed them and their export namespace stayed spy-able. As a plain
+    // dependency they would be externalised and loaded as real ESM, whose
+    // namespace is frozen — breaking the `vi.spyOn(metric, ...)` tests that
+    // assert how enrichment handles an unexpected engine error. Inlining
+    // restores the previous conditions.
+    server: {
+      deps: {
+        inline: ['bng-library']
+      }
+    },
     coverage: {
       provider: 'v8',
       reportsDirectory: './coverage',
       reporter: ['text', 'lcov'],
-      include: ['src/**/*.js', 'bng-metric-engine/src/**/*.js'],
+      include: ['src/**/*.js'],
       exclude: [
         ...configDefaults.exclude,
         'coverage',
         // Re-export-only facade; exercised by geopackage-internals.test.js — no executable lines to cover.
         'src/validation/geopackage/geopackage-internals.js',
-        // Pure re-exports for `bng-metric-engine` package entrypoint.
-        'bng-metric-engine/src/index.js',
         // Worker-thread entry point. It only ever executes inside a Worker, so
         // v8 coverage collected in the main thread cannot see it and reports 0%
         // however well it is exercised. Its behaviour is covered by

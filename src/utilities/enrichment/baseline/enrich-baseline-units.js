@@ -2,7 +2,7 @@ import {
   BaselineLookupError,
   calculateHedgerowBaseline,
   calculateWatercourseBaseline
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { summarizeFeatureSetUnitsTotals } from '../../features/feature-set-units.js'

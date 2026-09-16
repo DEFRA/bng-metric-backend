@@ -19,7 +19,7 @@ import {
 } from '../project-shared-schemas.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
-  'Numeric distinctiveness score for the band, from bng-metric-engine.'
+  'Numeric distinctiveness score for the band, from bng-library/metric.'
 const RETENTION_CATEGORY_DESCRIPTION =
   'Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column.'
 const POST_INTERVENTION_STATUS_DESCRIPTION =
@@ -56,7 +56,7 @@ function baselineCommonFields() {
       ),
     distinctiveness: Joi.string()
       .allow(null, '')
-      .description('Distinctiveness band resolved by bng-metric-engine.'),
+      .description('Distinctiveness band resolved by bng-library/metric.'),
     distinctivenessScore: Joi.number()
       .allow(null)
       .description(DISTINCTIVENESS_SCORE_DESCRIPTION)
@@ -84,17 +84,17 @@ function proposedCommonFields() {
     timeMultiplier: Joi.number()
       .allow(null)
       .description(
-        'Time multiplier from bng-metric-engine; set for Created and Enhanced features.'
+        'Time multiplier from bng-library/metric; set for Created and Enhanced features.'
       ),
     difficultyMultiplier: Joi.number()
       .allow(null)
       .description(
-        'Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features.'
+        'Difficulty multiplier from bng-library/metric; set for Created and Enhanced features.'
       ),
     standardTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
+        'Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
     difficulty: Joi.string()
       .allow(null, '')
@@ -373,12 +373,12 @@ const watercourseEncroachmentFields = {
   waterEncroachmentMultiplier: Joi.number()
     .allow(null)
     .description(
-      'Watercourse-encroachment multiplier applied by bng-metric-engine when computing units.'
+      'Watercourse-encroachment multiplier applied by bng-library/metric when computing units.'
     ),
   riparianEncroachmentMultiplier: Joi.number()
     .allow(null)
     .description(
-      'Riparian-encroachment multiplier applied by bng-metric-engine when computing units.'
+      'Riparian-encroachment multiplier applied by bng-library/metric when computing units.'
     )
 }
 
