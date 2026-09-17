@@ -42,6 +42,12 @@
 /** The statutory net gain. No project carries a target of its own yet. */
 const NET_GAIN_TARGET_PERCENTAGE = 10
 
+/**
+ * The area module's key. Named because two rules turn on it: it is the unit
+ * type always shown, and the one never treated as post-intervention-only.
+ */
+const AREA_HABITATS_KEY = 'habitats'
+
 const SIGNIFICANT_FIGURES = 15
 const DECIMAL_PLACES = 2
 const ZERO_UNITS_DISPLAY = '0.00'
@@ -166,7 +172,7 @@ function percentageSummary(value) {
  * would be three tiles of zeroes saying nothing.
  */
 function isVisible(key, baseline, postIntervention) {
-  if (key === 'habitats') {
+  if (key === AREA_HABITATS_KEY) {
     return true
   }
   return [baseline, postIntervention].some(
@@ -174,7 +180,30 @@ function isVisible(key, baseline, postIntervention) {
   )
 }
 
+/**
+ * Whether a unit type exists only after intervention — so there is no
+ * baseline to improve on and a percentage change would be a fiction.
+ *
+ * **Never true for area habitats**, which is what the summary screen does: it
+ * passes this flag for hedgerows and watercourses only, and lets the area
+ * entry default to false (`buildProjectUnitTypes` in the frontend's
+ * project-summary controller). The area module is the one every project
+ * starts with — the baseline upload IS the area file — so "the site had none
+ * of these before" is not a state it reaches.
+ *
+ * Asking the question of area habitats was also unanswerable from a feature
+ * count, which is how the divergence showed up in review on #297: `habitats`
+ * here names the whole area module, individual trees included, so a project
+ * whose baseline held one tree and no polygons was labelled "Not applicable"
+ * beside its own baseline of 1.00 units and a real percentage from the
+ * engine. Exempting the module fixes that at the root rather than widening
+ * the count to trees and leaving the rule applied where the screen does not
+ * apply it.
+ */
 function onlyAfterIntervention(key, baseline, postIntervention) {
+  if (key === AREA_HABITATS_KEY) {
+    return false
+  }
   return (
     (baseline?.documentCounts?.[key] ?? 0) === 0 &&
     (postIntervention?.documentCounts?.[key] ?? 0) > 0

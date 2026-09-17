@@ -137,6 +137,50 @@ describe('#summariseUnitTypes', () => {
     expect(summary.status).toBeNull()
   })
 
+  test('never calls area habitats post-intervention-only, even with no polygons', () => {
+    // A baseline of one individual tree and no habitat polygons. `habitats` is
+    // the whole area module, trees included, so a polygon count of zero does
+    // NOT mean the site had no area habitats — and the screen never asks this
+    // question of the area module at all. Raised in review on #297, where a
+    // trees-only baseline had a 100% gain discarded as "Not applicable"
+    // beside its own baseline of 1.00 units.
+    const summary = summaryFor(
+      'habitats',
+      site({ habitatsTotal: 0, treesTotal: 1 }, { habitats: 0, trees: 1 }),
+      site(
+        {
+          habitatsTotal: 2,
+          treesTotal: 0,
+          habitatsNetUnitChange: 1,
+          habitatsNetUnitChangePercentage: 100
+        },
+        { habitats: 1, trees: 0 }
+      )
+    )
+
+    expect(summary.netPercentageChange).toBe('100.00%')
+    expect(summary.status).toEqual({ text: 'Met', met: true })
+    // And the heading is the hyphenated one, because there IS a comparable
+    // post-intervention file.
+    expect(summary.postInterventionHeading).toBe('On-site post-intervention')
+  })
+
+  test('keeps the baseline and the verdict telling the same story', () => {
+    // The invariant the bug broke: a tile that reports baseline units cannot
+    // also claim there was no baseline to improve on.
+    const summary = summaryFor(
+      'habitats',
+      site({ habitatsTotal: 0, treesTotal: 1 }, { habitats: 0, trees: 1 }),
+      site(
+        { habitatsTotal: 1, treesTotal: 0, habitatsNetUnitChangePercentage: 0 },
+        { habitats: 1 }
+      )
+    )
+
+    expect(summary.baselineUnits).toBe('1.00 units')
+    expect(summary.netPercentageChange).not.toBe('Not applicable')
+  })
+
   test('calls a habitat type that only appears afterwards not applicable', () => {
     const summary = summaryFor(
       'hedgerows',

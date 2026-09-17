@@ -57,7 +57,12 @@ easy to get subtly wrong, all copied on purpose:
 - a baseline with **no post-intervention file is −100%**, not "unknown" — every unit on
   the site goes and nothing replaces it;
 - a habitat type that exists **only after intervention** is "Not applicable", there being
-  no baseline to improve on;
+  no baseline to improve on — and this is asked of hedgerows and watercourses only, never
+  of area habitats. The screen exempts the area module the same way: it is the one every
+  project starts with, since the baseline upload IS the area file. Asking it of area
+  habitats was also unanswerable from a feature count, because `habitats` names the whole
+  module including individual trees — a baseline of one tree and no polygons looked like
+  no baseline at all (found in review on #297);
 - a linear unit type with no features on either side is **not shown at all**, rather than
   shown as three tiles of zeroes.
 
