@@ -18,14 +18,7 @@ import {
   SQ_M_PER_HECTARE,
   UNIT_DECIMALS
 } from './layout.js'
-import { BASELINE, POST_INTERVENTION } from './labels.js'
-
-const LAYER_LABELS = {
-  habitats: 'Area habitats',
-  hedgerows: 'Hedgerows',
-  watercourses: 'Watercourses',
-  trees: 'Individual trees'
-}
+import { BASELINE, LAYER_LABELS, POST_INTERVENTION } from './labels.js'
 
 const NOT_SUPPLIED = 'Not supplied'
 

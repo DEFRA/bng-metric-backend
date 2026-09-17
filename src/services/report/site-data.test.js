@@ -3,6 +3,7 @@ import { describe, expect, test, vi } from 'vitest'
 import {
   attributesOf,
   buildSite,
+  cappedLayers,
   joinLayer,
   readSiteData
 } from './site-data.js'
@@ -274,6 +275,46 @@ describe('#buildSite', () => {
       'hedgerows',
       'trees',
       'watercourses'
+    ])
+  })
+})
+
+describe('#cappedLayers', () => {
+  test('is empty for a site that arrived whole', () => {
+    const site = buildSite({ habitats: [] }, emptyGeometry(), 'Test Farm')
+
+    expect(site.capped).toEqual([])
+  })
+
+  test('counts what is shown against what the project holds', () => {
+    const document = {
+      habitats: [
+        { featureId: 'f1', ref: 'A1' },
+        { featureId: 'f2', ref: 'A2' },
+        { featureId: 'f3', ref: 'A3' }
+      ]
+    }
+    const geometry = emptyGeometry({
+      cappedLayers: ['habitats'],
+      layers: {
+        habitats: [
+          { featureId: 'f1', geometry: SQUARE },
+          { featureId: 'f2', geometry: SQUARE }
+        ],
+        hedgerows: [],
+        watercourses: [],
+        trees: []
+      }
+    })
+
+    // The denominator is the document's own list, which this request has
+    // already read — so the report can say "2 of 3" without a second query
+    // per layer counting rows PostGIS was told not to return.
+    expect(cappedLayers(document, geometry, { habitats: [{}, {}] })).toEqual([
+      { layer: 'habitats', shown: 2, total: 3 }
+    ])
+    expect(buildSite(document, geometry, 'Test Farm').capped).toEqual([
+      { layer: 'habitats', shown: 2, total: 3 }
     ])
   })
 })

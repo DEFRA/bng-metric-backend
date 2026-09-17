@@ -8,6 +8,7 @@
 import { describe, expect, test } from 'vitest'
 
 import { createOsTiles } from './index.js'
+import { isOsTileError } from './errors.js'
 import { resolveOsTilesConfig } from './config.js'
 import { stubOsFetch } from './stub-upstream.test-fixtures.js'
 import { stubTileCache } from './tile-cache.test-fixtures.js'
@@ -191,6 +192,75 @@ describe('#getTile', () => {
     await expect(service.getTile(9, 300, 400)).rejects.toThrow(
       /OS Maps API" product added/
     )
+  })
+
+  test('gives up on a request that hangs, rather than holding the report open', async () => {
+    const upstream = stubOsFetch(TEST_GRID)
+    const { service } = serviceWith({
+      config: { requestTimeoutMs: 10 },
+      fetchImpl: (url, options) =>
+        url.includes('wmts')
+          ? upstream.fetch(url)
+          : new Promise((_resolve, reject) => {
+              // What a hung connection looks like: the promise never settles
+              // on its own, and only the abort signal ends it.
+              options.signal.addEventListener('abort', () =>
+                reject(options.signal.reason)
+              )
+            })
+    })
+
+    const failure = await service.getTile(9, 1508, 2814).catch((error) => error)
+
+    // A report fetches upwards of a hundred tiles, so one connection that
+    // hangs rather than fails would cost the whole download.
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.message).toMatch(/Could not reach Ordnance Survey/)
+  })
+
+  test('reports a connection failure as a tile failure, not a bug', async () => {
+    const upstream = stubOsFetch(TEST_GRID)
+    const { service } = serviceWith({
+      fetchImpl: (url) =>
+        url.includes('wmts')
+          ? upstream.fetch(url)
+          : Promise.reject(new TypeError('fetch failed'))
+    })
+
+    const failure = await service.getTile(9, 1508, 2814).catch((error) => error)
+
+    // `fetch` reports a reset or a DNS failure as a TypeError, which at the
+    // far end is indistinguishable from a bug in the calling code — so a
+    // report would 500 over an unreachable basemap instead of degrading.
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.upstream).toBe(true)
+    expect(failure.cause).toBeInstanceOf(TypeError)
+  })
+
+  test('reports a tile that arrives unreadable as a tile failure', async () => {
+    const upstream = stubOsFetch(TEST_GRID)
+    const { service } = serviceWith({
+      fetchImpl: async (url) =>
+        url.includes('wmts')
+          ? upstream.fetch(url)
+          : {
+              ok: true,
+              status: 200,
+              headers: { get: () => 'image/png' },
+              // What a connection dropped mid-body looks like.
+              arrayBuffer: async () => {
+                throw new TypeError('terminated')
+              }
+            }
+    })
+
+    const failure = await service.getTile(9, 1508, 2814).catch((error) => error)
+
+    // The deadline covers the body as well as the headers, so it can fire
+    // after a response has started arriving — and a report should degrade to a
+    // plain ground over that, not 500.
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.upstream).toBe(true)
   })
 
   test('reports a 403 as a plan problem, not a key problem', async () => {

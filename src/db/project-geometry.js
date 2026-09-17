@@ -18,9 +18,19 @@
  * `ST_AsGeoJSON` is asked for a fixed 3 decimal places — millimetres on the
  * British National Grid. The default is 9, which spends about 40% of the
  * payload on digits no map can render and no survey can justify.
+ *
+ * Every layer read is CAPPED (`report.maxFeaturesPerLayer`). Nothing upstream
+ * bounds how many features a project may hold, and the report that consumes
+ * these rows holds its whole document in memory, so an unbounded read is the
+ * one place a single project could cost the process an arbitrary amount of
+ * both. The cap is applied in SQL rather than after the fact, so the rows
+ * above it are never materialised here; the caller is told which layers hit
+ * it so the document can say so instead of silently showing a subset.
  */
 
 import { eq, sql } from 'drizzle-orm'
+
+import { config } from '../config.js'
 
 import {
   baselineHabitats,
@@ -74,7 +84,9 @@ function geoJsonColumn(table) {
  * in the same order both times — the tests compare documents, and an
  * unordered read would make them compare a set to a sequence.
  */
-async function readLayerGeometry(drizzle, table, projectId) {
+async function readLayerGeometry(drizzle, table, projectId, limit) {
+  // One row past the ceiling, which is what turns "we read 500" into the two
+  // distinguishable answers "the layer has 500" and "the layer has more".
   const rows = await drizzle
     .select({
       featureId: table.id,
@@ -83,11 +95,16 @@ async function readLayerGeometry(drizzle, table, projectId) {
     .from(table)
     .where(eq(table.projectId, projectId))
     .orderBy(table.id)
+    .limit(limit + 1)
 
-  return rows.map((row) => ({
-    featureId: row.featureId,
-    geometry: JSON.parse(row.geoJson)
-  }))
+  const capped = rows.length > limit
+  return {
+    capped,
+    features: (capped ? rows.slice(0, limit) : rows).map((row) => ({
+      featureId: row.featureId,
+      geometry: JSON.parse(row.geoJson)
+    }))
+  }
 }
 
 /**
@@ -129,8 +146,18 @@ async function readRedLine(drizzle, table, projectId) {
  * @param {object} drizzle
  * @param {string} projectId
  * @param {'baseline'|'postIntervention'} documentKey
+ * @param {object} [options]
+ * @param {number} [options.maxFeaturesPerLayer]  overrides the configured cap
+ * @returns {Promise<{ redLine: object|null, redLineAreaSqm: number,
+ *                     layers: object, cappedLayers: string[],
+ *                     maxFeaturesPerLayer: number }>}
  */
-async function readProjectGeometry(drizzle, projectId, documentKey) {
+async function readProjectGeometry(
+  drizzle,
+  projectId,
+  documentKey,
+  { maxFeaturesPerLayer = config.get('report.maxFeaturesPerLayer') } = {}
+) {
   const tables = FEATURE_TABLES[documentKey]
   if (!tables) {
     throw new Error(`Unknown document key "${documentKey}"`)
@@ -139,16 +166,20 @@ async function readProjectGeometry(drizzle, projectId, documentKey) {
   const [redLine, ...layers] = await Promise.all([
     readRedLine(drizzle, tables.redLine, projectId),
     ...GEOMETRY_LAYERS.map((layer) =>
-      readLayerGeometry(drizzle, tables[layer], projectId)
+      readLayerGeometry(drizzle, tables[layer], projectId, maxFeaturesPerLayer)
     )
   ])
 
   const byLayer = {}
+  const cappedLayers = []
   GEOMETRY_LAYERS.forEach((layer, index) => {
-    byLayer[layer] = layers[index]
+    byLayer[layer] = layers[index].features
+    if (layers[index].capped) {
+      cappedLayers.push(layer)
+    }
   })
 
-  return { ...redLine, layers: byLayer }
+  return { ...redLine, layers: byLayer, cappedLayers, maxFeaturesPerLayer }
 }
 
 export { FEATURE_TABLES, GEOMETRY_LAYERS, readProjectGeometry }

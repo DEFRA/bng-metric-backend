@@ -336,6 +336,12 @@ const config = convict({
       default: '',
       env: 'OS_MAPS_MAX_ZOOM'
     },
+    requestTimeoutMs: {
+      doc: "Deadline on one request to api.os.uk. A report fetches upwards of a hundred tiles, so a connection that hangs rather than fails costs the whole download and the request thread with it — and undici's own defaults are measured in minutes. Nothing retries: a report degrades to a plain ground instead, which is quicker and more honest than making a user wait through a second attempt.",
+      format: Number,
+      default: 15000,
+      env: 'OS_MAPS_REQUEST_TIMEOUT_MS'
+    },
     cacheTtlSeconds: {
       doc: 'How long a fetched tile stays in the process-local tile cache. Tiles are static, so this is long by default.',
       format: Number,
@@ -361,6 +367,14 @@ const config = convict({
       format: String,
       default: '© Crown copyright',
       env: 'OS_MAPS_ATTRIBUTION_SHORT'
+    }
+  },
+  report: {
+    maxFeaturesPerLayer: {
+      doc: 'Ceiling on how many features of one layer a site report reads, draws and lists. The whole document is built in memory rather than streamed (see toBuffer in services/report/build-site-report.js), and nothing upstream caps how many features a project may hold, so this is what stops one pathological project — a legitimately enormous site, or a malformed upload — from turning a download into unbounded memory and a long synchronous render on a shared process. The read itself is limited, so the rows above the ceiling never leave PostGIS. A 50-parcel site is 184 kB and ~190 ms, so 500 holds the worst case to roughly 2 MB and a couple of seconds while staying an order of magnitude above any real site. A report that reaches it says so on its first page rather than silently showing a subset.',
+      format: Number,
+      default: 500,
+      env: 'REPORT_MAX_FEATURES_PER_LAYER'
     }
   },
   reportFonts: {

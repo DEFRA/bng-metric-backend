@@ -15,7 +15,8 @@ import {
   gridFromTileMatrixSetJson,
   gridFromWmtsCapabilities
 } from '../report/pdf/grid.js'
-import { TILE_MATRIX_SET } from './config.js'
+import { OsTileError } from './errors.js'
+import { DEFAULT_REQUEST_TIMEOUT_MS, TILE_MATRIX_SET } from './config.js'
 
 /**
  * Fetch one raster tile.
@@ -25,20 +26,24 @@ import { TILE_MATRIX_SET } from './config.js'
  * @param {Function} [fetchImpl]
  * @returns {Promise<{ png: Buffer, contentType: string }>}
  */
-async function fetchTile(
-  { baseUrl, layer, apiKey },
-  { z, col, row },
-  fetchImpl = fetch
-) {
+async function fetchTile(config, { z, col, row }, fetchImpl = fetch) {
+  const { baseUrl, layer, apiKey } = config
   // OS raster ZXY orders the path z/x/y, i.e. column then row.
   const url = `${baseUrl}/${layer}/${z}/${col}/${row}.png?key=${encodeURIComponent(apiKey)}`
-  const response = await fetchImpl(url, { redirect: 'follow' })
+  const response = await osFetch(
+    url,
+    `tile ${layer}/${z}/${col}/${row}`,
+    config,
+    fetchImpl
+  )
 
   if (!response.ok) {
     throw upstreamError(response.status, `tile ${layer}/${z}/${col}/${row}`)
   }
   return {
-    png: Buffer.from(await response.arrayBuffer()),
+    png: await readUpstream(`tile ${layer}/${z}/${col}/${row}`, async () =>
+      Buffer.from(await response.arrayBuffer())
+    ),
     contentType: response.headers.get('content-type') || 'image/png'
   }
 }
@@ -58,19 +63,22 @@ async function fetchTile(
  * @returns {Promise<object>} the parsed tile matrix set
  */
 async function fetchGrid(
-  { wmtsUrl, apiKey },
+  config,
   fetchImpl = fetch,
   tileMatrixSet = TILE_MATRIX_SET
 ) {
+  const { wmtsUrl, apiKey } = config
   const url =
     `${wmtsUrl}?service=WMTS&request=GetCapabilities&version=2.0.0` +
     `&key=${encodeURIComponent(apiKey)}`
-  const response = await fetchImpl(url, { redirect: 'follow' })
+  const response = await osFetch(url, 'WMTS GetCapabilities', config, fetchImpl)
 
   if (!response.ok) {
     throw upstreamError(response.status, 'WMTS GetCapabilities')
   }
-  return gridFromWmtsCapabilities(await response.text(), tileMatrixSet)
+  return readUpstream('WMTS GetCapabilities', async () =>
+    gridFromWmtsCapabilities(await response.text(), tileMatrixSet)
+  )
 }
 
 /**
@@ -86,19 +94,23 @@ async function fetchGrid(
  * @param {Function} [fetchImpl]
  * @returns {Promise<{ pbf: Buffer, contentType: string }>}
  */
-async function fetchVectorTile(
-  { vectorTilesUrl, apiKey },
-  { z, col, row },
-  fetchImpl = fetch
-) {
+async function fetchVectorTile(config, { z, col, row }, fetchImpl = fetch) {
+  const { vectorTilesUrl, apiKey } = config
   const url = `${vectorTilesUrl}/${z}/${row}/${col}?key=${encodeURIComponent(apiKey)}`
-  const response = await fetchImpl(url, { redirect: 'follow' })
+  const response = await osFetch(
+    url,
+    `vector tile ${z}/${col}/${row}`,
+    config,
+    fetchImpl
+  )
 
   if (!response.ok) {
     throw upstreamError(response.status, `vector tile ${z}/${col}/${row}`)
   }
   return {
-    pbf: Buffer.from(await response.arrayBuffer()),
+    pbf: await readUpstream(`vector tile ${z}/${col}/${row}`, async () =>
+      Buffer.from(await response.arrayBuffer())
+    ),
     contentType: 'application/vnd.mapbox-vector-tile'
   }
 }
@@ -115,17 +127,76 @@ async function fetchVectorTile(
  * @param {Function} [fetchImpl]
  * @returns {Promise<object>} the parsed tile matrix set
  */
-async function fetchVectorGrid(
-  { vectorTileMatrixSetUrl, apiKey },
-  fetchImpl = fetch
-) {
+async function fetchVectorGrid(config, fetchImpl = fetch) {
+  const { vectorTileMatrixSetUrl, apiKey } = config
   const url = `${vectorTileMatrixSetUrl}?key=${encodeURIComponent(apiKey)}`
-  const response = await fetchImpl(url, { redirect: 'follow' })
+  const response = await osFetch(
+    url,
+    'the 27700 tile matrix set',
+    config,
+    fetchImpl
+  )
 
   if (!response.ok) {
     throw upstreamError(response.status, 'the 27700 tile matrix set')
   }
-  return gridFromTileMatrixSetJson(await response.json())
+  return readUpstream('the 27700 tile matrix set', async () =>
+    gridFromTileMatrixSetJson(await response.json())
+  )
+}
+
+/**
+ * The one call that leaves this process, with a deadline and a known failure
+ * type.
+ *
+ * Two things it guarantees that a bare `fetchImpl` does not:
+ *
+ *  - **it ends.** A report fetches upwards of a hundred tiles, so a connection
+ *    that hangs rather than fails costs the whole download and the request
+ *    thread with it. undici's own defaults are measured in minutes.
+ *  - **it fails as an `OsTileError`.** A transport failure — a reset, a DNS
+ *    failure, this timeout — arrives from `fetch` as a `TypeError` or a
+ *    `DOMException`, indistinguishable at the far end from a bug in the
+ *    calling code. Wrapped, it degrades a report to a plain ground and gets a
+ *    caller the same generic message as any other upstream failure; unwrapped,
+ *    it would 500 a download over an unreachable basemap.
+ *
+ * The message keeps the upstream text for the log. `plugins/os-tiles.js` is
+ * what decides that an upstream message is not repeated to a caller.
+ */
+async function osFetch(url, what, { requestTimeoutMs }, fetchImpl) {
+  try {
+    return await fetchImpl(url, {
+      redirect: 'follow',
+      signal: AbortSignal.timeout(
+        requestTimeoutMs ?? DEFAULT_REQUEST_TIMEOUT_MS
+      )
+    })
+  } catch (error) {
+    throw new OsTileError(
+      `Could not reach Ordnance Survey for ${what}: ${error.message}`,
+      { status: HTTP_BAD_GATEWAY, upstream: true, cause: error }
+    )
+  }
+}
+
+/**
+ * Reading what came back, with the same two guarantees.
+ *
+ * The deadline covers the body as well as the headers, so it can fire
+ * mid-stream; and a document that arrives but does not parse is an upstream
+ * failure too, not a fault in this code. Either one, unwrapped, would 500 a
+ * download that should have degraded to a plain ground.
+ */
+async function readUpstream(what, read) {
+  try {
+    return await read()
+  } catch (error) {
+    throw new OsTileError(
+      `Could not read Ordnance Survey's answer for ${what}: ${error.message}`,
+      { status: HTTP_BAD_GATEWAY, upstream: true, cause: error }
+    )
+  }
 }
 
 /**
@@ -143,9 +214,10 @@ async function fetchVectorGrid(
  *        returns, so the fix is usually OS_MAPS_MAX_ZOOM, not a new key.
  */
 function upstreamError(status, what) {
-  const error = new Error(messageFor(status, what))
-  error.status = status
-  return error
+  // `upstream: true` marks the message as operator-facing: it names the
+  // environment variables to change and paraphrases what OS returned, neither
+  // of which a caller of the tile routes is given — see plugins/os-tiles.js.
+  return new OsTileError(messageFor(status, what), { status, upstream: true })
 }
 
 function messageFor(status, what) {
@@ -178,5 +250,6 @@ function productFor(what) {
 
 const HTTP_UNAUTHORIZED = 401
 const HTTP_FORBIDDEN = 403
+const HTTP_BAD_GATEWAY = 502
 
 export { fetchGrid, fetchTile, fetchVectorGrid, fetchVectorTile }

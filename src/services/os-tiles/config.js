@@ -108,6 +108,22 @@ const BYTES_PER_MEGABYTE = 1024 * 1024
 const DEFAULT_CACHE_MAX_BYTES = 64 * BYTES_PER_MEGABYTE
 
 /**
+ * How long one request to api.os.uk may take before it is abandoned.
+ *
+ * A report fetches upwards of a hundred tiles in sequence-of-batches, so a
+ * connection that hangs rather than fails does not cost one slow tile — it
+ * costs the whole download, and a request thread with it. undici's own
+ * defaults are measured in minutes, which is far too long to be the first
+ * line of defence for a user waiting on a PDF.
+ *
+ * 15 seconds, matching the digital prototype's `REQUEST_TIMEOUT_MS`. Nothing
+ * here retries: a report degrades to a plain ground instead, which is quicker
+ * and more honest than making a user wait through a second attempt.
+ */
+const MS_PER_SECOND = 1000
+const DEFAULT_REQUEST_TIMEOUT_MS = 15 * MS_PER_SECOND
+
+/**
  * Resolve the effective configuration, folding the plan ceiling into the
  * product ceiling.
  *
@@ -124,6 +140,7 @@ function resolveOsTilesConfig(overrides = {}) {
     layer: DEFAULT_LAYER,
     cacheTtlSeconds: DEFAULT_CACHE_TTL_SECONDS,
     cacheMaxBytes: DEFAULT_CACHE_MAX_BYTES,
+    requestTimeoutMs: DEFAULT_REQUEST_TIMEOUT_MS,
     routePrefix: '/os-tiles',
     // Null means "whatever the product allows" — correct for a Premium/PSGA
     // key. An OpenData key must set OS_MAPS_MAX_ZOOM=9, or every tile above
@@ -172,6 +189,7 @@ function keyWarning({ apiKey }) {
 
 export {
   DEFAULT_LAYER,
+  DEFAULT_REQUEST_TIMEOUT_MS,
   OPEN_DATA_MAX_ZOOM,
   OS_LAYERS,
   OS_MAPS_RASTER_ZXY,

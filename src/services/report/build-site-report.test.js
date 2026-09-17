@@ -8,6 +8,7 @@ import {
   syntheticVectorTile
 } from './pdf/synthetic-tiles.test-fixtures.js'
 import { config } from '../../config.js'
+import { OsTileError } from '../os-tiles/errors.js'
 
 vi.mock('./site-data.js', async (importOriginal) => {
   const original = await importOriginal()
@@ -124,6 +125,55 @@ describe('#buildSiteReport', () => {
     // The credit is not decoration that can be dropped when it is awkward: a
     // frame that cannot carry one gets no OS tiles behind it.
     expect(stats.tiles).toBe(0)
+  })
+
+  test('redraws on a plain ground when a tile fails mid-render', async () => {
+    readSiteData.mockResolvedValue(siteData())
+    // The grid resolves, so the report commits to an OS basemap — and then a
+    // tile fails once drawing has already started, which is the case
+    // resolveBasemap cannot see.
+    const osTiles = fakeOsTiles({
+      getVectorTile: vi.fn().mockRejectedValue(
+        new OsTileError('vector tile 9/1/1: 504 Gateway Timeout', {
+          status: 504,
+          upstream: true
+        })
+      )
+    })
+
+    const { pdf, stats } = await buildSiteReport({
+      drizzle: {},
+      projectRow: { id: 'project-1', project: {} },
+      osTiles
+    })
+
+    // The request had already committed to producing a report. Failing it over
+    // a picture would be the same outage resolveBasemap exists to avoid,
+    // arriving through the other door.
+    expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+    expect(stats.tiles).toBe(0)
+    expect(stats.basemapDegraded).toBe(true)
+  })
+
+  test('does not hide a drawing fault behind a substituted basemap', async () => {
+    readSiteData.mockResolvedValue(siteData())
+    // Not an OsTileError: the service raises those for everything that can go
+    // wrong with a tile, so anything else from this seam is a bug in the code,
+    // and a bug that silently produces a slightly different report is a bug
+    // nobody ever finds.
+    const osTiles = fakeOsTiles({
+      getVectorTile: vi
+        .fn()
+        .mockRejectedValue(new TypeError('cannot read property of undefined'))
+    })
+
+    await expect(
+      buildSiteReport({
+        drizzle: {},
+        projectRow: { id: 'project-1', project: {} },
+        osTiles
+      })
+    ).rejects.toThrow(TypeError)
   })
 
   test('degrades to no basemap rather than failing when OS is unreachable', async () => {

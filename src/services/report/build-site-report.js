@@ -21,6 +21,7 @@ import {
   HABITAT_LAYOUTS,
   buildSiteReportPdf
 } from './pdf/document.js'
+import { isOsTileError } from '../os-tiles/errors.js'
 import { osTileSource, osVectorTileSource } from './pdf/tile-source.js'
 import { readSiteData } from './site-data.js'
 
@@ -35,6 +36,10 @@ const logger = createLogger()
  * buys a definite `content-length`, which is what lets a browser show download
  * progress. If report sizes ever grow past a few megabytes, streaming is the
  * change to make.
+ *
+ * What keeps "this size" true is `report.maxFeaturesPerLayer`: the geometry
+ * read is capped per layer, so the document a pathological project produces is
+ * bounded rather than as large as its uploads. See `db/project-geometry.js`.
  */
 function toBuffer(doc) {
   return new Promise((resolve, reject) => {
@@ -136,21 +141,64 @@ async function buildSiteReport({
   layout = DEFAULT_LAYOUT
 }) {
   const site = await readSiteData(drizzle, projectRow)
-  const { grid, tileSource, attribution, attributionShort } =
-    await resolveBasemap(osTiles, basemap)
-
-  const { doc, stats } = await buildSiteReportPdf({
-    baseline: site.baseline,
-    postIntervention: site.postIntervention,
-    grid,
-    tileSource,
-    attribution,
-    attributionShort,
+  const using = await resolveBasemap(osTiles, basemap)
+  const { doc, stats } = await drawDegradingToPlainGround(site, using, {
     fonts,
-    layout
+    layout,
+    basemap
   })
 
   return { pdf: await toBuffer(doc), stats, siteName: site.siteName }
+}
+
+function draw(site, using, { fonts, layout }) {
+  return buildSiteReportPdf({
+    baseline: site.baseline,
+    postIntervention: site.postIntervention,
+    grid: using.grid,
+    tileSource: using.tileSource,
+    attribution: using.attribution,
+    attributionShort: using.attributionShort,
+    fonts,
+    layout
+  })
+}
+
+/**
+ * Draw the document — and draw it again on a plain ground if Ordnance Survey
+ * fails part-way through.
+ *
+ * `resolveBasemap` only covers OS failing BEFORE any drawing starts. A tile
+ * that times out, 5xxs or arrives unreadable gets here instead, once the
+ * document is already half written, and the request has by then committed to
+ * producing a report. Failing it over a picture would be the outage
+ * `resolveBasemap` exists to avoid, arriving through the other door.
+ *
+ * Only for tile failures (`isOsTileError`), and only when OS tiles were in use
+ * at all: anything else is a fault in the drawing, and a renderer bug hidden
+ * behind a substituted basemap is a bug nobody ever finds. The document is
+ * rebuilt from scratch because a half-written PDF cannot have its basemap
+ * swapped, and one drawn half on OS tiles and half on a plain ground would be
+ * worse than either.
+ *
+ * Ported from the digital prototype's `buildReport`
+ * (`app/routes/pdf-report.js`), which the report engine is shared with.
+ */
+async function drawDegradingToPlainGround(site, using, options) {
+  try {
+    return await draw(site, using, options)
+  } catch (error) {
+    if (!using.tileSource || !isOsTileError(error)) {
+      throw error
+    }
+
+    logger.warn(
+      `Site report ${options.basemap} basemap failed mid-render, redrawing ` +
+        `without it: ${error.message}`
+    )
+    const built = await draw(site, NO_BASEMAP, options)
+    return { ...built, stats: { ...built.stats, basemapDegraded: true } }
+  }
 }
 
 /** The values the report route's `basemap` query parameter accepts. */

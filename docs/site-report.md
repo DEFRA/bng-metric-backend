@@ -351,6 +351,18 @@ on the tile object itself (`{ png }` vs `{ layers }`). A flavour the key's produ
 cannot serve degrades to a plain ground like any other basemap failure, it does not
 fail the report.
 
+**A tile that fails once drawing has started degrades too.** `resolveBasemap` only
+covers OS failing _before_ the first page is written. A tile that times out, 5xxs or
+arrives unreadable surfaces in the middle of the document, by which point the request
+has already committed to producing a report — so `drawDegradingToPlainGround`
+(`build-site-report.js`) catches exactly that and rebuilds the document from scratch
+with no basemap. From scratch because a half-written PDF cannot have its basemap
+swapped, and one drawn half on OS tiles and half on a plain ground would be worse than
+either. Only for an `OsTileError`, and only when OS tiles were in use at all: anything
+else is rethrown, because a renderer bug hidden behind a substituted basemap is a bug
+nobody ever finds. The digital prototype's `buildReport`, which shares this engine, has
+the same fallback for the same reason.
+
 The vector flavour uses the NGD API rather than the older OS Vector Tile API because
 OS have marked that product for retirement. Its style is not interpreted at runtime:
 `npm run extract:ngd-style` distils OS's published `light-27700` GL style into
@@ -395,13 +407,14 @@ needs no permission from anybody.
 
 ### Configuration
 
-| Variable                    | Meaning                                                                                                                                                                                                     |
-| --------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `OS_API_KEY`                | OS Data Hub key. Needs **OS NGD API – Tiles** for the vector flavour and/or **OS Maps API** for raster. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
-| `OS_MAPS_ATTRIBUTION`       | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                                                                            |
-| `OS_MAPS_ATTRIBUTION_SHORT` | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                                                                              |
-| `OS_MAPS_LAYER`             | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                                                                 |
-| `OS_MAPS_MAX_ZOOM`          | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                                                                   |
+| Variable                     | Meaning                                                                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OS_API_KEY`                 | OS Data Hub key. Needs **OS NGD API – Tiles** for the vector flavour and/or **OS Maps API** for raster. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
+| `OS_MAPS_ATTRIBUTION`        | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                                                                            |
+| `OS_MAPS_ATTRIBUTION_SHORT`  | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                                                                              |
+| `OS_MAPS_LAYER`              | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                                                                 |
+| `OS_MAPS_REQUEST_TIMEOUT_MS` | Deadline on one request to api.os.uk. Default 15 000. A connection that hangs rather than fails would otherwise cost the whole download, not one tile.                                                      |
+| `OS_MAPS_MAX_ZOOM`           | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                                                                   |
 
 **The plan caps resolution on the RASTER flavour only, and no amount of engineering
 changes it.** The vector flavour has shown no such ceiling. An OpenData-plan
@@ -418,6 +431,32 @@ anything about OS plans — the same reasoning that keeps the key out of it.
 
 Switching to EPSG:3857 does not escape the ceiling (~1.5 m/px at GB latitudes) and costs
 exact registration, so it is not an option.
+
+### What a tile failure tells the caller
+
+The `/os-tiles` routes serve a browser map, so their failures reach a client. Every
+failure the service raises is an `OsTileError` (`services/os-tiles/errors.js`) that
+knows whether it came from Ordnance Survey or from here, and only one of the two can be
+repeated onward:
+
+| Raised by                                               | The caller gets                                        |
+| ------------------------------------------------------- | ------------------------------------------------------ |
+| this service — outside the grid, above the zoom ceiling | the message verbatim, `404`                            |
+| api.os.uk — 401, 403, 5xx, unreadable payload           | `Ordnance Survey basemap tiles are unavailable`, `502` |
+| api.os.uk — 404                                         | `That tile is not available`, `404`                    |
+
+Upstream wording is withheld for two reasons: it paraphrases a third-party response
+whose shape we do not control, and the text we write around it names the configuration
+to change (`OS_API_KEY`, `OS_MAPS_MAX_ZOOM`). The whole of it is logged, which is where
+it is actually actionable. OS's **status** is withheld for a third reason — a 401 from
+Ordnance Survey is this deployment's credential problem, not the caller's, and forwarded
+as-is it would tell a browser whose own token is perfectly valid to go and authenticate
+again. Their 404 is the exception: "no such tile" is a true answer to the question that
+was asked.
+
+Tile coordinates are validated as non-negative integers before any of that
+(`tileParams` in `plugins/os-tiles.js`), so no unvalidated fragment of a URL reaches a
+cache key, a log line or a response body.
 
 ### Caching
 
@@ -452,3 +491,29 @@ response.
 If report sizes ever grow past a few megabytes, streaming rather than buffering is the
 change to make (`toBuffer` in `build-site-report.js`); buffering buys a definite
 `content-length`, which is what lets a browser show download progress.
+
+### The ceiling on one report
+
+Those numbers describe a 50-parcel site. Nothing upstream bounds how many features a
+project may hold, and the whole document is built in memory — so a project with a
+pathological number of digitised parcels, whether legitimately enormous or the result of
+a malformed upload, would otherwise cost a shared process an arbitrary amount of memory
+and an arbitrarily long synchronous render. Every layer read is therefore capped at
+`REPORT_MAX_FEATURES_PER_LAYER` (default **500**).
+
+The cap is applied in SQL — `.limit(cap + 1)` in `db/project-geometry.js` — rather than
+after the rows arrive, because slicing in JavaScript would still have read and parsed
+every row of an arbitrarily large layer, which is the cost being avoided. The one extra
+row is what distinguishes "this layer has exactly 500" from "this layer has more".
+
+**A capped report says so**, in a tagged paragraph above the key figures (`addCappedNote`
+in `summary-page.js`): _"This report shows the first 500 of 1240 baseline habitat
+parcels."_ Every page after that point is internally consistent and quietly wrong — a
+site map missing a third of its parcels looks exactly like a complete map of a smaller
+site, and the key figures count what was read rather than what exists — so the caveat
+comes before anything a reader might act on. The request log records it as well
+(`stats.capped`).
+
+500 sits an order of magnitude above any real site while holding the worst case to
+roughly 2 MB and a couple of seconds. A genuine site that needs more is a reason to
+stream and paginate, not a reason to raise the number.

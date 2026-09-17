@@ -144,6 +144,92 @@ describe('GET /os-tiles/{z}/{col}/{row}.png', () => {
     expect(response.statusCode).toBe(404)
     expect(upstream.calls.length).toBe(before)
   })
+
+  test('says what this service itself refused, and why', async () => {
+    const { server } = await serverWith()
+
+    const response = await server.inject('/os-tiles/9/99999999/0.png')
+
+    // This message was written here, about the request that was just made, so
+    // it is both safe to repeat and the most useful thing to say.
+    expect(JSON.parse(response.payload).error).toContain('outside')
+  })
+
+  test('rejects a coordinate that is not a tile coordinate', async () => {
+    const { server, upstream } = await serverWith()
+
+    const response = await server.inject('/os-tiles/9/not-a-column/0.png')
+
+    // Nothing downstream should have to reason about Number('not-a-column')
+    // being NaN, and no unvalidated fragment of a URL should reach a log line
+    // or a response body.
+    expect(response.statusCode).toBe(400)
+    expect(upstream.calls.length).toBe(0)
+  })
+})
+
+describe('what a failure is allowed to say', () => {
+  /** A server whose upstream answers every request with `status`. */
+  async function serverRefusing(status, body) {
+    stubConfig()
+    const server = Hapi.server({ port: 0 })
+    await server.register({
+      plugin: osTiles.plugin,
+      options: {
+        fetchImpl: async () => ({
+          ok: false,
+          status,
+          statusText: body,
+          text: async () => body,
+          json: async () => ({}),
+          arrayBuffer: async () => new ArrayBuffer(0),
+          headers: new Map()
+        })
+      }
+    })
+    await server.initialize()
+    return server
+  }
+
+  test('does not repeat what Ordnance Survey said to the caller', async () => {
+    const errors = vi.spyOn(createLogger(), 'error')
+    const server = await serverRefusing(401, 'Key rejected: project acme-42')
+
+    const response = await server.inject('/os-tiles/capabilities')
+
+    // The upstream text comes from a third party whose payloads we do not
+    // control, and our own wording for it names the environment variables to
+    // change. Neither belongs in a response; both belong in the log.
+    const { error } = JSON.parse(response.payload)
+    expect(error).toBe('Ordnance Survey basemap tiles are unavailable')
+    expect(error).not.toContain('acme-42')
+    expect(error).not.toContain('OS_API_KEY')
+    expect(errors).toHaveBeenCalled()
+  })
+
+  test("does not hand a caller Ordnance Survey's authentication status", async () => {
+    const server = await serverRefusing(401, 'Unauthorized')
+
+    const response = await server.inject('/os-tiles/capabilities')
+
+    // A 401 here is this deployment's credential problem, not the caller's.
+    // Forwarded as-is it would tell a browser whose own token is perfectly
+    // valid to go and authenticate again.
+    expect(response.statusCode).toBe(502)
+  })
+
+  test('still reports a tile Ordnance Survey does not have as missing', async () => {
+    const server = await serverRefusing(404, 'Not Found')
+
+    const response = await server.inject('/os-tiles/capabilities')
+
+    // "No such tile" is a true answer to the question that was asked, and the
+    // one upstream status a caller can act on.
+    expect(response.statusCode).toBe(404)
+    expect(JSON.parse(response.payload).error).toBe(
+      'That tile is not available'
+    )
+  })
 })
 
 describe('GET /os-tiles/vector/capabilities', () => {

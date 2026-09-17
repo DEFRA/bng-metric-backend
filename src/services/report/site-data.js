@@ -16,6 +16,11 @@
  * A feature present in one and not the other is dropped rather than guessed
  * at: drawing a parcel with no attributes, or listing attributes with no
  * parcel, would both be a silent misrepresentation of the site.
+ *
+ * The geometry read is capped per layer, so a very large project arrives here
+ * partially. Each side carries a `capped` list saying which layers that
+ * happened to and how much of each is shown, and the document prints it — see
+ * `cappedLayers` below and `summary-page.js`.
  */
 
 import {
@@ -133,8 +138,30 @@ function buildSite(document, geometry, siteName) {
     units: document.units ?? null,
     redLine: geometry.redLine,
     redLineAreaSqm: geometry.redLineAreaSqm,
-    layers
+    layers,
+    capped: cappedLayers(document, geometry, layers)
   }
+}
+
+/**
+ * The layers this side is showing only part of.
+ *
+ * `readProjectGeometry` caps each layer's read (see `report.maxFeaturesPerLayer`)
+ * so one enormous project cannot cost the process an unbounded amount of
+ * memory. A capped layer must be declared, not quietly shortened: a site map
+ * missing a third of its parcels looks like a complete map of a smaller site.
+ *
+ * The denominator comes from the document, which lists every feature the
+ * project holds and is a row this request has already read — so saying "500 of
+ * 1,240" costs nothing, where counting the rows PostGIS was told not to return
+ * would cost a second query per layer.
+ */
+function cappedLayers(document, geometry, layers) {
+  return (geometry.cappedLayers ?? []).map((layer) => ({
+    layer,
+    shown: layers[layer].length,
+    total: document[layer]?.length ?? null
+  }))
 }
 
 /**
@@ -167,4 +194,4 @@ async function readSiteData(drizzle, projectRow) {
   }
 }
 
-export { attributesOf, buildSite, joinLayer, readSiteData }
+export { attributesOf, buildSite, cappedLayers, joinLayer, readSiteData }

@@ -48,7 +48,7 @@ import {
   SITE_MAP_TOP_GAP,
   SQ_M_PER_HECTARE
 } from './layout.js'
-import { BASELINE, POST_INTERVENTION } from './labels.js'
+import { BASELINE, LAYER_NOUNS, POST_INTERVENTION } from './labels.js'
 import { addKeyFiguresTable } from './key-figures.js'
 import { buildAttribution, buildLegend } from './legend.js'
 
@@ -67,6 +67,7 @@ async function addSummaryPage(context) {
   root.add(section)
 
   addHeading(doc, section, context.siteName)
+  addCappedNote(doc, section, context.baseline, context.postIntervention)
   addKeyFiguresTable(doc, section, context.baseline, context.postIntervention)
   addSiteMapsHeading(doc, section)
 
@@ -102,6 +103,66 @@ function addHeading(doc, section, siteName) {
   doc.moveDown(INTRO_SPACING)
 }
 
+/**
+ * Say so, first thing, when the report is showing only part of a layer.
+ *
+ * `report.maxFeaturesPerLayer` caps what the geometry read returns, so a very
+ * large project is drawn and listed in part. Every page after this one would
+ * then be internally consistent and quietly wrong — a site map missing a
+ * third of its parcels looks exactly like a complete map of a smaller site,
+ * and the key figures below count what was read rather than what exists.
+ *
+ * So the caveat goes above them both, in the reading order, as a tagged
+ * paragraph rather than a footnote: a reader who acts on this document needs
+ * to know it is a partial one before they read a number off it.
+ */
+function addCappedNote(doc, section, baseline, postIntervention) {
+  const note = cappedNoteText(baseline, postIntervention)
+  if (!note) {
+    return
+  }
+
+  section.add(
+    doc.struct('P', () => {
+      doc.font(BOLD).fontSize(FONT_SIZE.intro).fillColor(INK)
+      doc.text(note, { width: CONTENT_WIDTH })
+    })
+  )
+  doc.moveDown(INTRO_SPACING)
+}
+
+/**
+ * The wording, apart from the drawing, so it can be read as English in a test
+ * — text drawn into a PDF is a compressed stream of glyph ids and cannot be
+ * asserted on once it is in the file.
+ *
+ * Returns null when nothing was capped, which is the normal case.
+ */
+function cappedNoteText(baseline, postIntervention) {
+  const sentences = [
+    ...cappedSentences(baseline?.capped, BASELINE),
+    ...cappedSentences(postIntervention?.capped, POST_INTERVENTION)
+  ]
+  if (sentences.length === 0) {
+    return null
+  }
+
+  return (
+    `${sentences.join(' ')} A layer this large is capped so the report stays ` +
+    'a document that can be downloaded and opened; the service holds every ' +
+    'feature and its own screens list them all. '
+  )
+}
+
+function cappedSentences(capped, side) {
+  return (capped ?? []).map(({ layer, shown, total }) => {
+    const what = `${side.toLowerCase()} ${LAYER_NOUNS[layer] ?? layer}`
+    return total
+      ? `This report shows the first ${shown} of ${total} ${what}.`
+      : `This report shows only the first ${shown} ${what}.`
+  })
+}
+
 function addSiteMapsHeading(doc, section) {
   doc.moveDown(SECTION_SPACING)
   section.add(
@@ -123,20 +184,8 @@ function sitePanels(baseline, postIntervention) {
   ].filter(Boolean)
 }
 
-async function addSiteMaps({
-  doc,
-  section,
-  panels,
-  baseline,
-  postIntervention,
-  grid,
-  tileSource,
-  basemap,
-  attribution,
-  attributionShort,
-  graticule,
-  stats
-}) {
+async function addSiteMaps(context) {
+  const { doc, panels, baseline, postIntervention } = context
   const mapsTop = doc.y + SITE_MAP_TOP_GAP
   const mapWidth = (CONTENT_WIDTH - SITE_MAP_GUTTER) / 2
 
@@ -150,67 +199,91 @@ async function addSiteMaps({
   )
 
   for (const [index, panel] of panels.entries()) {
-    const frame = {
-      x: MARGIN + index * (mapWidth + SITE_MAP_GUTTER),
-      y: mapsTop + SITE_MAP_LABEL_HEIGHT,
-      width: mapWidth,
-      height: SITE_MAP_HEIGHT
-    }
-
-    labelAsArtifact(doc, () => {
-      doc.font(BOLD).fontSize(FONT_SIZE.body).fillColor(INK)
-      doc.text(`${panel.label} `, frame.x, mapsTop, { width: frame.width })
+    await addSiteMapPanel({
+      ...context,
+      panel,
+      sharedEnvelope,
+      labelY: mapsTop,
+      frame: {
+        x: MARGIN + index * (mapWidth + SITE_MAP_GUTTER),
+        y: mapsTop + SITE_MAP_LABEL_HEIGHT,
+        width: mapWidth,
+        height: SITE_MAP_HEIGHT
+      }
     })
-
-    // No OS mapping goes into a frame that cannot carry its credit, so the
-    // credit is measured first and its absence is what withholds the basemap.
-    const credit = basemap
-      ? fitCredit(doc, frame, [attribution, attributionShort])
-      : null
-
-    // All tile I/O happens before any drawing — see fetchTiles in map.js.
-    const projector = projectorFor(sharedEnvelope, frame, { pad: MAP_PAD })
-    const basemapLayer = credit
-      ? await prepareBasemap({
-          grid,
-          extent: projector.extent,
-          tileSource,
-          frameWidth: frame.width
-        })
-      : null
-
-    const drawn = drawSiteMap({
-      doc,
-      frame,
-      site: panel.site,
-      style: panel.style,
-      grid,
-      basemapLayer,
-      credit,
-      graticule,
-      projector
-    })
-    recordMap(stats, drawn)
-
-    section.add(
-      doc.struct(
-        'Figure',
-        {
-          alt: siteMapAltText(panel.label, panel.site, drawn),
-          bbox: [
-            frame.x,
-            frame.y,
-            frame.x + frame.width,
-            frame.y + frame.height
-          ]
-        },
-        [drawn.content]
-      )
-    )
   }
 
   doc.y =
     mapsTop + SITE_MAP_LABEL_HEIGHT + SITE_MAP_HEIGHT + SITE_MAP_BOTTOM_GAP
+}
+
+/**
+ * One panel: its caption, its tiles, its geometry, its Figure.
+ *
+ * The panels are drawn one after another rather than concurrently, and the
+ * single `await` here is the tile fetch — it has to settle before any drawing
+ * starts, for the reason the module header gives.
+ */
+async function addSiteMapPanel({
+  doc,
+  section,
+  panel,
+  frame,
+  labelY,
+  sharedEnvelope,
+  grid,
+  tileSource,
+  basemap,
+  attribution,
+  attributionShort,
+  graticule,
+  stats
+}) {
+  labelAsArtifact(doc, () => {
+    doc.font(BOLD).fontSize(FONT_SIZE.body).fillColor(INK)
+    doc.text(`${panel.label} `, frame.x, labelY, { width: frame.width })
+  })
+
+  // No OS mapping goes into a frame that cannot carry its credit, so the
+  // credit is measured first and its absence is what withholds the basemap.
+  const credit = basemap
+    ? fitCredit(doc, frame, [attribution, attributionShort])
+    : null
+
+  // All tile I/O happens before any drawing — see fetchTiles in map.js.
+  const projector = projectorFor(sharedEnvelope, frame, { pad: MAP_PAD })
+  const basemapLayer = credit
+    ? await prepareBasemap({
+        grid,
+        extent: projector.extent,
+        tileSource,
+        frameWidth: frame.width
+      })
+    : null
+
+  const drawn = drawSiteMap({
+    doc,
+    frame,
+    site: panel.site,
+    style: panel.style,
+    grid,
+    basemapLayer,
+    credit,
+    graticule,
+    projector
+  })
+  recordMap(stats, drawn)
+
+  section.add(
+    doc.struct(
+      'Figure',
+      {
+        alt: siteMapAltText(panel.label, panel.site, drawn),
+        bbox: [frame.x, frame.y, frame.x + frame.width, frame.y + frame.height]
+      },
+      [drawn.content]
+    )
+  )
 }
 
 function recordMap(stats, drawn) {
@@ -346,4 +419,4 @@ function siteMapAltText(label, site, drawn) {
   )
 }
 
-export { addSummaryPage }
+export { addSummaryPage, cappedNoteText }

@@ -284,3 +284,47 @@ describe('#buildSiteReportPdf habitat layout', () => {
     expect(countOf(text, '/S /TH')).toBeGreaterThan(0)
   })
 })
+
+describe('#buildSiteReportPdf on a capped site', () => {
+  test('declares a partial report in the reading order, above the figures', async () => {
+    const whole = await render({ baseline: baselineSite() })
+    const partial = await render({
+      baseline: baselineSite({
+        capped: [{ layer: 'habitats', shown: 500, total: 1240 }]
+      })
+    })
+
+    // A tagged paragraph, not a footnote: every page after it is internally
+    // consistent and quietly wrong — a site map missing a third of its parcels
+    // looks exactly like a complete map of a smaller site — so a reader has to
+    // meet the caveat before they read a number off the document.
+    expect(countOf(partial.text, '/S /P')).toBe(
+      countOf(whole.text, '/S /P') + 1
+    )
+  })
+
+  test('records which side and layer was capped, for the request log', async () => {
+    const postIntervention = postInterventionSite()
+    postIntervention.capped = [{ layer: 'hedgerows', shown: 500, total: 812 }]
+
+    const { stats } = await render({
+      baseline: baselineSite({
+        capped: [{ layer: 'habitats', shown: 500, total: 1240 }]
+      }),
+      postIntervention
+    })
+
+    // Each side is read and capped separately, so a report can be complete on
+    // one side and partial on the other.
+    expect(stats.capped).toEqual([
+      { side: 'baseline', layer: 'habitats', shown: 500, total: 1240 },
+      { side: 'postIntervention', layer: 'hedgerows', shown: 500, total: 812 }
+    ])
+  })
+
+  test('records nothing when the whole site fitted', async () => {
+    const { stats } = await render({ baseline: baselineSite() })
+
+    expect(stats.capped).toEqual([])
+  })
+})

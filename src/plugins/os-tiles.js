@@ -25,14 +25,17 @@
  */
 
 import { Engine as CatboxMemory } from '@hapi/catbox-memory'
+import Joi from 'joi'
 
 import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createOsTiles } from '../services/os-tiles/index.js'
+import { isOsTileError } from '../services/os-tiles/errors.js'
 
 const logger = createLogger()
 
 const HTTP_BAD_GATEWAY = 502
+const HTTP_NOT_FOUND = 404
 
 function maxZoomFromConfig() {
   const configured = config.get('osMaps.maxZoom')
@@ -48,6 +51,7 @@ function osTilesConfig() {
     apiKey: config.get('osMaps.apiKey'),
     layer: config.get('osMaps.layer'),
     maxZoom: maxZoomFromConfig(),
+    requestTimeoutMs: config.get('osMaps.requestTimeoutMs'),
     cacheTtlSeconds: config.get('osMaps.cacheTtlSeconds'),
     cacheMaxBytes: config.get('osMaps.cacheMaxBytes')
   }
@@ -94,11 +98,65 @@ async function provisionTileCache(server, { cacheTtlSeconds, cacheMaxBytes }) {
   })
 }
 
+/**
+ * A tile coordinate, before it becomes anything else.
+ *
+ * The three path segments arrive as strings from the client, and the only
+ * values this service can do anything with are non-negative integers. Joi
+ * rejects the rest with a 400 here, so nothing further down has to reason
+ * about `Number('not-a-column')` being NaN, and no unvalidated fragment of a
+ * URL reaches a cache key, a log line or a response body.
+ */
+const TILE_COORDINATE = Joi.number().integer().min(0).required()
+
+const tileParams = Joi.object({
+  z: TILE_COORDINATE,
+  col: TILE_COORDINATE,
+  row: TILE_COORDINATE
+})
+
+/**
+ * What a caller is told when a tile cannot be served, as against what the log
+ * is told.
+ *
+ * The service writes two kinds of failure (see `services/os-tiles/errors.js`)
+ * and only one of them can be repeated to a caller:
+ *
+ *  - **ours** — "that tile is outside the grid", "that zoom is above the
+ *    ceiling". Raised here, about the request that was just made, so it is
+ *    both safe and the most useful thing to say.
+ *  - **upstream** — raised because api.os.uk said no. Its text is written for
+ *    an operator: it names the environment variables to change and
+ *    paraphrases a third-party response whose shape we do not control. A
+ *    caller gets one fixed sentence instead, and the detail stays in the log
+ *    where it is actually actionable.
+ *
+ * OS's status is deliberately not forwarded either. A 401 or 403 from
+ * Ordnance Survey is this deployment's credential problem, not the caller's:
+ * returned as-is it would tell a browser whose own token is perfectly valid
+ * to go and authenticate again. From the caller's side that is a bad gateway,
+ * which is what they get. OS's 404 is the one exception — "no such tile" is a
+ * true answer to the question that was asked.
+ */
+const UPSTREAM_FAILURE_MESSAGE = 'Ordnance Survey basemap tiles are unavailable'
+
+function clientFailure(error) {
+  if (isOsTileError(error) && !error.upstream) {
+    return {
+      status: error.status ?? HTTP_BAD_GATEWAY,
+      message: error.message
+    }
+  }
+  if (error?.status === HTTP_NOT_FOUND) {
+    return { status: HTTP_NOT_FOUND, message: 'That tile is not available' }
+  }
+  return { status: HTTP_BAD_GATEWAY, message: UPSTREAM_FAILURE_MESSAGE }
+}
+
 function errorResponse(h, what, error) {
   logger.error(`OS tiles ${what} failed: ${error.message}`)
-  return h
-    .response({ error: error.message })
-    .code(error.status ?? HTTP_BAD_GATEWAY)
+  const { status, message } = clientFailure(error)
+  return h.response({ error: message }).code(status)
 }
 
 const osTiles = {
@@ -141,14 +199,11 @@ const osTiles = {
           // `.png` is part of the path so the route cannot collide with
           // `/capabilities`, and so browsers and CDNs see a file extension.
           path: '/os-tiles/{z}/{col}/{row}.png',
+          options: { validate: { params: tileParams } },
           handler: async (request, h) => {
             const { z, col, row } = request.params
             try {
-              const tile = await service.getTile(
-                Number(z),
-                Number(col),
-                Number(row)
-              )
+              const tile = await service.getTile(z, col, row)
               return h
                 .response(tile.png)
                 .type(tile.contentType)
@@ -179,14 +234,11 @@ const osTiles = {
         {
           method: 'GET',
           path: '/os-tiles/vector/{z}/{col}/{row}.pbf',
+          options: { validate: { params: tileParams } },
           handler: async (request, h) => {
             const { z, col, row } = request.params
             try {
-              const tile = await service.getVectorTile(
-                Number(z),
-                Number(col),
-                Number(row)
-              )
+              const tile = await service.getVectorTile(z, col, row)
               return h
                 .response(tile.pbf)
                 .type(tile.contentType)

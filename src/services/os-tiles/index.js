@@ -26,11 +26,15 @@
  * `src/plugins/os-tiles.js` is a thin shell over these same two functions, so
  * the browser and the PDF are served by identical code either way.
  *
- * Errors carry `status` so both callers can distinguish OS's 401 (key or
- * product) from its 403 (plan) — see `upstream.js`.
+ * Every failure is an `OsTileError` (see `errors.js`) carrying the `status`
+ * it corresponds to, so both callers can distinguish OS's 401 (key or
+ * product) from its 403 (plan) — see `upstream.js` — and tell a tile failure,
+ * which a report degrades around, from a fault in the drawing, which it must
+ * not hide.
  */
 
 import { isTileInGrid } from '../report/pdf/grid.js'
+import { OsTileError } from './errors.js'
 import { keyWarning, resolveOsTilesConfig } from './config.js'
 import {
   fetchGrid,
@@ -199,10 +203,15 @@ function createOsTiles(options = {}) {
 const VECTOR_CACHE_LAYER = 'ngd-base-27700'
 const VECTOR_CONTENT_TYPE = 'application/vnd.mapbox-vector-tile'
 
+/**
+ * A tile this service refused to ask OS for.
+ *
+ * Left unmarked as upstream: the message describes the coordinates the caller
+ * asked for and the ceiling they crossed, so it is the one class of tile
+ * failure that can be handed back verbatim.
+ */
 function notFound(message) {
-  const error = new Error(message)
-  error.status = HTTP_NOT_FOUND
-  return error
+  return new OsTileError(message, { status: HTTP_NOT_FOUND })
 }
 
 export { createOsTiles }

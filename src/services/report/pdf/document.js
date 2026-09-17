@@ -75,7 +75,13 @@ async function buildSiteReportPdf({
 
   registerFonts(doc, fonts)
 
-  const stats = { maps: 0, tiles: 0, habitats: 0, zooms: [] }
+  const stats = {
+    maps: 0,
+    tiles: 0,
+    habitats: 0,
+    zooms: [],
+    capped: cappedStats(baseline, postIntervention)
+  }
   const root = doc.struct('Document', { title: documentTitle(siteName) })
   doc.addStructure(root)
 
@@ -101,6 +107,24 @@ async function buildSiteReportPdf({
 
   root.end()
   return { doc, stats }
+}
+
+/**
+ * Which layers the geometry read capped, carried into the stats so the
+ * request log records a partial report as partial. The document itself says
+ * so on its first page — see `addCappedNote` in summary-page.js.
+ */
+function cappedStats(baseline, postIntervention) {
+  return [
+    ...(baseline?.capped ?? []).map((entry) => ({
+      side: 'baseline',
+      ...entry
+    })),
+    ...(postIntervention?.capped ?? []).map((entry) => ({
+      side: 'postIntervention',
+      ...entry
+    }))
+  ]
 }
 
 function documentTitle(siteName) {

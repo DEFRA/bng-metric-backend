@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 
-import { osTileSource } from './tile-source.js'
+import { osTileSource, osVectorTileSource } from './tile-source.js'
+import { isOsTileError } from '../../os-tiles/errors.js'
 import { TEST_GRID } from './synthetic-tiles.test-fixtures.js'
 
 describe('#osTileSource', () => {
@@ -40,5 +41,27 @@ describe('#osTileSource', () => {
     await expect(osTileSource(osTiles)(TEST_GRID, 9, 300, 400)).rejects.toThrow(
       /403 from OS/
     )
+  })
+})
+
+describe('#osVectorTileSource', () => {
+  test('reports an unreadable tile as a tile failure, not a drawing fault', async () => {
+    const osTiles = {
+      getVectorTile: vi
+        .fn()
+        .mockResolvedValue({ pbf: Buffer.from('not a tile') })
+    }
+
+    const failure = await osVectorTileSource(osTiles)(TEST_GRID, 9, 300, 400)
+      .then(() => null)
+      .catch((error) => error)
+
+    // A malformed payload from OS is a basemap problem, and the report
+    // degrades around those. Left as the protobuf reader's own TypeError it
+    // would arrive at the builder looking exactly like a renderer bug — which
+    // the builder must NOT hide behind a substituted basemap.
+    expect(failure).not.toBeNull()
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.message).toContain('9/300/400')
   })
 })

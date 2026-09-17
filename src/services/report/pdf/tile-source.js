@@ -19,6 +19,7 @@
  */
 
 import { decodeVectorTile } from './mvt.js'
+import { OsTileError } from '../../os-tiles/errors.js'
 
 /**
  * Tiles from the OS tiles service, memoised for the life of one document.
@@ -61,12 +62,31 @@ function osVectorTileSource(osTiles) {
     if (!seen.has(key)) {
       seen.set(
         key,
-        osTiles
-          .getVectorTile(z, col, row)
-          .then(({ pbf }) => decodeVectorTile(pbf))
+        osTiles.getVectorTile(z, col, row).then(({ pbf }) => decode(pbf, key))
       )
     }
     return seen.get(key)
+  }
+}
+
+/**
+ * A tile that arrived but could not be read.
+ *
+ * Reported as an OsTileError, like a tile that never arrived: a malformed
+ * payload from OS is a basemap failure, and the report degrades around it
+ * rather than failing over a picture (see `build-site-report.js`). Wrapping
+ * it here is what keeps that decision in one place — the alternative is a
+ * `TypeError` from the middle of a protobuf reader arriving at the builder
+ * looking exactly like a fault in the drawing.
+ */
+function decode(pbf, key) {
+  try {
+    return decodeVectorTile(pbf)
+  } catch (error) {
+    throw new OsTileError(`Could not decode the vector tile at ${key}`, {
+      upstream: true,
+      cause: error
+    })
   }
 }
 
