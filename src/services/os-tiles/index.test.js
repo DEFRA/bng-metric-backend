@@ -5,7 +5,7 @@
  * capabilities parsing under test are the ones that would ship.
  */
 
-import { describe, expect, test } from 'vitest'
+import { describe, expect, test, vi } from 'vitest'
 
 import { createOsTiles } from './index.js'
 import { isOsTileError } from './errors.js'
@@ -19,12 +19,12 @@ const API_KEY = 'test-key'
 const PNG_SIGNATURE = [0x89, 0x50, 0x4e, 0x47]
 const silent = { warn() {}, error() {}, info() {} }
 
-function serviceWith({ config = {}, cache, fetchImpl } = {}) {
+function serviceWith({ config = {}, cache, fetchImpl, logger } = {}) {
   const upstream = stubOsFetch(TEST_GRID, { expectKey: API_KEY })
   const service = createOsTiles({
     config: { apiKey: API_KEY, ...config },
     fetchImpl: fetchImpl ?? upstream.fetch,
-    logger: silent,
+    logger: logger ?? silent,
     cache
   })
   return { service, upstream }
@@ -170,17 +170,28 @@ describe('#getTile', () => {
 
     await expect(service.getTile(9, 300, 400)).resolves.toBeDefined()
     await expect(service.getTile(12, 300, 400)).rejects.toThrow(
-      /exceeds max zoom 9/
+      /exceeds the maximum zoom 9/
     )
   })
 
   test('refuses a zoom above the plan ceiling locally, without calling OS', async () => {
-    const { service, upstream } = serviceWith({ config: { maxZoom: 9 } })
+    const logger = { warn() {}, error() {}, info: vi.fn() }
+    const { service, upstream } = serviceWith({
+      config: { maxZoom: 9 },
+      logger
+    })
     await service.getPublishedGrid()
     const before = tileCalls(upstream)
 
+    // The caller is told the ceiling it crossed and nothing else...
     await expect(service.getTile(10, 3016, 5628)).rejects.toThrow(
-      /exceeds max zoom 9.*Premium\/PSGA/s
+      /exceeds the maximum zoom 9/
+    )
+    // ...while the operator's half — which variable to change, and that a
+    // Premium/PSGA key lifts it — goes to the log. A browser fetching tiles
+    // has no business knowing either.
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringMatching(/OS_MAPS_MAX_ZOOM.*Premium\/PSGA/s)
     )
     // Without the local check this is a burst of opaque 403s and no document.
     expect(tileCalls(upstream)).toBe(before)

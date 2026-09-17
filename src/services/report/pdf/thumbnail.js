@@ -18,7 +18,7 @@ import {
   drawGeometry,
   withFrameClip
 } from './map.js'
-import { envelopeOf, padEnvelope } from './envelope.js'
+import { envelopeOf, envelopesOverlap, padEnvelope } from './envelope.js'
 import { fitEnvelopeToFrame, makeProjector } from './projector.js'
 import { fillGround, prepareBasemap } from './page-furniture.js'
 import {
@@ -115,10 +115,29 @@ function drawMiniMap({ doc, frame, feature, style, site, grid, thumbnail }) {
   return { tileCount, projector }
 }
 
-/** Neighbouring parcels and the site boundary, faintly, for orientation. */
+/**
+ * Neighbouring parcels and the site boundary, faintly, for orientation.
+ *
+ * **Only the neighbours that can actually appear in the frame.** A thumbnail
+ * is clipped to its own 18 mm square, so a parcel on the far side of the site
+ * contributes nothing to the picture — but drawn unconditionally it still
+ * writes every one of its vertices into the content stream before the clip
+ * discards them. That made the document quadratic in geometry: every parcel
+ * carried a copy of every other parcel, invisibly. On a large survey — 250
+ * parcels at the ~900 vertices each a real boundary has — it was the
+ * difference between a 2 MB report and a 400 MB one, and between one second
+ * of drawing and a minute of it.
+ *
+ * The envelope test is deliberately cheap and generous: it compares bounding
+ * boxes, not geometry, so a parcel whose box clips the frame is still drawn in
+ * full and the picture is unchanged.
+ */
 function drawContext(doc, site, feature, projector) {
   for (const other of site.layers.habitats ?? []) {
-    if (other !== feature) {
+    if (
+      other !== feature &&
+      envelopesOverlap(envelopeOf(other.geometry), projector.extent)
+    ) {
       drawGeometry(doc, other.geometry, projector, {
         fill: CONTEXT_FILL,
         stroke: CONTEXT_STROKE,

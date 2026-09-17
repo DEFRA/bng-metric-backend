@@ -114,9 +114,16 @@ function createOsTiles(options = {}) {
     // (OS_MAPS_MAX_ZOOM). Rejecting here rather than upstream turns what would
     // be a burst of opaque 403s into one local, explicable 404.
     if (z > config.maxZoom) {
+      // The operator's half of this — that the fix is usually OS_MAPS_MAX_ZOOM
+      // rather than a new key — goes to the log, not to the caller. A tile
+      // route answers browsers; which environment variable this deployment
+      // should change, and what OS plan it is on, are not theirs to know.
+      logger.info?.(
+        `OS tiles: zoom ${z} is above OS_MAPS_MAX_ZOOM (${config.maxZoom}) for ` +
+          `${config.layer}. If this key is on a Premium/PSGA plan, raise or unset it.`
+      )
       throw notFound(
-        `Zoom ${z} exceeds max zoom ${config.maxZoom} for ${config.layer}. ` +
-          'If this key is on a Premium/PSGA plan, raise or unset OS_MAPS_MAX_ZOOM.'
+        `Zoom ${z} exceeds the maximum zoom ${config.maxZoom} for this basemap`
       )
     }
 

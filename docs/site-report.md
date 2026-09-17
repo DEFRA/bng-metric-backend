@@ -529,6 +529,20 @@ matter it is now a **provisioning** change rather than a code one: swap the prov
 `@hapi/catbox-redis` in `provisionTileCache`. NRF's
 `nrf-frontend/src/server/common/services/tile-cache.js` is the shape to copy.
 
+### One thing that made the document quadratic
+
+A thumbnail is clipped to its own 18 mm square, and `drawContext` drew EVERY other
+parcel into every one of them for orientation. Off-frame geometry is still written into
+the content stream before the clip discards it, so each parcel carried an invisible copy
+of every other parcel: on 250 parcels at ~900 vertices, a **404 MB document that took 57
+seconds** to build. Filtering the context layer by envelope overlap — bounding boxes, so
+any parcel that clips the frame is still drawn in full and the picture is unchanged —
+brings the same report to **2.9 MB and 1.5 seconds**.
+
+Worth knowing because it is invisible on a small fixture: the two-parcel example site
+draws both parcels in both thumbnails either way, so nothing in the output changes and
+only the size of a large report reveals it.
+
 ## Cost
 
 Measured on a 50-parcel site read from real PostGIS, with no basemap: **184 kB, ~190 ms**.
@@ -548,7 +562,23 @@ project may hold, and the whole document is built in memory — so a project wit
 pathological number of digitised parcels, whether legitimately enormous or the result of
 a malformed upload, would otherwise cost a shared process an arbitrary amount of memory
 and an arbitrarily long synchronous render. Every layer read is therefore capped at
-`REPORT_MAX_FEATURES_PER_LAYER` (default **500**).
+`REPORT_MAX_FEATURES_PER_LAYER` (default **250**).
+
+Measured at that ceiling, on parcels of ~900 vertices each — the density a real survey
+has, taking 225,748 vertices across one file from the GEOS slivers check as the
+reference point:
+
+| At the cap    | Table layout   | Cards layout   |
+| ------------- | -------------- | -------------- |
+| 250 per layer | 2.9 MB / 1.5 s | 3.8 MB / 2.8 s |
+| 500 per layer | 5.8 MB / 2.8 s | 7.6 MB / 5.9 s |
+
+500 was the first choice and is what the earlier revision of this document claimed held
+the worst case to "roughly 2 MB and a couple of seconds". That was an extrapolation from
+the 50-parcel figure and it was wrong in both directions — the growth is not linear, and
+the cards layout was not measured at all. 250 is the value the measurements support: it
+stays inside the few-megabytes mark this page names as the point to start streaming,
+while remaining five times the largest example site.
 
 The cap is applied in SQL — `.limit(cap + 1)` in `db/project-geometry.js` — rather than
 after the rows arrive, because slicing in JavaScript would still have read and parsed
@@ -563,6 +593,30 @@ site, and the key figures count what was read rather than what exists — so the
 comes before anything a reader might act on. The request log records it as well
 (`stats.capped`).
 
-500 sits an order of magnitude above any real site while holding the worst case to
-roughly 2 MB and a couple of seconds. A genuine site that needs more is a reason to
-stream and paginate, not a reason to raise the number.
+A genuine site that needs more than 250 is a reason to stream and paginate, not a reason
+to raise the number.
+
+### What the cap does not bound: geometry size
+
+**The cap counts features, not their vertices, and nothing anywhere caps those.** Upload
+limits the file's BYTES (`UPLOAD_MAX_FILE_SIZE_BYTES`) and the validation suite checks
+geometry validity, but no check bounds how detailed one parcel may be — so a file of
+pathologically dense boundaries is still unbounded work for this route. Measured: 250
+parcels at 10,000 vertices each is a **40 MB, 13-second** report, inside the feature cap
+the whole way.
+
+That is the remaining half of the concern raised in review on #297, and it needs a
+decision rather than a default:
+
+- **Simplify on read** — `ST_SimplifyPreserveTopology` at a tolerance below what the
+  page can resolve (a site map draws ~1–2 m to the point, a thumbnail ~1 m, so 0.25 m is
+  sub-pixel on both). Bounds the payload and costs nothing visible, but it does mean the
+  report no longer draws the stored coordinates exactly, which is a claim this document
+  makes elsewhere and the registration test pins.
+- **Simplify only the outliers** — leave any parcel under N vertices byte-exact and
+  reduce only the ones above it, so ordinary sites are untouched and only a pathological
+  one is approximated. More code, no change to any real report.
+- **Reject beyond a vertex budget**, and tell the user their file is too detailed to
+  report on. Honest, but it turns a slow download into no download.
+
+Until one is chosen, the bound is the feature cap plus the upload size limit.

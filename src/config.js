@@ -371,9 +371,9 @@ const config = convict({
   },
   report: {
     maxFeaturesPerLayer: {
-      doc: 'Ceiling on how many features of one layer a site report reads, draws and lists. The whole document is built in memory rather than streamed (see toBuffer in services/report/build-site-report.js), and nothing upstream caps how many features a project may hold, so this is what stops one pathological project — a legitimately enormous site, or a malformed upload — from turning a download into unbounded memory and a long synchronous render on a shared process. The read itself is limited, so the rows above the ceiling never leave PostGIS. A 50-parcel site is 184 kB and ~190 ms, so 500 holds the worst case to roughly 2 MB and a couple of seconds while staying an order of magnitude above any real site. A report that reaches it says so on its first page rather than silently showing a subset.',
+      doc: 'Ceiling on how many features of one layer a site report reads, draws and lists. The whole document is built in memory rather than streamed (see toBuffer in services/report/build-site-report.js), and nothing upstream caps how many features a project may hold, so this is what stops one pathological project — a legitimately enormous site, or a malformed upload — from turning a download into unbounded memory and a long synchronous render on a shared process. The read itself is limited, so the rows above the ceiling never leave PostGIS. Measured at this ceiling on parcels of ~900 vertices each, which is the density a real large survey has (225,748 vertices across one file, per the GEOS slivers check): 2.9 MB / 1.5 s for the table layout, 3.8 MB / 2.8 s for cards. 500 was the first choice and doubles both, which crosses the few-megabytes mark that docs/site-report.md names as the point to start streaming. Note this caps the feature COUNT and not their total size — a file of pathologically detailed geometry is still unbounded; see docs/site-report.md. A report that reaches the ceiling says so on its first page rather than silently showing a subset.',
       format: Number,
-      default: 500,
+      default: 250,
       env: 'REPORT_MAX_FEATURES_PER_LAYER'
     }
   },

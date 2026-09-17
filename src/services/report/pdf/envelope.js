@@ -91,10 +91,26 @@ function padEnvelope(envelope, fraction) {
   }
 }
 
+/**
+ * Whether two envelopes share any ground at all.
+ *
+ * Touching counts as overlapping: a parcel whose edge lies exactly on a
+ * frame's edge draws a visible line on it.
+ */
+function envelopesOverlap(a, b) {
+  return !(
+    a.maxX < b.minX ||
+    a.minX > b.maxX ||
+    a.maxY < b.minY ||
+    a.minY > b.maxY
+  )
+}
+
 export {
   emptyEnvelope,
   envelopeOf,
   envelopeOfAll,
+  envelopesOverlap,
   isEmptyEnvelope,
   padEnvelope
 }
