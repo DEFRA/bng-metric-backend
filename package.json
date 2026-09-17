@@ -46,7 +46,7 @@
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1128.0",
+    "@aws-sdk/client-s3": "3.1129.0",
     "@aws-sdk/credential-providers": "3.1129.0",
     "@aws-sdk/rds-signer": "3.1128.0",
     "@defra/cdp-auditing": "0.6.1",
@@ -92,7 +92,7 @@
     "@emnapi/core": "1.11.3",
     "@emnapi/runtime": "1.11.3",
     "@maplibre/vt-pbf": "4.3.2",
-    "@types/node": "26.5.0",
+    "@types/node": "26.5.1",
     "@vitest/coverage-v8": "4.1.11",
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
