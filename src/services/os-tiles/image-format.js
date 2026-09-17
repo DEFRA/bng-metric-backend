@@ -11,13 +11,16 @@
  * or this report can draw, whatever the response said it was.
  */
 
-/** \x89PNG\r\n\x1a\n — the 8-byte signature every PNG opens with. */
-const PNG_SIGNATURE = Buffer.from([
-  0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a
-])
-
-/** SOI followed by the first marker — the 3 bytes every JPEG opens with. */
-const JPEG_SIGNATURE = Buffer.from([0xff, 0xd8, 0xff])
+/**
+ * The signatures, as hex rather than as byte arrays — the spelling the specs
+ * themselves use, so each can be read against its source without decoding a
+ * list of numbers:
+ *
+ *   PNG   89 50 4E 47 0D 0A 1A 0A  =  \x89 P N G \r \n \x1a \n
+ *   JPEG  FF D8 FF                 =  SOI, then the first marker
+ */
+const PNG_SIGNATURE = Buffer.from('89504e470d0a1a0a', 'hex')
+const JPEG_SIGNATURE = Buffer.from('ffd8ff', 'hex')
 
 function isPlaceableImage(buffer) {
   if (!Buffer.isBuffer(buffer)) {
