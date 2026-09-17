@@ -48,13 +48,32 @@ function attributesOf(feature) {
 /**
  * The proposed value where the parcel has one, the baseline's otherwise.
  *
- * One accessor rather than the same `proposed.x ?? feature.x ?? null` written
- * out twelve times: the fallback is a single rule about how the
- * post-intervention document nests values, and it should be stated once and
- * be impossible to get subtly wrong on the thirteenth field.
+ * One accessor rather than the same fallback written out twelve times: it is a
+ * single rule about how the post-intervention document nests values, and it
+ * should be stated once and be impossible to get subtly wrong on the
+ * thirteenth field.
+ *
+ * **A BLANK proposed value means "not proposed", not "proposed to be blank".**
+ * `??` alone gets this wrong — it accepts `''` as an answer and suppresses the
+ * baseline value behind it — so a parcel whose post-intervention row carried
+ * empty strings was reported with no type and no condition, while the screen
+ * showed both. This is the same test the frontend's `sourceValue` applies
+ * (`common/helpers/post-intervention-habitat-grid.js`, which builds the very
+ * screen these parcels are listed on), and the two have to agree: a report
+ * that disagrees with the page it was generated from is worse than no report.
+ * Found in review on #297.
+ *
+ * A blank at the TOP level is passed through as it stands, again matching the
+ * screen — `sourceValue` returns the feature's own value without testing it.
+ * Only the nested value gets the blank test, because only there does a blank
+ * stand between the reader and a value that exists.
  */
 function proposedOr(feature, proposed, key) {
-  return proposed[key] ?? feature[key] ?? null
+  const nested = proposed[key]
+  if (nested != null && nested !== '') {
+    return nested
+  }
+  return feature[key] ?? null
 }
 
 /** What the parcel is, and what it is worth. */

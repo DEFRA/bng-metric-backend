@@ -31,6 +31,16 @@ They are matched by `featureId`, which is the geometry row's own primary key (se
 `geometryRowValues` in `src/services/upload/persist-upload.js`). A feature present in
 one and not the other is dropped rather than guessed at.
 
+A post-intervention parcel nests the values it will have after the work under
+`proposed`, keeping the baseline's alongside, and `proposedOr` in `site-data.js` picks
+between them. **A blank proposed value means "not proposed", not "proposed to be
+blank"** — so it falls back to the baseline, which is the same test the frontend's
+`sourceValue` applies when building the screen these parcels are listed on
+(`common/helpers/post-intervention-habitat-grid.js`). Written with `??` alone it was
+wrong: the empty string is not nullish, so it was accepted as an answer and the baseline
+behind it suppressed, giving a report with no type and no condition for a parcel the
+screen described fully.
+
 The red line's **area** is the one number that comes from PostGIS rather than the
 document (`ST_Area`), because the red line is a boundary, not a habitat, and carries no
 `sizeSquareMetres`.

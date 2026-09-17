@@ -279,6 +279,63 @@ describe('#buildSite', () => {
   })
 })
 
+describe('#attributesOf blank proposed values', () => {
+  test('falls back to the baseline when a proposed value is blank', () => {
+    // A blank proposed value means "not proposed", not "proposed to be
+    // blank". `??` accepts the empty string as an answer and suppresses the
+    // baseline behind it, which reported a parcel with no type and no
+    // condition while the screen showed both. Raised in review on #297.
+    const attributes = attributesOf({
+      type: 'Baseline type',
+      condition: 'Poor',
+      proposed: { type: '', condition: '' }
+    })
+
+    expect(attributes.type).toBe('Baseline type')
+    expect(attributes.condition).toBe('Poor')
+  })
+
+  test('applies the same rule to every proposed field, numbers included', () => {
+    const attributes = attributesOf({
+      distinctiveness: 'Low',
+      distinctivenessScore: 2,
+      units: 3.6,
+      retentionCategory: 'Retained',
+      proposed: {
+        distinctiveness: '',
+        distinctivenessScore: '',
+        units: '',
+        retentionCategory: ''
+      }
+    })
+
+    expect(attributes.distinctiveness).toBe('Low')
+    expect(attributes.distinctivenessScore).toBe(2)
+    expect(attributes.units).toBe(3.6)
+    expect(attributes.retentionCategory).toBe('Retained')
+  })
+
+  test('still prefers a proposed value that is genuinely there', () => {
+    // The blank test must not swallow real answers — including falsy ones a
+    // careless truthiness check would drop.
+    const attributes = attributesOf({
+      type: 'Baseline type',
+      units: 3.6,
+      proposed: { type: 'Proposed type', units: 0 }
+    })
+
+    expect(attributes.type).toBe('Proposed type')
+    expect(attributes.units).toBe(0)
+  })
+
+  test('reports a blank baseline value as it stands, like the screen', () => {
+    // The frontend's sourceValue returns the feature's own value untested, so
+    // a blank at the top level reaches the page as a blank. The report says
+    // the same thing rather than inventing an absence.
+    expect(attributesOf({ type: '' }).type).toBe('')
+  })
+})
+
 describe('#documentCounts', () => {
   test('counts what the project holds, not what the report drew', () => {
     const site = buildSite(
