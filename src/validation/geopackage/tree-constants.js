@@ -1,6 +1,6 @@
 // Individual trees ("Urban Trees" layer in the NE template) are modelled as a
 // special area habitat: a single broad habitat ("Individual trees") split into
-// two habitat types — urban and rural — that the bng-metric-engine reference
+// two habitat types — urban and rural — that the bng-library/metric reference
 // data keys as "Individual trees - Urban tree" / "Individual trees - Rural tree".
 // The GeoPackage carries only "Urban" / "Rural" in the Rural-or-Urban column, so
 // we map that to the engine habitat type here.

@@ -1,4 +1,4 @@
-import { calculatePostInterventionNetUnitChanges } from 'bng-metric-engine'
+import { calculatePostInterventionNetUnitChanges } from 'bng-library/metric'
 
 import {
   URBAN_TREE_TYPE,

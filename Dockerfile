@@ -12,9 +12,6 @@ ENV PORT=${PORT}
 EXPOSE ${PORT} ${PORT_DEBUG}
 
 COPY --chown=node:node package*.json .npmrc ./
-# Workspace dependency (bng-metric-engine) must be present before npm install —
-# "workspace:*" cannot be resolved from the root package.json alone.
-COPY --chown=node:node bng-metric-engine/package.json ./bng-metric-engine/
 # Strip our postinstall hook (dev-only husky/gitleaks setup) before install —
 # scripts/ is not in this image, and the hooks are not needed inside the container.
 # --ignore-scripts also blocks any dependency's own install scripts (belt-and-braces
@@ -24,8 +21,6 @@ COPY --chown=node:node bng-metric-engine/package.json ./bng-metric-engine/
 RUN sed -i '/^min-release-age=/d' .npmrc && \
     npm pkg delete scripts.postinstall && npm install --ignore-scripts
 COPY --chown=node:node ./src ./src
-# Engine runtime is src/ only; scripts/ are dev/CLI helpers and are not deployed.
-COPY --chown=node:node ./bng-metric-engine/src ./bng-metric-engine/src
 
 CMD [ "npm", "run", "docker:dev" ]
 
@@ -40,9 +35,7 @@ RUN apk add --no-cache curl
 USER node
 
 COPY --chown=node:node --from=development /home/node/package*.json ./
-COPY --chown=node:node --from=development /home/node/bng-metric-engine/package.json ./bng-metric-engine/
 COPY --chown=node:node --from=development /home/node/node_modules ./node_modules
-COPY --chown=node:node --from=development /home/node/bng-metric-engine ./bng-metric-engine/
 
 # Reuse the development install and prune dev dependencies locally — avoids a second
 # registry-bound `npm ci` in CI, where transient ECONNRESET failures are common.

@@ -1,6 +1,6 @@
 import { randomUUID } from 'node:crypto'
 
-import { normaliseEncroachmentLabel } from 'bng-metric-engine'
+import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
 import { PROP_KEYS, featureKeysForVariant, pickProp } from '../properties.js'
 import {

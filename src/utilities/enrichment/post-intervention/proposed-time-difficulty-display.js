@@ -1,4 +1,4 @@
-import { MAX_YEARS, MIN_YEARS } from 'bng-metric-engine'
+import { MAX_YEARS, MIN_YEARS } from 'bng-library/metric'
 
 /**
  * Shared display-field helpers for post-intervention `proposed` time/difficulty
@@ -18,7 +18,7 @@ function finiteYearsOrZero(value) {
 }
 
 /**
- * Clamp to the same [MIN_YEARS, MAX_YEARS] range bng-metric-engine applies
+ * Clamp to the same [MIN_YEARS, MAX_YEARS] range bng-library/metric applies
  * before computing timeMultiplier, so the displayed years never contradict
  * the multiplier shown alongside them (e.g. never negative when advance
  * years already meet or exceed the statutory target).
@@ -79,7 +79,7 @@ export function resolveAdvanceOrDelay(advanceYears, delayYears) {
 /**
  * Final time-to-target display for the UI.
  * Format: "{standard - advance + delay} years (timeMultiplier)", clamped to
- * [MIN_YEARS, MAX_YEARS] so it always agrees with the years bng-metric-engine
+ * [MIN_YEARS, MAX_YEARS] so it always agrees with the years bng-library/metric
  * actually used to derive timeMultiplier.
  *
  * @param {{

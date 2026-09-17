@@ -1189,7 +1189,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
+      "description": "Distinctiveness band resolved by bng-library/metric from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
     },
     {
       "path": "baseline.habitats[].distinctivenessScore",
@@ -1200,7 +1200,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "baseline.habitats[].condition",
@@ -1222,7 +1222,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits."
+      "description": "Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits."
     },
     {
       "path": "baseline.habitats[].strategicSignificance",
@@ -1420,7 +1420,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
     {
       "path": "baseline.habitats[].properties",
@@ -1464,7 +1464,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "baseline.trees[].condition",
@@ -1486,7 +1486,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits."
+      "description": "Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits."
     },
     {
       "path": "baseline.trees[].strategicSignificance",
@@ -1651,7 +1651,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
     {
       "path": "baseline.trees[].featureId",
@@ -1706,7 +1706,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the tree habitat type. Trees are Medium distinctiveness."
+      "description": "Distinctiveness band resolved by bng-library/metric from the tree habitat type. Trees are Medium distinctiveness."
     },
     {
       "path": "baseline.trees[].area",
@@ -1739,7 +1739,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the tree, from bng-metric-engine using the area-habitat calculation."
+      "description": "Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation."
     },
     {
       "path": "baseline.trees[].properties",
@@ -1871,7 +1871,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the hedgerow type."
+      "description": "Distinctiveness band resolved by bng-library/metric from the hedgerow type."
     },
     {
       "path": "baseline.hedgerows[].distinctivenessScore",
@@ -1882,7 +1882,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "baseline.hedgerows[].conditionScore",
@@ -1893,7 +1893,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine."
+      "description": "Numeric condition score from bng-library/metric."
     },
     {
       "path": "baseline.hedgerows[].length",
@@ -1937,7 +1937,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428)."
+      "description": "Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428)."
     },
     {
       "path": "baseline.hedgerows[].strategicSignificance",
@@ -2091,7 +2091,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
     {
       "path": "baseline.hedgerows[].properties",
@@ -2201,7 +2201,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine from the watercourse type."
+      "description": "Distinctiveness band resolved by bng-library/metric from the watercourse type."
     },
     {
       "path": "baseline.watercourses[].distinctivenessScore",
@@ -2212,7 +2212,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "baseline.watercourses[].conditionScore",
@@ -2223,7 +2223,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric condition score from bng-metric-engine."
+      "description": "Numeric condition score from bng-library/metric."
     },
     {
       "path": "baseline.watercourses[].length",
@@ -2267,7 +2267,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428)."
+      "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428)."
     },
     {
       "path": "baseline.watercourses[].strategicSignificance",
@@ -2421,7 +2421,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine."
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
     {
       "path": "baseline.watercourses[].enhancementType",
@@ -2443,7 +2443,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Watercourse-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "baseline.watercourses[].riparianEncroachmentMultiplier",
@@ -2454,7 +2454,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Riparian-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Riparian-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "baseline.watercourses[].properties",
@@ -3040,7 +3040,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.habitats[].baseline.distinctivenessScore",
@@ -3051,7 +3051,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.habitats[].baseline.strategicSignificance",
@@ -3128,7 +3128,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.habitats[].proposed.distinctivenessScore",
@@ -3139,7 +3139,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceYears",
@@ -3172,7 +3172,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Time multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.habitats[].proposed.difficultyMultiplier",
@@ -3183,7 +3183,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Difficulty multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.habitats[].proposed.standardTimeToTargetCondition",
@@ -3194,7 +3194,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.habitats[].proposed.difficulty",
@@ -3425,7 +3425,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.trees[].baseline.distinctivenessScore",
@@ -3436,7 +3436,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.trees[].baseline.strategicSignificance",
@@ -3568,7 +3568,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.trees[].proposed.distinctivenessScore",
@@ -3579,7 +3579,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.trees[].proposed.strategicSignificance",
@@ -3678,7 +3678,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Time multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.trees[].proposed.difficultyMultiplier",
@@ -3689,7 +3689,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Difficulty multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.trees[].proposed.standardTimeToTargetCondition",
@@ -3700,7 +3700,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.trees[].proposed.difficulty",
@@ -3898,7 +3898,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.hedgerows[].baseline.distinctivenessScore",
@@ -3909,7 +3909,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.hedgerows[].proposed",
@@ -3964,7 +3964,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.distinctivenessScore",
@@ -3975,7 +3975,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceYears",
@@ -4008,7 +4008,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Time multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.difficultyMultiplier",
@@ -4019,7 +4019,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Difficulty multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.standardTimeToTargetCondition",
@@ -4030,7 +4030,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.difficulty",
@@ -4228,7 +4228,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.watercourses[].baseline.distinctivenessScore",
@@ -4239,7 +4239,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.watercourses[].baseline.riparianEncroachment",
@@ -4283,7 +4283,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Watercourse-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier",
@@ -4294,7 +4294,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Riparian-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Riparian-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "postIntervention.watercourses[].proposed",
@@ -4349,7 +4349,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved by bng-metric-engine."
+      "description": "Distinctiveness band resolved by bng-library/metric."
     },
     {
       "path": "postIntervention.watercourses[].proposed.distinctivenessScore",
@@ -4360,7 +4360,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Numeric distinctiveness score for the band, from bng-metric-engine."
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceYears",
@@ -4393,7 +4393,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Time multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Time multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.difficultyMultiplier",
@@ -4404,7 +4404,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Difficulty multiplier from bng-metric-engine; set for Created and Enhanced features."
+      "description": "Difficulty multiplier from bng-library/metric; set for Created and Enhanced features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.standardTimeToTargetCondition",
@@ -4415,7 +4415,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-metric-engine before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
       "path": "postIntervention.watercourses[].proposed.difficulty",
@@ -4492,7 +4492,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Watercourse-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Watercourse-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "postIntervention.watercourses[].proposed.riparianEncroachmentMultiplier",
@@ -4503,7 +4503,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Riparian-encroachment multiplier applied by bng-metric-engine when computing units."
+      "description": "Riparian-encroachment multiplier applied by bng-library/metric when computing units."
     },
     {
       "path": "postIntervention.watercourses[].properties",

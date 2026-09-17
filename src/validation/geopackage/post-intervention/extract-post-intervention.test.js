@@ -702,7 +702,7 @@ describe('extractPostIntervention — watercourse nested structure', () => {
 
 const SAMPLE_POINT = { type: 'Point', coordinates: [0, 0] }
 
-// Per-size reference areas in m² (from bng-metric-engine individual-tree-area):
+// Per-size reference areas in m² (from bng-library/metric individual-tree-area):
 // Small 41, Medium 163, Large 366, Very large 765.
 const SMALL_TREE_SQM = 41
 const MEDIUM_TREE_SQM = 163

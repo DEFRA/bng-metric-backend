@@ -147,13 +147,5 @@ export default [
         message: MSG_EXTRACT_OTHER_FLOW
       }
     ])
-  },
-
-  {
-    files: ['bng-metric-engine/**/*.js'],
-    languageOptions: {
-      ecmaVersion: 2025,
-      sourceType: 'module'
-    }
   }
 ]

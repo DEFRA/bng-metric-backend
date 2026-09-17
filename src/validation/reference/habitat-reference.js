@@ -1,6 +1,6 @@
 // Reference data for the Habitat Details page (BMD-315): broad habitats,
 // habitat types, conditions, and trading rules. Thin readers over
-// bng-metric-engine's CONDITION_SCORES and DISTINCTIVENESS_SCORES so backend
+// bng-library/metric's CONDITION_SCORES and DISTINCTIVENESS_SCORES so backend
 // and engine cannot drift.
 
 import {
@@ -14,7 +14,7 @@ import {
   WATERCOURSE_DISTINCTIVENESS_SCORES,
   WATERCOURSE_ENCROACHMENT_MULTIPLIER,
   WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 import {
   distinctivenessByHabitatType,
   distinctivenessScores

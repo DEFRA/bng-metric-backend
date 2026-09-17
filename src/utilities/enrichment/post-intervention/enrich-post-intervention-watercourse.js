@@ -3,7 +3,7 @@ import {
   calculateRetainedWatercoursePostIntervention,
   calculateCreatedWatercoursePostIntervention,
   calculateEnhancedWatercoursePostIntervention
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 import {
   normalizeConditionForEngine,
