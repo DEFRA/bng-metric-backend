@@ -47,19 +47,46 @@ for (const signal of ['SIGINT', 'SIGTERM']) {
   })
 }
 
+// Since the batch-file hardening in Node 18.20.2, spawning npm.cmd without a
+// shell fails outright on Windows (EINVAL) and npm never starts. Under
+// `npm run` — which is how lib:unlink gets here — npm_execpath points at npm's
+// own cli.js, which the current node binary can run directly: no .cmd, no
+// shell, nothing for that hardening to reject.
+function npmInstallCommand(extraArgs) {
+  const args = ['install', ...extraArgs]
+  const npmCli = process.env.npm_execpath
+  if (npmCli?.endsWith('.js')) {
+    return { command: process.execPath, args: [npmCli, ...args], shell: false }
+  }
+  // Bare `node scripts/npm-install.mjs`, or an npm_execpath that is not a JS
+  // file: let the shell resolve npm itself.
+  return { command: 'npm', args, shell: process.platform === 'win32' }
+}
+
 try {
   if (needsWorkaround) {
     writeFileSync(NPMRC, withoutCooldown)
   }
-  const npm = process.platform === 'win32' ? 'npm.cmd' : 'npm'
   const env = { ...process.env }
   // npm lower-cases and underscores config keys when it exports them.
   delete env.npm_config_min_release_age
-  const { status } = spawnSync(npm, ['install', ...process.argv.slice(2)], {
+  const { command, args, shell } = npmInstallCommand(process.argv.slice(2))
+  const { status, error } = spawnSync(command, args, {
     stdio: 'inherit',
-    env
+    env,
+    shell
   })
   restoreNpmrc()
+  // A spawn that never started reports `error` with a null status — without
+  // this it would surface as a bare exit 1, after lib:unlink has already
+  // removed bng-library.
+  if (error) {
+    console.error(`Could not start npm install: ${error.message}`)
+    console.error(
+      'bng-library may be uninstalled — run `npm install` to restore it.'
+    )
+    process.exit(1)
+  }
   process.exit(status ?? 1)
 } finally {
   restoreNpmrc()
