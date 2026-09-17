@@ -77,6 +77,28 @@ function createOsTiles(options = {}) {
   const fetchImpl = options.fetchImpl ?? fetch
   const cache = options.cache ?? NO_CACHE
 
+  const warning = keyWarning(config)
+  if (warning) {
+    logger.warn?.(warning)
+  }
+
+  const deps = { config, logger, fetchImpl, cache }
+  return {
+    config,
+    ...rasterTiles(deps),
+    ...vectorTiles(deps)
+  }
+}
+
+/**
+ * The raster half: OS Maps API, 256 px PNG tiles, its own grid from OS's WMTS
+ * capabilities.
+ *
+ * A factory of its own rather than lines inside `createOsTiles`, because the
+ * two halves share nothing but the config and the cache — separate products,
+ * separate grids, separate cache keyspaces — and read as two things.
+ */
+function rasterTiles({ config, logger, fetchImpl, cache }) {
   // Capabilities are fetched once and reused. The grid is static for the life
   // of the product, and every tile request needs it for bounds validation.
   let gridPromise = null
@@ -142,11 +164,15 @@ function createOsTiles(options = {}) {
     return { png, contentType, cached: false }
   }
 
-  /**
-   * The vector flavour: the same service against the OS NGD API – Tiles
-   * ngd-base tileset. A separate grid (512 px tiles, two more levels than
-   * the raster one) and a separate cache keyspace; the same validation.
-   */
+  return { getGrid, getPublishedGrid, getTile }
+}
+
+/**
+ * The vector half: OS NGD API – Tiles, the ngd-base tileset. A separate grid
+ * (512 px tiles, two more levels than the raster one) and a separate cache
+ * keyspace; the same validation.
+ */
+function vectorTiles({ config, fetchImpl, cache }) {
   let vectorGridPromise = null
 
   function getVectorGrid() {
@@ -190,20 +216,7 @@ function createOsTiles(options = {}) {
     return { pbf, contentType, cached: false }
   }
 
-  const warning = keyWarning(config)
-  if (warning) {
-    logger.warn?.(warning)
-  }
-
-  return {
-    config,
-    getGrid,
-    getPublishedGrid,
-    getTile,
-    getVectorGrid,
-    getPublishedVectorGrid,
-    getVectorTile
-  }
+  return { getVectorGrid, getPublishedVectorGrid, getVectorTile }
 }
 
 /** Distinct from any raster layer name, so the two flavours never collide. */

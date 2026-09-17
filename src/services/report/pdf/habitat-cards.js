@@ -439,10 +439,28 @@ function drawCardFrame(doc, y, height) {
  * and go in the heading, so they fall back to a dash rather than disappearing.
  */
 function cardValues({ properties }) {
-  const sqm = properties.sizeSquareMetres
+  return {
+    ...cardIdentity(properties),
+    ...cardHabitat(properties),
+    ...cardIntervention(properties),
+    ...cardSurvey(properties)
+  }
+}
+
+/**
+ * The two that identify the parcel and go in the heading, so they fall back to
+ * a dash rather than disappearing.
+ */
+function cardIdentity(properties) {
   return {
     ref: properties.ref ?? '—',
-    type: properties.type ?? '—',
+    type: properties.type ?? '—'
+  }
+}
+
+function cardHabitat(properties) {
+  const sqm = properties.sizeSquareMetres
+  return {
     broadType: properties.broadType ?? null,
     // "Poor (1)" rather than two lines: the same shape the habitat detail
     // screens use, so a reader moving between the service and the report sees
@@ -458,6 +476,15 @@ function cardValues({ properties }) {
     area: Number.isFinite(sqm)
       ? `${(sqm / SQ_M_PER_HECTARE).toFixed(PARCEL_HECTARE_DECIMALS)} ha`
       : null,
+    units: Number.isFinite(properties.units)
+      ? properties.units.toFixed(UNIT_DECIMALS)
+      : null
+  }
+}
+
+/** How the parcel's number was arrived at — post-intervention parcels only. */
+function cardIntervention(properties) {
+  return {
     difficulty: withScore(
       properties.difficulty,
       properties.difficultyMultiplier
@@ -468,10 +495,13 @@ function cardValues({ properties }) {
     advanceOrDelay: properties.advanceOrDelay ?? null,
     finalTimeToTargetCondition: yearsOrNull(
       properties.finalTimeToTargetCondition
-    ),
-    units: Number.isFinite(properties.units)
-      ? properties.units.toFixed(UNIT_DECIMALS)
-      : null,
+    )
+  }
+}
+
+/** What the surveyor recorded, rather than what was calculated. */
+function cardSurvey(properties) {
+  return {
     status: properties.status ?? null,
     surveyDate: properties.surveyDate ?? null,
     surveyDetails: properties.surveyDetails ?? null,

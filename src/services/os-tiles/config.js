@@ -121,7 +121,8 @@ const DEFAULT_CACHE_MAX_BYTES = 64 * BYTES_PER_MEGABYTE
  * and more honest than making a user wait through a second attempt.
  */
 const MS_PER_SECOND = 1000
-const DEFAULT_REQUEST_TIMEOUT_MS = 15 * MS_PER_SECOND
+const REQUEST_TIMEOUT_SECONDS = 15
+const DEFAULT_REQUEST_TIMEOUT_MS = REQUEST_TIMEOUT_SECONDS * MS_PER_SECOND
 
 /**
  * Resolve the effective configuration, folding the plan ceiling into the

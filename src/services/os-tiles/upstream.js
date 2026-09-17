@@ -19,6 +19,16 @@ import { OsTileError } from './errors.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS, TILE_MATRIX_SET } from './config.js'
 
 /**
+ * What each request calls itself when it fails.
+ *
+ * Named because one request says its own name three times — opening the
+ * connection, reporting a refusal, and reading the answer — and three
+ * spellings of the same request is three different diagnostics in a log.
+ */
+const WMTS_CAPABILITIES = 'WMTS GetCapabilities'
+const TILE_MATRIX_SET_27700 = 'the 27700 tile matrix set'
+
+/**
  * Fetch one raster tile.
  *
  * @param {{baseUrl: string, layer: string, apiKey: string}} config
@@ -71,12 +81,12 @@ async function fetchGrid(
   const url =
     `${wmtsUrl}?service=WMTS&request=GetCapabilities&version=2.0.0` +
     `&key=${encodeURIComponent(apiKey)}`
-  const response = await osFetch(url, 'WMTS GetCapabilities', config, fetchImpl)
+  const response = await osFetch(url, WMTS_CAPABILITIES, config, fetchImpl)
 
   if (!response.ok) {
-    throw upstreamError(response.status, 'WMTS GetCapabilities')
+    throw upstreamError(response.status, WMTS_CAPABILITIES)
   }
-  return readUpstream('WMTS GetCapabilities', async () =>
+  return readUpstream(WMTS_CAPABILITIES, async () =>
     gridFromWmtsCapabilities(await response.text(), tileMatrixSet)
   )
 }
@@ -130,17 +140,12 @@ async function fetchVectorTile(config, { z, col, row }, fetchImpl = fetch) {
 async function fetchVectorGrid(config, fetchImpl = fetch) {
   const { vectorTileMatrixSetUrl, apiKey } = config
   const url = `${vectorTileMatrixSetUrl}?key=${encodeURIComponent(apiKey)}`
-  const response = await osFetch(
-    url,
-    'the 27700 tile matrix set',
-    config,
-    fetchImpl
-  )
+  const response = await osFetch(url, TILE_MATRIX_SET_27700, config, fetchImpl)
 
   if (!response.ok) {
-    throw upstreamError(response.status, 'the 27700 tile matrix set')
+    throw upstreamError(response.status, TILE_MATRIX_SET_27700)
   }
-  return readUpstream('the 27700 tile matrix set', async () =>
+  return readUpstream(TILE_MATRIX_SET_27700, async () =>
     gridFromTileMatrixSetJson(await response.json())
   )
 }

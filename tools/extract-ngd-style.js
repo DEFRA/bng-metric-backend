@@ -1,6 +1,6 @@
 #!/usr/bin/env node
 /**
- * Regenerate src/services/report/pdf/ngd-light-style.js from Ordnance
+ * Regenerate src/services/report/pdf/ngd-light-style.json from Ordnance
  * Survey's published style.
  *
  *   OS_API_KEY=… npm run extract:ngd-style
@@ -35,7 +35,7 @@ const OUT_PATH = path.resolve(
   'services',
   'report',
   'pdf',
-  'ngd-light-style.js'
+  'ngd-light-style.json'
 )
 
 function symbolsOf(filter) {
@@ -174,27 +174,25 @@ async function main() {
   const passes = buildPasses(collectGroups(style.layers)).map(passToLiteral)
   const date = new Date().toISOString().slice(0, 10)
 
-  const header = `/**
- * GENERATED FILE — do not edit by hand. Regenerate with: npm run extract:ngd-style
- *
- * Distilled from Ordnance Survey's published GL style for the ngd-base
- * tileset ("light-27700"), fetched ${date} from
- * ${STYLE_URL}
- * (${style.layers.length} style rules in, ${passes.length} draw passes out —
- * see tools/extract-ngd-style.js for exactly what is kept and dropped).
- *
- * Each pass paints one tile layer in one mode, in OS's own draw order:
- *   { layer, fill }    every feature, one colour
- *   { layer, fills }   colour chosen by the feature's _symbol; absent
- *                      symbols are pattern overlays and are skipped
- *   { layer, line }    every feature, one stroke
- *   { layer, lines }   stroke chosen by _symbol; widthStops are the style's
- *                      [zoom, px] ramp (see lineWidthAtZoom)
- */
+  // JSON, not a JS module: this is data with no logic in it, and as source it
+  // drew a static-analysis finding for every number in a colour ramp. The
+  // provenance that used to be a file header lives in the document itself, so
+  // it survives the format — `src/services/report/pdf/ngd-light-style.js` is
+  // the thin module that reads this and says what a pass means.
+  const document = {
+    $comment:
+      'GENERATED FILE — do not edit by hand. Regenerate with: npm run extract:ngd-style. ' +
+      'See tools/extract-ngd-style.js for what is kept and dropped, and ' +
+      'ngd-light-style.js for what a pass means.',
+    source: STYLE_URL,
+    tileset: 'ngd-base',
+    style: 'light-27700',
+    fetched: date,
+    ruleCount: style.layers.length,
+    passes
+  }
 
-export const NGD_LIGHT_BASEMAP_PASSES = `
-
-  fs.writeFileSync(OUT_PATH, header + JSON.stringify(passes, null, 2) + '\n')
+  fs.writeFileSync(OUT_PATH, JSON.stringify(document, null, 2) + '\n')
   console.log(
     `Wrote ${OUT_PATH}: ${passes.length} passes from ${style.layers.length} rules`
   )

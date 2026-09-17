@@ -136,8 +136,17 @@ function stubOsFetch(grid = TEST_GRID, { expectKey = null } = {}) {
 
     const vectorMatch = VECTOR_TILE_PATH.exec(parsed.pathname)
     if (vectorMatch) {
-      const [, z, row, col] = vectorMatch
-      const pbf = syntheticVectorTile(grid, Number(z), Number(col), Number(row))
+      // OGC API – Tiles names and orders its path {tileMatrix}/{tileRow}/
+      // {tileCol} — row BEFORE column, the opposite way round from the raster
+      // ZXY below. Spelled out in OGC's own terms rather than as z/col/row so
+      // the two conventions cannot be mistaken for each other here.
+      const [, tileMatrix, tileRow, tileCol] = vectorMatch
+      const pbf = syntheticVectorTile(
+        grid,
+        Number(tileMatrix),
+        Number(tileCol),
+        Number(tileRow)
+      )
       return binaryResponse(pbf, 'application/vnd.mapbox-vector-tile')
     }
 

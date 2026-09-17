@@ -37,49 +37,85 @@ import {
 function attributesOf(feature) {
   const proposed = feature.proposed ?? {}
   return {
+    ...identity(feature, proposed),
+    ...scores(feature, proposed),
+    ...sizes(feature),
+    ...intervention(feature, proposed),
+    ...recorded(feature)
+  }
+}
+
+/**
+ * The proposed value where the parcel has one, the baseline's otherwise.
+ *
+ * One accessor rather than the same `proposed.x ?? feature.x ?? null` written
+ * out twelve times: the fallback is a single rule about how the
+ * post-intervention document nests values, and it should be stated once and
+ * be impossible to get subtly wrong on the thirteenth field.
+ */
+function proposedOr(feature, proposed, key) {
+  return proposed[key] ?? feature[key] ?? null
+}
+
+/** What the parcel is, and what it is worth. */
+function identity(feature, proposed) {
+  const value = (key) => proposedOr(feature, proposed, key)
+  return {
     ref: feature.ref ?? null,
-    type: proposed.type ?? feature.type ?? null,
-    broadType: proposed.broadType ?? feature.broadType ?? null,
-    condition: proposed.condition ?? feature.condition ?? null,
+    type: value('type'),
+    broadType: value('broadType'),
+    condition: value('condition'),
     // Set by the enrichment step from the metric engine, so absent on a project
     // that has not been calculated yet. The report shows what is there and says
     // nothing about what is not — see habitat-cards.js.
-    distinctiveness:
-      proposed.distinctiveness ?? feature.distinctiveness ?? null,
-    strategicSignificance:
-      proposed.strategicSignificance ?? feature.strategicSignificance ?? null,
-    retentionCategory:
-      proposed.retentionCategory ?? feature.retentionCategory ?? null,
-    units: numberOrNull(proposed.units ?? feature.units),
+    distinctiveness: value('distinctiveness'),
+    strategicSignificance: value('strategicSignificance'),
+    retentionCategory: value('retentionCategory'),
+    units: numberOrNull(value('units'))
+  }
+}
+
+/**
+ * The scores behind the bands. The service shows these as "Low (2)" rather
+ * than on a line of their own, and the report follows it.
+ */
+function scores(feature, proposed) {
+  const value = (key) => proposedOr(feature, proposed, key)
+  return {
+    distinctivenessScore: numberOrNull(value('distinctivenessScore')),
+    conditionScore: numberOrNull(value('conditionScore'))
+  }
+}
+
+/**
+ * Size is never taken from `proposed`: a parcel's area or length is a fact
+ * about the ground, not something an intervention proposes.
+ */
+function sizes(feature) {
+  return {
     sizeSquareMetres: numberOrNull(feature.sizeSquareMetres),
-    sizeMetres: numberOrNull(feature.sizeMetres),
+    sizeMetres: numberOrNull(feature.sizeMetres)
+  }
+}
 
-    // The scores behind the bands. The service shows these as "Low (2)" rather
-    // than on a line of their own, and the report follows it.
-    distinctivenessScore: numberOrNull(
-      proposed.distinctivenessScore ?? feature.distinctivenessScore
-    ),
-    conditionScore: numberOrNull(
-      proposed.conditionScore ?? feature.conditionScore
-    ),
+/**
+ * Post-intervention only: how the parcel's number was arrived at. Absent on a
+ * baseline feature, which is why every one of them is optional on a card.
+ */
+function intervention(feature, proposed) {
+  const value = (key) => proposedOr(feature, proposed, key)
+  return {
+    difficulty: value('difficulty'),
+    difficultyMultiplier: numberOrNull(value('difficultyMultiplier')),
+    standardTimeToTargetCondition: value('standardTimeToTargetCondition'),
+    finalTimeToTargetCondition: value('finalTimeToTargetCondition'),
+    advanceOrDelay: value('advanceOrDelay')
+  }
+}
 
-    // Post-intervention only: how the parcel's number was arrived at. Absent on
-    // a baseline feature, which is why every one of them is optional on a card.
-    difficulty: proposed.difficulty ?? feature.difficulty ?? null,
-    difficultyMultiplier: numberOrNull(
-      proposed.difficultyMultiplier ?? feature.difficultyMultiplier
-    ),
-    standardTimeToTargetCondition:
-      proposed.standardTimeToTargetCondition ??
-      feature.standardTimeToTargetCondition ??
-      null,
-    finalTimeToTargetCondition:
-      proposed.finalTimeToTargetCondition ??
-      feature.finalTimeToTargetCondition ??
-      null,
-    advanceOrDelay: proposed.advanceOrDelay ?? feature.advanceOrDelay ?? null,
-
-    // Recorded against the parcel in the GeoPackage rather than calculated.
+/** Recorded against the parcel in the GeoPackage rather than calculated. */
+function recorded(feature) {
+  return {
     spatialRiskCategory: feature.spatialRiskCategory ?? null,
     status: feature.status ?? null,
     surveyDate: feature.surveyDate ?? null,
