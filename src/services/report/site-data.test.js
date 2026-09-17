@@ -279,6 +279,30 @@ describe('#buildSite', () => {
   })
 })
 
+describe('#documentCounts', () => {
+  test('counts what the project holds, not what the report drew', () => {
+    const site = buildSite(
+      {
+        habitats: [{ featureId: 'f1' }, { featureId: 'f2' }],
+        hedgerows: [{ featureId: 'f3' }]
+      },
+      emptyGeometry(),
+      'Test Farm'
+    )
+
+    // None of these joined to geometry, so the report draws nothing — but the
+    // project still holds them, and the summary tiles decide whether a site
+    // has hedgerows at all from this.
+    expect(site.layers.habitats).toEqual([])
+    expect(site.documentCounts).toEqual({
+      habitats: 2,
+      hedgerows: 1,
+      watercourses: 0,
+      trees: 0
+    })
+  })
+})
+
 describe('#cappedLayers', () => {
   test('is empty for a site that arrived whole', () => {
     const site = buildSite({ habitats: [] }, emptyGeometry(), 'Test Farm')

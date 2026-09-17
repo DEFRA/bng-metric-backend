@@ -139,8 +139,25 @@ function buildSite(document, geometry, siteName) {
     redLine: geometry.redLine,
     redLineAreaSqm: geometry.redLineAreaSqm,
     layers,
+    documentCounts: documentCounts(document),
     capped: cappedLayers(document, geometry, layers)
   }
+}
+
+/**
+ * How many features of each layer the project HOLDS, as distinct from how
+ * many this report drew.
+ *
+ * The two differ where a feature has no geometry to join to, and where a
+ * layer was capped. The summary tiles want the first number — they decide
+ * whether a project has hedgerows at all, and the answer must not change
+ * because a hedgerow was dropped from a map — and the capped note wants it as
+ * its denominator.
+ */
+function documentCounts(document) {
+  return Object.fromEntries(
+    GEOMETRY_LAYERS.map((layer) => [layer, document[layer]?.length ?? 0])
+  )
 }
 
 /**
@@ -194,4 +211,11 @@ async function readSiteData(drizzle, projectRow) {
   }
 }
 
-export { attributesOf, buildSite, cappedLayers, joinLayer, readSiteData }
+export {
+  attributesOf,
+  buildSite,
+  cappedLayers,
+  documentCounts,
+  joinLayer,
+  readSiteData
+}

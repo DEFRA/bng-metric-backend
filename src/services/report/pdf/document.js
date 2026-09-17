@@ -2,14 +2,21 @@
  * The PDF itself: a tagged, PDF/UA-targeted site report.
  *
  * Structure of the output:
- *   Page 1  site heading, key figures (pdfkit's built-in tagged table),
- *           baseline and post-intervention site maps side by side, legend
- *   Page 2+ one row per habitat parcel: mini-map, ref, type, condition, size
+ *   Page 1  the summary, laid out like the service's project summary screen:
+ *           the project name over a "Summary" heading, then one tile section
+ *           per unit type carrying the net percentage change and its Met /
+ *           Not met tag, the trading rules, and the baseline,
+ *           post-intervention and net unit change figures
+ *   Page 2  key figures (pdfkit's built-in tagged table), then the baseline
+ *           and post-intervention site maps side by side, and the legend
+ *   Page 3+ one row (or one card) per habitat parcel: mini-map, ref, type,
+ *           condition, size
  *
  * This module owns only the document: its metadata, its fonts and the order of
- * its pages. The two pages build themselves — `summary-page.js` and
- * `habitat-pages.js` — and share their geometry through `layout.js`, so a
- * typographic decision is made once and a page's structure reads on its own.
+ * its pages. The pages build themselves — `summary-tiles.js`,
+ * `summary-page.js` and `habitat-pages.js` — and share their geometry through
+ * `layout.js`, so a typographic decision is made once and a page's structure
+ * reads on its own.
  *
  * Numbers come from the project document, never from the geometry. The
  * document's `sizeSquareMetres` / `sizeMetres` are what the service shows on
@@ -23,6 +30,7 @@ import PDFDocument from 'pdfkit'
 import { addHabitatCards } from './habitat-cards.js'
 import { addHabitatPages } from './habitat-pages.js'
 import { addSummaryPage } from './summary-page.js'
+import { addSummaryTilesPage } from './summary-tiles.js'
 import { registerFonts } from './page-furniture.js'
 import { A4_PORTRAIT, MARGIN } from './layout.js'
 
@@ -98,6 +106,7 @@ async function buildSiteReportPdf({
     stats
   }
 
+  addSummaryTilesPage({ ...context, siteName })
   await addSummaryPage({ ...context, graticule, siteName })
   const addHabitats = HABITAT_LAYOUTS[layout] ?? HABITAT_LAYOUTS[DEFAULT_LAYOUT]
   await addHabitats({

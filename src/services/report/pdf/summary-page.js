@@ -1,5 +1,5 @@
 /**
- * Page 1: the site heading, the key figures, the site maps and the legend.
+ * Page 2: the key figures, the site maps and the legend.
  *
  * Everything that draws into a map frame is synchronous. Tiles are fetched by
  * `prepareBasemap` before drawing starts, so nothing can interleave between a
@@ -66,7 +66,13 @@ async function addSummaryPage(context) {
   const section = doc.struct('Sect', { title: 'Site report' })
   root.add(section)
 
-  addHeading(doc, section, context.siteName)
+  // The summary tiles have page 1; this page starts a new one. The document's
+  // single H1 is over there, so everything here hangs off an H2 — a heading
+  // level skipped is a PDF/UA failure and, more to the point, a reader who
+  // cannot tell which page they are on.
+  doc.addPage()
+
+  addHeading(doc, section)
   addCappedNote(doc, section, context.baseline, context.postIntervention)
   addKeyFiguresTable(doc, section, context.baseline, context.postIntervention)
   addSiteMapsHeading(doc, section)
@@ -81,11 +87,11 @@ async function addSummaryPage(context) {
   section.end()
 }
 
-function addHeading(doc, section, siteName) {
+function addHeading(doc, section) {
   section.add(
-    doc.struct('H1', () => {
-      doc.font(BOLD).fontSize(FONT_SIZE.title).fillColor(INK)
-      doc.text(`${siteName} `, MARGIN, MARGIN, { width: CONTENT_WIDTH })
+    doc.struct('H2', () => {
+      doc.font(BOLD).fontSize(FONT_SIZE.sectionHeading).fillColor(INK)
+      doc.text('Key figures ', MARGIN, MARGIN, { width: CONTENT_WIDTH })
     })
   )
 

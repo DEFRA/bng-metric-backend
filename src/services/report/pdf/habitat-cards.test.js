@@ -270,13 +270,28 @@ describe('#labelWidth', () => {
   })
 })
 
+/**
+ * The same render with no parcels at all.
+ *
+ * Counted against rather than counted from zero, because the document's other
+ * pages carry headings and paragraphs of their own — the summary tiles alone
+ * are five headings per unit type — and a test that pinned the total would
+ * fail every time page 1 changed while saying nothing about cards.
+ */
+async function renderWithoutParcels() {
+  const baseline = baselineSite()
+  baseline.layers.habitats = []
+  return render({ baseline })
+}
+
 describe('#addHabitatCards', () => {
   test('gives every parcel a heading, so a card can be navigated to', async () => {
     const { text } = await render({ baseline: baselineSite() })
+    const chrome = await renderWithoutParcels()
 
     // H3, because the section's own heading is an H2 — a screen reader moves
     // card to card by heading, which is what a table gave through its rows.
-    expect(countOf(text, '/S /H3')).toBe(2)
+    expect(countOf(text, '/S /H3') - countOf(chrome.text, '/S /H3')).toBe(2)
   })
 
   test('gives every parcel a tagged mini-map with alt text', async () => {
@@ -288,13 +303,16 @@ describe('#addHabitatCards', () => {
 
   test('writes one paragraph per recorded attribute, and none for the rest', async () => {
     const { text } = await render({ baseline: baselineSite() })
+    const chrome = await renderWithoutParcels()
 
     // A1 is fully recorded for a BASELINE parcel (12 attributes); A2 has only
     // broad habitat, condition and size. The five remaining card fields are
-    // post-intervention only, so neither parcel has them here. Three
-    // paragraphs belong to the page introductions.
-    const introductions = 3
-    expect(countOf(text, '/S /P')).toBe(introductions + 12 + 3)
+    // post-intervention only, so neither parcel has them here. One more
+    // paragraph is the section's own introduction.
+    const introduction = 1
+    expect(countOf(text, '/S /P') - countOf(chrome.text, '/S /P')).toBe(
+      introduction + 12 + 3
+    )
   })
 
   test('carries the values the table layout has no column for', async () => {
@@ -327,11 +345,10 @@ describe('#addHabitatCards', () => {
   })
 
   test('produces no habitat section at all when there are no parcels', async () => {
-    const baseline = baselineSite()
-    baseline.layers.habitats = []
+    const { text } = await renderWithoutParcels()
 
-    const { text } = await render({ baseline })
-
-    expect(countOf(text, '/S /H3')).toBe(0)
+    // The section element itself, by its title — an empty Sect announcing
+    // parcels that are not there is worse than no section.
+    expect(text).not.toContain('/T (Habitat parcels)')
   })
 })

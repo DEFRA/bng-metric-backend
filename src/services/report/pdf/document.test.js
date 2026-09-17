@@ -53,9 +53,16 @@ describe('#buildSiteReportPdf', () => {
     })
 
     expect(countOf(text, '/S /Document')).toBe(1)
+    // One H1, on the summary page: "Summary", with the project name as a
+    // caption above it rather than as a second heading.
     expect(countOf(text, '/S /H1')).toBe(1)
-    // H1 → H2 → H2, with no level skipped.
-    expect(countOf(text, '/S /H2')).toBe(2)
+    // Six H2s under it — one per unit-type section on page 1 (area habitats,
+    // hedgerows, watercourses), then "Key figures", "Site maps" and the
+    // habitat parcels heading.
+    expect(countOf(text, '/S /H2')).toBe(6)
+    // Five H3s per unit-type section: its five tiles. The table layout gives
+    // parcels rows rather than headings, so these are all of them.
+    expect(countOf(text, '/S /H3')).toBe(15)
     expect(countOf(text, '/Lang')).toBeGreaterThan(0)
     expect(text).toContain('pdfuaid')
   })
@@ -258,19 +265,24 @@ describe('#buildSiteReportPdf font source', () => {
 })
 
 describe('#buildSiteReportPdf habitat layout', () => {
+  // Every unit-type section on the summary page carries five tile headings of
+  // its own, so a parcel heading is only visible as a difference — see
+  // SUMMARY_TILE_HEADINGS.
+  const SUMMARY_TILE_HEADINGS = 15
+
   test('defaults to the table layout', async () => {
     const { text } = await render({ baseline: baselineSite() })
 
     // Column headers exist only in the table layout; card headings only in the
     // card one. Each is a clean fingerprint for which builder ran.
     expect(countOf(text, '/S /TH')).toBeGreaterThan(0)
-    expect(countOf(text, '/S /H3')).toBe(0)
+    expect(countOf(text, '/S /H3')).toBe(SUMMARY_TILE_HEADINGS)
   })
 
   test('draws cards when asked for them', async () => {
     const { text } = await render({ baseline: baselineSite(), layout: 'cards' })
 
-    expect(countOf(text, '/S /H3')).toBe(2)
+    expect(countOf(text, '/S /H3')).toBe(SUMMARY_TILE_HEADINGS + 2)
   })
 
   test('falls back to the table for a layout it does not have', async () => {

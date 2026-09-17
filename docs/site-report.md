@@ -6,6 +6,18 @@ key figures, and one row per parcel carrying a thumbnail and the recorded attrib
 
 Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harness.
 
+## What the report contains
+
+| Page | Content                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The summary, shaped like the service's own project summary screen: the project name over a "Summary" heading, then a tile section per unit type — net percentage change with its Met / Not met tag, trading rules, and the baseline, post-intervention and net unit change figures |
+| 2    | Key figures as a tagged table, the baseline and post-intervention site maps side by side, the legend and the basemap credit                                                                                                                                                        |
+| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records                                                                                                                                                                        |
+
+Page 1 mirrors the screen deliberately. A user arrives at the download from the project
+summary page, and a report whose first page restated the same figures differently would
+read as a second opinion on their own project.
+
 ## Where the numbers and the shapes come from
 
 Two sources, deliberately:
@@ -23,6 +35,41 @@ The red line's **area** is the one number that comes from PostGIS rather than th
 document (`ST_Area`), because the red line is a boundary, not a habitat, and carries no
 `sizeSquareMetres`.
 
+### The summary figures are the engine's, not this module's
+
+**Nothing in the report calculates the metric.** The figures on page 1 were computed by
+the engine when the project was calculated and persisted on the project document:
+`utilities/features/feature-set-units.js` sums each layer's feature units into `units`
+and folds in the engine's `calculatePostInterventionNetUnitChanges`, so
+`habitatsNetUnitChange`, `habitatsNetUnitChangePercentage` and their hedgerow and
+watercourse counterparts are already there to be read.
+
+`services/report/unit-summary.js` only decides how they are worded, and that is a
+**second copy of rules the frontend also holds**
+(`bng-metric-frontend/src/server/common/helpers/unit-summary.js`) — written knowingly,
+because the PDF is rendered here and the screen is rendered there. The rules that are
+easy to get subtly wrong, all copied on purpose:
+
+- area habitats **include individual trees** — the metric treats them as one module even
+  though the totals are stored separately;
+- the target is judged on the **rounded** percentage, so a tile reading `10.00%` is never
+  tagged "Not met";
+- a baseline with **no post-intervention file is −100%**, not "unknown" — every unit on
+  the site goes and nothing replaces it;
+- a habitat type that exists **only after intervention** is "Not applicable", there being
+  no baseline to improve on;
+- a linear unit type with no features on either side is **not shown at all**, rather than
+  shown as three tiles of zeroes.
+
+Every one of those is pinned by a test in `unit-summary.test.js`, so a drift between the
+two copies fails the build rather than reaching a user as two different numbers.
+
+**This should not stay in two places.** Worth revisiting as either: hoisting the figures
+into `bng-library` beside the engine — the GOV.UK tag classes and hrefs would stay in the
+frontend, being presentation — or serving the shaped summary from this service's project
+API so the screen reads it rather than deriving it. Both are larger changes than the
+report should carry, and neither is blocked by anything here.
+
 ## Layout
 
 | Path                                       | Role                                                                         |
@@ -30,6 +77,8 @@ document (`ST_Area`), because the red line is a boundary, not a habitat, and car
 | `src/routes/report.js`                     | the route: visibility check, then the PDF bytes with a `content-disposition` |
 | `src/services/report/build-site-report.js` | read → fetch tiles → draw, in that order                                     |
 | `src/services/report/site-data.js`         | joins the document to the geometry                                           |
+| `src/services/report/unit-summary.js`      | the summary figures, worded as the project summary screen words them         |
+| `src/services/report/pdf/summary-tiles.js` | page 1: the tile grid those figures fill                                     |
 | `src/db/project-geometry.js`               | `ST_AsGeoJSON` reads, one layer at a time                                    |
 | `src/services/report/pdf/projector.js`     | ground metres → page points. The piece worth reading first                   |
 | `src/services/report/pdf/grid.js`          | tile matrix maths; WMTS capabilities parsing                                 |

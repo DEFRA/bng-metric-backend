@@ -12,6 +12,8 @@
  * match.
  */
 
+import { calculatePostInterventionNetUnitChanges } from 'bng-library/metric'
+
 const SITE_WEST = 412_000
 const SITE_EAST = 412_400
 const SITE_SOUTH = 287_000
@@ -214,25 +216,60 @@ const BASELINE_UNITS = Object.freeze({
   watercoursesTotal: 1
 })
 
+/**
+ * The post-intervention totals, with the net-change fields the engine folds
+ * in — from the engine itself rather than typed out, because it is the engine
+ * that writes them onto a real project document
+ * (`utilities/features/feature-set-units.js`) and the summary tiles read them
+ * straight off it. Area habitats gain 6 units on a 13-unit baseline, which is
+ * comfortably over the statutory 10%; the two linear types are unchanged, so
+ * one fixture exercises both a met and an unmet tile.
+ */
 const POST_INTERVENTION_UNITS = Object.freeze({
   habitatsTotal: 18.5,
   treesTotal: 0.5,
   hedgerowsTotal: 2,
-  watercoursesTotal: 1
+  watercoursesTotal: 1,
+  ...calculatePostInterventionNetUnitChanges(
+    {
+      habitatsTotal: 12.5,
+      treesTotal: 0.5,
+      hedgerowsTotal: 2,
+      watercoursesTotal: 1
+    },
+    {
+      habitatsTotal: 18.5,
+      treesTotal: 0.5,
+      hedgerowsTotal: 2,
+      watercoursesTotal: 1
+    }
+  )
 })
 
 function baselineSite(overrides = {}) {
+  const layers = {
+    habitats: habitats(),
+    hedgerows: hedgerows(),
+    watercourses: watercourses(),
+    trees: trees()
+  }
+
   return {
     siteName: 'Test Farm',
     units: { ...BASELINE_UNITS },
     redLine: { geometry: RED_LINE },
     redLineAreaSqm: SITE_AREA_SQ_M,
-    layers: {
-      habitats: habitats(),
-      hedgerows: hedgerows(),
-      watercourses: watercourses(),
-      trees: trees()
-    },
+    layers,
+    // What the project document holds, as against what was joined to
+    // geometry. Counted from the layers rather than typed out, so a fixture
+    // that gains a parcel cannot end up claiming otherwise. The summary
+    // tiles read these to decide which unit types the project has at all.
+    documentCounts: Object.fromEntries(
+      Object.entries(layers).map(([layer, features]) => [
+        layer,
+        features.length
+      ])
+    ),
     ...overrides
   }
 }

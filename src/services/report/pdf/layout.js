@@ -24,11 +24,14 @@ const CONTEXT_STROKE = '#b1b4b6'
 
 const FONT_SIZE = Object.freeze({
   title: 22,
+  caption: 12,
   sectionHeading: 15,
   subHeading: 14,
+  tileValue: 17,
   intro: 10,
   body: 9.5,
   bodySmall: 9,
+  tag: 8.5,
   tableCell: 8.5,
   legend: 7.5,
   attribution: 7
@@ -42,6 +45,38 @@ const RULE_WIDTH = Object.freeze({
   keyFiguresHeader: 1.5,
   keyFiguresRow: 0.5
 })
+
+// The summary tiles on page 1, which mirror the service's project summary
+// screen — a grey panel per figure, two across the top row and three below.
+// The heights are fixed rather than measured because every tile carries the
+// same shape of content (a short heading over one number), and a row of
+// panels that were each as tall as their own text would read as a ragged
+// grid rather than as the screen's.
+const TILE_BACKGROUND = '#f3f2f1'
+const TILE_GUTTER = 12
+const TILE_PADDING = 10
+const TILE_VALUE_GAP = 6
+const PRIMARY_TILE_HEIGHT = 96
+const SECONDARY_TILE_HEIGHT = 82
+const PRIMARY_TILE_COUNT = 2
+const SECONDARY_TILE_COUNT = 3
+const TILE_ROW_GAP = 10
+const TILE_SECTION_GAP = 18
+const SECTION_HEADING_HEIGHT = 22
+const SUMMARY_TILES_TOP_GAP = 14
+
+/**
+ * GOV.UK tag colours, as govuk-frontend paints `govuk-tag--green` and
+ * `govuk-tag--red`. Both pairs clear WCAG AA against each other, which is
+ * what lets the tag carry a colour at all — the word inside it is what
+ * actually carries the meaning.
+ */
+const TAG_COLOURS = Object.freeze({
+  met: Object.freeze({ background: '#cce2d8', text: '#005a30' }),
+  notMet: Object.freeze({ background: '#f6d7d2', text: '#942514' })
+})
+const TAG_PADDING_X = 5
+const TAG_PADDING_Y = 3
 
 const SITE_MAP_HEIGHT = 210
 const SITE_MAP_GUTTER = 16
@@ -125,6 +160,24 @@ const UNIT_DECIMALS = 2
  * invisible at that size. Tune here before dropping the basemap entirely.
  */
 const THUMBNAIL_TARGET_DPI = 150
+
+export {
+  PRIMARY_TILE_COUNT,
+  PRIMARY_TILE_HEIGHT,
+  SECONDARY_TILE_COUNT,
+  SECONDARY_TILE_HEIGHT,
+  SECTION_HEADING_HEIGHT,
+  SUMMARY_TILES_TOP_GAP,
+  TAG_COLOURS,
+  TAG_PADDING_X,
+  TAG_PADDING_Y,
+  TILE_BACKGROUND,
+  TILE_GUTTER,
+  TILE_PADDING,
+  TILE_ROW_GAP,
+  TILE_SECTION_GAP,
+  TILE_VALUE_GAP
+}
 
 export {
   A4_PORTRAIT,
