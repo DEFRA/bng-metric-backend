@@ -4,9 +4,21 @@ import { osTileSource, osVectorTileSource } from './tile-source.js'
 import { isOsTileError } from '../../os-tiles/errors.js'
 import { TEST_GRID } from './synthetic-tiles.test-fixtures.js'
 
+/**
+ * Bytes that open like a PNG. The tile source checks the signature — a
+ * response can be a 200 and still not be an image — so a stand-in has to
+ * carry one.
+ */
+function pngBytes(payload) {
+  return Buffer.concat([
+    Buffer.from([0x89, 0x50, 0x4e, 0x47, 0x0d, 0x0a, 0x1a, 0x0a]),
+    Buffer.from(payload)
+  ])
+}
+
 describe('#osTileSource', () => {
   test('returns the PNG the service gives it', async () => {
-    const png = Buffer.from('tile')
+    const png = pngBytes('tile')
     const osTiles = { getTile: vi.fn().mockResolvedValue({ png }) }
 
     const tile = await osTileSource(osTiles)(TEST_GRID, 9, 300, 400)
@@ -20,7 +32,7 @@ describe('#osTileSource', () => {
     // parcels overlap — and there is no reason to round-trip an async cache for
     // an answer already in hand.
     const osTiles = {
-      getTile: vi.fn().mockResolvedValue({ png: Buffer.from('tile') })
+      getTile: vi.fn().mockResolvedValue({ png: pngBytes('tile') })
     }
     const source = osTileSource(osTiles)
 
@@ -41,6 +53,29 @@ describe('#osTileSource', () => {
     await expect(osTileSource(osTiles)(TEST_GRID, 9, 300, 400)).rejects.toThrow(
       /403 from OS/
     )
+  })
+})
+
+describe('#osTileSource on a body that is not an image', () => {
+  test('reports it as a tile failure, not a drawing fault', async () => {
+    // A 200 carrying an HTML error page. drawBasemap hands these bytes to
+    // doc.image, which throws a bare Error('Unknown image format.') — at the
+    // builder that is indistinguishable from a bug in the renderer, so the
+    // report 500s instead of falling back to a plain ground. Raised in review
+    // on #297.
+    const osTiles = {
+      getTile: vi.fn().mockResolvedValue({
+        png: Buffer.from('<html><body>Service Unavailable</body></html>')
+      })
+    }
+
+    const failure = await osTileSource(osTiles)(TEST_GRID, 9, 300, 400)
+      .then(() => null)
+      .catch((error) => error)
+
+    expect(failure).not.toBeNull()
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.message).toContain('9/300/400')
   })
 })
 

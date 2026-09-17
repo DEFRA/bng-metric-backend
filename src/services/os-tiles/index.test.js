@@ -274,6 +274,35 @@ describe('#getTile', () => {
     expect(failure.upstream).toBe(true)
   })
 
+  test('refuses a 200 that is not an image, and does not cache it', async () => {
+    const upstream = stubOsFetch(TEST_GRID)
+    const cache = stubTileCache()
+    const { service } = serviceWith({
+      cache,
+      fetchImpl: async (url) =>
+        url.includes('wmts')
+          ? upstream.fetch(url)
+          : {
+              // What a gateway in front of api.os.uk answers with on a bad
+              // day: an HTML error page, 200, labelled as a tile.
+              ok: true,
+              status: 200,
+              headers: { get: () => 'image/png' },
+              arrayBuffer: async () =>
+                new TextEncoder().encode('<html>Service Unavailable</html>')
+                  .buffer
+            }
+    })
+
+    const failure = await service.getTile(9, 1508, 2814).catch((error) => error)
+
+    expect(isOsTileError(failure)).toBe(true)
+    expect(failure.message).toMatch(/not a PNG or JPEG/)
+    // The cache holds tiles for a week by default, so storing one junk body
+    // would poison every later report and browser tile until it expired.
+    expect(cache.size()).toBe(0)
+  })
+
   test('reports a 403 as a plan problem, not a key problem', async () => {
     // These are different failures and were both observed live. Conflating them
     // sends people looking for a new key when the fix is OS_MAPS_MAX_ZOOM.

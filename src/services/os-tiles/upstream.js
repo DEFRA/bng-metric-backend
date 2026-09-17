@@ -16,6 +16,7 @@ import {
   gridFromWmtsCapabilities
 } from '../report/pdf/grid.js'
 import { OsTileError } from './errors.js'
+import { isPlaceableImage } from './image-format.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS, TILE_MATRIX_SET } from './config.js'
 
 /**
@@ -50,10 +51,29 @@ async function fetchTile(config, { z, col, row }, fetchImpl = fetch) {
   if (!response.ok) {
     throw upstreamError(response.status, `tile ${layer}/${z}/${col}/${row}`)
   }
+  const what = `tile ${layer}/${z}/${col}/${row}`
+  const png = await readUpstream(what, async () =>
+    Buffer.from(await response.arrayBuffer())
+  )
+
+  // A 200 is not a tile. Something in front of api.os.uk can answer with an
+  // HTML error page and a 200, and its `content-type` describes the page
+  // rather than the truth — so check the bytes.
+  //
+  // Checked HERE, before the caller caches it, for two reasons beyond the
+  // obvious: the cache holds tiles for a week by default, so one junk body
+  // would poison every later report and browser tile until it expired; and
+  // the tile routes would otherwise hand a browser an HTML page labelled
+  // image/png. Raised in review on #297.
+  if (!isPlaceableImage(png)) {
+    throw new OsTileError(
+      `Ordnance Survey's answer for ${what} was not a PNG or JPEG`,
+      { status: HTTP_BAD_GATEWAY, upstream: true }
+    )
+  }
+
   return {
-    png: await readUpstream(`tile ${layer}/${z}/${col}/${row}`, async () =>
-      Buffer.from(await response.arrayBuffer())
-    ),
+    png,
     contentType: response.headers.get('content-type') || 'image/png'
   }
 }

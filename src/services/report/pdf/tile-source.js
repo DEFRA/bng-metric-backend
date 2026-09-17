@@ -20,6 +20,7 @@
 
 import { decodeVectorTile } from './mvt.js'
 import { OsTileError } from '../../os-tiles/errors.js'
+import { isPlaceableImage } from '../../os-tiles/image-format.js'
 
 /**
  * Tiles from the OS tiles service, memoised for the life of one document.
@@ -37,7 +38,9 @@ function osTileSource(osTiles) {
     if (!seen.has(key)) {
       seen.set(
         key,
-        osTiles.getTile(z, col, row).then(({ png }) => ({ png }))
+        osTiles
+          .getTile(z, col, row)
+          .then(({ png }) => ({ png: image(png, key) }))
       )
     }
     return seen.get(key)
@@ -67,6 +70,32 @@ function osVectorTileSource(osTiles) {
     }
     return seen.get(key)
   }
+}
+
+/**
+ * A raster tile that arrived but is not an image.
+ *
+ * The same classification the vector side gets from `decode` below, and the
+ * renderer needs it just as much: `drawBasemap` hands these bytes to
+ * `doc.image`, which throws a bare `Error('Unknown image format.')` on
+ * anything it cannot place. Unclassified, that reaches the builder looking
+ * exactly like a fault in the drawing, so a report over a bad tile 500s
+ * instead of falling back to a plain ground — the failure raised in review on
+ * #297 and reproduced through this function.
+ *
+ * `upstream.js` rejects such a body before it is ever cached, so in practice
+ * nothing should reach here. This is the renderer declining to trust ANY tile
+ * source's bytes, which is a different guarantee from the service validating
+ * its own.
+ */
+function image(png, key) {
+  if (!isPlaceableImage(png)) {
+    throw new OsTileError(
+      `The raster tile at ${key} is not a PNG or JPEG this report can draw`,
+      { upstream: true }
+    )
+  }
+  return png
 }
 
 /**

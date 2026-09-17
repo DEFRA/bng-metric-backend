@@ -155,6 +155,34 @@ describe('#buildSiteReport', () => {
     expect(stats.basemapDegraded).toBe(true)
   })
 
+  test('redraws on a plain ground when a raster tile is not an image', async () => {
+    readSiteData.mockResolvedValue(siteData())
+    // A 200 carrying an HTML error page — what a gateway in front of
+    // api.os.uk answers with when it is having a bad day, `content-type`
+    // included. Raised in review on #297.
+    const osTiles = fakeOsTiles({
+      getTile: vi.fn().mockResolvedValue({
+        png: Buffer.from('<html><body>Service Unavailable</body></html>'),
+        contentType: 'image/png',
+        cached: false
+      })
+    })
+
+    const { pdf, stats } = await buildSiteReport({
+      drizzle: {},
+      projectRow: { id: 'project-1', project: {} },
+      osTiles,
+      basemap: 'raster'
+    })
+
+    // Unclassified, these bytes reach doc.image and throw a bare
+    // Error('Unknown image format.') — indistinguishable at the builder from a
+    // fault in the drawing, so the report 500s instead of degrading.
+    expect(pdf.subarray(0, 5).toString('latin1')).toBe('%PDF-')
+    expect(stats.tiles).toBe(0)
+    expect(stats.basemapDegraded).toBe(true)
+  })
+
   test('does not hide a drawing fault behind a substituted basemap', async () => {
     readSiteData.mockResolvedValue(siteData())
     // Not an OsTileError: the service raises those for everything that can go

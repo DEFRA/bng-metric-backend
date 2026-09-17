@@ -481,6 +481,28 @@ anything about OS plans — the same reasoning that keeps the key out of it.
 Switching to EPSG:3857 does not escape the ceiling (~1.5 m/px at GB latitudes) and costs
 exact registration, so it is not an option.
 
+### What counts as a tile
+
+A raster tile is checked against the PNG and JPEG signatures before it is
+returned — not against its `content-type`. "200 OK" does not mean "a tile": a
+gateway in front of api.os.uk can answer a tile request with an HTML error
+page and a 200, and the header describes the page rather than the truth. Two
+things go wrong if the bytes are taken on trust:
+
+- the tile routes hand a browser an HTML page labelled `image/png`;
+- `drawBasemap` hands those bytes to pdfkit's `doc.image`, which throws a bare
+  `Error('Unknown image format.')`. Unclassified, that arrives at the builder
+  looking exactly like a fault in the drawing, so the report 500s instead of
+  falling back to a plain ground.
+
+The check runs in `upstream.js`, **before the caller caches the body** — tiles
+are held for a week by default, so one junk response would otherwise poison
+every later report and browser tile until it expired. `tile-source.js` checks
+again on the way into the renderer, which is the report declining to trust any
+tile source's bytes rather than relying on the service validating its own. The
+vector side gets the same treatment from `decode`, which is where the
+asymmetry was spotted in review on #297.
+
 ### What a tile failure tells the caller
 
 The `/os-tiles` routes serve a browser map, so their failures reach a client. Every
