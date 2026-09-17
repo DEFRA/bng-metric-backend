@@ -24,6 +24,7 @@ import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
 import { validatePostIntervention } from '../routes/post-intervention.js'
 import { getUserProjects } from '../routes/users.js'
+import { getProjectReport } from '../routes/report.js'
 import {
   getProjectDetails,
   updateProjectDetails
@@ -39,6 +40,7 @@ import {
   getTradingRules
 } from '../routes/reference.js'
 import { swagger } from '../common/helpers/swagger.js'
+import { osTiles, osTilesEnabled } from './os-tiles.js'
 
 const router = {
   plugin: {
@@ -62,6 +64,7 @@ const router = {
         validateBaseline,
         validatePostIntervention,
         getUserProjects,
+        getProjectReport,
         getProjectDetails,
         updateProjectDetails,
         getBroadHabitats,
@@ -73,6 +76,14 @@ const router = {
         getWatercourseEncroachments,
         getTradingRules
       ])
+
+      // The OS tiles routes exist only where an OS Maps key does — see the
+      // header of plugins/os-tiles.js. Without one every tile would 401 from
+      // Ordnance Survey, so the absence of a key shows up as the absence of a
+      // route rather than as an endpoint that always fails.
+      if (osTilesEnabled()) {
+        await server.register([osTiles])
+      }
 
       // /db-info is a DB-introspection diagnostic — keep it out of the
       // production route table entirely (it is removed, not just access-gated).
