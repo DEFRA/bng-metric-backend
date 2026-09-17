@@ -21,7 +21,8 @@ import {
   getGeosWorkerPool,
   ValidationQueueFullError,
   ValidationQueueWaitError,
-  ValidationTimeoutError
+  ValidationTimeoutError,
+  ValidationUnavailableError
 } from '../validation/geopackage/geos/worker-pool.js'
 import {
   getParseBudget,
@@ -291,6 +292,33 @@ async function respondToBusy(uploadId, h, config, reason) {
 }
 
 /**
+ * The pool has permanently given up — its workers cannot start — so this is
+ * `respondToBusy`'s opposite in everything but the status code. Busy means the
+ * next attempt may well pass; here every retry meets the same wall until an
+ * operator restarts the service. Hence no Retry-After, and a code that is
+ * deliberately NOT VALIDATION_BUSY: the frontend re-polls only on that exact
+ * code, so this answer drops the caller out of its polling loop and onto an
+ * honest error page instead of two minutes of pointless refreshing.
+ */
+async function respondToUnavailable(uploadId, h, config) {
+  logger.error(
+    `${config.routeName} - validation unavailable (worker pool has given up) for uploadId ${uploadId}; told the caller not to retry`
+  )
+  await metricsCounter(GEOPACKAGE_METRIC.validationUnavailable)
+  return h
+    .response({
+      valid: false,
+      errors: [
+        makeError(
+          ERROR_CODES.VALIDATION_UNAVAILABLE,
+          'The file checking service is currently unavailable. Please try again later.'
+        )
+      ]
+    })
+    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
+}
+
+/**
  * The validate routes answer with exactly `{ valid, errors }`, and nothing else.
  *
  * `validateGeoPackageLayers` hands back more than that — per-feature `sizes` for
@@ -541,6 +569,12 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     if (error?.isBoom) {
       throw error
     }
+    // The pool can give up while this request is mid-flight — the entry check
+    // passed, then the workers died for good. Same non-retryable answer as at
+    // the door.
+    if (error instanceof ValidationUnavailableError) {
+      return respondToUnavailable(uploadId, h, config)
+    }
     // A full queue means the file was never looked at — a capacity condition,
     // not a fault, and the only one of these worth telling the user to retry.
     const busy = busyReason(error)
@@ -668,13 +702,23 @@ function createValidateGeoPackageRoute(config) {
       // Persisting to a project is scoped to this user's current org context.
       const credentials = request.auth.credentials
 
+      // Checked before the busy paths because it outranks them: a broken pool
+      // also fails `admit()`, and answering that as busy would tell the client
+      // to retry into a wall until its two-minute patience ran out. `admit`
+      // stays the authority on capacity; this is only about the pool having
+      // permanently given up (its workers cannot start).
+      const pool = validationPool()
+      if (pool.broken) {
+        return respondToUnavailable(uploadId, h, config)
+      }
+
       // A place in the service, taken before anything is fetched and held
       // until the response is built. A RESERVATION rather than a check, which
       // is the whole point: every thread of a synchronised burst passes
       // `hasCapacity()` inside `admitUpload` while the pool is still empty, so
       // that check refuses nobody and the refusal lands after the download it
       // exists to avoid. The counter here moves before the caller is told yes.
-      const releaseAdmission = validationPool().admit()
+      const releaseAdmission = pool.admit()
       if (!releaseAdmission) {
         return respondToBusy(
           uploadId,

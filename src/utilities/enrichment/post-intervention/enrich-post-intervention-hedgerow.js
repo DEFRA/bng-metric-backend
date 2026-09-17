@@ -4,7 +4,7 @@ import {
   calculateRetainedHedgerowPostIntervention,
   calculateCreatedHedgerowPostIntervention,
   calculateEnhancedHedgerowPostIntervention
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 import { normalizeConditionForEngine } from '../shared/engine-helpers.js'
 import { lookupBaselineLinearLength } from './linear-baseline-length-by-ref.js'

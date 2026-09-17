@@ -1,5 +1,5 @@
 // Post-intervention unit enrichment. Dispatches on `feature.retentionCategory`
-// to call the correct bng-metric-engine post-intervention calculator. The baseline
+// to call the correct bng-library/metric post-intervention calculator. The baseline
 // sub-object is always enriched with the baseline engine (informational scores);
 // only the primary units calculation on the proposed side uses the new functions.
 //

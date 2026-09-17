@@ -20,7 +20,7 @@ import {
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
-  'Numeric distinctiveness score for the band, from bng-metric-engine.'
+  'Numeric distinctiveness score for the band, from bng-library/metric.'
 
 // Survey / provenance / planning metadata columns shared by the Habitats,
 // Hedgerows and Rivers layers. Promoted to named fields by BMD-498. Returned as
@@ -71,7 +71,7 @@ const metadataSchemaKeys = () => ({
   rawDistinctiveness: Joi.string()
     .allow(null, '')
     .description(
-      'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-metric-engine.'
+      'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
     )
 })
 
@@ -116,7 +116,7 @@ const habitatSchema = Joi.object({
   distinctiveness: Joi.string()
     .allow(null, '')
     .description(
-      "Distinctiveness band resolved by bng-metric-engine from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
+      "Distinctiveness band resolved by bng-library/metric from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
     ),
   distinctivenessScore: Joi.number()
     .allow(null)
@@ -127,7 +127,7 @@ const habitatSchema = Joi.object({
   conditionScore: Joi.number()
     .allow(null)
     .description(
-      'Numeric condition score from bng-metric-engine. Set during import enrichment and on habitat edits.'
+      'Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits.'
     ),
   strategicSignificance: Joi.string()
     .allow(null, '')
@@ -187,7 +187,7 @@ const treeSchema = habitatSchema
     distinctiveness: Joi.string()
       .allow(null, '')
       .description(
-        'Distinctiveness band resolved by bng-metric-engine from the tree habitat type. Trees are Medium distinctiveness.'
+        'Distinctiveness band resolved by bng-library/metric from the tree habitat type. Trees are Medium distinctiveness.'
       ),
     area: Joi.number()
       .allow(null)
@@ -200,7 +200,7 @@ const treeSchema = habitatSchema
     units: Joi.number()
       .allow(null)
       .description(
-        'Baseline biodiversity units for the tree, from bng-metric-engine using the area-habitat calculation.'
+        'Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation.'
       ),
     properties: Joi.object()
       .unknown(true)
@@ -270,7 +270,7 @@ function linearFeatureSchema({
       .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
     conditionScore: Joi.number()
       .allow(null)
-      .description('Numeric condition score from bng-metric-engine.'),
+      .description('Numeric condition score from bng-library/metric.'),
     length: Joi.number()
       .allow(null)
       .description(
@@ -301,11 +301,11 @@ const linearHabitatSchema = linearFeatureSchema({
   typeDescription: 'Hedgerow type (Baseline Hedge Type column).',
   conditionDescription: 'Hedgerow condition assessment.',
   distinctivenessDescription:
-    'Distinctiveness band resolved by bng-metric-engine from the hedgerow type.',
+    'Distinctiveness band resolved by bng-library/metric from the hedgerow type.',
   statusDescription:
     "'Complete' when type and condition are both set; otherwise 'Incomplete'.",
   unitsDescription:
-    'Baseline biodiversity units for the hedgerow, from bng-metric-engine (BMD-427/428).',
+    'Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428).',
   propertiesDescription:
     'Raw attribute columns copied verbatim from the GeoPackage Hedgerows layer.',
   rootDescription: 'A hedgerow (linear) feature.'
@@ -324,11 +324,11 @@ const watercourseHabitatSchema = linearFeatureSchema({
       .description('Watercourse encroachment category from the GeoPackage.')
   },
   distinctivenessDescription:
-    'Distinctiveness band resolved by bng-metric-engine from the watercourse type.',
+    'Distinctiveness band resolved by bng-library/metric from the watercourse type.',
   statusDescription:
     "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'.",
   unitsDescription:
-    'Baseline biodiversity units for the watercourse, from bng-metric-engine (BMD-427/428).',
+    'Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428).',
   beforeProperties: {
     enhancementType: Joi.string()
       .allow(null, '')
@@ -336,12 +336,12 @@ const watercourseHabitatSchema = linearFeatureSchema({
     waterEncroachmentMultiplier: Joi.number()
       .allow(null)
       .description(
-        'Watercourse-encroachment multiplier applied by bng-metric-engine when computing units.'
+        'Watercourse-encroachment multiplier applied by bng-library/metric when computing units.'
       ),
     riparianEncroachmentMultiplier: Joi.number()
       .allow(null)
       .description(
-        'Riparian-encroachment multiplier applied by bng-metric-engine when computing units.'
+        'Riparian-encroachment multiplier applied by bng-library/metric when computing units.'
       )
   },
   propertiesDescription:

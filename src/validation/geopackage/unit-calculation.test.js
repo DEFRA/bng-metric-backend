@@ -134,7 +134,7 @@ describe('recomputeAreaHabitat', () => {
 })
 
 describe('recomputeHedgerow', () => {
-  // Uses real bng-metric-engine data (BMD-427/428). Native hedgerow is Low (2),
+  // Uses real bng-library/metric data (BMD-427/428). Native hedgerow is Low (2),
   // valid conditions are Good (3) / Moderate (2) / Poor (1).
 
   test('Complete + computed units when all inputs are valid', () => {
@@ -254,7 +254,7 @@ describe('recomputeHedgerow', () => {
 })
 
 describe('recomputeWatercourse', () => {
-  // Uses real bng-metric-engine data (BMD-597). "Other rivers and streams" is
+  // Uses real bng-library/metric data (BMD-597). "Other rivers and streams" is
   // High (6); "Culvert" is Low (2). Units require all four dropdowns plus a
   // positive length.
 

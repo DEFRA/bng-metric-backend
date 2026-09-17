@@ -2,7 +2,7 @@
 //
 // Runs after per-feature units and the unit totals are in place. It aggregates
 // the already-computed unit figures by habitat type and distinctiveness band,
-// then calls the bng-metric-engine trading-rules calculator and writes the
+// then calls the bng-library/metric trading-rules calculator and writes the
 // result under `postInterventionDocument.tradingRules.watercourses`.
 //
 // Baseline units per type come from the project's stored baseline document, not
@@ -14,7 +14,7 @@
 // the unit figures only. The engine primitives are band-agnostic, so hedgerows
 // and areas can add sibling keys under `tradingRules` following this pattern.
 
-import { calculateWatercourseTradingRules } from 'bng-metric-engine'
+import { calculateWatercourseTradingRules } from 'bng-library/metric'
 
 import {
   RETENTION_RETAINED,

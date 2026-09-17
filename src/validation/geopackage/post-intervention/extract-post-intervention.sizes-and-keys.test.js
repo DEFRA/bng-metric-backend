@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest'
 
-import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-metric-engine'
+import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { extractPostIntervention } from './extract-post-intervention.js'
 import {

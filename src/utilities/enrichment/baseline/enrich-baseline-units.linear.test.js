@@ -9,7 +9,7 @@ const engineActual = vi.hoisted(() => ({
   calculateWatercourseBaseline: null
 }))
 
-vi.mock('bng-metric-engine', async (importOriginal) => {
+vi.mock('bng-library/metric', async (importOriginal) => {
   const actual = await importOriginal()
   engineActual.calculateHedgerowBaseline = actual.calculateHedgerowBaseline
   engineActual.calculateWatercourseBaseline =

@@ -141,7 +141,7 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
   distinctiveness: Joi.string()
     .required()
     .description(
-      'Distinctiveness band resolved by bng-metric-engine for the habitat type (e.g. "Medium", "Low").'
+      'Distinctiveness band resolved by bng-library/metric for the habitat type (e.g. "Medium", "Low").'
     ),
   netUnitChange: Joi.number()
     .required()

@@ -24,8 +24,29 @@ function assertBetterSqliteLoadable() {
   }
 }
 
+// geos-wasm is the one dependency no import at boot can vouch for: it is only
+// ever imported inside the validation worker threads, and the first of those
+// is spawned by the first upload. A missing package — a pull without an
+// npm install — would otherwise let the service run for hours and only fail,
+// fatally, on a user's request (the worker pool shuts the process down when a
+// worker cannot load its modules; see validation/geopackage/geos/worker-pool.js).
+// Resolution-only on purpose: compiling the WebAssembly stays the workers' job,
+// so boot pays for a node_modules lookup and nothing more.
+function assertGeosWasmResolvable(resolve = (s) => import.meta.resolve(s)) {
+  try {
+    resolve('geos-wasm')
+    logger.info('geos-wasm package resolved OK')
+  } catch (err) {
+    throw new Error(
+      `geos-wasm cannot be resolved — this install is incomplete. ` +
+        `Run 'npm install' from the project root.\n\n${err.message}`
+    )
+  }
+}
+
 async function startServer() {
   assertBetterSqliteLoadable()
+  assertGeosWasmResolvable()
 
   const server = await createServer()
   await server.start()
@@ -38,4 +59,4 @@ async function startServer() {
   return server
 }
 
-export { startServer }
+export { startServer, assertGeosWasmResolvable }

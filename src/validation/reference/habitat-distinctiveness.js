@@ -1,6 +1,6 @@
 // Habitat distinctiveness reference data.
 //
-// Thin readers over bng-metric-engine's distinctiveness category tables so the
+// Thin readers over bng-library/metric's distinctiveness category tables so the
 // backend and engine cannot drift. There is one table per habitat family —
 // area, hedgerow and watercourse — because the same band (e.g. V.High) is keyed
 // on a different vocabulary in each:
@@ -17,7 +17,7 @@ import {
   DISTINCTIVENESS_SCORES,
   HEDGEROW_DISTINCTIVENESS_CATEGORIES,
   WATERCOURSE_DISTINCTIVENESS_CATEGORIES
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 const distinctivenessByHabitatType = DISTINCTIVENESS_CATEGORIES
 const distinctivenessByHedgerowType = HEDGEROW_DISTINCTIVENESS_CATEGORIES

@@ -2,13 +2,13 @@
  * Notional individual-tree area helpers shared between the baseline
  * (extract-habitat-data.js) and post-intervention (extract-post-intervention.js)
  * import paths. Trees are points, so their area is a fixed per-size lookup from
- * bng-metric-engine rather than a PostGIS measurement; both paths derive the
+ * bng-library/metric rather than a PostGIS measurement; both paths derive the
  * same per-tree area and the same urban/rural size split from these helpers.
  */
 import {
   getIndividualTreeAreaHectares,
   BaselineLookupError
-} from 'bng-metric-engine'
+} from 'bng-library/metric'
 
 import { URBAN_TREE_TYPE, RURAL_TREE_TYPE } from './tree-constants.js'
 
