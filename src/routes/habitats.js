@@ -225,6 +225,7 @@ async function runUpdate(
     index: result.index,
     feature: result.feature,
     unitsTotals: result.unitsTotals,
+    tradingRules: result.tradingRules,
     actorId: credentials.sub
   })
 

@@ -15,7 +15,8 @@ import {
   baselineUnitsTotalsSchema,
   featureIdDescription,
   redLineSchema,
-  featureDataEnvelopeFields
+  featureDataEnvelopeFields,
+  tradingRulesHabitatNetChangeSchema
 } from '../project-shared-schemas.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
@@ -419,6 +420,68 @@ const postInterventionWatercourseSchema = Joi.object({
 // Top-level post-intervention data schema
 // ──────────────────────────────────────────────────────────────────────────────
 
+// ──────────────────────────────────────────────────────────────────────────────
+// Trading rules (BMD-993)
+// ──────────────────────────────────────────────────────────────────────────────
+
+const areaHabitatTradingRulesSchema = Joi.object({
+  habitats: Joi.array()
+    .items(tradingRulesHabitatNetChangeSchema)
+    .description(
+      'Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat type in the Medium or Low band, ordered by habitat type. Very Low habitats are excluded because they hold no units to trade; High and Very High are excluded because the MVS defines no traded figure for them.'
+    ),
+  medium: Joi.object({
+    broadHabitats: Joi.array()
+      .items(
+        Joi.object({
+          broadHabitat: Joi.string()
+            .required()
+            .description(
+              'Broad habitat the Medium net unit changes are cumulated under. "Intertidal sediment and hard structures" is the merged group the two intertidal broad habitats share (AC3).'
+            ),
+          netUnitChange: Joi.number()
+            .required()
+            .description(
+              'Sum of the net unit changes of the Medium habitats in this broad habitat (AC2).'
+            )
+        })
+      )
+      .description(
+        'Cumulative broad habitat change for the Medium band (AC2), with intertidal sediment and intertidal hard structures merged into one entry (AC3). Ordered by broad habitat.'
+      ),
+    surplus: Joi.number()
+      .required()
+      .description(
+        'Total surplus for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is greater than zero (AC4). Zero or positive. Taken over broad habitats, not habitats, so a surplus and a deficit within one broad habitat cancel before they count.'
+      ),
+    deficit: Joi.number()
+      .required()
+      .description(
+        'Total deficit for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is less than zero (AC5). Zero or negative.'
+      )
+  }).description('Medium-distinctiveness band aggregates (AC2–AC5).'),
+  low: Joi.object({
+    netChange: Joi.number()
+      .required()
+      .description(
+        'Net change in units for Low-distinctiveness area habitats: the sum of all Low net unit changes regardless of sign (AC6). Low trades on distinctiveness alone, so there is no broad-habitat constraint.'
+      )
+  }).description('Low-distinctiveness band aggregate (AC6).'),
+  cumulativeSurplus: Joi.number()
+    .required()
+    .description(
+      'Cumulative surplus of units: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. This figure deliberately does not reconcile to the published metric — it resolves a bug in the existing metric.'
+    )
+}).description(
+  'Area-habitat trading-rules unit figures (BMD-993). Unit values only; Met/Not-met statuses are derived separately (BMD-1008).'
+)
+
+const tradingRulesSchema = Joi.object({
+  areaHabitats: areaHabitatTradingRulesSchema
+}).description(
+  'Trading-rules unit figures by feature module. Area habitats today; hedgerows and watercourses follow the same pattern.'
+)
+
 const postInterventionDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
   redLine: redLineSchema,
@@ -435,13 +498,15 @@ const postInterventionDataSchema = Joi.object({
     .items(postInterventionWatercourseSchema)
     .description('Post-intervention watercourse (linear) features.'),
   habitatSizes: habitatSizesSummarySchema,
-  units: baselineUnitsTotalsSchema
+  units: baselineUnitsTotalsSchema,
+  tradingRules: tradingRulesSchema
 }).description(
-  'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes and unit totals.'
+  'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes, unit totals and trading-rules unit figures.'
 )
 
 export {
   postInterventionDataSchema,
+  tradingRulesSchema,
   postInterventionHabitatSchema,
   postInterventionTreeSchema,
   postInterventionLinearHabitatSchema,

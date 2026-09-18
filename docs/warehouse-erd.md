@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**17 tables**, mapping 316 schema fields.
+**20 tables**, mapping 326 schema fields.
 
 ## Diagram
 
@@ -24,6 +24,9 @@ erDiagram
     project ||--o{ feature_set : "contains"
     feature_set ||--o| feature_set_units : "has"
     feature_set ||--o| feature_set_habitat_sizes : "has"
+    feature_set ||--o| feature_set_trading_rules : "has"
+    feature_set_trading_rules ||--o{ feature_set_trading_rules_area_habitats : "contains"
+    feature_set_trading_rules ||--o{ feature_set_trading_rules_area_broad_habitats : "contains"
     feature_set ||--o| baseline_red_line : "has"
     feature_set ||--o{ baseline_habitats : "contains"
     feature_set ||--o{ baseline_trees : "contains"
@@ -77,6 +80,25 @@ erDiagram
         text feature_set_id FK "→ feature_set.feature_set_id"
         numeric area_habitats_total_square_metres
         numeric site_total_square_metres
+    }
+    feature_set_trading_rules {
+        text trading_rules_id PK "{projectId}:postIntervention:tradingRules"
+        text feature_set_id FK "→ feature_set.feature_set_id"
+        numeric area_habitats_medium_surplus
+        numeric area_habitats_cumulative_surplus
+    }
+    feature_set_trading_rules_area_habitats {
+        text trading_rules_area_habitat_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}"
+        text trading_rules_id FK "→ feature_set_trading_rules.trading_rules_id"
+        text habitat_type
+        text broad_habitat
+        numeric net_unit_change
+    }
+    feature_set_trading_rules_area_broad_habitats {
+        text trading_rules_area_broad_habitat_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}"
+        text trading_rules_id FK "→ feature_set_trading_rules.trading_rules_id"
+        text broad_habitat
+        numeric net_unit_change
     }
     baseline_red_line {
         uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
@@ -166,25 +188,28 @@ import, which is also the primary key of the matching PostGIS geometry row
 parent, so it needs no surrogate of its own: its key is composed from the
 ids above. Nothing is stored for these; compose them on read.
 
-| Table                            | Primary key            | Derivation                                                                       |
-| -------------------------------- | ---------------------- | -------------------------------------------------------------------------------- |
-| `project`                        | `project_id`           | bng.projects.id — the existing Postgres UUID, reused as-is                       |
-| `project_site`                   | `site_id`              | `{projectId}:site`                                                               |
-| `project_units`                  | `units_id`             | `{projectId}:units`                                                              |
-| `project_details`                | `details_id`           | `{projectId}:details`                                                            |
-| `feature_set`                    | `feature_set_id`       | `{projectId}:{documentKey}`                                                      |
-| `feature_set_units`              | `feature_set_units_id` | `{projectId}:{documentKey}:units`                                                |
-| `feature_set_habitat_sizes`      | `habitat_sizes_id`     | `{projectId}:{documentKey}:habitatSizes`                                         |
-| `baseline_red_line`              | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_habitats`              | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_trees`                 | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_hedgerows`             | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_watercourses`          | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_red_line`     | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_habitats`     | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_trees`        | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_hedgerows`    | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_watercourses` | `feature_id`           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| Table                                           | Primary key                           | Derivation                                                                       |
+| ----------------------------------------------- | ------------------------------------- | -------------------------------------------------------------------------------- |
+| `project`                                       | `project_id`                          | bng.projects.id — the existing Postgres UUID, reused as-is                       |
+| `project_site`                                  | `site_id`                             | `{projectId}:site`                                                               |
+| `project_units`                                 | `units_id`                            | `{projectId}:units`                                                              |
+| `project_details`                               | `details_id`                          | `{projectId}:details`                                                            |
+| `feature_set`                                   | `feature_set_id`                      | `{projectId}:{documentKey}`                                                      |
+| `feature_set_units`                             | `feature_set_units_id`                | `{projectId}:{documentKey}:units`                                                |
+| `feature_set_habitat_sizes`                     | `habitat_sizes_id`                    | `{projectId}:{documentKey}:habitatSizes`                                         |
+| `feature_set_trading_rules`                     | `trading_rules_id`                    | `{projectId}:postIntervention:tradingRules`                                      |
+| `feature_set_trading_rules_area_habitats`       | `trading_rules_area_habitat_id`       | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`           |
+| `feature_set_trading_rules_area_broad_habitats` | `trading_rules_area_broad_habitat_id` | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`   |
+| `baseline_red_line`                             | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_habitats`                             | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_trees`                                | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_hedgerows`                            | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_watercourses`                         | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_red_line`                    | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_habitats`                    | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_trees`                       | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_hedgerows`                   | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_watercourses`                | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 
 ## Stability guarantees
 
@@ -345,6 +370,43 @@ Total feature sizes by module, measured from geometry in PostGIS. The five sub-g
 | `trees_urban_square_metres`         | `numeric` |     | `baseline.habitatSizes.trees.urbanSquareMetres`<br>`postIntervention.habitatSizes.trees.urbanSquareMetres`               |                                          |
 | `trees_rural_square_metres`         | `numeric` |     | `baseline.habitatSizes.trees.ruralSquareMetres`<br>`postIntervention.habitatSizes.trees.ruralSquareMetres`               |                                          |
 | `site_total_square_metres`          | `numeric` |     | `baseline.habitatSizes.site.totalSquareMetres`<br>`postIntervention.habitatSizes.site.totalSquareMetres`                 |                                          |
+
+### `feature_set_trading_rules`
+
+Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set. 4 column(s) mapped from the JSON document.
+
+| Column                             | Type      | Key | JSON path                                                      | Notes                                       |
+| ---------------------------------- | --------- | --- | -------------------------------------------------------------- | ------------------------------------------- |
+| `trading_rules_id`                 | `text`    | PK  | —                                                              | `{projectId}:postIntervention:tradingRules` |
+| `feature_set_id`                   | `text`    | FK  | —                                                              | → feature_set.feature_set_id                |
+| `area_habitats_medium_surplus`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`    |                                             |
+| `area_habitats_medium_deficit`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`    |                                             |
+| `area_habitats_low_net_change`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netChange`     |                                             |
+| `area_habitats_cumulative_surplus` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.cumulativeSurplus` |                                             |
+
+### `feature_set_trading_rules_area_habitats`
+
+Per-habitat-type area-habitat net unit change (BMD-993 AC1). One row per unique Medium or Low habitat type, individual trees included. 4 column(s) mapped from the JSON document.
+
+| Column                          | Type      | Key | JSON path                                                               | Notes                                                                  |
+| ------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `trading_rules_area_habitat_id` | `text`    | PK  | —                                                                       | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
+| `trading_rules_id`              | `text`    | FK  | —                                                                       | → feature_set_trading_rules.trading_rules_id                           |
+| `habitat_type`                  | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].habitatType`     |                                                                        |
+| `broad_habitat`                 | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].broadHabitat`    |                                                                        |
+| `distinctiveness`               | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].distinctiveness` |                                                                        |
+| `net_unit_change`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitats[].netUnitChange`   |                                                                        |
+
+### `feature_set_trading_rules_area_broad_habitats`
+
+Cumulative Medium-band net unit change per broad habitat (BMD-993 AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3). 2 column(s) mapped from the JSON document.
+
+| Column                                | Type      | Key | JSON path                                                                         | Notes                                                                          |
+| ------------------------------------- | --------- | --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `trading_rules_area_broad_habitat_id` | `text`    | PK  | —                                                                                 | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}` |
+| `trading_rules_id`                    | `text`    | FK  | —                                                                                 | → feature_set_trading_rules.trading_rules_id                                   |
+| `broad_habitat`                       | `text`    |     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].broadHabitat`  |                                                                                |
+| `net_unit_change`                     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].netUnitChange` |                                                                                |
 
 ### `baseline_red_line`
 

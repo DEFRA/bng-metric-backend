@@ -537,6 +537,59 @@ function postInterventionProjectFixture() {
   }
 }
 
+/**
+ * A post-intervention project whose single parcel is Enhanced, so an edit to the
+ * proposed habitat moves units between habitat types — the case the trading
+ * rules have to recompute for. The stored baseline carries the parcel's
+ * baseline units, which is where the trading rules read them from.
+ */
+function enhancedProjectFixture() {
+  return {
+    name: 'Enhanced PI Fixture',
+    baseline: {
+      habitats: [
+        {
+          featureId: HABITAT_ID,
+          ref: 'H1-1',
+          type: 'Modified grassland',
+          broadType: 'Grassland',
+          units: 3
+        }
+      ],
+      units: { totalUnits: 3, habitatsTotal: 3 }
+    },
+    postIntervention: {
+      habitats: [
+        {
+          featureId: HABITAT_ID,
+          ref: 'H1-1',
+          retentionCategory: 'Enhanced',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: null,
+          status: 'Incomplete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Moderate',
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      trees: [],
+      hedgerows: [],
+      watercourses: [],
+      units: {}
+    }
+  }
+}
+
 describe('applyFeatureUpdate — postIntervention documentKey', () => {
   test('writes edits into the proposed sub-object, not top-level fields', () => {
     const result = applyFeatureUpdate(postInterventionProjectFixture(), {
@@ -610,6 +663,57 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
         watercoursesNetUnitChangePercentage: -100
       })
     )
+  })
+
+  test('refreshes postIntervention.tradingRules after an edit', () => {
+    // Enhancement delivers into the proposed habitat, so re-typing the parcel
+    // moves its units between bands: the Low baseline habitat keeps its deficit
+    // and the new Medium habitat takes the delivered units.
+    const result = applyFeatureUpdate(enhancedProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    const { areaHabitats } = result.project.postIntervention.tradingRules
+    expect(areaHabitats.habitats).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Modified grassland',
+        distinctiveness: 'Low',
+        netUnitChange: -3
+      }),
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        broadHabitat: 'Grassland',
+        distinctiveness: 'Medium'
+      })
+    ])
+    expect(areaHabitats.medium.surplus).toBeGreaterThan(0)
+    expect(areaHabitats.low.netChange).toBe(-3)
+    expect(result.tradingRules).toEqual(
+      result.project.postIntervention.tradingRules
+    )
+  })
+
+  test('re-typing an enhanced parcel into a Low habitat empties the Medium band', () => {
+    const result = applyFeatureUpdate(enhancedProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Allotments',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    const { areaHabitats } = result.project.postIntervention.tradingRules
+    expect(areaHabitats.medium.broadHabitats).toEqual([])
+    expect(areaHabitats.medium.surplus).toBe(0)
+    expect(areaHabitats.cumulativeSurplus).toBe(areaHabitats.low.netChange)
   })
 
   test('writes hedgerow type into proposed.type, not a top-level field', () => {

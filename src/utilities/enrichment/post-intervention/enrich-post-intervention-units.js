@@ -17,6 +17,7 @@ import {
 import { enrichPostInterventionAreaHabitat } from './enrich-post-intervention-area-habitat.js'
 import { enrichPostInterventionHedgerowWithUnits } from './enrich-post-intervention-hedgerow.js'
 import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-intervention-watercourse.js'
+import { enrichPostInterventionAreaTradingRules } from './enrich-post-intervention-area-trading-rules.js'
 
 /**
  * Mutates `postInterventionDocument`: for each feature, enriches the `proposed`
@@ -32,13 +33,13 @@ import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-interv
  *
  * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
- * @param {{ baselineLengthByRef?: Map<string, number>, baselineUnits?: object }} [options]
+ * @param {{ baselineLengthByRef?: Map<string, number>, baselineUnits?: object, baselineDocument?: object }} [options]
  * @returns {typeof postInterventionDocument}
  */
 export function enrichPostInterventionDocumentWithUnits(
   postInterventionDocument,
   logger = NO_OP_LOGGER,
-  { baselineLengthByRef, baselineUnits } = {}
+  { baselineLengthByRef, baselineUnits, baselineDocument } = {}
 ) {
   enrichCollectionIfNonEmpty(
     postInterventionDocument?.habitats,
@@ -81,5 +82,10 @@ export function enrichPostInterventionDocumentWithUnits(
 
   summarizeFeatureSetUnitsTotals(postInterventionDocument)
   addPostInterventionNetUnitChanges(postInterventionDocument, baselineUnits)
+  enrichPostInterventionAreaTradingRules(
+    postInterventionDocument,
+    baselineDocument,
+    logger
+  )
   return postInterventionDocument
 }
