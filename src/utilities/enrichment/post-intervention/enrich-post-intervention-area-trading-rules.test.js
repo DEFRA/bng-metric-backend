@@ -241,7 +241,9 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
     expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
-    expect(postIntervention.tradingRules.areaHabitats.cumulativeSurplus).toBe(0)
+    expect(
+      postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability
+    ).toBe(0)
   })
 
   test('warns and excludes a habitat type the reference data does not know', () => {
@@ -301,8 +303,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     expect(postIntervention.tradingRules.areaHabitats).toEqual({
       habitats: [],
       medium: { broadHabitats: [], surplus: 0, deficit: 0 },
-      low: { netChange: 0 },
-      cumulativeSurplus: 0
+      low: { netChange: 0, cumulativeAvailability: 0 }
     })
   })
 })

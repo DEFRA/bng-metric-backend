@@ -465,13 +465,13 @@ const areaHabitatTradingRulesSchema = Joi.object({
       .required()
       .description(
         'Net change in units for Low-distinctiveness area habitats: the sum of all Low net unit changes regardless of sign (AC6). Low trades on distinctiveness alone, so there is no broad-habitat constraint.'
+      ),
+    cumulativeAvailability: Joi.number()
+      .required()
+      .description(
+        'Units available to the Low band once the Medium surplus is carried down: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. Deliberately NOT the Statutory Metric\'s "Cumulative surplus of units", which is lower by the absolute Medium deficit (23.1012 against 32.5222 on the worked example). A Met/Not-met status must account for that deficit in its own right.'
       )
-  }).description('Low-distinctiveness band aggregate (AC6).'),
-  cumulativeSurplus: Joi.number()
-    .required()
-    .description(
-      'Cumulative surplus of units: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. This figure deliberately does not reconcile to the published metric — it resolves a bug in the existing metric.'
-    )
+  }).description('Low-distinctiveness band aggregates (AC6, AC7).')
 }).description(
   'Area-habitat trading-rules unit figures. Unit values only; Met/Not-met statuses are derived separately in the front end.'
 )

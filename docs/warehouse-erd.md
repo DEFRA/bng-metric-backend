@@ -85,7 +85,7 @@ erDiagram
         text trading_rules_id PK "{projectId}:postIntervention:tradingRules"
         text feature_set_id FK "→ feature_set.feature_set_id"
         numeric area_habitats_medium_surplus
-        numeric area_habitats_cumulative_surplus
+        numeric area_habitats_low_cumulative_availability
     }
     feature_set_trading_rules_area_habitats {
         text trading_rules_area_habitat_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}"
@@ -375,14 +375,14 @@ Total feature sizes by module, measured from geometry in PostGIS. The five sub-g
 
 Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set. 4 column(s) mapped from the JSON document.
 
-| Column                             | Type      | Key | JSON path                                                      | Notes                                       |
-| ---------------------------------- | --------- | --- | -------------------------------------------------------------- | ------------------------------------------- |
-| `trading_rules_id`                 | `text`    | PK  | —                                                              | `{projectId}:postIntervention:tradingRules` |
-| `feature_set_id`                   | `text`    | FK  | —                                                              | → feature_set.feature_set_id                |
-| `area_habitats_medium_surplus`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`    |                                             |
-| `area_habitats_medium_deficit`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`    |                                             |
-| `area_habitats_low_net_change`     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netChange`     |                                             |
-| `area_habitats_cumulative_surplus` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.cumulativeSurplus` |                                             |
+| Column                                      | Type      | Key | JSON path                                                               | Notes                                       |
+| ------------------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ------------------------------------------- |
+| `trading_rules_id`                          | `text`    | PK  | —                                                                       | `{projectId}:postIntervention:tradingRules` |
+| `feature_set_id`                            | `text`    | FK  | —                                                                       | → feature_set.feature_set_id                |
+| `area_habitats_medium_surplus`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`             |                                             |
+| `area_habitats_medium_deficit`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`             |                                             |
+| `area_habitats_low_net_change`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netChange`              |                                             |
+| `area_habitats_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability` |                                             |
 
 ### `feature_set_trading_rules_area_habitats`
 

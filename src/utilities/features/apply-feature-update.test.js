@@ -713,7 +713,9 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     const { areaHabitats } = result.project.postIntervention.tradingRules
     expect(areaHabitats.medium.broadHabitats).toEqual([])
     expect(areaHabitats.medium.surplus).toBe(0)
-    expect(areaHabitats.cumulativeSurplus).toBe(areaHabitats.low.netChange)
+    expect(areaHabitats.low.cumulativeAvailability).toBe(
+      areaHabitats.low.netChange
+    )
   })
 
   test('writes hedgerow type into proposed.type, not a top-level field', () => {

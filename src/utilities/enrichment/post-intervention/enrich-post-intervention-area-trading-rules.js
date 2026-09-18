@@ -114,8 +114,8 @@ function sumUnitsByHabitat(collections, habitatOf, logger) {
  * Mutates `postInterventionDocument`: computes the area-habitat trading-rules
  * unit figures (AC1 net unit change per habitat, AC2/AC3 cumulative change per
  * broad habitat with the intertidals merged, AC4/AC5 Medium surplus and deficit,
- * AC6 Low net change, AC7 cumulative surplus) and stores them under
- * `postInterventionDocument.tradingRules.areaHabitats`.
+ * AC6 Low net change, AC7 cumulative availability to the Low band) and stores
+ * them under `postInterventionDocument.tradingRules.areaHabitats`.
  *
  * @param {{ habitats?: object[], trees?: object[], tradingRules?: object }} postInterventionDocument
  * @param {{ habitats?: object[], trees?: object[] }} [baselineDocument] the stored baseline

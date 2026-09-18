@@ -154,7 +154,7 @@ const TABLES = Object.freeze([
     parent: { table: 'feature_set', column: 'feature_set_id', type: 'text' },
     highlight: [
       'area_habitats_medium_surplus',
-      'area_habitats_cumulative_surplus'
+      'area_habitats_low_cumulative_availability'
     ],
     description:
       'Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set.'
