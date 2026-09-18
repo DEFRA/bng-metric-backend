@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**20 tables**, mapping 326 schema fields.
+**20 tables**, mapping 327 schema fields.
 
 ## Diagram
 
@@ -386,16 +386,17 @@ Trading-rules unit figures for the post-intervention document (area habitats tod
 
 ### `feature_set_trading_rules_area_habitats`
 
-Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included. 4 column(s) mapped from the JSON document.
+Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included. 5 column(s) mapped from the JSON document.
 
-| Column                          | Type      | Key | JSON path                                                               | Notes                                                                  |
-| ------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `trading_rules_area_habitat_id` | `text`    | PK  | —                                                                       | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
-| `trading_rules_id`              | `text`    | FK  | —                                                                       | → feature_set_trading_rules.trading_rules_id                           |
-| `habitat_type`                  | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].habitatType`     |                                                                        |
-| `broad_habitat`                 | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].broadHabitat`    |                                                                        |
-| `distinctiveness`               | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].distinctiveness` |                                                                        |
-| `net_unit_change`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitats[].netUnitChange`   |                                                                        |
+| Column                          | Type      | Key | JSON path                                                                   | Notes                                                                  |
+| ------------------------------- | --------- | --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `trading_rules_area_habitat_id` | `text`    | PK  | —                                                                           | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
+| `trading_rules_id`              | `text`    | FK  | —                                                                           | → feature_set_trading_rules.trading_rules_id                           |
+| `habitat_type`                  | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].habitatType`         |                                                                        |
+| `broad_habitat`                 | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].broadHabitat`        |                                                                        |
+| `trading_broad_habitat`         | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].tradingBroadHabitat` |                                                                        |
+| `distinctiveness`               | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].distinctiveness`     |                                                                        |
+| `net_unit_change`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitats[].netUnitChange`       |                                                                        |
 
 ### `feature_set_trading_rules_area_broad_habitats`
 

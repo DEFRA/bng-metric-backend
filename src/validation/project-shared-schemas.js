@@ -141,7 +141,12 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
   broadHabitat: Joi.string()
     .required()
     .description(
-      'Broad habitat the habitat type belongs to, taken from the part of the habitat type before the first " - " (e.g. "Lakes"). Not merged: the intertidal merge applies only to the cumulative broad-habitat figures.'
+      'Broad habitat the habitat type belongs to, taken from the part of the habitat type before the first " - " (e.g. "Lakes"). Not merged: this is the habitat\'s own broad habitat.'
+    ),
+  tradingBroadHabitat: Joi.string()
+    .required()
+    .description(
+      'Broad habitat this habitat\'s net unit change is cumulated under for trading, which is its own broad habitat except for the two intertidal ones, which share the merged group "Intertidal sediment and hard structures" (AC3). Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
     ),
   distinctiveness: Joi.string()
     .required()

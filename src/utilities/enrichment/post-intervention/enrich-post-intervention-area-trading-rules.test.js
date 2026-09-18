@@ -52,6 +52,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
       {
         habitatType: 'Lakes - Reservoirs',
         broadHabitat: 'Lakes',
+        tradingBroadHabitat: 'Lakes',
         distinctiveness: 'Medium',
         netUnitChange: -4
       }
@@ -82,12 +83,14 @@ describe('enrichPostInterventionAreaTradingRules', () => {
       {
         habitatType: 'Grassland - Modified grassland',
         broadHabitat: 'Grassland',
+        tradingBroadHabitat: 'Grassland',
         distinctiveness: 'Low',
         netUnitChange: -4
       },
       {
         habitatType: 'Grassland - Other neutral grassland',
         broadHabitat: 'Grassland',
+        tradingBroadHabitat: 'Grassland',
         distinctiveness: 'Medium',
         netUnitChange: 9
       }
@@ -199,6 +202,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
       {
         habitatType: 'Lakes - Reservoirs',
         broadHabitat: 'Lakes',
+        tradingBroadHabitat: 'Lakes',
         distinctiveness: 'Medium',
         netUnitChange: 5.5
       }
