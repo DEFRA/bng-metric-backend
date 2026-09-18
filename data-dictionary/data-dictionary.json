@@ -4833,7 +4833,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Area-habitat trading-rules unit figures (BMD-993). Unit values only; Met/Not-met statuses are derived separately (BMD-1008)."
+      "description": "Area-habitat trading-rules unit figures. Unit values only; Met/Not-met statuses are derived separately in the front end."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitats",
@@ -4855,7 +4855,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Net unit change for a single area habitat type across baseline and post-intervention (BMD-993 AC1)."
+      "description": "Net unit change for a single area habitat type across baseline and post-intervention (AC1)."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitats[].habitatType",

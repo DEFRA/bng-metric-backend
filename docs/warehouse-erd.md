@@ -386,7 +386,7 @@ Trading-rules unit figures for the post-intervention document (area habitats tod
 
 ### `feature_set_trading_rules_area_habitats`
 
-Per-habitat-type area-habitat net unit change (BMD-993 AC1). One row per unique Medium or Low habitat type, individual trees included. 4 column(s) mapped from the JSON document.
+Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included. 4 column(s) mapped from the JSON document.
 
 | Column                          | Type      | Key | JSON path                                                               | Notes                                                                  |
 | ------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -399,7 +399,7 @@ Per-habitat-type area-habitat net unit change (BMD-993 AC1). One row per unique 
 
 ### `feature_set_trading_rules_area_broad_habitats`
 
-Cumulative Medium-band net unit change per broad habitat (BMD-993 AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3). 2 column(s) mapped from the JSON document.
+Cumulative Medium-band net unit change per broad habitat (AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3). 2 column(s) mapped from the JSON document.
 
 | Column                                | Type      | Key | JSON path                                                                         | Notes                                                                          |
 | ------------------------------------- | --------- | --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

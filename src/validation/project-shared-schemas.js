@@ -129,7 +129,7 @@ export const baselineUnitsTotalsSchema = Joi.object({
     )
 }).description('Baseline biodiversity unit totals, summed across features.')
 
-// Trading rules (BMD-993). The per-habitat net-unit-change item is module- and
+// Trading rules. The per-habitat net-unit-change item is module- and
 // band-agnostic so the hedgerow and watercourse modules can reuse it; the band
 // aggregates and the per-module wrapper live in the post-intervention schema.
 export const tradingRulesHabitatNetChangeSchema = Joi.object({
@@ -154,7 +154,7 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
       'Net unit change for the habitat type: summed retained + created + enhanced post-intervention units (attributed to the delivered habitat) minus summed baseline units. Positive is a surplus, negative a deficit.'
     )
 }).description(
-  'Net unit change for a single area habitat type across baseline and post-intervention (BMD-993 AC1).'
+  'Net unit change for a single area habitat type across baseline and post-intervention (AC1).'
 )
 
 export const redLineSchema = Joi.object({

@@ -421,7 +421,7 @@ const postInterventionWatercourseSchema = Joi.object({
 // ──────────────────────────────────────────────────────────────────────────────
 
 // ──────────────────────────────────────────────────────────────────────────────
-// Trading rules (BMD-993)
+// Trading rules
 // ──────────────────────────────────────────────────────────────────────────────
 
 const areaHabitatTradingRulesSchema = Joi.object({
@@ -473,7 +473,7 @@ const areaHabitatTradingRulesSchema = Joi.object({
       'Cumulative surplus of units: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. This figure deliberately does not reconcile to the published metric — it resolves a bug in the existing metric.'
     )
 }).description(
-  'Area-habitat trading-rules unit figures (BMD-993). Unit values only; Met/Not-met statuses are derived separately (BMD-1008).'
+  'Area-habitat trading-rules unit figures. Unit values only; Met/Not-met statuses are derived separately in the front end.'
 )
 
 const tradingRulesSchema = Joi.object({

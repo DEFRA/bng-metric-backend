@@ -1,4 +1,4 @@
-// Post-intervention area-habitat trading-rules enrichment (BMD-993).
+// Post-intervention area-habitat trading-rules enrichment.
 //
 // Runs after per-feature units and the unit totals are in place. It aggregates
 // the already-computed unit figures by engine habitat key, then calls the
@@ -15,8 +15,8 @@
 //    in the GeoPackage is persisted as Created, so its baseline units cannot be
 //    reconstructed from the post-intervention feature set.
 //
-// This module derives no Met / Not-met statuses (that is BMD-1008); it persists
-// the unit figures only.
+// This module derives no Met / Not-met statuses (a front-end concern); it
+// persists the unit figures only.
 
 import {
   calculateAreaHabitatTradingRules,
