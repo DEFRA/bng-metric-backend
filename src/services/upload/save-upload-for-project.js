@@ -126,7 +126,11 @@ function enrichOptionsForPostIntervention(baseline) {
       baseline?.hedgerows ?? [],
       baseline?.watercourses ?? []
     ),
-    baselineUnits: baseline?.units
+    baselineUnits: baseline?.units,
+    // Area trading rules need the stored baseline features, not just the
+    // totals: a Lost area parcel is persisted as Created, so its baseline units
+    // are not recoverable from the post-intervention document.
+    baselineDocument: baseline
   }
 }
 

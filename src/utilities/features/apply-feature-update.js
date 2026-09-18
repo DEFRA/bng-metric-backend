@@ -27,6 +27,7 @@ import {
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
+import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 import {
   addPostInterventionNetUnitChanges,
   summarizeFeatureSetUnitsTotals
@@ -273,11 +274,14 @@ function applyFeatureUpdate(
       updatedFeatureSet,
       project?.baseline?.units
     )
+    // An edit moves units between habitat types, so the trading-rules figures
+    // are stale until they are recomputed from the updated feature set.
+    enrichPostInterventionAreaTradingRules(updatedFeatureSet, project?.baseline)
   }
-  // `layer` / `index` / `unitsTotals` let callers persist surgically via
-  // persist-project.js (jsonb_set the one feature + the totals) rather than
-  // rewriting the whole document. `project` is retained for callers/tests that
-  // want the fully-rebuilt document.
+  // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
+  // surgically via persist-project.js (jsonb_set the one feature + the derived
+  // subtrees) rather than rewriting the whole document. `project` is retained
+  // for callers/tests that want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
@@ -285,6 +289,7 @@ function applyFeatureUpdate(
     index,
     feature: updatedFeature,
     unitsTotals: updatedFeatureSet.units,
+    tradingRules: updatedFeatureSet.tradingRules,
     project: { ...project, [documentKey]: updatedFeatureSet }
   }
 }

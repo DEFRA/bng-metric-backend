@@ -142,6 +142,62 @@ const TABLES = Object.freeze([
     ],
     description:
       'Total feature sizes by module, measured from geometry in PostGIS. The five sub-groups in the JSON are flattened into one row.'
+  },
+  {
+    table: 'feature_set_trading_rules',
+    sources: ['postIntervention.tradingRules'],
+    primaryKey: {
+      column: 'trading_rules_id',
+      type: 'text',
+      derivation: '`{projectId}:postIntervention:tradingRules`'
+    },
+    parent: { table: 'feature_set', column: 'feature_set_id', type: 'text' },
+    highlight: [
+      'area_habitats_medium_surplus',
+      'area_habitats_low_cumulative_availability'
+    ],
+    description:
+      'Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set.'
+  },
+  {
+    table: 'feature_set_trading_rules_area_habitats',
+    sources: ['postIntervention.tradingRules.areaHabitats.habitats[]'],
+    primaryKey: {
+      column: 'trading_rules_area_habitat_id',
+      type: 'text',
+      derivation:
+        '`{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`'
+    },
+    parent: {
+      table: 'feature_set_trading_rules',
+      column: 'trading_rules_id',
+      type: 'text'
+    },
+    many: true,
+    highlight: ['habitat_type', 'broad_habitat', 'net_unit_change'],
+    description:
+      'Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included.'
+  },
+  {
+    table: 'feature_set_trading_rules_area_broad_habitats',
+    sources: [
+      'postIntervention.tradingRules.areaHabitats.medium.broadHabitats[]'
+    ],
+    primaryKey: {
+      column: 'trading_rules_area_broad_habitat_id',
+      type: 'text',
+      derivation:
+        '`{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`'
+    },
+    parent: {
+      table: 'feature_set_trading_rules',
+      column: 'trading_rules_id',
+      type: 'text'
+    },
+    many: true,
+    highlight: ['broad_habitat', 'net_unit_change'],
+    description:
+      'Cumulative Medium-band net unit change per broad habitat (AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3).'
   }
 ])
 

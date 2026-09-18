@@ -26,7 +26,8 @@ import {
   postInterventionDataSchema,
   postInterventionHabitatSchema,
   postInterventionLinearHabitatSchema,
-  postInterventionWatercourseSchema
+  postInterventionWatercourseSchema,
+  tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import {
   projectSchema,
@@ -209,11 +210,21 @@ async function setProjectBaseline(exec, id, baseline, actorId) {
  * @param {number} params.index position of the feature within its layer array
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals
+ * @param {object} [params.tradingRules] refreshed postIntervention.tradingRules,
+ *   omitted on the baseline document, which carries no trading-rules figures
  */
 async function setProjectFeature(
   exec,
   id,
-  { documentKey = 'baseline', layer, index, feature, unitsTotals, actorId }
+  {
+    documentKey = 'baseline',
+    layer,
+    index,
+    feature,
+    unitsTotals,
+    tradingRules,
+    actorId
+  }
 ) {
   assertActorId(actorId)
   assertFragmentValid(
@@ -226,6 +237,13 @@ async function setProjectFeature(
     unitsTotals,
     `${documentKey}.units`
   )
+  if (tradingRules) {
+    assertFragmentValid(
+      tradingRulesSchema,
+      tradingRules,
+      `${documentKey}.tradingRules`
+    )
+  }
 
   const withFeature = jsonbSet(
     projects.project,
@@ -233,9 +251,12 @@ async function setProjectFeature(
     feature
   )
   const withTotals = jsonbSet(withFeature, [documentKey, 'units'], unitsTotals)
+  const withTradingRules = tradingRules
+    ? jsonbSet(withTotals, [documentKey, 'tradingRules'], tradingRules)
+    : withTotals
   await exec
     .update(projects)
-    .set({ project: withTotals, lastModifiedBy: actorId })
+    .set({ project: withTradingRules, lastModifiedBy: actorId })
     .where(eq(projects.id, id))
 }
 
