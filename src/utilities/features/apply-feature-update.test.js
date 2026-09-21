@@ -680,7 +680,7 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     })
 
     const { areaHabitats } = result.project.postIntervention.tradingRules
-    expect(areaHabitats.habitats).toEqual([
+    expect(areaHabitats.habitatTypes).toEqual([
       expect.objectContaining({
         habitatType: 'Grassland - Modified grassland',
         distinctiveness: 'Low',
@@ -693,7 +693,7 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
       })
     ])
     expect(areaHabitats.medium.surplus).toBeGreaterThan(0)
-    expect(areaHabitats.low.netChange).toBe(-3)
+    expect(areaHabitats.low.netUnitChange).toBe(-3)
     expect(result.tradingRules).toEqual(
       result.project.postIntervention.tradingRules
     )
@@ -714,7 +714,7 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(areaHabitats.medium.broadHabitats).toEqual([])
     expect(areaHabitats.medium.surplus).toBe(0)
     expect(areaHabitats.low.cumulativeAvailability).toBe(
-      areaHabitats.low.netChange
+      areaHabitats.low.netUnitChange
     )
   })
 

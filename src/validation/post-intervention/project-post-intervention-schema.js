@@ -425,10 +425,10 @@ const postInterventionWatercourseSchema = Joi.object({
 // ──────────────────────────────────────────────────────────────────────────────
 
 const areaHabitatTradingRulesSchema = Joi.object({
-  habitats: Joi.array()
+  habitatTypes: Joi.array()
     .items(tradingRulesHabitatNetChangeSchema)
     .description(
-      'Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat type in the Medium or Low band, ordered by habitat type. Very Low habitats are excluded because they hold no units to trade; High and Very High are excluded because the MVS defines no traded figure for them.'
+      'Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat TYPE, not per feature — the units of every parcel and tree of a type are summed first. Ordered by habitat type, Medium and Low bands only: Very Low habitats hold no units to trade, and the MVS defines no traded figure for High or Very High.'
     ),
   medium: Joi.object({
     broadHabitats: Joi.array()
@@ -461,7 +461,7 @@ const areaHabitatTradingRulesSchema = Joi.object({
       )
   }).description('Medium-distinctiveness band aggregates (AC2–AC5).'),
   low: Joi.object({
-    netChange: Joi.number()
+    netUnitChange: Joi.number()
       .required()
       .description(
         'Net change in units for Low-distinctiveness area habitats: the sum of all Low net unit changes regardless of sign (AC6). Low trades on distinctiveness alone, so there is no broad-habitat constraint.'

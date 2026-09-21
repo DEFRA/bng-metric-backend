@@ -207,7 +207,7 @@ describe('#buildWarehouseModel — column layout', () => {
       'feature_set_units',
       'feature_set_habitat_sizes',
       'feature_set_trading_rules',
-      'feature_set_trading_rules_area_habitats',
+      'feature_set_trading_rules_area_habitat_types',
       'feature_set_trading_rules_area_broad_habitats',
       'baseline_red_line',
       'baseline_habitats',

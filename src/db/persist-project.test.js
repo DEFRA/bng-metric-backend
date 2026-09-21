@@ -441,7 +441,7 @@ describe('setProjectFeature — trading rules', () => {
   // surgical update as the feature and the totals.
   const validTradingRules = {
     areaHabitats: {
-      habitats: [
+      habitatTypes: [
         {
           habitatType: 'Lakes - Reservoirs',
           broadHabitat: 'Lakes',
@@ -455,7 +455,7 @@ describe('setProjectFeature — trading rules', () => {
         surplus: 0,
         deficit: -3
       },
-      low: { netChange: 2, cumulativeAvailability: 2 }
+      low: { netUnitChange: 2, cumulativeAvailability: 2 }
     }
   }
 

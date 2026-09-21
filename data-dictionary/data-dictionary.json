@@ -4836,7 +4836,7 @@
       "description": "Area-habitat trading-rules unit figures. Unit values only; Met/Not-met statuses are derived separately in the front end."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes",
       "type": "array<object>",
       "required": false,
       "nullable": false,
@@ -4844,10 +4844,10 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat type in the Medium or Low band, ordered by habitat type. Very Low habitats are excluded because they hold no units to trade; High and Very High are excluded because the MVS defines no traded figure for them."
+      "description": "Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat TYPE, not per feature — the units of every parcel and tree of a type are summed first. Ordered by habitat type, Medium and Low bands only: Very Low habitats hold no units to trade, and the MVS defines no traded figure for High or Very High."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[]",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[]",
       "type": "object",
       "required": false,
       "nullable": false,
@@ -4858,7 +4858,7 @@
       "description": "Net unit change for a single area habitat type across baseline and post-intervention (AC1)."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[].habitatType",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].habitatType",
       "type": "string",
       "required": true,
       "nullable": false,
@@ -4869,7 +4869,7 @@
       "description": "Engine habitat type the net unit change is aggregated for, as \"{Broad habitat} - {Habitat type}\" (e.g. \"Lakes - Reservoirs\")."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[].broadHabitat",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].broadHabitat",
       "type": "string",
       "required": true,
       "nullable": false,
@@ -4880,7 +4880,7 @@
       "description": "Broad habitat the habitat type belongs to, taken from the part of the habitat type before the first \" - \" (e.g. \"Lakes\"). Not merged: this is the habitat's own broad habitat."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[].tradingBroadHabitat",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].tradingBroadHabitat",
       "type": "string",
       "required": true,
       "nullable": false,
@@ -4891,7 +4891,7 @@
       "description": "Broad habitat this habitat's net unit change is cumulated under for trading. It is the habitat's own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group \"Intertidal sediment and hard structures\" (AC3). The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[].distinctiveness",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].distinctiveness",
       "type": "string",
       "required": true,
       "nullable": false,
@@ -4902,7 +4902,7 @@
       "description": "Distinctiveness band resolved from the bng-library/metric reference data. Only \"Medium\" and \"Low\" appear — the bands that trade in the MVS."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.habitats[].netUnitChange",
+      "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].netUnitChange",
       "type": "number",
       "required": true,
       "nullable": false,
@@ -5001,7 +5001,7 @@
       "description": "Low-distinctiveness band aggregates (AC6, AC7)."
     },
     {
-      "path": "postIntervention.tradingRules.areaHabitats.low.netChange",
+      "path": "postIntervention.tradingRules.areaHabitats.low.netUnitChange",
       "type": "number",
       "required": true,
       "nullable": false,
