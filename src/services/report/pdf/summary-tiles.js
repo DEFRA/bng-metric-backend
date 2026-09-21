@@ -5,7 +5,7 @@
  * the frontend:
  *
  *   ┌──────────────────────────────┬──────────────────────────────┐
- *   │ Total on-site net percentage │ Trading Rules                │
+ *   │ Total on-site net percentage │ Trading Rules        [Not met]│
  *   │ change    18.42%       [Met] │ View trading rules           │
  *   ├─────────────────┬────────────┴─────┬────────────────────────┤
  *   │ On-site         │ On-site          │ Total on-site net      │
@@ -153,7 +153,8 @@ function primaryRow({ doc, summary, top }) {
 
   // The screen's tile is a link to the trading rules page. A PDF cannot take
   // the reader there, so the tile keeps the page's shape and wording without
-  // pretending to be a link.
+  // pretending to be a link. The status above it is the same tag the screen
+  // shows, read off the same stored value.
   const tradingRulesTile = buildTile({
     doc,
     frame: tileFrame(1, top, width, PRIMARY_TILE_HEIGHT),
@@ -162,7 +163,8 @@ function primaryRow({ doc, summary, top }) {
     headingSize: FONT_SIZE.tileValue,
     value: 'View trading rules in the service',
     valueSize: FONT_SIZE.body,
-    valueColour: MUTED
+    valueColour: MUTED,
+    tag: tagFor(summary.tradingRulesStatus)
   })
 
   return [percentageTile, tradingRulesTile]

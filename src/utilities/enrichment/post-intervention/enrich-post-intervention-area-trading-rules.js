@@ -15,11 +15,16 @@
 //    in the GeoPackage is persisted as Created, so its baseline units cannot be
 //    reconstructed from the post-intervention feature set.
 //
-// This module derives no Met / Not-met statuses (a front-end concern); it
-// persists the unit figures only.
+// The Met / Not-met statuses are derived here too, by the engine, and stored
+// alongside the figures. They are not left to the pages that display them: the
+// Low band rule reads a figure that deliberately differs from the metric
+// spreadsheet and is only safe when paired with the Medium band rule, so a
+// consumer applying it alone would report a site compliant that the spreadsheet
+// reports short. One derivation, read by every consumer.
 
 import {
   calculateAreaHabitatTradingRules,
+  deriveAreaHabitatTradingRuleStatuses,
   DISTINCTIVENESS_CATEGORIES
 } from 'bng-library/metric'
 
@@ -149,12 +154,23 @@ export function enrichPostInterventionAreaTradingRules(
     logger
   )
 
+  const areaHabitats = calculateAreaHabitatTradingRules(
+    baselineUnitsByType,
+    deliveredUnitsByType
+  )
+
   postInterventionDocument.tradingRules = {
     ...postInterventionDocument.tradingRules,
-    areaHabitats: calculateAreaHabitatTradingRules(
-      baselineUnitsByType,
-      deliveredUnitsByType
-    )
+    areaHabitats: {
+      ...areaHabitats,
+      // This module only runs on a post-intervention document, so by the time
+      // we are here one has been uploaded. A project without one has no
+      // post-intervention document to carry the figures at all, and the pages
+      // treat that absence as its own case.
+      statuses: deriveAreaHabitatTradingRuleStatuses(areaHabitats, {
+        postInterventionUploaded: true
+      })
+    }
   }
   return postInterventionDocument
 }

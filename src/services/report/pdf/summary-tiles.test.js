@@ -29,7 +29,10 @@ import {
 } from './layout.js'
 import { unitTypeSectionHeight } from './summary-tiles.js'
 import { toBuffer } from '../build-site-report.js'
-import { baselineSite } from '../site-model.test-fixtures.js'
+import {
+  baselineSite,
+  postInterventionSite
+} from '../site-model.test-fixtures.js'
 
 async function render(options) {
   const { doc } = await buildSiteReportPdf(options)
@@ -203,5 +206,44 @@ describe('the tile geometry', () => {
     expect(needed).toBeLessThanOrEqual(
       A4_PORTRAIT_HEIGHT - MARGIN * 2 - headingAllowance
     )
+  })
+})
+
+describe('the trading-rules tile', () => {
+  const siteWithTradingRules = (areaHabitats) => {
+    const site = postInterventionSite()
+    site.tradingRules = { areaHabitats: { statuses: { areaHabitats } } }
+    return site
+  }
+
+  test('tags the tile with the stored status, as words', async () => {
+    // Same rule the net-gain tag follows: real text on a coloured panel, never
+    // colour alone, so the verdict reaches assistive technology.
+    const tagged = await render({
+      baseline: baselineSite(),
+      postIntervention: siteWithTradingRules('Not met')
+    })
+    const untagged = await render({
+      baseline: baselineSite(),
+      postIntervention: postInterventionSite()
+    })
+
+    expect(countOf(tagged, '/S /P')).toBe(countOf(untagged, '/S /P') + 1)
+  })
+
+  test('draws no tag for a status it does not recognise', async () => {
+    // A document written before the figures existed, or by a future version
+    // using a word this one does not know. The tile keeps its shape and says
+    // nothing, rather than claiming a verdict it does not have.
+    const unrecognised = await render({
+      baseline: baselineSite(),
+      postIntervention: siteWithTradingRules('Probably')
+    })
+    const uncalculated = await render({
+      baseline: baselineSite(),
+      postIntervention: postInterventionSite()
+    })
+
+    expect(countOf(unrecognised, '/S /P')).toBe(countOf(uncalculated, '/S /P'))
   })
 })

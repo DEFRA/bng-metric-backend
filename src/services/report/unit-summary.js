@@ -261,8 +261,44 @@ function summariseUnitType(unitType, baseline, postIntervention) {
       : `${ZERO_UNITS_DISPLAY} units`,
     netUnitChange: intervention
       ? formatOptionalUnits(netUnitChange)
-      : `${formatUnits(netUnitChange)} units`
+      : `${formatUnits(netUnitChange)} units`,
+    tradingRulesStatus: tradingRulesStatusFor(unitType.key, postIntervention)
   }
+}
+
+/**
+ * The trading-rules status to show for a unit type, or null for no tag.
+ *
+ * Unlike every other figure on this page, this one is not shaped here and is
+ * not a second copy of a frontend rule: the status is derived once by
+ * bng-library and stored on the document, and both this report and the screen
+ * read the same stored value. Deriving it twice is what the rule is designed to
+ * prevent — the Low band figure deliberately ignores a Medium deficit the
+ * metric spreadsheet nets off, and is only safe read alongside the Medium band.
+ *
+ * Only area habitats carry one so far. Hedgerow and watercourse trading rules
+ * are separate work, and their tiles stay untagged until they land.
+ *
+ * @param {string} key the unit type
+ * @param {object} postIntervention the stored post-intervention document
+ * @returns {{ text: string, met: boolean }|null}
+ */
+function tradingRulesStatusFor(key, postIntervention) {
+  if (key !== AREA_HABITATS_KEY) {
+    return null
+  }
+  // With no post-intervention document there is nothing to trade against, and
+  // the report says so — matching the screen, which shows the same.
+  if (!postIntervention) {
+    return { text: NOT_MET, met: false }
+  }
+
+  const status =
+    postIntervention.tradingRules?.areaHabitats?.statuses?.areaHabitats
+  if (status !== MET && status !== NOT_MET) {
+    return null
+  }
+  return { text: status, met: status === MET }
 }
 
 /**

@@ -4833,7 +4833,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Area-habitat trading-rules unit figures. Unit values only; Met/Not-met statuses are derived separately in the front end."
+      "description": "Area-habitat trading-rules unit figures and the statuses derived from them."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitats",
@@ -5021,6 +5021,50 @@
       "constraints": [],
       "openMap": false,
       "description": "Units available to the Low band once the Medium surplus is carried down: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. Deliberately NOT the Statutory Metric's \"Cumulative surplus of units\", which is lower by the absolute Medium deficit (23.1012 against 32.5222 on the worked example). A Met/Not-met status must account for that deficit in its own right."
+    },
+    {
+      "path": "postIntervention.tradingRules.areaHabitats.statuses",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Met / Not-met statuses derived from the figures above by bng-library, so that no consumer combines them itself."
+    },
+    {
+      "path": "postIntervention.tradingRules.areaHabitats.statuses.medium",
+      "type": "string",
+      "required": true,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["Met", "Not met"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Medium band: \"Not met\" when any Medium broad habitat is in deficit, otherwise \"Met\". A broad habitat that nets to exactly zero is not in deficit. Null when no post-intervention file has been uploaded, since the rule requires both files."
+    },
+    {
+      "path": "postIntervention.tradingRules.areaHabitats.statuses.low",
+      "type": "string",
+      "required": true,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["Met", "Not met"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Low band: \"Not met\" when `low.cumulativeAvailability` is below zero, otherwise \"Met\". Null when no post-intervention file has been uploaded, since the rule requires both files."
+    },
+    {
+      "path": "postIntervention.tradingRules.areaHabitats.statuses.areaHabitats",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Met", "Not met"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The status to display for area habitats: \"Not met\" when either band is, otherwise \"Met\". This is the field to read — it is the pairing that makes the Low band figure safe to use, since that figure deliberately ignores a Medium deficit the metric spreadsheet would net off. Reading `low` alone can report a site compliant that the spreadsheet reports short."
     }
   ]
 }

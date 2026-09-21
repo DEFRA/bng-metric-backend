@@ -215,3 +215,78 @@ describe('#summariseUnitTypes', () => {
     expect(summaries[0].baselineUnits).toBe('0.00 units')
   })
 })
+
+describe('the trading-rules status', () => {
+  const siteWithStatus = (areaHabitats) => ({
+    ...site({ habitatsTotal: 18.5, habitatsNetUnitChangePercentage: 44.23 }),
+    tradingRules: { areaHabitats: { statuses: { areaHabitats } } }
+  })
+
+  test('reads the stored status rather than judging the figures', () => {
+    // The only figure on this page the report does not shape. Deriving it a
+    // second time is what the rule is written to prevent.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithStatus('Not met')
+    )
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Not met', met: false })
+  })
+
+  test('carries Met through as met', () => {
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithStatus('Met')
+    )
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Met', met: true })
+  })
+
+  test('can disagree with the net-gain verdict on the same section', () => {
+    // A site can clear 10% net gain and still break the trading rules, by
+    // replacing a habitat with units from the wrong broad habitat. The two
+    // tiles answer different questions and must be free to differ.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithStatus('Not met')
+    )
+
+    expect(summary.status.met).toBe(true)
+    expect(summary.tradingRulesStatus.met).toBe(false)
+  })
+
+  test('is Not met when no post-intervention file was uploaded', () => {
+    // Nothing has been delivered to trade against, so the rules cannot be met.
+    const summary = summaryFor('habitats', site(BASELINE_UNITS), null)
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Not met', met: false })
+  })
+
+  test('has no verdict before the rules were calculated', () => {
+    // A document written before the figures existed. An untagged tile says
+    // nothing, where a red tag would claim the site was assessed and failed.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      site({ habitatsTotal: 18.5 })
+    )
+
+    expect(summary.tradingRulesStatus).toBeNull()
+  })
+
+  test('is not offered for hedgerows or watercourses yet', () => {
+    const summaries = summariseUnitTypes(
+      site(BASELINE_UNITS, { hedgerows: 1, watercourses: 1 }),
+      siteWithStatus('Not met')
+    )
+
+    for (const key of ['hedgerows', 'watercourses']) {
+      expect(
+        summaries.find((summary) => summary.key === key).tradingRulesStatus
+      ).toBeNull()
+    }
+  })
+})
