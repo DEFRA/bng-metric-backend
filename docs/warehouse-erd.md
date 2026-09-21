@@ -25,7 +25,7 @@ erDiagram
     feature_set ||--o| feature_set_units : "has"
     feature_set ||--o| feature_set_habitat_sizes : "has"
     feature_set ||--o| feature_set_trading_rules : "has"
-    feature_set_trading_rules ||--o{ feature_set_trading_rules_area_habitats : "contains"
+    feature_set_trading_rules ||--o{ feature_set_trading_rules_area_habitat_types : "contains"
     feature_set_trading_rules ||--o{ feature_set_trading_rules_area_broad_habitats : "contains"
     feature_set ||--o| baseline_red_line : "has"
     feature_set ||--o{ baseline_habitats : "contains"
@@ -87,8 +87,8 @@ erDiagram
         numeric area_habitats_medium_surplus
         numeric area_habitats_low_cumulative_availability
     }
-    feature_set_trading_rules_area_habitats {
-        text trading_rules_area_habitat_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}"
+    feature_set_trading_rules_area_habitat_types {
+        text trading_rules_area_habitat_type_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}"
         text trading_rules_id FK "→ feature_set_trading_rules.trading_rules_id"
         text habitat_type
         text broad_habitat
@@ -198,7 +198,7 @@ ids above. Nothing is stored for these; compose them on read.
 | `feature_set_units`                             | `feature_set_units_id`                | `{projectId}:{documentKey}:units`                                                |
 | `feature_set_habitat_sizes`                     | `habitat_sizes_id`                    | `{projectId}:{documentKey}:habitatSizes`                                         |
 | `feature_set_trading_rules`                     | `trading_rules_id`                    | `{projectId}:postIntervention:tradingRules`                                      |
-| `feature_set_trading_rules_area_habitats`       | `trading_rules_area_habitat_id`       | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`           |
+| `feature_set_trading_rules_area_habitat_types`  | `trading_rules_area_habitat_type_id`  | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`           |
 | `feature_set_trading_rules_area_broad_habitats` | `trading_rules_area_broad_habitat_id` | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`   |
 | `baseline_red_line`                             | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_habitats`                             | `feature_id`                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
@@ -381,25 +381,25 @@ Trading-rules unit figures for the post-intervention document (area habitats tod
 | `feature_set_id`                            | `text`    | FK  | —                                                                       | → feature_set.feature_set_id                |
 | `area_habitats_medium_surplus`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`             |                                             |
 | `area_habitats_medium_deficit`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`             |                                             |
-| `area_habitats_low_net_change`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netChange`              |                                             |
+| `area_habitats_low_net_unit_change`         | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`          |                                             |
 | `area_habitats_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability` |                                             |
 | `area_habitats_statuses_medium`             | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.medium`            |                                             |
 | `area_habitats_statuses_low`                | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.low`               |                                             |
-| `area_habitats_statuses_area_habitats`      | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.areaHabitats`      |                                             |
+| `area_habitats_statuses_overall`            | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.overall`           |                                             |
 
-### `feature_set_trading_rules_area_habitats`
+### `feature_set_trading_rules_area_habitat_types`
 
-Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included. 5 column(s) mapped from the JSON document.
+Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included. 5 column(s) mapped from the JSON document.
 
-| Column                          | Type      | Key | JSON path                                                                   | Notes                                                                  |
-| ------------------------------- | --------- | --- | --------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `trading_rules_area_habitat_id` | `text`    | PK  | —                                                                           | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
-| `trading_rules_id`              | `text`    | FK  | —                                                                           | → feature_set_trading_rules.trading_rules_id                           |
-| `habitat_type`                  | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].habitatType`         |                                                                        |
-| `broad_habitat`                 | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].broadHabitat`        |                                                                        |
-| `trading_broad_habitat`         | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].tradingBroadHabitat` |                                                                        |
-| `distinctiveness`               | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitats[].distinctiveness`     |                                                                        |
-| `net_unit_change`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitats[].netUnitChange`       |                                                                        |
+| Column                               | Type      | Key | JSON path                                                                       | Notes                                                                  |
+| ------------------------------------ | --------- | --- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `trading_rules_area_habitat_type_id` | `text`    | PK  | —                                                                               | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
+| `trading_rules_id`                   | `text`    | FK  | —                                                                               | → feature_set_trading_rules.trading_rules_id                           |
+| `habitat_type`                       | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].habitatType`         |                                                                        |
+| `broad_habitat`                      | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].broadHabitat`        |                                                                        |
+| `trading_broad_habitat`              | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].tradingBroadHabitat` |                                                                        |
+| `distinctiveness`                    | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].distinctiveness`     |                                                                        |
+| `net_unit_change`                    | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].netUnitChange`       |                                                                        |
 
 ### `feature_set_trading_rules_area_broad_habitats`
 

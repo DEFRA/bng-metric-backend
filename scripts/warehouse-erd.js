@@ -160,10 +160,10 @@ const TABLES = Object.freeze([
       'Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set.'
   },
   {
-    table: 'feature_set_trading_rules_area_habitats',
-    sources: ['postIntervention.tradingRules.areaHabitats.habitats[]'],
+    table: 'feature_set_trading_rules_area_habitat_types',
+    sources: ['postIntervention.tradingRules.areaHabitats.habitatTypes[]'],
     primaryKey: {
-      column: 'trading_rules_area_habitat_id',
+      column: 'trading_rules_area_habitat_type_id',
       type: 'text',
       derivation:
         '`{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`'
@@ -176,7 +176,7 @@ const TABLES = Object.freeze([
     many: true,
     highlight: ['habitat_type', 'broad_habitat', 'net_unit_change'],
     description:
-      'Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat type, individual trees included.'
+      'Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included.'
   },
   {
     table: 'feature_set_trading_rules_area_broad_habitats',

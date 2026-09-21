@@ -210,9 +210,9 @@ describe('the tile geometry', () => {
 })
 
 describe('the trading-rules tile', () => {
-  const siteWithTradingRules = (areaHabitats) => {
+  const siteWithTradingRules = (overall) => {
     const site = postInterventionSite()
-    site.tradingRules = { areaHabitats: { statuses: { areaHabitats } } }
+    site.tradingRules = { areaHabitats: { statuses: { overall } } }
     return site
   }
 

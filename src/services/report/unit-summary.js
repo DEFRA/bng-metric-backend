@@ -293,8 +293,7 @@ function tradingRulesStatusFor(key, postIntervention) {
     return { text: NOT_MET, met: false }
   }
 
-  const status =
-    postIntervention.tradingRules?.areaHabitats?.statuses?.areaHabitats
+  const status = postIntervention.tradingRules?.areaHabitats?.statuses?.overall
   if (status !== MET && status !== NOT_MET) {
     return null
   }

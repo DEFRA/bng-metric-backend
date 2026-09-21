@@ -48,7 +48,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, baseline)
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([
       {
         habitatType: 'Lakes - Reservoirs',
         broadHabitat: 'Lakes',
@@ -78,8 +78,8 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, baseline)
 
-    const { habitats } = postIntervention.tradingRules.areaHabitats
-    expect(habitats).toEqual([
+    const { habitatTypes } = postIntervention.tradingRules.areaHabitats
+    expect(habitatTypes).toEqual([
       {
         habitatType: 'Grassland - Modified grassland',
         broadHabitat: 'Grassland',
@@ -115,7 +115,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
     expect(
-      postIntervention.tradingRules.areaHabitats.habitats.map(
+      postIntervention.tradingRules.areaHabitats.habitatTypes.map(
         (habitat) => habitat.habitatType
       )
     ).toEqual(['Lakes - Reservoirs'])
@@ -146,7 +146,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     expect(areaHabitats.medium.broadHabitats).toEqual([
       { broadHabitat: 'Lakes', netUnitChange: -7 }
     ])
-    expect(areaHabitats.low.netChange).toBe(2)
+    expect(areaHabitats.low.netUnitChange).toBe(2)
   })
 
   test('aggregates individual trees alongside habitat parcels', () => {
@@ -198,7 +198,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([
       {
         habitatType: 'Lakes - Reservoirs',
         broadHabitat: 'Lakes',
@@ -223,7 +223,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
     expect(
-      postIntervention.tradingRules.areaHabitats.habitats[0].habitatType
+      postIntervention.tradingRules.areaHabitats.habitatTypes[0].habitatType
     ).toBe('Lakes - Reservoirs')
   })
 
@@ -240,7 +240,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
     expect(
       postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability
     ).toBe(0)
@@ -261,7 +261,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, {}, logger)
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('odd-one'))
   })
 
@@ -278,7 +278,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
 
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
   })
 
   test('preserves trading-rules figures already written by another module', () => {
@@ -301,12 +301,12 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     enrichPostInterventionAreaTradingRules(postIntervention, {})
 
     expect(postIntervention.tradingRules.areaHabitats).toEqual({
-      habitats: [],
+      habitatTypes: [],
       medium: { broadHabitats: [], surplus: 0, deficit: 0 },
-      low: { netChange: 0, cumulativeAvailability: 0 },
+      low: { netUnitChange: 0, cumulativeAvailability: 0 },
       // Nothing to trade is nothing failing: no broad habitat is in deficit
       // and nothing is owed, so the rules are met vacuously.
-      statuses: { medium: 'Met', low: 'Met', areaHabitats: 'Met' }
+      statuses: { medium: 'Met', low: 'Met', overall: 'Met' }
     })
   })
 })
@@ -325,7 +325,7 @@ describe('enrichPostInterventionAreaTradingRules — incomplete features', () =>
 
     enrichPostInterventionAreaTradingRules(postIntervention)
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
   })
 
   test('skips a Created feature that carries no proposed habitat', () => {
@@ -337,7 +337,7 @@ describe('enrichPostInterventionAreaTradingRules — incomplete features', () =>
 
     enrichPostInterventionAreaTradingRules(postIntervention)
 
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
   })
 
   test('warns without an id or a type when the feature carries neither', () => {
@@ -364,7 +364,7 @@ describe('enrichPostInterventionAreaTradingRules — incomplete features', () =>
         habitats: [null]
       })
     ).not.toThrow()
-    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([])
   })
 })
 
@@ -427,7 +427,7 @@ describe('enrichPostInterventionAreaTradingRules — statuses', () => {
     expect(postIntervention.tradingRules.areaHabitats.statuses).toEqual({
       medium: 'Not met',
       low: 'Met',
-      areaHabitats: 'Not met'
+      overall: 'Not met'
     })
   })
 
@@ -451,7 +451,7 @@ describe('enrichPostInterventionAreaTradingRules — statuses', () => {
     expect(postIntervention.tradingRules.areaHabitats.statuses).toEqual({
       medium: 'Met',
       low: 'Met',
-      areaHabitats: 'Met'
+      overall: 'Met'
     })
   })
 
@@ -494,7 +494,7 @@ describe('enrichPostInterventionAreaTradingRules — statuses', () => {
     expect(statuses).toEqual({
       medium: 'Not met',
       low: 'Met',
-      areaHabitats: 'Not met'
+      overall: 'Not met'
     })
   })
 })

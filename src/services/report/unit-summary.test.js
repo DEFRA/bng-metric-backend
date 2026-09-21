@@ -217,9 +217,9 @@ describe('#summariseUnitTypes', () => {
 })
 
 describe('the trading-rules status', () => {
-  const siteWithStatus = (areaHabitats) => ({
+  const siteWithStatus = (overall) => ({
     ...site({ habitatsTotal: 18.5, habitatsNetUnitChangePercentage: 44.23 }),
-    tradingRules: { areaHabitats: { statuses: { areaHabitats } } }
+    tradingRules: { areaHabitats: { statuses: { overall } } }
   })
 
   test('reads the stored status rather than judging the figures', () => {
