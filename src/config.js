@@ -316,6 +316,99 @@ const config = convict({
       env: 'AWS_REGION'
     }
   },
+  osMaps: {
+    apiKey: {
+      doc: 'OS Data Hub API key for the OS Maps API (raster). Held by this service alone — the report builder and the browser map both see an internal URL and never the key. Empty disables the /os-tiles routes entirely. Supply as a CDP secret per environment, NOT via cdp-app-config.',
+      format: String,
+      default: '',
+      sensitive: true,
+      env: 'OS_API_KEY'
+    },
+    layer: {
+      doc: 'OS Maps raster style. Must be one of the EPSG:27700 styles — British National Grid throughout is what keeps the basemap and the parcel geometry in exact registration.',
+      format: String,
+      default: 'Light_27700',
+      env: 'OS_MAPS_LAYER'
+    },
+    maxZoom: {
+      doc: 'Zoom ceiling imposed by the OS PLAN, as distinct from the product. An OpenData key must set this to 9 or every EPSG:27700 tile above it returns 403 "A Premium Plan is required to access Premium Data". Left empty for a Premium/PSGA key, which is why it does not default to 9 — defaulting to the free ceiling would silently discard resolution a Premium key has paid for.',
+      format: String,
+      default: '',
+      env: 'OS_MAPS_MAX_ZOOM'
+    },
+    requestTimeoutMs: {
+      doc: "Deadline on one request to api.os.uk. A report fetches upwards of a hundred tiles, so a connection that hangs rather than fails costs the whole download and the request thread with it — and undici's own defaults are measured in minutes. Nothing retries: a report degrades to a plain ground instead, which is quicker and more honest than making a user wait through a second attempt.",
+      format: Number,
+      default: 15000,
+      env: 'OS_MAPS_REQUEST_TIMEOUT_MS'
+    },
+    cacheTtlSeconds: {
+      doc: 'How long a fetched tile stays in the process-local tile cache. Tiles are static, so this is long by default.',
+      format: Number,
+      default: 604800,
+      env: 'OS_MAPS_CACHE_TTL_SECONDS'
+    },
+    cacheMaxBytes: {
+      doc: 'Tile cache budget, in bytes — catbox measures a memory cache by size rather than by entry count, which suits tiles because a sparse rural tile and a dense urban one differ by an order of magnitude. One site map is around 30 tiles; a large site with parcel thumbnails is a few hundred, so the default holds several whole reports.',
+      format: Number,
+      default: 67108864,
+      env: 'OS_MAPS_CACHE_MAX_BYTES'
+    },
+    attribution: {
+      doc: "Basemap credit burned into the bottom corner of every map drawn from OS tiles, and repeated once as a tagged paragraph so assistive technology reads it too. A PDF cannot carry the dynamic credit control a browser map uses, so the wording has to be part of the document. Provisional: the required wording is OS's to dictate and has not been confirmed with them.",
+      format: String,
+      default:
+        'Contains OS data © Crown copyright and database right ' +
+        new Date().getFullYear(),
+      env: 'OS_MAPS_ATTRIBUTION'
+    },
+    attributionShort: {
+      doc: 'The credit used where the full wording cannot fit legibly — a parcel thumbnail is 18 mm square and cannot carry a whole sentence at any readable size. Same provisional status as the full wording. Empty means such a map carries no credit at all, which is why the renderer draws no OS tiles behind a frame it cannot credit.',
+      format: String,
+      default: '© Crown copyright',
+      env: 'OS_MAPS_ATTRIBUTION_SHORT'
+    }
+  },
+  report: {
+    maxFeaturesPerLayer: {
+      doc: 'Ceiling on how many features of one layer a site report reads, draws and lists. The whole document is built in memory rather than streamed (see toBuffer in services/report/build-site-report.js), and nothing upstream caps how many features a project may hold, so this is what stops one pathological project — a legitimately enormous site, or a malformed upload — from turning a download into unbounded memory and a long synchronous render on a shared process. The read itself is limited, so the rows above the ceiling never leave PostGIS. Measured at this ceiling on parcels of ~900 vertices each, which is the density a real large survey has (225,748 vertices across one file, per the GEOS slivers check): 2.9 MB / 1.5 s for the table layout, 3.8 MB / 2.8 s for cards. 500 was the first choice and doubles both, which crosses the few-megabytes mark that docs/site-report.md names as the point to start streaming. Note this caps the feature COUNT and not their total size — a file of pathologically detailed geometry is still unbounded; see docs/site-report.md. A report that reaches the ceiling says so on its first page rather than silently showing a subset.',
+      format: Number,
+      default: 250,
+      env: 'REPORT_MAX_FEATURES_PER_LAYER'
+    }
+  },
+  reportFonts: {
+    bucket: {
+      doc: 'S3 bucket holding the report body fonts. Empty — the default — embeds the Noto Sans files committed alongside the code. Set it to embed GDS Transport instead, which is licensed to GDS under a bilateral agreement with its designers and is NOT redistributable: this repository is public, so the font cannot be committed here. A private bucket keeps the font file out of every clone while still letting the service embed a Preview-&-Print subset in the generated report, which is the use its own embedding permission bits allow. See docs/site-report.md.',
+      format: String,
+      default: '',
+      env: 'REPORT_FONT_BUCKET'
+    },
+    regularKey: {
+      doc: 'Object key of the regular-weight font within reportFonts.bucket. Ignored when no bucket is set.',
+      format: String,
+      default: 'GDSTransportWebsite-Light.ttf',
+      env: 'REPORT_FONT_REGULAR_KEY'
+    },
+    boldKey: {
+      doc: 'Object key of the bold-weight font within reportFonts.bucket. Ignored when no bucket is set.',
+      format: String,
+      default: 'GDSTransportWebsite-Bold.ttf',
+      env: 'REPORT_FONT_BOLD_KEY'
+    },
+    timeoutMs: {
+      doc: 'Per-object timeout for the startup font fetch. Short, because this runs once at boot and a slow bucket should fail the deployment rather than stall it.',
+      format: Number,
+      default: 10000,
+      env: 'REPORT_FONT_TIMEOUT_MS'
+    },
+    maxBytes: {
+      doc: 'Size ceiling per font object. A body font is tens of kilobytes; this only exists so a mistyped key cannot stream something large into memory at boot.',
+      format: Number,
+      default: 5242880,
+      env: 'REPORT_FONT_MAX_BYTES'
+    }
+  },
   oidc: {
     discoveryUrl: {
       doc: 'OIDC provider discovery endpoint. Used to resolve the JWKS URI and issuer for independently verifying the id_token the frontend forwards. Defaults to the cdp-defra-id-stub.',

@@ -1,0 +1,659 @@
+# The site report PDF
+
+`GET /projects/{projectId}/report.pdf` renders a printable, screen-reader-structured
+report for one project: the site drawn on a map with its habitat parcels over it, the
+key figures, and one row per parcel carrying a thumbnail and the recorded attributes.
+
+Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harness.
+
+## What the report contains
+
+| Page | Content                                                                                                                                                                                                                                                                            |
+| ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| 1    | The summary, shaped like the service's own project summary screen: the project name over a "Summary" heading, then a tile section per unit type — net percentage change with its Met / Not met tag, trading rules, and the baseline, post-intervention and net unit change figures |
+| 2    | Key figures as a tagged table, the baseline and post-intervention site maps side by side, the legend and the basemap credit                                                                                                                                                        |
+| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records                                                                                                                                                                        |
+
+Page 1 mirrors the screen deliberately. A user arrives at the download from the project
+summary page, and a report whose first page restated the same figures differently would
+read as a second opinion on their own project.
+
+## Where the numbers and the shapes come from
+
+Two sources, deliberately:
+
+|                                                           | Source                              | Why                                                                                                                                                                                                                                                  |
+| --------------------------------------------------------- | ----------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Sizes, habitat types, conditions, unit totals             | the project JSONB document          | These are what the service shows on screen and what the unit calculation ran on. Recomputing them from the geometry would give the report a second opinion, and a report that disagrees with the page it was generated from is worse than no report. |
+| Parcel, hedgerow, watercourse, tree and red-line geometry | the `bng.*_features` PostGIS tables | These are the copy the user has since **edited** through `PUT /projects/{id}/features/{featureId}`. The uploaded GeoPackage can be stale.                                                                                                            |
+
+They are matched by `featureId`, which is the geometry row's own primary key (see
+`geometryRowValues` in `src/services/upload/persist-upload.js`). A feature present in
+one and not the other is dropped rather than guessed at.
+
+A post-intervention parcel nests the values it will have after the work under
+`proposed`, keeping the baseline's alongside, and `proposedOr` in `site-data.js` picks
+between them. **A blank proposed value means "not proposed", not "proposed to be
+blank"** — so it falls back to the baseline, which is the same test the frontend's
+`sourceValue` applies when building the screen these parcels are listed on
+(`common/helpers/post-intervention-habitat-grid.js`). Written with `??` alone it was
+wrong: the empty string is not nullish, so it was accepted as an answer and the baseline
+behind it suppressed, giving a report with no type and no condition for a parcel the
+screen described fully.
+
+The red line's **area** is the one number that comes from PostGIS rather than the
+document (`ST_Area`), because the red line is a boundary, not a habitat, and carries no
+`sizeSquareMetres`.
+
+### The summary figures are the engine's, not this module's
+
+**Nothing in the report calculates the metric.** The figures on page 1 were computed by
+the engine when the project was calculated and persisted on the project document:
+`utilities/features/feature-set-units.js` sums each layer's feature units into `units`
+and folds in the engine's `calculatePostInterventionNetUnitChanges`, so
+`habitatsNetUnitChange`, `habitatsNetUnitChangePercentage` and their hedgerow and
+watercourse counterparts are already there to be read.
+
+`services/report/unit-summary.js` only decides how they are worded, and that is a
+**second copy of rules the frontend also holds**
+(`bng-metric-frontend/src/server/common/helpers/unit-summary.js`) — written knowingly,
+because the PDF is rendered here and the screen is rendered there. The rules that are
+easy to get subtly wrong, all copied on purpose:
+
+- area habitats **include individual trees** — the metric treats them as one module even
+  though the totals are stored separately;
+- the target is judged on the **rounded** percentage, so a tile reading `10.00%` is never
+  tagged "Not met";
+- a baseline with **no post-intervention file is −100%**, not "unknown" — every unit on
+  the site goes and nothing replaces it;
+- a habitat type that exists **only after intervention** is "Not applicable", there being
+  no baseline to improve on — and this is asked of hedgerows and watercourses only, never
+  of area habitats. The screen exempts the area module the same way: it is the one every
+  project starts with, since the baseline upload IS the area file. Asking it of area
+  habitats was also unanswerable from a feature count, because `habitats` names the whole
+  module including individual trees — a baseline of one tree and no polygons looked like
+  no baseline at all (found in review on #297);
+- a linear unit type with no features on either side is **not shown at all**, rather than
+  shown as three tiles of zeroes.
+
+Every one of those is pinned by a test in `unit-summary.test.js`, so a drift between the
+two copies fails the build rather than reaching a user as two different numbers.
+
+**This should not stay in two places.** Worth revisiting as either: hoisting the figures
+into `bng-library` beside the engine — the GOV.UK tag classes and hrefs would stay in the
+frontend, being presentation — or serving the shaped summary from this service's project
+API so the screen reads it rather than deriving it. Both are larger changes than the
+report should carry, and neither is blocked by anything here.
+
+## Layout
+
+| Path                                       | Role                                                                         |
+| ------------------------------------------ | ---------------------------------------------------------------------------- |
+| `src/routes/report.js`                     | the route: visibility check, then the PDF bytes with a `content-disposition` |
+| `src/services/report/build-site-report.js` | read → fetch tiles → draw, in that order                                     |
+| `src/services/report/site-data.js`         | joins the document to the geometry                                           |
+| `src/services/report/unit-summary.js`      | the summary figures, worded as the project summary screen words them         |
+| `src/services/report/pdf/summary-tiles.js` | page 1: the tile grid those figures fill                                     |
+| `src/db/project-geometry.js`               | `ST_AsGeoJSON` reads, one layer at a time                                    |
+| `src/services/report/pdf/projector.js`     | ground metres → page points. The piece worth reading first                   |
+| `src/services/report/pdf/grid.js`          | tile matrix maths; WMTS capabilities parsing                                 |
+| `src/services/report/pdf/map.js`           | tile and geometry drawing                                                    |
+| `src/services/report/pdf/document.js`      | the tagged document: structure tree, tables, figures                         |
+| `src/services/report/pdf/mvt.js`           | vector tiles, decoded into the shape `map.js` draws from                     |
+| `src/services/os-tiles/`                   | the OS tiles service — the only code that knows the API key                  |
+| `src/plugins/os-tiles.js`                  | the `/os-tiles` routes, and the tile cache, over that service                |
+
+## What is delegated to libraries, and what is not
+
+The report has a small runtime dependency list on purpose, but only where a library
+genuinely removes work. What it delegates:
+
+| Job                     | Library                                   | Why not ours                                                                                                                            |
+| ----------------------- | ----------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------- |
+| PDF writing and tagging | `pdfkit`                                  | Structure tree, marked content, `/Alt`, `/Scope` and font embedding — the whole PDF/UA surface                                          |
+| Vector tile decoding    | `@mapbox/vector-tile` over `pbf`          | The reference MVT implementation, and what MapLibre itself reads tiles with. `mvt.js` is now only the adapter to this repo's tile shape |
+| Vector tile writing     | `@maplibre/vt-pbf` (test fixtures only)   | Nothing in production writes a tile; the fixtures do, so decode is proven by round-trip                                                 |
+| Bounding boxes          | `@turf/bbox`                              | Walks every GeoJSON nesting depth, GeometryCollection included                                                                          |
+| Tile caching            | `@hapi/catbox-memory`, via `server.cache` | Already in hapi's own dependency tree, and makes a future Redis cache a provisioning change rather than a code one                      |
+
+And what it deliberately keeps:
+
+- **`projector.js` and `grid.js`.** The ground-to-page transform and the EPSG:27700 tile
+  matrix. `@mapbox/tilebelt` and friends are Web Mercator only, which is exactly the
+  projection this report does not use. OpenLayers' `WMTSCapabilities` parser does produce
+  an identical grid from OS's document — it was checked against ours — but it needs
+  `DOMParser` and `Node` globals, so running it here means jsdom: ~55 MB of dependency to
+  delete ~90 lines of parsing.
+- **Areas and lengths.** Not computed at all — the project document carries them. Note
+  that turf's measurement functions could not do it anyway: they are geodesic and assume
+  WGS84 degrees, so on British National Grid metres `@turf/area` measures a 100 m square
+  as 1.07e14 m². Only turf's bounding-box helpers are safe in this coordinate system.
+- **The page layout in `summary-page.js` / `habitat-pages.js`.** `pdfmake` is declarative
+  and built on pdfkit, but exposes no structure-tree API, so it cannot produce a tagged
+  document.
+
+## Four rules the code depends on
+
+**1. Nothing is positioned except by `projector.toPage`.** Basemap tiles included. A map
+tile is not an arbitrary picture — it covers an exact, known rectangle of ground — so a
+tile corner and a habitat vertex are the same kind of thing: an EPSG:27700 coordinate.
+Both go through the same call, which is why there is no nudge factor anywhere.
+`registration.test.js` is the proof.
+
+**2. All tile I/O completes before any drawing starts.** pdfkit's drawing is sequential
+and stateful: the cursor, the current page and the open marked-content sequence all
+depend on call order. An `await` in the middle lets other work interleave and silently
+corrupts both the layout and the tagged reading order. The spike's first attempt
+rendered completely blank rows for exactly this reason.
+
+**3. A marked-content sequence is opened BEFORE anything is drawn into it.** Drawing
+first and marking afterwards yields a `Figure` wrapping an empty sequence, with every
+drawing operation left untagged — PDF/UA 7.1-3. It renders identically and reports alt
+text throughout; only a conformance checker can see it.
+
+**4. The OS tile grid is never hard-coded.** It comes from OS's own
+`GetCapabilities`. A hard-coded origin one tile out produces a basemap that looks
+plausible and is in the wrong place.
+
+## Accessibility
+
+The document targets **PDF/UA-1** and is verified with veraPDF, the reference
+open-source validator, which runs from the `verapdf/cli` image (no JDK needed):
+
+```bash
+docker run --rm -v "$PWD:/data" verapdf/cli --format text --flavour ua1 /data/report.pdf
+```
+
+It tags `Document/Sect/H1/H2/P/Table/TR/TH/TD/Figure`, sets `/Alt` on every figure,
+`/Scope` (and `/Headers`) on table cells, `Lang` `en-GB` and a document title, and
+embeds its font programs — Noto Sans (SIL OFL 1.1), because pdfkit's default base-14
+fonts are referenced by name and never embedded, which alone fails PDF/UA.
+
+**Two things still outstanding:**
+
+- **A screen-reader pass (NVDA) and PAC.** A veraPDF PASS is necessary, not sufficient:
+  it confirms alt text _exists_, not that it reads well — it was perfectly happy with
+  "1 watercourses", which a unit test now prevents. Roughly a third of PDF/UA's failure
+  conditions are human judgement. **This is the go/no-go.**
+- **GDS Transport instead of Noto Sans.** GOV.UK sets GDS Transport in the browser and
+  that is what this should eventually embed. The code is ready for it — see
+  [The typeface, and where it comes from](#the-typeface-and-where-it-comes-from) — and
+  what remains is a licensing answer, not a change.
+
+## Two habitat layouts
+
+Page 2 onwards presents the parcels one of two ways, chosen with
+`?layout=table|cards`. Same data, same mini-map, different shape.
+
+|                  | `table` (default)                  | `cards`                                     |
+| ---------------- | ---------------------------------- | ------------------------------------------- |
+| Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute |
+| Attributes shown | Ref, habitat type, condition, size | Those plus twelve more — see below          |
+| Mini-map         | 52 pt square                       | 96 pt square                                |
+| Parcels per page | More                               | Fewer                                       |
+| Structure        | `Table` / `TR` / `TH` / `TD`       | `Sect` / `H3` / `P`, one `Figure` per card  |
+
+**Why cards exist.** A table's attribute count is bounded by the width of the page —
+five columns already leaves "Modified grassland" wrapping in a 90-point cell, and the
+project document holds a good deal more than four useful facts per parcel. A card turns
+that ninety degrees.
+
+**It also sidesteps the `/Headers` gap.** The table is hand-laid, because a `doc.table()`
+cell cannot hold a drawing and pdfkit only emits `/Headers` inside `doc.table()`. Its cells
+therefore carry `/Scope` and nothing links a value back to the header describing it. A card
+has no columns to associate: each line is a paragraph reading "Condition: Poor", which
+needs no table navigation at all. If the NVDA pass finds the table hard to move around,
+this is the answer that already exists.
+
+### What a card shows
+
+Sixteen fields, in reading order: what the parcel **is**, then how it is **judged**, then
+how the number was **arrived at**, then what was **recorded** about it on the ground.
+
+| Group        | Fields                                                                                          |
+| ------------ | ----------------------------------------------------------------------------------------------- |
+| Identity     | Ref and habitat type (the card heading), broad habitat                                          |
+| Judgement    | Condition, distinctiveness, strategic significance, retention, spatial risk, size               |
+| The workings | Creation difficulty, time to target, advance or delay, final time to target, biodiversity units |
+| Recorded     | Calculation status, survey date, survey details, comment                                        |
+
+Three conventions, all of them borrowed from the service's own habitat detail screens so
+the report and the page it was generated from do not describe the same parcel differently:
+
+- **A band and its score share a line** — "Low (2)", not two lines. Same for condition and
+  for creation difficulty and its multiplier.
+- **A retention category is normalised.** The backend strips the GeoPackage's `1. ` list
+  prefix when it decides which calculation to run but never writes the normalised value
+  back, so the document keeps whatever the upload carried. The report strips it again.
+- **A bare number of years is worded** — "10 years", not "10". The engine writes its two
+  time fields in different shapes, and only a real upload shows it:
+  `standardTimeToTargetCondition` arrives as the numeric **string** `"10"`, while
+  `finalTimeToTargetCondition` arrives already phrased as `"10 years (0.7002822742)"`. So
+  the test is "does it parse as a number", not "is it a number" — a numeric string needs
+  the unit just as much. Anything already worded fails the parse and passes through.
+
+Two things the report deliberately does **not** tidy, because the service does not either
+and a report that disagrees with the screen it came from is worse than one that repeats
+its warts: `finalTimeToTargetCondition` carries the time multiplier at full precision
+("3 years (0.898632125)"), and the engine writes "1 years" for a single year. Both are
+worth fixing at source rather than in the report.
+
+**The workings group is post-intervention only.** A baseline parcel is not being created
+or enhanced, so it has no difficulty, no time to target and nothing to advance or delay.
+Its card is simply shorter — which is the general rule: cards are sized from their
+content, and an unrecorded attribute is omitted rather than printed blank. An empty row
+invites the reader to wonder what is missing; a shorter card simply says less.
+
+**Two fields wrap.** Survey details and comment are free text of unbounded length, so
+their height is _measured_ rather than counted — `heightOfString`, at the same width, size
+and face the renderer will use. They sit last on the card on purpose: an unbounded field
+in the middle would push the fixed ones around from card to card, and a reader comparing
+two parcels would lose the ability to find the same fact in the same place on both.
+
+Two measurement traps came out of building it, both invisible to any test that counts
+lines and both visible on the page:
+
+- **Measure in the face you draw in.** Values are drawn bold, and bold is the wider face.
+  Measuring the wrap in the regular face reports fewer lines than the renderer goes on to
+  draw, and the overflow lands outside the card's own border.
+- **Size the label column from the labels.** "Strategic significance:" needs 94 pt of the
+  96 pt a fixed constant gave it. A label that overflows wraps to a second line, but a
+  non-wrapping field advances by exactly one line height — so the wrapped label would be
+  drawn straight through the row beneath it. The column is now measured from the widest
+  label plus a gutter, which matters because [the typeface is a deployment
+  option](#the-typeface-and-where-it-comes-from): a face a shade wider than Noto Sans would have started overlapping rows
+  with every test still green.
+
+Both layouts pass PDF/UA-1.
+
+### One bug this surfaced: ligatures and `/CIDSet`
+
+Adding the card layout made the report fail veraPDF on a rule that had nothing to do with
+cards — `7.21.4.2-2`, "a CIDSet shall identify all CIDs present in the font program".
+
+pdfkit builds `/CIDSet` from its own width table, but fontkit's subsetter also pulls in the
+**component glyphs of any composite glyph**. Noto Sans Bold's `fi` is a composite ligature,
+so its component landed in the embedded font program without pdfkit ever assigning it a
+CID, and the CIDSet came out one glyph short. The document rendered perfectly.
+
+The trigger was the word **"Modified"** — as in _Modified grassland_, one of the commonest
+UKHab types. The table layout escaped it only because it sets no user data in bold, and
+Noto Sans Regular's `fi` is not composite. That is luck, not design, and it would not
+survive swapping the typeface.
+
+The fix is `dataText()` in `page-furniture.js`: ligatures off for user-supplied text, which
+is the text whose characters we cannot predict. Both layouts use it. `cidset.test.js`
+asserts the invariant directly — every glyph in an embedded subset has a CID — so the whole
+class is caught in the normal test suite without needing veraPDF.
+
+## The typeface, and where it comes from
+
+PDF/UA requires every font PROGRAM to be embedded, so a report always carries a subset
+of whatever it was drawn with, and that subset travels to everyone the document is
+forwarded to. Which typeface it is, then, is a licensing question before it is a
+typographic one.
+
+Two sources, chosen by `REPORT_FONT_BUCKET`:
+
+| Unset (the default)                                                 | Set                                                     |
+| ------------------------------------------------------------------- | ------------------------------------------------------- |
+| The Noto Sans files committed in `src/services/report/assets/fonts` | Two objects fetched from a private S3 bucket at startup |
+| SIL OFL 1.1, so safe to hold in a public repository                 | For a typeface this repository is not allowed to hold   |
+
+**Why a bucket rather than two more committed files.** GDS Transport is licensed to GDS
+under a bilateral agreement with its designers; its own name table records the licence as
+"Contact Margaret Calvert and Henrik Kubel … Special license agreement" and the font as
+"customised exclusively for the UK Government Digital Services … not commercially
+available". `DEFRA/bng-metric-backend` is a **public** repository, so committing the files
+would publish the font to anyone who clones. A private bucket separates the two exposures:
+
+| Exposure                                      | Fixed by a private bucket?                                                                                                                                                                    |
+| --------------------------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| The font file in every clone of a public repo | **Yes.** This is the one the licence does not permit                                                                                                                                          |
+| A subset inside every generated report        | **No, and nothing can** — that is what embedding is. It is also the sanctioned case: the font's `fsType` bit is _Preview & Print embedding_, which is the rights holder allowing exactly this |
+
+That does not answer whether GDS permit it; it makes the question a reasonable one to ask,
+and holding the font privately is the precondition for asking it. **Ask before enabling.**
+
+### What was verified
+
+Against `govuk-frontend@6.4.0`, which ships GDS Transport as WOFF and WOFF2:
+
+| Check                            | Result                                                              |
+| -------------------------------- | ------------------------------------------------------------------- |
+| pdfkit can embed it              | **Yes** — fontkit reads WOFF and WOFF2 directly, no conversion step |
+| PDF/UA-1 under veraPDF           | **PASS**, on the full 20-parcel report                              |
+| Glyph coverage for this document | Complete — nothing missing, including `²` and `£`                   |
+| Output size                      | 221.9 kB, slightly **smaller** than the same report in Noto Sans    |
+| Embedding permission (`fsType`)  | Preview & Print — embedding allowed                                 |
+
+One defect to fix on the way in: govuk-frontend blanks the font's name table for web
+delivery, so pdfkit emits `/BaseFont /CZZZZZ+` with no name after the subset prefix.
+Injecting a name table before upload gives `/CZZZZZ+GDSTransportWebsite-Light`, and it
+still passes. Do that once, to the objects that go in the bucket — not at runtime.
+
+### Configuration
+
+| Variable                  | Default                         | Meaning                                                        |
+| ------------------------- | ------------------------------- | -------------------------------------------------------------- |
+| `REPORT_FONT_BUCKET`      | _(empty)_                       | Bucket holding the fonts. Empty embeds the committed Noto Sans |
+| `REPORT_FONT_REGULAR_KEY` | `GDSTransportWebsite-Light.ttf` | Regular-weight object key                                      |
+| `REPORT_FONT_BOLD_KEY`    | `GDSTransportWebsite-Bold.ttf`  | Bold-weight object key                                         |
+| `REPORT_FONT_TIMEOUT_MS`  | `10000`                         | Per-object timeout for the startup fetch                       |
+| `REPORT_FONT_MAX_BYTES`   | `5242880`                       | Size ceiling per object                                        |
+
+Credentials come from the SDK's default provider chain — IAM in CDP, `S3_ENDPOINT` against
+LocalStack in development, where `compose/start-localstack.sh` creates an empty
+`bng-metric-report-fonts` bucket to copy a licensed font into.
+
+### Loaded once, at boot
+
+`plugins/report-fonts.js` resolves the fonts during `createServer()` and hangs them on
+`server.app.reportFonts`; the route passes them to the builder. Never per request, for
+three reasons in ascending order of how much they would hurt:
+
+1. `registerFonts` is synchronous **by design**. All I/O completes before any drawing
+   starts, because pdfkit's drawing is sequential and stateful and an `await` in the middle
+   of it silently corrupts both layout and the tagged reading order — see
+   [Four rules the code depends on](#four-rules-the-code-depends-on). An await inside
+   document construction is precisely that bug.
+2. It would add a failure mode to a path that cannot currently fail.
+3. A font is build-time-static data. Fetching it per request buys nothing.
+
+The bytes are checked as they arrive — size, and the leading four bytes against the font
+container signatures — because S3 will serve a README under a `.ttf` key perfectly happily,
+and pdfkit would otherwise only discover that inside the first request.
+
+### When the bucket cannot be read
+
+It **degrades to the committed Noto Sans and warns**; it does not fail the boot. Same
+choice the basemap makes, for the same reason: a report in the fallback typeface is still
+correct, complete and accessible, so a bucket outage should not become a report outage.
+
+That choice has a cost worth stating, because it is not visible in the output. A missing
+basemap is _visibly_ missing; a substituted typeface just reads as a design decision. So
+the warning is the only signal an operator gets, and it is built to be one — logged at
+`warn` so it survives a production log level, and naming the bucket, the reason and the
+consequence:
+
+```
+Report fonts could not be read from s3://bng-metric-report-fonts: The specified key does
+not exist. Falling back to the bundled NotoSans-Regular.ttf / NotoSans-Bold.ttf: reports
+will render in Noto Sans, not the typeface s3://bng-metric-report-fonts was configured to
+supply.
+```
+
+**Alert on that line** in any environment where the bucket is set. It fires once per
+instance start, and it is the difference between finding out at deploy time and finding out
+when somebody notices the letterforms.
+
+## The basemap, and crediting it
+
+The basemap is drawn whenever this service holds an `OS_API_KEY`. There is no separate
+switch: the `/os-tiles` routes are not registered without a key, so the absence of a
+credential shows up as the absence of a route rather than as an endpoint that always
+401s, and a deployment with no key produces the same correct report on a plain ground.
+
+### Two flavours, chosen per request
+
+One key, two basemap sources, because Ordnance Survey grants API access
+product-by-product and a key may hold either:
+
+|                     | `?basemap=vector` (default)                                       | `?basemap=raster`                |
+| ------------------- | ----------------------------------------------------------------- | -------------------------------- |
+| OS Data Hub product | **OS NGD API – Tiles** (`ngd-base` tileset)                       | **OS Maps API**                  |
+| What arrives        | Mapbox Vector Tiles, z0–15                                        | 256 px PNG rasters, z0–13        |
+| Plan ceiling        | none observed — z0–15 all serve                                   | OpenData stops at z9 (see below) |
+| In the PDF          | drawn as vector paths — crisp at any print size                   | placed as images                 |
+| Styling             | `ngd-light-style.js`, machine-extracted from OS's published style | OS's, baked into the pixels      |
+| Labels              | omitted (the report's tables carry the facts)                     | rendered by OS into the tile     |
+
+The report route takes `GET /projects/{id}/report.pdf?basemap=vector|raster`, so the
+two outputs can be compared like for like. Everything downstream of the tile source —
+`pickZoom`, the projector, the document builder — is shared; `drawBasemap` dispatches
+on the tile object itself (`{ png }` vs `{ layers }`). A flavour the key's products
+cannot serve degrades to a plain ground like any other basemap failure, it does not
+fail the report.
+
+**A tile that fails once drawing has started degrades too.** `resolveBasemap` only
+covers OS failing _before_ the first page is written. A tile that times out, 5xxs or
+arrives unreadable surfaces in the middle of the document, by which point the request
+has already committed to producing a report — so `drawDegradingToPlainGround`
+(`build-site-report.js`) catches exactly that and rebuilds the document from scratch
+with no basemap. From scratch because a half-written PDF cannot have its basemap
+swapped, and one drawn half on OS tiles and half on a plain ground would be worse than
+either. Only for an `OsTileError`, and only when OS tiles were in use at all: anything
+else is rethrown, because a renderer bug hidden behind a substituted basemap is a bug
+nobody ever finds. The digital prototype's `buildReport`, which shares this engine, has
+the same fallback for the same reason.
+
+The vector flavour uses the NGD API rather than the older OS Vector Tile API because
+OS have marked that product for retirement. Its style is not interpreted at runtime:
+`npm run extract:ngd-style` distils OS's published `light-27700` GL style into
+committed data (`src/services/report/pdf/ngd-light-style.js`), so builds and tests
+need no network and a style revision arrives as a reviewable diff. One consequence of
+NGD data worth knowing before judging output: at z12+ the tiles carry _surveyed
+topography_ (kerbs, walls, fences as they exist on the ground), so urban edge lines
+genuinely stop and start — that is the data, not a rendering fault.
+
+**Every map drawn from OS tiles carries its credit in the bottom-right corner** — both
+site maps, and every parcel thumbnail. A PDF cannot carry the dynamic credit control a
+browser map uses, so the wording is part of the picture, on a translucent plate so it
+reads over whatever mapping is underneath. The scale bar has the bottom left.
+
+The credit is drawn as an artifact, so assistive technology skips it: the identical
+string on fifty thumbnails would be fifty interruptions. The same wording is written
+once as a tagged paragraph under the site maps (`buildAttribution` in `legend.js`),
+which is where the reading order gets it.
+
+**No OS mapping is drawn into a frame that cannot carry a credit.** `fitCredit` is
+called before the tiles are fetched, and returning null is what withholds the basemap —
+so the guarantee holds by construction rather than by every call site remembering to
+pass the wording down. It is why blanking `OS_MAPS_ATTRIBUTION` and
+`OS_MAPS_ATTRIBUTION_SHORT` produces a report with no OS mapping at all rather than
+uncredited mapping.
+
+`OS_MAPS_ATTRIBUTION_SHORT` exists because a parcel thumbnail is 18 mm square: the full
+sentence cannot fit at any legible size, while `© Crown copyright` fits at 4.5 pt. Both
+strings are **provisional** — the required wording is OS's to dictate and has not been
+confirmed with them.
+
+### What crediting does not settle
+
+Attribution is one of the two licensing questions, and the smaller one.
+
+**Nobody has asked OS whether we may EMBED their mapping in a downloadable PDF.** That
+is a different question from displaying it in a browser, because a PDF can be forwarded,
+and no amount of correct crediting answers it. It has to be asked directly. Until it is,
+the lever is the key itself: no `OS_API_KEY` in an environment means no OS mapping in
+any report that environment produces, and the report renders on a plain ground, which
+needs no permission from anybody.
+
+### Configuration
+
+| Variable                     | Meaning                                                                                                                                                                                                     |
+| ---------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `OS_API_KEY`                 | OS Data Hub key. Needs **OS NGD API – Tiles** for the vector flavour and/or **OS Maps API** for raster. A CDP secret per environment, not `cdp-app-config`. Absent → no `/os-tiles` routes, and no basemap. |
+| `OS_MAPS_ATTRIBUTION`        | The credit burned into every map, and the tagged paragraph. Provisional wording.                                                                                                                            |
+| `OS_MAPS_ATTRIBUTION_SHORT`  | The credit used where the full wording will not fit legibly — thumbnails. Provisional wording.                                                                                                              |
+| `OS_MAPS_LAYER`              | One of the EPSG:27700 raster styles. Default `Light_27700`.                                                                                                                                                 |
+| `OS_MAPS_REQUEST_TIMEOUT_MS` | Deadline on one request to api.os.uk. Default 15 000. A connection that hangs rather than fails would otherwise cost the whole download, not one tile.                                                      |
+| `OS_MAPS_MAX_ZOOM`           | The **plan** ceiling — see below. Empty for Premium/PSGA.                                                                                                                                                   |
+
+**The plan caps resolution on the RASTER flavour only, and no amount of engineering
+changes it.** The vector flavour has shown no such ceiling. An OpenData-plan
+key serves EPSG:27700 up to z9 (1.75 m/px) and returns `403 "A Premium Plan is required
+to access Premium Data"` from z10 up, while `GetCapabilities` keeps succeeding — so the
+failure presents as a tile problem rather than a licensing one. Premium/PSGA reaches z13
+(0.109 m/px). Defra is a PSGA member, so the likely answer is an existing departmental
+project rather than a new key.
+
+`OS_MAPS_MAX_ZOOM` deliberately does **not** default to 9: defaulting to the free
+ceiling would silently discard resolution a Premium key has paid for. `pickZoom` clamps
+to whatever `/os-tiles/capabilities` publishes, so nothing that draws a map has to know
+anything about OS plans — the same reasoning that keeps the key out of it.
+
+Switching to EPSG:3857 does not escape the ceiling (~1.5 m/px at GB latitudes) and costs
+exact registration, so it is not an option.
+
+### What counts as a tile
+
+A raster tile is checked against the PNG and JPEG signatures before it is
+returned — not against its `content-type`. "200 OK" does not mean "a tile": a
+gateway in front of api.os.uk can answer a tile request with an HTML error
+page and a 200, and the header describes the page rather than the truth. Two
+things go wrong if the bytes are taken on trust:
+
+- the tile routes hand a browser an HTML page labelled `image/png`;
+- `drawBasemap` hands those bytes to pdfkit's `doc.image`, which throws a bare
+  `Error('Unknown image format.')`. Unclassified, that arrives at the builder
+  looking exactly like a fault in the drawing, so the report 500s instead of
+  falling back to a plain ground.
+
+The check runs in `upstream.js`, **before the caller caches the body** — tiles
+are held for a week by default, so one junk response would otherwise poison
+every later report and browser tile until it expired. `tile-source.js` checks
+again on the way into the renderer, which is the report declining to trust any
+tile source's bytes rather than relying on the service validating its own. The
+vector side gets the same treatment from `decode`, which is where the
+asymmetry was spotted in review on #297.
+
+### What a tile failure tells the caller
+
+The `/os-tiles` routes serve a browser map, so their failures reach a client. Every
+failure the service raises is an `OsTileError` (`services/os-tiles/errors.js`) that
+knows whether it came from Ordnance Survey or from here, and only one of the two can be
+repeated onward:
+
+| Raised by                                               | The caller gets                                        |
+| ------------------------------------------------------- | ------------------------------------------------------ |
+| this service — outside the grid, above the zoom ceiling | the message verbatim, `404`                            |
+| api.os.uk — 401, 403, 5xx, unreadable payload           | `Ordnance Survey basemap tiles are unavailable`, `502` |
+| api.os.uk — 404                                         | `That tile is not available`, `404`                    |
+
+Upstream wording is withheld for two reasons: it paraphrases a third-party response
+whose shape we do not control, and the text we write around it names the configuration
+to change (`OS_API_KEY`, `OS_MAPS_MAX_ZOOM`). The whole of it is logged, which is where
+it is actually actionable. OS's **status** is withheld for a third reason — a 401 from
+Ordnance Survey is this deployment's credential problem, not the caller's, and forwarded
+as-is it would tell a browser whose own token is perfectly valid to go and authenticate
+again. Their 404 is the exception: "no such tile" is a true answer to the question that
+was asked.
+
+Tile coordinates are validated as non-negative integers before any of that
+(`tileParams` in `plugins/os-tiles.js`), so no unvalidated fragment of a URL reaches a
+cache key, a log line or a response body.
+
+### Caching
+
+The tile cache is hapi's own. `plugins/os-tiles.js` provisions a dedicated catbox client
+(`@hapi/catbox-memory`, `maxByteSize` from `OS_MAPS_CACHE_MAX_BYTES`, TTL from
+`OS_MAPS_CACHE_TTL_SECONDS`) and hands the resulting policy to the service, whose
+`get`/`set` calls are catbox's own — so there is no cache implementation in this
+repository to maintain. A dedicated client rather than the server's default cache, so
+the tiles' byte budget is theirs alone and a busy report cannot evict whatever else the
+service caches later.
+
+It is measured in bytes rather than entries because that is what catbox counts, and it
+suits tiles: a sparse rural tile is a couple of kilobytes and a dense urban vector one
+is tens.
+
+Process-local is a deliberate starting point. This service has no Redis — the frontend
+has `ioredis` and `catbox-redis`, this side has neither — and per-instance caching
+already collapses the repeats _within_ one report, which is where the bulk of the
+duplication is (neighbouring parcels overlap). If cross-instance reuse turns out to
+matter it is now a **provisioning** change rather than a code one: swap the provider for
+`@hapi/catbox-redis` in `provisionTileCache`. NRF's
+`nrf-frontend/src/server/common/services/tile-cache.js` is the shape to copy.
+
+### One thing that made the document quadratic
+
+A thumbnail is clipped to its own 18 mm square, and `drawContext` drew EVERY other
+parcel into every one of them for orientation. Off-frame geometry is still written into
+the content stream before the clip discards it, so each parcel carried an invisible copy
+of every other parcel: on 250 parcels at ~900 vertices, a **404 MB document that took 57
+seconds** to build. Filtering the context layer by envelope overlap — bounding boxes, so
+any parcel that clips the frame is still drawn in full and the picture is unchanged —
+brings the same report to **2.9 MB and 1.5 seconds**.
+
+Worth knowing because it is invisible on a small fixture: the two-parcel example site
+draws both parcels in both thumbnails either way, so nothing in the output changes and
+only the size of a large report reveals it.
+
+## Cost
+
+Measured on a 50-parcel site read from real PostGIS, with no basemap: **184 kB, ~190 ms**.
+Compute is not the constraint, so generating a report while the user waits is realistic.
+With a basemap the cost becomes _network_ — roughly 30 tile fetches per site map, more
+with parcel thumbnails — which is what to measure before ruling out a synchronous
+response.
+
+If report sizes ever grow past a few megabytes, streaming rather than buffering is the
+change to make (`toBuffer` in `build-site-report.js`); buffering buys a definite
+`content-length`, which is what lets a browser show download progress.
+
+### The ceiling on one report
+
+Those numbers describe a 50-parcel site. Nothing upstream bounds how many features a
+project may hold, and the whole document is built in memory — so a project with a
+pathological number of digitised parcels, whether legitimately enormous or the result of
+a malformed upload, would otherwise cost a shared process an arbitrary amount of memory
+and an arbitrarily long synchronous render. Every layer read is therefore capped at
+`REPORT_MAX_FEATURES_PER_LAYER` (default **250**).
+
+Measured at that ceiling, on parcels of ~900 vertices each — the density a real survey
+has, taking 225,748 vertices across one file from the GEOS slivers check as the
+reference point:
+
+| At the cap    | Table layout   | Cards layout   |
+| ------------- | -------------- | -------------- |
+| 250 per layer | 2.9 MB / 1.5 s | 3.8 MB / 2.8 s |
+| 500 per layer | 5.8 MB / 2.8 s | 7.6 MB / 5.9 s |
+
+500 was the first choice and is what the earlier revision of this document claimed held
+the worst case to "roughly 2 MB and a couple of seconds". That was an extrapolation from
+the 50-parcel figure and it was wrong in both directions — the growth is not linear, and
+the cards layout was not measured at all. 250 is the value the measurements support: it
+stays inside the few-megabytes mark this page names as the point to start streaming,
+while remaining five times the largest example site.
+
+The cap is applied in SQL — `.limit(cap + 1)` in `db/project-geometry.js` — rather than
+after the rows arrive, because slicing in JavaScript would still have read and parsed
+every row of an arbitrarily large layer, which is the cost being avoided. The one extra
+row is what distinguishes "this layer has exactly 500" from "this layer has more".
+
+**A capped report says so**, in a tagged paragraph above the key figures (`addCappedNote`
+in `summary-page.js`): _"This report shows the first 500 of 1240 baseline habitat
+parcels."_ Every page after that point is internally consistent and quietly wrong — a
+site map missing a third of its parcels looks exactly like a complete map of a smaller
+site, and the key figures count what was read rather than what exists — so the caveat
+comes before anything a reader might act on. The request log records it as well
+(`stats.capped`).
+
+A genuine site that needs more than 250 is a reason to stream and paginate, not a reason
+to raise the number.
+
+### What the cap does not bound: geometry size
+
+**The cap counts features, not their vertices, and nothing anywhere caps those.** Upload
+limits the file's BYTES (`UPLOAD_MAX_FILE_SIZE_BYTES`) and the validation suite checks
+geometry validity, but no check bounds how detailed one parcel may be — so a file of
+pathologically dense boundaries is still unbounded work for this route. Measured: 250
+parcels at 10,000 vertices each is a **40 MB, 13-second** report, inside the feature cap
+the whole way.
+
+That is the remaining half of the concern raised in review on #297, and it needs a
+decision rather than a default:
+
+- **Simplify on read** — `ST_SimplifyPreserveTopology` at a tolerance below what the
+  page can resolve (a site map draws ~1–2 m to the point, a thumbnail ~1 m, so 0.25 m is
+  sub-pixel on both). Bounds the payload and costs nothing visible, but it does mean the
+  report no longer draws the stored coordinates exactly, which is a claim this document
+  makes elsewhere and the registration test pins.
+- **Simplify only the outliers** — leave any parcel under N vertices byte-exact and
+  reduce only the ones above it, so ordinary sites are untouched and only a pathological
+  one is approximated. More code, no change to any real report.
+- **Reject beyond a vertex budget**, and tell the user their file is too detailed to
+  report on. Honest, but it turns a slow download into no download.
+
+Until one is chosen, the bound is the feature cap plus the upload size limit.
