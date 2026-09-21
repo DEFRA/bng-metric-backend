@@ -146,7 +146,7 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
   tradingBroadHabitat: Joi.string()
     .required()
     .description(
-      'Broad habitat this habitat\'s net unit change is cumulated under for trading, which is its own broad habitat except for the two intertidal ones, which share the merged group "Intertidal sediment and hard structures" (AC3). Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
+      'Broad habitat this habitat\'s net unit change is cumulated under for trading. It is the habitat\'s own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group "Intertidal sediment and hard structures" (AC3). The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
     ),
   distinctiveness: Joi.string()
     .required()
