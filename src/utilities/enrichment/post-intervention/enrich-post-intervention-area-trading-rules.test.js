@@ -307,3 +307,96 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     })
   })
 })
+
+// A GeoPackage is validated on upload, but a feature can still reach here with
+// a missing sub-object — an Incomplete row, a partially applied edit, or a
+// document written before a field existed. None of it should throw, and none of
+// it should quietly attribute units to the wrong habitat.
+describe('enrichPostInterventionAreaTradingRules — incomplete features', () => {
+  test('skips a Retained feature that carries no baseline habitat', () => {
+    const postIntervention = {
+      habitats: [
+        { featureId: 'no-baseline', retentionCategory: 'Retained', units: 5 }
+      ]
+    }
+
+    enrichPostInterventionAreaTradingRules(postIntervention)
+
+    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+  })
+
+  test('skips a Created feature that carries no proposed habitat', () => {
+    const postIntervention = {
+      habitats: [
+        { featureId: 'no-proposed', retentionCategory: 'Created', units: 5 }
+      ]
+    }
+
+    enrichPostInterventionAreaTradingRules(postIntervention)
+
+    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+  })
+
+  test('warns without an id or a type when the feature carries neither', () => {
+    // The warning is the only record that units were dropped, so it has to
+    // survive a feature with nothing useful to name it by.
+    const logger = { warn: vi.fn() }
+
+    enrichPostInterventionAreaTradingRules(
+      { habitats: [{ retentionCategory: 'Created', units: 5 }] },
+      {},
+      logger
+    )
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('featureId unknown')
+    )
+  })
+
+  test('skips a null entry in the baseline habitats', () => {
+    const postIntervention = { habitats: [] }
+
+    expect(() =>
+      enrichPostInterventionAreaTradingRules(postIntervention, {
+        habitats: [null]
+      })
+    ).not.toThrow()
+    expect(postIntervention.tradingRules.areaHabitats.habitats).toEqual([])
+  })
+})
+
+describe('enrichPostInterventionAreaTradingRules — the warning message', () => {
+  const warningFor = (type) => {
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionAreaTradingRules(
+      {
+        habitats: [
+          {
+            featureId: 'f1',
+            retentionCategory: 'Created',
+            units: 5,
+            proposed: { broadType: 'Lakes', type }
+          }
+        ]
+      },
+      {},
+      logger
+    )
+    return logger.warn.mock.calls[0][0]
+  }
+
+  test('names an unrecognised habitat type plainly', () => {
+    expect(warningFor('Not a real habitat')).toContain(
+      "habitat type 'Not a real habitat'"
+    )
+  })
+
+  test('does not log a non-string type as [object Object]', () => {
+    // The value is whatever the GeoPackage carried. An operator reading this
+    // warning needs to see what was actually in the file.
+    const warning = warningFor({ name: 'Reservoirs' })
+
+    expect(warning).not.toContain('[object Object]')
+    expect(warning).toContain('{"name":"Reservoirs"}')
+  })
+})

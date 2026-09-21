@@ -29,6 +29,9 @@ import {
   resolveRetentionCategory
 } from './retention-category.js'
 
+/** Used when no logger is supplied; a dropped feature is then simply dropped. */
+const NO_OP_LOGGER = { warn: () => {} }
+
 const LOG_PREFIX = 'enrichAreaTradingRules: '
 
 /**
@@ -81,8 +84,16 @@ function addFeatureUnits(unitsByType, feature, habitatProxy, logger) {
   }
   const habitatKey = engineHabitatKey(habitatProxy)
   if (!habitatKey) {
+    // The type is whatever the GeoPackage carried, so it is not necessarily a
+    // string. Anything else is JSON-stringified rather than left to land in the
+    // log as "[object Object]", which names nothing an operator can act on.
+    const rawType = habitatProxy?.type
+    const reportedType =
+      typeof rawType === 'string' || rawType == null
+        ? (rawType ?? '')
+        : JSON.stringify(rawType)
     logger.warn(
-      `${LOG_PREFIX}featureId ${feature?.featureId ?? 'unknown'}: habitat type '${habitatProxy?.type ?? ''}' is not in the reference data, excluded from trading rules`
+      `${LOG_PREFIX}featureId ${feature?.featureId ?? 'unknown'}: habitat type '${reportedType}' is not in the reference data, excluded from trading rules`
     )
     return
   }
@@ -125,7 +136,7 @@ function sumUnitsByHabitat(collections, habitatOf, logger) {
 export function enrichPostInterventionAreaTradingRules(
   postInterventionDocument,
   baselineDocument = {},
-  logger = { warn: () => {} }
+  logger = NO_OP_LOGGER
 ) {
   const deliveredUnitsByType = sumUnitsByHabitat(
     [postInterventionDocument?.habitats, postInterventionDocument?.trees],

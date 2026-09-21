@@ -434,3 +434,67 @@ describe('setProjectFeature — postIntervention', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 })
+
+describe('setProjectFeature — trading rules', () => {
+  // A habitat edit moves units between habitat types, so the caller recomputes
+  // the trading-rules figures and passes them in to be written in the same
+  // surgical update as the feature and the totals.
+  const validTradingRules = {
+    areaHabitats: {
+      habitats: [
+        {
+          habitatType: 'Lakes - Reservoirs',
+          broadHabitat: 'Lakes',
+          tradingBroadHabitat: 'Lakes',
+          distinctiveness: 'Medium',
+          netUnitChange: -3
+        }
+      ],
+      medium: {
+        broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: -3 }],
+        surplus: 0,
+        deficit: -3
+      },
+      low: { netChange: 2, cumulativeAvailability: 2 }
+    }
+  }
+
+  test('writes the trading rules when they are supplied', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: validPostInterventionHabitat,
+      unitsTotals: validUnitsTotals,
+      tradingRules: validTradingRules,
+      actorId: ACTOR_ID
+    })
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects trading rules that fail their schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: validPostInterventionHabitat,
+        unitsTotals: validUnitsTotals,
+        tradingRules: {
+          areaHabitats: {
+            ...validTradingRules.areaHabitats,
+            // The band aggregates are numbers; a string must not reach the
+            // document, where every downstream consumer would trust it.
+            medium: { ...validTradingRules.areaHabitats.medium, surplus: 'up' }
+          }
+        },
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
