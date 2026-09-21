@@ -303,10 +303,7 @@ describe('enrichPostInterventionAreaTradingRules', () => {
     expect(postIntervention.tradingRules.areaHabitats).toEqual({
       habitatTypes: [],
       medium: { broadHabitats: [], surplus: 0, deficit: 0 },
-      low: { netUnitChange: 0, cumulativeAvailability: 0 },
-      // Nothing to trade is nothing failing: no broad habitat is in deficit
-      // and nothing is owed, so the rules are met vacuously.
-      statuses: { medium: 'Met', low: 'Met', overall: 'Met' }
+      low: { netUnitChange: 0, cumulativeAvailability: 0 }
     })
   })
 })
@@ -401,100 +398,5 @@ describe('enrichPostInterventionAreaTradingRules — the warning message', () =>
 
     expect(warning).not.toContain('[object Object]')
     expect(warning).toContain('{"name":"Reservoirs"}')
-  })
-})
-
-describe('enrichPostInterventionAreaTradingRules — statuses', () => {
-  test('reports Not met when a Medium broad habitat is in deficit', () => {
-    // Lakes loses 3 units with nothing replacing them. A deficit in any one
-    // Medium broad habitat fails the band, and with it the site.
-    const postIntervention = {
-      habitats: [
-        piFeature({
-          retentionCategory: 'Created',
-          proposedBroad: 'Lakes',
-          proposedType: RESERVOIRS,
-          units: 1
-        })
-      ]
-    }
-    const baseline = {
-      habitats: [{ broadType: 'Lakes', type: RESERVOIRS, units: 4 }]
-    }
-
-    enrichPostInterventionAreaTradingRules(postIntervention, baseline)
-
-    expect(postIntervention.tradingRules.areaHabitats.statuses).toEqual({
-      medium: 'Not met',
-      low: 'Met',
-      overall: 'Not met'
-    })
-  })
-
-  test('reports Met when every broad habitat is in surplus', () => {
-    const postIntervention = {
-      habitats: [
-        piFeature({
-          retentionCategory: 'Created',
-          proposedBroad: 'Lakes',
-          proposedType: RESERVOIRS,
-          units: 6
-        })
-      ]
-    }
-    const baseline = {
-      habitats: [{ broadType: 'Lakes', type: RESERVOIRS, units: 4 }]
-    }
-
-    enrichPostInterventionAreaTradingRules(postIntervention, baseline)
-
-    expect(postIntervention.tradingRules.areaHabitats.statuses).toEqual({
-      medium: 'Met',
-      low: 'Met',
-      overall: 'Met'
-    })
-  })
-
-  test('fails the site on the Medium band even where the Low band passes', () => {
-    // The case the engine exists to get right. A Medium parcel is fully
-    // enhanced into another broad habitat, a second Medium parcel is lost and
-    // a Low parcel is lost. The Medium surplus carries down whole, so the Low
-    // band has units to spare and passes — but the deficit it was allowed to
-    // ignore still fails the Medium band, and the site with it.
-    const postIntervention = {
-      habitats: [
-        piFeature({
-          featureId: 'enhanced-into-grassland',
-          retentionCategory: 'Enhanced',
-          proposedBroad: 'Grassland',
-          proposedType: NEUTRAL_GRASSLAND,
-          units: 10
-        })
-      ]
-    }
-    const baseline = {
-      habitats: [
-        {
-          broadType: 'Cropland',
-          type: 'Arable field margins tussocky',
-          units: 4
-        },
-        { broadType: 'Lakes', type: RESERVOIRS, units: 4 },
-        { broadType: 'Grassland', type: MODIFIED_GRASSLAND, units: 5 }
-      ]
-    }
-
-    enrichPostInterventionAreaTradingRules(postIntervention, baseline)
-
-    const { medium, low, statuses } = postIntervention.tradingRules.areaHabitats
-
-    expect(medium.surplus).toBe(10)
-    expect(medium.deficit).toBe(-8)
-    expect(low.cumulativeAvailability).toBe(5)
-    expect(statuses).toEqual({
-      medium: 'Not met',
-      low: 'Met',
-      overall: 'Not met'
-    })
   })
 })

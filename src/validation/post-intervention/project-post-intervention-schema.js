@@ -424,9 +424,6 @@ const postInterventionWatercourseSchema = Joi.object({
 // Trading rules
 // ──────────────────────────────────────────────────────────────────────────────
 
-/** The two statuses a trading rule resolves to, as bng-library names them. */
-const TRADING_RULE_STATUSES = ['Met', 'Not met']
-
 const areaHabitatTradingRulesSchema = Joi.object({
   habitatTypes: Joi.array()
     .items(tradingRulesHabitatNetChangeSchema)
@@ -474,33 +471,9 @@ const areaHabitatTradingRulesSchema = Joi.object({
       .description(
         'Units available to the Low band once the Medium surplus is carried down: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. Deliberately NOT the Statutory Metric\'s "Cumulative surplus of units", which is lower by the absolute Medium deficit (23.1012 against 32.5222 on the worked example). A Met/Not-met status must account for that deficit in its own right.'
       )
-  }).description('Low-distinctiveness band aggregates (AC6, AC7).'),
-  statuses: Joi.object({
-    medium: Joi.string()
-      .valid(...TRADING_RULE_STATUSES)
-      .allow(null)
-      .required()
-      .description(
-        'Medium band: "Not met" when any Medium broad habitat is in deficit, otherwise "Met". A broad habitat that nets to exactly zero is not in deficit. Null when no post-intervention file has been uploaded, since the rule requires both files.'
-      ),
-    low: Joi.string()
-      .valid(...TRADING_RULE_STATUSES)
-      .allow(null)
-      .required()
-      .description(
-        'Low band: "Not met" when `low.cumulativeAvailability` is below zero, otherwise "Met". Null when no post-intervention file has been uploaded, since the rule requires both files.'
-      ),
-    overall: Joi.string()
-      .valid(...TRADING_RULE_STATUSES)
-      .required()
-      .description(
-        'The status to display for area habitats: "Not met" when either band is, otherwise "Met". This is the field to read — it is the pairing that makes the Low band figure safe to use, since that figure deliberately ignores a Medium deficit the metric spreadsheet would net off. Reading `low` alone can report a site compliant that the spreadsheet reports short.'
-      )
-  }).description(
-    'Met / Not-met statuses derived from the figures above by bng-library, so that no consumer combines them itself.'
-  )
+  }).description('Low-distinctiveness band aggregates (AC6, AC7).')
 }).description(
-  'Area-habitat trading-rules unit figures and the statuses derived from them.'
+  'Area-habitat trading-rules unit figures. The Met / Not-met statuses are a pure function of these and are derived on read, not stored.'
 )
 
 const tradingRulesSchema = Joi.object({

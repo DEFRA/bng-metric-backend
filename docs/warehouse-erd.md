@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**20 tables**, mapping 330 schema fields.
+**20 tables**, mapping 327 schema fields.
 
 ## Diagram
 
@@ -373,7 +373,7 @@ Total feature sizes by module, measured from geometry in PostGIS. The five sub-g
 
 ### `feature_set_trading_rules`
 
-Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set. 7 column(s) mapped from the JSON document.
+Trading-rules unit figures for the post-intervention document (area habitats today; hedgerows and watercourses follow). Absent on the baseline feature set. 4 column(s) mapped from the JSON document.
 
 | Column                                      | Type      | Key | JSON path                                                               | Notes                                       |
 | ------------------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ------------------------------------------- |
@@ -383,9 +383,6 @@ Trading-rules unit figures for the post-intervention document (area habitats tod
 | `area_habitats_medium_deficit`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`             |                                             |
 | `area_habitats_low_net_unit_change`         | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`          |                                             |
 | `area_habitats_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability` |                                             |
-| `area_habitats_statuses_medium`             | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.medium`            |                                             |
-| `area_habitats_statuses_low`                | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.low`               |                                             |
-| `area_habitats_statuses_overall`            | `text`    |     | `postIntervention.tradingRules.areaHabitats.statuses.overall`           |                                             |
 
 ### `feature_set_trading_rules_area_habitat_types`
 

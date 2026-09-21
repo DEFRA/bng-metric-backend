@@ -39,6 +39,8 @@
  *    change of any value would be a fiction.
  */
 
+import { areaTradingRuleStatuses } from '../../utilities/project/area-trading-rule-statuses.js'
+
 /** The statutory net gain. No project carries a target of its own yet. */
 const NET_GAIN_TARGET_PERCENTAGE = 10
 
@@ -270,11 +272,12 @@ function summariseUnitType(unitType, baseline, postIntervention) {
  * The trading-rules status to show for a unit type, or null for no tag.
  *
  * Unlike every other figure on this page, this one is not shaped here and is
- * not a second copy of a frontend rule: the status is derived once by
- * bng-library and stored on the document, and both this report and the screen
- * read the same stored value. Deriving it twice is what the rule is designed to
- * prevent — the Low band figure deliberately ignores a Medium deficit the
- * metric spreadsheet nets off, and is only safe read alongside the Medium band.
+ * not a second copy of a frontend rule. It comes from the same derivation the
+ * project API serves, which wraps bng-library — so the report and the screen
+ * cannot disagree without the engine disagreeing with itself. Deriving it twice
+ * is what that arrangement exists to prevent: the Low band figure deliberately
+ * ignores a Medium deficit the metric spreadsheet nets off, and is only safe
+ * read alongside the Medium band.
  *
  * Only area habitats carry one so far. Hedgerow and watercourse trading rules
  * are separate work, and their tiles stay untagged until they land.
@@ -287,17 +290,12 @@ function tradingRulesStatusFor(key, postIntervention) {
   if (key !== AREA_HABITATS_KEY) {
     return null
   }
-  // With no post-intervention document there is nothing to trade against, and
-  // the report says so — matching the screen, which shows the same.
-  if (!postIntervention) {
-    return { text: NOT_MET, met: false }
-  }
 
-  const status = postIntervention.tradingRules?.areaHabitats?.statuses?.overall
-  if (status !== MET && status !== NOT_MET) {
+  const { overall } = areaTradingRuleStatuses(postIntervention)
+  if (overall !== MET && overall !== NOT_MET) {
     return null
   }
-  return { text: status, met: status === MET }
+  return { text: overall, met: overall === MET }
 }
 
 /**

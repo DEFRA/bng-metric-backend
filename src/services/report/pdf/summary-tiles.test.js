@@ -210,18 +210,29 @@ describe('the tile geometry', () => {
 })
 
 describe('the trading-rules tile', () => {
-  const siteWithTradingRules = (overall) => {
+  const siteWithFigures = () => {
     const site = postInterventionSite()
-    site.tradingRules = { areaHabitats: { statuses: { overall } } }
+    // Lakes is in deficit, so the Medium band fails and the site with it.
+    site.tradingRules = {
+      areaHabitats: {
+        habitatTypes: [],
+        medium: {
+          broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: -4 }],
+          surplus: 0,
+          deficit: -4
+        },
+        low: { netUnitChange: 2, cumulativeAvailability: 2 }
+      }
+    }
     return site
   }
 
-  test('tags the tile with the stored status, as words', async () => {
+  test('tags the tile with the derived verdict, as words', async () => {
     // Same rule the net-gain tag follows: real text on a coloured panel, never
     // colour alone, so the verdict reaches assistive technology.
     const tagged = await render({
       baseline: baselineSite(),
-      postIntervention: siteWithTradingRules('Not met')
+      postIntervention: siteWithFigures()
     })
     const untagged = await render({
       baseline: baselineSite(),
@@ -231,19 +242,20 @@ describe('the trading-rules tile', () => {
     expect(countOf(tagged, '/S /P')).toBe(countOf(untagged, '/S /P') + 1)
   })
 
-  test('draws no tag for a status it does not recognise', async () => {
-    // A document written before the figures existed, or by a future version
-    // using a word this one does not know. The tile keeps its shape and says
-    // nothing, rather than claiming a verdict it does not have.
-    const unrecognised = await render({
-      baseline: baselineSite(),
-      postIntervention: siteWithTradingRules('Probably')
-    })
+  test('draws no tag before the figures were calculated', async () => {
+    // Unknown is not the same as failed, so the tile keeps its shape rather
+    // than claiming a verdict. Asserted here only as the absence that makes
+    // the count above meaningful — which verdict is reached for which figures
+    // is unit-summary.test.js's job, where it can be read directly.
     const uncalculated = await render({
       baseline: baselineSite(),
       postIntervention: postInterventionSite()
     })
+    const tagged = await render({
+      baseline: baselineSite(),
+      postIntervention: siteWithFigures()
+    })
 
-    expect(countOf(unrecognised, '/S /P')).toBe(countOf(uncalculated, '/S /P'))
+    expect(countOf(uncalculated, '/S /P')).toBe(countOf(tagged, '/S /P') - 1)
   })
 })

@@ -332,7 +332,13 @@ describe('#createProject', () => {
     const result = await createProject.handler(request, {})
 
     expect(drizzle.insert).toHaveBeenCalled()
-    expect(result).toEqual({ ...newProject, projectId: newProject.id })
+    expect(result).toEqual({
+      ...newProject,
+      projectId: newProject.id,
+      tradingRuleStatuses: {
+        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+      }
+    })
   })
 
   test('Should derive userId and org context from the token', async () => {
@@ -472,7 +478,15 @@ describe('#getProject', () => {
 
     expect(drizzle.select).toHaveBeenCalled()
     expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual({ ...mockProjects[0], projectId: PROJECT_1_ID })
+    // The statuses ride on the envelope, derived per request. With no
+    // post-intervention file there is nothing to trade against.
+    expect(result).toEqual({
+      ...mockProjects[0],
+      projectId: PROJECT_1_ID,
+      tradingRuleStatuses: {
+        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+      }
+    })
   })
 
   test('Should throw 404 when project not found or not visible', async () => {
@@ -684,7 +698,13 @@ describe('#updateProject', () => {
       lastModifiedBy: USER_001
     })
     expect(drizzle._chain.where).toHaveBeenCalled()
-    expect(result).toEqual({ ...updatedProject, projectId: PROJECT_1_ID })
+    expect(result).toEqual({
+      ...updatedProject,
+      projectId: PROJECT_1_ID,
+      tradingRuleStatuses: {
+        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+      }
+    })
   })
 
   test('Should throw 404 when project to update is not found or not visible', async () => {
