@@ -1,0 +1,30 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="37" author="bng-team">
+        <comment>
+            A Defra ID session survives an organisation switch, but the switch is
+            a new interactive sign-in with a new active relationship. Replace
+            the session-only de-duplication key with session plus active
+            relationship so each organisation context is audited, while retries
+            of the same sign-in remain a no-op. The append-only guard triggers
+            are deliberately unchanged.
+        </comment>
+        <dropUniqueConstraint schemaName="bng" tableName="login_audit"
+            constraintName="uq_login_audit_session_id"/>
+        <addUniqueConstraint schemaName="bng" tableName="login_audit"
+            columnNames="session_id, current_relationship_id"
+            constraintName="uq_login_audit_session_relationship"/>
+        <rollback>
+            <dropUniqueConstraint schemaName="bng" tableName="login_audit"
+                constraintName="uq_login_audit_session_relationship"/>
+            <addUniqueConstraint schemaName="bng" tableName="login_audit"
+                columnNames="session_id" constraintName="uq_login_audit_session_id"/>
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

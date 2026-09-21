@@ -155,6 +155,8 @@ describe('persistSession', () => {
     })
     // De-dup on session_id via DO NOTHING (never DO UPDATE — the append-only
     // guard rejects UPDATE).
-    expect(auditCall.conflict).toEqual({ target: loginAudit.sessionId })
+    expect(auditCall.conflict).toEqual({
+      target: [loginAudit.sessionId, loginAudit.currentRelationshipId]
+    })
   })
 })

@@ -87,7 +87,7 @@ An append-only record of every successful user login, capturing the user identit
 | `email`                   | `text`                     | ✓        | —      | —                   |
 | `first_name`              | `text`                     | ✓        | —      | —                   |
 | `last_name`               | `text`                     | ✓        | —      | —                   |
-| `current_relationship_id` | `text`                     | ✓        | —      | —                   |
+| `current_relationship_id` | `text`                     | ✓        | UNIQUE | —                   |
 | `session_id`              | `text`                     | ✓        | UNIQUE | —                   |
 | `logged_in_at`            | `timestamp with time zone` | —        | —      | `now()`             |
 

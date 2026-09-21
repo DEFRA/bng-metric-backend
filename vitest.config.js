@@ -33,7 +33,10 @@ export default defineConfig({
         // however well it is exercised. Its behaviour is covered by
         // geos/worker-pool.test.js (which drives real workers) and by
         // integration-tests/validation-engine-modes.test.js.
-        'src/validation/geopackage/geos/worker.js'
+        'src/validation/geopackage/geos/worker.js',
+        // Test-only worker entry point. Like the production worker above, it
+        // runs outside the process collecting V8 coverage.
+        'src/validation/geopackage/geos/worker-pool.timeout-test-worker.js'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

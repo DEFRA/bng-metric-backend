@@ -80,7 +80,13 @@ function findExampleFilesDir() {
     .filter((entry) => entry.isDirectory())
     .map((entry) => path.join(parent, entry.name))
     .find(isHarnessCheckout)
-  return harness ? path.join(harness, 'example-files') : null
+  const exampleFiles = harness ? path.join(harness, 'example-files') : null
+  const hasCompleteCorpus =
+    exampleFiles &&
+    Object.keys(verdicts).every((relativePath) =>
+      fs.existsSync(path.join(exampleFiles, relativePath))
+    )
+  return hasCompleteCorpus ? exampleFiles : null
 }
 
 const EXAMPLE_FILES_DIR = findExampleFilesDir()

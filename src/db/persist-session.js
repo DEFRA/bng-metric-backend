@@ -9,8 +9,8 @@
 // (6/7) on the next login rather than vanishing. `sql\`excluded.<col>\`` is used
 // in every `set` (not the JS value) so concurrent logins for the same user
 // converge on the row the database actually wrote. The login_audit append is
-// de-duplicated on session_id (ON CONFLICT DO NOTHING), so a repeat login for
-// the same session records nothing new but still refreshes the user row.
+// de-duplicated on session_id plus current_relationship_id (ON CONFLICT DO
+// NOTHING), so a retry records nothing new but still refreshes the user row.
 //
 // PII safety: this module must NOT log `claims` or any token contents (email,
 // names). Callers log at most the `sub`.
@@ -124,7 +124,7 @@ async function upsertRoles(tx, userId, userRoles) {
  * Persist the logged-in user's identity, org relationships and roles, and append
  * an immutable login-audit row, in one atomic transaction. Idempotent: a repeat
  * login upserts the user in place (no dupes, status / last_login refreshed) and
- * appends at most one login_audit row per session (de-duplicated on session_id).
+ * appends at most one login_audit row per session and active relationship.
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
  * @param {object} claims verified Defra ID token payload (must carry `sub`)

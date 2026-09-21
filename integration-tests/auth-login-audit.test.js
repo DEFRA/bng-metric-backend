@@ -27,7 +27,7 @@ afterAll(async () => {
 
 // The login is recorded as a side effect of the POST /auth/session workflow —
 // there is no dedicated audit endpoint. Identity comes solely from the verified
-// token, and the append is de-duplicated on session_id.
+// token, and the append is de-duplicated on session ID plus active relationship.
 async function postSession(token) {
   return server.inject({
     method: 'POST',
@@ -72,9 +72,14 @@ describe('login audit via POST /auth/session', () => {
     expect(rows[0].logged_in_at).toBeInstanceOf(Date)
   })
 
-  it('is a graceful no-op for a repeat login with the same session id (no duplicate, still 204)', async () => {
+  it('is a graceful no-op for a repeat login with the same session and relationship (no duplicate, still 204)', async () => {
     const sub = `it-${randomUUID()}`
-    const claims = { sub, email: 'grace@example.test', sessionId: 'sess-dup' }
+    const claims = {
+      sub,
+      email: 'grace@example.test',
+      sessionId: 'sess-dup',
+      currentRelationshipId: 'rel-dup'
+    }
 
     const first = await postSession(await mintToken(claims))
     const second = await postSession(await mintToken(claims))
@@ -88,13 +93,53 @@ describe('login audit via POST /auth/session', () => {
     expect(rows[0].session_id).toBe('sess-dup')
   })
 
-  it('records a new row for each distinct session of the same user', async () => {
+  it('records one login for each browser signed in under different organisations', async () => {
     const sub = `it-${randomUUID()}`
-    await postSession(await mintToken({ sub, sessionId: 'sess-1' }))
-    await postSession(await mintToken({ sub, sessionId: 'sess-2' }))
+    await postSession(
+      await mintToken({
+        sub,
+        sessionId: 'browser-1-session',
+        currentRelationshipId: 'rel-org-a'
+      })
+    )
+    await postSession(
+      await mintToken({
+        sub,
+        sessionId: 'browser-2-session',
+        currentRelationshipId: 'rel-org-b'
+      })
+    )
 
     const { rows } = await loginRows(sub)
-    expect(rows.map((r) => r.session_id)).toEqual(['sess-1', 'sess-2'])
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.session_id)).toEqual([
+      'browser-1-session',
+      'browser-2-session'
+    ])
+    expect(rows.map((row) => row.current_relationship_id)).toEqual([
+      'rel-org-a',
+      'rel-org-b'
+    ])
+  })
+
+  it('records an organisation switch in the same browser as a distinct login', async () => {
+    const sub = `it-${randomUUID()}`
+    const sessionId = 'shared-browser-session'
+
+    await postSession(
+      await mintToken({ sub, sessionId, currentRelationshipId: 'rel-org-a' })
+    )
+    await postSession(
+      await mintToken({ sub, sessionId, currentRelationshipId: 'rel-org-b' })
+    )
+
+    const { rows } = await loginRows(sub)
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.current_relationship_id).sort()).toEqual([
+      'rel-org-a',
+      'rel-org-b'
+    ])
+    expect(rows.map((row) => row.session_id)).toEqual([sessionId, sessionId])
   })
 
   it('still records a login when the token carries no session id (null session_id)', async () => {

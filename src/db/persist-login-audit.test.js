@@ -35,10 +35,10 @@ describe('insertLoginAudit', () => {
       currentRelationshipId: 'rel-1',
       sessionId: 'sess-1'
     })
-    // Repeat logins for the same session are a graceful no-op, never a DO UPDATE
+    // Repeat logins for the same session and relationship are a no-op, never a DO UPDATE
     // (which the append-only guard would reject).
     expect(onConflictDoNothing).toHaveBeenCalledWith({
-      target: loginAudit.sessionId
+      target: [loginAudit.sessionId, loginAudit.currentRelationshipId]
     })
   })
 

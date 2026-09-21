@@ -3,9 +3,9 @@
 // VERIFIED token payload (never the frontend's parsed claims), inside the same
 // transaction as the user/relationship/role upserts.
 //
-// De-dup: session_id is UNIQUE and the insert uses ON CONFLICT DO NOTHING, so a
-// repeat login for an already-recorded session is a graceful no-op — the table
-// records distinct logins, not endpoint calls. DO NOTHING (never DO UPDATE)
+// De-dup: session_id plus current_relationship_id is UNIQUE and the insert uses
+// ON CONFLICT DO NOTHING, so a retry for the same login is a graceful no-op,
+// while an organisation switch is retained. DO NOTHING (never DO UPDATE)
 // keeps this compatible with the append-only guard, which rejects UPDATE.
 // The row is immutable once written (guard triggers in db.changelog-1.10.xml).
 //
@@ -29,7 +29,7 @@ function loginAuditValues(claims) {
 
 /**
  * Append one immutable login-audit row for the authenticated user, de-duplicated
- * on session_id (a repeat login for the same session is a graceful no-op).
+ * on session_id plus current_relationship_id (a repeat login is a no-op).
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} db drizzle handle
  *   or a transaction (persist-session passes its tx)
@@ -40,7 +40,9 @@ async function insertLoginAudit(db, claims) {
   await db
     .insert(loginAudit)
     .values(loginAuditValues(claims))
-    .onConflictDoNothing({ target: loginAudit.sessionId })
+    .onConflictDoNothing({
+      target: [loginAudit.sessionId, loginAudit.currentRelationshipId]
+    })
 }
 
 export { insertLoginAudit }

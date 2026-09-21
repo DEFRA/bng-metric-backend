@@ -296,6 +296,8 @@ export class ValidationTimeoutError extends Error {
  * @property {number} timeoutMs per-job budget before the worker is killed
  * @property {number} queueWaitLimitMs longest a job may wait to START before it
  *   is refused instead
+ * @property {string|URL} [workerPath] worker module to run (test seam; defaults
+ *   to the GEOS validation worker)
  * @property {number} [admissionLimit] requests allowed in flight at once, from
  *   admission through to response. Bounds I/O rather than CPU, so it is a much
  *   larger number than `queueLimit`. Unbounded when omitted.
@@ -312,6 +314,7 @@ export class GeosWorkerPool {
     timeoutMs,
     queueWaitLimitMs = Infinity,
     admissionLimit = Infinity,
+    workerPath = WORKER_PATH,
     onFatal = exitProcessAfterFlush
   }) {
     const sizing = resolveWorkerCount(size)
@@ -320,6 +323,7 @@ export class GeosWorkerPool {
     this.timeoutMs = timeoutMs
     this.queueWaitLimitMs = queueWaitLimitMs
     this.admissionLimit = admissionLimit
+    this.workerPath = workerPath
     /** Requests admitted and not yet finished. See {@link admit}. */
     this.admitted = 0
     this.nextJobId = 1
@@ -408,7 +412,7 @@ export class GeosWorkerPool {
   /** Start one worker and register its lifecycle handlers. */
   spawn() {
     const record = {
-      worker: new Worker(WORKER_PATH),
+      worker: new Worker(this.workerPath),
       job: null,
       timer: null,
       /** Has this worker ever posted `ready`? Separates boot failures (it
