@@ -386,7 +386,7 @@ Trading-rules unit figures for the post-intervention document (area habitats tod
 
 ### `feature_set_trading_rules_area_habitat_types`
 
-Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included. 5 column(s) mapped from the JSON document.
+Area-habitat net unit change per habitat type. One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included. 5 column(s) mapped from the JSON document.
 
 | Column                               | Type      | Key | JSON path                                                                       | Notes                                                                  |
 | ------------------------------------ | --------- | --- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
@@ -400,7 +400,7 @@ Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium o
 
 ### `feature_set_trading_rules_area_broad_habitats`
 
-Cumulative Medium-band net unit change per broad habitat (AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3). 2 column(s) mapped from the JSON document.
+Cumulative Medium-band net unit change per broad habitat, with intertidal sediment and intertidal hard structures merged into one row: the trading rules treat those two as one broad habitat. 2 column(s) mapped from the JSON document.
 
 | Column                                | Type      | Key | JSON path                                                                         | Notes                                                                          |
 | ------------------------------------- | --------- | --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |

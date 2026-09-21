@@ -176,7 +176,7 @@ const TABLES = Object.freeze([
     many: true,
     highlight: ['habitat_type', 'broad_habitat', 'net_unit_change'],
     description:
-      'Per-habitat-type area-habitat net unit change (AC1). One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included.'
+      'Area-habitat net unit change per habitat type. One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included.'
   },
   {
     table: 'feature_set_trading_rules_area_broad_habitats',
@@ -197,7 +197,7 @@ const TABLES = Object.freeze([
     many: true,
     highlight: ['broad_habitat', 'net_unit_change'],
     description:
-      'Cumulative Medium-band net unit change per broad habitat (AC2), with intertidal sediment and intertidal hard structures merged into one row (AC3).'
+      'Cumulative Medium-band net unit change per broad habitat, with intertidal sediment and intertidal hard structures merged into one row: the trading rules treat those two as one broad habitat.'
   }
 ])
 

@@ -146,12 +146,12 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
   tradingBroadHabitat: Joi.string()
     .required()
     .description(
-      'Broad habitat this habitat\'s net unit change is cumulated under for trading. It is the habitat\'s own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group "Intertidal sediment and hard structures" (AC3). The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
+      'Broad habitat this habitat\'s net unit change is cumulated under for trading. It is the habitat\'s own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group "Intertidal sediment and hard structures" — the trading rules treat those two as one. The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
     ),
   distinctiveness: Joi.string()
     .required()
     .description(
-      'Distinctiveness band resolved from the bng-library/metric reference data. Only "Medium" and "Low" appear — the bands that trade in the MVS.'
+      'Distinctiveness band resolved from the bng-library/metric reference data. Only "Medium" and "Low" appear: Very Low habitats hold no units to trade, and the metric defines no traded figure for High or Very High.'
     ),
   netUnitChange: Joi.number()
     .required()
@@ -159,7 +159,7 @@ export const tradingRulesHabitatNetChangeSchema = Joi.object({
       'Net unit change for the habitat type: summed retained + created + enhanced post-intervention units (attributed to the delivered habitat) minus summed baseline units. Positive is a surplus, negative a deficit.'
     )
 }).description(
-  'Net unit change for a single area habitat type across baseline and post-intervention (AC1).'
+  'Net unit change for a single area habitat type across baseline and post-intervention.'
 )
 
 export const redLineSchema = Joi.object({

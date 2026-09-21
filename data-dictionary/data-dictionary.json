@@ -4844,7 +4844,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Per-habitat-type net unit change across baseline and post-intervention area habitats, individual trees included (AC1). One entry per unique habitat TYPE, not per feature — the units of every parcel and tree of a type are summed first. Ordered by habitat type, Medium and Low bands only: Very Low habitats hold no units to trade, and the MVS defines no traded figure for High or Very High."
+      "description": "Net unit change per habitat type across baseline and post-intervention area habitats, individual trees included. One entry per unique habitat TYPE, not per feature — the units of every parcel and tree of a type are summed first. Ordered by habitat type, Medium and Low bands only: Very Low habitats hold no units to trade, and the metric defines no traded figure for High or Very High."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[]",
@@ -4855,7 +4855,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Net unit change for a single area habitat type across baseline and post-intervention (AC1)."
+      "description": "Net unit change for a single area habitat type across baseline and post-intervention."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].habitatType",
@@ -4888,7 +4888,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Broad habitat this habitat's net unit change is cumulated under for trading. It is the habitat's own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group \"Intertidal sediment and hard structures\" (AC3). The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly."
+      "description": "Broad habitat this habitat's net unit change is cumulated under for trading. It is the habitat's own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group \"Intertidal sediment and hard structures\" — the trading rules treat those two as one. The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].distinctiveness",
@@ -4899,7 +4899,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Distinctiveness band resolved from the bng-library/metric reference data. Only \"Medium\" and \"Low\" appear — the bands that trade in the MVS."
+      "description": "Distinctiveness band resolved from the bng-library/metric reference data. Only \"Medium\" and \"Low\" appear: Very Low habitats hold no units to trade, and the metric defines no traded figure for High or Very High."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.habitatTypes[].netUnitChange",
@@ -4921,7 +4921,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Medium-distinctiveness band aggregates (AC2–AC5)."
+      "description": "Medium-distinctiveness band totals. This band trades at broad-habitat level, so the figures are taken over broad habitats rather than habitat types."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.medium.broadHabitats",
@@ -4932,7 +4932,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Cumulative broad habitat change for the Medium band (AC2), with intertidal sediment and intertidal hard structures merged into one entry (AC3). Ordered by broad habitat."
+      "description": "Cumulative change per broad habitat for the Medium band, with intertidal sediment and intertidal hard structures merged into one entry. Ordered by broad habitat. Medium distinctiveness trades at broad-habitat level, which is why the band is aggregated this way and the two other bands are not."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.medium.broadHabitats[]",
@@ -4954,7 +4954,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Broad habitat the Medium net unit changes are cumulated under. \"Intertidal sediment and hard structures\" is the merged group the two intertidal broad habitats share (AC3)."
+      "description": "Broad habitat the Medium net unit changes are cumulated under. \"Intertidal sediment and hard structures\" is the merged group the two intertidal broad habitats share: the trading rules treat them as one broad habitat."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].netUnitChange",
@@ -4965,7 +4965,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Sum of the net unit changes of the Medium habitats in this broad habitat (AC2)."
+      "description": "Sum of the net unit changes of the Medium habitats in this broad habitat."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.medium.surplus",
@@ -4976,7 +4976,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total surplus for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is greater than zero (AC4). Zero or positive. Taken over broad habitats, not habitats, so a surplus and a deficit within one broad habitat cancel before they count."
+      "description": "Total surplus for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is greater than zero. Zero or positive. Taken over broad habitats, not habitats, so a surplus and a deficit within one broad habitat cancel before they count."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.medium.deficit",
@@ -4987,7 +4987,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total deficit for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is less than zero (AC5). Zero or negative."
+      "description": "Total deficit for Medium-distinctiveness area habitats: the sum of the broad habitats whose cumulative change is less than zero. Zero or negative."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.low",
@@ -4998,7 +4998,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Low-distinctiveness band aggregates (AC6, AC7)."
+      "description": "Low-distinctiveness band totals. This band trades on distinctiveness alone, with no broad-habitat constraint."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.low.netUnitChange",
@@ -5009,7 +5009,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Net change in units for Low-distinctiveness area habitats: the sum of all Low net unit changes regardless of sign (AC6). Low trades on distinctiveness alone, so there is no broad-habitat constraint."
+      "description": "Net change in units for Low-distinctiveness area habitats: the sum of all Low net unit changes regardless of sign. Low trades on distinctiveness alone, so there is no broad-habitat constraint and no per-broad-habitat breakdown."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability",
@@ -5020,7 +5020,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Units available to the Low band once the Medium surplus is carried down: the Medium surplus (AC4) plus the Low net change (AC6), per AC7. Deliberately NOT the Statutory Metric's \"Cumulative surplus of units\", which is lower by the absolute Medium deficit (23.1012 against 32.5222 on the worked example). A Met/Not-met status must account for that deficit in its own right."
+      "description": "Units available to the Low band once the Medium surplus is carried down: the Medium surplus plus the Low net change. Deliberately NOT the Statutory Metric's \"Cumulative surplus of units\", which cancels the Medium deficit against the Medium surplus first and so is always lower by the size of that deficit — 23.1012 against 32.5222 on the worked example. The trading rules do not permit that cancellation: a surplus in one broad habitat cannot make good a deficit in another. This figure is therefore not safe to judge compliance on alone; the Medium band has to be accounted for in its own right."
     }
   ]
 }
