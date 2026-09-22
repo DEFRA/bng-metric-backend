@@ -325,11 +325,15 @@ function applyFeatureUpdate(
   // left quoting the old one. Null when the project has no post-intervention
   // document, and never produced on the post-intervention path — that edit is
   // already recomputing the document it belongs to.
+  // `featureSet` is the pre-edit baseline. The re-derive needs both: the edited
+  // document to take values from, and the one the post-intervention rows were
+  // imported against to tell which of several features sharing a ref each row
+  // describes.
   const postIntervention =
     documentKey === 'baseline'
       ? rederivePostInterventionFromBaseline(
           project?.postIntervention,
-          updatedFeatureSet,
+          { baseline: updatedFeatureSet, previousBaseline: featureSet },
           logger
         )
       : null

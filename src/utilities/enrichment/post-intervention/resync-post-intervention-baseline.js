@@ -17,10 +17,38 @@
 // The join key is `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
-// post-intervention row describing it share no id. Matching is as conservative
-// as the featureId carry-forward: a blank ref, or one carried by more than one
-// baseline feature, says nothing about which feature is meant, so the
-// post-intervention row is left as imported.
+// post-intervention row describing it share no id.
+//
+// A ref is NOT unique. The metric allows several features to share one where
+// parcels combine or split, so the join is one-to-many in both directions:
+//
+//   - One baseline row to many post-intervention rows (a split) is the easy
+//     direction: every row naming that ref re-syncs from the one source.
+//   - Many baseline rows sharing a ref is the ambiguous one, and the ref alone
+//     cannot say which of them a post-intervention row describes.
+//
+// The tie-break is the row's own `baseline` sub-object — its imported copy of
+// its source's Baseline * columns. Crucially it is matched against the baseline
+// document as it stood BEFORE the edit, not after: the edit is precisely what
+// makes the snapshot disagree with the current values, so matching on those
+// could never identify the row the edit is about. Resolution therefore runs on
+// the pre-edit document, where the copy still matches exactly, and the values
+// are then taken from that same feature's post-edit version — `featureId` is
+// stable across an edit within a document.
+//
+// Only an unambiguous match resolves. No candidate carrying the row's imported
+// values means the source cannot be identified; several carrying them means the
+// pre-edit rows were indistinguishable and their post-edit versions may not be,
+// so choosing between them would be a coin flip. Both are left exactly as
+// imported, and logged.
+//
+// Today `checkDuplicateHabitatRefs` rejects a repeated Parcel Ref on the AREA
+// layer at upload, in both variants, so the ambiguous case cannot yet arise on
+// the layer that decides the Met / Not-met verdict. That check is understood to
+// be wrong — duplicate parcel refs are legitimate where parcels combine or
+// split — and is raised separately. Nothing here depends on it: the resolution
+// above is what keeps the verdict safe, so relaxing the upload check needs no
+// change to this file.
 
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
@@ -58,35 +86,97 @@ const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
 })
 
 /**
- * Index one baseline layer by ref, dropping blank refs and any ref carried by
- * more than one feature — mirrors addLayerEntries in
- * carry-forward-feature-ids.js, and for the same reason: uniqueness is only
- * *enforced* on the habitats layer.
+ * Group one baseline layer's features by ref. Every feature carrying a ref is
+ * kept — a shared ref is legitimate, not a data error — so a ref can map to
+ * several candidates. A blank ref identifies nothing and is dropped.
  *
  * @param {object[] | undefined} features
- * @returns {Map<string, object>}
+ * @returns {Map<string, object[]>}
  */
-function buildFeatureByRef(features) {
+function buildBaselineCandidatesByRef(features) {
   const byRef = new Map()
   if (!Array.isArray(features)) {
     return byRef
   }
-  const duplicated = new Set()
   for (const feature of features) {
     const ref = normaliseRef(feature?.ref)
     if (ref === null) {
       continue
     }
-    if (byRef.has(ref)) {
-      duplicated.add(ref)
+    const candidates = byRef.get(ref)
+    if (candidates) {
+      candidates.push(feature)
     } else {
-      byRef.set(ref, feature)
+      byRef.set(ref, [feature])
     }
   }
-  for (const ref of duplicated) {
-    byRef.delete(ref)
-  }
   return byRef
+}
+
+/**
+ * Whether a pre-edit baseline feature is the one a post-intervention row's
+ * imported `baseline` snapshot describes. Only the fields the candidate carries
+ * are compared — they are the only ones that would ever be copied from it.
+ *
+ * @param {object} candidate a feature from the PRE-EDIT baseline document
+ * @param {object} snapshot the post-intervention row's `baseline` sub-object
+ * @param {readonly string[]} fields
+ * @returns {boolean}
+ */
+function matchesSnapshot(candidate, snapshot, fields) {
+  return fields.every(
+    (field) =>
+      !Object.hasOwn(candidate, field) || candidate[field] === snapshot[field]
+  )
+}
+
+/**
+ * Pick the pre-edit baseline feature a post-intervention row was derived from.
+ *
+ * A ref carried by one feature is the whole answer. Where several share it, the
+ * row's imported snapshot has to identify which, and only a single match will
+ * do — several equally-matching pre-edit rows may have diverged by the edit, so
+ * picking one would be a guess.
+ *
+ * @param {object[]} candidates
+ * @param {object} feature post-intervention feature
+ * @param {readonly string[]} fields
+ * @returns {{ source: object } | { unresolvable: 'ambiguous' | 'unidentified' }}
+ */
+function resolveBaselineFeature(candidates, feature, fields) {
+  if (candidates.length === 1) {
+    return { source: candidates[0] }
+  }
+  const snapshot = feature.baseline ?? {}
+  const matches = candidates.filter((candidate) =>
+    matchesSnapshot(candidate, snapshot, fields)
+  )
+  if (matches.length === 1) {
+    return { source: matches[0] }
+  }
+  return {
+    unresolvable: matches.length > 1 ? 'ambiguous' : 'unidentified'
+  }
+}
+
+/**
+ * Index a document layer by featureId, so a feature resolved against the
+ * pre-edit baseline can be read back from the post-edit one.
+ *
+ * @param {object[] | undefined} features
+ * @returns {Map<string, object>}
+ */
+function buildFeatureById(features) {
+  const byId = new Map()
+  if (!Array.isArray(features)) {
+    return byId
+  }
+  for (const feature of features) {
+    if (feature?.featureId) {
+      byId.set(feature.featureId, feature)
+    }
+  }
+  return byId
 }
 
 /**
@@ -143,41 +233,91 @@ function syncFeatureIdentity(feature, source, fields) {
 }
 
 /**
- * A Created feature is new habitat, so having no baseline counterpart is the
- * normal case and not worth a log line. A Retained or Enhanced one describes a
- * baseline feature that should be there.
+ * Say that a row could not be resolved, and why — a ref nothing carries reads
+ * very differently from a shared ref whose candidates none of this row's
+ * imported values identify.
+ *
+ * A Created feature is new habitat: having no baseline counterpart is its
+ * normal state, and its baseline snapshot is an "N/A" placeholder that would
+ * identify nothing, so neither case is worth a log line. A Retained or Enhanced
+ * one describes a baseline feature that should be findable.
  *
  * @param {object} feature
- * @param {string} layer
- * @param {string | null} ref
- * @param {{ warn: (msg: string) => void }} logger
+ * @param {{ layer: string, ref: string | null, candidateCount: number, logger: { warn: (msg: string) => void } }} context
  */
-function warnIfBaselineExpected(feature, layer, ref, logger) {
+const UNRESOLVED_REASONS = Object.freeze({
+  missing: (ref) => `no baseline feature carries ref "${ref ?? ''}"`,
+  unidentified: (ref, count) =>
+    `${count} baseline features share ref "${ref}" and none carries this row's imported baseline values`,
+  ambiguous: (ref, count) =>
+    `${count} baseline features share ref "${ref}" and more than one carries this row's imported baseline values, so which one the edit moved cannot be told`
+})
+
+function warnUnresolved(
+  feature,
+  { layer, ref, reason, candidateCount, logger }
+) {
   if (resolveRetentionCategory(feature) === RETENTION_CREATED) {
     return
   }
   logger.warn(
-    `${LOG_PREFIX}${layer} featureId ${feature?.featureId ?? 'unknown'}: no baseline feature for ref "${ref ?? ''}", baseline values left as imported`
+    `${LOG_PREFIX}${layer} featureId ${feature?.featureId ?? 'unknown'}: ${UNRESOLVED_REASONS[reason](ref, candidateCount)}, baseline values left as imported`
   )
 }
 
 /**
+ * Resolve one post-intervention row to the post-edit baseline feature it should
+ * take its values from, or say why it cannot be resolved.
+ *
+ * @param {object} feature
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
+  const ref = normaliseRef(feature?.ref)
+  const candidates = (ref === null ? undefined : candidatesByRef.get(ref)) ?? []
+  if (candidates.length === 0) {
+    return { unresolvable: 'missing', ref, candidateCount: 0 }
+  }
+  const resolved = resolveBaselineFeature(candidates, feature, fields)
+  if (resolved.unresolvable) {
+    return {
+      unresolvable: resolved.unresolvable,
+      ref,
+      candidateCount: candidates.length
+    }
+  }
+  // Resolution ran on the pre-edit document; the values come from the same
+  // feature as it stands now.
+  const updated = updatedById.get(resolved.source.featureId)
+  if (!updated) {
+    return { unresolvable: 'missing', ref, candidateCount: candidates.length }
+  }
+  return { source: updated }
+}
+
+/**
  * @param {object[]} features post-intervention features for one layer, mutated
- * @param {Map<string, object>} sourceByRef
- * @param {{ layer: string, fields: readonly string[], logger: object }} context
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
+ * @param {{ layer: string, logger: object }} context
  * @returns {number} how many features changed
  */
-function resyncLayer(features, sourceByRef, { layer, fields, logger }) {
+function resyncLayer(features, index, { layer, logger }) {
   let changed = 0
   for (const feature of features) {
-    const ref = normaliseRef(feature?.ref)
-    const source = ref === null ? undefined : sourceByRef.get(ref)
-    if (source) {
-      if (syncFeatureIdentity(feature, source, fields)) {
+    const resolved = resolveSource(feature, index)
+    if (resolved.source) {
+      if (syncFeatureIdentity(feature, resolved.source, index.fields)) {
         changed += 1
       }
     } else {
-      warnIfBaselineExpected(feature, layer, ref, logger)
+      warnUnresolved(feature, {
+        layer,
+        ref: resolved.ref,
+        reason: resolved.unresolvable,
+        candidateCount: resolved.candidateCount,
+        logger
+      })
     }
   }
   return changed
@@ -187,17 +327,20 @@ function resyncLayer(features, sourceByRef, { layer, fields, logger }) {
  * Bring every post-intervention feature's `baseline` sub-object back into step
  * with the project's baseline document. Mutates `postInterventionDocument`.
  *
- * Walks every feature rather than only the one just edited, so a document that
- * had already drifted is repaired by the next edit rather than staying wrong.
+ * Walks every feature rather than only the one just edited, so a row left
+ * behind by an earlier edit is brought back into step by the next one.
  *
  * @param {object} postInterventionDocument
- * @param {object | undefined} baselineDocument
+ * @param {object} documents
+ * @param {object} [documents.baseline] the baseline as it now stands
+ * @param {object} [documents.previousBaseline] the baseline as it stood before
+ *   the edit; only consulted to break a tie between features sharing a ref
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {number} how many features changed
  */
 export function resyncPostInterventionBaselineSide(
   postInterventionDocument,
-  baselineDocument,
+  { baseline, previousBaseline = baseline },
   logger = NO_OP_LOGGER
 ) {
   let changed = 0
@@ -208,12 +351,14 @@ export function resyncPostInterventionBaselineSide(
     }
     changed += resyncLayer(
       features,
-      buildFeatureByRef(baselineDocument?.[layer]),
       {
-        layer,
-        fields,
-        logger
-      }
+        candidatesByRef: buildBaselineCandidatesByRef(
+          previousBaseline?.[layer]
+        ),
+        updatedById: buildFeatureById(baseline?.[layer]),
+        fields
+      },
+      { layer, logger }
     )
   }
   return changed
@@ -235,24 +380,33 @@ export function resyncPostInterventionBaselineSide(
  * a page render.
  *
  * @param {object | null | undefined} postInterventionDocument as stored
- * @param {object} baselineDocument the updated baseline
+ * @param {object} documents
+ * @param {object} documents.baseline the baseline as it now stands
+ * @param {object} [documents.previousBaseline] the baseline as it stood before
+ *   the edit, used only to identify which of several features sharing a ref a
+ *   post-intervention row describes. Defaults to `baseline`, which resolves
+ *   every unambiguous ref and is all a caller with no edit to speak of has.
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {object | null}
  */
 export function rederivePostInterventionFromBaseline(
   postInterventionDocument,
-  baselineDocument,
+  { baseline, previousBaseline },
   logger = NO_OP_LOGGER
 ) {
   if (!postInterventionDocument) {
     return null
   }
   const rederived = structuredClone(postInterventionDocument)
-  resyncPostInterventionBaselineSide(rederived, baselineDocument, logger)
+  resyncPostInterventionBaselineSide(
+    rederived,
+    { baseline, previousBaseline },
+    logger
+  )
   enrichPostInterventionDocumentWithUnits(
     rederived,
     logger,
-    postInterventionEnrichOptions(baselineDocument)
+    postInterventionEnrichOptions(baseline)
   )
   return rederived
 }

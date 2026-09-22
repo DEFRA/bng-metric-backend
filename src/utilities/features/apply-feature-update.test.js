@@ -916,3 +916,120 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Z9'))
   })
 })
+
+describe('applyFeatureUpdate — a baseline ref shared by two features', () => {
+  const SECOND_HABITAT_ID = 'ff0e8400-e29b-41d4-a716-446655440006'
+  const PI_HABITAT_ID = 'dd0e8400-e29b-41d4-a716-446655440007'
+  const ONE_HECTARE = 10_000
+
+  function areaHabitat(featureId, overrides) {
+    return {
+      featureId,
+      ref: 'A1',
+      type: 'Modified grassland',
+      broadType: 'Grassland',
+      condition: 'Poor',
+      area: ONE_HECTARE,
+      sizeSquareMetres: ONE_HECTARE,
+      units: 2,
+      status: 'Complete',
+      ...overrides
+    }
+  }
+
+  // Both parcels carry ref A1 — legitimate in the metric where parcels combine
+  // or split. The post-intervention row's imported baseline values name the
+  // grassland one.
+  function sharedRefProjectFixture() {
+    return {
+      name: 'Shared ref fixture',
+      baseline: {
+        habitats: [
+          areaHabitat(HABITAT_ID),
+          areaHabitat(SECOND_HABITAT_ID, {
+            type: 'Allotments',
+            broadType: 'Urban'
+          })
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {
+          totalUnits: 4,
+          habitatsTotal: 4,
+          hedgerowsTotal: 0,
+          watercoursesTotal: 0
+        }
+      },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: PI_HABITAT_ID,
+            ref: 'A1',
+            retentionCategory: 'Retained',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor'
+            },
+            proposed: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor',
+              advanceYears: 0,
+              delayYears: 0
+            }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: { totalUnits: 2, habitatsTotal: 2 }
+      }
+    }
+  }
+
+  test('follows the parcel the edit moved, not the other one sharing its ref', () => {
+    // Only resolvable against the PRE-edit baseline: after the edit, the parcel
+    // the row describes no longer carries the values the row imported.
+    const logger = { warn: vi.fn() }
+
+    const result = applyFeatureUpdate(sharedRefProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      },
+      logger
+    })
+
+    expect(result.postIntervention.habitats[0].baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    })
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  test('leaves the row alone when the edit was to the other parcel', () => {
+    const result = applyFeatureUpdate(sharedRefProjectFixture(), {
+      featureId: SECOND_HABITAT_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Vacant/derelict land/bareground',
+        condition: 'Poor'
+      }
+    })
+
+    // The row named the grassland parcel, which this edit did not touch.
+    expect(result.postIntervention.habitats[0].baseline).toMatchObject({
+      type: 'Modified grassland',
+      condition: 'Poor'
+    })
+  })
+})
