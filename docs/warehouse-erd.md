@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**17 tables**, mapping 316 schema fields.
+**17 tables**, mapping 317 schema fields.
 
 ## Diagram
 
@@ -281,18 +281,19 @@ Project-level biodiversity unit summary. Exactly one per project. 3 column(s) ma
 
 ### `project_details`
 
-Project details entered by the user. Exactly one per project; null until the user fills them in. 6 column(s) mapped from the JSON document.
+Project details entered by the user. Exactly one per project; null until the user fills them in. 7 column(s) mapped from the JSON document.
 
-| Column                     | Type   | Key | JSON path                        | Notes                 |
-| -------------------------- | ------ | --- | -------------------------------- | --------------------- |
-| `details_id`               | `text` | PK  | —                                | `{projectId}:details` |
-| `project_id`               | `uuid` | FK  | —                                | → project.project_id  |
-| `local_planning_authority` | `text` |     | `details.localPlanningAuthority` |                       |
-| `survey_completers`        | `text` |     | `details.surveyCompleters`       |                       |
-| `survey_completion_date`   | `text` |     | `details.surveyCompletionDate`   |                       |
-| `development_type`         | `text` |     | `details.developmentType`        |                       |
-| `nsips`                    | `text` |     | `details.nsips`                  |                       |
-| `applicant`                | `text` |     | `details.applicant`              |                       |
+| Column                               | Type   | Key | JSON path                                 | Notes                 |
+| ------------------------------------ | ------ | --- | ----------------------------------------- | --------------------- |
+| `details_id`                         | `text` | PK  | —                                         | `{projectId}:details` |
+| `project_id`                         | `uuid` | FK  | —                                         | → project.project_id  |
+| `local_planning_authority`           | `text` |     | `details.localPlanningAuthority`          |                       |
+| `local_planning_authority_reference` | `text` |     | `details.localPlanningAuthorityReference` |                       |
+| `survey_completers`                  | `text` |     | `details.surveyCompleters`                |                       |
+| `survey_completion_date`             | `text` |     | `details.surveyCompletionDate`            |                       |
+| `development_type`                   | `text` |     | `details.developmentType`                 |                       |
+| `nsips`                              | `text` |     | `details.nsips`                           |                       |
+| `applicant`                          | `text` |     | `details.applicant`                       |                       |
 
 ### `feature_set`
 

@@ -7,7 +7,8 @@ const UNKNOWN_PROJECT_ID = 'a7dc53f2-05d2-4d75-9186-7e5cf52864bd'
 const SUB = 'user-subject-123'
 
 const sampleDetails = {
-  localPlanningAuthority: 'South Downs National Park',
+  localPlanningAuthority: 'South Downs National Park LPA',
+  localPlanningAuthorityReference: 'E60000325',
   surveyCompleters: 'Jane Smith',
   surveyCompletionDate: '01/06/2025',
   developmentType: 'Small site',
@@ -35,7 +36,13 @@ function createMockDrizzle(updateRows = []) {
   const set = vi.fn().mockReturnValue({ where: updateWhere })
   const update = vi.fn().mockReturnValue({ set })
 
-  return { update, _set: set }
+  return {
+    update,
+    _set: set,
+    ...createMockDrizzleSelect([
+      { reference: 'E60000325', name: 'South Downs National Park LPA' }
+    ])
+  }
 }
 
 describe('#getProjectDetails', () => {
@@ -139,8 +146,11 @@ describe('#getProjectDetails validation', () => {
 
 describe('#updateProjectDetails', () => {
   test('returns the persisted details including fields retained by the DB merge', async () => {
-    const payload = { localPlanningAuthority: 'New LPA' }
-    const persisted = { ...sampleDetails, localPlanningAuthority: 'New LPA' }
+    const payload = { localPlanningAuthorityReference: 'E60000325' }
+    const persisted = {
+      ...sampleDetails,
+      localPlanningAuthorityReference: 'E60000325'
+    }
     const drizzle = createMockDrizzle([{ details: persisted }])
     const result = await updateProjectDetails.handler(
       {

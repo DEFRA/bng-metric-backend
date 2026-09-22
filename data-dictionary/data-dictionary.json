@@ -280,6 +280,30 @@
       ]
     },
     {
+      "name": "bng.local_planning_authorities",
+      "description": "Static current English Local Planning Authority names and references from Planning Data, used for project selection.",
+      "columns": [
+        {
+          "name": "reference",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "name",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ]
+    },
+    {
       "name": "bng.login_audit",
       "description": "An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.",
       "columns": [
@@ -945,6 +969,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Local Planning Authority name."
+    },
+    {
+      "path": "details.localPlanningAuthorityReference",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["pattern /^E600\\d{5}$/"],
+      "openMap": false,
+      "description": "Planning Data reference for the selected Local Planning Authority; absent on legacy free-text records."
     },
     {
       "path": "details.surveyCompleters",

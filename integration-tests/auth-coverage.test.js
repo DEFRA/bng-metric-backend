@@ -24,6 +24,10 @@ const HTTP_UNAUTHORIZED = 401
 // add it here with a justification — so every public surface is a reviewed,
 // deliberate decision.
 const PUBLIC_ROUTES = new Map([
+  [
+    'get /reference/local-planning-authorities',
+    'Static Planning Data lookup; no per-user scope'
+  ],
   ['get /health', 'CDP liveness/readiness probe — must be unauthenticated'],
   [
     'get /db-info',

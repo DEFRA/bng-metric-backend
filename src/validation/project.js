@@ -353,6 +353,12 @@ const projectDetailsSchema = Joi.object({
   localPlanningAuthority: Joi.string()
     .allow(null, '')
     .description('Local Planning Authority name.'),
+  localPlanningAuthorityReference: Joi.string()
+    .pattern(/^E600\d{5}$/)
+    .allow(null)
+    .description(
+      'Planning Data reference for the selected Local Planning Authority; absent on legacy free-text records.'
+    ),
   surveyCompleters: Joi.string()
     .allow(null, '')
     .description('Names of survey completer(s).'),

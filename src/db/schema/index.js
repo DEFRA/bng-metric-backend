@@ -1,4 +1,5 @@
 export { projects } from './projects.js'
+export { localPlanningAuthorities } from './local-planning-authorities.js'
 export { users } from './users.js'
 export { relationships } from './relationships.js'
 export { roles } from './roles.js'

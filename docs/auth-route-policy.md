@@ -56,7 +56,7 @@ reviewed.
 | Route                         | Why it is public                                                                                                                              |
 | ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
 | `GET /health`                 | CDP liveness/readiness probe — must be unauthenticated                                                                                        |
-| `GET /reference/*` (8 routes) | Static lookup data (habitat types, conditions, trading rules) bundled into the engine at build time; no per-user scope, nothing sensitive     |
+| `GET /reference/*` (9 routes) | Static lookup data (habitats, conditions, trading rules and Planning Data LPAs) stored locally; no per-user scope, nothing sensitive          |
 | `GET /db-info`                | Local/dev DB-version diagnostic — **never registered in production** (see below); `auth: false` so it works without a token where it does run |
 
 Swagger docs routes (`/docs*`, `/swagger.json`) also set `auth: false`, but they

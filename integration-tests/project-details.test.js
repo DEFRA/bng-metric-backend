@@ -66,7 +66,8 @@ describe('GET /projects/{id}/details', () => {
   it('returns details after they have been set', async () => {
     const project = await createProject('With details')
     const details = {
-      localPlanningAuthority: 'Test LPA',
+      localPlanningAuthority: 'South Downs National Park LPA',
+      localPlanningAuthorityReference: 'E60000325',
       developmentType: 'Small site'
     }
 
@@ -123,10 +124,55 @@ describe('GET /projects/{id}/details', () => {
 })
 
 describe('PATCH /projects/{id}/details', () => {
+  it('round-trips the canonical name and reference and clears both together', async () => {
+    const project = await createProject('LPA lookup')
+    const selected = await patchDetails(project.id, {
+      localPlanningAuthorityReference: 'E60000325',
+      localPlanningAuthority: 'Untrusted name'
+    })
+    expect(selected.statusCode).toBe(HTTP_OK)
+    const res = await server.inject({
+      method: 'GET',
+      url: `/projects/${project.id}/details`,
+      headers
+    })
+    expect(res.result).toMatchObject({
+      localPlanningAuthorityReference: 'E60000325',
+      localPlanningAuthority: 'South Downs National Park LPA'
+    })
+    const cleared = await patchDetails(project.id, {
+      localPlanningAuthorityReference: null
+    })
+    expect(cleared.result).toMatchObject({
+      localPlanningAuthorityReference: null,
+      localPlanningAuthority: null
+    })
+  })
+
+  it.each([
+    { localPlanningAuthorityReference: 'E60099999' },
+    { localPlanningAuthorityReference: 'invalid' },
+    { localPlanningAuthority: 'Free text' }
+  ])(
+    'rejects invalid LPA selection %j without changing the project',
+    async (payload) => {
+      const project = await createProject('Invalid LPA')
+      expect((await patchDetails(project.id, payload)).statusCode).toBe(
+        HTTP_BAD_REQUEST
+      )
+      const res = await server.inject({
+        method: 'GET',
+        url: `/projects/${project.id}/details`,
+        headers
+      })
+      expect(res.result).toEqual({})
+    }
+  )
   it('persists details and returns the merged result', async () => {
     const project = await createProject('Patchable')
     const payload = {
-      localPlanningAuthority: 'South Downs National Park',
+      localPlanningAuthority: 'South Downs National Park LPA',
+      localPlanningAuthorityReference: 'E60000325',
       developmentType: 'Large site',
       nsips: 'Yes'
     }
@@ -154,20 +200,22 @@ describe('PATCH /projects/{id}/details', () => {
     const project = await createProject('Merge test')
 
     await patchDetails(project.id, {
-      localPlanningAuthority: 'First LPA',
+      localPlanningAuthorityReference: 'E60000325',
       developmentType: 'Small site'
     })
 
     const res = await patchDetails(project.id, { nsips: 'No' })
     expect(res.statusCode).toBe(HTTP_OK)
-    expect(res.result.localPlanningAuthority).toBe('First LPA')
+    expect(res.result.localPlanningAuthority).toBe(
+      'South Downs National Park LPA'
+    )
     expect(res.result.developmentType).toBe('Small site')
     expect(res.result.nsips).toBe('No')
   })
 
   it('returns 404 for an unknown UUID', async () => {
     const res = await patchDetails(randomUUID(), {
-      localPlanningAuthority: 'LPA'
+      localPlanningAuthorityReference: 'E60000325'
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
@@ -185,7 +233,7 @@ describe('PATCH /projects/{id}/details', () => {
     const res = await server.inject({
       method: 'PATCH',
       url: `/projects/${project.id}/details`,
-      payload: { localPlanningAuthority: 'LPA' }
+      payload: { localPlanningAuthorityReference: 'E60000325' }
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })
@@ -197,7 +245,7 @@ describe('PATCH /projects/{id}/details', () => {
     )
     const res = await patchDetails(
       project.id,
-      { localPlanningAuthority: 'Hijacked LPA' },
+      { localPlanningAuthorityReference: 'E60000325' },
       otherHeaders
     )
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)

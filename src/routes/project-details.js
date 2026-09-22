@@ -7,6 +7,7 @@ import { setProjectDetails } from '../db/persist-project.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { projectDetailsColumns } from '../db/project-details-columns.js'
 import { projectDetailsSchema } from '../validation/project.js'
+import { resolveLocalPlanningAuthority } from '../services/local-planning-authorities.js'
 
 const getProjectDetails = {
   method: 'GET',
@@ -49,11 +50,15 @@ const updateProjectDetails = {
     const { id } = request.params
     const credentials = request.auth.credentials
     const where = and(eq(projects.id, id), visibleToUser(credentials))
+    const details = await resolveLocalPlanningAuthority(
+      request.drizzle,
+      request.payload
+    )
 
     const saved = await setProjectDetails(
       request.drizzle,
       id,
-      request.payload,
+      details,
       credentials.sub,
       where
     )

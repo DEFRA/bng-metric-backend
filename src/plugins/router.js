@@ -31,6 +31,7 @@ import {
 } from '../routes/project-details.js'
 import {
   getBroadHabitats,
+  getLocalPlanningAuthorities,
   getHabitatTypes,
   getHabitatTypesByBroad,
   getConditions,
@@ -68,6 +69,7 @@ const router = {
         getProjectDetails,
         updateProjectDetails,
         getBroadHabitats,
+        getLocalPlanningAuthorities,
         getHabitatTypes,
         getHabitatTypesByBroad,
         getConditions,

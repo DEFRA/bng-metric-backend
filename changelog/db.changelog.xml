@@ -18,4 +18,5 @@
     <include file="db.changelog-1.10.xml" relativeToChangelogFile="true"/>
     <include file="db.changelog-1.11.xml" relativeToChangelogFile="true"/>
     <include file="db.changelog-1.12.xml" relativeToChangelogFile="true"/>
+    <include file="db.changelog-BMD-1012.xml" relativeToChangelogFile="true"/>
 </databaseChangeLog>
