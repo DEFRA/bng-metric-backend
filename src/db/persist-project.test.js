@@ -498,3 +498,69 @@ describe('setProjectFeature — trading rules', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 })
+
+describe('setProjectFeature — re-derived post-intervention document', () => {
+  // A baseline edit changes what the post-intervention document was measured
+  // against, so the caller re-derives that document and hands it over whole —
+  // it is the one subtree an edit can change in too many places to patch.
+  const validPostInterventionDocument = {
+    habitats: [],
+    trees: [],
+    hedgerows: [],
+    watercourses: [],
+    units: validUnitsTotals
+  }
+
+  test('writes it in the same update as the baseline feature', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'baseline',
+      layer: 'habitats',
+      index: 0,
+      feature: validHabitat,
+      unitsTotals: validUnitsTotals,
+      postIntervention: validPostInterventionDocument,
+      actorId: ACTOR_ID
+    })
+
+    // One UPDATE: the two documents can never be persisted apart.
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects a document that fails its schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'baseline',
+        layer: 'habitats',
+        index: 0,
+        feature: validHabitat,
+        unitsTotals: validUnitsTotals,
+        postIntervention: {
+          ...validPostInterventionDocument,
+          habitats: [{ featureId: FEATURE_ID, status: 'Nearly' }]
+        },
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('refuses to replace the document a post-intervention edit is patching', async () => {
+    // Both would write the same subtree, one surgically and one wholesale.
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: validPostInterventionHabitat,
+        unitsTotals: validUnitsTotals,
+        postIntervention: validPostInterventionDocument,
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/must not also replace/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})

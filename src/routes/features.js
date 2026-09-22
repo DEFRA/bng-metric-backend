@@ -195,7 +195,8 @@ const updateFeature = {
           projectId,
           featureId,
           edits: request.payload,
-          credentials
+          credentials,
+          logger: request.logger
         })
       )
     } catch (err) {
@@ -212,7 +213,7 @@ const updateFeature = {
 
 async function runFeatureUpdate(
   tx,
-  { projectId, featureId, edits, credentials }
+  { projectId, featureId, edits, credentials, logger }
 ) {
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
@@ -226,7 +227,11 @@ async function runFeatureUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
-  const result = applyFeatureUpdate(row.project ?? {}, { featureId, edits })
+  const result = applyFeatureUpdate(row.project ?? {}, {
+    featureId,
+    edits,
+    logger
+  })
   if (result.status === APPLY_RESULT.FEATURE_NOT_FOUND) {
     throw Boom.notFound(
       `Feature ${featureId} not found in project ${projectId}`
@@ -247,6 +252,7 @@ async function runFeatureUpdate(
     index: result.index,
     feature: result.feature,
     unitsTotals: result.unitsTotals,
+    postIntervention: result.postIntervention,
     actorId: credentials.sub
   })
 

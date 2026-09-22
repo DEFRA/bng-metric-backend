@@ -11,7 +11,10 @@
 //     writing `habitatUnits` while everything else reads `units`,
 //   - per-feature totals always refresh after an edit
 //     (the BMD-480 area route shipped without this and the habitat-list
-//     summary header went stale after a save), and
+//     summary header went stale after a save),
+//   - an edit to one document refreshes whatever the other derived from it —
+//     the post-intervention document keeps its own copy of the baseline, so a
+//     baseline edit re-derives it (resync-post-intervention-baseline.js), and
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
@@ -28,6 +31,8 @@ import {
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
 import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
+import { rederivePostInterventionFromBaseline } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
   addPostInterventionNetUnitChanges,
   summarizeFeatureSetUnitsTotals
@@ -184,27 +189,6 @@ function spliceFeatureInFeatureSet(
   }
 }
 
-/**
- * Given a project document, locate `featureId`, recompute its derived block
- * from the supplied edits, splice it back into its layer, and refresh the
- * feature-set unit totals. Returns the updated project plus the updated
- * feature; callers persist the project.
- *
- * `expectedType` lets the legacy typed PUT routes 404 cross-layer access
- * (e.g. hedgerow featureId posted to `/projects/{id}/habitats/{id}`). Omit
- * it on the unified route — the type is whatever the data says it is.
- *
- * @param {object} project — full row.project JSONB
- * @param {object} params
- * @param {string} params.featureId
- * @param {object} params.edits  { broadType?, habitatType?, condition? }
- * @param {string} [params.expectedType]
- * @returns {
- *   { status: 'ok', type: string, project: object, feature: object } |
- *   { status: 'outOfScope', type: string, distinctiveness: string } |
- *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
- * }
- */
 function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
@@ -216,9 +200,67 @@ function resolveUpdatedFeature(found, edits, derived, documentKey) {
   return mergeFeature(found.type, found.feature, edits, derived, documentKey)
 }
 
+/**
+ * The fully-rebuilt project document, carrying the re-derived post-intervention
+ * subtree when a baseline edit produced one.
+ *
+ * @param {object} project
+ * @param {string} documentKey
+ * @param {object} updatedFeatureSet
+ * @param {object | null} postIntervention
+ * @returns {object}
+ */
+function rebuiltProject(
+  project,
+  documentKey,
+  updatedFeatureSet,
+  postIntervention
+) {
+  const rebuilt = { ...project, [documentKey]: updatedFeatureSet }
+  if (postIntervention) {
+    rebuilt.postIntervention = postIntervention
+  }
+  return rebuilt
+}
+
+/**
+ * Given a project document, locate `featureId`, recompute its derived block
+ * from the supplied edits, splice it back into its layer, and refresh the
+ * feature-set unit totals. Returns the updated project plus the updated
+ * feature; callers persist the project.
+ *
+ * A baseline edit additionally re-derives the whole post-intervention document
+ * when the project has one, because that document holds its own copy of the
+ * baseline and every figure it carries is measured against it — see
+ * resync-post-intervention-baseline.js.
+ *
+ * `expectedType` lets the legacy typed PUT routes 404 cross-layer access
+ * (e.g. hedgerow featureId posted to `/projects/{id}/habitats/{id}`). Omit
+ * it on the unified route — the type is whatever the data says it is.
+ *
+ * @param {object} project — full row.project JSONB
+ * @param {object} params
+ * @param {string} params.featureId
+ * @param {object} params.edits  { broadType?, habitatType?, condition? }
+ * @param {string} [params.expectedType]
+ * @param {'baseline'|'postIntervention'} [params.documentKey]
+ * @param {{ warn: (msg: string) => void }} [params.logger] warns about
+ *   post-intervention rows the re-derive could not match to a baseline feature
+ * @returns {
+ *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
+ *   { status: 'outOfScope', type: string, distinctiveness: string } |
+ *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
+ * }
+ */
 function applyFeatureUpdate(
   project,
-  { featureId, edits, expectedType, documentKey = 'baseline' }
+  {
+    featureId,
+    edits,
+    expectedType,
+    documentKey = 'baseline',
+    logger = NO_OP_LOGGER
+  }
 ) {
   const normalizedEdits = normalizeEdits(edits)
   const featureSet = project?.[documentKey]
@@ -278,10 +320,25 @@ function applyFeatureUpdate(
     // are stale until they are recomputed from the updated feature set.
     enrichPostInterventionAreaTradingRules(updatedFeatureSet, project?.baseline)
   }
+  // A baseline edit changes what the post-intervention document was measured
+  // against, so that document is re-derived from the new baseline rather than
+  // left quoting the old one. Null when the project has no post-intervention
+  // document, and never produced on the post-intervention path — that edit is
+  // already recomputing the document it belongs to.
+  const postIntervention =
+    documentKey === 'baseline'
+      ? rederivePostInterventionFromBaseline(
+          project?.postIntervention,
+          updatedFeatureSet,
+          logger
+        )
+      : null
   // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
   // surgically via persist-project.js (jsonb_set the one feature + the derived
-  // subtrees) rather than rewriting the whole document. `project` is retained
-  // for callers/tests that want the fully-rebuilt document.
+  // subtrees) rather than rewriting the whole document. `postIntervention` is
+  // the one subtree that cannot be patched surgically — a baseline edit can
+  // move any number of its figures — so it is handed over whole. `project` is
+  // retained for callers/tests that want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
@@ -290,7 +347,13 @@ function applyFeatureUpdate(
     feature: updatedFeature,
     unitsTotals: updatedFeatureSet.units,
     tradingRules: updatedFeatureSet.tradingRules,
-    project: { ...project, [documentKey]: updatedFeatureSet }
+    postIntervention,
+    project: rebuiltProject(
+      project,
+      documentKey,
+      updatedFeatureSet,
+      postIntervention
+    )
   }
 }
 

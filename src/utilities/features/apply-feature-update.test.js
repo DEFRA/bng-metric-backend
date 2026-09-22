@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 
 import { APPLY_RESULT, applyFeatureUpdate } from './apply-feature-update.js'
 
@@ -734,5 +734,185 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(result.feature.proposed.condition).toBe('Good')
     expect(result.feature).not.toHaveProperty('type')
     expect(result.feature).not.toHaveProperty('condition')
+  })
+})
+
+describe('applyFeatureUpdate — baseline edit with a post-intervention document', () => {
+  const PI_HABITAT_ID = 'dd0e8400-e29b-41d4-a716-446655440004'
+  const ONE_HECTARE = 10_000
+
+  // The post-intervention document keeps its own copy of the baseline (the
+  // Baseline * GeoPackage columns), joined back to the baseline document on
+  // `ref` — the two documents assign featureIds independently.
+  function projectWithPostInterventionFixture() {
+    return {
+      name: 'Baseline edit fixture',
+      baseline: {
+        habitats: [
+          {
+            featureId: HABITAT_ID,
+            ref: 'A1',
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete'
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {
+          totalUnits: 2,
+          habitatsTotal: 2,
+          hedgerowsTotal: 0,
+          watercoursesTotal: 0
+        }
+      },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: PI_HABITAT_ID,
+            ref: 'A1',
+            retentionCategory: 'Retained',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor'
+            },
+            proposed: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor',
+              advanceYears: 0,
+              delayYears: 0
+            }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: { totalUnits: 2, habitatsTotal: 2 }
+      }
+    }
+  }
+
+  const RETYPE_EDIT = {
+    broadType: 'Grassland',
+    habitatType: 'Other neutral grassland',
+    condition: 'Good'
+  }
+
+  test('brings the post-intervention copy of the baseline with the edit', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const [habitat] = result.postIntervention.habitats
+    expect(habitat.baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    })
+    // Retained, so the proposed side was a copy of the baseline and moves too.
+    expect(habitat.proposed).toMatchObject({
+      type: 'Other neutral grassland',
+      condition: 'Good'
+    })
+  })
+
+  test('recomputes the trading-rules figures against the edited baseline', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const { areaHabitats } = result.postIntervention.tradingRules
+    // The Low-band habitat the stored figures were measured against is gone:
+    // both sides of the comparison now name the habitat the user chose.
+    expect(areaHabitats.habitatTypes).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        distinctiveness: 'Medium',
+        // A Retained parcel delivers exactly what the baseline holds, so it
+        // nets out — only true once both sides were re-derived together.
+        netUnitChange: 0
+      })
+    ])
+    expect(areaHabitats.medium.deficit).toBe(0)
+  })
+
+  test('recomputes the post-intervention units and net unit change', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(result.postIntervention.units.habitatsTotal).toBe(
+      result.unitsTotals.habitatsTotal
+    )
+    expect(result.postIntervention.units.habitatsNetUnitChange).toBe(0)
+    expect(result.postIntervention.units.habitatsNetUnitChangePercentage).toBe(
+      0
+    )
+  })
+
+  test('leaves the caller’s stored document untouched', () => {
+    const project = projectWithPostInterventionFixture()
+    const stored = structuredClone(project.postIntervention)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(project.postIntervention).toEqual(stored)
+    expect(result.project.postIntervention).toBe(result.postIntervention)
+  })
+
+  test('returns no post-intervention document when the project has none', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(result.postIntervention).toBeNull()
+    expect(result.project.postIntervention).toBeUndefined()
+  })
+
+  test('does not re-derive on a post-intervention edit', () => {
+    // That edit is already recomputing the document it belongs to.
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.postIntervention).toBeNull()
+  })
+
+  test('warns about a Retained row with no baseline feature to match', () => {
+    const project = projectWithPostInterventionFixture()
+    project.postIntervention.habitats[0].ref = 'Z9'
+    const logger = { warn: vi.fn() }
+
+    applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT,
+      logger
+    })
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Z9'))
   })
 })

@@ -611,3 +611,100 @@ describe('updateFeature validation', () => {
     ).toBeDefined()
   })
 })
+
+describe('#updateFeature — project with a post-intervention document', () => {
+  const PI_HABITAT_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // The post-intervention document joins back to the baseline on `ref`, so this
+  // row describes the same parcel as sampleHabitat.
+  function projectRowWithPostIntervention() {
+    const projectRow = makeProject()
+    projectRow.project.postIntervention = {
+      habitats: [
+        {
+          featureId: PI_HABITAT_ID,
+          ref: '1',
+          retentionCategory: 'Retained',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: 4,
+          status: 'Complete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      trees: [],
+      hedgerows: [],
+      watercourses: [],
+      units: { totalUnits: 4, habitatsTotal: 4 }
+    }
+    return projectRow
+  }
+
+  test('hands the re-derived post-intervention document to the same write', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithPostIntervention())
+
+    await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        logger: { warn: vi.fn() },
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    const [, , params] = setProjectFeature.mock.calls[0]
+    expect(params.documentKey).toBe('baseline')
+    expect(params.postIntervention.habitats[0].baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      condition: 'Good'
+    })
+    // Retained, so the parcel delivers what the edited baseline holds.
+    expect(params.postIntervention.units.habitatsNetUnitChange).toBe(0)
+    expect(
+      params.postIntervention.tradingRules.areaHabitats.habitatTypes
+    ).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        netUnitChange: 0
+      })
+    ])
+  })
+
+  test('sends nothing extra when the project has no post-intervention document', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+
+    await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    const [, , params] = setProjectFeature.mock.calls[0]
+    expect(params.postIntervention).toBeNull()
+  })
+})
