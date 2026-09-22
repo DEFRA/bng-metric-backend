@@ -76,7 +76,9 @@
           "default": "now()",
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.baseline_habitats",
@@ -118,7 +120,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.baseline_hedgerows",
@@ -160,7 +164,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.baseline_red_line",
@@ -193,7 +199,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.baseline_trees",
@@ -235,7 +243,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.baseline_watercourses",
@@ -277,7 +287,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.login_audit",
@@ -333,7 +345,7 @@
           "type": "text",
           "nullable": true,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": null
         },
@@ -342,7 +354,7 @@
           "type": "text",
           "nullable": true,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": null
         },
@@ -354,6 +366,19 @@
           "unique": false,
           "default": "now()",
           "references": null
+        }
+      ],
+      "compositeUniques": [
+        {
+          "name": "uq_login_audit_session_relationship",
+          "columns": ["session_id", "current_relationship_id"]
+        }
+      ],
+      "uniqueIndexes": [
+        {
+          "name": "uq_login_audit_session_no_relationship",
+          "columns": ["session_id"],
+          "where": "\"bng\".\"login_audit\".\"current_relationship_id\" is null"
         }
       ]
     },
@@ -397,7 +422,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.post_intervention_hedgerows",
@@ -439,7 +466,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.post_intervention_red_line",
@@ -472,7 +501,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.post_intervention_trees",
@@ -514,7 +545,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.post_intervention_watercourses",
@@ -556,7 +589,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.projects",
@@ -643,7 +678,9 @@
           "default": "now()",
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.relationships",
@@ -654,7 +691,7 @@
           "type": "text",
           "nullable": false,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": "users.user_id"
         },
@@ -663,7 +700,7 @@
           "type": "text",
           "nullable": false,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": null
         },
@@ -703,7 +740,14 @@
           "default": "now()",
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [
+        {
+          "name": "uq_relationships_user_rel",
+          "columns": ["user_id", "relationship_id"]
+        }
+      ],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.roles",
@@ -714,7 +758,7 @@
           "type": "text",
           "nullable": false,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": "users.user_id"
         },
@@ -723,7 +767,7 @@
           "type": "text",
           "nullable": false,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": null
         },
@@ -732,7 +776,7 @@
           "type": "text",
           "nullable": false,
           "primaryKey": false,
-          "unique": true,
+          "unique": false,
           "default": null,
           "references": null
         },
@@ -754,7 +798,14 @@
           "default": "now()",
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [
+        {
+          "name": "uq_roles_user_rel_name",
+          "columns": ["user_id", "relationship_id", "name"]
+        }
+      ],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.users",
@@ -832,7 +883,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     }
   ],
   "projectJson": [

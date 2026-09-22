@@ -4,8 +4,10 @@ import {
   text,
   timestamp,
   index,
-  unique
+  unique,
+  uniqueIndex
 } from 'drizzle-orm/pg-core'
+import { isNull } from 'drizzle-orm'
 
 const bng = pgSchema('bng')
 
@@ -14,6 +16,9 @@ const bng = pgSchema('bng')
 // workflow (persist-session.js), from the verified Defra ID token claims.
 // session_id plus current_relationship_id is UNIQUE. Inserts use ON CONFLICT
 // DO NOTHING, so retries are a no-op while an organisation switch is recorded.
+// A partial unique index deduplicates known sessions with no relationship.
+// NULL session ids always remain distinct. Relationship ids on new writes are
+// trimmed and lower-cased, matching bng.users.
 // The table is made
 // immutable at the database level by guard triggers + REVOKE in
 // changelog/db.changelog-1.10.xml (UPDATE/DELETE/TRUNCATE rejected; INSERT
@@ -37,7 +42,10 @@ const loginAudit = bng.table(
     unique('uq_login_audit_session_relationship').on(
       table.sessionId,
       table.currentRelationshipId
-    )
+    ),
+    uniqueIndex('uq_login_audit_session_no_relationship')
+      .on(table.sessionId)
+      .where(isNull(table.currentRelationshipId))
   ]
 )
 

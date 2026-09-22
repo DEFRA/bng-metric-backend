@@ -15,7 +15,7 @@ function makeTx() {
         return Promise.resolve()
       }),
       onConflictDoNothing: vi.fn((conflict) => {
-        calls.push({ table, values, conflict })
+        calls.push({ table, values, conflict, action: 'nothing' })
         return Promise.resolve()
       })
     }))
@@ -136,7 +136,7 @@ describe('persistSession', () => {
     expect(callsFor(tx, roles)).toHaveLength(0)
   })
 
-  test('appends one login_audit row in the same transaction, de-duped on session_id', async () => {
+  test('appends one login_audit row in the same transaction, ignoring either deduplication conflict', async () => {
     const tx = makeTx()
     await persistSession(makeDrizzle(tx), {
       sub: SUB,
@@ -153,10 +153,8 @@ describe('persistSession', () => {
       currentRelationshipId: 'rel-1',
       sessionId: 'sess-1'
     })
-    // De-dup on session_id via DO NOTHING (never DO UPDATE — the append-only
-    // guard rejects UPDATE).
-    expect(auditCall.conflict).toEqual({
-      target: [loginAudit.sessionId, loginAudit.currentRelationshipId]
-    })
+    // Omit the target to cover the composite constraint and partial index.
+    expect(auditCall.action).toBe('nothing')
+    expect(auditCall.conflict).toBeUndefined()
   })
 })

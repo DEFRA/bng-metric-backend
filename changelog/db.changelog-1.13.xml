@@ -27,4 +27,19 @@
         </rollback>
     </changeSet>
 
+    <changeSet id="38" author="bng-team">
+        <comment>
+            Deduplicate retries with a known session but no active relationship.
+            NULL session ids remain distinct, including when the relationship
+            is also NULL. Keep the already-applied changeSet 37 unchanged.
+        </comment>
+        <sql>
+            CREATE UNIQUE INDEX uq_login_audit_session_no_relationship
+                ON bng.login_audit (session_id)
+                WHERE current_relationship_id IS NULL;
+        </sql>
+        <rollback>
+            <sql>DROP INDEX bng.uq_login_audit_session_no_relationship;</sql>
+        </rollback>
+    </changeSet>
 </databaseChangeLog>

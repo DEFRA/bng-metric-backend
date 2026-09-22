@@ -44,6 +44,82 @@ function loginRows(sub) {
 }
 
 describe('login audit via POST /auth/session', () => {
+  it.each([undefined, null, '', '   '])(
+    'deduplicates a known session with relationship %j',
+    async (currentRelationshipId) => {
+      const sub = `it-${randomUUID()}`
+      const token = await mintToken({
+        sub,
+        sessionId: 'no-relationship',
+        currentRelationshipId
+      })
+      expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+      expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+      const { rows } = await loginRows(sub)
+      expect(rows).toHaveLength(1)
+      expect(rows[0].current_relationship_id).toBeNull()
+    }
+  )
+
+  it('deduplicates case and whitespace variants and matches the user relationship', async () => {
+    const sub = `it-${randomUUID()}`
+    for (const currentRelationshipId of [' REL-A ', 'rel-a', 'Rel-A']) {
+      expect(
+        (
+          await postSession(
+            await mintToken({
+              sub,
+              sessionId: 'canonical-session',
+              currentRelationshipId
+            })
+          )
+        ).statusCode
+      ).toBe(HTTP_NO_CONTENT)
+    }
+    const { rows } = await loginRows(sub)
+    expect(rows).toHaveLength(1)
+    expect(rows[0].current_relationship_id).toBe('rel-a')
+    const users = await dbClient.query(
+      'SELECT current_relationship_id FROM bng.users WHERE user_id = $1',
+      [sub]
+    )
+    expect(users.rows[0].current_relationship_id).toBe(
+      rows[0].current_relationship_id
+    )
+  })
+
+  it('records a relationship selected after a login with none, while suppressing retries', async () => {
+    const sub = `it-${randomUUID()}`
+    for (const currentRelationshipId of [null, 'rel-a', null, 'REL-A']) {
+      expect(
+        (
+          await postSession(
+            await mintToken({
+              sub,
+              sessionId: 'relationship-selected',
+              currentRelationshipId
+            })
+          )
+        ).statusCode
+      ).toBe(HTTP_NO_CONTENT)
+    }
+    const { rows } = await loginRows(sub)
+    expect(rows).toHaveLength(2)
+    expect(rows.map((row) => row.current_relationship_id)).toEqual(
+      expect.arrayContaining([null, 'rel-a'])
+    )
+  })
+
+  it.each([undefined, 'rel-a'])(
+    'always records logins without a session, with relationship %j',
+    async (currentRelationshipId) => {
+      const sub = `it-${randomUUID()}`
+      const token = await mintToken({ sub, currentRelationshipId })
+      expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+      expect((await postSession(token)).statusCode).toBe(HTTP_NO_CONTENT)
+      expect((await loginRows(sub)).rows).toHaveLength(2)
+    }
+  )
   it('appends one immutable login-audit row from the verified token claims', async () => {
     const sub = `it-${randomUUID()}`
     const res = await postSession(

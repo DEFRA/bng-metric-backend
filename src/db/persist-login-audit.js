@@ -12,6 +12,7 @@
 // PII safety: this module must NOT log `claims` or any token contents (email,
 // names). Callers log at most the `sub`.
 import { loginAudit } from './schema/index.js'
+import { canonicalRelationshipId } from '../services/defra-id/claims.js'
 
 // Map the verified Defra ID token claims to login_audit columns, mirroring the
 // claim names and fallbacks used by persist-session.js. logged_in_at is left to
@@ -22,7 +23,9 @@ function loginAuditValues(claims) {
     email: claims.email ?? null,
     firstName: claims.firstName ?? claims.given_name ?? null,
     lastName: claims.lastName ?? claims.family_name ?? null,
-    currentRelationshipId: claims.currentRelationshipId ?? null,
+    currentRelationshipId: canonicalRelationshipId(
+      claims.currentRelationshipId
+    ),
     sessionId: claims.sessionId ?? claims.sid ?? null
   }
 }
@@ -40,9 +43,10 @@ async function insertLoginAudit(db, claims) {
   await db
     .insert(loginAudit)
     .values(loginAuditValues(claims))
-    .onConflictDoNothing({
-      target: [loginAudit.sessionId, loginAudit.currentRelationshipId]
-    })
+    // No target: cover both the composite constraint and the single-column
+    // partial index for a missing relationship. A composite target cannot
+    // handle conflicts on that partial index.
+    .onConflictDoNothing()
 }
 
 export { insertLoginAudit }
