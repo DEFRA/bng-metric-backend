@@ -144,7 +144,8 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             habitatType,
             condition,
             documentKey,
-            credentials
+            credentials,
+            logger: request.logger
           })
         )
       } catch (err) {
@@ -179,7 +180,8 @@ async function runUpdate(
     habitatType,
     condition,
     documentKey,
-    credentials
+    credentials,
+    logger
   }
 ) {
   // Cap the wait on the project row lock so a stuck or pathologically slow
@@ -205,7 +207,8 @@ async function runUpdate(
     featureId,
     edits: { broadType, habitatType, condition },
     expectedType: 'habitat',
-    documentKey
+    documentKey,
+    logger
   })
   if (
     result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
@@ -225,6 +228,8 @@ async function runUpdate(
     index: result.index,
     feature: result.feature,
     unitsTotals: result.unitsTotals,
+    tradingRules: result.tradingRules,
+    postIntervention: result.postIntervention,
     actorId: credentials.sub
   })
 

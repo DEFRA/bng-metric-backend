@@ -3,7 +3,7 @@ import { eq } from 'drizzle-orm'
 import { assignFeatureIds } from '../../validation/geopackage/assign-feature-ids.js'
 import { buildFeatureIdByRef } from '../../validation/geopackage/carry-forward-feature-ids.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/enrichment/baseline/enrich-baseline-units.js'
-import { buildBaselineLinearLengthByRef } from '../../utilities/enrichment/post-intervention/linear-baseline-length-by-ref.js'
+import { postInterventionEnrichOptions } from '../../utilities/enrichment/post-intervention/post-intervention-enrich-options.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
 import { extractHabitatData } from '../../validation/geopackage/baseline/extract-habitat-data.js'
 import {
@@ -120,16 +120,6 @@ async function fetchStoredProject(drizzle, projectId) {
   return row?.project
 }
 
-function enrichOptionsForPostIntervention(baseline) {
-  return {
-    baselineLengthByRef: buildBaselineLinearLengthByRef(
-      baseline?.hedgerows ?? [],
-      baseline?.watercourses ?? []
-    ),
-    baselineUnits: baseline?.units
-  }
-}
-
 /**
  * @param {object} config
  */
@@ -212,7 +202,7 @@ function extractAndValidateDocument({
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
   const enrichOptions =
     config.projectDocumentKey === 'postIntervention'
-      ? enrichOptionsForPostIntervention(storedProject?.baseline)
+      ? postInterventionEnrichOptions(storedProject?.baseline)
       : {}
   handlers.enrichDocument(document, logger, enrichOptions)
   const { error } = handlers.documentSchema.validate(document, {

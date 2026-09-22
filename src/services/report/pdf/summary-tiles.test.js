@@ -29,7 +29,10 @@ import {
 } from './layout.js'
 import { unitTypeSectionHeight } from './summary-tiles.js'
 import { toBuffer } from '../build-site-report.js'
-import { baselineSite } from '../site-model.test-fixtures.js'
+import {
+  baselineSite,
+  postInterventionSite
+} from '../site-model.test-fixtures.js'
 
 async function render(options) {
   const { doc } = await buildSiteReportPdf(options)
@@ -203,5 +206,56 @@ describe('the tile geometry', () => {
     expect(needed).toBeLessThanOrEqual(
       A4_PORTRAIT_HEIGHT - MARGIN * 2 - headingAllowance
     )
+  })
+})
+
+describe('the trading-rules tile', () => {
+  const siteWithFigures = () => {
+    const site = postInterventionSite()
+    // Lakes is in deficit, so the Medium band fails and the site with it.
+    site.tradingRules = {
+      areaHabitats: {
+        habitatTypes: [],
+        medium: {
+          broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: -4 }],
+          surplus: 0,
+          deficit: -4
+        },
+        low: { netUnitChange: 2, cumulativeAvailability: 2 }
+      }
+    }
+    return site
+  }
+
+  test('tags the tile with the derived verdict, as words', async () => {
+    // Same rule the net-gain tag follows: real text on a coloured panel, never
+    // colour alone, so the verdict reaches assistive technology.
+    const tagged = await render({
+      baseline: baselineSite(),
+      postIntervention: siteWithFigures()
+    })
+    const untagged = await render({
+      baseline: baselineSite(),
+      postIntervention: postInterventionSite()
+    })
+
+    expect(countOf(tagged, '/S /P')).toBe(countOf(untagged, '/S /P') + 1)
+  })
+
+  test('draws no tag before the figures were calculated', async () => {
+    // Unknown is not the same as failed, so the tile keeps its shape rather
+    // than claiming a verdict. Asserted here only as the absence that makes
+    // the count above meaningful — which verdict is reached for which figures
+    // is unit-summary.test.js's job, where it can be read directly.
+    const uncalculated = await render({
+      baseline: baselineSite(),
+      postIntervention: postInterventionSite()
+    })
+    const tagged = await render({
+      baseline: baselineSite(),
+      postIntervention: siteWithFigures()
+    })
+
+    expect(countOf(uncalculated, '/S /P')).toBe(countOf(tagged, '/S /P') - 1)
   })
 })

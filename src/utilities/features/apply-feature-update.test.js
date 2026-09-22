@@ -1,4 +1,4 @@
-import { describe, test, expect } from 'vitest'
+import { describe, test, expect, vi } from 'vitest'
 
 import { APPLY_RESULT, applyFeatureUpdate } from './apply-feature-update.js'
 
@@ -537,6 +537,59 @@ function postInterventionProjectFixture() {
   }
 }
 
+/**
+ * A post-intervention project whose single parcel is Enhanced, so an edit to the
+ * proposed habitat moves units between habitat types — the case the trading
+ * rules have to recompute for. The stored baseline carries the parcel's
+ * baseline units, which is where the trading rules read them from.
+ */
+function enhancedProjectFixture() {
+  return {
+    name: 'Enhanced PI Fixture',
+    baseline: {
+      habitats: [
+        {
+          featureId: HABITAT_ID,
+          ref: 'H1-1',
+          type: 'Modified grassland',
+          broadType: 'Grassland',
+          units: 3
+        }
+      ],
+      units: { totalUnits: 3, habitatsTotal: 3 }
+    },
+    postIntervention: {
+      habitats: [
+        {
+          featureId: HABITAT_ID,
+          ref: 'H1-1',
+          retentionCategory: 'Enhanced',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: null,
+          status: 'Incomplete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Moderate',
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      trees: [],
+      hedgerows: [],
+      watercourses: [],
+      units: {}
+    }
+  }
+}
+
 describe('applyFeatureUpdate — postIntervention documentKey', () => {
   test('writes edits into the proposed sub-object, not top-level fields', () => {
     const result = applyFeatureUpdate(postInterventionProjectFixture(), {
@@ -612,6 +665,59 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     )
   })
 
+  test('refreshes postIntervention.tradingRules after an edit', () => {
+    // Enhancement delivers into the proposed habitat, so re-typing the parcel
+    // moves its units between bands: the Low baseline habitat keeps its deficit
+    // and the new Medium habitat takes the delivered units.
+    const result = applyFeatureUpdate(enhancedProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    const { areaHabitats } = result.project.postIntervention.tradingRules
+    expect(areaHabitats.habitatTypes).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Modified grassland',
+        distinctiveness: 'Low',
+        netUnitChange: -3
+      }),
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        broadHabitat: 'Grassland',
+        distinctiveness: 'Medium'
+      })
+    ])
+    expect(areaHabitats.medium.surplus).toBeGreaterThan(0)
+    expect(areaHabitats.low.netUnitChange).toBe(-3)
+    expect(result.tradingRules).toEqual(
+      result.project.postIntervention.tradingRules
+    )
+  })
+
+  test('re-typing an enhanced parcel into a Low habitat empties the Medium band', () => {
+    const result = applyFeatureUpdate(enhancedProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Allotments',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    const { areaHabitats } = result.project.postIntervention.tradingRules
+    expect(areaHabitats.medium.broadHabitats).toEqual([])
+    expect(areaHabitats.medium.surplus).toBe(0)
+    expect(areaHabitats.low.cumulativeAvailability).toBe(
+      areaHabitats.low.netUnitChange
+    )
+  })
+
   test('writes hedgerow type into proposed.type, not a top-level field', () => {
     const result = applyFeatureUpdate(postInterventionProjectFixture(), {
       featureId: HEDGEROW_ID,
@@ -628,5 +734,302 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(result.feature.proposed.condition).toBe('Good')
     expect(result.feature).not.toHaveProperty('type')
     expect(result.feature).not.toHaveProperty('condition')
+  })
+})
+
+describe('applyFeatureUpdate — baseline edit with a post-intervention document', () => {
+  const PI_HABITAT_ID = 'dd0e8400-e29b-41d4-a716-446655440004'
+  const ONE_HECTARE = 10_000
+
+  // The post-intervention document keeps its own copy of the baseline (the
+  // Baseline * GeoPackage columns), joined back to the baseline document on
+  // `ref` — the two documents assign featureIds independently.
+  function projectWithPostInterventionFixture() {
+    return {
+      name: 'Baseline edit fixture',
+      baseline: {
+        habitats: [
+          {
+            featureId: HABITAT_ID,
+            ref: 'A1',
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete'
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {
+          totalUnits: 2,
+          habitatsTotal: 2,
+          hedgerowsTotal: 0,
+          watercoursesTotal: 0
+        }
+      },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: PI_HABITAT_ID,
+            ref: 'A1',
+            retentionCategory: 'Retained',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor'
+            },
+            proposed: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor',
+              advanceYears: 0,
+              delayYears: 0
+            }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: { totalUnits: 2, habitatsTotal: 2 }
+      }
+    }
+  }
+
+  const RETYPE_EDIT = {
+    broadType: 'Grassland',
+    habitatType: 'Other neutral grassland',
+    condition: 'Good'
+  }
+
+  test('brings the post-intervention copy of the baseline with the edit', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const [habitat] = result.postIntervention.habitats
+    expect(habitat.baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    })
+    // Retained, so the proposed side was a copy of the baseline and moves too.
+    expect(habitat.proposed).toMatchObject({
+      type: 'Other neutral grassland',
+      condition: 'Good'
+    })
+  })
+
+  test('recomputes the trading-rules figures against the edited baseline', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const { areaHabitats } = result.postIntervention.tradingRules
+    // The Low-band habitat the stored figures were measured against is gone:
+    // both sides of the comparison now name the habitat the user chose.
+    expect(areaHabitats.habitatTypes).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        distinctiveness: 'Medium',
+        // A Retained parcel delivers exactly what the baseline holds, so it
+        // nets out — only true once both sides were re-derived together.
+        netUnitChange: 0
+      })
+    ])
+    expect(areaHabitats.medium.deficit).toBe(0)
+  })
+
+  test('recomputes the post-intervention units and net unit change', () => {
+    const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(result.postIntervention.units.habitatsTotal).toBe(
+      result.unitsTotals.habitatsTotal
+    )
+    expect(result.postIntervention.units.habitatsNetUnitChange).toBe(0)
+    expect(result.postIntervention.units.habitatsNetUnitChangePercentage).toBe(
+      0
+    )
+  })
+
+  test('leaves the caller’s stored document untouched', () => {
+    const project = projectWithPostInterventionFixture()
+    const stored = structuredClone(project.postIntervention)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(project.postIntervention).toEqual(stored)
+    expect(result.project.postIntervention).toBe(result.postIntervention)
+  })
+
+  test('returns no post-intervention document when the project has none', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    expect(result.postIntervention).toBeNull()
+    expect(result.project.postIntervention).toBeUndefined()
+  })
+
+  test('does not re-derive on a post-intervention edit', () => {
+    // That edit is already recomputing the document it belongs to.
+    const result = applyFeatureUpdate(postInterventionProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.postIntervention).toBeNull()
+  })
+
+  test('warns about a Retained row with no baseline feature to match', () => {
+    const project = projectWithPostInterventionFixture()
+    project.postIntervention.habitats[0].ref = 'Z9'
+    const logger = { warn: vi.fn() }
+
+    applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT,
+      logger
+    })
+
+    expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('Z9'))
+  })
+})
+
+describe('applyFeatureUpdate — a baseline ref shared by two features', () => {
+  const SECOND_HABITAT_ID = 'ff0e8400-e29b-41d4-a716-446655440006'
+  const PI_HABITAT_ID = 'dd0e8400-e29b-41d4-a716-446655440007'
+  const ONE_HECTARE = 10_000
+
+  function areaHabitat(featureId, overrides) {
+    return {
+      featureId,
+      ref: 'A1',
+      type: 'Modified grassland',
+      broadType: 'Grassland',
+      condition: 'Poor',
+      area: ONE_HECTARE,
+      sizeSquareMetres: ONE_HECTARE,
+      units: 2,
+      status: 'Complete',
+      ...overrides
+    }
+  }
+
+  // Both parcels carry ref A1 — legitimate in the metric where parcels combine
+  // or split. The post-intervention row's imported baseline values name the
+  // grassland one.
+  function sharedRefProjectFixture() {
+    return {
+      name: 'Shared ref fixture',
+      baseline: {
+        habitats: [
+          areaHabitat(HABITAT_ID),
+          areaHabitat(SECOND_HABITAT_ID, {
+            type: 'Allotments',
+            broadType: 'Urban'
+          })
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {
+          totalUnits: 4,
+          habitatsTotal: 4,
+          hedgerowsTotal: 0,
+          watercoursesTotal: 0
+        }
+      },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: PI_HABITAT_ID,
+            ref: 'A1',
+            retentionCategory: 'Retained',
+            area: ONE_HECTARE,
+            sizeSquareMetres: ONE_HECTARE,
+            units: 2,
+            status: 'Complete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor'
+            },
+            proposed: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Poor',
+              advanceYears: 0,
+              delayYears: 0
+            }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: { totalUnits: 2, habitatsTotal: 2 }
+      }
+    }
+  }
+
+  test('follows the parcel the edit moved, not the other one sharing its ref', () => {
+    // Only resolvable against the PRE-edit baseline: after the edit, the parcel
+    // the row describes no longer carries the values the row imported.
+    const logger = { warn: vi.fn() }
+
+    const result = applyFeatureUpdate(sharedRefProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      },
+      logger
+    })
+
+    expect(result.postIntervention.habitats[0].baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    })
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  test('leaves the row alone when the edit was to the other parcel', () => {
+    const result = applyFeatureUpdate(sharedRefProjectFixture(), {
+      featureId: SECOND_HABITAT_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Vacant/derelict land/bareground',
+        condition: 'Poor'
+      }
+    })
+
+    // The row named the grassland parcel, which this edit did not touch.
+    expect(result.postIntervention.habitats[0].baseline).toMatchObject({
+      type: 'Modified grassland',
+      condition: 'Poor'
+    })
   })
 })

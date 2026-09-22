@@ -434,3 +434,133 @@ describe('setProjectFeature — postIntervention', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 })
+
+describe('setProjectFeature — trading rules', () => {
+  // A habitat edit moves units between habitat types, so the caller recomputes
+  // the trading-rules figures and passes them in to be written in the same
+  // surgical update as the feature and the totals.
+  const validTradingRules = {
+    areaHabitats: {
+      habitatTypes: [
+        {
+          habitatType: 'Lakes - Reservoirs',
+          broadHabitat: 'Lakes',
+          tradingBroadHabitat: 'Lakes',
+          distinctiveness: 'Medium',
+          netUnitChange: -3
+        }
+      ],
+      medium: {
+        broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: -3 }],
+        surplus: 0,
+        deficit: -3
+      },
+      low: { netUnitChange: 2, cumulativeAvailability: 2 }
+    }
+  }
+
+  test('writes the trading rules when they are supplied', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: validPostInterventionHabitat,
+      unitsTotals: validUnitsTotals,
+      tradingRules: validTradingRules,
+      actorId: ACTOR_ID
+    })
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects trading rules that fail their schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: validPostInterventionHabitat,
+        unitsTotals: validUnitsTotals,
+        tradingRules: {
+          areaHabitats: {
+            ...validTradingRules.areaHabitats,
+            // The band aggregates are numbers; a string must not reach the
+            // document, where every downstream consumer would trust it.
+            medium: { ...validTradingRules.areaHabitats.medium, surplus: 'up' }
+          }
+        },
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+describe('setProjectFeature — re-derived post-intervention document', () => {
+  // A baseline edit changes what the post-intervention document was measured
+  // against, so the caller re-derives that document and hands it over whole —
+  // it is the one subtree an edit can change in too many places to patch.
+  const validPostInterventionDocument = {
+    habitats: [],
+    trees: [],
+    hedgerows: [],
+    watercourses: [],
+    units: validUnitsTotals
+  }
+
+  test('writes it in the same update as the baseline feature', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'baseline',
+      layer: 'habitats',
+      index: 0,
+      feature: validHabitat,
+      unitsTotals: validUnitsTotals,
+      postIntervention: validPostInterventionDocument,
+      actorId: ACTOR_ID
+    })
+
+    // One UPDATE: the two documents can never be persisted apart.
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  test('rejects a document that fails its schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'baseline',
+        layer: 'habitats',
+        index: 0,
+        feature: validHabitat,
+        unitsTotals: validUnitsTotals,
+        postIntervention: {
+          ...validPostInterventionDocument,
+          habitats: [{ featureId: FEATURE_ID, status: 'Nearly' }]
+        },
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('refuses to replace the document a post-intervention edit is patching', async () => {
+    // Both would write the same subtree, one surgically and one wholesale.
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        index: 0,
+        feature: validPostInterventionHabitat,
+        unitsTotals: validUnitsTotals,
+        postIntervention: validPostInterventionDocument,
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/must not also replace/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})

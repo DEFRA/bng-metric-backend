@@ -129,6 +129,39 @@ export const baselineUnitsTotalsSchema = Joi.object({
     )
 }).description('Baseline biodiversity unit totals, summed across features.')
 
+// Trading rules. The per-habitat net-unit-change item is module- and
+// band-agnostic so the hedgerow and watercourse modules can reuse it; the band
+// aggregates and the per-module wrapper live in the post-intervention schema.
+export const tradingRulesHabitatNetChangeSchema = Joi.object({
+  habitatType: Joi.string()
+    .required()
+    .description(
+      'Engine habitat type the net unit change is aggregated for, as "{Broad habitat} - {Habitat type}" (e.g. "Lakes - Reservoirs").'
+    ),
+  broadHabitat: Joi.string()
+    .required()
+    .description(
+      'Broad habitat the habitat type belongs to, taken from the part of the habitat type before the first " - " (e.g. "Lakes"). Not merged: this is the habitat\'s own broad habitat.'
+    ),
+  tradingBroadHabitat: Joi.string()
+    .required()
+    .description(
+      'Broad habitat this habitat\'s net unit change is cumulated under for trading. It is the habitat\'s own broad habitat, except for a Medium habitat in one of the two intertidal broad habitats, which instead carries the merged group "Intertidal sediment and hard structures" — the trading rules treat those two as one. The merge is Medium-only: the Low band trades on distinctiveness alone, with no broad-habitat constraint, so a Low intertidal habitat keeps its own broad habitat. Grouping the Medium habitats by this field reproduces the cumulative broad-habitat figures exactly.'
+    ),
+  distinctiveness: Joi.string()
+    .required()
+    .description(
+      'Distinctiveness band resolved from the bng-library/metric reference data. Only "Medium" and "Low" appear: Very Low habitats hold no units to trade, and the metric defines no traded figure for High or Very High.'
+    ),
+  netUnitChange: Joi.number()
+    .required()
+    .description(
+      'Net unit change for the habitat type: summed retained + created + enhanced post-intervention units (attributed to the delivered habitat) minus summed baseline units. Positive is a surplus, negative a deficit.'
+    )
+}).description(
+  'Net unit change for a single area habitat type across baseline and post-intervention.'
+)
+
 export const redLineSchema = Joi.object({
   featureId: Joi.string()
     .uuid()

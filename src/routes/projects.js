@@ -72,6 +72,19 @@ import { habitatByIdColumns } from '../db/project-features.js'
  *       primary key for downstream relational consumers. Nested features are
  *       keyed by their own `featureId`, which is stable across edits and across
  *       re-uploads that keep the same `ref`.
+ *
+ *       It also carries `tradingRuleStatuses`, the Met / Not-met verdicts for
+ *       the trading rules. These are **derived per request** from the unit
+ *       figures on the document, not stored — so they cannot go stale, and no
+ *       client has to work them out. Read
+ *       `tradingRuleStatuses.areaHabitats.overall` to display a verdict: it is
+ *       the only one that is safe alone, because the Low band figure
+ *       deliberately ignores a Medium deficit the statutory metric nets off,
+ *       and is sound only when paired with the Medium band. `medium` and `low`
+ *       are exposed for reporting, and are `null` where no post-intervention
+ *       file has been uploaded. Every value is `null` — `overall` included —
+ *       where a file was uploaded but its figures were never calculated: the
+ *       verdict is unknown, which is not the same as failed.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -83,7 +96,42 @@ import { habitatByIdColumns } from '../db/project-features.js'
  *           format: uuid
  *     responses:
  *       200:
- *         description: Returns the project
+ *         description: |
+ *           Returns the project, with `projectId` and the derived
+ *           `tradingRuleStatuses` on the envelope.
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 id:
+ *                   type: string
+ *                   format: uuid
+ *                 projectId:
+ *                   type: string
+ *                   format: uuid
+ *                 project:
+ *                   type: object
+ *                   description: The stored project document.
+ *                 tradingRuleStatuses:
+ *                   type: object
+ *                   description: Derived per request; never persisted.
+ *                   properties:
+ *                     areaHabitats:
+ *                       type: object
+ *                       properties:
+ *                         medium:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                         low:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                         overall:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
  *       401:
  *         description: Missing or invalid bearer token
  *       404:

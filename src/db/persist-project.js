@@ -26,7 +26,8 @@ import {
   postInterventionDataSchema,
   postInterventionHabitatSchema,
   postInterventionLinearHabitatSchema,
-  postInterventionWatercourseSchema
+  postInterventionWatercourseSchema,
+  tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import {
   projectSchema,
@@ -209,13 +210,34 @@ async function setProjectBaseline(exec, id, baseline, actorId) {
  * @param {number} params.index position of the feature within its layer array
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals
+ * @param {object} [params.tradingRules] refreshed postIntervention.tradingRules,
+ *   omitted on the baseline document, which carries no trading-rules figures
+ * @param {object} [params.postIntervention] the whole re-derived
+ *   postIntervention document, written alongside a BASELINE feature edit: that
+ *   document holds its own copy of the baseline and an edit can move any number
+ *   of its figures, so it is the one subtree that cannot be patched surgically.
+ *   Joins the same UPDATE so the two documents can never be persisted apart.
  */
 async function setProjectFeature(
   exec,
   id,
-  { documentKey = 'baseline', layer, index, feature, unitsTotals, actorId }
+  {
+    documentKey = 'baseline',
+    layer,
+    index,
+    feature,
+    unitsTotals,
+    tradingRules,
+    postIntervention,
+    actorId
+  }
 ) {
   assertActorId(actorId)
+  if (postIntervention && documentKey === 'postIntervention') {
+    throw Boom.badImplementation(
+      'persist: a post-intervention feature edit must not also replace the post-intervention document'
+    )
+  }
   assertFragmentValid(
     featureSchemaFor(documentKey, layer),
     feature,
@@ -226,6 +248,20 @@ async function setProjectFeature(
     unitsTotals,
     `${documentKey}.units`
   )
+  if (tradingRules) {
+    assertFragmentValid(
+      tradingRulesSchema,
+      tradingRules,
+      `${documentKey}.tradingRules`
+    )
+  }
+  if (postIntervention) {
+    assertFragmentValid(
+      habitatDataSchemaFor('postIntervention'),
+      postIntervention,
+      'project.postIntervention'
+    )
+  }
 
   const withFeature = jsonbSet(
     projects.project,
@@ -233,9 +269,15 @@ async function setProjectFeature(
     feature
   )
   const withTotals = jsonbSet(withFeature, [documentKey, 'units'], unitsTotals)
+  const withTradingRules = tradingRules
+    ? jsonbSet(withTotals, [documentKey, 'tradingRules'], tradingRules)
+    : withTotals
+  const withPostIntervention = postIntervention
+    ? jsonbSet(withTradingRules, ['postIntervention'], postIntervention)
+    : withTradingRules
   await exec
     .update(projects)
-    .set({ project: withTotals, lastModifiedBy: actorId })
+    .set({ project: withPostIntervention, lastModifiedBy: actorId })
     .where(eq(projects.id, id))
 }
 

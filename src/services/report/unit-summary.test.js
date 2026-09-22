@@ -215,3 +215,98 @@ describe('#summariseUnitTypes', () => {
     expect(summaries[0].baselineUnits).toBe('0.00 units')
   })
 })
+
+describe('the trading-rules status', () => {
+  const FIGURES_MEDIUM_IN_DEFICIT = {
+    habitatTypes: [],
+    medium: {
+      broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: -4 }],
+      surplus: 0,
+      deficit: -4
+    },
+    low: { netUnitChange: 2, cumulativeAvailability: 2 }
+  }
+
+  const FIGURES_ALL_IN_SURPLUS = {
+    habitatTypes: [],
+    medium: {
+      broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: 4 }],
+      surplus: 4,
+      deficit: 0
+    },
+    low: { netUnitChange: 2, cumulativeAvailability: 6 }
+  }
+
+  const siteWithFigures = (areaHabitats) => ({
+    ...site({ habitatsTotal: 18.5, habitatsNetUnitChangePercentage: 44.23 }),
+    tradingRules: { areaHabitats }
+  })
+
+  test('is derived from the persisted figures, not judged here', () => {
+    // A Medium broad habitat in deficit fails the band, and with it the site,
+    // even though the Low band has units to spare.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithFigures(FIGURES_MEDIUM_IN_DEFICIT)
+    )
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Not met', met: false })
+  })
+
+  test('is Met when no broad habitat is in deficit', () => {
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithFigures(FIGURES_ALL_IN_SURPLUS)
+    )
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Met', met: true })
+  })
+
+  test('can disagree with the net-gain verdict on the same section', () => {
+    // A site can clear 10% net gain and still break the trading rules, by
+    // replacing a habitat with units from the wrong broad habitat. The two
+    // tiles answer different questions and must be free to differ.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      siteWithFigures(FIGURES_MEDIUM_IN_DEFICIT)
+    )
+
+    expect(summary.status.met).toBe(true)
+    expect(summary.tradingRulesStatus.met).toBe(false)
+  })
+
+  test('is Not met when no post-intervention file was uploaded', () => {
+    // Nothing has been delivered to trade against, so the rules cannot be met.
+    const summary = summaryFor('habitats', site(BASELINE_UNITS), null)
+
+    expect(summary.tradingRulesStatus).toEqual({ text: 'Not met', met: false })
+  })
+
+  test('has no verdict before the figures were calculated', () => {
+    // A document written before the figures existed. An untagged tile says
+    // nothing, where a red tag would claim the site was assessed and failed.
+    const summary = summaryFor(
+      'habitats',
+      site(BASELINE_UNITS),
+      site({ habitatsTotal: 18.5 })
+    )
+
+    expect(summary.tradingRulesStatus).toBeNull()
+  })
+
+  test('is not offered for hedgerows or watercourses yet', () => {
+    const summaries = summariseUnitTypes(
+      site(BASELINE_UNITS, { hedgerows: 1, watercourses: 1 }),
+      siteWithFigures(FIGURES_MEDIUM_IN_DEFICIT)
+    )
+
+    for (const key of ['hedgerows', 'watercourses']) {
+      expect(
+        summaries.find((summary) => summary.key === key).tradingRulesStatus
+      ).toBeNull()
+    }
+  })
+})
