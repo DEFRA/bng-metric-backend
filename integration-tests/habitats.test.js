@@ -33,6 +33,16 @@ afterAll(async () => {
   await stopServer(server)
 })
 
+async function seedProject(project) {
+  const id = randomUUID()
+  await dbClient.query(
+    `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+     VALUES ($1, $2, $3, $3)`,
+    [id, project, userId]
+  )
+  return id
+}
+
 async function seedProjectWithHabitats(habitats) {
   const id = randomUUID()
   const project = {
@@ -188,5 +198,145 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       }
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+})
+
+describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-intervention document', () => {
+  // The post-intervention document keeps its own copy of the baseline and every
+  // figure it carries is measured against it, so a baseline edit re-derives the
+  // whole document. This covers the part the unit tests mock: that the
+  // re-derived document actually reaches the JSONB column, in the same write as
+  // the baseline feature.
+  function seedBoth() {
+    const baselineHabitat = habitatFixture({ units: 2, status: 'Complete' })
+    return {
+      baselineHabitat,
+      project: {
+        name: 'Baseline edit with post-intervention IT',
+        baseline: {
+          habitats: [baselineHabitat],
+          trees: [],
+          hedgerows: [],
+          watercourses: [],
+          units: {
+            totalUnits: 2,
+            habitatsTotal: 2,
+            hedgerowsTotal: 0,
+            watercoursesTotal: 0
+          }
+        },
+        postIntervention: {
+          habitats: [
+            {
+              // featureIds are assigned per document — the join is on `ref`.
+              featureId: randomUUID(),
+              ref: baselineHabitat.ref,
+              retentionCategory: 'Retained',
+              area: ONE_HECTARE_IN_SQUARE_METRES,
+              sizeSquareMetres: ONE_HECTARE_IN_SQUARE_METRES,
+              units: 2,
+              status: 'Complete',
+              baseline: {
+                type: 'Modified grassland',
+                broadType: 'Grassland',
+                condition: 'Poor'
+              },
+              proposed: {
+                type: 'Modified grassland',
+                broadType: 'Grassland',
+                condition: 'Poor',
+                advanceYears: 0,
+                delayYears: 0
+              }
+            }
+          ],
+          trees: [],
+          hedgerows: [],
+          watercourses: [],
+          units: { totalUnits: 2, habitatsTotal: 2 }
+        }
+      }
+    }
+  }
+
+  it('persists the re-derived post-intervention document alongside the edit', async () => {
+    const { baselineHabitat, project } = seedBoth()
+    const projectId = await seedProject(project)
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/habitats/${baselineHabitat.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const stored = rows[0].project
+
+    // The baseline edit landed.
+    expect(stored.baseline.habitats[0]).toMatchObject({
+      type: 'Other neutral grassland',
+      condition: 'Good',
+      units: 12
+    })
+
+    // The post-intervention copy of the baseline came with it, proposed side
+    // included — the parcel is Retained, so its proposed identity tracked the
+    // baseline it was copied from at import.
+    const [storedPostIntervention] = stored.postIntervention.habitats
+    expect(storedPostIntervention.baseline).toMatchObject({
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    })
+    expect(storedPostIntervention.proposed).toMatchObject({
+      type: 'Other neutral grassland',
+      condition: 'Good'
+    })
+
+    // And every figure measured against the baseline was recomputed. A Retained
+    // parcel delivers exactly what the baseline holds, so it nets out.
+    expect(stored.postIntervention.units.habitatsTotal).toBe(12)
+    expect(stored.postIntervention.units.habitatsNetUnitChange).toBe(0)
+    expect(
+      stored.postIntervention.tradingRules.areaHabitats.habitatTypes
+    ).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        netUnitChange: 0
+      })
+    ])
+  })
+
+  it('leaves the document alone when the project has no post-intervention data', async () => {
+    const habitat = habitatFixture({ units: 2, status: 'Complete' })
+    const projectId = await seedProjectWithHabitats([habitat])
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/habitats/${habitat.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention).toBeUndefined()
   })
 })

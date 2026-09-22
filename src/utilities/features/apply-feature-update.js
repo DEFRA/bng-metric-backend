@@ -224,6 +224,101 @@ function rebuiltProject(
 }
 
 /**
+ * Refresh every figure that stood on the feature just edited: the document's own
+ * unit totals, and then whatever measured against it.
+ *
+ * The two documents measure against each other, so which one was edited decides
+ * what else has to move. A post-intervention edit refreshes that document's own
+ * net unit changes and trading-rules figures — an edit moves units between
+ * habitat types, so those are stale until recomputed from the updated feature
+ * set. A baseline edit instead changes what the post-intervention document was
+ * measured against, so that whole document is re-derived rather than left
+ * quoting the old baseline.
+ *
+ * The re-derive needs the baseline on both sides of the edit: the edited
+ * document to take values from, and `previousFeatureSet` — the pre-edit one —
+ * to tell which of several features sharing a ref each post-intervention row
+ * describes.
+ *
+ * @param {object} updatedFeatureSet the edited document, mutated
+ * @param {{ project: object, documentKey: string, previousFeatureSet: object, logger: object }} context
+ * @returns {object | null} the re-derived post-intervention document, or null
+ *   when the edit was to that document or the project has none
+ */
+function refreshFiguresDownstreamOfEdit(
+  updatedFeatureSet,
+  { project, documentKey, previousFeatureSet, logger }
+) {
+  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
+  if (documentKey === 'postIntervention') {
+    addPostInterventionNetUnitChanges(
+      updatedFeatureSet,
+      project?.baseline?.units
+    )
+    enrichPostInterventionAreaTradingRules(updatedFeatureSet, project?.baseline)
+    return null
+  }
+  return rederivePostInterventionFromBaseline(
+    project?.postIntervention,
+    { baseline: updatedFeatureSet, previousBaseline: previousFeatureSet },
+    logger
+  )
+}
+
+/**
+ * Locate the feature an edit names and recompute its derived block, or say why
+ * the edit cannot proceed. Every way an edit is turned away lives here, so the
+ * apply path below deals only with edits that are going ahead.
+ *
+ * @param {object | undefined} featureSet the document being edited
+ * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string }} params
+ * @returns {{ found: object, derived: object } | { rejection: object }}
+ */
+function resolveEditTarget(
+  featureSet,
+  { featureId, normalizedEdits, expectedType, documentKey }
+) {
+  const found = findFeature(featureSet, featureId)
+  if (!found) {
+    return { rejection: { status: APPLY_RESULT.FEATURE_NOT_FOUND } }
+  }
+  if (expectedType && found.type !== expectedType) {
+    return {
+      rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
+    }
+  }
+  const derived = recomputeForType(
+    found.type,
+    found.feature,
+    normalizedEdits,
+    documentKey
+  )
+  if (!derived) {
+    return {
+      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+    }
+  }
+  // The dropdowns never offer High/V.High, but a crafted or stale PUT can
+  // still submit a habitat type whose true distinctiveness is out of scope.
+  // Reject it here — the shared chokepoint for every edit route and both
+  // documents — so an out-of-scope band can never be persisted, mirroring
+  // the upload gate (distinctiveness-check.js).
+  if (
+    derived.distinctiveness &&
+    OUT_OF_SCOPE_BANDS.has(derived.distinctiveness)
+  ) {
+    return {
+      rejection: {
+        status: APPLY_RESULT.OUT_OF_SCOPE,
+        type: found.type,
+        distinctiveness: derived.distinctiveness
+      }
+    }
+  }
+  return { found, derived }
+}
+
+/**
  * Given a project document, locate `featureId`, recompute its derived block
  * from the supplied edits, splice it back into its layer, and refresh the
  * feature-set unit totals. Returns the updated project plus the updated
@@ -264,37 +359,16 @@ function applyFeatureUpdate(
 ) {
   const normalizedEdits = normalizeEdits(edits)
   const featureSet = project?.[documentKey]
-  const found = findFeature(featureSet, featureId)
-  if (!found) {
-    return { status: APPLY_RESULT.FEATURE_NOT_FOUND }
-  }
-  if (expectedType && found.type !== expectedType) {
-    return { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
-  }
-  const derived = recomputeForType(
-    found.type,
-    found.feature,
+  const target = resolveEditTarget(featureSet, {
+    featureId,
     normalizedEdits,
+    expectedType,
     documentKey
-  )
-  if (!derived) {
-    return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+  })
+  if (target.rejection) {
+    return target.rejection
   }
-  // The dropdowns never offer High/V.High, but a crafted or stale PUT can
-  // still submit a habitat type whose true distinctiveness is out of scope.
-  // Reject it here — the shared chokepoint for every edit route and both
-  // documents — so an out-of-scope band can never be persisted, mirroring
-  // the upload gate (distinctiveness-check.js).
-  if (
-    derived.distinctiveness &&
-    OUT_OF_SCOPE_BANDS.has(derived.distinctiveness)
-  ) {
-    return {
-      status: APPLY_RESULT.OUT_OF_SCOPE,
-      type: found.type,
-      distinctiveness: derived.distinctiveness
-    }
-  }
+  const { found, derived } = target
   const updatedFeature = resolveUpdatedFeature(
     found,
     normalizedEdits,
@@ -310,33 +384,12 @@ function applyFeatureUpdate(
     index,
     updatedFeature
   )
-  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-  if (documentKey === 'postIntervention') {
-    addPostInterventionNetUnitChanges(
-      updatedFeatureSet,
-      project?.baseline?.units
-    )
-    // An edit moves units between habitat types, so the trading-rules figures
-    // are stale until they are recomputed from the updated feature set.
-    enrichPostInterventionAreaTradingRules(updatedFeatureSet, project?.baseline)
-  }
-  // A baseline edit changes what the post-intervention document was measured
-  // against, so that document is re-derived from the new baseline rather than
-  // left quoting the old one. Null when the project has no post-intervention
-  // document, and never produced on the post-intervention path — that edit is
-  // already recomputing the document it belongs to.
-  // `featureSet` is the pre-edit baseline. The re-derive needs both: the edited
-  // document to take values from, and the one the post-intervention rows were
-  // imported against to tell which of several features sharing a ref each row
-  // describes.
-  const postIntervention =
-    documentKey === 'baseline'
-      ? rederivePostInterventionFromBaseline(
-          project?.postIntervention,
-          { baseline: updatedFeatureSet, previousBaseline: featureSet },
-          logger
-        )
-      : null
+  const postIntervention = refreshFiguresDownstreamOfEdit(updatedFeatureSet, {
+    project,
+    documentKey,
+    previousFeatureSet: featureSet,
+    logger
+  })
   // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
   // surgically via persist-project.js (jsonb_set the one feature + the derived
   // subtrees) rather than rewriting the whole document. `postIntervention` is
