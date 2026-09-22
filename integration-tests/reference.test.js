@@ -5,6 +5,28 @@ import { HTTP_OK, HTTP_BAD_REQUEST } from './helpers/http-status.js'
 
 let server
 
+describe('GET /reference/local-planning-authorities', () => {
+  it('serves the complete seeded lookup without authentication or geometry', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/local-planning-authorities'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toHaveLength(308)
+    expect(res.result[0].name).toBe('Adur LPA')
+    expect(res.result).toContainEqual({
+      name: 'South Downs National Park LPA',
+      reference: 'E60000325'
+    })
+    expect(new Set(res.result.map((entry) => entry.reference)).size).toBe(
+      res.result.length
+    )
+    for (const entry of res.result) {
+      expect(Object.keys(entry).sort()).toEqual(['name', 'reference'])
+    }
+  })
+})
+
 beforeAll(async () => {
   server = await startServer()
 })

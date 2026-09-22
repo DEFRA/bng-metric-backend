@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+    <changeSet id="BMD-1012-lpa-lookup" author="bng-team">
+        <comment>BMD-1012: Static English LPA names and Planning Data references, downloaded 2026-09-22.</comment>
+        <sql>
+            CREATE TABLE bng.local_planning_authorities (
+                reference text PRIMARY KEY,
+                name text NOT NULL
+            );
+        </sql>
+        <sqlFile path="data/local-planning-authorities-2026-09-22.sql" relativeToChangelogFile="true"/>
+        <rollback><sql>DROP TABLE bng.local_planning_authorities;</sql></rollback>
+    </changeSet>
+</databaseChangeLog>

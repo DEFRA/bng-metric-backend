@@ -1,4 +1,6 @@
 import Joi from 'joi'
+import { asc } from 'drizzle-orm'
+import { localPlanningAuthorities } from '../db/schema/index.js'
 
 import {
   getAreaBroadHabitats,
@@ -196,8 +198,8 @@ import {
  *         description: Returns a map of band to guidance text
  */
 // All /reference/* routes are public (PUBLIC_ROUTES): static lookup data
-// (habitat types, conditions, trading rules) bundled into the engine at build
-// time, with no per-user scope. They opt out of the server's secure-by-default
+// (habitat types, conditions, trading rules and LPAs) stored locally,
+// with no per-user scope. They opt out of the server's secure-by-default
 // auth strategy with `auth: false`. See docs/auth-route-policy.md.
 const getBroadHabitats = {
   method: 'GET',
@@ -316,4 +318,35 @@ export {
   getWatercourseTypes,
   getWatercourseEncroachments,
   getTradingRules
+}
+
+/**
+ * @openapi
+ * /reference/local-planning-authorities:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Current English Local Planning Authorities, ordered by name
+ *     responses:
+ *       200:
+ *         description: Locally stored Planning Data names and references; no geometry
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: array
+ *               items:
+ *                 type: object
+ *                 required: [name, reference]
+ *                 properties:
+ *                   name: { type: string }
+ *                   reference: { type: string }
+ */
+export const getLocalPlanningAuthorities = {
+  method: 'GET',
+  path: '/reference/local-planning-authorities',
+  options: { auth: false },
+  handler: (request) =>
+    request.drizzle
+      .select()
+      .from(localPlanningAuthorities)
+      .orderBy(asc(localPlanningAuthorities.name))
 }
