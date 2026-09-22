@@ -69,6 +69,29 @@ function deliveredHabitatOf(feature) {
 }
 
 /**
+ * The habitat type as it can safely appear in a log line.
+ *
+ * The value is whatever the GeoPackage carried, so it is not necessarily a
+ * string. Each branch returns one, so nothing can reach the log as
+ * "[object Object]" — which would name nothing an operator could act on.
+ *
+ * @param {unknown} rawType
+ * @returns {string}
+ */
+function describeHabitatType(rawType) {
+  if (typeof rawType === 'string') {
+    return rawType
+  }
+  if (rawType == null) {
+    return ''
+  }
+  if (typeof rawType === 'object') {
+    return JSON.stringify(rawType) ?? ''
+  }
+  return String(rawType)
+}
+
+/**
  * Add a feature's units to the running total for its habitat key. Features with
  * an unresolvable habitat type or a non-finite unit value are skipped, mirroring
  * the leniency of the unit summariser so an Incomplete row never poisons an
@@ -86,16 +109,8 @@ function addFeatureUnits(unitsByType, feature, habitatProxy, logger) {
   }
   const habitatKey = engineHabitatKey(habitatProxy)
   if (!habitatKey) {
-    // The type is whatever the GeoPackage carried, so it is not necessarily a
-    // string. Anything else is JSON-stringified rather than left to land in the
-    // log as "[object Object]", which names nothing an operator can act on.
-    const rawType = habitatProxy?.type
-    const reportedType =
-      typeof rawType === 'string' || rawType == null
-        ? (rawType ?? '')
-        : JSON.stringify(rawType)
     logger.warn(
-      `${LOG_PREFIX}featureId ${feature?.featureId ?? 'unknown'}: habitat type '${reportedType}' is not in the reference data, excluded from trading rules`
+      `${LOG_PREFIX}featureId ${feature?.featureId ?? 'unknown'}: habitat type '${describeHabitatType(habitatProxy?.type)}' is not in the reference data, excluded from trading rules`
     )
     return
   }

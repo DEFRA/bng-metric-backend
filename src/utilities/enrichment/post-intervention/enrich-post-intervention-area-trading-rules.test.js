@@ -399,4 +399,16 @@ describe('enrichPostInterventionAreaTradingRules — the warning message', () =>
     expect(warning).not.toContain('[object Object]')
     expect(warning).toContain('{"name":"Reservoirs"}')
   })
+
+  test.each([
+    ['a number', 42, "habitat type '42'"],
+    ['a boolean', true, "habitat type 'true'"],
+    ['a bigint a large integer column can produce', 10n, "habitat type '10'"],
+    ['an array', ['Reservoirs'], 'habitat type \'["Reservoirs"]\''],
+    ['null', null, "habitat type ''"]
+  ])('names %s without throwing', (_label, type, expected) => {
+    // A log line must never be the thing that fails the upload, whatever the
+    // column held.
+    expect(warningFor(type)).toContain(expected)
+  })
 })
