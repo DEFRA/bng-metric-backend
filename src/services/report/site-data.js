@@ -191,13 +191,8 @@ function buildSite(document, geometry, siteName) {
   return {
     siteName,
     units: document.units ?? null,
-    // The trading-rules figures are carried across verbatim because the report
-    // derives its Met / Not-met tag from them, through the same function the
-    // project API uses. Dropping them here did not blank the tag — it produced
-    // the "not assessed" answer, which renders no tag at all, so the status
-    // disappeared from the report for exactly the projects that had one. A
-    // project with no post-intervention document never reached this line and
-    // kept its Not-met tag, which is why the tile still looked functional.
+    // The report's Met / Not-met tag is derived from these figures. Without
+    // them it reports "not assessed" and draws no tag at all.
     tradingRules: document.tradingRules ?? null,
     redLine: geometry.redLine,
     redLineAreaSqm: geometry.redLineAreaSqm,

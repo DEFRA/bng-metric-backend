@@ -279,11 +279,7 @@ describe('#buildSite', () => {
     ])
   })
 
-  // The report's Met / Not-met tag is derived from these figures. They used to
-  // be dropped here, and the derivation reads a missing `tradingRules` as "not
-  // assessed" rather than as a failure — so the tag silently vanished from the
-  // report of every project that had a post-intervention document, which is
-  // every project whose status is worth reading.
+  // Dropping these lost the report's Met / Not-met tag entirely.
   test('carries the trading-rules figures through untouched', () => {
     const tradingRules = {
       areaHabitats: { low: { cumulativeAvailability: 2 } }
@@ -299,10 +295,8 @@ describe('#buildSite', () => {
   })
 })
 
-// The two halves of the report agreed with each other in isolation and still
-// produced no tag: every unit-summary test builds the post-intervention side by
-// hand, so nothing exercised the shape buildSite actually hands it. These tests
-// join the two, which is where the status was being lost.
+// The unit-summary tests build the post-intervention side by hand, so nothing
+// checked the shape buildSite really passes it. These tests join the two.
 describe('the site model feeds the report summary', () => {
   const AREA_HABITATS_IN_SURPLUS = {
     habitatTypes: [],
