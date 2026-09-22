@@ -365,6 +365,13 @@ describe('enrichPostInterventionAreaTradingRules — incomplete features', () =>
   })
 })
 
+/** A structure JSON.stringify throws on. */
+function circular() {
+  const node = { name: 'Reservoirs' }
+  node.self = node
+  return node
+}
+
 describe('enrichPostInterventionAreaTradingRules — the warning message', () => {
   const warningFor = (type) => {
     const logger = { warn: vi.fn() }
@@ -405,7 +412,17 @@ describe('enrichPostInterventionAreaTradingRules — the warning message', () =>
     ['a boolean', true, "habitat type 'true'"],
     ['a bigint a large integer column can produce', 10n, "habitat type '10'"],
     ['an array', ['Reservoirs'], 'habitat type \'["Reservoirs"]\''],
-    ['null', null, "habitat type ''"]
+    ['null', null, "habitat type ''"],
+    [
+      'a function, which JSON has no representation of',
+      () => {},
+      "habitat type ''"
+    ],
+    [
+      'a circular structure JSON cannot serialise',
+      circular(),
+      "habitat type ''"
+    ]
   ])('names %s without throwing', (_label, type, expected) => {
     // A log line must never be the thing that fails the upload, whatever the
     // column held.

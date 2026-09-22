@@ -72,8 +72,10 @@ function deliveredHabitatOf(feature) {
  * The habitat type as it can safely appear in a log line.
  *
  * The value is whatever the GeoPackage carried, so it is not necessarily a
- * string. Each branch returns one, so nothing can reach the log as
- * "[object Object]" — which would name nothing an operator could act on.
+ * string. Every branch returns one, and `String()` is only ever handed a
+ * primitive, so nothing can reach the log as "[object Object]" — which would
+ * name nothing an operator could act on. Nothing here throws either: a log
+ * line must never be the thing that fails an upload.
  *
  * @param {unknown} rawType
  * @returns {string}
@@ -85,10 +87,23 @@ function describeHabitatType(rawType) {
   if (rawType == null) {
     return ''
   }
-  if (typeof rawType === 'object') {
-    return JSON.stringify(rawType) ?? ''
+  if (
+    typeof rawType === 'number' ||
+    typeof rawType === 'boolean' ||
+    typeof rawType === 'bigint'
+  ) {
+    return String(rawType)
   }
-  return String(rawType)
+  try {
+    // Undefined for anything JSON has no representation of, such as a
+    // function, which the `?? ''` turns into an empty name rather than the
+    // word "undefined".
+    return JSON.stringify(rawType) ?? ''
+  } catch {
+    // A structure JSON cannot serialise, such as a circular one. The warning
+    // is worth less without the type, but not worth failing an upload for.
+    return ''
+  }
 }
 
 /**
