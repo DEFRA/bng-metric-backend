@@ -24,6 +24,9 @@ describe('#startServer', () => {
   let startServerImport
   let createServerImport
 
+  // Importing the full server loads its route and report dependencies. Allow
+  // enough time for a clean CI install, where that can exceed Vitest's 10s
+  // default hook timeout.
   beforeAll(async () => {
     vi.stubEnv('PORT', '0')
 
@@ -32,7 +35,7 @@ describe('#startServer', () => {
 
     createServerSpy = vi.spyOn(createServerImport, 'createServer')
     hapiServerSpy = vi.spyOn(hapi, 'server')
-  })
+  }, 30_000)
 
   afterAll(() => {
     vi.unstubAllEnvs()

@@ -80,16 +80,20 @@ The mapped line of each baseline watercourse imported from the uploaded GeoPacka
 
 An append-only record of every successful user login, capturing the user identity, current relationship and session from the verified token, with a UTC timestamp.
 
-| Column                    | Type                       | Nullable | Key    | Default             |
-| ------------------------- | -------------------------- | -------- | ------ | ------------------- |
-| `id`                      | `uuid`                     | —        | PK     | `gen_random_uuid()` |
-| `user_id`                 | `text`                     | —        | —      | —                   |
-| `email`                   | `text`                     | ✓        | —      | —                   |
-| `first_name`              | `text`                     | ✓        | —      | —                   |
-| `last_name`               | `text`                     | ✓        | —      | —                   |
-| `current_relationship_id` | `text`                     | ✓        | —      | —                   |
-| `session_id`              | `text`                     | ✓        | UNIQUE | —                   |
-| `logged_in_at`            | `timestamp with time zone` | —        | —      | `now()`             |
+| Column                    | Type                       | Nullable | Key | Default             |
+| ------------------------- | -------------------------- | -------- | --- | ------------------- |
+| `id`                      | `uuid`                     | —        | PK  | `gen_random_uuid()` |
+| `user_id`                 | `text`                     | —        | —   | —                   |
+| `email`                   | `text`                     | ✓        | —   | —                   |
+| `first_name`              | `text`                     | ✓        | —   | —                   |
+| `last_name`               | `text`                     | ✓        | —   | —                   |
+| `current_relationship_id` | `text`                     | ✓        | —   | —                   |
+| `session_id`              | `text`                     | ✓        | —   | —                   |
+| `logged_in_at`            | `timestamp with time zone` | —        | —   | `now()`             |
+
+UNIQUE (`session_id`, `current_relationship_id`) — `uq_login_audit_session_relationship`.
+
+UNIQUE INDEX `uq_login_audit_session_no_relationship` (`session_id`) WHERE `"bng"."login_audit"."current_relationship_id" is null`.
 
 ### `bng.post_intervention_habitats`
 
@@ -165,26 +169,30 @@ One row per BNG project, holding the live project document plus its owner and ve
 
 The organisations a user is related to, taken from their Defra ID token and upserted on each login (one row per user's relationship).
 
-| Column            | Type                       | Nullable | Key                          | Default |
-| ----------------- | -------------------------- | -------- | ---------------------------- | ------- |
-| `user_id`         | `text`                     | —        | FK → `users.user_id`, UNIQUE | —       |
-| `relationship_id` | `text`                     | —        | UNIQUE                       | —       |
-| `org_id`          | `text`                     | ✓        | —                            | —       |
-| `org_name`        | `text`                     | ✓        | —                            | —       |
-| `relationship`    | `text`                     | ✓        | —                            | —       |
-| `last_updated`    | `timestamp with time zone` | —        | —                            | `now()` |
+| Column            | Type                       | Nullable | Key                  | Default |
+| ----------------- | -------------------------- | -------- | -------------------- | ------- |
+| `user_id`         | `text`                     | —        | FK → `users.user_id` | —       |
+| `relationship_id` | `text`                     | —        | —                    | —       |
+| `org_id`          | `text`                     | ✓        | —                    | —       |
+| `org_name`        | `text`                     | ✓        | —                    | —       |
+| `relationship`    | `text`                     | ✓        | —                    | —       |
+| `last_updated`    | `timestamp with time zone` | —        | —                    | `now()` |
+
+UNIQUE (`user_id`, `relationship_id`) — `uq_relationships_user_rel`.
 
 ### `bng.roles`
 
 The roles and their approval status a user holds per organisation relationship, upserted from the Defra ID token on each login; drives project access control.
 
-| Column            | Type                       | Nullable | Key                          | Default |
-| ----------------- | -------------------------- | -------- | ---------------------------- | ------- |
-| `user_id`         | `text`                     | —        | FK → `users.user_id`, UNIQUE | —       |
-| `relationship_id` | `text`                     | —        | UNIQUE                       | —       |
-| `name`            | `text`                     | —        | UNIQUE                       | —       |
-| `status`          | `smallint`                 | —        | —                            | —       |
-| `last_updated`    | `timestamp with time zone` | —        | —                            | `now()` |
+| Column            | Type                       | Nullable | Key                  | Default |
+| ----------------- | -------------------------- | -------- | -------------------- | ------- |
+| `user_id`         | `text`                     | —        | FK → `users.user_id` | —       |
+| `relationship_id` | `text`                     | —        | —                    | —       |
+| `name`            | `text`                     | —        | —                    | —       |
+| `status`          | `smallint`                 | —        | —                    | —       |
+| `last_updated`    | `timestamp with time zone` | —        | —                    | `now()` |
+
+UNIQUE (`user_id`, `relationship_id`, `name`) — `uq_roles_user_rel_name`.
 
 ### `bng.users`
 

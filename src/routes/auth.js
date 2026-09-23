@@ -14,8 +14,8 @@ import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
  *       strategy) and, in one transaction, upserts bng.users / bng.relationships
  *       / bng.roles and appends an immutable bng.login_audit row from the
  *       verified claims. No request body — identity comes solely from the
- *       verified token. The login_audit append is de-duplicated on session_id,
- *       so a repeat call for an already-recorded session is a graceful no-op
+ *       verified token. The login_audit append is de-duplicated on session ID
+ *       and active relationship, so a repeat call is a graceful no-op
  *       (still 204) rather than a duplicate audit row.
  *     security:
  *       - bearerAuth: []

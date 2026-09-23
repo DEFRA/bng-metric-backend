@@ -111,7 +111,7 @@ function formatDefault(column) {
   return String(value)
 }
 
-function describeTable(table) {
+export function describeTable(table) {
   const config = getTableConfig(table)
 
   const fkByColumn = new Map()
@@ -126,10 +126,25 @@ function describeTable(table) {
 
   const uniqueColumns = new Set()
   for (const unique of config.uniqueConstraints ?? []) {
-    for (const column of unique.columns) {
-      uniqueColumns.add(column.name)
+    if (unique.columns.length === 1) {
+      uniqueColumns.add(unique.columns[0].name)
     }
   }
+  const compositeUniques = (config.uniqueConstraints ?? [])
+    .filter((constraint) => constraint.columns.length > 1)
+    .map((constraint) => ({
+      name: constraint.name,
+      columns: constraint.columns.map((column) => column.name)
+    }))
+  const uniqueIndexes = (config.indexes ?? [])
+    .filter((index) => index.config.unique)
+    .map(({ config: index }) => ({
+      name: index.name,
+      columns: index.columns.map((column) =>
+        is(column, SQL) ? dialect.sqlToQuery(column).sql : column.name
+      ),
+      where: index.where ? dialect.sqlToQuery(index.where).sql : null
+    }))
 
   const columns = config.columns.map((column) => ({
     name: column.name,
@@ -142,7 +157,13 @@ function describeTable(table) {
   }))
 
   const name = `${config.schema}.${config.name}`
-  return { name, description: TABLE_DESCRIPTIONS[name] ?? null, columns }
+  return {
+    name,
+    description: TABLE_DESCRIPTIONS[name] ?? null,
+    columns,
+    compositeUniques,
+    uniqueIndexes
+  }
 }
 
 function collectTables() {
@@ -293,7 +314,7 @@ function renderColumnRow(column) {
   )} | ${columnKeyLabel(column)} | ${defaultLabel(column.default)} |`
 }
 
-function renderPostgresSection(tables) {
+export function renderPostgresSection(tables) {
   const lines = ['## Postgres tables', '']
   for (const table of tables) {
     lines.push(`### \`${table.name}\``, '')
@@ -306,6 +327,17 @@ function renderPostgresSection(tables) {
       ...table.columns.map(renderColumnRow),
       ''
     )
+    for (const constraint of table.compositeUniques) {
+      const columns = constraint.columns
+        .map((column) => `\`${column}\``)
+        .join(', ')
+      lines.push(`UNIQUE (${columns}) — \`${constraint.name}\`.`, '')
+    }
+    for (const index of table.uniqueIndexes) {
+      const columns = index.columns.map((column) => `\`${column}\``).join(', ')
+      const predicate = index.where ? ` WHERE \`${index.where}\`` : ''
+      lines.push(`UNIQUE INDEX \`${index.name}\` (${columns})${predicate}.`, '')
+    }
   }
   return lines.join('\n')
 }
@@ -372,25 +404,27 @@ function renderMarkdown(tables, fields) {
 
 // ─── Main ─────────────────────────────────────────────────────────────────────
 
-console.log('Generating data dictionary…')
-const allTables = collectTables()
-assertAllTablesDescribed(allTables)
-const allFields = collectProjectFields()
-console.log(
-  `  • ${allTables.length} Postgres tables, ${allFields.length} project JSON fields`
-)
+if (import.meta.main) {
+  console.log('Generating data dictionary…')
+  const allTables = collectTables()
+  assertAllTablesDescribed(allTables)
+  const allFields = collectProjectFields()
+  console.log(
+    `  • ${allTables.length} Postgres tables, ${allFields.length} project JSON fields`
+  )
 
-mkdirSync(DATA_DICTIONARY_DIR, { recursive: true })
+  mkdirSync(DATA_DICTIONARY_DIR, { recursive: true })
 
-const markdownPath = join(DATA_DICTIONARY_DIR, 'data-dictionary.md')
-const jsonPath = join(DATA_DICTIONARY_DIR, 'data-dictionary.json')
+  const markdownPath = join(DATA_DICTIONARY_DIR, 'data-dictionary.md')
+  const jsonPath = join(DATA_DICTIONARY_DIR, 'data-dictionary.json')
 
-writeFileSync(markdownPath, `${renderMarkdown(allTables, allFields)}\n`)
-writeFileSync(
-  jsonPath,
-  `${JSON.stringify({ postgres: allTables, projectJson: allFields }, null, 2)}\n`
-)
+  writeFileSync(markdownPath, `${renderMarkdown(allTables, allFields)}\n`)
+  writeFileSync(
+    jsonPath,
+    `${JSON.stringify({ postgres: allTables, projectJson: allFields }, null, 2)}\n`
+  )
 
-console.log(`  • wrote ${markdownPath}`)
-console.log(`  • wrote ${jsonPath}`)
-console.log('Done.')
+  console.log(`  • wrote ${markdownPath}`)
+  console.log(`  • wrote ${jsonPath}`)
+  console.log('Done.')
+}

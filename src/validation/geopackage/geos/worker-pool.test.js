@@ -23,6 +23,11 @@ import {
  */
 
 const MISSING_FILE = '/nonexistent/not-a-real-upload.gpkg'
+const TIMEOUT_TEST_DEADLINE_MS = 100
+const TIMEOUT_WORKER = new URL(
+  './worker-pool.timeout-test-worker.js',
+  import.meta.url
+)
 const GENEROUS_TIMEOUT_MS = 30_000
 
 /** Polling interval and deadline for "has the replacement announced itself yet". */
@@ -137,15 +142,22 @@ describe('GeosWorkerPool', () => {
   })
 
   it('kills the worker on an overrun, and replaces it', async () => {
-    // One millisecond is not enough to load a GeoPackage, so the job overruns
-    // and the pool has to terminate the thread to get out of it.
-    const pool = openPool({ timeoutMs: 1 })
+    // The fixture announces ready but deliberately never replies. Unlike a
+    // missing GeoPackage (which can fail before a tiny timer fires), this makes
+    // the overrun deterministic even when the full suite is under load.
+    const pool = openPool({
+      timeoutMs: TIMEOUT_TEST_DEADLINE_MS,
+      workerPath: TIMEOUT_WORKER
+    })
     await expect(pool.run(MISSING_FILE)).rejects.toBeInstanceOf(
       ValidationTimeoutError
     )
-    // The replacement takes a moment to announce itself; the pool must not have
-    // shrunk in the meantime.
+    // The replacement announces itself asynchronously. Wait for it to become
+    // usable before asserting the pool has regained its configured capacity;
+    // checking immediately races the worker thread under full-suite load.
+    await waitForIdleWorker(pool)
     expect(pool.stats().size).toBe(pool.size)
+    expect(pool.stats().idle).toBe(1)
   })
 
   // A replaced worker used to be released twice — once by `onExit`, once by its

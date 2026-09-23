@@ -4,7 +4,7 @@ import { insertLoginAudit } from './persist-login-audit.js'
 import { loginAudit } from './schema/index.js'
 
 // Records the insert(table).values(v).onConflictDoNothing(cfg) chain so we can
-// assert the values and the session_id de-dup target without a real database.
+// assert the values and conflict handling without a real database.
 function makeDb() {
   const onConflictDoNothing = vi.fn().mockResolvedValue(undefined)
   const values = vi.fn().mockReturnValue({ onConflictDoNothing })
@@ -13,7 +13,28 @@ function makeDb() {
 }
 
 describe('insertLoginAudit', () => {
-  test('appends to loginAudit from the primary claim names, de-duped on session_id', async () => {
+  test.each([
+    [' REL-A ', 'rel-a'],
+    ['rel-a', 'rel-a'],
+    ['', null],
+    ['   ', null],
+    [null, null],
+    [undefined, null]
+  ])(
+    'canonicalises relationship %j to %j',
+    async (currentRelationshipId, expected) => {
+      const { db, values } = makeDb()
+      await insertLoginAudit(db, {
+        sub: 'user-1',
+        sessionId: 'session-1',
+        currentRelationshipId
+      })
+      expect(values).toHaveBeenCalledWith(
+        expect.objectContaining({ currentRelationshipId: expected })
+      )
+    }
+  )
+  test('appends primary claims while handling both deduplication constraints', async () => {
     const { db, insert, values, onConflictDoNothing } = makeDb()
     const claims = {
       sub: 'user-1',
@@ -35,11 +56,9 @@ describe('insertLoginAudit', () => {
       currentRelationshipId: 'rel-1',
       sessionId: 'sess-1'
     })
-    // Repeat logins for the same session are a graceful no-op, never a DO UPDATE
+    // Repeat logins for the same session and relationship are a no-op, never a DO UPDATE
     // (which the append-only guard would reject).
-    expect(onConflictDoNothing).toHaveBeenCalledWith({
-      target: loginAudit.sessionId
-    })
+    expect(onConflictDoNothing).toHaveBeenCalledWith()
   })
 
   test('falls back to given_name / family_name / sid', async () => {

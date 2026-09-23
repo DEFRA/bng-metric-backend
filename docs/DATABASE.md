@@ -265,15 +265,25 @@ Each row captures the verified Defra ID token claims — `user_id` (`sub`),
 `email`, `first_name`, `last_name`, `current_relationship_id`, `session_id` —
 plus a server-set UTC `logged_in_at` (`timestamptz default now()`).
 
-**De-duplication (records logins, not endpoint calls).** `session_id` carries a
-`UNIQUE` constraint (`uq_login_audit_session_id`, changeset 31) and the insert
-uses `ON CONFLICT DO NOTHING`, so a repeat `/auth/session` for an
-already-recorded session is a graceful no-op — `/auth/session` still returns
-`204`, but no duplicate audit row is written. This stops any authenticated client
-from spamming arbitrary or duplicate login events. `DO NOTHING` (never
+**De-duplication (records logins, not endpoint calls).** The pair of
+`session_id` and `current_relationship_id` carries a `UNIQUE` constraint
+(`uq_login_audit_session_relationship`, changeset 37). The insert uses `ON
+CONFLICT DO NOTHING`, so a repeat `/auth/session` for an already-recorded login
+is a graceful no-op — `/auth/session` still returns `204`, but no duplicate
+audit row is written. A Defra ID session can survive an organisation switch, so
+the active relationship is part of the key and the switch is recorded as a new
+login. `DO NOTHING` (never
 `DO UPDATE`) is required: the append-only guard rejects `UPDATE`. `NULL`
 `session_id`s are distinct under standard Postgres semantics, so a login whose
 token carries no session id is always recorded (it cannot be de-duplicated).
+
+When the relationship is missing, the partial unique index
+`uq_login_audit_session_no_relationship` (changeset 38) deduplicates the known
+`session_id` where `current_relationship_id IS NULL`. The insert omits a conflict
+target so conflicts from either index are handled as a no-op. New audit writes
+trim and lowercase relationship ids using the same canonicalisation as
+`bng.users`; empty and whitespace-only claims become `NULL`. Existing audit
+records and the append-only guards are unchanged.
 
 The **same two-layer immutability guard** applies, added in
 `changelog/db.changelog-1.10.xml`: `BEFORE UPDATE OR DELETE` (row-level) and
