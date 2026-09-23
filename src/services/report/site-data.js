@@ -191,6 +191,9 @@ function buildSite(document, geometry, siteName) {
   return {
     siteName,
     units: document.units ?? null,
+    // The report's Met / Not-met tag is derived from these figures. Without
+    // them it reports "not assessed" and draws no tag at all.
+    tradingRules: document.tradingRules ?? null,
     redLine: geometry.redLine,
     redLineAreaSqm: geometry.redLineAreaSqm,
     layers,

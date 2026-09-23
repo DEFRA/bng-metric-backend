@@ -7,6 +7,7 @@ import {
   joinLayer,
   readSiteData
 } from './site-data.js'
+import { summariseUnitTypes } from './unit-summary.js'
 
 vi.mock('../../db/project-geometry.js', async (importOriginal) => {
   const original = await importOriginal()
@@ -276,6 +277,73 @@ describe('#buildSite', () => {
       'trees',
       'watercourses'
     ])
+  })
+
+  // Dropping these lost the report's Met / Not-met tag entirely.
+  test('carries the trading-rules figures through untouched', () => {
+    const tradingRules = {
+      areaHabitats: { low: { cumulativeAvailability: 2 } }
+    }
+
+    const site = buildSite({ tradingRules }, emptyGeometry(), 'Test Farm')
+
+    expect(site.tradingRules).toBe(tradingRules)
+  })
+
+  test('has null trading rules when the document carries none', () => {
+    expect(buildSite({}, emptyGeometry(), 'Test Farm').tradingRules).toBeNull()
+  })
+})
+
+// The unit-summary tests build the post-intervention side by hand, so nothing
+// checked the shape buildSite really passes it. These tests join the two.
+describe('the site model feeds the report summary', () => {
+  const AREA_HABITATS_IN_SURPLUS = {
+    habitatTypes: [],
+    medium: {
+      broadHabitats: [{ broadHabitat: 'Lakes', netUnitChange: 4 }],
+      surplus: 4,
+      deficit: 0
+    },
+    low: { netUnitChange: 2, cumulativeAvailability: 6 }
+  }
+
+  const summaryFor = (key, baseline, postIntervention) =>
+    summariseUnitTypes(baseline, postIntervention).find(
+      (summary) => summary.key === key
+    )
+
+  test('a Met status survives the trip from document to summary', () => {
+    const baseline = buildSite(
+      { units: { habitatsTotal: 10 } },
+      emptyGeometry(),
+      'Test Farm'
+    )
+    const postIntervention = buildSite(
+      {
+        units: { habitatsTotal: 18.5, habitatsNetUnitChangePercentage: 44.23 },
+        tradingRules: { areaHabitats: AREA_HABITATS_IN_SURPLUS }
+      },
+      emptyGeometry(),
+      'Test Farm'
+    )
+
+    expect(
+      summaryFor('habitats', baseline, postIntervention).tradingRulesStatus
+    ).toEqual({ text: 'Met', met: true })
+  })
+
+  test('a project with no post-intervention side is Not met, not untagged', () => {
+    const baseline = buildSite(
+      { units: { habitatsTotal: 10 } },
+      emptyGeometry(),
+      'Test Farm'
+    )
+
+    expect(summaryFor('habitats', baseline, null).tradingRulesStatus).toEqual({
+      text: 'Not met',
+      met: false
+    })
   })
 })
 
