@@ -536,11 +536,73 @@ const areaHabitatTradingRulesSchema = Joi.object({
   'Area-habitat trading-rules unit figures. The Met / Not-met statuses are a pure function of these and are derived on read, not stored.'
 )
 
+const hedgerowTradingRulesHabitatTypeSchema = Joi.object({
+  habitatType: Joi.string()
+    .required()
+    .description(
+      'Hedgerow habitat type the net unit change is aggregated for, as the bng-library/metric hedgerow reference key (e.g. "Native hedgerow", "Line of trees - associated with bank or ditch").'
+    ),
+  distinctiveness: Joi.string()
+    .required()
+    .description(
+      'Distinctiveness band resolved from the bng-library/metric hedgerow reference data. Only "Medium", "Low" and "V.Low" appear: the metric defines no traded figure for High or Very High hedgerows.'
+    ),
+  netUnitChange: Joi.number()
+    .required()
+    .description(
+      'Net unit change for the hedgerow type: summed retained + created + enhanced post-intervention units (retained hedgerows under their baseline type, created and enhanced under their proposed type) minus summed baseline units. Positive is a gain, negative a loss.'
+    )
+}).description(
+  'Net unit change for a single hedgerow habitat type across baseline and post-intervention.'
+)
+
+const hedgerowTradingRulesSchema = Joi.object({
+  habitatTypes: Joi.array()
+    .items(hedgerowTradingRulesHabitatTypeSchema)
+    .description(
+      'Net unit change per hedgerow habitat type across baseline and post-intervention. One entry per unique habitat TYPE, not per feature. Ordered by habitat type; Medium, Low and Very Low bands only.'
+    ),
+  medium: Joi.object({
+    netUnitChange: Joi.number()
+      .required()
+      .description(
+        'Net change in units for Medium-distinctiveness hedgerows: the sum of all Medium net unit changes regardless of sign. Hedgerows trade on distinctiveness band alone, so a gain in one Medium type offsets a loss in another — unlike area habitats and watercourses, which carry only the Medium surplus.'
+      )
+  }).description('Medium-distinctiveness hedgerow band totals.'),
+  low: Joi.object({
+    netUnitChange: Joi.number()
+      .required()
+      .description(
+        'Net change in units for Low-distinctiveness hedgerows: the sum of all Low net unit changes regardless of sign.'
+      ),
+    cumulativeAvailability: Joi.number()
+      .required()
+      .description(
+        "Units available to the Low band: the Low net change plus the Medium net change when that is greater than zero. A Medium loss is never carried down. Matches the Statutory Metric's Trading Summary Hedgerows sheet."
+      )
+  }).description('Low-distinctiveness hedgerow band totals.'),
+  veryLow: Joi.object({
+    netUnitChange: Joi.number()
+      .required()
+      .description(
+        'Net change in units for Very Low-distinctiveness hedgerows: the sum of all Very Low net unit changes regardless of sign.'
+      ),
+    cumulativeAvailability: Joi.number()
+      .required()
+      .description(
+        "Units available to the Very Low band: the Very Low net change plus the Low cumulative availability when that is greater than zero. A shortfall is never carried down. Matches the Statutory Metric's Trading Summary Hedgerows sheet."
+      )
+  }).description('Very Low-distinctiveness hedgerow band totals.')
+}).description(
+  'Hedgerow trading-rules unit figures. Unit values only; Met / Not-met statuses are derived separately, not stored.'
+)
+
 const tradingRulesSchema = Joi.object({
   areaHabitats: areaHabitatTradingRulesSchema,
-  watercourses: watercourseTradingRulesSchema
+  watercourses: watercourseTradingRulesSchema,
+  hedgerows: hedgerowTradingRulesSchema
 }).description(
-  'Trading-rules unit figures by feature module. Area habitats and watercourses today; hedgerows follow the same pattern.'
+  'Trading-rules unit figures by feature module: area habitats, watercourses and hedgerows.'
 )
 
 const postInterventionDataSchema = Joi.object({
