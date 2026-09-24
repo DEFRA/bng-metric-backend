@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**21 tables**, mapping 334 schema fields.
+**22 tables**, mapping 342 schema fields.
 
 ## Diagram
 
@@ -28,6 +28,7 @@ erDiagram
     feature_set_trading_rules ||--o{ feature_set_trading_rules_area_habitat_types : "contains"
     feature_set_trading_rules ||--o{ feature_set_trading_rules_area_broad_habitats : "contains"
     feature_set_trading_rules ||--o{ feature_set_trading_rules_watercourse_habitats : "contains"
+    feature_set_trading_rules ||--o{ feature_set_trading_rules_hedgerow_habitat_types : "contains"
     feature_set ||--o| baseline_red_line : "has"
     feature_set ||--o{ baseline_habitats : "contains"
     feature_set ||--o{ baseline_trees : "contains"
@@ -89,6 +90,8 @@ erDiagram
         numeric area_habitats_low_cumulative_availability
         numeric watercourses_medium_surplus
         numeric watercourses_low_cumulative_availability
+        numeric hedgerows_low_cumulative_availability
+        numeric hedgerows_very_low_cumulative_availability
     }
     feature_set_trading_rules_area_habitat_types {
         text trading_rules_area_habitat_type_id PK "{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}"
@@ -105,6 +108,13 @@ erDiagram
     }
     feature_set_trading_rules_watercourse_habitats {
         text trading_rules_watercourse_habitat_id PK "{projectId}:postIntervention:tradingRules:watercourses:{habitatType}"
+        text trading_rules_id FK "→ feature_set_trading_rules.trading_rules_id"
+        text habitat_type
+        text distinctiveness
+        numeric net_unit_change
+    }
+    feature_set_trading_rules_hedgerow_habitat_types {
+        text trading_rules_hedgerow_habitat_type_id PK "{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}"
         text trading_rules_id FK "→ feature_set_trading_rules.trading_rules_id"
         text habitat_type
         text distinctiveness
@@ -198,29 +208,30 @@ import, which is also the primary key of the matching PostGIS geometry row
 parent, so it needs no surrogate of its own: its key is composed from the
 ids above. Nothing is stored for these; compose them on read.
 
-| Table                                            | Primary key                            | Derivation                                                                       |
-| ------------------------------------------------ | -------------------------------------- | -------------------------------------------------------------------------------- |
-| `project`                                        | `project_id`                           | bng.projects.id — the existing Postgres UUID, reused as-is                       |
-| `project_site`                                   | `site_id`                              | `{projectId}:site`                                                               |
-| `project_units`                                  | `units_id`                             | `{projectId}:units`                                                              |
-| `project_details`                                | `details_id`                           | `{projectId}:details`                                                            |
-| `feature_set`                                    | `feature_set_id`                       | `{projectId}:{documentKey}`                                                      |
-| `feature_set_units`                              | `feature_set_units_id`                 | `{projectId}:{documentKey}:units`                                                |
-| `feature_set_habitat_sizes`                      | `habitat_sizes_id`                     | `{projectId}:{documentKey}:habitatSizes`                                         |
-| `feature_set_trading_rules`                      | `trading_rules_id`                     | `{projectId}:postIntervention:tradingRules`                                      |
-| `feature_set_trading_rules_area_habitat_types`   | `trading_rules_area_habitat_type_id`   | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`           |
-| `feature_set_trading_rules_area_broad_habitats`  | `trading_rules_area_broad_habitat_id`  | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`   |
-| `feature_set_trading_rules_watercourse_habitats` | `trading_rules_watercourse_habitat_id` | `{projectId}:postIntervention:tradingRules:watercourses:{habitatType}`           |
-| `baseline_red_line`                              | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_habitats`                              | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_trees`                                 | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_hedgerows`                             | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `baseline_watercourses`                          | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_red_line`                     | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_habitats`                     | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_trees`                        | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_hedgerows`                    | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `post_intervention_watercourses`                 | `feature_id`                           | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| Table                                              | Primary key                              | Derivation                                                                       |
+| -------------------------------------------------- | ---------------------------------------- | -------------------------------------------------------------------------------- |
+| `project`                                          | `project_id`                             | bng.projects.id — the existing Postgres UUID, reused as-is                       |
+| `project_site`                                     | `site_id`                                | `{projectId}:site`                                                               |
+| `project_units`                                    | `units_id`                               | `{projectId}:units`                                                              |
+| `project_details`                                  | `details_id`                             | `{projectId}:details`                                                            |
+| `feature_set`                                      | `feature_set_id`                         | `{projectId}:{documentKey}`                                                      |
+| `feature_set_units`                                | `feature_set_units_id`                   | `{projectId}:{documentKey}:units`                                                |
+| `feature_set_habitat_sizes`                        | `habitat_sizes_id`                       | `{projectId}:{documentKey}:habitatSizes`                                         |
+| `feature_set_trading_rules`                        | `trading_rules_id`                       | `{projectId}:postIntervention:tradingRules`                                      |
+| `feature_set_trading_rules_area_habitat_types`     | `trading_rules_area_habitat_type_id`     | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}`           |
+| `feature_set_trading_rules_area_broad_habitats`    | `trading_rules_area_broad_habitat_id`    | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`   |
+| `feature_set_trading_rules_watercourse_habitats`   | `trading_rules_watercourse_habitat_id`   | `{projectId}:postIntervention:tradingRules:watercourses:{habitatType}`           |
+| `feature_set_trading_rules_hedgerow_habitat_types` | `trading_rules_hedgerow_habitat_type_id` | `{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}`              |
+| `baseline_red_line`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_habitats`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_trees`                                   | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_hedgerows`                               | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_watercourses`                            | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_red_line`                       | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_habitats`                       | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_trees`                          | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_hedgerows`                      | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_watercourses`                   | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 
 ## Stability guarantees
 
@@ -384,20 +395,25 @@ Total feature sizes by module, measured from geometry in PostGIS. The five sub-g
 
 ### `feature_set_trading_rules`
 
-Trading-rules unit figures for the post-intervention document (area habitats and watercourses today; hedgerows follow). Absent on the baseline feature set. 8 column(s) mapped from the JSON document.
+Trading-rules unit figures for the post-intervention document: area habitats, watercourses and hedgerows. Absent on the baseline feature set. 13 column(s) mapped from the JSON document.
 
-| Column                                      | Type      | Key | JSON path                                                               | Notes                                       |
-| ------------------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ------------------------------------------- |
-| `trading_rules_id`                          | `text`    | PK  | —                                                                       | `{projectId}:postIntervention:tradingRules` |
-| `feature_set_id`                            | `text`    | FK  | —                                                                       | → feature_set.feature_set_id                |
-| `area_habitats_medium_surplus`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`             |                                             |
-| `area_habitats_medium_deficit`              | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`             |                                             |
-| `area_habitats_low_net_unit_change`         | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`          |                                             |
-| `area_habitats_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability` |                                             |
-| `watercourses_medium_surplus`               | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.surplus`             |                                             |
-| `watercourses_medium_deficit`               | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.deficit`             |                                             |
-| `watercourses_low_net_unit_change`          | `numeric` |     | `postIntervention.tradingRules.watercourses.low.netUnitChange`          |                                             |
-| `watercourses_low_cumulative_availability`  | `numeric` |     | `postIntervention.tradingRules.watercourses.low.cumulativeAvailability` |                                             |
+| Column                                       | Type      | Key | JSON path                                                                | Notes                                       |
+| -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| `trading_rules_id`                           | `text`    | PK  | —                                                                        | `{projectId}:postIntervention:tradingRules` |
+| `feature_set_id`                             | `text`    | FK  | —                                                                        | → feature_set.feature_set_id                |
+| `area_habitats_medium_surplus`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`              |                                             |
+| `area_habitats_medium_deficit`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`              |                                             |
+| `area_habitats_low_net_unit_change`          | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`           |                                             |
+| `area_habitats_low_cumulative_availability`  | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability`  |                                             |
+| `watercourses_medium_surplus`                | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.surplus`              |                                             |
+| `watercourses_medium_deficit`                | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.deficit`              |                                             |
+| `watercourses_low_net_unit_change`           | `numeric` |     | `postIntervention.tradingRules.watercourses.low.netUnitChange`           |                                             |
+| `watercourses_low_cumulative_availability`   | `numeric` |     | `postIntervention.tradingRules.watercourses.low.cumulativeAvailability`  |                                             |
+| `hedgerows_medium_net_unit_change`           | `numeric` |     | `postIntervention.tradingRules.hedgerows.medium.netUnitChange`           |                                             |
+| `hedgerows_low_net_unit_change`              | `numeric` |     | `postIntervention.tradingRules.hedgerows.low.netUnitChange`              |                                             |
+| `hedgerows_low_cumulative_availability`      | `numeric` |     | `postIntervention.tradingRules.hedgerows.low.cumulativeAvailability`     |                                             |
+| `hedgerows_very_low_net_unit_change`         | `numeric` |     | `postIntervention.tradingRules.hedgerows.veryLow.netUnitChange`          |                                             |
+| `hedgerows_very_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.hedgerows.veryLow.cumulativeAvailability` |                                             |
 
 ### `feature_set_trading_rules_area_habitat_types`
 
@@ -435,6 +451,18 @@ Per-habitat-type watercourse net unit change (BMD-995 AC1). One row per unique w
 | `habitat_type`                         | `text`    |     | `postIntervention.tradingRules.watercourses.habitats[].habitatType`     |                                                                        |
 | `distinctiveness`                      | `text`    |     | `postIntervention.tradingRules.watercourses.habitats[].distinctiveness` |                                                                        |
 | `net_unit_change`                      | `numeric` |     | `postIntervention.tradingRules.watercourses.habitats[].netUnitChange`   |                                                                        |
+
+### `feature_set_trading_rules_hedgerow_habitat_types`
+
+Hedgerow net unit change per habitat type. One row per unique Medium, Low or Very Low hedgerow TYPE, not per feature. 3 column(s) mapped from the JSON document.
+
+| Column                                   | Type      | Key | JSON path                                                                | Notes                                                               |
+| ---------------------------------------- | --------- | --- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `trading_rules_hedgerow_habitat_type_id` | `text`    | PK  | —                                                                        | `{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}` |
+| `trading_rules_id`                       | `text`    | FK  | —                                                                        | → feature_set_trading_rules.trading_rules_id                        |
+| `habitat_type`                           | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].habitatType`     |                                                                     |
+| `distinctiveness`                        | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].distinctiveness` |                                                                     |
+| `net_unit_change`                        | `numeric` |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].netUnitChange`   |                                                                     |
 
 ### `baseline_red_line`
 

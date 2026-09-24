@@ -171,6 +171,7 @@ const WAREHOUSE_TABLES = [
   'feature_set_trading_rules_area_habitat_types',
   'feature_set_trading_rules_area_broad_habitats',
   'feature_set_trading_rules_watercourse_habitats',
+  'feature_set_trading_rules_hedgerow_habitat_types',
   'baseline_red_line',
   'baseline_habitats',
   'baseline_trees',
@@ -217,7 +218,21 @@ describe('#buildWarehouseModel — column layout', () => {
         'watercourses_medium_surplus',
         'watercourses_medium_deficit',
         'watercourses_low_net_unit_change',
-        'watercourses_low_cumulative_availability'
+        'watercourses_low_cumulative_availability',
+        'hedgerows_medium_net_unit_change',
+        'hedgerows_low_net_unit_change',
+        'hedgerows_low_cumulative_availability',
+        'hedgerows_very_low_net_unit_change',
+        'hedgerows_very_low_cumulative_availability'
+      ])
+    )
+    expect(
+      columnNames('feature_set_trading_rules_hedgerow_habitat_types')
+    ).toEqual(
+      expect.arrayContaining([
+        'habitat_type',
+        'distinctiveness',
+        'net_unit_change'
       ])
     )
     expect(
@@ -269,6 +284,9 @@ describe('#renderErdMarkdown', () => {
     )
     expect(markdown).toContain(
       '    feature_set_trading_rules ||--o{ feature_set_trading_rules_watercourse_habitats : "contains"'
+    )
+    expect(markdown).toContain(
+      '    feature_set_trading_rules ||--o{ feature_set_trading_rules_hedgerow_habitat_types : "contains"'
     )
     expect(markdown).toContain(
       '    feature_set ||--o{ baseline_habitats : "contains"'
