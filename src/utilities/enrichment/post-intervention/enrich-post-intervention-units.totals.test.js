@@ -115,6 +115,24 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     expect(logger.warn).toHaveBeenCalledWith(expect.stringContaining('unknown'))
   })
 
+  it('writes watercourse trading rules from the stored baseline watercourses', () => {
+    const doc = makeDoc()
+
+    enrichPostInterventionDocumentWithUnits(doc, undefined, {
+      baselineDocument: {
+        watercourses: [{ type: 'Ditches', units: 2 }]
+      }
+    })
+
+    expect(doc.tradingRules.watercourses.habitats).toEqual([
+      {
+        habitatType: 'Ditches',
+        distinctiveness: 'Medium',
+        netUnitChange: -2
+      }
+    ])
+  })
+
   it('uses "unknown" in the warning message when a hedgerow has no featureId', () => {
     const base = makeHedgerow()
     const hedge = {
