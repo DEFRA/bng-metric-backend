@@ -1,6 +1,6 @@
-import { describe, expect, it } from 'vitest'
+import { describe, expect, it, vi } from 'vitest'
 
-import { enrichPostInterventionWatercourseTradingRules } from './enrich-post-intervention-trading-rules.js'
+import { enrichPostInterventionWatercourseTradingRules } from './enrich-post-intervention-watercourse-trading-rules.js'
 
 // Build a post-intervention watercourse carrying only the fields the
 // trading-rules aggregation reads: retention category, baseline/proposed type
@@ -157,6 +157,26 @@ describe('enrichPostInterventionWatercourseTradingRules', () => {
       medium: { surplus: 0, deficit: 0 },
       low: { netUnitChange: 0, cumulativeAvailability: 0 }
     })
+  })
+
+  it('warns and excludes a watercourse type the reference data does not know', () => {
+    const logger = { warn: vi.fn() }
+    const doc = {
+      watercourses: [
+        piWatercourse({
+          retentionCategory: 'Created',
+          proposedType: 'Not a watercourse',
+          units: 5
+        })
+      ]
+    }
+
+    enrichPostInterventionWatercourseTradingRules(doc, [], logger)
+
+    expect(doc.tradingRules.watercourses.habitats).toEqual([])
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Not a watercourse')
+    )
   })
 
   it('preserves any sibling trading-rules modules already on the document', () => {

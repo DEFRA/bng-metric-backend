@@ -25,14 +25,9 @@ import {
   DISTINCTIVENESS_CATEGORIES
 } from 'bng-library/metric'
 
+import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import { engineHabitatTypeCandidates } from '../shared/engine-helpers.js'
-import {
-  RETENTION_RETAINED,
-  resolveRetentionCategory
-} from './retention-category.js'
-
-/** Used when no logger is supplied; a dropped feature is then simply dropped. */
-const NO_OP_LOGGER = { warn: () => {} }
+import { deliveredSideOf, sumUnitsByType } from './sum-units-by-type.js'
 
 const LOG_PREFIX = 'enrichAreaTradingRules: '
 
@@ -53,104 +48,24 @@ function engineHabitatKey(habitatProxy) {
 }
 
 /**
- * The side of a post-intervention feature whose habitat its units are
- * attributed to. Enhancement and creation deliver into the proposed habitat; a
- * retained feature keeps its baseline habitat (its proposed columns may be an
- * "N/A" placeholder, so the baseline type is authoritative).
- *
- * @param {object} feature
- * @returns {{ type?: unknown, broadType?: unknown }}
+ * @param {string | null | undefined} type
+ * @returns {boolean}
  */
-function deliveredHabitatOf(feature) {
-  if (resolveRetentionCategory(feature) === RETENTION_RETAINED) {
-    return feature?.baseline ?? {}
-  }
-  return feature?.proposed ?? {}
+function isKnownAreaType(type) {
+  return (
+    typeof type === 'string' && Object.hasOwn(DISTINCTIVENESS_CATEGORIES, type)
+  )
 }
 
 /**
- * The habitat type as it can safely appear in a log line.
- *
- * The value is whatever the GeoPackage carried, so it is not necessarily a
- * string. Every branch returns one, and `String()` is only ever handed a
- * primitive, so nothing can reach the log as "[object Object]" — which would
- * name nothing an operator could act on. Nothing here throws either: a log
- * line must never be the thing that fails an upload.
- *
- * @param {unknown} rawType
- * @returns {string}
+ * @param {(feature: object) => object} sideOf
+ * @returns {(feature: object) => { type: string | null, raw: unknown }}
  */
-function describeHabitatType(rawType) {
-  if (typeof rawType === 'string') {
-    return rawType
+function areaTypeOf(sideOf) {
+  return (feature) => {
+    const proxy = sideOf(feature)
+    return { type: engineHabitatKey(proxy), raw: proxy?.type }
   }
-  if (rawType == null) {
-    return ''
-  }
-  if (
-    typeof rawType === 'number' ||
-    typeof rawType === 'boolean' ||
-    typeof rawType === 'bigint'
-  ) {
-    return String(rawType)
-  }
-  try {
-    // Undefined for anything JSON has no representation of, such as a
-    // function, which the `?? ''` turns into an empty name rather than the
-    // word "undefined".
-    return JSON.stringify(rawType) ?? ''
-  } catch {
-    // A structure JSON cannot serialise, such as a circular one. The warning
-    // is worth less without the type, but not worth failing an upload for.
-    return ''
-  }
-}
-
-/**
- * Add a feature's units to the running total for its habitat key. Features with
- * an unresolvable habitat type or a non-finite unit value are skipped, mirroring
- * the leniency of the unit summariser so an Incomplete row never poisons an
- * aggregate with NaN.
- *
- * @param {Record<string, number>} unitsByType mutated
- * @param {object} feature
- * @param {{ type?: unknown, broadType?: unknown }} habitatProxy
- * @param {{ warn: (msg: string) => void }} logger
- */
-function addFeatureUnits(unitsByType, feature, habitatProxy, logger) {
-  const units = feature?.units
-  if (typeof units !== 'number' || !Number.isFinite(units)) {
-    return
-  }
-  const habitatKey = engineHabitatKey(habitatProxy)
-  if (!habitatKey) {
-    logger.warn(
-      `${LOG_PREFIX}featureId ${feature?.featureId ?? 'unknown'}: habitat type '${describeHabitatType(habitatProxy?.type)}' is not in the reference data, excluded from trading rules`
-    )
-    return
-  }
-  unitsByType[habitatKey] = (unitsByType[habitatKey] ?? 0) + units
-}
-
-/**
- * Sum the units of every feature in each collection, keyed by engine habitat key.
- *
- * @param {Array<object[] | undefined>} collections
- * @param {(feature: object) => ({ type?: unknown, broadType?: unknown })} habitatOf
- * @param {{ warn: (msg: string) => void }} logger
- * @returns {Record<string, number>}
- */
-function sumUnitsByHabitat(collections, habitatOf, logger) {
-  const unitsByType = {}
-  for (const collection of collections) {
-    if (!Array.isArray(collection)) {
-      continue
-    }
-    for (const feature of collection) {
-      addFeatureUnits(unitsByType, feature, habitatOf(feature), logger)
-    }
-  }
-  return unitsByType
 }
 
 /**
@@ -173,15 +88,19 @@ export function enrichPostInterventionAreaTradingRules(
   baselineDocument = {},
   logger = NO_OP_LOGGER
 ) {
-  const deliveredUnitsByType = sumUnitsByHabitat(
+  const deliveredUnitsByType = sumUnitsByType(
     [postInterventionDocument?.habitats, postInterventionDocument?.trees],
-    deliveredHabitatOf,
-    logger
+    areaTypeOf(deliveredSideOf),
+    isKnownAreaType,
+    logger,
+    LOG_PREFIX
   )
-  const baselineUnitsByType = sumUnitsByHabitat(
+  const baselineUnitsByType = sumUnitsByType(
     [baselineDocument?.habitats, baselineDocument?.trees],
-    (feature) => feature ?? {},
-    logger
+    areaTypeOf((feature) => feature ?? {}),
+    isKnownAreaType,
+    logger,
+    LOG_PREFIX
   )
 
   postInterventionDocument.tradingRules = {
