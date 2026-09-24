@@ -735,6 +735,39 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(result.feature).not.toHaveProperty('type')
     expect(result.feature).not.toHaveProperty('condition')
   })
+
+  test('refreshes the hedgerow trading rules when a created hedgerow is re-typed', () => {
+    // A created hedgerow delivers into its proposed type, so re-typing it moves
+    // its units between bands. The stored baseline hedgerow is what it nets
+    // against.
+    const project = postInterventionProjectFixture()
+    project.baseline.hedgerows = [{ type: 'Native hedgerow', units: 2 }]
+    project.postIntervention.hedgerows[0].retentionCategory = 'Created'
+
+    const asMedium = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow with trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+    const mediumRules = asMedium.project.postIntervention.tradingRules.hedgerows
+    const delivered = asMedium.feature.units
+    expect(delivered).toBeGreaterThan(0)
+    expect(mediumRules.medium.netUnitChange).toBe(delivered)
+    expect(mediumRules.low.netUnitChange).toBe(-2)
+    expect(asMedium.tradingRules.hedgerows).toEqual(mediumRules)
+
+    const asLow = applyFeatureUpdate(asMedium.project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Line of trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+    const lowRules = asLow.project.postIntervention.tradingRules.hedgerows
+    expect(lowRules.medium.netUnitChange).toBe(0)
+    expect(lowRules.habitatTypes.map((habitat) => habitat.habitatType)).toEqual(
+      ['Line of trees', 'Native hedgerow']
+    )
+    expect(lowRules.low.netUnitChange).toBeCloseTo(asLow.feature.units - 2, 12)
+  })
 })
 
 describe('applyFeatureUpdate — baseline edit with a post-intervention document', () => {

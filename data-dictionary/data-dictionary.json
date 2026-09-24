@@ -4875,7 +4875,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Trading-rules unit figures by feature module. Area habitats and watercourses today; hedgerows follow the same pattern."
+      "description": "Trading-rules unit figures by feature module: area habitats, watercourses and hedgerows."
     },
     {
       "path": "postIntervention.tradingRules.areaHabitats",
@@ -5206,6 +5206,160 @@
       "constraints": [],
       "openMap": false,
       "description": "Cumulative availability of units for Low-distinctiveness watercourses: the Medium surplus (AC2) plus the Low net change (AC4), per AC5."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Hedgerow trading-rules unit figures. Unit values only; Met / Not-met statuses are derived separately, not stored."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.habitatTypes",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net unit change per hedgerow habitat type across baseline and post-intervention. One entry per unique habitat TYPE, not per feature. Ordered by habitat type; Medium, Low and Very Low bands only."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.habitatTypes[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net unit change for a single hedgerow habitat type across baseline and post-intervention."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.habitatTypes[].habitatType",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Hedgerow habitat type the net unit change is aggregated for, as the bng-library/metric hedgerow reference key (e.g. \"Native hedgerow\", \"Line of trees - associated with bank or ditch\")."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.habitatTypes[].distinctiveness",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved from the bng-library/metric hedgerow reference data. Only \"Medium\", \"Low\" and \"V.Low\" appear: the metric defines no traded figure for High or Very High hedgerows."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.habitatTypes[].netUnitChange",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net unit change for the hedgerow type: summed retained + created + enhanced post-intervention units (retained hedgerows under their baseline type, created and enhanced under their proposed type) minus summed baseline units. Positive is a gain, negative a loss."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.medium",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Medium-distinctiveness hedgerow band totals."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.medium.netUnitChange",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net change in units for Medium-distinctiveness hedgerows: the sum of all Medium net unit changes regardless of sign. Hedgerows trade on distinctiveness band alone, so a gain in one Medium type offsets a loss in another — unlike area habitats and watercourses, which carry only the Medium surplus."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.low",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Low-distinctiveness hedgerow band totals."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.low.netUnitChange",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net change in units for Low-distinctiveness hedgerows: the sum of all Low net unit changes regardless of sign."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.low.cumulativeAvailability",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Units available to the Low band: the Low net change plus the Medium net change when that is greater than zero. A Medium loss is never carried down. Matches the Statutory Metric's Trading Summary Hedgerows sheet."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.veryLow",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Very Low-distinctiveness hedgerow band totals."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.veryLow.netUnitChange",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Net change in units for Very Low-distinctiveness hedgerows: the sum of all Very Low net unit changes regardless of sign."
+    },
+    {
+      "path": "postIntervention.tradingRules.hedgerows.veryLow.cumulativeAvailability",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Units available to the Very Low band: the Very Low net change plus the Low cumulative availability when that is greater than zero. A shortfall is never carried down. Matches the Statutory Metric's Trading Summary Hedgerows sheet."
     }
   ]
 }
