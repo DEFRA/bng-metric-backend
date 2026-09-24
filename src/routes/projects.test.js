@@ -336,7 +336,8 @@ describe('#createProject', () => {
       ...newProject,
       projectId: newProject.id,
       tradingRuleStatuses: {
-        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+        areaHabitats: { medium: null, low: null, overall: 'Not met' },
+        watercourses: { medium: null, low: null, overall: null }
       }
     })
   })
@@ -484,7 +485,8 @@ describe('#getProject', () => {
       ...mockProjects[0],
       projectId: PROJECT_1_ID,
       tradingRuleStatuses: {
-        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+        areaHabitats: { medium: null, low: null, overall: 'Not met' },
+        watercourses: { medium: null, low: null, overall: null }
       }
     })
   })
@@ -702,7 +704,8 @@ describe('#updateProject', () => {
       ...updatedProject,
       projectId: PROJECT_1_ID,
       tradingRuleStatuses: {
-        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+        areaHabitats: { medium: null, low: null, overall: 'Not met' },
+        watercourses: { medium: null, low: null, overall: null }
       }
     })
   })
