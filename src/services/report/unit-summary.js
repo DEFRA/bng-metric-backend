@@ -40,6 +40,7 @@
  */
 
 import { areaTradingRuleStatuses } from '../../utilities/project/area-trading-rule-statuses.js'
+import { watercourseTradingRuleStatuses } from '../../utilities/project/watercourse-trading-rule-statuses.js'
 
 /** The statutory net gain. No project carries a target of its own yet. */
 const NET_GAIN_TARGET_PERCENTAGE = 10
@@ -264,7 +265,11 @@ function summariseUnitType(unitType, baseline, postIntervention) {
     netUnitChange: intervention
       ? formatOptionalUnits(netUnitChange)
       : `${formatUnits(netUnitChange)} units`,
-    tradingRulesStatus: tradingRulesStatusFor(unitType.key, postIntervention)
+    tradingRulesStatus: tradingRulesStatusFor(
+      unitType.key,
+      baseline,
+      postIntervention
+    )
   }
 }
 
@@ -279,23 +284,35 @@ function summariseUnitType(unitType, baseline, postIntervention) {
  * ignores a Medium deficit the metric spreadsheet nets off, and is only safe
  * read alongside the Medium band.
  *
- * Only area habitats carry one so far. Hedgerow and watercourse trading rules
- * are separate work, and their tiles stay untagged until they land.
+ * Area habitats and watercourses each carry one. Hedgerow trading rules are
+ * separate work, and that tile stays untagged until they land.
  *
  * @param {string} key the unit type
  * @param {object} postIntervention the stored post-intervention document
  * @returns {{ text: string, met: boolean }|null}
  */
-function tradingRulesStatusFor(key, postIntervention) {
-  if (key !== AREA_HABITATS_KEY) {
-    return null
-  }
-
-  const { overall } = areaTradingRuleStatuses(postIntervention)
+function tradingRulesStatusFor(key, baseline, postIntervention) {
+  const overall = overallStatusFor(key, baseline, postIntervention)
   if (overall !== MET && overall !== NOT_MET) {
     return null
   }
   return { text: overall, met: overall === MET }
+}
+
+/**
+ * @param {string} key
+ * @param {object | null} baseline
+ * @param {object | null} postIntervention
+ * @returns {string | null}
+ */
+function overallStatusFor(key, baseline, postIntervention) {
+  if (key === AREA_HABITATS_KEY) {
+    return areaTradingRuleStatuses(postIntervention).overall
+  }
+  if (key === 'watercourses') {
+    return watercourseTradingRuleStatuses(postIntervention, baseline).overall
+  }
+  return null
 }
 
 /**

@@ -31,6 +31,7 @@ import {
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
 import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
+import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-watercourse-trading-rules.js'
 import { rederivePostInterventionFromBaseline } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
@@ -255,7 +256,16 @@ function refreshFiguresDownstreamOfEdit(
       updatedFeatureSet,
       project?.baseline?.units
     )
-    enrichPostInterventionAreaTradingRules(updatedFeatureSet, project?.baseline)
+    enrichPostInterventionAreaTradingRules(
+      updatedFeatureSet,
+      project?.baseline,
+      logger
+    )
+    enrichPostInterventionWatercourseTradingRules(
+      updatedFeatureSet,
+      project?.baseline?.watercourses ?? [],
+      logger
+    )
     return null
   }
   return rederivePostInterventionFromBaseline(

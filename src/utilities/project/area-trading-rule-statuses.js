@@ -13,8 +13,7 @@
 
 import { deriveAreaHabitatTradingRuleStatuses } from 'bng-library/metric'
 
-/** Neither band derived, and no verdict to give. */
-const UNKNOWN = Object.freeze({ medium: null, low: null, overall: null })
+import { noTradingRuleVerdict } from './trading-rule-verdict.js'
 
 /**
  * The statuses for a project's area habitats.
@@ -42,7 +41,7 @@ export function areaTradingRuleStatuses(postInterventionDocument) {
 
   const figures = postInterventionDocument.tradingRules?.areaHabitats
   if (!figures) {
-    return { ...UNKNOWN }
+    return noTradingRuleVerdict()
   }
 
   return deriveAreaHabitatTradingRuleStatuses(figures, {

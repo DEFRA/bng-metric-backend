@@ -297,16 +297,15 @@ describe('the trading-rules status', () => {
     expect(summary.tradingRulesStatus).toBeNull()
   })
 
-  test('is not offered for hedgerows or watercourses yet', () => {
+  test('is not offered for hedgerows yet', () => {
     const summaries = summariseUnitTypes(
       site(BASELINE_UNITS, { hedgerows: 1, watercourses: 1 }),
       siteWithFigures(FIGURES_MEDIUM_IN_DEFICIT)
     )
 
-    for (const key of ['hedgerows', 'watercourses']) {
-      expect(
-        summaries.find((summary) => summary.key === key).tradingRulesStatus
-      ).toBeNull()
-    }
+    expect(
+      summaries.find((summary) => summary.key === 'hedgerows')
+        .tradingRulesStatus
+    ).toBeNull()
   })
 })

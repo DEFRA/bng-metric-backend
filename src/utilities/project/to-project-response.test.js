@@ -22,7 +22,8 @@ describe('#toProjectResponse', () => {
       ...row,
       projectId: PROJECT_ID,
       tradingRuleStatuses: {
-        areaHabitats: { medium: null, low: null, overall: 'Not met' }
+        areaHabitats: { medium: null, low: null, overall: 'Not met' },
+        watercourses: { medium: null, low: null, overall: null }
       }
     })
   })

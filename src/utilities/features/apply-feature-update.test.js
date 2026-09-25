@@ -1,5 +1,6 @@
 import { describe, test, expect, vi } from 'vitest'
 
+import { watercourseTradingRuleStatuses } from '../project/watercourse-trading-rule-statuses.js'
 import { APPLY_RESULT, applyFeatureUpdate } from './apply-feature-update.js'
 
 const HABITAT_ID = 'aa0e8400-e29b-41d4-a716-446655440001'
@@ -875,6 +876,65 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
 
     expect(project.postIntervention).toEqual(stored)
     expect(result.project.postIntervention).toBe(result.postIntervention)
+  })
+
+  test('editing a baseline watercourse changes the watercourse trading-rules status', () => {
+    // A post-intervention watercourse cannot be edited here. The watercourse
+    // edit that moves the figures is a baseline edit: it re-derives the
+    // post-intervention document, including tradingRules.watercourses. The
+    // stored figures say the Medium band is in deficit; the retained ditch
+    // cancels, so the status must leave Not met.
+    const project = projectWithPostInterventionFixture()
+    const ditch = {
+      type: 'Ditches',
+      condition: 'Poor',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/Minor'
+    }
+    project.baseline.watercourses = [
+      {
+        featureId: WATERCOURSE_ID,
+        ref: 'W1',
+        sizeMetres: 1000,
+        ...ditch
+      }
+    ]
+    project.postIntervention.watercourses = [
+      {
+        featureId: 'ee0e8400-e29b-41d4-a716-446655440005',
+        ref: 'W1',
+        retentionCategory: 'Retained',
+        sizeMetres: 1000,
+        baseline: { ...ditch },
+        proposed: { ...ditch, advanceYears: 0, delayYears: 0 }
+      }
+    ]
+    project.postIntervention.tradingRules = {
+      watercourses: {
+        habitats: [],
+        medium: { surplus: 0, deficit: -4 },
+        low: { netUnitChange: 0, cumulativeAvailability: -4 }
+      }
+    }
+
+    expect(
+      watercourseTradingRuleStatuses(project.postIntervention, project.baseline)
+        .overall
+    ).toBe('Not met')
+
+    const result = applyFeatureUpdate(project, {
+      featureId: WATERCOURSE_ID,
+      edits: { habitatType: 'Ditches', condition: 'Good', ...ditch }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.type).toBe('watercourse')
+    expect(
+      watercourseTradingRuleStatuses(
+        result.postIntervention,
+        result.project.baseline
+      ).overall
+    ).toBe('Met')
   })
 
   test('returns no post-intervention document when the project has none', () => {
