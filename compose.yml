@@ -41,6 +41,14 @@ services:
     volumes:
       - pgdata:/var/lib/postgresql/data
     restart: always
+    healthcheck:
+      # -h localhost forces TCP: the entrypoint's temporary init server (first
+      # run, PostGIS setup) only listens on the Unix socket, so this stays
+      # unhealthy until the real server is accepting connections.
+      test: ['CMD', 'pg_isready', '-h', 'localhost', '-U', 'dev', '-d', 'bng_metric_backend']
+      interval: 2s
+      start_period: 5s
+      retries: 30
     networks:
       - cdp-tenant
 
