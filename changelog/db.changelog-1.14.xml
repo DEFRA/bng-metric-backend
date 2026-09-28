@@ -4,7 +4,7 @@
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
     xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
         http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
-    <changeSet id="BMD-1012-lpa-lookup" author="bng-team">
+    <changeSet id="39" author="bng-team">
         <comment>BMD-1012: Static English LPA names and Planning Data references, downloaded 2026-09-22.</comment>
         <sql>
             CREATE TABLE bng.local_planning_authorities (

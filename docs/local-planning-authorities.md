@@ -11,7 +11,7 @@ catalogue's 337 records include ended authorities, which are excluded from new
 selections. Only `name` and `reference` are stored; the API's automatic `entity`
 field is discarded along with any other fields. There is no geometry.
 
-Liquibase changeSet `BMD-1012-lpa-lookup` creates and seeds `bng.local_planning_authorities` from
+Liquibase changeSet `39` in `db.changelog-1.14.xml` creates and seeds `bng.local_planning_authorities` from
 `changelog/data/local-planning-authorities-2026-09-22.sql` transactionally. Deploy
 this migration and the backend before deploying the frontend.
 

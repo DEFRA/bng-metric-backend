@@ -346,7 +346,10 @@ export const getLocalPlanningAuthorities = {
   options: { auth: false },
   handler: (request) =>
     request.drizzle
-      .select()
+      .select({
+        name: localPlanningAuthorities.name,
+        reference: localPlanningAuthorities.reference
+      })
       .from(localPlanningAuthorities)
       .orderBy(asc(localPlanningAuthorities.name))
 }

@@ -313,7 +313,9 @@
           "default": null,
           "references": null
         }
-      ]
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
     },
     {
       "name": "bng.login_audit",

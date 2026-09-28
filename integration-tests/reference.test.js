@@ -18,6 +18,10 @@ describe('GET /reference/local-planning-authorities', () => {
       name: 'South Downs National Park LPA',
       reference: 'E60000325'
     })
+    expect(res.result).toContainEqual({
+      name: "King's Lynn and West Norfolk LPA",
+      reference: 'E60000179'
+    })
     expect(new Set(res.result.map((entry) => entry.reference)).size).toBe(
       res.result.length
     )

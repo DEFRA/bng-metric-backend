@@ -132,7 +132,7 @@ INSERT INTO bng.local_planning_authorities (reference, name) VALUES
 ('E60000293', 'Isles of Scilly LPA'),
 ('E60000193', 'Islington LPA'),
 ('E60000194', 'Kensington and Chelsea LPA'),
-('E60000179', 'Kingâs Lynn and West Norfolk LPA'),
+('E60000179', 'King''s Lynn and West Norfolk LPA'),
 ('E60000053', 'Kingston upon Hull, City of LPA'),
 ('E60000215', 'Kingston upon Thames LPA'),
 ('E60000070', 'Kirklees LPA'),
