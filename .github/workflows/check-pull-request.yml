@@ -221,11 +221,12 @@ jobs:
           npm run lint
           npm test
 
-      # BMD-1036: every scenario in the bng-library corpus is imported through
-      # the upload pipeline and compared, figure by figure, with the Statutory
-      # Biodiversity Metric's own answers. Report only: differences never fail
-      # the job; the HTML report is for people to judge. A summary goes on the
-      # job summary, the full report (report.html) in the artifact.
+      # BMD-1036: every scenario in the harness's corpus (fetched above) is
+      # imported through the upload pipeline and compared, figure by figure,
+      # with the Statutory Biodiversity Metric's own answers. Report only:
+      # differences never fail the job; the reports are for people to judge. A
+      # summary goes on the job summary, the full report (report.html and
+      # report.xlsx) in the artifact.
       - name: Compare the service with the metric
         id: compare-metric
         if: ${{ !cancelled() }}
