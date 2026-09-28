@@ -5,12 +5,15 @@ import path from 'node:path'
 import { afterAll, describe, expect, it } from 'vitest'
 import { loadScenarioCorpus } from 'bng-library/metric-compare'
 
+import { findScenarioCorpus } from './find-scenario-corpus.js'
 import { importGeoPackagePair } from './import-geopackage-pair.js'
 
-const { scenarios } = loadScenarioCorpus()
+// The scenario corpus is in the harness; a checkout of this repo alone skips.
+const corpusDir = findScenarioCorpus()
+const scenarios = corpusDir ? loadScenarioCorpus(corpusDir).scenarios : []
 const scenario = (id) => scenarios.find((s) => s.id === id)
 
-describe('importGeoPackagePair', () => {
+describe.skipIf(!corpusDir)('importGeoPackagePair', () => {
   const scratch = mkdtempSync(path.join(tmpdir(), 'import-pair-'))
   afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 

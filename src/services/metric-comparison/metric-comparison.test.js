@@ -4,17 +4,19 @@
 //
 // Differences between the service and the metric do not fail these tests —
 // they are reported (`npm run compare:metric`, and in CI as an HTML report)
-// for people to judge. These tests check the comparison itself runs.
+// for people to judge. These tests check the comparison itself runs. The
+// corpus is in the harness; a checkout of this repo alone skips them.
 
 import { describe, expect, it } from 'vitest'
 import { OUTCOME } from 'bng-library/metric-compare'
 
+import { findScenarioCorpus } from './find-scenario-corpus.js'
 import { runMetricComparison } from './run-metric-comparison.js'
 
 // The whole corpus runs in a couple of seconds; the margin covers a slow runner.
 const CORPUS_TIMEOUT_MS = 60_000
 
-describe('metric comparison', () => {
+describe.skipIf(!findScenarioCorpus())('metric comparison', () => {
   it(
     'compares every corpus scenario',
     async () => {

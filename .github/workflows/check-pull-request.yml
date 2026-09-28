@@ -193,6 +193,22 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
+      # BMD-1036: the metric comparison's scenario corpus is committed in the
+      # harness (example-files/permutations), each GeoPackage pair beside its
+      # metric workbook. Fetch the GeoPackages and the manifest only — a sparse,
+      # blobless clone never downloads the ~120 MB of workbooks — and name the
+      # folder for `npm test` and `npm run compare:metric`.
+      - name: Fetch the metric comparison corpus from the harness
+        run: |
+          harness="$RUNNER_TEMP/bng-metric-harness"
+          git clone --quiet --depth 1 --filter=blob:none --no-checkout \
+            https://github.com/DEFRA/bng-metric-harness.git "$harness"
+          git -C "$harness" sparse-checkout set --no-cone \
+            '/example-files/permutations/**/*.gpkg' \
+            '/example-files/permutations/manifest.json'
+          git -C "$harness" checkout --quiet
+          echo "METRIC_CORPUS_DIR=$harness/example-files/permutations" >> "$GITHUB_ENV"
+
       # min-release-age (.npmrc) collides with the git-dependency prepare step
       # npm always runs for bng-library: it injects --before then rejects it
       # against min-release-age (npm/cli#9005). npm ci installs exact locked

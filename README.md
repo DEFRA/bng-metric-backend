@@ -77,7 +77,7 @@ against PDF/UA, and how the Ordnance Survey basemap is credited — see
 
 ### Comparison with the Statutory Biodiversity Metric
 
-`npm run compare:metric` imports every scenario in the bng-library corpus through
+`npm run compare:metric` imports every scenario in the scenario corpus through
 the upload pipeline, in process (no database, S3 or worker pool), and compares the
 service's figures — unit calculations per feature, unit totals, net gain, trading
 rules figures and statuses — exactly with the metric's own answers for the same
@@ -90,6 +90,12 @@ npm run compare:metric                          # the whole corpus
 npm run compare:metric -- --only trading-rules  # a purpose, or scenario ids
 npm run compare:metric -- --corpus <dir>        # any generate:scenarios output
 ```
+
+The corpus is committed in the harness (`example-files/permutations`), each
+GeoPackage pair beside its metric workbook. The command finds the harness checked
+out beside this repo; `METRIC_CORPUS_DIR` or `--corpus` names another folder. CI
+fetches just the GeoPackages and manifest from the harness's `main`. Without a
+corpus the comparison's tests skip.
 
 It reports; it does not judge. Differences never fail the command or the build —
 they are there for people to decide what, if anything, needs doing. The

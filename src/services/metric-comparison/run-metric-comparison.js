@@ -2,10 +2,11 @@
 // through the service's own upload pipeline and compare what it computes with
 // the Statutory Biodiversity Metric's answers for the same site.
 //
-// The corpus, the metric's answers and the comparison itself live in
-// bng-library (`bng-library/metric-compare`); the import is this service's.
-// So a change to either side — the engine in the library, or the extraction
-// and enrichment here — is measured against the metric by the same run.
+// The comparison itself lives in bng-library (`bng-library/metric-compare`);
+// the corpus, with the metric's answers, in the harness (find-scenario-corpus.js);
+// the import is this service's. So a change to either side — the engine in the
+// library, or the extraction and enrichment here — is measured against the
+// metric by the same run.
 
 import {
   compareScenario,
@@ -14,6 +15,7 @@ import {
   loadScenarioCorpus
 } from 'bng-library/metric-compare'
 
+import { CORPUS_DIR_ENV, findScenarioCorpus } from './find-scenario-corpus.js'
 import { importGeoPackagePair } from './import-geopackage-pair.js'
 
 /**
@@ -47,15 +49,21 @@ export async function compareCorpusScenario(scenario) {
 
 /**
  * @param {object} [options]
- * @param {string} [options.corpusDir] a scenario corpus; the one committed in
- *   bng-library by default
+ * @param {string} [options.corpusDir] a scenario corpus; by default the one
+ *   committed in the harness (see find-scenario-corpus.js)
  * @param {string[]} [options.only] scenario ids or purposes to run
  * @param {(result: object) => void} [options.onResult]
  * @returns {Promise<{ corpus: object, results: object[] }>}
  */
 export async function runMetricComparison(options = {}) {
   const { corpusDir, only = [], onResult } = options
-  const corpus = loadScenarioCorpus(corpusDir)
+  const dir = corpusDir ?? findScenarioCorpus()
+  if (!dir) {
+    throw new Error(
+      `No scenario corpus: check the harness (bng-metric-harness) out beside this repo, or name a generate:scenarios output in ${CORPUS_DIR_ENV}`
+    )
+  }
+  const corpus = loadScenarioCorpus(dir)
   const results = []
   for (const scenario of corpus.scenarios.filter((s) => isSelected(s, only))) {
     const result = await compareCorpusScenario(scenario)
