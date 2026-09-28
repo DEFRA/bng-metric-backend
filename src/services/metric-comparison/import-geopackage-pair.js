@@ -53,9 +53,12 @@ async function validateFile(filePath, projectDocumentKey) {
   if (!gate.valid) {
     return { errors: gate.errors }
   }
-  const geometry = await validateGeoPackageLayersGeos(readGeoPackage(filePath), {
-    includeSizes: true
-  })
+  const geometry = await validateGeoPackageLayersGeos(
+    readGeoPackage(filePath),
+    {
+      includeSizes: true
+    }
+  )
   const dataQualityErrors = runDataQualityChecks(
     readGeoPackage(filePath, FEATURE_READ_MODE.properties),
     projectDocumentKey

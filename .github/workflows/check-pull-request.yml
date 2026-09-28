@@ -207,20 +207,19 @@ jobs:
 
       # BMD-1036: every scenario in the bng-library corpus is imported through
       # the upload pipeline and compared, figure by figure, with the Statutory
-      # Biodiversity Metric's own answers. `npm test` already fails on a change
-      # from the recorded discrepancies (metric-comparison.test.js); this writes
-      # the full report for the run, whichever way it went, as an artifact and
-      # on the job summary.
+      # Biodiversity Metric's own answers. Report only: differences never fail
+      # the job; the HTML report is for people to judge. A summary goes on the
+      # job summary, the full report (report.html) in the artifact.
       - name: Compare the service with the metric
         id: compare-metric
         if: ${{ !cancelled() }}
         run: npm run compare:metric
 
-      - name: Publish the metric comparison report
+      - name: Publish the metric comparison summary
         if: ${{ !cancelled() && steps.compare-metric.outcome != 'skipped' }}
         run: |
-          if [ -f metric-comparison/report.md ]; then
-            cat metric-comparison/report.md >> "$GITHUB_STEP_SUMMARY"
+          if [ -f metric-comparison/summary.md ]; then
+            cat metric-comparison/summary.md >> "$GITHUB_STEP_SUMMARY"
           fi
 
       - name: Upload the metric comparison report

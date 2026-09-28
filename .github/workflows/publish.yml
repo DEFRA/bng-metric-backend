@@ -38,6 +38,25 @@ jobs:
           npm ci
           npm test
 
+      # BMD-1036: re-evaluate the metric comparison on every publish, so a
+      # regression shows in the report for the commit that caused it. Report
+      # only, and never allowed to hold up a publish.
+      - name: Compare the service with the metric
+        id: compare-metric
+        continue-on-error: true
+        run: |
+          npm run compare:metric
+          cat metric-comparison/summary.md >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload the metric comparison report
+        if: ${{ !cancelled() && steps.compare-metric.outcome != 'skipped' }}
+        continue-on-error: true
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: metric-comparison
+          path: metric-comparison/
+          if-no-files-found: warn
+
       - name: Build and Publish
         # Pinned, not @main. DEFRA/cdp-build-action#124 shipped an unbalanced
         # quote in the build-stage loop on 2026-09-04, and because @main is a

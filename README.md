@@ -81,7 +81,8 @@ against PDF/UA, and how the Ordnance Survey basemap is credited — see
 the upload pipeline, in process (no database, S3 or worker pool), and compares the
 service's figures — unit calculations per feature, unit totals, net gain, trading
 rules figures and statuses — exactly with the metric's own answers for the same
-site. It writes `metric-comparison/report.md` and `report.json`:
+site. It writes `metric-comparison/report.html` (self-contained, filterable),
+`report.md`, `summary.md` and `report.json`:
 
 ```bash
 npm run compare:metric                          # the whole corpus
@@ -89,14 +90,11 @@ npm run compare:metric -- --only trading-rules  # a purpose, or scenario ids
 npm run compare:metric -- --corpus <dir>        # any generate:scenarios output
 ```
 
-The service does not agree with the metric everywhere yet, so the discrepancies
-already known are recorded in
-`src/services/metric-comparison/known-discrepancies.json`, and
-`metric-comparison.test.js` (part of `npm test`) fails on any change from that
-record. If a change is intended — a fix, or a deliberate change to a calculation —
-record it with `npm run compare:metric -- --update-known` and review the diff.
-The pull-request check publishes the report on the job summary and as the
-`metric-comparison` artifact. See the harness's `docs/compare-metric.md`.
+It reports; it does not judge. Differences never fail the command or the build —
+they are there for people to decide what, if anything, needs doing. The
+pull-request check and every publish run it, putting the summary on the job
+summary and the full report in the `metric-comparison` artifact. See the
+harness's `docs/compare-metric.md`.
 
 ### Production
 
