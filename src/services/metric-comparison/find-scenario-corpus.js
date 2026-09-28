@@ -1,8 +1,8 @@
 // Where the metric comparison's scenario corpus is.
 //
-// The corpus — each scenario's GeoPackage pair beside its metric workbook, and
-// the manifest recording the workbooks' answers — is committed in the harness
-// repo at example-files/permutations/, where `generate:scenarios` writes it.
+// The corpus — each scenario's GeoPackage pair beside its metric workbook,
+// saved with the metric's answers in it — is committed in the harness repo at
+// example-files/permutations/, where `generate:scenarios` writes it.
 // This repo carries no copy. Locally the harness is checked out beside this
 // one; CI fetches it (see .github/workflows) and names the folder in
 // METRIC_CORPUS_DIR.
@@ -16,7 +16,6 @@ export const CORPUS_DIR_ENV = 'METRIC_CORPUS_DIR'
 /** Name in the harness repo's package.json, used to identify it by content. */
 const HARNESS_PACKAGE_NAME = 'bng-metric-harness'
 const CORPUS_IN_HARNESS = path.join('example-files', 'permutations')
-const MANIFEST = 'manifest.json'
 
 // This file is src/services/metric-comparison/; the repo root is three up.
 const REPO_ROOT = path.resolve(import.meta.dirname, '..', '..', '..')
@@ -57,5 +56,5 @@ export function findScenarioCorpus(options = {}) {
   }
   const harness = harnessBeside(repoRoot)
   const corpus = harness ? path.join(harness, CORPUS_IN_HARNESS) : null
-  return corpus && fs.existsSync(path.join(corpus, MANIFEST)) ? corpus : null
+  return corpus && fs.existsSync(corpus) ? corpus : null
 }

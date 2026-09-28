@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 // Compare the service's figures with the Statutory Biodiversity Metric's, for
-// every scenario in the bng-library corpus (BMD-1036), and write a report.
+// every scenario in a folder of scenarios (BMD-1036), and write a report.
 //
-//   npm run compare:metric                         # the whole corpus
+//   npm run compare:metric                         # every committed scenario
 //   npm run compare:metric -- --only trading-rules # a purpose, or scenario ids
-//   npm run compare:metric -- --corpus <dir>       # a generate:scenarios run
+//   npm run compare:metric -- --corpus <dir>       # any folder of scenarios
 //   npm run compare:metric -- --out <dir>          # default metric-comparison/
 //
 // Writes report.html (filterable, self-contained), report.xlsx (the same as a
@@ -41,7 +41,7 @@ const only = values.only.flatMap((v) => v.split(',')).filter(Boolean)
 console.log(
   `Comparing the service with the metric${only.length ? ` (${only.join(', ')})` : ''}…`
 )
-const { corpus, results } = await runMetricComparison({
+const { corpusDir, unmatched, results } = await runMetricComparison({
   corpusDir: values.corpus,
   only,
   onResult: (r) =>
@@ -49,10 +49,13 @@ const { corpus, results } = await runMetricComparison({
       `  ${r.outcome.padEnd('rejected-as-expected'.length)}  ${r.id}${r.discrepancies?.length ? ` — ${r.discrepancies.length} discrepancies` : ''}`
     )
 })
+for (const workbook of unmatched) {
+  console.warn(`  skipped ${workbook}: no GeoPackage pair beside it`)
+}
 
 const commit = process.env.GITHUB_SHA?.slice(0, SHORT_SHA_LENGTH)
 const context = [
-  `Corpus: seed ${corpus.seed}, metric template ${corpus.template}${values.corpus ? `, from ${values.corpus}` : ''}.`,
+  `Scenarios from ${corpusDir}.`,
   `Generated ${new Date().toISOString()}${commit ? ` for commit ${commit}` : ''}.`
 ]
 
@@ -75,10 +78,13 @@ write(
 )
 write(
   'report.json',
-  `${JSON.stringify({ corpus: { seed: corpus.seed, template: corpus.template }, results }, null, JSON_INDENT)}\n`
+  `${JSON.stringify({ corpusDir, unmatched, results }, null, JSON_INDENT)}\n`
 )
 
 const differing = results.filter((r) => r.discrepancies?.length).length
+const unreadable = results.filter(
+  (r) => r.outcome === 'workbook-unreadable'
+).length
 console.log(
-  `${differing} of ${results.length} scenarios differ from the metric. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
+  `${differing} of ${results.length} scenarios differ from the metric${unreadable ? `; ${unreadable} workbook(s) could not be read, so were not compared` : ''}. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
 )

@@ -12,7 +12,7 @@ describe('findScenarioCorpus', () => {
   fs.mkdirSync(backend)
   afterAll(() => fs.rmSync(workspace, { recursive: true, force: true }))
 
-  function harness(name, { corpus = true } = {}) {
+  function harness(name) {
     const dir = path.join(workspace, name)
     fs.mkdirSync(path.join(dir, 'example-files', 'permutations'), {
       recursive: true
@@ -21,12 +21,6 @@ describe('findScenarioCorpus', () => {
       path.join(dir, 'package.json'),
       JSON.stringify({ name: 'bng-metric-harness' })
     )
-    if (corpus) {
-      fs.writeFileSync(
-        path.join(dir, 'example-files', 'permutations', 'manifest.json'),
-        '{}'
-      )
-    }
     return path.join(dir, 'example-files', 'permutations')
   }
 
@@ -48,7 +42,7 @@ describe('findScenarioCorpus', () => {
     expect(findScenarioCorpus({ env: {}, repoRoot: backend })).toBe(corpus)
   })
 
-  it('is none when the harness has no generated corpus', () => {
+  it('is none when the harness has no scenarios folder', () => {
     const lone = fs.mkdtempSync(path.join(tmpdir(), 'workspace-'))
     try {
       const repo = path.join(lone, 'bng-metric-backend')

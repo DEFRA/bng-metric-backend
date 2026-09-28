@@ -20,9 +20,10 @@ describe.skipIf(!findScenarioCorpus())('metric comparison', () => {
   it(
     'compares every corpus scenario',
     async () => {
-      const { corpus, results } = await runMetricComparison()
+      const { results, unmatched } = await runMetricComparison()
 
-      expect(results).toHaveLength(corpus.scenarios.length)
+      expect(unmatched).toEqual([])
+      expect(results.length).toBeGreaterThan(0)
       for (const result of results) {
         expect(Object.values(OUTCOME)).toContain(result.outcome)
       }
@@ -31,15 +32,16 @@ describe.skipIf(!findScenarioCorpus())('metric comparison', () => {
     CORPUS_TIMEOUT_MS
   )
 
-  it('selects scenarios by purpose or by id', async () => {
+  it('selects scenarios by purpose, name or id', async () => {
     const { results } = await runMetricComparison({
-      only: ['net-gain', 'trading-all-met']
+      only: ['net-gain', 'trading-all-met', 'intervention/area-created']
     })
 
     expect(results.map((r) => r.id).sort()).toEqual([
-      'net-gain-met',
-      'net-gain-unmet',
-      'trading-all-met'
+      'intervention/area-created',
+      'net-gain/met',
+      'net-gain/unmet',
+      'trading-rules/trading-all-met'
     ])
   })
 

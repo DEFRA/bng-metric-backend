@@ -193,19 +193,18 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      # BMD-1036: the metric comparison's scenario corpus is committed in the
-      # harness (example-files/permutations), each GeoPackage pair beside its
-      # metric workbook. Fetch the GeoPackages and the manifest only — a sparse,
-      # blobless clone never downloads the ~120 MB of workbooks — and name the
-      # folder for `npm test` and `npm run compare:metric`.
+      # BMD-1036: the metric comparison's scenarios are committed in the
+      # harness (example-files/permutations): each GeoPackage pair beside the
+      # metric workbook for the same site, saved with the metric's answers in
+      # it. Fetch that folder and nothing else of the harness — a sparse,
+      # blobless clone — and name it for `npm test` and `npm run compare:metric`.
       - name: Fetch the metric comparison corpus from the harness
         run: |
           harness="$RUNNER_TEMP/bng-metric-harness"
           git clone --quiet --depth 1 --filter=blob:none --no-checkout \
             https://github.com/DEFRA/bng-metric-harness.git "$harness"
           git -C "$harness" sparse-checkout set --no-cone \
-            '/example-files/permutations/**/*.gpkg' \
-            '/example-files/permutations/manifest.json'
+            '/example-files/permutations/'
           git -C "$harness" checkout --quiet
           echo "METRIC_CORPUS_DIR=$harness/example-files/permutations" >> "$GITHUB_ENV"
 
