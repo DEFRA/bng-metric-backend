@@ -7,7 +7,8 @@
 //   npm run compare:metric -- --corpus <dir>       # a generate:scenarios run
 //   npm run compare:metric -- --out <dir>          # default metric-comparison/
 //
-// Writes report.html (filterable, self-contained), report.md, summary.md (the
+// Writes report.html (filterable, self-contained), report.xlsx (the same as a
+// spreadsheet: one row per discrepancy), report.md, summary.md (the
 // report without each scenario's detail, for a CI job summary) and
 // report.json. The report is for people to judge: differences never make
 // this exit non-zero. Only a comparison that cannot run does.
@@ -19,7 +20,7 @@ import { parseArgs } from 'node:util'
 // Before anything imports the config: the importer's perf evidence is noise here.
 process.env.LOG_LEVEL ??= 'silent'
 
-const { renderComparisonHtml, renderComparisonReport } =
+const { renderComparisonHtml, renderComparisonReport, renderComparisonXlsx } =
   await import('bng-library/metric-compare')
 const { runMetricComparison } =
   await import('../src/services/metric-comparison/run-metric-comparison.js')
@@ -60,13 +61,14 @@ mkdirSync(outDir, { recursive: true })
 const write = (name, content) => writeFileSync(path.join(outDir, name), content)
 
 write('report.html', renderComparisonHtml(results, { context }))
+write('report.xlsx', renderComparisonXlsx(results, { context }))
 write('report.md', renderComparisonReport(results, { preamble: context }))
 write(
   'summary.md',
   renderComparisonReport(results, {
     preamble: [
       ...context,
-      'The full report, with every discrepancy, is `report.html` in the `metric-comparison` artifact.'
+      'The full report, with every discrepancy, is `report.html` (and `report.xlsx`) in the `metric-comparison` artifact.'
     ],
     details: false
   })
@@ -78,5 +80,5 @@ write(
 
 const differing = results.filter((r) => r.discrepancies?.length).length
 console.log(
-  `${differing} of ${results.length} scenarios differ from the metric. Report → ${path.join(outDir, 'report.html')}`
+  `${differing} of ${results.length} scenarios differ from the metric. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
 )

@@ -82,6 +82,7 @@ the upload pipeline, in process (no database, S3 or worker pool), and compares t
 service's figures — unit calculations per feature, unit totals, net gain, trading
 rules figures and statuses — exactly with the metric's own answers for the same
 site. It writes `metric-comparison/report.html` (self-contained, filterable),
+`report.xlsx` (the same as a spreadsheet, one row per discrepancy),
 `report.md`, `summary.md` and `report.json`:
 
 ```bash
