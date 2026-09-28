@@ -27,5 +27,6 @@
   "GET /reference/hedgerow-types",
   "GET /reference/watercourse-types",
   "GET /reference/watercourse-encroachments",
-  "GET /reference/trading-rules"
+  "GET /reference/trading-rules",
+  "GET /reference/local-planning-authorities"
 ]
