@@ -1,0 +1,31 @@
+name: Dependabot auto-approve
+on: pull_request_target
+
+permissions:
+  pull-requests: write
+
+jobs:
+  auto-approve:
+    if: github.actor == 'dependabot[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Fetch metadata
+        id: meta
+        uses: dependabot/fetch-metadata@25dd0e34f4fe68f24cc83900b1fe3fe149efef98 # v3.1.0
+        with:
+          github-token: ${{ secrets.GITHUB_TOKEN }}
+      - name: Approve the PR
+        # Only approve patch and minor bumps; leave majors for a human to
+        # review. For grouped updates the reported update-type is the highest
+        # bump in the group, so a group containing a major is excluded here.
+        # The approval satisfies the "1 approving review" branch rule, so a
+        # human only needs one click ("Merge when ready") to enqueue it, and
+        # `npm run queue-deps` in bng-metric-harness treats it as vetted.
+        # Auto-merge is deliberately not armed: GitHub ignores auto-merge
+        # armed by GITHUB_TOKEN on a merge-queue branch, and the stale arming
+        # only costs an extra click to disarm before merging by hand.
+        if: steps.meta.outputs.update-type == 'version-update:semver-patch' || steps.meta.outputs.update-type == 'version-update:semver-minor'
+        run: gh pr review --approve "$PR_URL"
+        env:
+          PR_URL: ${{ github.event.pull_request.html_url }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
