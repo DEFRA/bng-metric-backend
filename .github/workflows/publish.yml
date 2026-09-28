@@ -48,7 +48,7 @@ jobs:
         # Fix proposed upstream in DEFRA/cdp-build-action#128; move back to a
         # newer pin once it lands. Every other action here is SHA-pinned — this
         # one was the exception, and that is what let it break us.
-        uses: DEFRA/cdp-build-action/build@458fd8d25ebbd1bde485b0ecf446a7977b533ebc # last green before #124
+        uses: DEFRA/cdp-build-action/build@54ced5c5344c8b9620561a1628fe8f3d858e9871 # last green before #124
         with:
           github-token: ${{ secrets.GITHUB_TOKEN }}
 
