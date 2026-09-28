@@ -1,0 +1,66 @@
+// Run the metric comparison (BMD-1036): import every scenario in the corpus
+// through the service's own upload pipeline and compare what it computes with
+// the Statutory Biodiversity Metric's answers for the same site.
+//
+// The corpus, the metric's answers and the comparison itself live in
+// bng-library (`bng-library/metric-compare`); the import is this service's.
+// So a change to either side — the engine in the library, or the extraction
+// and enrichment here — is measured against the metric by the same run.
+
+import {
+  compareScenario,
+  figuresFromProject,
+  figuresFromWorkbook,
+  loadScenarioCorpus
+} from 'bng-library/metric-compare'
+
+import { importGeoPackagePair } from './import-geopackage-pair.js'
+
+/**
+ * A scenario is selected by its id or its purpose; no filter selects all.
+ *
+ * @param {{ id: string, purpose: string }} scenario
+ * @param {string[]} only
+ */
+function isSelected(scenario, only) {
+  return (
+    only.length === 0 ||
+    only.includes(scenario.id) ||
+    only.includes(scenario.purpose)
+  )
+}
+
+/**
+ * @param {import('bng-library/metric-compare').CorpusScenario} scenario
+ */
+export async function compareCorpusScenario(scenario) {
+  const imported = await importGeoPackagePair(scenario.files)
+  const service = imported.accepted
+    ? { accepted: true, figures: figuresFromProject(imported.project) }
+    : imported
+  return compareScenario({
+    scenario,
+    expected: figuresFromWorkbook(scenario.metric),
+    service
+  })
+}
+
+/**
+ * @param {object} [options]
+ * @param {string} [options.corpusDir] a scenario corpus; the one committed in
+ *   bng-library by default
+ * @param {string[]} [options.only] scenario ids or purposes to run
+ * @param {(result: object) => void} [options.onResult]
+ * @returns {Promise<{ corpus: object, results: object[] }>}
+ */
+export async function runMetricComparison(options = {}) {
+  const { corpusDir, only = [], onResult } = options
+  const corpus = loadScenarioCorpus(corpusDir)
+  const results = []
+  for (const scenario of corpus.scenarios.filter((s) => isSelected(s, only))) {
+    const result = await compareCorpusScenario(scenario)
+    onResult?.(result)
+    results.push(result)
+  }
+  return { corpus, results }
+}

@@ -205,6 +205,32 @@ jobs:
           npm run lint
           npm test
 
+      # BMD-1036: every scenario in the bng-library corpus is imported through
+      # the upload pipeline and compared, figure by figure, with the Statutory
+      # Biodiversity Metric's own answers. `npm test` already fails on a change
+      # from the recorded discrepancies (metric-comparison.test.js); this writes
+      # the full report for the run, whichever way it went, as an artifact and
+      # on the job summary.
+      - name: Compare the service with the metric
+        id: compare-metric
+        if: ${{ !cancelled() }}
+        run: npm run compare:metric
+
+      - name: Publish the metric comparison report
+        if: ${{ !cancelled() && steps.compare-metric.outcome != 'skipped' }}
+        run: |
+          if [ -f metric-comparison/report.md ]; then
+            cat metric-comparison/report.md >> "$GITHUB_STEP_SUMMARY"
+          fi
+
+      - name: Upload the metric comparison report
+        if: ${{ !cancelled() && steps.compare-metric.outcome != 'skipped' }}
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: metric-comparison
+          path: metric-comparison/
+          if-no-files-found: warn
+
       # The GEOS validation engine reads a pre-projected copy of the England
       # reference polygon rather than reprojecting it on every request. This is
       # what stops that copy silently going stale if england.geojson is edited.

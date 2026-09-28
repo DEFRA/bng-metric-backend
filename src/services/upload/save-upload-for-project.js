@@ -123,7 +123,7 @@ async function fetchStoredProject(drizzle, projectId) {
 /**
  * @param {object} config
  */
-function saveHandlersForConfig(config) {
+export function saveHandlersForConfig(config) {
   const handlers = SAVE_HANDLERS_BY_DOCUMENT_KEY[config.projectDocumentKey]
   if (handlers) {
     return handlers
@@ -141,7 +141,7 @@ function saveHandlersForConfig(config) {
  * @param {object} [geometrySizes] per-feature measurements from the geometry
  *   engine, keyed by position within the layer
  */
-function layersForUpload(
+export function layersForUpload(
   layers,
   storedProject,
   projectDocumentKey,
@@ -188,7 +188,7 @@ async function sizeUploadedHabitats(
   }
 }
 
-function extractAndValidateDocument({
+export function extractAndValidateDocument({
   handlers,
   layersWithIds,
   storedProject,
