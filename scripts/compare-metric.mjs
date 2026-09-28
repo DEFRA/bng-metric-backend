@@ -7,8 +7,8 @@
 //   npm run compare:metric -- --corpus <dir>       # any folder of scenarios
 //   npm run compare:metric -- --out <dir>          # default metric-comparison/
 //
-// Writes report.html (filterable, self-contained), report.xlsx (the same as a
-// spreadsheet: one row per discrepancy), report.md, summary.md (the
+// Writes report.html (a short, self-contained summary), report.xlsx (every
+// difference at full precision, one row each), report.md, summary.md (the
 // report without each scenario's detail, for a CI job summary) and
 // report.json. The report is for people to judge: differences never make
 // this exit non-zero. Only a comparison that cannot run does.

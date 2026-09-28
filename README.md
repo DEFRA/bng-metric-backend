@@ -81,7 +81,8 @@ against PDF/UA, and how the Ordnance Survey basemap is credited — see
 the upload pipeline, in process (no database, S3 or worker pool), and compares the
 service's figures — unit calculations per feature, unit totals, net gain, trading
 rules figures and statuses — exactly with the metric's own answers for the same
-site. It writes `metric-comparison/report.html` (self-contained, filterable),
+site. It writes `metric-comparison/report.html` (a short summary: answers that
+differ, values with no known cause, the known causes, then each scenario),
 `report.xlsx` (the same as a spreadsheet, one row per discrepancy),
 `report.md`, `summary.md` and `report.json`:
 
