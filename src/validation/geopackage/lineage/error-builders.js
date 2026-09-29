@@ -204,8 +204,9 @@ export function stagedParentOversubscribedError(samples) {
 /**
  * Baseline features the service will treat as (partly) removed because no
  * post-intervention child accounts for them. A WARNING, not an error: the
- * template's copy action populates post-intervention with every baseline
- * feature, so absence is a deliberate deletion — but the surveyor is told
+ * template's Copy action populates post-intervention with every baseline
+ * feature, and a baseline feature pasted into post-intervention is linked to
+ * it, so absence is normally a deliberate deletion — but the surveyor is told
  * what the calculation will assume, because absence is also what a slip of
  * the delete key looks like.
  *
@@ -225,10 +226,12 @@ export function stagedFeaturesRemovedWarning(samples) {
 }
 
 /**
- * Baseline features whose geometry no longer matches the checksum stamped on
- * their post-intervention children — the baseline was edited AFTER the copy
- * was made. A warning: the edit may be a legitimate correction, but the copy
- * is now stale for those parcels and should be re-run or confirmed.
+ * Baseline features whose geometry no longer matches the shape their
+ * post-intervention children recorded in `parent_geom` (at Copy, at paste or
+ * at the last Refresh) — the baseline was edited AFTERWARDS. A warning: the
+ * edit may be a legitimate correction, but those children are now stale and
+ * should be refreshed or confirmed. The wording stays with "copied", which
+ * the frontend repeats when it renders the samples.
  *
  * @param {Array<{ type: string, parent_ref: string, pi_count: number }>} samples
  */
@@ -248,9 +251,10 @@ export function stagedBaselineDriftedWarning(samples) {
 
 /**
  * Continuing (Retained/Enhanced) features with no lineage stamp at all —
- * a file made outside the template's copy action. Their parent was inferred
- * from geometric overlap, which is a guess the surveyor should confirm; where
- * even geometry found nothing, that is said too.
+ * rows that none of the template's linking steps (Copy, paste of a baseline
+ * feature, Refresh) produced, or a file made outside the template. Their
+ * parent was inferred from geometric overlap, which is a guess the surveyor
+ * should confirm; where even geometry found nothing, that is said too.
  *
  * @param {Array<{ type: string, pi_ref: string|null, parent_ref: string|null }>} samples
  */

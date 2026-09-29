@@ -14,6 +14,7 @@
 // services/upload/save-staged-upload-for-project.js, which persists BOTH
 // subtrees from the one file.
 
+import { baselineDrift } from './baseline-drift.js'
 import { checkContainment } from './containment.js'
 import { deriveLineage } from './derive-lineage.js'
 import {
@@ -26,7 +27,6 @@ import {
   stagedSizeMismatchError,
   stagedUnknownParentRefError
 } from './error-builders.js'
-import { geometryChecksum } from './geometry-checksum.js'
 import { readStagedGeoPackage } from './read-staged-geopackage.js'
 import {
   isLinearMeasure,
@@ -108,46 +108,6 @@ function hasContinuingRows(postIntervention) {
   return postIntervention.some((feature) =>
     CONTINUING_CATEGORIES.has(feature?.retentionCategory)
   )
-}
-
-/**
- * Post-intervention rows stamped with a resolving parent_uuid whose checksum
- * no longer matches any baseline row carrying that uuid — the baseline was
- * edited after the copy. Grouped per parent so a parcel split into ten pieces
- * reports one drift, not ten.
- *
- * @param {string} type
- * @param {object[]} postIntervention
- * @param {object[]} baseline
- * @returns {Array<{ type: string, parent_ref: string, pi_count: number }>}
- */
-function baselineDrift(type, postIntervention, baseline) {
-  const rowsByUuid = new Map()
-  for (const feature of baseline) {
-    if (!feature?.featureUuid) {
-      continue
-    }
-    const list = rowsByUuid.get(feature.featureUuid) ?? []
-    list.push(feature)
-    rowsByUuid.set(feature.featureUuid, list)
-  }
-  const drifted = new Map()
-  for (const feature of postIntervention) {
-    const uuid = feature?.parentUuid
-    const stamped = feature?.parentChecksum
-    const rows = uuid ? rowsByUuid.get(uuid) : undefined
-    if (!stamped || !rows) {
-      continue
-    }
-    const current = rows.map((row) => geometryChecksum(row.geometry))
-    if (!current.includes(stamped)) {
-      const ref = rows[0]?.ref ?? uuid
-      const entry = drifted.get(ref) ?? { type, parent_ref: ref, pi_count: 0 }
-      entry.pi_count += 1
-      drifted.set(ref, entry)
-    }
-  }
-  return [...drifted.values()]
 }
 
 /**

@@ -5,10 +5,13 @@
 //  1. The STAMPED parent — `parent_uuid` first (a hidden machine key humans
 //     never see or type, so renames cannot break it), falling back to the
 //     human-readable `Parent Ref` for files made before the uuid columns
-//     existed. The QGIS template writes both once when the post-intervention
-//     layer is copied from the baseline, and QGIS carries attributes verbatim
-//     through a split, so every parcel derived by splitting keeps the correct
-//     parent with no geometry involved. Trust it.
+//     existed. The QGIS template writes both when a baseline feature enters
+//     post-intervention: by the Copy action, by a paste (default-value
+//     expressions link a pasted feature to the one baseline feature of the
+//     same shape), or by the Refresh action for a baseline feature added
+//     later. QGIS carries attributes verbatim through a split, so every
+//     parcel derived by splitting keeps the correct parent with no geometry
+//     involved. Trust it.
 //
 //  2. Geometry, only for rows with no stamped parent — parcels a surveyor drew
 //     fresh, which need no parent for their units. (They are Created, but the

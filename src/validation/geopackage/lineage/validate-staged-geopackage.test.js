@@ -48,7 +48,7 @@ const HEDGE_DDL = `(
   "Length" REAL,
   feature_uuid TEXT,
   parent_uuid TEXT,
-  parent_checksum TEXT
+  parent_geom TEXT
 )`
 
 const TREE_DDL = `(
@@ -61,7 +61,7 @@ const TREE_DDL = `(
   "Count" INTEGER,
   feature_uuid TEXT,
   parent_uuid TEXT,
-  parent_checksum TEXT
+  parent_geom TEXT
 )`
 
 /**
@@ -295,6 +295,102 @@ describe('a habitat type recorded at post-intervention only', () => {
     expect(result.valid).toBe(false)
     const error = errorFor(result, ERROR_CODES.STAGED_MISSING_BASELINE_LAYER)
     expect(error.details.sample).toEqual([{ type: 'trees' }])
+  })
+})
+
+describe('baseline drift read from parent_geom', () => {
+  const HEDGE_INSERT_WITH_PARENT_GEOM = `(geom, "Parcel Ref", "PI Ref", "Parent Ref", "Retention Category", "Length", feature_uuid, parent_uuid, parent_geom)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  /** HR-1 as the template's Copy action records it. */
+  const HR1_WKT = 'LineString (0 300, 200 300)'
+  /** HR-1 after its eastern end was moved 1 m north. */
+  const HR1_MOVED_LINE = gpkgLineString(EPSG_BNG, [
+    [0, 300],
+    [200, 301]
+  ])
+
+  async function validateHedge({ baselineLine, parentUuid, parentGeom }) {
+    return validateBuiltGpkg([
+      {
+        name: 'Hedgerows Baseline',
+        geomType: 'LINESTRING',
+        ddl: HEDGE_DDL,
+        insert: HEDGE_INSERT_WITH_PARENT_GEOM,
+        rows: [
+          [baselineLine, 'HR-1', null, null, null, 200, HR1_UUID, null, null]
+        ]
+      },
+      {
+        name: 'Hedgerows Post-Intervention',
+        geomType: 'LINESTRING',
+        ddl: HEDGE_DDL,
+        insert: HEDGE_INSERT_WITH_PARENT_GEOM,
+        rows: [
+          [
+            HR1A_LINE,
+            null,
+            'HR-1a',
+            'HR-1',
+            'Retained',
+            100,
+            null,
+            parentUuid,
+            parentGeom
+          ]
+        ]
+      }
+    ])
+  }
+
+  it('emits no drift warning when parent_geom matches the baseline', async () => {
+    const { result } = await validateHedge({
+      baselineLine: HR1_LINE,
+      parentUuid: HR1_UUID,
+      parentGeom: HR1_WKT
+    })
+
+    expect(warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)).toBe(
+      undefined
+    )
+  })
+
+  it('warns, without failing the file, when the baseline has moved', async () => {
+    const { result } = await validateHedge({
+      baselineLine: HR1_MOVED_LINE,
+      parentUuid: HR1_UUID,
+      parentGeom: HR1_WKT
+    })
+
+    expect(result.valid).toBe(true)
+    const warning = warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.details.sample).toEqual([
+      { type: 'hedgerows', parent_ref: 'HR-1', pi_count: 1 }
+    ])
+  })
+
+  it('checks a row linked by Parent Ref alone', async () => {
+    const { result } = await validateHedge({
+      baselineLine: HR1_MOVED_LINE,
+      parentUuid: null,
+      parentGeom: HR1_WKT
+    })
+
+    const warning = warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.details.sample).toEqual([
+      { type: 'hedgerows', parent_ref: 'HR-1', pi_count: 1 }
+    ])
+  })
+
+  it('skips a linked row that carries no parent_geom', async () => {
+    const { result } = await validateHedge({
+      baselineLine: HR1_MOVED_LINE,
+      parentUuid: HR1_UUID,
+      parentGeom: null
+    })
+
+    expect(warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)).toBe(
+      undefined
+    )
   })
 })
 

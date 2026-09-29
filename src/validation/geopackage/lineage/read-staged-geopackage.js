@@ -18,10 +18,12 @@ const GPKG_CONTENTS_FEATURES_DATA_TYPE = 'features'
 const REF_COLUMNS = ['PI Ref', 'Parcel Ref', 'Tree Ref', 'ref']
 /** Column naming the baseline parcel a PI feature was derived from. */
 const PARENT_COLUMNS = ['Parent Ref', 'parent_ref']
-/** Hidden machine keys stamped by the template — see geometry-checksum.js. */
+/** Hidden machine key the template gives every baseline feature. */
 const FEATURE_UUID_COLUMNS = ['feature_uuid']
+/** Hidden machine key naming a post-intervention row's baseline parent. */
 const PARENT_UUID_COLUMNS = ['parent_uuid']
-const PARENT_CHECKSUM_COLUMNS = ['parent_checksum']
+/** The parent's shape as WKT when the row was linked — see baseline-drift.js. */
+const PARENT_GEOM_COLUMNS = ['parent_geom']
 
 function firstPresent(row, candidates) {
   for (const key of candidates) {
@@ -59,7 +61,7 @@ function readTable(db, tableName) {
       parentRef: firstPresent(properties, PARENT_COLUMNS),
       featureUuid: firstPresent(properties, FEATURE_UUID_COLUMNS),
       parentUuid: firstPresent(properties, PARENT_UUID_COLUMNS),
-      parentChecksum: firstPresent(properties, PARENT_CHECKSUM_COLUMNS),
+      parentGeom: firstPresent(properties, PARENT_GEOM_COLUMNS),
       retentionCategory: properties['Retention Category'] ?? null,
       properties,
       geometry: blob ? wkbToGeoJSON(blob) : null,

@@ -17,7 +17,7 @@ import { randomUUID } from 'node:crypto'
 import { fileURLToPath } from 'node:url'
 
 import Database from 'better-sqlite3'
-import { gpkgPolygon } from 'bng-library/gpkg-io'
+import { gpkgLineString, gpkgPolygon } from 'bng-library/gpkg-io'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import pg from 'pg'
 
@@ -65,6 +65,12 @@ const SHIFTED_PR1_RING = [
 ]
 const SHIFTED_PR1_ESCAPE_SQ_M = 1000
 
+/** Baseline watercourse WC-1 (0,400 to 100,400) with its eastern end 1 m north. */
+const MOVED_WC1_LINE = [
+  [0, 400],
+  [100, 401]
+]
+
 const pool = new pg.Pool(getDbConfig())
 
 /**
@@ -108,6 +114,18 @@ async function validateMutatedFixture(mutate) {
   } finally {
     rmSync(dir, { recursive: true, force: true })
   }
+}
+
+/**
+ * Move the eastern end of baseline watercourse WC-1 one metre north, as a
+ * surveyor correcting the baseline after the copy would.
+ *
+ * @param {import('better-sqlite3').Database} db
+ */
+function moveBaselineWatercourse(db) {
+  db.prepare(
+    `UPDATE "Watercourses Baseline" SET geom = ? WHERE "Parcel Ref" = 'WC-1'`
+  ).run(gpkgLineString(EPSG_BNG, MOVED_WC1_LINE))
 }
 
 function errorFor(result, code) {
@@ -177,13 +195,23 @@ describe('validateStagedGeoPackage', () => {
     expect(result.valid).toBe(true)
   })
 
-  it('warns when a stamped checksum no longer matches the baseline geometry', async () => {
-    // Simulates the baseline being edited after the copy: the stamp was made
-    // from a shape that no longer exists. Watercourses are containment-exempt,
-    // so the drift warning is the only signal — exactly the point of it.
+  it('warns when the baseline changes after its children recorded its shape', async () => {
+    // The baseline is edited after the copy: parent_geom still holds the old
+    // shape. Watercourses are containment-exempt, so the drift warning is the
+    // only signal, which is exactly the point of it.
+    const result = await validateMutatedFixture(moveBaselineWatercourse)
+
+    expect(result.valid).toBe(true)
+    const warning = warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.details.sample).toEqual([
+      { type: 'watercourses', parent_ref: 'WC-1', pi_count: 1 }
+    ])
+  })
+
+  it('warns when a recorded parent_geom no longer matches the baseline geometry', async () => {
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Watercourses Post-Intervention" SET parent_checksum = '0123456789abcdef'`
+        `UPDATE "Watercourses Post-Intervention" SET parent_geom = 'LineString (0 400, 100 401)'`
       ).run()
     })
 
@@ -192,6 +220,35 @@ describe('validateStagedGeoPackage', () => {
     expect(warning.details.sample).toEqual([
       { type: 'watercourses', parent_ref: 'WC-1', pi_count: 1 }
     ])
+  })
+
+  it('checks drift on a row linked by Parent Ref alone', async () => {
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Watercourses Post-Intervention" SET parent_uuid = NULL`
+      ).run()
+      moveBaselineWatercourse(db)
+    })
+
+    const warning = warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    expect(warning.details.sample).toEqual([
+      { type: 'watercourses', parent_ref: 'WC-1', pi_count: 1 }
+    ])
+  })
+
+  it('skips the drift check for a linked row with no parent_geom', async () => {
+    // Files made before parent_geom existed carry none: nothing to compare.
+    const result = await validateMutatedFixture((db) => {
+      db.prepare(
+        `UPDATE "Watercourses Post-Intervention" SET parent_geom = NULL`
+      ).run()
+      moveBaselineWatercourse(db)
+    })
+
+    expect(result.valid).toBe(true)
+    expect(
+      warningFor(result, ERROR_CODES.STAGED_BASELINE_DRIFTED)
+    ).toBeUndefined()
   })
 
   it('flags a continuing row with no stamp at all as inferred lineage', async () => {

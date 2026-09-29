@@ -32,22 +32,73 @@ loss was the actual defect.
 The full design rationale lives in the workspace note
 `lineage-uuid-reconciliation.md`; the short version: the human label and the
 machine key are separate fields. Baseline rows carry a hidden `feature_uuid`
-(auto-filled by a QGIS default at digitise time); the copy action stamps
-`parent_uuid` and `parent_checksum` (a canonical geometry hash — see
-`geometry-checksum.js`, byte-compatible with the template's Python) onto every
-post-intervention row. Renaming refs is cosmetic; a checksum mismatch surfaces
-as the `STAGED_BASELINE_DRIFTED` warning ("baseline edited after the copy");
-continuing rows with no stamp at all fall back to geometric inference and are
-flagged `STAGED_PARENT_INFERRED` for confirmation.
+(auto-filled by a QGIS default at digitise time). The link to a
+post-intervention row's baseline parent is three columns: `Parent Ref`, the
+hidden `parent_uuid`, and the hidden `parent_geom` (the parent's shape as WKT
+at 3 decimals). The template writes them in three ways:
+
+- the **Copy** action, which copies every baseline feature;
+- a **paste**: default-value expressions link a pasted feature to the one
+  baseline feature whose geometry equals it exactly;
+- the **Refresh** action, which adds rows for baseline features added since
+  the copy, with all three columns. On an existing row it re-records
+  `Parent Ref` and keeps `parent_uuid`. It re-records `parent_geom` only on a
+  row it moves or trims to the new baseline shape. A row it cannot resolve
+  keeps its old `parent_geom`, so the drift warning stays until the row is
+  copied or pasted again. It clears the link when the parent was deleted.
+
+The converter (`old_to_new`) and the site generators write the same columns.
+So `parent_geom` is the parent's shape at Copy, at paste, or at the last
+Refresh that moved or trimmed the row. Renaming refs is cosmetic. When the current baseline shape no longer
+matches `parent_geom`, the `STAGED_BASELINE_DRIFTED` warning says the baseline
+was edited afterwards (`baseline-drift.js`, comparing through
+`canonical-geometry.js`). Continuing rows with no stamp at all fall back to
+geometric inference and are flagged `STAGED_PARENT_INFERRED` for confirmation.
+
+### How drift is decided
+
+`parent_geom` and the baseline geometry reach the backend by different routes
+— WKT at 3 decimals from several writers, and WKB at full precision — so they
+are never compared as text. Both sides are rounded to 3 decimals (millimetres),
+a single-part Multi\* geometry is read as its single type, and duplicate and
+collinear vertices under 1 mm are removed (QGIS topological editing inserts
+those into a shared edge without changing its shape). The two results match
+when they have the same type and structure and no coordinate differs by more
+than 1.1 mm: writers round an exact midpoint in different directions, which
+moves a coordinate by exactly 1 mm. Vertex order is significant.
+
+The baseline geometry is also tried in a second form, with its duplicate and
+collinear vertices removed at full precision before it is rounded. A vertex
+that topological editing inserts on an edge lies on that edge at full
+precision, but rounding moves it and the edge's two ends by up to 0.7 mm
+each, so after rounding it can sit up to 1.4 mm off the edge and survive the
+1 mm test. The second form removes it. `parent_geom` matches when it matches
+either form. The template's Refresh action compares shapes the same way.
+
+`parent_geom` is text from the upload, so it is read defensively
+(`parse-wkt.js`): only Point, LineString, Polygon and their Multi forms, the
+whole text or nothing, in one linear pass, and each distinct text once. A
+text over 8,000,000 characters counts as drift unread. A genuine record needs
+about 25 characters per vertex at 3 decimals, so the cap only stops a crafted
+or corrupt row from holding the thread.
+
+| Post-intervention row                                       | Drift check                                    |
+| ----------------------------------------------------------- | ---------------------------------------------- |
+| stamp resolves (uuid, else `Parent Ref`), has `parent_geom` | compared with every baseline row of the parent |
+| stamp resolves, no `parent_geom` (files made before it)     | skipped, silently                              |
+| stamp resolves, `parent_geom` unreadable or `EMPTY`         | counted as drift                               |
+| stamp resolves, `parent_geom` over the length cap           | counted as drift, without being parsed         |
+| no stamp, or a stamp that resolves nowhere                  | not checked here                               |
 
 ## Resolution order
 
 Sources, in order:
 
-1. **The stamped parent — `parent_uuid` first, `Parent Ref` as fallback.** The template writes it once when the
-   post-intervention layer is copied from the baseline. QGIS carries attributes
-   verbatim through a split, so every parcel later derived by splitting keeps
-   the correct parent with no geometric inference. This covers the common case.
+1. **The stamped parent — `parent_uuid` first, `Parent Ref` as fallback.** The template writes it when a
+   baseline feature enters post-intervention by Copy, by paste or by Refresh.
+   QGIS carries attributes verbatim through a split, so every parcel later
+   derived by splitting keeps the correct parent with no geometric inference.
+   This covers the common case.
 2. **Geometry**, only for rows with no stamped parent — parcels drawn fresh,
    which need no parent for their units. (They are `Created`, but for area
    habitats the converse does not hold: built-over ground is also `Created` —
@@ -117,10 +168,11 @@ The three rules (`reconcile.js`, `SIZE_RULES`):
   removed (**warning**). Partial watercourse loss is expressed by drawing the
   baseline stretch as two features at survey time.
 
-Removal warnings never fail the file. The template's copy action populates
-post-intervention with every baseline feature, so an absent row is always a
-deliberate deletion — but the surveyor is told what the calculation will
-assume, because absence is also what a slip of the delete key looks like.
+Removal warnings never fail the file. The template's Copy action populates
+post-intervention with every baseline feature, and a pasted baseline feature
+is linked to its parent, so an absent row is normally a deliberate deletion —
+but the surveyor is told what the calculation will assume, because absence is
+also what a slip of the delete key looks like.
 
 ## Containment
 
@@ -188,11 +240,14 @@ ambiguous or unmatched gets a fresh UUID.
 | `staged-layer-names.js`         | resolve table names to (stage, habitat type); unknown tables are ignored, never fatal |
 | `read-staged-geopackage.js`     | read one file into `{ baseline, postIntervention, redline }` with lineage columns     |
 | `derive-lineage.js`             | stamped parents first, then area-weighted geometry for the rest                       |
+| `baseline-drift.js`             | the `STAGED_BASELINE_DRIFTED` check: `parent_geom` against the current baseline       |
+| `canonical-geometry.js`         | 3-decimal rounding, canonical vertices and the tolerant comparison                    |
+| `parse-wkt.js`                  | a linear-time WKT reader for `parent_geom`, which is untrusted text from the upload   |
 | `reconcile.js`                  | per-type policy and size comparison                                                   |
 | `containment.js`                | PI-inside-parent, by size of `ST_Difference`, for the types whose policy demands it   |
 | `staged-feature-ids.js`         | keeps `featureId` stable across re-uploads, keyed on `PI Ref` / `Parcel Ref`          |
 | `validate-staged-geopackage.js` | the entry point the routes call — runs the above and returns `{ valid, errors }`      |
-| `error-builders.js`             | the four `STAGED_*` errors, shaped like the geometry ones                             |
+| `error-builders.js`             | the `STAGED_*` errors and warnings, shaped like the geometry ones                     |
 
 `postgis/constants.js` was extracted from `postgis/index.js` so the lineage
 overlay uses the same grid size and tolerances as the validation overlay — two
@@ -220,9 +275,20 @@ is unchanged.
 | Code                            | Fires when                                                                                                                                                                                                                                                                                     |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | `STAGED_MISSING_BASELINE_LAYER` | continuing (Retained/Enhanced) rows have no baseline features to reconcile against — the layer is absent or empty. A layer whose rows are ALL `Created` is exempt: brand-new habitats (planted hedgerows, new trees, new watercourses, new walls) legitimately exist at post-intervention only |
-| `STAGED_UNKNOWN_PARENT_REF`     | a stamped `Parent Ref` names nothing in the baseline                                                                                                                                                                                                                                           |
+| `STAGED_UNKNOWN_PARENT_REF`     | a stamp is present but neither its `parent_uuid` nor its `Parent Ref` names anything in the baseline                                                                                                                                                                                           |
 | `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent                                                                                                                                                                                                                                                    |
 | `STAGED_SIZE_MISMATCH`          | totals disagree for a type whose policy says they must match                                                                                                                                                                                                                                   |
+| `STAGED_PARENT_OVERSUBSCRIBED`  | a parent's post-intervention children total more than the parent (shortfall types): duplicated or mis-stamped rows                                                                                                                                                                             |
+
+### Warnings
+
+Warnings never fail the file.
+
+| Code                      | Fires when                                                                                                           |
+| ------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| `STAGED_FEATURES_REMOVED` | a baseline feature has no post-intervention continuation, or only part of one; the calculation treats it as removed  |
+| `STAGED_BASELINE_DRIFTED` | a stamped row's `parent_geom` no longer matches its parent's current shape: the baseline was edited afterwards       |
+| `STAGED_PARENT_INFERRED`  | a continuing (Retained/Enhanced) row carries no stamp, so its parent was inferred from geometry and needs confirming |
 
 `STAGED_UNKNOWN_PARENT_REF` earns its place: without it a dangling stamp
 degrades silently, because `deriveLineage` falls through to the geometry rule
@@ -231,7 +297,11 @@ and the feature picks up a plausible-looking parent it never had.
 ## Fixture coverage
 
 `integration-tests/fixtures/staged-baseline-and-pi.gpkg` is a real export from
-the template, exercising all five types on both sides:
+the template, exercising all five types on both sides. It was exported before
+the template wrote `parent_geom`; the column was later added in place, holding
+each stamped row's parent shape exactly as the Copy action writes it
+(`asWkt(3)`, QGIS spelling such as `LineString (…)`), and the obsolete lineage
+column it replaced was dropped. All other data is unchanged.
 
 | Type           | Scenario                                                                                               | Proves                                                                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -246,13 +316,15 @@ oversubscribed by exactly the duplicated 100 m, and stripping the stamped
 parents forces the geometry path and shows each trimmed parcel still resolving
 to exactly one parent.
 
-`staged-validation.test.js` breaks a throwaway copy of the same fixture five
-ways — dangling parent ref, missing baseline layer, deleted retained hedgerow
-row (a warning, not an error), deleted area parcel (still an error), and PI
-parcel PR-1 shifted 10 m west. The shift is a translation, so the area is
-unchanged and the totals still reconcile: containment is the only thing that
-fails, which is what makes the assertion about containment rather than about
-size.
+`staged-validation.test.js` breaks a throwaway copy of the same fixture in
+several ways — dangling parent ref, missing baseline layer, deleted retained
+hedgerow row (a warning, not an error), deleted area parcel (still an error),
+PI parcel PR-1 shifted 10 m west, and a baseline watercourse moved after its
+child recorded its shape (a drift warning, including for a row linked by
+`Parent Ref` alone, and none for a row with no `parent_geom`). The PR-1 shift is
+a translation, so the area is unchanged and the totals still reconcile:
+containment is the only thing that fails, which is what makes the assertion
+about containment rather than about size.
 
 ## Not done
 

@@ -84,7 +84,7 @@ export const ERROR_CODES = Object.freeze({
   /** WARNING, not an error: baseline features with no (or partial) post-intervention continuation, which the service will treat as removed. */
   STAGED_FEATURES_REMOVED: 'STAGED_FEATURES_REMOVED',
 
-  /** WARNING: a baseline feature's geometry changed after the post-intervention copy was stamped from it (parent_checksum mismatch). */
+  /** WARNING: a baseline feature's shape has changed since its post-intervention features were copied or pasted from it, or last refreshed from it, so those post-intervention features may be out of date. */
   STAGED_BASELINE_DRIFTED: 'STAGED_BASELINE_DRIFTED',
 
   /** WARNING: a continuing (Retained/Enhanced) feature carries no lineage stamp; its parent was inferred from geometry and needs confirming. */

@@ -10,6 +10,11 @@ import { fileURLToPath } from 'node:url'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 import pg from 'pg'
 
+import {
+  canonicalGeometriesMatch,
+  canonicalGeometry,
+  canonicalGeometryFromWkt
+} from '../src/validation/geopackage/lineage/canonical-geometry.js'
 import { deriveLineage } from '../src/validation/geopackage/lineage/derive-lineage.js'
 import { readStagedGeoPackage } from '../src/validation/geopackage/lineage/read-staged-geopackage.js'
 import {
@@ -56,7 +61,27 @@ describe('reading a staged GeoPackage', () => {
     for (const features of Object.values(staged.postIntervention)) {
       for (const feature of features.filter((f) => f.parentRef)) {
         expect(feature.parentUuid).toBeTruthy()
-        expect(feature.parentChecksum).toMatch(/^[0-9a-f]{16}$/)
+        expect(canonicalGeometryFromWkt(feature.parentGeom)).not.toBeNull()
+      }
+    }
+  })
+
+  it('records the parent shape of every linked row as the baseline has it', () => {
+    for (const [type, features] of Object.entries(staged.postIntervention)) {
+      const shapeByUuid = new Map(
+        staged.baseline[type].map((f) => [
+          f.featureUuid,
+          canonicalGeometry(f.geometry)
+        ])
+      )
+      for (const feature of features.filter((f) => f.parentUuid)) {
+        expect(
+          canonicalGeometriesMatch(
+            canonicalGeometryFromWkt(feature.parentGeom),
+            shapeByUuid.get(feature.parentUuid)
+          ),
+          `${type} ${feature.piRef}`
+        ).toBe(true)
       }
     }
   })

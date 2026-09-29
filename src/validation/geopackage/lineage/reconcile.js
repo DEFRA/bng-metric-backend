@@ -30,11 +30,12 @@
 //                     baseline point of five trees with two felled is a
 //                     Retained child with Count 3.
 //
-// Shortfall is a WARNING (`removed`), not an error: the copy action populates
-// post-intervention with every baseline feature, so an absent row is always a
-// deliberate deletion — but the surveyor still gets told what the service will
-// treat as removed. Oversubscription (children totalling more than their
-// parent) is an ERROR: it means duplicated or mis-stamped rows.
+// Shortfall is a WARNING (`removed`), not an error: the Copy action populates
+// post-intervention with every baseline feature, and a pasted baseline
+// feature is linked to its parent, so an absent row is normally a deliberate
+// deletion — but the surveyor still gets told what the service will treat as
+// removed. Oversubscription (children totalling more than their parent) is an
+// ERROR: it means duplicated or mis-stamped rows.
 
 import { HABITAT_TYPES } from './staged-layer-names.js'
 import {
