@@ -59,6 +59,8 @@ const dialect = new PgDialect()
 // JSON). Keep each to a single short sentence; add an entry when a new table is
 // introduced.
 const TABLE_DESCRIPTIONS = {
+  'bng.local_planning_authorities':
+    'Static current English Local Planning Authority names and references from Planning Data, used for project selection.',
   'bng.projects':
     'One row per BNG project, holding the live project document plus its owner and version details.',
   'bng.audit_log':
