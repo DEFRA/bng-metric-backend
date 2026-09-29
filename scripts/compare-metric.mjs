@@ -5,15 +5,14 @@
 //   npm run compare:metric                         # every committed scenario
 //   npm run compare:metric -- --only trading-rules # a purpose, or scenario ids
 //   npm run compare:metric -- --corpus <dir>       # any folder of scenarios
-//   npm run compare:metric -- --out <dir>          # default metric-comparison/
 //
-// Writes report.html (a short, self-contained summary), report.xlsx (every
+// Writes, to metric-comparison/ in this repo, report.html (a short, self-contained summary), report.xlsx (every
 // difference at full precision, one row each), report.md, summary.md (the
 // report without each scenario's detail, for a CI job summary) and
 // report.json. The report is for people to judge: differences never make
 // this exit non-zero. Only a comparison that cannot run does.
 
-import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
+import { mkdirSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -26,36 +25,18 @@ const { runMetricComparison } =
   await import('../src/services/metric-comparison/run-metric-comparison.js')
 
 const JSON_INDENT = 2
-const DEFAULT_OUT = 'metric-comparison'
 const SHORT_SHA_LENGTH = 7
-const REPO_ROOT = path.resolve(import.meta.dirname, '..')
-
-// The deepest part of `target` that exists, with symlinks followed, and the
-// rest of the path joined back on — so a symlink cannot lead outside the repo.
-const realPath = (target) => {
-  const parent = path.dirname(target)
-  if (existsSync(target) || parent === target) {
-    return realpathSync(target)
-  }
-  return path.join(realPath(parent), path.basename(target))
-}
+// Fixed rather than a flag: both workflows upload this folder, and nothing
+// from the command line reaches the file system.
+const OUT_DIR = path.resolve(import.meta.dirname, '..', 'metric-comparison')
 
 const { values } = parseArgs({
   options: {
     only: { type: 'string', multiple: true, default: [] },
-    corpus: { type: 'string' },
-    out: { type: 'string', default: DEFAULT_OUT }
+    corpus: { type: 'string' }
   }
 })
 const only = values.only.flatMap((v) => v.split(',')).filter(Boolean)
-
-// `--out` from the repo root, refused if it would write outside the repo.
-const repoRoot = realpathSync(REPO_ROOT)
-const outDir = realPath(path.resolve(repoRoot, values.out))
-if (outDir !== repoRoot && !outDir.startsWith(`${repoRoot}${path.sep}`)) {
-  console.error(`--out must be inside ${repoRoot}, not ${outDir}`)
-  process.exit(1)
-}
 
 const onlySuffix = only.length ? ` (${only.join(', ')})` : ''
 console.log(`Comparing the service with the metric${onlySuffix}…`)
@@ -82,8 +63,9 @@ const context = [
   `Generated ${new Date().toISOString()}${commitSuffix}.`
 ]
 
-mkdirSync(outDir, { recursive: true })
-const write = (name, content) => writeFileSync(path.join(outDir, name), content)
+mkdirSync(OUT_DIR, { recursive: true })
+const write = (name, content) =>
+  writeFileSync(path.join(OUT_DIR, name), content)
 
 write('report.html', renderComparisonHtml(results, { context }))
 write('report.xlsx', renderComparisonXlsx(results, { context }))
@@ -111,5 +93,5 @@ const unreadableSuffix = unreadable
   ? `; ${unreadable} workbook(s) could not be read, so were not compared`
   : ''
 console.log(
-  `${differing} of ${results.length} scenarios differ from the metric${unreadableSuffix}. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
+  `${differing} of ${results.length} scenarios differ from the metric${unreadableSuffix}. Reports → ${path.join(OUT_DIR, 'report.html')} and report.xlsx`
 )
