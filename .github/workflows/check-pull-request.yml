@@ -198,11 +198,22 @@ jobs:
       # metric workbook for the same site, saved with the metric's answers in
       # it. Fetch that folder and nothing else of the harness — a sparse,
       # blobless clone — and name it for `npm test` and `npm run compare:metric`.
+      # A pull request whose branch also exists in the harness uses the
+      # harness branch, so a change to the scenarios and a change here can be
+      # tested together before either is merged; otherwise the harness's main.
       - name: Fetch the metric comparison corpus from the harness
+        env:
+          HARNESS_URL: https://github.com/DEFRA/bng-metric-harness.git
+          PR_BRANCH: ${{ github.head_ref }}
         run: |
           harness="$RUNNER_TEMP/bng-metric-harness"
+          ref=main
+          if [ -n "$PR_BRANCH" ] && git ls-remote --exit-code --heads "$HARNESS_URL" "$PR_BRANCH" > /dev/null; then
+            ref="$PR_BRANCH"
+          fi
+          echo "Metric comparison scenarios from bng-metric-harness@$ref"
           git clone --quiet --depth 1 --filter=blob:none --no-checkout \
-            https://github.com/DEFRA/bng-metric-harness.git "$harness"
+            --branch "$ref" "$HARNESS_URL" "$harness"
           git -C "$harness" sparse-checkout set --no-cone \
             '/example-files/permutations/'
           git -C "$harness" checkout --quiet
