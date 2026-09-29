@@ -40,18 +40,6 @@ const realPath = (target) => {
   return path.join(realPath(parent), path.basename(target))
 }
 
-// `--out` from the repo root, refused if it would write outside the repo.
-const resolveInsideRepo = (dir) => {
-  const root = realpathSync(REPO_ROOT)
-  const resolved = realPath(path.resolve(REPO_ROOT, dir))
-  const relative = path.relative(root, resolved)
-  if (relative.startsWith('..') || path.isAbsolute(relative)) {
-    console.error(`--out must be inside ${root}, not ${resolved}`)
-    process.exit(1)
-  }
-  return resolved
-}
-
 const { values } = parseArgs({
   options: {
     only: { type: 'string', multiple: true, default: [] },
@@ -60,7 +48,14 @@ const { values } = parseArgs({
   }
 })
 const only = values.only.flatMap((v) => v.split(',')).filter(Boolean)
-const outDir = resolveInsideRepo(values.out)
+
+// `--out` from the repo root, refused if it would write outside the repo.
+const repoRoot = realpathSync(REPO_ROOT)
+const outDir = realPath(path.resolve(repoRoot, values.out))
+if (outDir !== repoRoot && !outDir.startsWith(`${repoRoot}${path.sep}`)) {
+  console.error(`--out must be inside ${repoRoot}, not ${outDir}`)
+  process.exit(1)
+}
 
 const onlySuffix = only.length ? ` (${only.join(', ')})` : ''
 console.log(`Comparing the service with the metric${onlySuffix}…`)
