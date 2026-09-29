@@ -13,7 +13,7 @@
 // report.json. The report is for people to judge: differences never make
 // this exit non-zero. Only a comparison that cannot run does.
 
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { existsSync, mkdirSync, realpathSync, writeFileSync } from 'node:fs'
 import path from 'node:path'
 import { parseArgs } from 'node:util'
 
@@ -28,6 +28,29 @@ const { runMetricComparison } =
 const JSON_INDENT = 2
 const DEFAULT_OUT = 'metric-comparison'
 const SHORT_SHA_LENGTH = 7
+const REPO_ROOT = path.resolve(import.meta.dirname, '..')
+
+// The deepest part of `target` that exists, with symlinks followed, and the
+// rest of the path joined back on — so a symlink cannot lead outside the repo.
+const realPath = (target) => {
+  const parent = path.dirname(target)
+  if (existsSync(target) || parent === target) {
+    return realpathSync(target)
+  }
+  return path.join(realPath(parent), path.basename(target))
+}
+
+// `--out` from the repo root, refused if it would write outside the repo.
+const resolveInsideRepo = (dir) => {
+  const root = realpathSync(REPO_ROOT)
+  const resolved = realPath(path.resolve(REPO_ROOT, dir))
+  const relative = path.relative(root, resolved)
+  if (relative.startsWith('..') || path.isAbsolute(relative)) {
+    console.error(`--out must be inside ${root}, not ${resolved}`)
+    process.exit(1)
+  }
+  return resolved
+}
 
 const { values } = parseArgs({
   options: {
@@ -37,29 +60,33 @@ const { values } = parseArgs({
   }
 })
 const only = values.only.flatMap((v) => v.split(',')).filter(Boolean)
+const outDir = resolveInsideRepo(values.out)
 
-console.log(
-  `Comparing the service with the metric${only.length ? ` (${only.join(', ')})` : ''}…`
-)
+const onlySuffix = only.length ? ` (${only.join(', ')})` : ''
+console.log(`Comparing the service with the metric${onlySuffix}…`)
 const { corpusDir, unmatched, results } = await runMetricComparison({
   corpusDir: values.corpus,
   only,
-  onResult: (r) =>
+  onResult: (r) => {
+    const discrepancySuffix = r.discrepancies?.length
+      ? ` — ${r.discrepancies.length} discrepancies`
+      : ''
     console.log(
-      `  ${r.outcome.padEnd('rejected-as-expected'.length)}  ${r.id}${r.discrepancies?.length ? ` — ${r.discrepancies.length} discrepancies` : ''}`
+      `  ${r.outcome.padEnd('rejected-as-expected'.length)}  ${r.id}${discrepancySuffix}`
     )
+  }
 })
 for (const workbook of unmatched) {
   console.warn(`  skipped ${workbook}: no GeoPackage pair beside it`)
 }
 
 const commit = process.env.GITHUB_SHA?.slice(0, SHORT_SHA_LENGTH)
+const commitSuffix = commit ? ` for commit ${commit}` : ''
 const context = [
   `Scenarios from ${corpusDir}.`,
-  `Generated ${new Date().toISOString()}${commit ? ` for commit ${commit}` : ''}.`
+  `Generated ${new Date().toISOString()}${commitSuffix}.`
 ]
 
-const outDir = path.resolve(values.out)
 mkdirSync(outDir, { recursive: true })
 const write = (name, content) => writeFileSync(path.join(outDir, name), content)
 
@@ -85,6 +112,9 @@ const differing = results.filter((r) => r.discrepancies?.length).length
 const unreadable = results.filter(
   (r) => r.outcome === 'workbook-unreadable'
 ).length
+const unreadableSuffix = unreadable
+  ? `; ${unreadable} workbook(s) could not be read, so were not compared`
+  : ''
 console.log(
-  `${differing} of ${results.length} scenarios differ from the metric${unreadable ? `; ${unreadable} workbook(s) could not be read, so were not compared` : ''}. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
+  `${differing} of ${results.length} scenarios differ from the metric${unreadableSuffix}. Reports → ${path.join(outDir, 'report.html')} and report.xlsx`
 )
