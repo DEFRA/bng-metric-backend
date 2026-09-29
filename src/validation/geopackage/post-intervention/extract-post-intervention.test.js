@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { extractPostIntervention } from './extract-post-intervention.js'
 import { postInterventionDataSchema } from '../../project.js'
+import { enrichPostInterventionDocumentWithUnits } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
 import {
   PARCEL_REF,
   SAMPLE_LINESTRING,
@@ -877,6 +878,79 @@ describe('extractPostIntervention — individual tree nested structure', () => {
     })
 
     expect(out.document.trees[0].status).toBe('Incomplete')
+  })
+
+  it('reads advance years from the Urban Trees column name', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Retention Category': 'Created',
+          'Habitat Created/Enhanced in advance/years': 2
+        })
+      ]
+    })
+
+    expect(out.document.trees[0].proposed).toEqual(
+      expect.objectContaining({ advanceYears: 2, delayYears: 0 })
+    )
+  })
+
+  it('prices a tree planted in advance as the metric does (BMD-1039, tree T005)', () => {
+    // The row of tree T005 in example-files/permutations/intervention/
+    // hedgerow-retained-post-intervention.gpkg; the metric gives it 18 years
+    // to target and 0.1156 habitat units (hedgerow-retained.xlsx, sheet A-2).
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T005',
+          'Retention Category': 'Created',
+          'Proposed Tree Size': 'Large',
+          'Proposed Condition': 'Fairly Poor',
+          'Proposed Strategic Significance':
+            'Area/compensation not in local strategy/ no local strategy',
+          'Proposed Rural or Urban Tree': 'Urban',
+          'Habitat Created/Enhanced in advance/years': '1',
+          'Delay in starting habitat creation/enhancement in years': '0',
+          Count: 1
+        })
+      ]
+    })
+    enrichPostInterventionDocumentWithUnits(out.document, {
+      warn: () => {}
+    })
+
+    const tree = out.document.trees[0]
+    expect(tree.proposed.finalTimeToTargetCondition).toMatch(/^18 years/)
+    expect(tree.units).toBeCloseTo(0.1156, 4)
+  })
+
+  it('reads delay years from the Urban Trees column name', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Retention Category': 'Enhanced',
+          'Delay in starting habitat creation/enhancement in years': 3
+        })
+      ]
+    })
+
+    expect(out.document.trees[0].proposed).toEqual(
+      expect.objectContaining({ advanceYears: 0, delayYears: 3 })
+    )
   })
 
   it('sums tree areas into areaHabitats and the urban/rural split, excluding them from site', () => {
