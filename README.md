@@ -75,35 +75,6 @@ For the site report PDF — where its numbers and shapes come from, how it is ch
 against PDF/UA, and how the Ordnance Survey basemap is credited — see
 [`docs/site-report.md`](docs/site-report.md).
 
-### Comparison with the Statutory Biodiversity Metric
-
-`npm run compare:metric` imports every scenario in the scenario corpus through
-the upload pipeline, in process (no database, S3 or worker pool), and compares the
-service's figures — unit calculations per feature, unit totals, net gain, trading
-rules figures and statuses — exactly with the metric's own answers for the same
-site. It writes `metric-comparison/report.html` (a short summary: answers that
-differ, values with no known cause, the known causes, then each scenario),
-`report.xlsx` (the same as a spreadsheet, one row per discrepancy),
-`report.md`, `summary.md` and `report.json`:
-
-```bash
-npm run compare:metric                          # the whole corpus
-npm run compare:metric -- --only trading-rules  # a purpose, or scenario ids
-npm run compare:metric -- --corpus <dir>        # any generate:scenarios output
-```
-
-The corpus is committed in the harness (`example-files/permutations`), each
-GeoPackage pair beside its metric workbook. The command finds the harness checked
-out beside this repo; `METRIC_CORPUS_DIR` or `--corpus` names another folder. CI
-fetches just the GeoPackages and manifest from the harness's `main`. Without a
-corpus the comparison's tests skip.
-
-It reports; it does not judge. Differences never fail the command or the build —
-they are there for people to decide what, if anything, needs doing. The
-pull-request check and every publish run it, putting the summary on the job
-summary and the full report in the `metric-comparison` artifact. See the
-harness's `docs/compare-metric.md`.
-
 ### Production
 
 To mimic the application running in `production` mode locally run:

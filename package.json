@@ -8,7 +8,6 @@
     "node": ">=24.11.1"
   },
   "scripts": {
-    "compare:metric": "node scripts/compare-metric.mjs",
     "data-dictionary": "node scripts/gen-data-dictionary.js && node scripts/gen-warehouse-erd.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
     "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
     "db:update": "scripts/liquibase.sh update",

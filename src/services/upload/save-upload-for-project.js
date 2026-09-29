@@ -120,6 +120,11 @@ async function fetchStoredProject(drizzle, projectId) {
   return row?.project
 }
 
+// saveHandlersForConfig, layersForUpload and extractAndValidateDocument are
+// exported for the metric comparison in bng-metric-harness
+// (scripts/metric-comparison), which runs this pipeline in process, without a
+// database, to compare the service's figures with the metric's (BMD-1036).
+
 /**
  * @param {object} config
  */

@@ -28,21 +28,6 @@ jobs:
         with:
           node-version-file: .nvmrc
           cache: npm
-      # BMD-1036: the metric comparison's scenarios are committed in the
-      # harness (example-files/permutations): each GeoPackage pair beside the
-      # metric workbook for the same site, saved with the metric's answers in
-      # it. Fetch that folder and nothing else of the harness — a sparse,
-      # blobless clone — and name it for `npm test` and `npm run compare:metric`.
-      - name: Fetch the metric comparison corpus from the harness
-        run: |
-          harness="$RUNNER_TEMP/bng-metric-harness"
-          git clone --quiet --depth 1 --filter=blob:none --no-checkout \
-            https://github.com/DEFRA/bng-metric-harness.git "$harness"
-          git -C "$harness" sparse-checkout set --no-cone \
-            '/example-files/permutations/'
-          git -C "$harness" checkout --quiet
-          echo "METRIC_CORPUS_DIR=$harness/example-files/permutations" >> "$GITHUB_ENV"
-
       # min-release-age (.npmrc) collides with the git-dependency prepare step
       # npm always runs for bng-library: it injects --before then rejects it
       # against min-release-age (npm/cli#9005). npm ci installs exact locked
@@ -52,25 +37,6 @@ jobs:
           sed -i '/^min-release-age=/d' .npmrc
           npm ci
           npm test
-
-      # BMD-1036: re-evaluate the metric comparison on every publish, so a
-      # regression shows in the report for the commit that caused it. Report
-      # only, and never allowed to hold up a publish.
-      - name: Compare the service with the metric
-        id: compare-metric
-        continue-on-error: true
-        run: |
-          npm run compare:metric
-          cat metric-comparison/summary.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload the metric comparison report
-        if: ${{ !cancelled() && steps.compare-metric.outcome != 'skipped' }}
-        continue-on-error: true
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: metric-comparison
-          path: metric-comparison/
-          if-no-files-found: warn
 
       - name: Build and Publish
         # Pinned, not @main. DEFRA/cdp-build-action#124 shipped an unbalanced

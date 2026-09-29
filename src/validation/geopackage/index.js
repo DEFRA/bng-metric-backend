@@ -33,7 +33,8 @@ function workerPool() {
 /**
  * The data-quality checks: pure JavaScript over the layers' attributes, with no
  * geometry involved. Exported so a caller that runs the geometry checks itself
- * (the metric comparison, which has no worker pool) applies exactly these.
+ * (the metric comparison in bng-metric-harness, which has no worker pool)
+ * applies exactly these.
  *
  * @param {object} layers Output of readGeoPackage
  * @param {string} [variant] one of EXTRACT_VARIANT

@@ -7,8 +7,6 @@
 node_modules
 npm-debug.log
 coverage
-# npm run compare:metric output
-/metric-comparison/
 .cache
 .eslintcache
 # Secrets — never commit
