@@ -127,6 +127,25 @@ describe('enrichPostInterventionWatercourseTradingRules', () => {
     ])
   })
 
+  it('skips a legacy stored watercourse whose baseline still says Lost', () => {
+    const legacyLost = {
+      units: 0,
+      baseline: { type: 'Ditches', retentionCategory: 'Lost' },
+      proposed: { type: 'Culvert' }
+    }
+    const doc = { watercourses: [legacyLost] }
+
+    enrichPostInterventionWatercourseTradingRules(doc, [
+      baselineWatercourse('Ditches', 1)
+    ])
+
+    expect(
+      doc.tradingRules.watercourses.habitats.map(
+        (habitat) => habitat.habitatType
+      )
+    ).toEqual(['Ditches'])
+  })
+
   it('skips features whose units are not yet calculated (null)', () => {
     const doc = {
       watercourses: [

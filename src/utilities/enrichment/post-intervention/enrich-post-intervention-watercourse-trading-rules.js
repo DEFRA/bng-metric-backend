@@ -20,6 +20,7 @@ import {
 } from 'bng-library/metric'
 
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
+import { isLegacyLostLinear } from './retention-category.js'
 import { deliveredSideOf, sumUnitsByType } from './sum-units-by-type.js'
 
 const LOG_PREFIX = 'enrichWatercourseTradingRules: '
@@ -52,9 +53,12 @@ function resolvedType(side) {
  *
  * Delivered units are grouped by the habitat type each feature delivers into:
  * the proposed type for created and enhanced features (enhancement moves units
- * between habitats), and the baseline type for retained features. Baseline
- * units are grouped by the baseline watercourse type from the stored baseline
- * document. A type the reference data does not know is warned and excluded.
+ * between habitats), and the baseline type for retained features. A legacy
+ * stored watercourse may still carry Lost on its baseline sub-object; it
+ * delivers nothing, so it is excluded before it can surface as a zero-unit
+ * delivered type. Baseline units are grouped by the baseline watercourse type
+ * from the stored baseline document. A type the reference data does not know
+ * is warned and excluded.
  *
  * @param {{ watercourses?: object[], tradingRules?: object }} postInterventionDocument
  * @param {object[]} [baselineWatercourses] the stored baseline watercourse features
@@ -66,8 +70,13 @@ export function enrichPostInterventionWatercourseTradingRules(
   baselineWatercourses = [],
   logger = NO_OP_LOGGER
 ) {
+  const watercourses = postInterventionDocument?.watercourses
+  const deliveredWatercourses = Array.isArray(watercourses)
+    ? watercourses.filter((feature) => !isLegacyLostLinear(feature))
+    : []
+
   const deliveredUnitsByType = sumUnitsByType(
-    [postInterventionDocument?.watercourses],
+    [deliveredWatercourses],
     (feature) => resolvedType(deliveredSideOf(feature)),
     isKnownWatercourseType,
     logger,
