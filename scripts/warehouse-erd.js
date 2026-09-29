@@ -156,10 +156,12 @@ const TABLES = Object.freeze([
       'area_habitats_medium_surplus',
       'area_habitats_low_cumulative_availability',
       'watercourses_medium_surplus',
-      'watercourses_low_cumulative_availability'
+      'watercourses_low_cumulative_availability',
+      'hedgerows_low_cumulative_availability',
+      'hedgerows_very_low_cumulative_availability'
     ],
     description:
-      'Trading-rules unit figures for the post-intervention document (area habitats and watercourses today; hedgerows follow). Absent on the baseline feature set.'
+      'Trading-rules unit figures for the post-intervention document: area habitats, watercourses and hedgerows. Absent on the baseline feature set.'
   },
   {
     table: 'feature_set_trading_rules_area_habitat_types',
@@ -219,6 +221,25 @@ const TABLES = Object.freeze([
     highlight: ['habitat_type', 'distinctiveness', 'net_unit_change'],
     description:
       'Per-habitat-type watercourse net unit change (BMD-995 AC1). One row per unique watercourse type.'
+  },
+  {
+    table: 'feature_set_trading_rules_hedgerow_habitat_types',
+    sources: ['postIntervention.tradingRules.hedgerows.habitatTypes[]'],
+    primaryKey: {
+      column: 'trading_rules_hedgerow_habitat_type_id',
+      type: 'text',
+      derivation:
+        '`{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}`'
+    },
+    parent: {
+      table: 'feature_set_trading_rules',
+      column: 'trading_rules_id',
+      type: 'text'
+    },
+    many: true,
+    highlight: ['habitat_type', 'distinctiveness', 'net_unit_change'],
+    description:
+      'Hedgerow net unit change per habitat type. One row per unique Medium, Low or Very Low hedgerow TYPE, not per feature.'
   }
 ])
 
