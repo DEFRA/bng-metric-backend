@@ -1,6 +1,8 @@
 // Shared constants, guards, and result-application helpers used across the
 // post-intervention enrichment sub-modules.
 
+import { isRecognisedStrategicSignificance } from 'bng-library/metric'
+
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
 import { applyProposedTimeDifficultyDisplayFields } from './proposed-time-difficulty-display.js'
@@ -204,4 +206,31 @@ export function skipProposedEnrichment(feature, context, reason, logger) {
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: skipped proposed enrichment — ${reason}`
   )
+}
+
+/**
+ * The Proposed Strategic Significance to hand the engine for a created or
+ * enhanced feature. The engine prices it (High ×1.15, Medium ×1.10, Low ×1) and
+ * treats an absent value as Low. An unrecognised value is logged and passed as
+ * `null`, so it is priced at Low rather than failing the whole feature — the
+ * same fallback as an unrecognised encroachment value.
+ *
+ * @param {object} feature
+ * @param {string} context - e.g. "Habitat parcel"
+ * @param {{ warn: (msg: string) => void }} logger
+ * @returns {string | null}
+ */
+export function proposedStrategicSignificanceForEngine(
+  feature,
+  context,
+  logger
+) {
+  const value = feature.proposed?.strategicSignificance
+  if (!isRecognisedStrategicSignificance(value)) {
+    logger.warn(
+      `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: unrecognised proposed strategic significance ${JSON.stringify(value)} — priced at Low (1)`
+    )
+    return null
+  }
+  return typeof value === 'string' ? value : null
 }

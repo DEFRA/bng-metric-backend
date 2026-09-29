@@ -7,7 +7,9 @@ const PROPOSED_ENGINE_METRIC_KEYS = Object.freeze([
   'timeMultiplier',
   'difficultyMultiplier',
   'standardTimeToTargetCondition',
-  'difficulty'
+  'difficulty',
+  'strategicSignificanceCategory',
+  'strategicSignificanceScore'
 ])
 
 const PROPOSED_DISPLAY_FIELD_KEYS = Object.freeze([
