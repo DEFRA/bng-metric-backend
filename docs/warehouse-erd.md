@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 343 schema fields.
+**22 tables**, mapping 351 schema fields.
 
 ## Diagram
 
@@ -638,7 +638,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 29 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 31 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -669,6 +669,8 @@ habitats in the postIntervention document. 29 column(s) mapped from the JSON doc
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.habitats[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.habitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
 | `proposed_difficulty`                        | `text`    |     | `postIntervention.habitats[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.habitats[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.habitats[].proposed.strategicSignificanceScore`    |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.habitats[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.habitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
 | `proposed_strategic_significance`            | `text`    |     | `postIntervention.habitats[].proposed.strategicSignificance`         |                                                                                  |
@@ -676,7 +678,7 @@ habitats in the postIntervention document. 29 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 40 column(s) mapped from the JSON document.
+trees in the postIntervention document. 42 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -719,13 +721,15 @@ trees in the postIntervention document. 40 column(s) mapped from the JSON docume
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.trees[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.trees[].proposed.standardTimeToTargetCondition` |                                                                                  |
 | `proposed_difficulty`                        | `text`    |     | `postIntervention.trees[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.trees[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.trees[].proposed.strategicSignificanceScore`    |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.trees[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.trees[].proposed.finalTimeToTargetCondition`    |                                                                                  |
 | `properties`                                 | `jsonb`   |     | `postIntervention.trees[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 25 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 27 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -753,13 +757,15 @@ hedgerows in the postIntervention document. 25 column(s) mapped from the JSON do
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.hedgerows[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.hedgerows[].proposed.standardTimeToTargetCondition` |                                                                                  |
 | `proposed_difficulty`                        | `text`    |     | `postIntervention.hedgerows[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.hedgerows[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.hedgerows[].proposed.strategicSignificanceScore`    |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.hedgerows[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.hedgerows[].proposed.finalTimeToTargetCondition`    |                                                                                  |
 | `properties`                                 | `jsonb`   |     | `postIntervention.hedgerows[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 35 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 37 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -792,6 +798,8 @@ watercourses in the postIntervention document. 35 column(s) mapped from the JSON
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.watercourses[].proposed.difficultyMultiplier`           |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.watercourses[].proposed.standardTimeToTargetCondition`  |                                                                                  |
 | `proposed_difficulty`                        | `text`    |     | `postIntervention.watercourses[].proposed.difficulty`                     |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.watercourses[].proposed.strategicSignificanceCategory`  |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.watercourses[].proposed.strategicSignificanceScore`     |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.watercourses[].proposed.advanceOrDelay`                 |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.watercourses[].proposed.finalTimeToTargetCondition`     |                                                                                  |
 | `proposed_riparian_encroachment`             | `text`    |     | `postIntervention.watercourses[].proposed.riparianEncroachment`           |                                                                                  |
