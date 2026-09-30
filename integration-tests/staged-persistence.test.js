@@ -151,6 +151,21 @@ describe('POST /baseline/validate/{uploadId} - staged persistence', () => {
     expect(stored.postIntervention.units.verticalAreasTotal).toBe(
       VAH_ENHANCED_UNITS
     )
+    // The template's Low / High significance is stored in Metric wording.
+    const lowWording =
+      'Area/compensation not in local strategy/ no local strategy'
+    expect(
+      stored.baseline.habitats.map((h) => h.strategicSignificance)
+    ).toEqual([lowWording, lowWording])
+    const enhancedParcel = stored.postIntervention.habitats.find(
+      (h) => h.ref === 'PR-2'
+    )
+    expect(enhancedParcel.proposed.strategicSignificance).toBe(
+      'Formally identified in local strategy'
+    )
+    expect(plantedTree.proposed.strategicSignificance).toBe(
+      'Within area formally identified in local strategy'
+    )
     // Net-change fields prove the PI enrichment saw the fresh baseline.
     expect(stored.postIntervention.units.habitatsNetUnitChange).toEqual(
       expect.any(Number)

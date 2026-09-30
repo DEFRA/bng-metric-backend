@@ -6,6 +6,12 @@
 // where one table per habitat type holds both Baseline* and Proposed* columns.
 // That format is unchanged and still supported; this module recognises the
 // newer shape alongside it.
+//
+// Only the current table names are read: `Area Habitats`, `Vertical Area
+// Habitats`, `Hedgerows`, `Watercourses` and `Individual Trees`, each with a
+// ` Baseline` and a ` Post-Intervention` table. Files made with the earlier
+// template (`Habitats …`, `Trees …`) are not read; findOutdatedStagedTables
+// finds them so that the format gate can reject them with a clear message.
 
 /** Logical habitat types, matching the keys readGeoPackage already uses. */
 export const HABITAT_TYPES = Object.freeze({
@@ -23,16 +29,23 @@ export const STAGE = Object.freeze({
 
 /** Table-name stem (lower-cased, stage suffix removed) → logical type. */
 const TYPE_BY_STEM = Object.freeze({
-  habitats: HABITAT_TYPES.AREAS,
   'area habitats': HABITAT_TYPES.AREAS,
   'vertical area habitats': HABITAT_TYPES.VERTICAL_AREAS,
   hedgerows: HABITAT_TYPES.HEDGEROWS,
   watercourses: HABITAT_TYPES.WATERCOURSES,
-  rivers: HABITAT_TYPES.WATERCOURSES,
-  trees: HABITAT_TYPES.TREES,
-  'individual trees': HABITAT_TYPES.TREES,
-  'urban trees': HABITAT_TYPES.TREES
+  'individual trees': HABITAT_TYPES.TREES
 })
+
+/**
+ * Table names (lower-cased) of the earlier staged template, before `Habitats`
+ * became `Area Habitats` and `Trees` became `Individual Trees`.
+ */
+const OUTDATED_STAGED_TABLES = Object.freeze([
+  'habitats baseline',
+  'habitats post-intervention',
+  'trees baseline',
+  'trees post-intervention'
+])
 
 const STAGE_SUFFIXES = Object.freeze([
   { suffix: ' post-intervention', stage: STAGE.POST_INTERVENTION },
@@ -76,6 +89,27 @@ export function resolveStagedLayer(tableName) {
     return type ? { stage, type } : null
   }
   return null
+}
+
+/**
+ * Tables named as in the earlier staged template. Such a file is not read: its
+ * area habitat and tree tables would be ignored without a word, so the format
+ * gate rejects it instead.
+ *
+ * @param {Iterable<string>} tableNames
+ * @returns {string[]} the matching names, as given
+ */
+export function findOutdatedStagedTables(tableNames = []) {
+  const found = []
+  for (const name of tableNames) {
+    if (
+      typeof name === 'string' &&
+      OUTDATED_STAGED_TABLES.includes(name.trim().toLowerCase())
+    ) {
+      found.push(name)
+    }
+  }
+  return found
 }
 
 /**

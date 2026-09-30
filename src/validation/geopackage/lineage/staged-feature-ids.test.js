@@ -76,8 +76,8 @@ describe('assignStagedFeatureIds against a stored document', () => {
   })
 
   it('keeps a baseline parcel and its retained post-intervention twin apart', () => {
-    // The fixture's retained parcel has PI Ref "PR-1" against a baseline Parcel
-    // Ref of "PR-1". They are two features and must not share an id.
+    // The fixture's retained parcel has Habitat Ref "PR-1" on both sides.
+    // They are two features and must not share an id.
     const stored = assignStagedFeatureIds(makeStaged())
 
     expect(stored.baseline[HABITAT_TYPES.AREAS][0].featureId).not.toBe(
@@ -85,7 +85,7 @@ describe('assignStagedFeatureIds against a stored document', () => {
     )
   })
 
-  it('mints a fresh id when the PI Ref changes', () => {
+  it('mints a fresh id when the post-intervention Habitat Ref changes', () => {
     const stored = assignStagedFeatureIds(makeStaged())
     const renamed = makeStaged()
     renamed.postIntervention[HABITAT_TYPES.AREAS][0].piRef = 'PR-1-renamed'

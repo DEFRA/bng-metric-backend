@@ -10,12 +10,12 @@
 //
 //   * featureId carry-forward runs on the STAGED shape via
 //     assignStagedFeatureIds — keyed on the hidden `feature_uuid` (baseline)
-//     and `PI Ref` (post-intervention) — instead of the legacy ref-only
+//     and `Habitat Ref` (post-intervention) — instead of the legacy ref-only
 //     assign-feature-ids step, which the transformer therefore bypasses.
 //   * The post-intervention enrichment reads the baseline document built from
 //     THIS file (lengths and unit totals), not whatever baseline happened to
 //     be stored — both stages describe the same survey. Enhanced hedgerow /
-//     watercourse children keep their own `PI Ref`; their baseline-length
+//     watercourse children keep their own `Habitat Ref`; their baseline-length
 //     lookup is resolved by extending the length map with each child's
 //     stamped parent's length (see extendBaselineLengthsForEnhancedChildren).
 //   * The per-parent removal report from staged reconciliation is persisted on
@@ -73,8 +73,8 @@ const ENHANCED_LINEAR_TYPES = Object.freeze([
  * Rebuild the staged `stored` shape buildStagedFeatureIdByRef reads from the
  * persisted project document, so a re-upload carries featureIds forward. The
  * hidden baseline `feature_uuid` lives in each stored feature's verbatim
- * `properties`; the stored `ref` IS the feature's own reference (`PI Ref` on
- * the post-intervention side — the transformer never rewrites it).
+ * `properties`; the stored `ref` IS the feature's own `Habitat Ref` (the
+ * transformer never rewrites it).
  *
  * @param {object | null | undefined} project the stored project JSONB
  * @returns {object | null} a shape buildStagedFeatureIdByRef accepts

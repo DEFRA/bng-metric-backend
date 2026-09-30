@@ -7,6 +7,7 @@ import {
   stagedFeaturesRemovedWarning,
   stagedParentInferredWarning,
   stagedMissingBaselineLayerError,
+  stagedOutdatedTemplateError,
   stagedParentOversubscribedError,
   stagedPiOutsideParentError,
   stagedSizeMismatchError,
@@ -26,6 +27,27 @@ describe('typeLabel', () => {
 
   it('falls back to the raw key rather than dropping it', () => {
     expect(typeLabel('somethingNew')).toBe('somethingNew')
+  })
+})
+
+describe('stagedOutdatedTemplateError', () => {
+  it('names the old tables and says what to do', () => {
+    const error = stagedOutdatedTemplateError([
+      'Habitats Baseline',
+      'Trees Post-Intervention'
+    ])
+
+    expect(error.code).toBe(ERROR_CODES.STAGED_OUTDATED_TEMPLATE)
+    expect(error.message).toBe(
+      'This file was made with an earlier BNG Service template. Copy the data into the current template, where these layers are called "Area Habitats" and "Individual Trees". Old layers found: "Habitats Baseline", "Trees Post-Intervention"'
+    )
+    expect(error.details).toEqual({
+      count: 2,
+      sample: [
+        { table: 'Habitats Baseline' },
+        { table: 'Trees Post-Intervention' }
+      ]
+    })
   })
 })
 
@@ -54,7 +76,7 @@ describe('stagedUnknownParentRefError', () => {
     expect(error.message).toContain('area habitats PR-1a → "GONE"')
   })
 
-  it('still reads sensibly when the feature has no PI Ref', () => {
+  it('still reads sensibly when the feature has no Habitat Ref', () => {
     const error = stagedUnknownParentRefError([
       { type: HABITAT_TYPES.TREES, pi_ref: null, parent_ref: 'T-9' }
     ])

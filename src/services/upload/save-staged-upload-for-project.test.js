@@ -158,7 +158,7 @@ describe('stagedStoredShapeFromProject', () => {
     expect(shape.baseline[HABITAT_TYPES.TREES]).toEqual([
       { featureId: 'f-3', ref: 'T-1', featureUuid: null }
     ])
-    // The PI side keys on the stored ref, which IS the PI Ref.
+    // The PI side keys on the stored ref, which IS the Habitat Ref.
     expect(shape.postIntervention[HABITAT_TYPES.AREAS]).toEqual([
       { featureId: 'f-4', piRef: 'PR-1' }
     ])

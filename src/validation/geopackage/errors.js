@@ -66,6 +66,9 @@ export const ERROR_CODES = Object.freeze({
   // See src/validation/geopackage/lineage/README.md. These only ever fire for
   // the staged format; a single-stage file cannot reach the code that emits them.
 
+  /** The file uses the earlier staged template's table names (`Habitats …`, `Trees …`), which are no longer read. */
+  STAGED_OUTDATED_TEMPLATE: 'STAGED_OUTDATED_TEMPLATE',
+
   /** A post-intervention layer arrived with no baseline counterpart, so nothing can be reconciled against it. */
   STAGED_MISSING_BASELINE_LAYER: 'STAGED_MISSING_BASELINE_LAYER',
 

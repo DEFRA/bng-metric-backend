@@ -109,6 +109,26 @@ function describeOversubscription(sample) {
 }
 
 /**
+ * The file was made with the earlier BNG Service template, whose tables were
+ * named `Habitats …` and `Trees …`. It is not read, so the surveyor is asked
+ * to move the data into the current template.
+ *
+ * @param {string[]} tables the outdated table names found in the file
+ */
+export function stagedOutdatedTemplateError(tables) {
+  const payload = listPayload(tables.map((table) => ({ table })))
+  return makeError(
+    ERROR_CODES.STAGED_OUTDATED_TEMPLATE,
+    formatList(
+      'This file was made with an earlier BNG Service template. Copy the data into the current template, where these layers are called "Area Habitats" and "Individual Trees". Old layers found',
+      payload,
+      (sample) => `"${sample?.table}"`
+    ),
+    payload
+  )
+}
+
+/**
  * A post-intervention layer with no baseline counterpart. Nothing can be
  * reconciled against it, and the units it claims cannot be checked, so this is
  * blocking rather than advisory.

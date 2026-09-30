@@ -3,7 +3,7 @@
 // The unit tests in src/.../staged-feature-ids.test.js cover the matching rules
 // on synthetic data. What they cannot prove is the claim the whole thing rests
 // on: that the template's own columns — the hidden `feature_uuid` on the
-// baseline (with `Parcel Ref` / `Tree Ref` as the pre-uuid fallback), `PI Ref`
+// baseline (with `Habitat Ref` as the fallback), `Habitat Ref`
 // post-intervention — actually come through readStagedGeoPackage as non-blank,
 // unambiguous keys for every one of the five habitat types. If they did not,
 // every re-upload would silently mint fresh ids and nothing would fail.
@@ -49,7 +49,7 @@ describe('featureId carry-forward across a staged re-upload', () => {
   })
 
   it('produces a usable key for every feature in the file', () => {
-    // The claim being tested: `PI Ref` and `Parcel Ref` / `Tree Ref` are present
+    // The claim being tested: `Habitat Ref` and `feature_uuid` are present
     // and unique on every layer, so nothing falls back to a fresh UUID.
     const first = assignStagedFeatureIds(readStagedGeoPackage(FIXTURE))
     const lookup = buildStagedFeatureIdByRef(first)
@@ -75,7 +75,7 @@ describe('featureId carry-forward across a staged re-upload', () => {
     }
   })
 
-  it('keeps a baseline parcel’s id when the surveyor renames its Parcel Ref', () => {
+  it('keeps a baseline parcel’s id when the surveyor renames its Habitat Ref', () => {
     // Baseline refs are cosmetic since the uuid columns landed: the natural key
     // is the hidden feature_uuid, which survives a rename. This is the
     // fixture-backed proof that the template's uuid column actually comes
@@ -123,7 +123,7 @@ describe('featureId carry-forward across a staged re-upload', () => {
     expect(idsByStageAndType(second)).toEqual(idsByStageAndType(first))
   })
 
-  it('mints a fresh id for a parcel whose PI Ref the surveyor changed', () => {
+  it('mints a fresh id for a parcel whose post-intervention Habitat Ref the surveyor changed', () => {
     const first = assignStagedFeatureIds(readStagedGeoPackage(FIXTURE))
     const edited = readStagedGeoPackage(FIXTURE)
     const renamed = edited.postIntervention[HABITAT_TYPES.AREAS].find(

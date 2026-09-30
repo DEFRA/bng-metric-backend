@@ -10,6 +10,31 @@ Wired into both upload routes. A staged file uploaded to
 is detected at the format gate and routed here; a single-stage file takes
 exactly the path it always did.
 
+## Tables and columns read
+
+Only the current template is read. Its tables are `Area Habitats`,
+`Vertical Area Habitats`, `Hedgerows`, `Watercourses` and `Individual Trees`,
+each with a ` Baseline` and a ` Post-Intervention` table, plus the
+`Red Line Boundary`. A file with the earlier table names (`Habitats …`,
+`Trees …`) is rejected at the format gate with `STAGED_OUTDATED_TEMPLATE`.
+
+- Every habitat table has one reference column, `Habitat Ref`.
+  Post-intervention tables also have `Parent Ref`.
+- Strategic significance is stored as `Low` or `High` (or blank).
+  `staged-to-legacy.js` changes these to the Metric wordings before the
+  extract, so stored documents and the frontend see the same values as
+  for a Natural England file:
+
+  | Template | Metric wording                                               |
+  | -------- | ------------------------------------------------------------ |
+  | `Low`    | `Area/compensation not in local strategy/ no local strategy` |
+  | `High`   | `Formally identified in local strategy`                      |
+  | `High`   | trees: `Within area formally identified in local strategy`   |
+  | blank    | blank                                                        |
+
+- `Spatial risk category` is always `N/A` on post-intervention tables. It is
+  stored as read.
+
 Proven against a real template export in `integration-tests/staged-lineage.test.js`
 (the lineage modules) and `integration-tests/staged-validation.test.js` (the
 wiring, including one upload through the real route).
@@ -23,7 +48,7 @@ _destroys the baseline geometry_ — the original shape survives nowhere in the
 file. Correctness depended on the surveyor exporting the baseline before
 touching post-intervention geometry, with nothing enforcing it.
 
-Splitting also duplicated `Parcel Ref` across both halves, which
+Splitting also duplicated the parcel ref across both halves, which
 `duplicate-ref-check.js` rejects. That was the visible symptom; the geometry
 loss was the actual defect.
 
@@ -212,18 +237,18 @@ update, losing all row-level history.
 
 The staged format has two natural keys, one per stage:
 
-| Stage             | Key                       |
-| ----------------- | ------------------------- |
-| post-intervention | `PI Ref`                  |
-| baseline          | `Parcel Ref` / `Tree Ref` |
+| Stage             | Key                                       |
+| ----------------- | ----------------------------------------- |
+| post-intervention | `Habitat Ref`                             |
+| baseline          | hidden `feature_uuid`, else `Habitat Ref` |
 
-`PI Ref` is sound because the template's tidy-refs action guarantees it is
+The post-intervention `Habitat Ref` is sound because the template's tidy-refs action guarantees it is
 unique within its layer and reproduces the same value on the same feature.
 Nothing else in the file is stable across an edit-and-re-export cycle.
 
 **The stage is part of the lookup key.** A retained parcel keeps its parent's ref
-on the post-intervention side — the fixture has PI Ref `PR-1` against a baseline
-Parcel Ref of `PR-1` — so a key without the stage would collapse a baseline
+on the post-intervention side — the fixture has `PR-1` as the `Habitat Ref` on
+both sides — so a key without the stage would collapse a baseline
 parcel and its post-intervention counterpart onto one id. Two features, two
 rows downstream.
 
@@ -245,7 +270,7 @@ ambiguous or unmatched gets a fresh UUID.
 | `parse-wkt.js`                  | a linear-time WKT reader for `parent_geom`, which is untrusted text from the upload   |
 | `reconcile.js`                  | per-type policy and size comparison                                                   |
 | `containment.js`                | PI-inside-parent, by size of `ST_Difference`, for the types whose policy demands it   |
-| `staged-feature-ids.js`         | keeps `featureId` stable across re-uploads, keyed on `PI Ref` / `Parcel Ref`          |
+| `staged-feature-ids.js`         | keeps `featureId` stable across re-uploads, keyed on `feature_uuid` / `Habitat Ref`   |
 | `validate-staged-geopackage.js` | the entry point the routes call — runs the above and returns `{ valid, errors }`      |
 | `error-builders.js`             | the `STAGED_*` errors and warnings, shaped like the geometry ones                     |
 
@@ -274,6 +299,7 @@ is unchanged.
 
 | Code                            | Fires when                                                                                                                                                                                                                                                                                     |
 | ------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `STAGED_OUTDATED_TEMPLATE`      | the file has tables named as in the earlier template (`Habitats …`, `Trees …`). Raised by the format gate                                                                                                                                                                                      |
 | `STAGED_MISSING_BASELINE_LAYER` | continuing (Retained/Enhanced) rows have no baseline features to reconcile against — the layer is absent or empty. A layer whose rows are ALL `Created` is exempt: brand-new habitats (planted hedgerows, new trees, new watercourses, new walls) legitimately exist at post-intervention only |
 | `STAGED_UNKNOWN_PARENT_REF`     | a stamp is present but neither its `parent_uuid` nor its `Parent Ref` names anything in the baseline                                                                                                                                                                                           |
 | `STAGED_PI_OUTSIDE_PARENT`      | a stamped feature strays outside its parent                                                                                                                                                                                                                                                    |
@@ -301,7 +327,11 @@ the template, exercising all five types on both sides. It was exported before
 the template wrote `parent_geom`; the column was later added in place, holding
 each stamped row's parent shape exactly as the Copy action writes it
 (`asWkt(3)`, QGIS spelling such as `LineString (…)`), and the obsolete lineage
-column it replaced was dropped. All other data is unchanged.
+column it replaced was dropped. It was then moved to the current template's
+names: the tables renamed to `Area Habitats …` and `Individual Trees …`, the
+ref columns merged into `Habitat Ref`, strategic significance set to `Low`
+(`High` on one area habitat and one tree post-intervention row), and
+`Spatial risk category` set to `N/A`. All other data is unchanged.
 
 | Type           | Scenario                                                                                               | Proves                                                                                                                                         |
 | -------------- | ------------------------------------------------------------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -350,8 +380,8 @@ about containment rather than about size.
   check, but it does mean a `Created` parcel drawn wildly out of place is caught
   by the redline checks (which staged files do not get yet) rather than here.
 - `staged-feature-ids.js` keys the baseline on the hidden `feature_uuid`
-  (falling back to the visible ref for pre-uuid files) and the
-  post-intervention side on `PI Ref` — a PI row has no uuid of its own, only
+  (falling back to `Habitat Ref`) and the post-intervention side on
+  `Habitat Ref` — a PI row has no uuid of its own, only
   its parent's. The staged save path rebuilds its `stored` argument from the
   persisted project document (`stagedStoredShapeFromProject`), so featureIds
   survive re-uploads even when a surveyor renames a baseline parcel.

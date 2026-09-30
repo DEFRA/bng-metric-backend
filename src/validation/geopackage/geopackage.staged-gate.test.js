@@ -34,10 +34,14 @@ function addLayer(db, tableName, geometryTypeName) {
  * The smallest file the staged detector will accept: one habitat type present
  * on both sides, plus the red line the gate still insists on.
  *
- * @param {{ withRedLine?: boolean }} [options]
+ * @param {{ withRedLine?: boolean, areaStem?: string }} [options] `areaStem`
+ *   names the area habitat tables; the earlier template called them `Habitats`
  * @returns {Buffer}
  */
-function buildStagedBuffer({ withRedLine = true } = {}) {
+function buildStagedBuffer({
+  withRedLine = true,
+  areaStem = 'Area Habitats'
+} = {}) {
   const db = openMemoryGp10WithSystemTables()
   try {
     if (withRedLine) {
@@ -46,8 +50,8 @@ function buildStagedBuffer({ withRedLine = true } = {}) {
         makePolygon()
       )
     }
-    addLayer(db, 'Habitats Baseline', 'MULTIPOLYGON')
-    addLayer(db, 'Habitats Post-Intervention', 'MULTIPOLYGON')
+    addLayer(db, `${areaStem} Baseline`, 'MULTIPOLYGON')
+    addLayer(db, `${areaStem} Post-Intervention`, 'MULTIPOLYGON')
     return Buffer.from(db.serialize())
   } finally {
     db.close()
@@ -81,6 +85,19 @@ describe('validateGpkg on a staged GeoPackage', () => {
       code: ERROR_CODES.GPKG_MISSING_LAYER,
       message: `Missing required feature layer in GeoPackage: ${RLB_TABLE}`
     })
+  })
+
+  it('rejects a file made with the earlier template, naming its old tables', () => {
+    const result = validateGpkg(buildStagedBuffer({ areaStem: 'Habitats' }))
+
+    expect(result.valid).toBe(false)
+    expect(result.errors).toHaveLength(1)
+    const [error] = result.errors
+    expect(error.code).toBe(ERROR_CODES.STAGED_OUTDATED_TEMPLATE)
+    expect(error.details.count).toBe(2)
+    expect(error.message).toContain('earlier BNG Service template')
+    expect(error.message).toContain('"habitats baseline"')
+    expect(error.message).toContain('"habitats post-intervention"')
   })
 
   it('leaves a single-stage file unflagged', () => {

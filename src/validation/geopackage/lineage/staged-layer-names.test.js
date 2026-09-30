@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   HABITAT_TYPES,
   STAGE,
+  findOutdatedStagedTables,
   groupStagedTables,
   isStagedGeoPackage,
   resolveStagedLayer
@@ -10,9 +11,9 @@ import {
 
 describe('resolveStagedLayer', () => {
   it.each([
-    ['Habitats Baseline', STAGE.BASELINE, HABITAT_TYPES.AREAS],
+    ['Area Habitats Baseline', STAGE.BASELINE, HABITAT_TYPES.AREAS],
     [
-      'Habitats Post-Intervention',
+      'Area Habitats Post-Intervention',
       STAGE.POST_INTERVENTION,
       HABITAT_TYPES.AREAS
     ],
@@ -32,15 +33,6 @@ describe('resolveStagedLayer', () => {
       STAGE.POST_INTERVENTION,
       HABITAT_TYPES.WATERCOURSES
     ],
-    ['Trees Baseline', STAGE.BASELINE, HABITAT_TYPES.TREES],
-    // the template renamed these two layers; both spellings must resolve, so
-    // that files made before and after the rename validate identically
-    ['Area Habitats Baseline', STAGE.BASELINE, HABITAT_TYPES.AREAS],
-    [
-      'Area Habitats Post-Intervention',
-      STAGE.POST_INTERVENTION,
-      HABITAT_TYPES.AREAS
-    ],
     ['Individual Trees Baseline', STAGE.BASELINE, HABITAT_TYPES.TREES],
     [
       'Individual Trees Post-Intervention',
@@ -52,7 +44,7 @@ describe('resolveStagedLayer', () => {
   })
 
   it('is case and whitespace insensitive', () => {
-    expect(resolveStagedLayer('  HABITATS post-intervention ')).toEqual({
+    expect(resolveStagedLayer('  AREA HABITATS post-intervention ')).toEqual({
       stage: STAGE.POST_INTERVENTION,
       type: HABITAT_TYPES.AREAS
     })
@@ -89,6 +81,17 @@ describe('resolveStagedLayer', () => {
     expect(resolveStagedLayer(42)).toBeNull()
   })
 
+  it('does not read the earlier template’s table names', () => {
+    for (const name of [
+      'Habitats Baseline',
+      'Habitats Post-Intervention',
+      'Trees Baseline',
+      'Trees Post-Intervention'
+    ]) {
+      expect(resolveStagedLayer(name)).toBeNull()
+    }
+  })
+
   it('returns null for a stage suffix on an unknown habitat type', () => {
     expect(resolveStagedLayer('Ponds Post-Intervention')).toBeNull()
   })
@@ -96,9 +99,12 @@ describe('resolveStagedLayer', () => {
 
 describe('isStagedGeoPackage', () => {
   it('is true only when a post-intervention table is present', () => {
-    expect(isStagedGeoPackage(['Habitats Baseline'])).toBe(false)
+    expect(isStagedGeoPackage(['Area Habitats Baseline'])).toBe(false)
     expect(
-      isStagedGeoPackage(['Habitats Baseline', 'Habitats Post-Intervention'])
+      isStagedGeoPackage([
+        'Area Habitats Baseline',
+        'Area Habitats Post-Intervention'
+      ])
     ).toBe(true)
   })
 
@@ -118,22 +124,61 @@ describe('groupStagedTables', () => {
   it('buckets by stage and type, and keeps unknowns aside', () => {
     const grouped = groupStagedTables([
       'Red Line Boundary',
-      'Habitats Baseline',
-      'Habitats Post-Intervention',
+      'Area Habitats Baseline',
+      'Area Habitats Post-Intervention',
       'Watercourses Baseline',
       'Watercourses Post-Intervention',
       'layer_styles'
     ])
     expect(grouped.redline).toEqual(['Red Line Boundary'])
     expect(grouped[STAGE.BASELINE]).toEqual({
-      [HABITAT_TYPES.AREAS]: 'Habitats Baseline',
+      [HABITAT_TYPES.AREAS]: 'Area Habitats Baseline',
       [HABITAT_TYPES.WATERCOURSES]: 'Watercourses Baseline'
     })
     expect(grouped[STAGE.POST_INTERVENTION]).toEqual({
-      [HABITAT_TYPES.AREAS]: 'Habitats Post-Intervention',
+      [HABITAT_TYPES.AREAS]: 'Area Habitats Post-Intervention',
       [HABITAT_TYPES.WATERCOURSES]: 'Watercourses Post-Intervention'
     })
     // an unfamiliar table is set aside, never a hard failure
     expect(grouped.ignored).toEqual(['layer_styles'])
+  })
+})
+
+describe('findOutdatedStagedTables', () => {
+  it('finds the earlier template’s table names, in any case', () => {
+    expect(
+      findOutdatedStagedTables([
+        'Red Line Boundary',
+        'Habitats Baseline',
+        'habitats post-intervention',
+        'Trees Baseline',
+        'TREES POST-INTERVENTION',
+        'Hedgerows Baseline'
+      ])
+    ).toEqual([
+      'Habitats Baseline',
+      'habitats post-intervention',
+      'Trees Baseline',
+      'TREES POST-INTERVENTION'
+    ])
+  })
+
+  it('finds nothing in a current file or a Natural England file', () => {
+    expect(
+      findOutdatedStagedTables([
+        'Area Habitats Baseline',
+        'Vertical Area Habitats Post-Intervention',
+        'Individual Trees Baseline'
+      ])
+    ).toEqual([])
+    expect(findOutdatedStagedTables(['Habitats', 'Urban Trees'])).toEqual([])
+    expect(findOutdatedStagedTables()).toEqual([])
+    expect(findOutdatedStagedTables([42, null])).toEqual([])
+  })
+
+  it('accepts a Set', () => {
+    expect(findOutdatedStagedTables(new Set(['trees baseline']))).toEqual([
+      'trees baseline'
+    ])
   })
 })

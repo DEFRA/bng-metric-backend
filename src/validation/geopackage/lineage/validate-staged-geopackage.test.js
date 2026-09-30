@@ -41,8 +41,7 @@ const BNG_SRS = {
 const HEDGE_DDL = `(
   fid INTEGER PRIMARY KEY,
   geom BLOB,
-  "Parcel Ref" TEXT,
-  "PI Ref" TEXT,
+  "Habitat Ref" TEXT,
   "Parent Ref" TEXT,
   "Retention Category" TEXT,
   "Length" REAL,
@@ -54,8 +53,7 @@ const HEDGE_DDL = `(
 const TREE_DDL = `(
   fid INTEGER PRIMARY KEY,
   geom BLOB,
-  "Tree Ref" TEXT,
-  "PI Ref" TEXT,
+  "Habitat Ref" TEXT,
   "Parent Ref" TEXT,
   "Retention Category" TEXT,
   "Count" INTEGER,
@@ -98,10 +96,10 @@ async function validateBuiltGpkg(layers) {
   }
 }
 
-const HEDGE_INSERT = `(geom, "Parcel Ref", "PI Ref", "Parent Ref", "Retention Category", "Length", feature_uuid, parent_uuid)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
-const TREE_INSERT = `(geom, "Tree Ref", "PI Ref", "Parent Ref", "Retention Category", "Count", feature_uuid, parent_uuid)
-   VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
+const HEDGE_INSERT = `(geom, "Habitat Ref", "Parent Ref", "Retention Category", "Length", feature_uuid, parent_uuid)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`
+const TREE_INSERT = `(geom, "Habitat Ref", "Parent Ref", "Retention Category", "Count", feature_uuid, parent_uuid)
+   VALUES (?, ?, ?, ?, ?, ?, ?)`
 
 const HR1_UUID = '4dc7c07a-0000-4000-8000-000000000001'
 const WC1_UUID = '4dc7c07a-0000-4000-8000-000000000002'
@@ -148,7 +146,7 @@ function treeLayers({ includeBaseline = true, baselineRows = [], piRows }) {
   const layers = []
   if (includeBaseline) {
     layers.push({
-      name: 'Trees Baseline',
+      name: 'Individual Trees Baseline',
       geomType: 'POINT',
       ddl: TREE_DDL,
       insert: TREE_INSERT,
@@ -156,7 +154,7 @@ function treeLayers({ includeBaseline = true, baselineRows = [], piRows }) {
     })
   }
   layers.push({
-    name: 'Trees Post-Intervention',
+    name: 'Individual Trees Post-Intervention',
     geomType: 'POINT',
     ddl: TREE_DDL,
     insert: TREE_INSERT,
@@ -179,12 +177,10 @@ describe('parentless Created rows alongside normal stamped rows', () => {
   async function validateHedgeWithNewPlanting() {
     return validateBuiltGpkg(
       hedgerowLayers({
-        baselineRows: [
-          [HR1_LINE, 'HR-1', null, null, null, 200, HR1_UUID, null]
-        ],
+        baselineRows: [[HR1_LINE, 'HR-1', null, null, 200, HR1_UUID, null]],
         piRows: [
-          [HR1A_LINE, null, 'HR-1a', 'HR-1', 'Retained', 100, null, HR1_UUID],
-          [HR_NEW_LINE, null, 'HR-NEW-1', null, 'Created', 150, null, null]
+          [HR1A_LINE, 'HR-1a', 'HR-1', 'Retained', 100, null, HR1_UUID],
+          [HR_NEW_LINE, 'HR-NEW-1', null, 'Created', 150, null, null]
         ]
       })
     )
@@ -234,7 +230,6 @@ describe('parentless Created rows alongside normal stamped rows', () => {
 describe('a habitat type recorded at post-intervention only', () => {
   const CREATED_TREE = [
     gpkgPoint(EPSG_BNG, 50, 50),
-    null,
     'T-NEW-1',
     null,
     'Created',
@@ -244,7 +239,6 @@ describe('a habitat type recorded at post-intervention only', () => {
   ]
   const RETAINED_TREE = [
     gpkgPoint(EPSG_BNG, 60, 60),
-    null,
     'T-1a',
     null,
     'Retained',
@@ -253,7 +247,7 @@ describe('a habitat type recorded at post-intervention only', () => {
     null
   ]
 
-  it('accepts Created trees when the Trees Baseline layer is absent', async () => {
+  it('accepts Created trees when the Individual Trees Baseline layer is absent', async () => {
     const { result } = await validateBuiltGpkg(
       treeLayers({ includeBaseline: false, piRows: [CREATED_TREE] })
     )
@@ -265,7 +259,7 @@ describe('a habitat type recorded at post-intervention only', () => {
     expect(result.valid).toBe(true)
   })
 
-  it('accepts Created trees when the Trees Baseline layer is present but empty', async () => {
+  it('accepts Created trees when the Individual Trees Baseline layer is present but empty', async () => {
     const { result } = await validateBuiltGpkg(
       treeLayers({ baselineRows: [], piRows: [CREATED_TREE] })
     )
@@ -299,8 +293,8 @@ describe('a habitat type recorded at post-intervention only', () => {
 })
 
 describe('baseline drift read from parent_geom', () => {
-  const HEDGE_INSERT_WITH_PARENT_GEOM = `(geom, "Parcel Ref", "PI Ref", "Parent Ref", "Retention Category", "Length", feature_uuid, parent_uuid, parent_geom)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`
+  const HEDGE_INSERT_WITH_PARENT_GEOM = `(geom, "Habitat Ref", "Parent Ref", "Retention Category", "Length", feature_uuid, parent_uuid, parent_geom)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
   /** HR-1 as the template's Copy action records it. */
   const HR1_WKT = 'LineString (0 300, 200 300)'
   /** HR-1 after its eastern end was moved 1 m north. */
@@ -316,9 +310,7 @@ describe('baseline drift read from parent_geom', () => {
         geomType: 'LINESTRING',
         ddl: HEDGE_DDL,
         insert: HEDGE_INSERT_WITH_PARENT_GEOM,
-        rows: [
-          [baselineLine, 'HR-1', null, null, null, 200, HR1_UUID, null, null]
-        ]
+        rows: [[baselineLine, 'HR-1', null, null, 200, HR1_UUID, null, null]]
       },
       {
         name: 'Hedgerows Post-Intervention',
@@ -328,7 +320,6 @@ describe('baseline drift read from parent_geom', () => {
         rows: [
           [
             HR1A_LINE,
-            null,
             'HR-1a',
             'HR-1',
             'Retained',
@@ -424,8 +415,8 @@ describe('parentless Created watercourses and PRESENCE removal detection', () =>
         ddl: HEDGE_DDL,
         insert: HEDGE_INSERT,
         rows: [
-          [WC1_LINE, 'WC-1', null, null, null, 100, WC1_UUID, null],
-          [WC2_LINE, 'WC-2', null, null, null, 80, WC2_UUID, null]
+          [WC1_LINE, 'WC-1', null, null, 100, WC1_UUID, null],
+          [WC2_LINE, 'WC-2', null, null, 80, WC2_UUID, null]
         ]
       },
       {
@@ -434,8 +425,8 @@ describe('parentless Created watercourses and PRESENCE removal detection', () =>
         ddl: HEDGE_DDL,
         insert: HEDGE_INSERT,
         rows: [
-          [WC1A_LINE, null, 'WC-1a', 'WC-1', 'Enhanced', 120, null, WC1_UUID],
-          [WC_NEW_LINE, null, 'WC-NEW-1', null, 'Created', 90, null, null]
+          [WC1A_LINE, 'WC-1a', 'WC-1', 'Enhanced', 120, null, WC1_UUID],
+          [WC_NEW_LINE, 'WC-NEW-1', null, 'Created', 90, null, null]
         ]
       }
     ])

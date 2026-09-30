@@ -94,10 +94,9 @@ describe('stagedToLegacyLayers against the real fixture', () => {
     expect(baseline.redline[0].properties['Site Name']).toBe('Spike site')
   })
 
-  it('bridges PI Ref to the legacy ref columns without touching baseline refs', () => {
+  it('bridges Habitat Ref to the legacy ref columns on both stages', () => {
     const { baseline, postIntervention } = stagedToLegacyLayers(readFixture())
 
-    // Baseline layers already carry the legacy columns.
     expect(baseline.areas.map((f) => f.properties['Parcel Ref'])).toEqual([
       'PR-1',
       'PR-2'
@@ -106,8 +105,8 @@ describe('stagedToLegacyLayers against the real fixture', () => {
       'T-1',
       'T-2'
     ])
-    // PI layers gain them from PI Ref — including the Enhanced watercourse,
-    // whose OWN ref must survive (no parent-ref rewrite).
+    // Including the Enhanced watercourse, whose OWN ref must survive (no
+    // parent-ref rewrite).
     expect(
       postIntervention.areas.map((f) => f.properties['Parcel Ref'])
     ).toEqual(['PR-1', 'PR-2', 'PI-POND'])
@@ -119,6 +118,53 @@ describe('stagedToLegacyLayers against the real fixture', () => {
     ).toEqual(['WC-1'])
     expect(postIntervention.trees.map((f) => f.properties['Tree Ref'])).toEqual(
       ['T-1', 'T-NEW-1']
+    )
+  })
+
+  it('maps strategic significance to the Metric wordings', () => {
+    const { baseline, postIntervention } = stagedToLegacyLayers(readFixture())
+    const low = 'Area/compensation not in local strategy/ no local strategy'
+
+    for (const key of Object.values(HABITAT_TYPES)) {
+      for (const feature of baseline[key]) {
+        expect(feature.properties['Baseline Strategic Significance']).toBe(low)
+      }
+    }
+    // PR-2 is High; PI-POND has no baseline part, so no baseline significance.
+    expect(
+      postIntervention.areas.map((f) => [
+        f.properties['Baseline Strategic Significance'],
+        f.properties['Proposed Strategic Significance']
+      ])
+    ).toEqual([
+      [low, low],
+      [low, 'Formally identified in local strategy'],
+      [null, low]
+    ])
+    // Trees have their own High wording. T-NEW-1 is newly planted.
+    expect(
+      postIntervention.trees.map((f) => [
+        f.properties['Baseline Strategic Significance'],
+        f.properties['Proposed Strategic Significance']
+      ])
+    ).toEqual([
+      [low, low],
+      [null, 'Within area formally identified in local strategy']
+    ])
+  })
+
+  it('leaves blank and unknown significance values as they are', () => {
+    const staged = readFixture()
+    const [hedge] = staged.postIntervention[HABITAT_TYPES.HEDGEROWS]
+    hedge.properties['Baseline Strategic Significance'] = null
+    hedge.properties['Proposed Strategic Significance'] = 'Medium'
+
+    const { postIntervention } = stagedToLegacyLayers(staged)
+
+    const [legacyHedge] = postIntervention.hedgerows
+    expect(legacyHedge.properties['Baseline Strategic Significance']).toBeNull()
+    expect(legacyHedge.properties['Proposed Strategic Significance']).toBe(
+      'Medium'
     )
   })
 

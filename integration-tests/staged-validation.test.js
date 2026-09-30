@@ -124,7 +124,7 @@ async function validateMutatedFixture(mutate) {
  */
 function moveBaselineWatercourse(db) {
   db.prepare(
-    `UPDATE "Watercourses Baseline" SET geom = ? WHERE "Parcel Ref" = 'WC-1'`
+    `UPDATE "Watercourses Baseline" SET geom = ? WHERE "Habitat Ref" = 'WC-1'`
   ).run(gpkgLineString(EPSG_BNG, MOVED_WC1_LINE))
 }
 
@@ -182,7 +182,7 @@ describe('validateStagedGeoPackage', () => {
     // ref can no longer break lineage.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Habitats Post-Intervention" SET "Parent Ref" = 'GONE' WHERE "PI Ref" = 'PR-1'`
+        `UPDATE "Area Habitats Post-Intervention" SET "Parent Ref" = 'GONE' WHERE "Habitat Ref" = 'PR-1'`
       ).run()
     })
 
@@ -256,7 +256,7 @@ describe('validateStagedGeoPackage', () => {
     // from geometric overlap and the surveyor is asked to confirm.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Hedgerows Post-Intervention" SET "Parent Ref" = NULL, parent_uuid = NULL WHERE "PI Ref" = 'HR-1a'`
+        `UPDATE "Hedgerows Post-Intervention" SET "Parent Ref" = NULL, parent_uuid = NULL WHERE "Habitat Ref" = 'HR-1a'`
       ).run()
     })
 
@@ -283,7 +283,7 @@ describe('validateStagedGeoPackage', () => {
     // geometry rule and the parcel picks up a plausible parent it never had.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Habitats Post-Intervention" SET "Parent Ref" = 'GONE', parent_uuid = NULL WHERE "PI Ref" = 'PR-1'`
+        `UPDATE "Area Habitats Post-Intervention" SET "Parent Ref" = 'GONE', parent_uuid = NULL WHERE "Habitat Ref" = 'PR-1'`
       ).run()
     })
 
@@ -318,7 +318,7 @@ describe('validateStagedGeoPackage', () => {
     // Statutory Metric derives lost length as the residual on the baseline.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `DELETE FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1a'`
+        `DELETE FROM "Hedgerows Post-Intervention" WHERE "Habitat Ref" = 'HR-1a'`
       ).run()
     })
 
@@ -336,7 +336,7 @@ describe('validateStagedGeoPackage', () => {
     // vanish, and an absent parcel is indistinguishable from a mapping gap.
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `DELETE FROM "Habitats Post-Intervention" WHERE "PI Ref" = 'PI-POND'`
+        `DELETE FROM "Area Habitats Post-Intervention" WHERE "Habitat Ref" = 'PI-POND'`
       ).run()
     })
 
@@ -357,9 +357,9 @@ describe('validateStagedGeoPackage', () => {
       for (const piRef of ['HR-1a-copy1', 'HR-1a-copy2']) {
         db.prepare(
           `INSERT INTO "Hedgerows Post-Intervention"
-             (geom, "PI Ref", "Parent Ref", "Retention Category")
+             (geom, "Habitat Ref", "Parent Ref", "Retention Category")
            SELECT geom, ?, "Parent Ref", "Retention Category"
-           FROM "Hedgerows Post-Intervention" WHERE "PI Ref" = 'HR-1a'`
+           FROM "Hedgerows Post-Intervention" WHERE "Habitat Ref" = 'HR-1a'`
         ).run(piRef)
       }
     })
@@ -377,7 +377,7 @@ describe('validateStagedGeoPackage', () => {
   it('rejects a parcel that has strayed outside its stamped parent', async () => {
     const result = await validateMutatedFixture((db) => {
       db.prepare(
-        `UPDATE "Habitats Post-Intervention" SET geom = ? WHERE "PI Ref" = 'PR-1'`
+        `UPDATE "Area Habitats Post-Intervention" SET geom = ? WHERE "Habitat Ref" = 'PR-1'`
       ).run(gpkgPolygon(EPSG_BNG, SHIFTED_PR1_RING))
     })
 

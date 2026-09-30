@@ -20,7 +20,11 @@ import {
   validateWatercourses
 } from './geopackage-internals.js'
 import { readFeatureTables, toLayers } from './read-feature-tables.js'
-import { isStagedGeoPackage } from './lineage/staged-layer-names.js'
+import { stagedOutdatedTemplateError } from './lineage/error-builders.js'
+import {
+  findOutdatedStagedTables,
+  isStagedGeoPackage
+} from './lineage/staged-layer-names.js'
 
 const logger = createLogger()
 
@@ -112,7 +116,7 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
 
 /**
  * Structural half of the gate for the staged format, whose feature tables are
- * named per stage ("Habitats Baseline" / "Habitats Post-Intervention") and so
+ * named per stage ("Area Habitats Baseline" / "Area Habitats Post-Intervention") and so
  * match nothing in gpkg-template.schema.json. Run against that schema, a
  * perfectly good staged file collects a GPKG_MISSING_LAYER plus one
  * GPKG_UNEXPECTED_FEATURE_LAYER per table — the single-stage template simply
@@ -194,6 +198,14 @@ function runStructuralChecks(db) {
 
   // 3. Required feature layers (from gpkg-template.schema.json)
   const contentTables = getFeatureLayerNames(db)
+  const outdatedTables = findOutdatedStagedTables(contentTables)
+  if (outdatedTables.length > 0) {
+    // Made with the earlier staged template: say so, rather than let its area
+    // habitat and tree tables be dropped, or bury the cause under one schema
+    // error per table.
+    errors.push(stagedOutdatedTemplateError(outdatedTables))
+    return { valid: false, errors }
+  }
   if (isStagedGeoPackage([...contentTables])) {
     return stagedStructuralResult(contentTables, errors)
   }

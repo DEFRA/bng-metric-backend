@@ -14,10 +14,10 @@ import { groupStagedTables, isStagedGeoPackage } from './staged-layer-names.js'
 
 const GPKG_CONTENTS_FEATURES_DATA_TYPE = 'features'
 
-/** Column names carrying the feature's own reference, in preference order. */
-const REF_COLUMNS = ['PI Ref', 'Parcel Ref', 'Tree Ref', 'ref']
-/** Column naming the baseline parcel a PI feature was derived from. */
-const PARENT_COLUMNS = ['Parent Ref', 'parent_ref']
+/** Column carrying the feature's own reference, on every habitat table. */
+const REF_COLUMNS = ['Habitat Ref']
+/** Column naming the baseline feature a PI feature was derived from. */
+const PARENT_COLUMNS = ['Parent Ref']
 /** Hidden machine key the template gives every baseline feature. */
 const FEATURE_UUID_COLUMNS = ['feature_uuid']
 /** Hidden machine key naming a post-intervention row's baseline parent. */
@@ -35,7 +35,13 @@ function firstPresent(row, candidates) {
   return null
 }
 
-function readTable(db, tableName) {
+/**
+ * @param {import('better-sqlite3').Database} db
+ * @param {string} tableName
+ * @param {boolean} [postIntervention] true for a post-intervention table, whose
+ *   `Habitat Ref` is also exposed as `piRef`
+ */
+function readTable(db, tableName, postIntervention = false) {
   const geomColumnRow = db
     .prepare(
       'SELECT column_name, srs_id FROM gpkg_geometry_columns WHERE table_name = ?'
@@ -55,9 +61,10 @@ function readTable(db, tableName) {
   const rows = db.prepare(`SELECT * FROM ${quoted}`).all()
   return rows.map((row) => {
     const { [geomColumn]: blob, ...properties } = row
+    const ref = firstPresent(properties, REF_COLUMNS)
     return {
-      ref: firstPresent(properties, REF_COLUMNS),
-      piRef: firstPresent(properties, ['PI Ref']),
+      ref,
+      piRef: postIntervention ? ref : null,
       parentRef: firstPresent(properties, PARENT_COLUMNS),
       featureUuid: firstPresent(properties, FEATURE_UUID_COLUMNS),
       parentUuid: firstPresent(properties, PARENT_UUID_COLUMNS),
@@ -101,7 +108,7 @@ export function readStagedGeoPackage(filePath) {
       result.baseline[type] = readTable(db, table)
     }
     for (const [type, table] of Object.entries(grouped.postIntervention)) {
-      result.postIntervention[type] = readTable(db, table)
+      result.postIntervention[type] = readTable(db, table, true)
     }
     return result
   } finally {

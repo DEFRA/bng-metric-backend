@@ -7,29 +7,28 @@
 //
 // The natural keys differ, because the staged format has two of them:
 //
-//   baseline            hidden `feature_uuid`, falling back to the visible ref
-//                       (`Parcel Ref` / `Tree Ref`) for files exported before
-//                       the uuid columns existed
-//   post-intervention   `PI Ref`
+//   baseline            hidden `feature_uuid`, falling back to the visible
+//                       `Habitat Ref` for a row without one
+//   post-intervention   `Habitat Ref`
 //
 // Baseline refs are cosmetic since the uuid columns landed: a surveyor renaming
 // a parcel must NOT re-key the feature (a re-key reads as a delete-and-reinsert
 // to downstream relational consumers — the exact failure this module exists to
 // prevent). `feature_uuid` is stamped once by the template and never edited by
-// hand, so it survives renames; the ref fallback keeps pre-uuid files working.
+// hand, so it survives renames; the ref fallback covers a row without one.
 // The two key kinds are prefixed (`uuid:` / `ref:`) so a ref that happens to
 // look like a uuid can never cross-match, and a file that gained or lost its
 // uuid columns simply matches nothing — conservative, never wrong.
 //
 // KNOWN LIMITATION: post-intervention rows carry no feature_uuid of their own —
 // their `parent_uuid` is the PARENT's key, not this row's — so the PI side
-// stays keyed on `PI Ref`. A renamed PI ref therefore still re-keys that one
-// feature. `PI Ref` is otherwise sound: the template's tidy-refs action
+// stays keyed on `Habitat Ref`. A renamed PI ref therefore still re-keys that
+// one feature. The ref is otherwise sound: the template's tidy-refs action
 // guarantees it is unique within the layer and reproduces the same value on
 // the same feature.
 //
 // The stage is part of the lookup key. A retained parcel keeps its parent's ref
-// on the post-intervention side (PI Ref "PR-1", Parent Ref "PR-1" in the
+// on the post-intervention side (Habitat Ref "PR-1", Parent Ref "PR-1" in the
 // fixture), and a PI row's parent_uuid equals its baseline parent's
 // feature_uuid — so neither ref nor uuid alone disambiguates baseline from PI.
 //
@@ -77,7 +76,7 @@ const KEY_KIND_REF = 'ref'
 
 /**
  * The key a feature is matched on: the hidden `feature_uuid` on the baseline
- * (ref fallback for pre-uuid files), `PI Ref` post-intervention — see the
+ * (ref fallback), `Habitat Ref` post-intervention — see the
  * module comment for why the two sides differ.
  *
  * @param {object} feature
