@@ -1,4 +1,9 @@
-import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
+import {
+  PROP_KEYS,
+  PROPOSED_PROP_KEYS,
+  TREE_ADVANCE_DELAY_KEYS,
+  pickProp
+} from '../properties.js'
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
@@ -63,7 +68,7 @@ function buildTreeBaselineSubObject(props) {
 function buildTreeProposedSubObject(props) {
   return {
     ...buildTreeSide(props, PROPOSED_TREE_KEYS),
-    ...buildAdvanceDelayFields(props)
+    ...buildAdvanceDelayFields(props, TREE_ADVANCE_DELAY_KEYS)
   }
 }
 

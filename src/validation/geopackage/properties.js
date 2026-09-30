@@ -14,6 +14,14 @@ export const PROPOSED_PROP_KEYS = {
   delayYears: ['Delay in starting habitat creation/years']
 }
 
+// The Urban Trees layer names its advance/delay columns differently from the
+// Habitats, Hedgerows and Rivers layers (see gpkg-template.schema.json), so
+// trees read these instead of PROPOSED_PROP_KEYS.advanceYears/delayYears.
+export const TREE_ADVANCE_DELAY_KEYS = {
+  advanceYears: ['Habitat Created/Enhanced in advance/years'],
+  delayYears: ['Delay in starting habitat creation/enhancement in years']
+}
+
 export const PROP_KEYS = {
   parcelRef: ['Parcel Ref', 'Parcel_Ref', 'parcel_ref'],
   habitatType: ['Baseline Habitat Type', 'Baseline_Habitat_Type'],

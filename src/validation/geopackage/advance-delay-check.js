@@ -1,39 +1,58 @@
 import { ERROR_CODES, makeError } from './errors.js'
 import { parseProposedAdvanceDelayYears } from './post-intervention/extract-post-intervention-sub-objects.js'
-import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from './properties.js'
+import {
+  PROP_KEYS,
+  PROPOSED_PROP_KEYS,
+  TREE_ADVANCE_DELAY_KEYS,
+  pickProp
+} from './properties.js'
 
 const SAMPLE_CAP = 50
 
-/** Column names quoted back to the user, matching the NE template headings. */
-const ADVANCE_COLUMN = PROPOSED_PROP_KEYS.advanceYears[0]
-const DELAY_COLUMN = PROPOSED_PROP_KEYS.delayYears[0]
-
 /**
- * Layers whose advance/delay columns feed the rules engine. The Urban Trees
- * layer spells both columns differently and is not read by
- * buildAdvanceDelayFields, so nothing it carries can reach the engine; it is
- * left out here rather than rejected for a value we ignore.
+ * Layers whose advance/delay columns feed the rules engine, with the columns
+ * each one reads. The Urban Trees layer spells both columns differently from
+ * the others, so it carries its own keys and its own reference column.
  */
-const SCANNED_LAYERS = ['areas', 'hedgerows', 'watercourses']
+const SCANNED_LAYERS = [
+  { layer: 'areas', keys: PROPOSED_PROP_KEYS, refKeys: PROP_KEYS.parcelRef },
+  {
+    layer: 'hedgerows',
+    keys: PROPOSED_PROP_KEYS,
+    refKeys: PROP_KEYS.parcelRef
+  },
+  {
+    layer: 'watercourses',
+    keys: PROPOSED_PROP_KEYS,
+    refKeys: PROP_KEYS.parcelRef
+  },
+  { layer: 'trees', keys: TREE_ADVANCE_DELAY_KEYS, refKeys: PROP_KEYS.treeRef }
+]
 
-function describeFeature(layer, feature, idx) {
-  const ref = pickProp(feature?.properties ?? {}, PROP_KEYS.parcelRef)
+/** Column names quoted back to the user, matching the NE template headings. */
+function describeColumns(keys) {
+  return `"${keys.advanceYears[0]}" and "${keys.delayYears[0]}"`
+}
+
+function describeFeature({ layer, refKeys }, feature, idx) {
+  const properties = feature?.properties ?? {}
+  const ref = pickProp(properties, refKeys)
   if (ref != null && ref !== '') {
-    return `${layer} Parcel Ref ${ref}`
+    return `${layer} ${refKeys[0]} ${ref}`
   }
-  const fid = pickProp(feature?.properties ?? {}, PROP_KEYS.fid)
+  const fid = pickProp(properties, PROP_KEYS.fid)
   if (fid != null && fid !== '') {
     return `${layer} fid ${fid}`
   }
   return `${layer} feature #${idx}`
 }
 
-function hasBothYears(properties) {
+function hasBothYears(properties, keys) {
   const advance = parseProposedAdvanceDelayYears(
-    pickProp(properties, PROPOSED_PROP_KEYS.advanceYears)
+    pickProp(properties, keys.advanceYears)
   )
   const delay = parseProposedAdvanceDelayYears(
-    pickProp(properties, PROPOSED_PROP_KEYS.delayYears)
+    pickProp(properties, keys.delayYears)
   )
   // Zero means "not entered", so both being non-zero is both being used.
   return advance > 0 && delay > 0
@@ -56,11 +75,13 @@ function hasBothYears(properties) {
  */
 export function checkAdvanceAndDelayNotBothSet(layers) {
   const offenders = []
-  for (const layer of SCANNED_LAYERS) {
-    const features = layers?.[layer] ?? []
+  const columns = new Set()
+  for (const scanned of SCANNED_LAYERS) {
+    const features = layers?.[scanned.layer] ?? []
     features.forEach((feature, idx) => {
-      if (hasBothYears(feature?.properties ?? {})) {
-        offenders.push(describeFeature(layer, feature, idx))
+      if (hasBothYears(feature?.properties ?? {}, scanned.keys)) {
+        offenders.push(describeFeature(scanned, feature, idx))
+        columns.add(describeColumns(scanned.keys))
       }
     })
   }
@@ -78,7 +99,7 @@ export function checkAdvanceAndDelayNotBothSet(layers) {
 
   return makeError(
     ERROR_CODES.ADVANCE_AND_DELAY_BOTH_SET,
-    `One or more features set both "${ADVANCE_COLUMN}" and "${DELAY_COLUMN}". Use one or the other: ${shown}${more}`,
+    `One or more features set both ${[...columns].join(' or ')}. Use one or the other: ${shown}${more}`,
     { count: offenders.length, sample }
   )
 }
