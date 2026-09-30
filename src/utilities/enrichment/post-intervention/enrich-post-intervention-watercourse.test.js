@@ -324,7 +324,7 @@ describe('watercourse — priced on the measured size', () => {
     enrichPostInterventionDocumentWithUnits(whole)
     enrichPostInterventionDocumentWithUnits(measured)
 
-    // BMD-1042: the metric prices the size as measured, so 0.4 m more
+    // The metric prices the size as measured, so 0.4 m more
     // is 0.04% more units, not the same units after rounding.
     expect(measured.watercourses[0].units).toBeCloseTo(
       whole.watercourses[0].units * 1.0004,

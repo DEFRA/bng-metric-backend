@@ -97,7 +97,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    // 1.00004 ha × 2 × 2 × 1 — the metric prices the size as measured (BMD-1042)
+    // 1.00004 ha × 2 × 2 × 1 — the metric prices the size as measured
     expect(document.habitats[0].units).toBe(4.00016)
     expect(document.habitats[0].area).toBe(10_000)
   })

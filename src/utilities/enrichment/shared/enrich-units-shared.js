@@ -22,7 +22,7 @@ function isPositiveFinite(value) {
  * The area, in hectares, an area habitat's units are priced on: its measured
  * size, unrounded. The metric prices "the true value entered in each row", to
  * any number of decimal places (User Guide, July 2025, Appendix Table F), so
- * rounding to the whole square metre first would drift from it (BMD-1042).
+ * rounding to the whole square metre first would drift from it.
  * The rounded `area` is only a fallback, for documents stored before
  * `sizeSquareMetres` was.
  *

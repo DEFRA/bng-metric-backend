@@ -4,8 +4,7 @@
  * Each feature's area or length is the size its units are priced on, so it is
  * measured with bng-library/measure — the one definition of a feature's size,
  * which the metric workbooks the service is compared with are measured with
- * too (BMD-1042). GEOS stays for the validation checks; it no longer decides
- * sizes.
+ * too. GEOS stays for the validation checks; it no longer decides sizes.
  *
  * What is measured is the geometry as supplied, in British National Grid, not
  * its MakeValid repair: a file with an invalid area parcel is refused, so every

@@ -52,8 +52,8 @@ describe('measureLayers', () => {
     }
   })
 
-  // BMD-1042 moved sizing from GEOS to bng-library/measure. Units are priced
-  // on these sizes, so the move must not have changed any of them.
+  // Sizing moved from GEOS to bng-library/measure. Units are priced on these
+  // sizes, so the move must not have changed any of them.
   it('gives exactly the sizes GEOS measured before the move', () => {
     const loaded = load({
       areas: [polygon(H001)],

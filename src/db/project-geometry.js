@@ -121,7 +121,7 @@ async function readLayerGeometry(drizzle, table, projectId, limit) {
  * so it carries no `sizeSquareMetres`. It is measured here with
  * bng-library/measure, the same function that measured every parcel on upload
  * (validation/geopackage/geos/sizes.js), so the red line and the parcels are
- * sized by one definition (BMD-1042).
+ * sized by one definition.
  *
  * The drawing geometry is rounded to the millimetre, which is plenty for a map
  * but not for an area, so the area is measured from a second copy at full

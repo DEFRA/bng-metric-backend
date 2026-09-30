@@ -46,7 +46,7 @@ function isLinearFeatureReadyForEnrichment(feature, condition) {
  */
 function setLengthAndGetKm(feature) {
   // `length` is the rounded display figure; units are priced on the measured
-  // size, unrounded, as the metric does (BMD-1042).
+  // size, unrounded, as the metric does.
   feature.length = Math.round(feature.sizeMetres)
   return pricedLengthKm(feature.sizeMetres)
 }
