@@ -36,6 +36,7 @@
 import { isTileInGrid } from '../report/pdf/grid.js'
 import { OsTileError } from './errors.js'
 import { keyWarning, resolveOsTilesConfig } from './config.js'
+import { proxyFetch } from '../../common/helpers/proxy/proxy-fetch.js'
 import {
   fetchGrid,
   fetchTile,
@@ -74,7 +75,7 @@ const NO_CACHE = Object.freeze({
 function createOsTiles(options = {}) {
   const config = resolveOsTilesConfig(options.config)
   const logger = options.logger ?? console
-  const fetchImpl = options.fetchImpl ?? fetch
+  const fetchImpl = options.fetchImpl ?? proxyFetch
   const cache = options.cache ?? NO_CACHE
 
   const warning = keyWarning(config)

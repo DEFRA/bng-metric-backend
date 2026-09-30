@@ -31,6 +31,24 @@ function workerPool() {
 }
 
 /**
+ * The data-quality checks: pure JavaScript over the layers' attributes, with no
+ * geometry involved. Exported so a caller that runs the geometry checks itself
+ * (the metric comparison in bng-metric-harness, which has no worker pool)
+ * applies exactly these.
+ *
+ * @param {object} layers Output of readGeoPackage
+ * @param {string} [variant] one of EXTRACT_VARIANT
+ * @returns {Array<{ code: string, message: string }>} one error per failed check
+ */
+export function runDataQualityChecks(layers, variant) {
+  return [
+    checkHabitatDistinctiveness(layers, variant),
+    checkDuplicateHabitatRefs(layers),
+    checkAdvanceAndDelayNotBothSet(layers)
+  ].filter(Boolean)
+}
+
+/**
  * Run every geometry check against an open baseline GeoPackage file.
  *
  * @param {string} filePath
@@ -113,11 +131,7 @@ export async function validateGeoPackageLayers(
 
   // JS-side checks that don't need geometry. Surface ahead of geometry errors so
   // the user sees blocking policy/data-quality issues first.
-  const dataQualityErrors = [
-    checkHabitatDistinctiveness(layers, variant),
-    checkDuplicateHabitatRefs(layers),
-    checkAdvanceAndDelayNotBothSet(layers)
-  ].filter(Boolean)
+  const dataQualityErrors = runDataQualityChecks(layers, variant)
 
   // Handed back so the route can promote them to metrics. They are measured
   // here because this is the only place that sees both the pool and the clock,

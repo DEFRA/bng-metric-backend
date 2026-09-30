@@ -120,10 +120,15 @@ async function fetchStoredProject(drizzle, projectId) {
   return row?.project
 }
 
+// saveHandlersForConfig, layersForUpload and extractAndValidateDocument are
+// exported for the metric comparison in bng-metric-harness
+// (scripts/metric-comparison), which runs this pipeline in process, without a
+// database, to compare the service's figures with the metric's (BMD-1036).
+
 /**
  * @param {object} config
  */
-function saveHandlersForConfig(config) {
+export function saveHandlersForConfig(config) {
   const handlers = SAVE_HANDLERS_BY_DOCUMENT_KEY[config.projectDocumentKey]
   if (handlers) {
     return handlers
@@ -141,7 +146,7 @@ function saveHandlersForConfig(config) {
  * @param {object} [geometrySizes] per-feature measurements from the geometry
  *   engine, keyed by position within the layer
  */
-function layersForUpload(
+export function layersForUpload(
   layers,
   storedProject,
   projectDocumentKey,
@@ -188,7 +193,7 @@ async function sizeUploadedHabitats(
   }
 }
 
-function extractAndValidateDocument({
+export function extractAndValidateDocument({
   handlers,
   layersWithIds,
   storedProject,
