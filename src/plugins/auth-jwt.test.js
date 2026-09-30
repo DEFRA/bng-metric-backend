@@ -191,7 +191,7 @@ describe('defra-jwt strategy — discovery (remote JWKS) path', () => {
     const s = await buildServer({ discoveryUrl: DISCOVERY_URL })
     const res = await injectTo(s, await mint({ sub: 'remote-user' }))
 
-    expect(global.fetch).toHaveBeenCalledWith(DISCOVERY_URL)
+    expect(global.fetch).toHaveBeenCalledWith(DISCOVERY_URL, undefined)
     // No proxy configured here, so the JWKS fetch runs without an agent.
     expect(createRemoteJWKSet).toHaveBeenCalledWith(new URL(JWKS_URI), {
       agent: undefined

@@ -1,7 +1,8 @@
-import { ProxyAgent, setGlobalDispatcher } from 'undici'
+import { setGlobalDispatcher } from 'undici'
 import { bootstrap } from 'global-agent'
 
 import { createLogger } from '../logging/logger.js'
+import { getProxyAgent } from './proxy-fetch.js'
 import { config } from '../../../config.js'
 
 const logger = createLogger()
@@ -9,7 +10,9 @@ const logger = createLogger()
 /**
  * If HTTP_PROXY is set setupProxy() will enable it globally
  * for a number of http clients.
- * Node Fetch will still need to pass a ProxyAgent in on each call.
+ * Our own server-side requests should use proxyFetch() (proxy-fetch.js), which
+ * pairs undici's fetch with its ProxyAgent. The global dispatcher remains as a
+ * safety net for third-party code that calls Node's global fetch.
  */
 export function setupProxy() {
   const proxyUrl = config.get('httpProxy')
@@ -17,8 +20,8 @@ export function setupProxy() {
   if (proxyUrl) {
     logger.info('setting up global proxies')
 
-    // Undici proxy
-    setGlobalDispatcher(new ProxyAgent(proxyUrl))
+    // Undici proxy, shared with proxyFetch()
+    setGlobalDispatcher(getProxyAgent(proxyUrl))
 
     // global-agent (axios/request/and others)
     bootstrap()

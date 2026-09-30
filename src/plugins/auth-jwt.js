@@ -26,6 +26,7 @@ import { createLocalJWKSet, createRemoteJWKSet, jwtVerify } from 'jose'
 import { HttpsProxyAgent } from 'https-proxy-agent'
 
 import { createLogger } from '../common/helpers/logging/logger.js'
+import { proxyFetch } from '../common/helpers/proxy/proxy-fetch.js'
 
 const logger = createLogger()
 
@@ -75,7 +76,7 @@ function classifyVerifyError(error) {
 }
 
 async function fetchDiscovery(discoveryUrl) {
-  const response = await fetch(discoveryUrl)
+  const response = await proxyFetch(discoveryUrl)
   if (!response.ok) {
     throw new Error(
       `OIDC discovery request to ${discoveryUrl} failed: ${response.status}`
@@ -101,7 +102,7 @@ async function resolveVerifier(options) {
 
   const discovery = await fetchDiscovery(options.discoveryUrl)
   const issuer = options.issuer || discovery.issuer || undefined
-  // jose fetches the JWKS with node:https.get, which — unlike the global fetch()
+  // jose fetches the JWKS with node:https.get, which — unlike proxyFetch()
   // used for discovery — does NOT pick up the undici/global-agent proxy: jose
   // reads `https.get` off a namespace import that never sees global-agent's
   // monkey-patch, so the call uses the original, unproxied https.get. In a CDP
