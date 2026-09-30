@@ -10,7 +10,7 @@ import {
   engineHabitatTypeCandidates,
   calculateAreaHabitatWithCandidates
 } from '../shared/engine-helpers.js'
-import { SQ_METRES_PER_HECTARE } from '../shared/enrich-units-shared.js'
+import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
 import {
   hasValidAreaHabitatSize,
   applyProposedResult,
@@ -137,7 +137,7 @@ export function enrichPostInterventionAreaBaselineSide(habitat, logger) {
   if (!condition || !hasValidAreaHabitatSize(habitat)) {
     return
   }
-  const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
+  const sizeHa = pricedAreaHectares(habitat)
   try {
     const result = calculateAreaHabitatWithCandidates(
       sizeHa,
@@ -257,7 +257,7 @@ function buildEnhancedAreaCalculate(
  * @returns {(() => object) | null}
  */
 function resolveAreaProposedCalculate(habitat, logger) {
-  const sizeHa = habitat.area / SQ_METRES_PER_HECTARE
+  const sizeHa = pricedAreaHectares(habitat)
   const baseline = habitat.baseline ?? {}
   const proposed = habitat.proposed ?? {}
   const baselineCondition = normalizeConditionForEngine(baseline.condition)

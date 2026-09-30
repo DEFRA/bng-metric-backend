@@ -1,16 +1,16 @@
 import { BaselineLookupError } from 'bng-library/metric'
 
-import { METRES_PER_KM } from '../shared/enrich-units-shared.js'
+import { pricedLengthKm } from '../shared/enrich-units-shared.js'
 
 /**
- * Convert a linear feature size in metres to kilometres, matching the rounding
- * applied during post-intervention enrichment (`Math.round(sizeMetres)`).
+ * Convert a linear feature size in metres to kilometres, unrounded, matching
+ * the length post-intervention enrichment prices on.
  *
  * @param {number} sizeMetres
  * @returns {number}
  */
 export function linearLengthKmFromSizeMetres(sizeMetres) {
-  return Math.round(sizeMetres) / METRES_PER_KM
+  return pricedLengthKm(sizeMetres)
 }
 
 /**

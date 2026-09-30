@@ -18,8 +18,8 @@ import {
   resolvedWatercourseEncroachments
 } from '../shared/engine-helpers.js'
 import {
-  SQ_METRES_PER_HECTARE,
-  METRES_PER_KM,
+  pricedAreaHectares,
+  pricedLengthKm,
   NO_OP_LOGGER,
   enrichCollectionIfNonEmpty
 } from '../shared/enrich-units-shared.js'
@@ -45,8 +45,10 @@ function isLinearFeatureReadyForEnrichment(feature, condition) {
  * @returns {number} length in kilometres
  */
 function setLengthAndGetKm(feature) {
+  // `length` is the rounded display figure; units are priced on the measured
+  // size, unrounded, as the metric does (BMD-1042).
   feature.length = Math.round(feature.sizeMetres)
-  return feature.length / METRES_PER_KM
+  return pricedLengthKm(feature.sizeMetres)
 }
 
 /**
@@ -98,15 +100,9 @@ function enrichFeatureWithEngineCalculation(
 
 function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
   const condition = normalizeConditionForEngine(habitat.condition)
-  const { area } = habitat
+  const sizeHa = pricedAreaHectares(habitat)
 
-  if (
-    condition &&
-    typeof area === 'number' &&
-    Number.isFinite(area) &&
-    area > 0
-  ) {
-    const sizeHa = area / SQ_METRES_PER_HECTARE
+  if (condition && sizeHa !== null) {
     enrichFeatureWithEngineCalculation(
       () => calculateAreaHabitatWithCandidates(sizeHa, habitat, condition),
       habitat,

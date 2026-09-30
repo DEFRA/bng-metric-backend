@@ -7,9 +7,9 @@ import {
 } from './linear-baseline-length-by-ref.js'
 
 describe('linearLengthKmFromSizeMetres', () => {
-  it('rounds sizeMetres before converting to kilometres', () => {
-    expect(linearLengthKmFromSizeMetres(1000.4)).toBe(1)
-    expect(linearLengthKmFromSizeMetres(1000.6)).toBe(1.001)
+  it('converts sizeMetres to kilometres without rounding', () => {
+    expect(linearLengthKmFromSizeMetres(1000.4)).toBe(1.0004)
+    expect(linearLengthKmFromSizeMetres(1000.6)).toBe(1.0006)
   })
 })
 
