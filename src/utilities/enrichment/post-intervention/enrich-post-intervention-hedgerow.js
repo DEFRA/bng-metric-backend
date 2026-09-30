@@ -16,6 +16,7 @@ import {
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
   runProposedCalculation,
+  proposedStrategicSignificanceForEngine,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
@@ -151,13 +152,19 @@ function buildCreatedHedgerowCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   return () =>
     calculateCreatedHedgerowPostIntervention(
       lengthKm,
       proposed.type,
       proposedCondition,
       advanceYears,
-      delayYears
+      delayYears,
+      strategicSignificance
     )
 }
 
@@ -185,6 +192,11 @@ function buildEnhancedHedgerowCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   return () => {
     const baselineLengthKm = lookupBaselineLinearLength(
       hedgerow.ref,
@@ -198,7 +210,7 @@ function buildEnhancedHedgerowCalculate(
       proposed.type,
       baselineCondition,
       proposedCondition,
-      { advanceYears, delayYears }
+      { advanceYears, delayYears, strategicSignificance }
     )
   }
 }

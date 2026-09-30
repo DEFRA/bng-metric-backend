@@ -18,6 +18,7 @@ import {
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
   runProposedCalculation,
+  proposedStrategicSignificanceForEngine,
   skipUnrecognisedRetentionCategory,
   RETENTION_RETAINED,
   RETENTION_CREATED,
@@ -124,6 +125,11 @@ function buildCreatedWatercourseCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    watercourse,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
   return () =>
     calculateCreatedWatercoursePostIntervention(
       lengthKm,
@@ -132,7 +138,8 @@ function buildCreatedWatercourseCalculate(
       proposed.watercourseEncroachment ?? null,
       proposed.riparianEncroachment ?? null,
       advanceYears,
-      delayYears
+      delayYears,
+      strategicSignificance
     )
 }
 
@@ -160,6 +167,11 @@ function buildEnhancedWatercourseCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    watercourse,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
   return () => {
     const baselineLengthKm = lookupBaselineLinearLength(
       watercourse.ref,
@@ -177,7 +189,8 @@ function buildEnhancedWatercourseCalculate(
         watercourseEncroachment: proposed.watercourseEncroachment ?? null,
         riparianEncroachment: proposed.riparianEncroachment ?? null,
         advanceYears,
-        delayYears
+        delayYears,
+        strategicSignificance
       }
     )
   }

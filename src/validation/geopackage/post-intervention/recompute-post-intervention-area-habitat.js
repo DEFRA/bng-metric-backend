@@ -10,6 +10,8 @@ const PROPOSED_RECOMPUTE_KEYS = Object.freeze([
   'difficultyMultiplier',
   'standardTimeToTargetCondition',
   'difficulty',
+  'strategicSignificanceCategory',
+  'strategicSignificanceScore',
   'advanceOrDelay',
   'finalTimeToTargetCondition'
 ])
@@ -41,6 +43,8 @@ function pickProposedRecomputeFields(proposed) {
  *   difficultyMultiplier: number | null,
  *   standardTimeToTargetCondition: string | null,
  *   difficulty: string | null,
+ *   strategicSignificanceCategory: string | null,
+ *   strategicSignificanceScore: number | null,
  *   advanceOrDelay: string | null,
  *   finalTimeToTargetCondition: string | null,
  *   units: number | null,
