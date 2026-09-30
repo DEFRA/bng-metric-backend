@@ -1,21 +1,24 @@
 /**
  * Habitat sizing, taken off the back of the validation pass.
  *
- * `services/upload/calculate-habitat-sizes.js` sends the same geometry to
- * PostGIS a second time, purely to get `ST_Area` / `ST_Length` per feature —
- * a fourth parse of shapes that have already been parsed, repaired and
- * measured. By the time the checks have run, the worker is holding the repaired
- * geometry for every one of those features, so the numbers cost a pointer
- * dereference each.
+ * Each feature's area or length is the size its units are priced on, so it is
+ * measured with bng-library/measure — the one definition of a feature's size,
+ * which the metric workbooks the service is compared with are measured with
+ * too (BMD-1042). GEOS stays for the validation checks; it no longer decides
+ * sizes.
+ *
+ * What is measured is the geometry as supplied, in British National Grid, not
+ * its MakeValid repair: a file with an invalid area parcel is refused, so every
+ * size that is ever priced belongs to a valid geometry, which the repair leaves
+ * as it was.
  *
  * The sizes are keyed by the feature's position within its layer, not by
  * `featureId`: ids are assigned on the main thread *after* validation (see
  * assign-feature-ids.js), so the worker has no id to key on. Mapping position
  * to id happens where the ids are, in calculate-habitat-sizes.js.
- *
- * Both engines measure the MakeValid-repaired geometry, matching the SQL's
- * `ST_Area(ST_MakeValid(geom))` / `ST_Length(ST_MakeValid(geom))`.
  */
+
+import { areaSquareMetres, lengthMetres } from 'bng-library/measure'
 
 /** The layers the project document records a size for. */
 export const SIZED_LAYERS = Object.freeze([
@@ -25,19 +28,19 @@ export const SIZED_LAYERS = Object.freeze([
 ])
 
 /**
- * Per-feature areas (for `areas`) and lengths (for the linear layers).
+ * Per-feature areas in m² (for `areas`) and lengths in metres (for the linear
+ * layers).
  *
  * @param {Record<string, import('./geometry.js').LoadedFeature[]>} layers
- * @param {import('./geos-runtime.js').GeosRuntime} runtime
  * @returns {Record<string, Array<{ idx: number, value: number }>>}
  */
-export function measureLayers(layers, runtime) {
+export function measureLayers(layers) {
   const sizes = {}
   for (const layerName of SIZED_LAYERS) {
-    const measure = layerName === 'areas' ? runtime.area : runtime.length
+    const measure = layerName === 'areas' ? areaSquareMetres : lengthMetres
     sizes[layerName] = (layers[layerName] ?? []).map((feature) => ({
       idx: feature.idx,
-      value: measure(feature.valid)
+      value: measure(feature.projected)
     }))
   }
   return sizes

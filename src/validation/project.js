@@ -142,7 +142,9 @@ const habitatSchema = Joi.object({
     ),
   sizeSquareMetres: Joi.number()
     .allow(null)
-    .description('Exact parcel area in square metres as measured in PostGIS.'),
+    .description(
+      'Parcel area in square metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it.'
+    ),
   status: Joi.string()
     .valid('Complete', 'Incomplete')
     .required()
@@ -278,7 +280,9 @@ function linearFeatureSchema({
       ),
     sizeMetres: Joi.number()
       .allow(null)
-      .description('Length in metres as measured in PostGIS.'),
+      .description(
+        'Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it.'
+      ),
     status: Joi.string()
       .valid('Complete', 'Incomplete')
       .required()
