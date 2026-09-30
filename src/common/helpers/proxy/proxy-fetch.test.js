@@ -11,10 +11,21 @@ import {
 import http from 'node:http'
 import net from 'node:net'
 
-import { ProxyAgent } from 'undici'
+import { getGlobalDispatcher, ProxyAgent, setGlobalDispatcher } from 'undici'
 
 import { getProxyAgent, proxyFetch } from './proxy-fetch.js'
 import { config } from '../../../config.js'
+
+const { mockLoggerDebug } = vi.hoisted(() => ({ mockLoggerDebug: vi.fn() }))
+
+vi.mock('../logging/logger.js', () => ({
+  createLogger: () => ({
+    debug: mockLoggerDebug,
+    info: vi.fn(),
+    warn: vi.fn(),
+    error: vi.fn()
+  })
+}))
 
 function listen(server) {
   return new Promise((resolve) => {
@@ -139,5 +150,34 @@ describe('getProxyAgent', () => {
     expect(replacement).not.toBe(superseded)
     expect(closeSpy).toHaveBeenCalled()
     expect(getProxyAgent('http://proxy-b.example:3128')).toBe(replacement)
+  })
+
+  test('hands the global dispatcher to the replacement before closing the superseded agent', () => {
+    const original = getGlobalDispatcher()
+    const superseded = getProxyAgent('http://proxy-c.example:3128')
+    setGlobalDispatcher(superseded)
+
+    try {
+      const replacement = getProxyAgent('http://proxy-d.example:3128')
+
+      expect(getGlobalDispatcher()).toBe(replacement)
+    } finally {
+      setGlobalDispatcher(original)
+    }
+  })
+
+  test('logs, rather than throws, when closing the superseded agent fails', async () => {
+    const superseded = getProxyAgent('http://proxy-e.example:3128')
+    const failure = new Error('close failed')
+    vi.spyOn(superseded, 'close').mockRejectedValue(failure)
+
+    getProxyAgent('http://proxy-f.example:3128')
+
+    await vi.waitFor(() =>
+      expect(mockLoggerDebug).toHaveBeenCalledWith(
+        failure,
+        'Closing the superseded proxy agent failed'
+      )
+    )
   })
 })

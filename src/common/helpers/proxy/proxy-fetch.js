@@ -1,6 +1,14 @@
-import { fetch as undiciFetch, ProxyAgent } from 'undici'
+import {
+  fetch as undiciFetch,
+  getGlobalDispatcher,
+  ProxyAgent,
+  setGlobalDispatcher
+} from 'undici'
 
 import { config } from '../../../config.js'
+import { createLogger } from '../logging/logger.js'
+
+const logger = createLogger()
 
 // Idle sockets are closed after 10s, and never held open longer than 30s even
 // if the server's Keep-Alive header asks for more.
@@ -12,7 +20,9 @@ let cachedProxyUri
 
 /**
  * One ProxyAgent per proxy URI, reused across requests. If the URI changes the
- * superseded agent is closed so its sockets are not leaked.
+ * superseded agent is closed so its sockets are not leaked. If it is still the
+ * global dispatcher (setupProxy() installs it), the replacement takes that slot
+ * first, otherwise every later global fetch would fail with ClientClosedError.
  *
  * `allowH2: false` keeps the tunnelled connection on HTTP/1.1. The same agent is
  * installed as the global dispatcher (see setup-proxy.js), where Node's bundled
@@ -38,7 +48,12 @@ export function getProxyAgent(proxyUri) {
   cachedProxyUri = proxyUri
 
   if (superseded) {
-    superseded.close().catch(() => {})
+    if (getGlobalDispatcher() === superseded) {
+      setGlobalDispatcher(cachedAgent)
+    }
+    superseded.close().catch((error) => {
+      logger.debug(error, 'Closing the superseded proxy agent failed')
+    })
   }
 
   return cachedAgent
