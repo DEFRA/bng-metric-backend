@@ -102,6 +102,16 @@ function proposedCommonFields() {
       .description(
         'Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
       ),
+    strategicSignificanceCategory: Joi.string()
+      .allow(null, '')
+      .description(
+        'Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features.'
+      ),
+    strategicSignificanceScore: Joi.number()
+      .allow(null)
+      .description(
+        'Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1.'
+      ),
     advanceOrDelay: Joi.string()
       .allow(null, '')
       .description(

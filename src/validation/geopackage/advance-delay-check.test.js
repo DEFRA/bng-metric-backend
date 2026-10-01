@@ -5,12 +5,24 @@ import { ERROR_CODES } from './errors.js'
 
 const ADVANCE = 'Habitat created in advance/years'
 const DELAY = 'Delay in starting habitat creation/years'
+const TREE_ADVANCE = 'Habitat Created/Enhanced in advance/years'
+const TREE_DELAY = 'Delay in starting habitat creation/enhancement in years'
 
 function feature(advance, delay, extra = {}) {
   return {
     properties: {
       [ADVANCE]: advance,
       [DELAY]: delay,
+      ...extra
+    }
+  }
+}
+
+function treeFeature(advance, delay, extra = {}) {
+  return {
+    properties: {
+      [TREE_ADVANCE]: advance,
+      [TREE_DELAY]: delay,
       ...extra
     }
   }
@@ -39,9 +51,12 @@ describe('checkAdvanceAndDelayNotBothSet — acceptable input', () => {
     expect(checkAdvanceAndDelayNotBothSet(layers)).toBeNull()
   })
 
-  it('ignores the Urban Trees layer, whose columns are spelled differently', () => {
+  it('returns null for a tree with advance or delay alone', () => {
     const layers = {
-      trees: [feature(5, 5, { 'Tree Ref': 'T-1' })]
+      trees: [
+        treeFeature(5, 0, { 'Tree Ref': 'T-1' }),
+        treeFeature(0, 5, { 'Tree Ref': 'T-2' })
+      ]
     }
     expect(checkAdvanceAndDelayNotBothSet(layers)).toBeNull()
   })
@@ -80,6 +95,34 @@ describe('checkAdvanceAndDelayNotBothSet — both set', () => {
     expect(error.details.count).toBe(2)
     expect(error.message).toContain('HR-1')
     expect(error.message).toContain('WC-1')
+  })
+
+  it('flags a tree using the Urban Trees column names', () => {
+    const layers = { trees: [treeFeature(1, 2, { 'Tree Ref': 'T-1' })] }
+    const error = checkAdvanceAndDelayNotBothSet(layers)
+
+    expect(error.code).toBe(ERROR_CODES.ADVANCE_AND_DELAY_BOTH_SET)
+    expect(error.details.sample).toEqual(['trees Tree Ref T-1'])
+    expect(error.message).toContain(TREE_ADVANCE)
+    expect(error.message).toContain(TREE_DELAY)
+    expect(error.message).not.toContain(ADVANCE)
+  })
+
+  it('names both pairs of columns when habitats and trees both offend', () => {
+    const layers = {
+      areas: [feature(1, 1, { 'Parcel Ref': 'PR-1' })],
+      trees: [treeFeature(1, 1, { 'Tree Ref': 'T-1' })]
+    }
+    const error = checkAdvanceAndDelayNotBothSet(layers)
+
+    expect(error.details.count).toBe(2)
+    expect(error.message).toContain(ADVANCE)
+    expect(error.message).toContain(TREE_ADVANCE)
+  })
+
+  it('does not read the habitat column names on a tree', () => {
+    const layers = { trees: [feature(5, 5, { 'Tree Ref': 'T-1' })] }
+    expect(checkAdvanceAndDelayNotBothSet(layers)).toBeNull()
   })
 
   it('parses the string forms written by QGIS', () => {

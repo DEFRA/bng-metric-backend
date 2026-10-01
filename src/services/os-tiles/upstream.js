@@ -4,11 +4,10 @@
  * The only module that knows the API key exists. Everything downstream — the
  * browser, the report builder — sees an internal URL and nothing else.
  *
- * `fetch` is used deliberately rather than a bespoke HTTP client: on CDP it is
- * backed by undici, and `common/helpers/proxy/setup-proxy.js` — called from
- * `createServer` — installs the platform egress proxy with
- * `setGlobalDispatcher`, so plain `fetch` traverses it with no extra wiring.
- * This is the same reasoning NRF records in its own proxy.
+ * `fetch` is used deliberately rather than a bespoke HTTP client. The default
+ * is `proxyFetch` (`common/helpers/proxy/proxy-fetch.js`), which on CDP sends
+ * the request through the platform egress proxy using undici's own `fetch` and
+ * ProxyAgent, and goes direct when no proxy is configured.
  */
 
 import {
@@ -18,6 +17,7 @@ import {
 import { OsTileError } from './errors.js'
 import { isPlaceableImage } from './image-format.js'
 import { DEFAULT_REQUEST_TIMEOUT_MS, TILE_MATRIX_SET } from './config.js'
+import { proxyFetch } from '../../common/helpers/proxy/proxy-fetch.js'
 
 /**
  * What each request calls itself when it fails.
@@ -37,7 +37,7 @@ const TILE_MATRIX_SET_27700 = 'the 27700 tile matrix set'
  * @param {Function} [fetchImpl]
  * @returns {Promise<{ png: Buffer, contentType: string }>}
  */
-async function fetchTile(config, { z, col, row }, fetchImpl = fetch) {
+async function fetchTile(config, { z, col, row }, fetchImpl = proxyFetch) {
   const { baseUrl, layer, apiKey } = config
   // OS raster ZXY orders the path z/x/y, i.e. column then row.
   const url = `${baseUrl}/${layer}/${z}/${col}/${row}.png?key=${encodeURIComponent(apiKey)}`
@@ -94,7 +94,7 @@ async function fetchTile(config, { z, col, row }, fetchImpl = fetch) {
  */
 async function fetchGrid(
   config,
-  fetchImpl = fetch,
+  fetchImpl = proxyFetch,
   tileMatrixSet = TILE_MATRIX_SET
 ) {
   const { wmtsUrl, apiKey } = config
@@ -124,7 +124,11 @@ async function fetchGrid(
  * @param {Function} [fetchImpl]
  * @returns {Promise<{ pbf: Buffer, contentType: string }>}
  */
-async function fetchVectorTile(config, { z, col, row }, fetchImpl = fetch) {
+async function fetchVectorTile(
+  config,
+  { z, col, row },
+  fetchImpl = proxyFetch
+) {
   const { vectorTilesUrl, apiKey } = config
   const url = `${vectorTilesUrl}/${z}/${row}/${col}?key=${encodeURIComponent(apiKey)}`
   const response = await osFetch(
@@ -157,7 +161,7 @@ async function fetchVectorTile(config, { z, col, row }, fetchImpl = fetch) {
  * @param {Function} [fetchImpl]
  * @returns {Promise<object>} the parsed tile matrix set
  */
-async function fetchVectorGrid(config, fetchImpl = fetch) {
+async function fetchVectorGrid(config, fetchImpl = proxyFetch) {
   const { vectorTileMatrixSetUrl, apiKey } = config
   const url = `${vectorTileMatrixSetUrl}?key=${encodeURIComponent(apiKey)}`
   const response = await osFetch(url, TILE_MATRIX_SET_27700, config, fetchImpl)

@@ -18,6 +18,7 @@ import {
   runProposedCalculation,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
+  proposedStrategicSignificanceForEngine,
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -79,8 +80,7 @@ function calculateAreaWithCandidates(habitatProxy, calculate) {
  * @param {{ type?: string, broadType?: string }} proposedProxy
  * @param {string} baselineCondition
  * @param {string} proposedCondition
- * @param {number} advanceYears
- * @param {number} delayYears
+ * @param {{ advanceYears: number, delayYears: number, strategicSignificance: string | null }} options
  * @returns {object}
  */
 function calculateEnhancedAreaWithCandidates(
@@ -89,8 +89,7 @@ function calculateEnhancedAreaWithCandidates(
   proposedProxy,
   baselineCondition,
   proposedCondition,
-  advanceYears,
-  delayYears
+  { advanceYears, delayYears, strategicSignificance }
 ) {
   let lastError = null
   for (const baseType of engineHabitatTypeCandidates(baselineProxy)) {
@@ -103,7 +102,8 @@ function calculateEnhancedAreaWithCandidates(
           baselineCondition,
           proposedCondition,
           advanceYears,
-          delayYears
+          delayYears,
+          strategicSignificance
         )
       )
       if ('result' in attempt) {
@@ -206,6 +206,11 @@ function buildCreatedAreaCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    habitat,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
   return () =>
     calculateAreaWithCandidates(
       { type: proposed.type, broadType: proposed.broadType },
@@ -215,7 +220,8 @@ function buildCreatedAreaCalculate(
           type,
           proposedCondition,
           advanceYears,
-          delayYears
+          delayYears,
+          strategicSignificance
         )
     )
 }
@@ -239,6 +245,11 @@ function buildEnhancedAreaCalculate(
     )
     return null
   }
+  const strategicSignificance = proposedStrategicSignificanceForEngine(
+    habitat,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
   return () =>
     calculateEnhancedAreaWithCandidates(
       sizeHa,
@@ -246,8 +257,7 @@ function buildEnhancedAreaCalculate(
       { type: proposed.type, broadType: proposed.broadType },
       baselineCondition,
       proposedCondition,
-      advanceYears,
-      delayYears
+      { advanceYears, delayYears, strategicSignificance }
     )
 }
 

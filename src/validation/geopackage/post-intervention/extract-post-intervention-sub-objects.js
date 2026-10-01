@@ -64,7 +64,8 @@ export function parseProposedAdvanceDelayYears(rawValue) {
 
 /**
  * @param {object} props
- * @param {string[]} advanceDelayKeys
+ * @param {{ advanceYears: string[], delayYears: string[] }} [advanceDelayKeys]
+ *   column candidates; defaults to the Habitats/Hedgerows/Rivers names
  */
 export function buildAdvanceDelayFields(
   props,

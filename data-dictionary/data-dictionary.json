@@ -3298,6 +3298,28 @@
       "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
+      "path": "postIntervention.habitats[].proposed.strategicSignificanceCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.strategicSignificanceScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1."
+    },
+    {
       "path": "postIntervention.habitats[].proposed.advanceOrDelay",
       "type": "string",
       "required": false,
@@ -3804,6 +3826,28 @@
       "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
     },
     {
+      "path": "postIntervention.trees[].proposed.strategicSignificanceCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.strategicSignificanceScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1."
+    },
+    {
       "path": "postIntervention.trees[].proposed.advanceOrDelay",
       "type": "string",
       "required": false,
@@ -4132,6 +4176,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.strategicSignificanceCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.strategicSignificanceScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
@@ -4517,6 +4583,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.strategicSignificanceCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.strategicSignificanceScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceOrDelay",
