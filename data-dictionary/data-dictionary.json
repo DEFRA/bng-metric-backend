@@ -1345,7 +1345,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Parcel area in square metres, measured in PostGIS and rounded to the nearest integer. This is the value fed to the unit calculation."
+      "description": "Parcel area in square metres, rounded to the nearest integer, for display. Units are calculated from the unrounded sizeSquareMetres."
     },
     {
       "path": "baseline.habitats[].sizeSquareMetres",
@@ -1356,7 +1356,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Exact parcel area in square metres as measured in PostGIS."
+      "description": "Parcel area in square metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "baseline.habitats[].status",
@@ -1994,7 +1994,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+      "description": "Length in metres (measured size, rounded), for display. Set during unit enrichment; units are calculated from the unrounded sizeMetres."
     },
     {
       "path": "baseline.hedgerows[].sizeMetres",
@@ -2005,7 +2005,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres as measured in PostGIS."
+      "description": "Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "baseline.hedgerows[].status",
@@ -2324,7 +2324,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded). Set during unit enrichment."
+      "description": "Length in metres (measured size, rounded), for display. Set during unit enrichment; units are calculated from the unrounded sizeMetres."
     },
     {
       "path": "baseline.watercourses[].sizeMetres",
@@ -2335,7 +2335,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres as measured in PostGIS."
+      "description": "Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "baseline.watercourses[].status",
@@ -3031,7 +3031,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Parcel area in square metres, rounded to the nearest integer."
+      "description": "Parcel area in square metres, rounded to the nearest integer, for display."
     },
     {
       "path": "postIntervention.habitats[].sizeSquareMetres",
@@ -3042,7 +3042,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Exact parcel area in square metres as measured in PostGIS."
+      "description": "Parcel area in square metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "postIntervention.habitats[].units",
@@ -3944,7 +3944,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded)."
+      "description": "Length in metres (measured size, rounded), for display."
     },
     {
       "path": "postIntervention.hedgerows[].sizeMetres",
@@ -3955,7 +3955,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres as measured in PostGIS."
+      "description": "Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "postIntervention.hedgerows[].units",
@@ -4318,7 +4318,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres (PostGIS size, rounded)."
+      "description": "Length in metres (measured size, rounded), for display."
     },
     {
       "path": "postIntervention.watercourses[].sizeMetres",
@@ -4329,7 +4329,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Length in metres as measured in PostGIS."
+      "description": "Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it."
     },
     {
       "path": "postIntervention.watercourses[].units",

@@ -141,10 +141,12 @@ function postInterventionLinearFeatureFields({ geometryRow }) {
       .description('Feature reference from the GeoPackage.'),
     length: Joi.number()
       .allow(null)
-      .description('Length in metres (PostGIS size, rounded).'),
+      .description('Length in metres (measured size, rounded), for display.'),
     sizeMetres: Joi.number()
       .allow(null)
-      .description('Length in metres as measured in PostGIS.'),
+      .description(
+        'Length in metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it.'
+      ),
     units: Joi.number()
       .allow(null)
       .description(
@@ -228,9 +230,9 @@ const postInterventionHabitatSchema = Joi.object({
     geometryRow: 'bng.post_intervention_habitats',
     refDescription: 'Parcel reference from the GeoPackage (Parcel Ref column).',
     areaDescription:
-      'Parcel area in square metres, rounded to the nearest integer.',
+      'Parcel area in square metres, rounded to the nearest integer, for display.',
     sizeDescription:
-      'Exact parcel area in square metres as measured in PostGIS.',
+      'Parcel area in square metres, measured from the geometry (bng-library/measure), unrounded. Units are priced on it.',
     unitsDescription:
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),

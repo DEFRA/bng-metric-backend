@@ -28,6 +28,7 @@
  * it so the document can say so instead of silently showing a subset.
  */
 
+import { areaSquareMetres } from 'bng-library/measure'
 import { eq, sql } from 'drizzle-orm'
 
 import { config } from '../config.js'
@@ -47,6 +48,12 @@ import {
 
 /** Millimetre precision on a grid measured in metres. */
 const GEOJSON_DECIMALS = 3
+
+/**
+ * Enough decimal places to reproduce any grid coordinate exactly: PostGIS
+ * prints the shortest digits that round-trip, up to this many.
+ */
+const EXACT_GEOJSON_DECIMALS = 15
 
 const FEATURE_TABLES = Object.freeze({
   baseline: {
@@ -110,18 +117,24 @@ async function readLayerGeometry(drizzle, table, projectId, limit) {
 /**
  * The red line, with its area.
  *
- * The area comes from `ST_Area` rather than from the document because no
- * document field holds it: the red line is a boundary, not a habitat, so it
- * carries no `sizeSquareMetres`. PostGIS is also the right place to ask —
- * it is the same engine that computed every parcel size on upload
- * (services/upload/calculate-habitat-sizes.js), so the two agree by
- * construction.
+ * No document field holds the area: the red line is a boundary, not a habitat,
+ * so it carries no `sizeSquareMetres`. It is measured here with
+ * bng-library/measure, the same function that measured every parcel on upload
+ * (validation/geopackage/geos/sizes.js), so the red line and the parcels are
+ * sized by one definition.
+ *
+ * The drawing geometry is rounded to the millimetre, which is plenty for a map
+ * but not for an area, so the area is measured from a second copy at full
+ * precision: 15 decimal places reproduce grid coordinates exactly.
  */
 async function readRedLine(drizzle, table, projectId) {
   const rows = await drizzle
     .select({
       geoJson: geoJsonColumn(table).as('geojson'),
-      areaSqm: sql`ST_Area(${table.geom})`.as('area_sqm')
+      exactGeoJson:
+        sql`ST_AsGeoJSON(${table.geom}, ${EXACT_GEOJSON_DECIMALS})`.as(
+          'exact_geojson'
+        )
     })
     .from(table)
     .where(eq(table.projectId, projectId))
@@ -132,7 +145,7 @@ async function readRedLine(drizzle, table, projectId) {
   }
   return {
     redLine: { geometry: JSON.parse(rows[0].geoJson) },
-    redLineAreaSqm: Number(rows[0].areaSqm)
+    redLineAreaSqm: areaSquareMetres(JSON.parse(rows[0].exactGeoJson))
   }
 }
 

@@ -306,3 +306,22 @@ describe('hedgerow — unknown retention category', () => {
     )
   })
 })
+
+describe('hedgerow — priced on the measured size', () => {
+  it('calculates units from the unrounded sizeMetres, not the rounded length', () => {
+    const whole = makeDoc({ hedgerows: [makeHedgerow()] })
+    const measured = makeDoc({
+      hedgerows: [makeHedgerow({ sizeMetres: 1000.4 })]
+    })
+    enrichPostInterventionDocumentWithUnits(whole)
+    enrichPostInterventionDocumentWithUnits(measured)
+
+    // The metric prices the size as measured, so 0.4 m more
+    // is 0.04% more units, not the same units after rounding.
+    expect(measured.hedgerows[0].units).toBeCloseTo(
+      whole.hedgerows[0].units * 1.0004,
+      12
+    )
+    expect(measured.hedgerows[0].length).toBe(1000)
+  })
+})

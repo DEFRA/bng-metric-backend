@@ -84,6 +84,24 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     })
   })
 
+  it('prices a parcel on its unrounded sizeSquareMetres, not the rounded area', () => {
+    const document = {
+      habitats: [
+        {
+          featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+          type: 'Grassland - Modified grassland',
+          condition: 'Moderate',
+          sizeSquareMetres: 10_000.4,
+          area: 10_000
+        }
+      ]
+    }
+    enrichBaselineDocumentWithUnits(document)
+    // 1.00004 ha × 2 × 2 × 1 — the metric prices the size as measured
+    expect(document.habitats[0].units).toBe(4.00016)
+    expect(document.habitats[0].area).toBe(10_000)
+  })
+
   it('sums only calculable habitat parcels into units.habitatsTotal', () => {
     const document = {
       habitats: [

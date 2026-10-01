@@ -308,6 +308,25 @@ describe('area habitat — unknown retention category', () => {
   })
 })
 
+describe('area habitat — priced on the measured size', () => {
+  it('calculates units from the unrounded sizeSquareMetres, not the rounded area', () => {
+    const whole = makeDoc({ habitats: [makeAreaHabitat()] })
+    const measured = makeDoc({
+      habitats: [makeAreaHabitat({ sizeSquareMetres: 10_000.4, area: 10_000 })]
+    })
+    enrichPostInterventionDocumentWithUnits(whole)
+    enrichPostInterventionDocumentWithUnits(measured)
+
+    // The metric prices the size as measured, so 0.4 m² more
+    // is 0.004% more units, not the same units after rounding.
+    expect(measured.habitats[0].units).toBeCloseTo(
+      whole.habitats[0].units * 1.00004,
+      12
+    )
+    expect(measured.habitats[0].area).toBe(10_000)
+  })
+})
+
 describe('area habitat — invalid size', () => {
   it('skips proposed enrichment when area is missing or not positive', () => {
     const base = makeAreaHabitat({ area: 0, sizeSquareMetres: 0 })

@@ -8,7 +8,7 @@ import {
 
 import { normalizeConditionForEngine } from '../shared/engine-helpers.js'
 import { lookupBaselineLinearLength } from './linear-baseline-length-by-ref.js'
-import { METRES_PER_KM } from '../shared/enrich-units-shared.js'
+import { pricedLengthKm } from '../shared/enrich-units-shared.js'
 import {
   isPresentEngineString,
   hasPositiveLinearSize,
@@ -58,7 +58,7 @@ function enrichLinearBaselineSide(feature, config) {
   }
 
   feature.length = Math.round(feature.sizeMetres)
-  const lengthKm = feature.length / METRES_PER_KM
+  const lengthKm = pricedLengthKm(feature.sizeMetres)
 
   try {
     const result = config.calculate(lengthKm, type, condition, {
@@ -240,7 +240,7 @@ function prepareHedgerowProposedContext(hedgerow) {
     proposedCondition: normalizeConditionForEngine(proposed.condition),
     advanceYears: proposed.advanceYears ?? 0,
     delayYears: proposed.delayYears ?? 0,
-    lengthKm: hedgerow.length / METRES_PER_KM
+    lengthKm: pricedLengthKm(hedgerow.sizeMetres)
   }
 }
 

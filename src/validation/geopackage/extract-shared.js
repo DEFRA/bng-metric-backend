@@ -42,7 +42,7 @@ export function areaFromSizeSquareMetres(sizeSquareMetres) {
 }
 
 /**
- * Embed the PostGIS-measured parcel sizes onto each area-habitat document.
+ * Embed the measured parcel sizes onto each area-habitat document.
  * featureId is the join key between the sizes result and the documents.
  *
  * @param {object[]} habitatDocuments
@@ -93,7 +93,7 @@ function embedRoundedLinearFeatureSizes(documents, sizeEntries) {
 }
 
 /**
- * Build the persisted habitat-size summary from the PostGIS parcel/linear totals
+ * Build the persisted habitat-size summary from the measured parcel/linear totals
  * plus the notional tree sizes. Trees are a special area habitat: their area is
  * summed into the headline `areaHabitats` total but excluded from `site` (the
  * figure compared against the red line boundary).

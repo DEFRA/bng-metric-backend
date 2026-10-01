@@ -81,7 +81,7 @@ export async function validateGeoPackageLayersGeos(layers, options = {}) {
     }
     payloads = runChecks(loaded, runtime)
     if (options.includeSizes) {
-      sizes = measureLayers(loaded, runtime)
+      sizes = measureLayers(loaded)
     }
   } finally {
     // Owned WebAssembly memory, so `finally` rather than a happy-path free: a

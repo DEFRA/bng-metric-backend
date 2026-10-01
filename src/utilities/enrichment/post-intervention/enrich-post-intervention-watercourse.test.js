@@ -314,3 +314,22 @@ describe('watercourse — unknown retention category', () => {
     )
   })
 })
+
+describe('watercourse — priced on the measured size', () => {
+  it('calculates units from the unrounded sizeMetres, not the rounded length', () => {
+    const whole = makeDoc({ watercourses: [makeWatercourse()] })
+    const measured = makeDoc({
+      watercourses: [makeWatercourse({ sizeMetres: 1000.4 })]
+    })
+    enrichPostInterventionDocumentWithUnits(whole)
+    enrichPostInterventionDocumentWithUnits(measured)
+
+    // The metric prices the size as measured, so 0.4 m more
+    // is 0.04% more units, not the same units after rounding.
+    expect(measured.watercourses[0].units).toBeCloseTo(
+      whole.watercourses[0].units * 1.0004,
+      12
+    )
+    expect(measured.watercourses[0].length).toBe(1000)
+  })
+})

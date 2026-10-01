@@ -27,6 +27,8 @@ import { toBritishNationalGrid } from './reproject.js'
  * @property {string|null} featureRef Parcel Ref / Tree Ref / Baseline Parcel Ref
  * @property {number} geom GEOS pointer to the geometry as supplied
  * @property {number} valid GEOS pointer to the MakeValid-repaired geometry
+ * @property {object} projected the geometry as supplied, as GeoJSON in
+ *   EPSG:27700 — what sizes.js measures
  * @property {number[]} bbox [minX, minY, maxX, maxY] in EPSG:27700
  */
 
@@ -186,6 +188,7 @@ export function loadLayer(features, runtime) {
       featureRef: featureRefOf(feature.properties),
       geom,
       valid: runtime.makeValid(geom),
+      projected,
       bbox: bbox(projected)
     })
   })

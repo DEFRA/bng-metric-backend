@@ -99,15 +99,41 @@ describe('#readProjectGeometry', () => {
     expect(geometry.layers.watercourses).toEqual([])
   })
 
-  test('returns the red line with the area PostGIS measured', async () => {
+  test('returns the red line with its area, measured as parcels are', async () => {
     const geometry = await readWith([
-      ['redLine', [{ geoJson: JSON.stringify(POLYGON), areaSqm: '120000' }]]
+      [
+        'redLine',
+        [
+          {
+            geoJson: JSON.stringify(POLYGON),
+            exactGeoJson: JSON.stringify(POLYGON)
+          }
+        ]
+      ]
     ])
 
     expect(geometry.redLine).toEqual({ geometry: POLYGON })
-    // pg returns numerics as strings; a string area would format as NaN
-    // hectares on the page rather than failing.
-    expect(geometry.redLineAreaSqm).toBe(120000)
+    // A right triangle with 100 m legs
+    expect(geometry.redLineAreaSqm).toBe(5000)
+  })
+
+  test('measures the red line from its full-precision copy, not the map one', async () => {
+    const rounded = structuredClone(POLYGON)
+    rounded.coordinates[0][0][1][0] = 412100.001
+    const geometry = await readWith([
+      [
+        'redLine',
+        [
+          {
+            geoJson: JSON.stringify(rounded),
+            exactGeoJson: JSON.stringify(POLYGON)
+          }
+        ]
+      ]
+    ])
+
+    expect(geometry.redLine).toEqual({ geometry: rounded })
+    expect(geometry.redLineAreaSqm).toBe(5000)
   })
 
   test('reports no red line rather than throwing when a project has none', async () => {

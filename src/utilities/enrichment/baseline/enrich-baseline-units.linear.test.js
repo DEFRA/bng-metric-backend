@@ -62,7 +62,7 @@ describe('enrichBaselineDocumentWithUnits — hedgerows', () => {
     expect(document.units.hedgerowsTotal).toBeCloseTo(9)
   })
 
-  it('rounds a fractional sizeMetres to an integer length for hedgerows', () => {
+  it('prices a hedgerow on its unrounded length, rounding only the displayed length', () => {
     const document = {
       hedgerows: [
         {
@@ -75,8 +75,8 @@ describe('enrichBaselineDocumentWithUnits — hedgerows', () => {
     enrichBaselineDocumentWithUnits(document)
     const hedgerowLengthMetres = document.hedgerows[0].length
     expect(hedgerowLengthMetres).toBe(501)
-    // 501 m = 0.501 km × 6 × 3 × 1 = 9.018
-    expect(document.hedgerows[0].units).toBeCloseTo(9.018)
+    // 500.7 m = 0.5007 km × 6 × 3 × 1 = 9.0126, not the 9.018 of 501 m
+    expect(document.hedgerows[0].units).toBe(9.0126)
   })
 
   it('skips hedgerow enrichment when sizeMetres is missing', () => {
@@ -172,7 +172,7 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
     expect(document.units.watercoursesTotal).toBeCloseTo(24)
   })
 
-  it('rounds a fractional sizeMetres to an integer length for watercourses', () => {
+  it('prices a watercourse on its unrounded length, rounding only the displayed length', () => {
     const document = {
       watercourses: [
         {
@@ -185,8 +185,8 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
     enrichBaselineDocumentWithUnits(document)
     const watercourseLengthMetres = document.watercourses[0].length
     expect(watercourseLengthMetres).toBe(1000)
-    // 1000 m = 1 km × 8 × 3 × 1 = 24 units (rounding down)
-    expect(document.watercourses[0].units).toBeCloseTo(24)
+    // 1000.4 m = 1.0004 km × 8 × 3 × 1 = 24.0096, not the 24 of 1000 m
+    expect(document.watercourses[0].units).toBe(24.0096)
   })
 
   it('applies encroachment multipliers when present on the watercourse record', () => {

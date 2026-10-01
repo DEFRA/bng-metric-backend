@@ -3,9 +3,10 @@
  *
  * This used to be a second PostGIS round trip that re-parsed and re-repaired
  * every geometry purely to call ST_Area / ST_Length on it — a fourth pass over
- * shapes the validator had already parsed, repaired and measured. The GEOS
- * worker holds the repaired geometry at the moment it finishes checking, so the
- * numbers now cost a pointer dereference each and come back with the verdict.
+ * shapes the validator had already parsed and repaired. The validation worker
+ * holds every feature's geometry at the moment it finishes checking, so it
+ * measures them there, with bng-library/measure, and the sizes come back with
+ * the verdict.
  *
  * What is left here is the join. The worker keys its measurements by a feature's
  * position within its layer, because that is all it can know: `featureId` is

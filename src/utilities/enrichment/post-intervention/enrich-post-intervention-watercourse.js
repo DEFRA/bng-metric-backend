@@ -10,7 +10,7 @@ import {
   resolvedWatercourseEncroachments
 } from '../shared/engine-helpers.js'
 import { lookupBaselineLinearLength } from './linear-baseline-length-by-ref.js'
-import { METRES_PER_KM } from '../shared/enrich-units-shared.js'
+import { pricedLengthKm } from '../shared/enrich-units-shared.js'
 import {
   isPresentEngineString,
   hasPositiveLinearSize,
@@ -221,7 +221,7 @@ function prepareWatercourseProposedContext(watercourse) {
     proposedCondition: normalizeConditionForEngine(proposed.condition),
     advanceYears: proposed.advanceYears ?? 0,
     delayYears: proposed.delayYears ?? 0,
-    lengthKm: watercourse.length / METRES_PER_KM
+    lengthKm: pricedLengthKm(watercourse.sizeMetres)
   }
 }
 

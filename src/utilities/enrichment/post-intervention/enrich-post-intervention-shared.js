@@ -7,6 +7,7 @@ import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
 import { applyProposedTimeDifficultyDisplayFields } from './proposed-time-difficulty-display.js'
 import { GPKG_RETENTION_LOST } from './retention-category.js'
+import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
 
 export { isPresentEngineString } from '../shared/is-present-engine-string.js'
 export {
@@ -41,8 +42,7 @@ export function hasPositiveLinearSize(sizeMetres) {
  * @returns {boolean}
  */
 export function hasValidAreaHabitatSize(habitat) {
-  const { area } = habitat
-  return typeof area === 'number' && Number.isFinite(area) && area > 0
+  return pricedAreaHectares(habitat) !== null
 }
 
 // ---------------------------------------------------------------------------
