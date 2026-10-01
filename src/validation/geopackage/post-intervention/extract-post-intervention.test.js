@@ -561,6 +561,110 @@ describe('extractPostIntervention — hedgerow nested structure', () => {
   })
 })
 
+// BMD-1038 — hedgerows read their strategic significance from the GeoPackage,
+// as area habitats and watercourses do. Before, the Proposed Strategic
+// Significance column was never read for hedgerows, so every created or
+// enhanced hedgerow was priced at Low (×1), whatever the file said.
+describe('extractPostIntervention — hedgerow strategic significance', () => {
+  const HIGH = 'Formally identified in local strategy'
+  const LOW = 'Area/compensation not in local strategy/ no local strategy'
+  const HIGH_MULTIPLIER = 1.15
+  const LENGTH_METRES = 1000
+  const DECIMAL_PLACES = 10
+
+  const createdHedgerow = (strategicSignificance) =>
+    feature(
+      {
+        [PARCEL_REF]: 'HW1',
+        'Retention Category': 'Created',
+        'Baseline Strategic Significance': 'N/A',
+        'Proposed Hedge Type': 'Native hedgerow',
+        'Proposed Condition': 'Good',
+        'Proposed Strategic Significance': strategicSignificance,
+        'Habitat created in advance/years': '0',
+        'Delay in starting habitat creation/years': '0'
+      },
+      SAMPLE_LINESTRING
+    )
+
+  const extractHedgerows = (...hedgerows) =>
+    extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows,
+      watercourses: []
+    })
+
+  /** Price one created hedgerow from its GeoPackage columns. */
+  function pricedHedgerow(strategicSignificance) {
+    const out = extractHedgerows(createdHedgerow(strategicSignificance))
+    const hedge = out.document.hedgerows[0]
+    hedge.sizeMetres = LENGTH_METRES
+    enrichPostInterventionDocumentWithUnits(out.document, { warn: () => {} })
+    return hedge
+  }
+
+  it('reads Baseline and Proposed Strategic Significance', () => {
+    const out = extractHedgerows(
+      feature(
+        {
+          [PARCEL_REF]: 'HW1',
+          'Retention Category': 'Enhanced',
+          'Baseline Hedge Type': 'Native hedgerow',
+          'Baseline Condition': 'Moderate',
+          'Baseline Strategic Significance': LOW,
+          'Proposed Hedge Type': 'Native hedgerow',
+          'Proposed Condition': 'Good',
+          'Proposed Strategic Significance': HIGH
+        },
+        SAMPLE_LINESTRING
+      )
+    )
+
+    const hedge = out.document.hedgerows[0]
+    expect(hedge.baseline.strategicSignificance).toBe(LOW)
+    expect(hedge.proposed.strategicSignificance).toBe(HIGH)
+  })
+
+  it('copies the baseline value onto an empty proposed side for a Retained hedgerow', () => {
+    const out = extractHedgerows(
+      feature(
+        {
+          [PARCEL_REF]: 'HW1',
+          'Retention Category': 'Retained',
+          'Baseline Hedge Type': 'Native hedgerow',
+          'Baseline Condition': 'Moderate',
+          'Baseline Strategic Significance': LOW,
+          'Proposed Hedge Type': 'N/A',
+          'Proposed Condition': 'N/A'
+        },
+        SAMPLE_LINESTRING
+      )
+    )
+
+    expect(out.document.hedgerows[0].proposed.strategicSignificance).toBe(LOW)
+  })
+
+  it('prices a created hedgerow at the Proposed Strategic Significance in the file', () => {
+    const high = pricedHedgerow(HIGH)
+    const low = pricedHedgerow(LOW)
+
+    expect(high.proposed.strategicSignificanceCategory).toBe('High')
+    expect(high.proposed.strategicSignificanceScore).toBe(HIGH_MULTIPLIER)
+    expect(high.units).toBeCloseTo(low.units * HIGH_MULTIPLIER, DECIMAL_PLACES)
+  })
+
+  it('produces hedgerows that satisfy the post-intervention schema', () => {
+    const { error } = postInterventionDataSchema.validate({
+      importedAt: '2026-01-01T00:00:00.000Z',
+      habitats: [],
+      hedgerows: [pricedHedgerow(HIGH)],
+      watercourses: []
+    })
+    expect(error).toBeUndefined()
+  })
+})
+
 describe('extractPostIntervention — watercourse nested structure', () => {
   it('places encroachments in both baseline and proposed sub-objects', () => {
     const out = extractPostIntervention({

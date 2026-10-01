@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 351 schema fields.
+**22 tables**, mapping 353 schema fields.
 
 ## Diagram
 
@@ -729,7 +729,7 @@ trees in the postIntervention document. 42 column(s) mapped from the JSON docume
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 27 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 29 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -746,6 +746,7 @@ hedgerows in the postIntervention document. 27 column(s) mapped from the JSON do
 | `baseline_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].baseline.conditionScore`                |                                                                                  |
 | `baseline_distinctiveness`                   | `text`    |     | `postIntervention.hedgerows[].baseline.distinctiveness`               |                                                                                  |
 | `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].baseline.strategicSignificance`         |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.hedgerows[].proposed.type`                          |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.hedgerows[].proposed.condition`                     |                                                                                  |
 | `proposed_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.conditionScore`                |                                                                                  |
@@ -761,6 +762,7 @@ hedgerows in the postIntervention document. 27 column(s) mapped from the JSON do
 | `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.hedgerows[].proposed.strategicSignificanceScore`    |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.hedgerows[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.hedgerows[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].proposed.strategicSignificance`         |                                                                                  |
 | `properties`                                 | `jsonb`   |     | `postIntervention.hedgerows[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_watercourses`
