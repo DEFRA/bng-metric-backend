@@ -4046,6 +4046,17 @@
       "description": "Numeric distinctiveness score for the band, from bng-library/metric."
     },
     {
+      "path": "postIntervention.hedgerows[].baseline.strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline Strategic Significance from the GeoPackage."
+    },
+    {
       "path": "postIntervention.hedgerows[].proposed",
       "type": "object",
       "required": false,
@@ -4220,6 +4231,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed Strategic Significance from the GeoPackage."
     },
     {
       "path": "postIntervention.hedgerows[].properties",

@@ -340,7 +340,10 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Baseline hedgerow type from Baseline Hedge Type column.'),
-  ...baselineCommonFields()
+  ...baselineCommonFields(),
+  strategicSignificance: Joi.string()
+    .allow(null, '')
+    .description('Baseline Strategic Significance from the GeoPackage.')
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
 )
@@ -349,7 +352,10 @@ const postInterventionLinearProposedSubSchema = Joi.object({
   type: Joi.string()
     .allow(null, '')
     .description('Proposed hedgerow type from Proposed Hedge Type column.'),
-  ...proposedCommonFields()
+  ...proposedCommonFields(),
+  strategicSignificance: Joi.string()
+    .allow(null, '')
+    .description('Proposed Strategic Significance from the GeoPackage.')
 }).description(
   'Proposed hedgerow values from the Proposed * GeoPackage columns.'
 )

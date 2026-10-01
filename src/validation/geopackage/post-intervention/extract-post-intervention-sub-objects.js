@@ -130,7 +130,8 @@ export function buildLinearBaselineSubObject(props, typeKey) {
   return {
     type: pickProp(props, typeKey),
     condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
-    ...emptyHabitatScoreFields()
+    ...emptyHabitatScoreFields(),
+    strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance)
   }
 }
 
@@ -146,6 +147,10 @@ export function buildLinearProposedSubObject(props, typeKey) {
       pickProp(props, PROPOSED_PROP_KEYS.condition)
     ),
     ...emptyHabitatScoreFields(),
+    strategicSignificance: pickProp(
+      props,
+      PROPOSED_PROP_KEYS.strategicSignificance
+    ),
     ...buildAdvanceDelayFields(props)
   }
 }

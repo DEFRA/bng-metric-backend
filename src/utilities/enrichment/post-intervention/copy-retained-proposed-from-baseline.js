@@ -19,7 +19,8 @@ export const RETAINED_AREA_PROPOSED_FIELDS = Object.freeze([
 /** Identity fields copied for hedgerows. */
 export const RETAINED_HEDGEROW_PROPOSED_FIELDS = Object.freeze([
   'type',
-  'condition'
+  'condition',
+  'strategicSignificance'
 ])
 
 /** Identity fields copied for watercourses. */
