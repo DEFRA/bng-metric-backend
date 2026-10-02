@@ -8,6 +8,7 @@
  * what assistive technology reads, so it is the thing worth pinning.
  */
 
+import { OVER_MAX_YEARS } from 'bng-library/metric'
 import PDFDocument from 'pdfkit'
 import { describe, expect, test } from 'vitest'
 
@@ -143,6 +144,16 @@ describe('#cardValues', () => {
       cardValues({ properties: { standardTimeToTargetCondition: '10' } })
         .standardTimeToTargetCondition
     ).toBe('10 years')
+  })
+
+  test('words the engine\'s ">30" standard as the metric does', () => {
+    // Every "30+" habitat (woodland, trees, lines of trees) has this standard
+    // since BMD-1040; printing the raw lookup key means nothing to a reader.
+    expect(
+      cardValues({
+        properties: { standardTimeToTargetCondition: OVER_MAX_YEARS }
+      }).standardTimeToTargetCondition
+    ).toBe('30+ years')
   })
 
   test('leaves already-worded time values alone', () => {

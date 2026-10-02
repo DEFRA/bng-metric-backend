@@ -31,6 +31,8 @@
  * missing, whereas a shorter card simply says less.
  */
 
+import { MAX_YEARS_PLUS, OVER_MAX_YEARS } from 'bng-library/metric'
+
 import { HABITAT_STYLES } from './map.js'
 import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
 import {
@@ -545,10 +547,16 @@ function withScore(value, score) {
  *
  * Anything the engine has already worded contains something other than a
  * number, so it fails the parse and passes through untouched.
+ *
+ * The one non-numeric standard is the engine's ">30" key, which the metric
+ * words "30+".
  */
 function yearsOrNull(value) {
   if (value === null || value === undefined || String(value).trim() === '') {
     return null
+  }
+  if (value === OVER_MAX_YEARS) {
+    return `${MAX_YEARS_PLUS} years`
   }
   const years = Number(value)
   if (Number.isFinite(years)) {
