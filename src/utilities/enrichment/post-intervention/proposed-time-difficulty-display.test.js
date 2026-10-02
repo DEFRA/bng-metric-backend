@@ -1,3 +1,4 @@
+import { OVER_MAX_YEARS } from 'bng-library/metric'
 import { describe, expect, it } from 'vitest'
 
 import {
@@ -6,7 +7,6 @@ import {
   resolveFinalTimeToTargetCondition
 } from './proposed-time-difficulty-display.js'
 
-const OVER_MAX_YEARS = '>30'
 const MULTIPLIER_30_PLUS = 0.3197967361
 const MULTIPLIER_29 = 0.3558705807
 

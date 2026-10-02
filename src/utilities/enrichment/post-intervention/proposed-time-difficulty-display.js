@@ -1,11 +1,9 @@
-import { MAX_YEARS, MAX_YEARS_PLUS, MIN_YEARS } from 'bng-library/metric'
-
-/**
- * bng-library/metric's time-to-target key for the metric's "30+" (more than
- * 30 years). Since BMD-1040 it is the standard time to target of every "30+"
- * habitat, as well as the key a delay past 30 years produces.
- */
-export const OVER_MAX_YEARS = '>30'
+import {
+  MAX_YEARS,
+  MAX_YEARS_PLUS,
+  MIN_YEARS,
+  OVER_MAX_YEARS
+} from 'bng-library/metric'
 
 /**
  * Shared display-field helpers for post-intervention `proposed` time/difficulty

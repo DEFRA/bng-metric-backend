@@ -31,9 +31,8 @@
  * missing, whereas a shorter card simply says less.
  */
 
-import { MAX_YEARS_PLUS } from 'bng-library/metric'
+import { MAX_YEARS_PLUS, OVER_MAX_YEARS } from 'bng-library/metric'
 
-import { OVER_MAX_YEARS } from '../../../utilities/enrichment/post-intervention/proposed-time-difficulty-display.js'
 import { HABITAT_STYLES } from './map.js'
 import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
 import {
