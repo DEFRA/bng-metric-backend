@@ -6,6 +6,10 @@ import {
   resolveFinalTimeToTargetCondition
 } from './proposed-time-difficulty-display.js'
 
+const OVER_MAX_YEARS = '>30'
+const MULTIPLIER_30_PLUS = 0.3197967361
+const MULTIPLIER_29 = 0.3558705807
+
 describe('resolveAdvanceOrDelay', () => {
   it('returns Advance when advance exceeds delay', () => {
     expect(resolveAdvanceOrDelay(5, 2)).toBe('Advance - 3 years')
@@ -86,15 +90,51 @@ describe('resolveFinalTimeToTargetCondition', () => {
     ).toBe('0 years (1)')
   })
 
-  it('clamps to 30 when delay years push the total past the maximum', () => {
+  it('words a delay past the maximum as "30+", as the metric does', () => {
+    // bng-library/metric uses the "30+" multiplier here, not the 30-year one.
     expect(
       resolveFinalTimeToTargetCondition({
         standardTimeToTargetCondition: '25',
         advanceYears: 0,
         delayYears: 30,
-        timeMultiplier: 0.01
+        timeMultiplier: MULTIPLIER_30_PLUS
       })
-    ).toBe('30 years (0.01)')
+    ).toBe(`30+ years (${MULTIPLIER_30_PLUS})`)
+  })
+
+  describe('a "30+" standard time to target (BMD-1040)', () => {
+    it('stays "30+" with no advance or delay', () => {
+      expect(
+        resolveFinalTimeToTargetCondition({
+          standardTimeToTargetCondition: OVER_MAX_YEARS,
+          advanceYears: 0,
+          delayYears: 0,
+          timeMultiplier: MULTIPLIER_30_PLUS
+        })
+      ).toBe(`30+ years (${MULTIPLIER_30_PLUS})`)
+    })
+
+    it('counts down from 30 when advanced', () => {
+      expect(
+        resolveFinalTimeToTargetCondition({
+          standardTimeToTargetCondition: OVER_MAX_YEARS,
+          advanceYears: 1,
+          delayYears: 0,
+          timeMultiplier: MULTIPLIER_29
+        })
+      ).toBe(`29 years (${MULTIPLIER_29})`)
+    })
+
+    it('stays "30+" when delayed', () => {
+      expect(
+        resolveFinalTimeToTargetCondition({
+          standardTimeToTargetCondition: OVER_MAX_YEARS,
+          advanceYears: 0,
+          delayYears: 2,
+          timeMultiplier: MULTIPLIER_30_PLUS
+        })
+      ).toBe(`30+ years (${MULTIPLIER_30_PLUS})`)
+    })
   })
 })
 
@@ -109,6 +149,21 @@ describe('applyProposedTimeDifficultyDisplayFields', () => {
     applyProposedTimeDifficultyDisplayFields(proposed)
     expect(proposed.advanceOrDelay).toBe('Advance - 3 years')
     expect(proposed.finalTimeToTargetCondition).toBe('7 years (1)')
+  })
+
+  it('writes the final time for an advanced "30+" habitat', () => {
+    // Before BMD-1040 the standard was "30"; now it is ">30", and an advanced
+    // tree or line of trees lost its final time to target entirely.
+    const proposed = {
+      advanceYears: 1,
+      delayYears: 0,
+      standardTimeToTargetCondition: OVER_MAX_YEARS,
+      timeMultiplier: MULTIPLIER_29
+    }
+    applyProposedTimeDifficultyDisplayFields(proposed)
+    expect(proposed.finalTimeToTargetCondition).toBe(
+      `29 years (${MULTIPLIER_29})`
+    )
   })
 
   it('writes only advanceOrDelay when final-time inputs are incomplete', () => {

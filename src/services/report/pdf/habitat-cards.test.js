@@ -145,6 +145,15 @@ describe('#cardValues', () => {
     ).toBe('10 years')
   })
 
+  test('words the engine\'s ">30" standard as the metric does', () => {
+    // Every "30+" habitat (woodland, trees, lines of trees) has this standard
+    // since BMD-1040; printing the raw lookup key means nothing to a reader.
+    expect(
+      cardValues({ properties: { standardTimeToTargetCondition: '>30' } })
+        .standardTimeToTargetCondition
+    ).toBe('30+ years')
+  })
+
   test('leaves already-worded time values alone', () => {
     // finalTimeToTargetCondition arrives phrased, with the time multiplier the
     // engine used: it contains more than a number, so it passes through.

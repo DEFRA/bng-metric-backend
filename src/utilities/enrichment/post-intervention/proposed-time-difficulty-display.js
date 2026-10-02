@@ -1,4 +1,11 @@
-import { MAX_YEARS, MIN_YEARS } from 'bng-library/metric'
+import { MAX_YEARS, MAX_YEARS_PLUS, MIN_YEARS } from 'bng-library/metric'
+
+/**
+ * bng-library/metric's time-to-target key for the metric's "30+" (more than
+ * 30 years). Since BMD-1040 it is the standard time to target of every "30+"
+ * habitat, as well as the key a delay past 30 years produces.
+ */
+export const OVER_MAX_YEARS = '>30'
 
 /**
  * Shared display-field helpers for post-intervention `proposed` time/difficulty
@@ -15,25 +22,6 @@ function finiteYearsOrZero(value) {
     return value
   }
   return 0
-}
-
-/**
- * Clamp to the same [MIN_YEARS, MAX_YEARS] range bng-library/metric applies
- * before computing timeMultiplier, so the displayed years never contradict
- * the multiplier shown alongside them (e.g. never negative when advance
- * years already meet or exceed the statutory target).
- *
- * @param {number} years
- * @returns {number}
- */
-function clampToStatutoryYearsRange(years) {
-  if (years < MIN_YEARS) {
-    return MIN_YEARS
-  }
-  if (years > MAX_YEARS) {
-    return MAX_YEARS
-  }
-  return years
 }
 
 /**
@@ -77,10 +65,32 @@ export function resolveAdvanceOrDelay(advanceYears, delayYears) {
 }
 
 /**
+ * Final years as the metric words them, using the same rule bng-library/metric
+ * applies before choosing timeMultiplier (metric tabs A-2 column S, A-3 column
+ * AH, B-2 column Q), so the displayed years never contradict the multiplier
+ * shown alongside them:
+ * - a "30+" standard with no advance stays "30+";
+ * - with an advance it counts down from 30, never below MIN_YEARS;
+ * - anything a delay pushes past MAX_YEARS is "30+".
+ *
+ * @param {number} standardYears - 30 for a "30+" standard
+ * @param {boolean} isOverMaxStandard - true when the standard is "30+"
+ * @param {number} advance
+ * @param {number} delay
+ * @returns {number | string}
+ */
+function resolveFinalYears(standardYears, isOverMaxStandard, advance, delay) {
+  const finalYears = standardYears - advance + delay
+  if ((isOverMaxStandard && advance === 0) || finalYears > MAX_YEARS) {
+    return MAX_YEARS_PLUS
+  }
+  return Math.max(finalYears, MIN_YEARS)
+}
+
+/**
  * Final time-to-target display for the UI.
- * Format: "{standard - advance + delay} years (timeMultiplier)", clamped to
- * [MIN_YEARS, MAX_YEARS] so it always agrees with the years bng-library/metric
- * actually used to derive timeMultiplier.
+ * Format: "{standard - advance + delay} years (timeMultiplier)", worded as
+ * "30+ years" where the metric uses its "30+" multiplier.
  *
  * @param {{
  *   standardTimeToTargetCondition: unknown,
@@ -96,18 +106,22 @@ export function resolveFinalTimeToTargetCondition({
   delayYears,
   timeMultiplier
 }) {
-  const standardYears = parseStandardYears(standardTimeToTargetCondition)
+  const isOverMaxStandard = standardTimeToTargetCondition === OVER_MAX_YEARS
+  const standardYears = isOverMaxStandard
+    ? MAX_YEARS
+    : parseStandardYears(standardTimeToTargetCondition)
   const hasValidTimeMultiplier =
     typeof timeMultiplier === 'number' && Number.isFinite(timeMultiplier)
-  if (standardYears !== null && hasValidTimeMultiplier) {
-    const finalYears = clampToStatutoryYearsRange(
-      standardYears -
-        finiteYearsOrZero(advanceYears) +
-        finiteYearsOrZero(delayYears)
-    )
-    return `${finalYears} years (${timeMultiplier})`
+  if (standardYears === null || !hasValidTimeMultiplier) {
+    return null
   }
-  return null
+  const finalYears = resolveFinalYears(
+    standardYears,
+    isOverMaxStandard,
+    finiteYearsOrZero(advanceYears),
+    finiteYearsOrZero(delayYears)
+  )
+  return `${finalYears} years (${timeMultiplier})`
 }
 
 /**
