@@ -77,20 +77,24 @@ import { habitatByIdColumns } from '../db/project-features.js'
  *       the trading rules. These are **derived per request** from the unit
  *       figures on the document, not stored — so they cannot go stale, and no
  *       client has to work them out. Read
- *       `tradingRuleStatuses.areaHabitats.overall` or
- *       `tradingRuleStatuses.watercourses.overall` to display a verdict: each
- *       is the only field of its module that is safe alone, because the Low
- *       band figure deliberately ignores a Medium deficit the statutory metric
- *       nets off, and is sound only when paired with the Medium band.
- *       `medium` and `low` are exposed for reporting. For area habitats they
- *       are `null` where no post-intervention file has been uploaded. For
- *       watercourses a band is `null` there unless the baseline holds a
- *       watercourse of that distinctiveness, in which case the band and the
- *       overall status are "Not met". Every value is `null` — `overall`
- *       included — where a file was uploaded but its figures were never
- *       calculated, or where the post-intervention file has watercourses and
- *       the baseline has none: the verdict is unknown or not applicable,
- *       which is not the same as failed.
+ *       `tradingRuleStatuses.areaHabitats.overall`,
+ *       `tradingRuleStatuses.watercourses.overall` or
+ *       `tradingRuleStatuses.hedgerows.overall` to display a verdict: each
+ *       is the only field of its module that is safe alone, because a lower
+ *       band can pass while a higher one fails. The band statuses (`medium`,
+ *       `low`, and for hedgerows `veryLow`) are exposed for reporting. For
+ *       area habitats they are `null` where no post-intervention file has
+ *       been uploaded. For watercourses a band is `null` there unless the
+ *       baseline holds a watercourse of that distinctiveness, in which case
+ *       the band and the overall status are "Not met". For hedgerows every
+ *       band is `null` there and the overall status is "Not met"; once both
+ *       files are uploaded, `medium` is `null` unless a Medium hedgerow type
+ *       appears on either side, and `low` and `veryLow` are `null` unless the
+ *       baseline holds a hedgerow of that band. Every value is `null` —
+ *       `overall` included — where a file was uploaded but its figures were
+ *       never calculated, or where the baseline has no watercourses (or
+ *       hedgerows) to trade: the verdict is unknown or not applicable, which
+ *       is not the same as failed.
  *     security:
  *       - bearerAuth: []
  *     parameters:
@@ -146,6 +150,25 @@ import { habitatByIdColumns } from '../db/project-features.js'
  *                           nullable: true
  *                           enum: [Met, Not met]
  *                         low:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                         overall:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                     hedgerows:
+ *                       type: object
+ *                       properties:
+ *                         medium:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                         low:
+ *                           type: string
+ *                           nullable: true
+ *                           enum: [Met, Not met]
+ *                         veryLow:
  *                           type: string
  *                           nullable: true
  *                           enum: [Met, Not met]

@@ -23,7 +23,8 @@ describe('#toProjectResponse', () => {
       projectId: PROJECT_ID,
       tradingRuleStatuses: {
         areaHabitats: { medium: null, low: null, overall: 'Not met' },
-        watercourses: { medium: null, low: null, overall: null }
+        watercourses: { medium: null, low: null, overall: null },
+        hedgerows: { medium: null, low: null, veryLow: null, overall: null }
       }
     })
   })
@@ -95,6 +96,25 @@ describe('#toProjectResponse', () => {
         medium: null,
         low: null,
         overall: null
+      })
+    })
+
+    it('derives the hedgerow statuses against the stored baseline', () => {
+      // Hedgerows on the baseline and no post-intervention file: nothing has
+      // been delivered to trade against.
+      const response = toProjectResponse({
+        ...row,
+        project: {
+          ...row.project,
+          baseline: { hedgerows: [{ type: 'Native hedgerow' }] }
+        }
+      })
+
+      expect(response.tradingRuleStatuses.hedgerows).toEqual({
+        medium: null,
+        low: null,
+        veryLow: null,
+        overall: 'Not met'
       })
     })
 

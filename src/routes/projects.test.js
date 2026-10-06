@@ -337,7 +337,8 @@ describe('#createProject', () => {
       projectId: newProject.id,
       tradingRuleStatuses: {
         areaHabitats: { medium: null, low: null, overall: 'Not met' },
-        watercourses: { medium: null, low: null, overall: null }
+        watercourses: { medium: null, low: null, overall: null },
+        hedgerows: { medium: null, low: null, veryLow: null, overall: null }
       }
     })
   })
@@ -486,7 +487,8 @@ describe('#getProject', () => {
       projectId: PROJECT_1_ID,
       tradingRuleStatuses: {
         areaHabitats: { medium: null, low: null, overall: 'Not met' },
-        watercourses: { medium: null, low: null, overall: null }
+        watercourses: { medium: null, low: null, overall: null },
+        hedgerows: { medium: null, low: null, veryLow: null, overall: null }
       }
     })
   })
@@ -705,7 +707,8 @@ describe('#updateProject', () => {
       projectId: PROJECT_1_ID,
       tradingRuleStatuses: {
         areaHabitats: { medium: null, low: null, overall: 'Not met' },
-        watercourses: { medium: null, low: null, overall: null }
+        watercourses: { medium: null, low: null, overall: null },
+        hedgerows: { medium: null, low: null, veryLow: null, overall: null }
       }
     })
   })

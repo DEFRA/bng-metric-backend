@@ -40,6 +40,7 @@
  */
 
 import { areaTradingRuleStatuses } from '../../utilities/project/area-trading-rule-statuses.js'
+import { hedgerowTradingRuleStatuses } from '../../utilities/project/hedgerow-trading-rule-statuses.js'
 import { watercourseTradingRuleStatuses } from '../../utilities/project/watercourse-trading-rule-statuses.js'
 
 /** The statutory net gain. No project carries a target of its own yet. */
@@ -284,8 +285,7 @@ function summariseUnitType(unitType, baseline, postIntervention) {
  * ignores a Medium deficit the metric spreadsheet nets off, and is only safe
  * read alongside the Medium band.
  *
- * Area habitats and watercourses each carry one. Hedgerow trading rules are
- * separate work, and that tile stays untagged until they land.
+ * Area habitats, hedgerows and watercourses each carry one.
  *
  * @param {string} key the unit type
  * @param {object} postIntervention the stored post-intervention document
@@ -311,6 +311,9 @@ function overallStatusFor(key, baseline, postIntervention) {
   }
   if (key === 'watercourses') {
     return watercourseTradingRuleStatuses(postIntervention, baseline).overall
+  }
+  if (key === 'hedgerows') {
+    return hedgerowTradingRuleStatuses(postIntervention, baseline).overall
   }
   return null
 }

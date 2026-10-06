@@ -297,15 +297,94 @@ describe('the trading-rules status', () => {
     expect(summary.tradingRulesStatus).toBeNull()
   })
 
-  test('is not offered for hedgerows yet', () => {
-    const summaries = summariseUnitTypes(
-      site(BASELINE_UNITS, { hedgerows: 1, watercourses: 1 }),
-      siteWithFigures(FIGURES_MEDIUM_IN_DEFICIT)
-    )
+  describe('for hedgerows', () => {
+    const HEDGEROWS_LOW_IN_DEFICIT = {
+      habitatTypes: [
+        {
+          habitatType: 'Native hedgerow',
+          distinctiveness: 'Low',
+          netUnitChange: -1
+        }
+      ],
+      medium: { netUnitChange: 0 },
+      low: { netUnitChange: -1, cumulativeAvailability: -1 },
+      veryLow: { netUnitChange: 0, cumulativeAvailability: 0 }
+    }
 
-    expect(
-      summaries.find((summary) => summary.key === 'hedgerows')
-        .tradingRulesStatus
-    ).toBeNull()
+    const HEDGEROWS_ALL_IN_SURPLUS = {
+      habitatTypes: [
+        {
+          habitatType: 'Native hedgerow',
+          distinctiveness: 'Low',
+          netUnitChange: 1
+        }
+      ],
+      medium: { netUnitChange: 0 },
+      low: { netUnitChange: 1, cumulativeAvailability: 1 },
+      veryLow: { netUnitChange: 0, cumulativeAvailability: 1 }
+    }
+
+    const withHedgerowFigures = (hedgerows) => ({
+      ...site({ hedgerowsTotal: 1 }, { hedgerows: 1 }),
+      tradingRules: { hedgerows }
+    })
+
+    test('is Not met when a band is in deficit', () => {
+      // The site model only has a count of baseline hedgerows, not their
+      // bands. The verdict must still see the Low deficit.
+      const summary = summaryFor(
+        'hedgerows',
+        site(BASELINE_UNITS, { hedgerows: 1 }),
+        withHedgerowFigures(HEDGEROWS_LOW_IN_DEFICIT)
+      )
+
+      expect(summary.tradingRulesStatus).toEqual({
+        text: 'Not met',
+        met: false
+      })
+    })
+
+    test('is Met when no band is in deficit', () => {
+      const summary = summaryFor(
+        'hedgerows',
+        site(BASELINE_UNITS, { hedgerows: 1 }),
+        withHedgerowFigures(HEDGEROWS_ALL_IN_SURPLUS)
+      )
+
+      expect(summary.tradingRulesStatus).toEqual({ text: 'Met', met: true })
+    })
+
+    test('is Not met when no post-intervention file was uploaded', () => {
+      const summary = summaryFor(
+        'hedgerows',
+        site(BASELINE_UNITS, { hedgerows: 1 }),
+        null
+      )
+
+      expect(summary.tradingRulesStatus).toEqual({
+        text: 'Not met',
+        met: false
+      })
+    })
+
+    test('has no verdict when the baseline has no hedgerows', () => {
+      const summary = summaryFor(
+        'hedgerows',
+        site(BASELINE_UNITS, { hedgerows: 0 }),
+        withHedgerowFigures(HEDGEROWS_ALL_IN_SURPLUS)
+      )
+
+      expect(summary.tradingRulesStatus).toBeNull()
+    })
+
+    test('has no verdict before the figures were calculated', () => {
+      const summary = summaryFor(
+        'hedgerows',
+        site(BASELINE_UNITS, { hedgerows: 1 }),
+        site({ hedgerowsTotal: 1 }, { hedgerows: 1 })
+      )
+
+      expect(summary.tradingRulesStatus).toBeNull()
+    })
   })
 })
