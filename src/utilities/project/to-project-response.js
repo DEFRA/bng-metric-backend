@@ -21,6 +21,7 @@
 // Additive — `id` is retained, so existing consumers are unaffected.
 
 import { areaTradingRuleStatuses } from './area-trading-rule-statuses.js'
+import { hedgerowTradingRuleStatuses } from './hedgerow-trading-rule-statuses.js'
 import { watercourseTradingRuleStatuses } from './watercourse-trading-rule-statuses.js'
 
 /**
@@ -35,6 +36,10 @@ export function toProjectResponse(row) {
     tradingRuleStatuses: {
       areaHabitats: areaTradingRuleStatuses(row?.project?.postIntervention),
       watercourses: watercourseTradingRuleStatuses(
+        row?.project?.postIntervention,
+        row?.project?.baseline
+      ),
+      hedgerows: hedgerowTradingRuleStatuses(
         row?.project?.postIntervention,
         row?.project?.baseline
       )
