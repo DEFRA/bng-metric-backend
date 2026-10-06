@@ -15,21 +15,40 @@ import { URBAN_TREE_TYPE, RURAL_TREE_TYPE } from './tree-constants.js'
 /** Individual trees store area in hectares; persisted sizes are in m². */
 export const SQ_METRES_PER_HECTARE = 10_000
 
+/** A tree point with no usable "Count" stands for one tree, as the metric reads it. */
+const DEFAULT_TREE_COUNT = 1
+
 /**
- * Resolve the notional m² area for an individual tree of the given size. Returns
- * nulls for a missing or unrecognised size so the feature is left without an area
- * (and therefore Incomplete).
+ * The number of trees a tree point stands for: its "Count" column, or 1 when
+ * the column is blank or not a positive number.
+ *
+ * @param {unknown} count
+ * @returns {number}
+ */
+export function treeCountOrDefault(count) {
+  const n = Number(count)
+  return Number.isFinite(n) && n > 0 ? n : DEFAULT_TREE_COUNT
+}
+
+/**
+ * Resolve the notional m² area for an individual-tree point: the per-size
+ * reference area times the number of trees the point stands for (its "Count"
+ * column), as the Statutory Biodiversity Metric prices it. Returns nulls for a
+ * missing or unrecognised size so the feature is left without an area (and
+ * therefore Incomplete).
  *
  * @param {unknown} treeSize
+ * @param {unknown} [count] the point's "Count" column; 1 when absent
  * @returns {{ sizeSquareMetres: number, area: number } | { sizeSquareMetres: null, area: null }}
  */
-export function treeAreaFields(treeSize) {
+export function treeAreaFields(treeSize, count = DEFAULT_TREE_COUNT) {
   try {
     // The per-size reference areas in m² are whole numbers (e.g. 0.0163 ha →
     // 163 m²); rounding removes floating-point noise without losing precision.
-    const sizeSquareMetres = Math.round(
+    const perTreeSquareMetres = Math.round(
       getIndividualTreeAreaHectares(treeSize) * SQ_METRES_PER_HECTARE
     )
+    const sizeSquareMetres = perTreeSquareMetres * treeCountOrDefault(count)
     return { sizeSquareMetres, area: sizeSquareMetres }
   } catch (error) {
     if (error instanceof BaselineLookupError) {
