@@ -1,0 +1,38 @@
+name: Metric comparison
+
+# Compares the service at this commit with the Statutory Biodiversity Metric,
+# figure by figure, on every push to main, so a regression is seen with the
+# publish rather than on the harness's next scheduled run (BMD-1036). The
+# comparison, the scenario corpus and the metric's answers live in
+# bng-metric-harness; this workflow only calls it with the commit to test.
+# The job summary names the commit and engine compared, leads with any
+# difference nothing explains, and the full report (report.html and
+# report.xlsx) is in the run's artifacts, one per engine: the library at
+# this repo's pin, and at bng-library's main.
+#
+# It runs beside Publish, not after it: the comparison runs the commit in
+# process and needs nothing deployed.
+
+on:
+  push:
+    branches:
+      - main
+  # Manual re-run. workflow_dispatch only fires for workflows on the default
+  # branch, so this is also the only way to exercise the cross-repo call
+  # without merging another change.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Compare the service with the metric
+    # bng-metric-harness is public and exposes workflow_call, so this runs
+    # on this repo's own GITHUB_TOKEN. No PAT or repository_dispatch needed.
+    uses: DEFRA/bng-metric-harness/.github/workflows/metric-comparison.yml@main
+    with:
+      # Pin to the commit that triggered this run, not the branch name, so a
+      # merge landing while the job queues cannot swap the code under test.
+      backend-sha: ${{ github.sha }}
+      backend-ref: ${{ github.ref_name }}
