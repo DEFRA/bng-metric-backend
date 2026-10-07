@@ -162,6 +162,31 @@ describe('extractHabitatData — individual trees', () => {
     expect(tree.featureId).toMatch(UUID_REGEX)
   })
 
+  it('prices a tree point for the number of trees its Count column says it stands for', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T003',
+          'Baseline Tree Size': 'Medium',
+          'Baseline Condition': 'Good',
+          'Baseline Rural or Urban Tree': 'Urban',
+          Count: 3
+        })
+      ]
+    })
+
+    const tree = out.document.trees[0]
+    // Three Medium trees: 3 × 163 m². The raw count is kept alongside.
+    expect(tree.count).toBe(3)
+    expect(tree.sizeSquareMetres).toBe(489)
+    expect(tree.area).toBe(489)
+    expect(tree.status).toBe('Complete')
+  })
+
   it('leaves area null and status Incomplete for an unrecognised tree size', () => {
     const out = extractHabitatData({
       redline: [],

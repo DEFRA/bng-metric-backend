@@ -1807,7 +1807,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres (per-size reference value), rounded. This is the value fed to the unit calculation."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column, rounded. This is the value fed to the unit calculation."
     },
     {
       "path": "baseline.trees[].sizeSquareMetres",
@@ -1818,7 +1818,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres (per-size reference)."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column."
     },
     {
       "path": "baseline.trees[].units",
@@ -1884,7 +1884,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage. Recorded for reference; each tree is treated as a single tree (one row) for area and units."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank, zero or non-numeric count is priced as one tree."
     },
     {
       "path": "baseline.hedgerows",
@@ -2643,7 +2643,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention)."
+      "description": "Individual tree areas (notional: each per-size reference area times its Count column). Absent when there are no trees (e.g. post-intervention)."
     },
     {
       "path": "baseline.habitatSizes.trees.totalSquareMetres",
@@ -3471,7 +3471,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage; each tree is treated as a single tree (one row)."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank, zero or non-numeric count is priced as one tree."
     },
     {
       "path": "postIntervention.trees[].baseline",
@@ -3603,7 +3603,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres (per-size reference)."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column."
     },
     {
       "path": "postIntervention.trees[].baseline.area",
@@ -3614,7 +3614,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres, rounded."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column, rounded."
     },
     {
       "path": "postIntervention.trees[].proposed",
@@ -3746,7 +3746,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres (per-size reference)."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column."
     },
     {
       "path": "postIntervention.trees[].proposed.area",
@@ -3757,7 +3757,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Notional tree area in square metres, rounded."
+      "description": "Notional tree area in square metres: the per-size reference area times the Count column, rounded."
     },
     {
       "path": "postIntervention.trees[].proposed.advanceYears",
@@ -4802,7 +4802,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention)."
+      "description": "Individual tree areas (notional: each per-size reference area times its Count column). Absent when there are no trees (e.g. post-intervention)."
     },
     {
       "path": "postIntervention.habitatSizes.trees.totalSquareMetres",

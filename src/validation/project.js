@@ -194,11 +194,13 @@ const treeSchema = habitatSchema
     area: Joi.number()
       .allow(null)
       .description(
-        'Notional tree area in square metres (per-size reference value), rounded. This is the value fed to the unit calculation.'
+        'Notional tree area in square metres: the per-size reference area times the Count column, rounded. This is the value fed to the unit calculation.'
       ),
     sizeSquareMetres: Joi.number()
       .allow(null)
-      .description('Notional tree area in square metres (per-size reference).'),
+      .description(
+        'Notional tree area in square metres: the per-size reference area times the Count column.'
+      ),
     units: Joi.number()
       .allow(null)
       .description(
@@ -228,7 +230,7 @@ const treeSchema = habitatSchema
     count: Joi.number()
       .allow(null)
       .description(
-        'Count column from the GeoPackage. Recorded for reference; each tree is treated as a single tree (one row) for area and units.'
+        'Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank, zero or non-numeric count is priced as one tree.'
       )
   })
   .description('An individual tree feature (point).')
