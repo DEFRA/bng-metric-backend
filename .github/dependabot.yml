@@ -26,7 +26,6 @@ updates:
           - 'husky'
           - 'vitest'
           - '@vitest/*'
-          - 'npm-run-all'
 
       types:
         patterns:

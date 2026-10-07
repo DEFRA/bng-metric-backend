@@ -871,6 +871,45 @@ describe('extractPostIntervention — individual tree nested structure', () => {
     expect(tree).not.toHaveProperty('treeSize')
   })
 
+  it('prices both sides of a tree point for the number of trees its Count column says it stands for', () => {
+    const TREE_COUNT = 3
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Baseline Tree Size': 'Small',
+          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Condition': '2. Moderate',
+          'Proposed Tree Size': 'Medium',
+          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Condition': '2. Moderate',
+          Count: TREE_COUNT
+        })
+      ]
+    })
+
+    const tree = out.document.trees[0]
+    expect(tree.count).toBe(TREE_COUNT)
+    expect(tree.baseline).toEqual(
+      expect.objectContaining({
+        sizeSquareMetres: SMALL_TREE_SQM * TREE_COUNT,
+        area: SMALL_TREE_SQM * TREE_COUNT
+      })
+    )
+    expect(tree.proposed).toEqual(
+      expect.objectContaining({
+        sizeSquareMetres: MEDIUM_TREE_SQM * TREE_COUNT,
+        area: MEDIUM_TREE_SQM * TREE_COUNT
+      })
+    )
+    expect(tree.area).toBe(MEDIUM_TREE_SQM * TREE_COUNT)
+    expect(tree.sizeSquareMetres).toBe(MEDIUM_TREE_SQM * TREE_COUNT)
+  })
+
   it('excludes Lost trees from the document and geometries', () => {
     const out = extractPostIntervention({
       redline: [],

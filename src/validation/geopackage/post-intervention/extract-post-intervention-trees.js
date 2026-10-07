@@ -41,12 +41,13 @@ const PROPOSED_TREE_KEYS = {
 /**
  * @param {object} props
  * @param {{ treeSize: string[], treeType: string[], ruralOrUrbanTree: string[], condition: string[], strategicSignificance: string[] }} keys
+ * @param {unknown} count the point's "Count" column: the number of trees it stands for
  * @returns {object}
  */
-function buildTreeSide(props, keys) {
+function buildTreeSide(props, keys, count) {
   const treeSize = pickProp(props, keys.treeSize)
   const ruralOrUrban = pickProp(props, keys.ruralOrUrbanTree)
-  const { sizeSquareMetres, area } = treeAreaFields(treeSize)
+  const { sizeSquareMetres, area } = treeAreaFields(treeSize, count)
   return {
     type: treeHabitatTypeFromRuralUrban(ruralOrUrban),
     broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
@@ -61,13 +62,13 @@ function buildTreeSide(props, keys) {
   }
 }
 
-function buildTreeBaselineSubObject(props) {
-  return buildTreeSide(props, BASELINE_TREE_KEYS)
+function buildTreeBaselineSubObject(props, count) {
+  return buildTreeSide(props, BASELINE_TREE_KEYS, count)
 }
 
-function buildTreeProposedSubObject(props) {
+function buildTreeProposedSubObject(props, count) {
   return {
-    ...buildTreeSide(props, PROPOSED_TREE_KEYS),
+    ...buildTreeSide(props, PROPOSED_TREE_KEYS, count),
     ...buildAdvanceDelayFields(props, TREE_ADVANCE_DELAY_KEYS)
   }
 }
@@ -85,8 +86,9 @@ export function buildPostInterventionTree(
 ) {
   const { featureId, props } = initParsedFeature(feature)
   const ref = pickProp(props, PROP_KEYS.treeRef)
-  const proposed = buildTreeProposedSubObject(props)
-  const baseline = buildTreeBaselineSubObject(props)
+  const count = pickProp(props, PROP_KEYS.treeCount)
+  const proposed = buildTreeProposedSubObject(props, count)
+  const baseline = buildTreeBaselineSubObject(props, count)
   const document = {
     featureId,
     ref,
@@ -95,7 +97,7 @@ export function buildPostInterventionTree(
     sizeSquareMetres: proposed.sizeSquareMetres,
     units: null,
     status: null,
-    count: pickProp(props, PROP_KEYS.treeCount),
+    count,
     baseline,
     proposed,
     properties: props

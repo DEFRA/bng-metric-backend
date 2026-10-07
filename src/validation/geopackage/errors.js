@@ -59,6 +59,13 @@ export const ERROR_CODES = Object.freeze({
   /** A feature carries both advance and delay years; the statutory metric allows only one. */
   ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
 
+  /**
+   * A tree point's "Count" is filled in but is not a whole number of trees
+   * (1 or more). The template declares the column an integer, so there is no
+   * right way to price 2.5 trees; the user corrects the file instead.
+   */
+  TREE_COUNT_NOT_WHOLE: 'TREE_COUNT_NOT_WHOLE',
+
   /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
 

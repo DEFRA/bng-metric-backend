@@ -114,7 +114,7 @@ function buildTree(feature, keys) {
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
-  const { sizeSquareMetres, area } = treeAreaFields(treeSize)
+  const { sizeSquareMetres, area } = treeAreaFields(treeSize, document.count)
   document.sizeSquareMetres = sizeSquareMetres
   document.area = area
   document.status = areaStatus(document)

@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { treeAreaFields, summarizeTreeSizes } from './tree-sizes.js'
+import {
+  treeAreaFields,
+  treeCountOrDefault,
+  summarizeTreeSizes
+} from './tree-sizes.js'
 
 describe('treeAreaFields', () => {
   // The per-size areas come from the BNG reference data (hectares):
@@ -17,6 +21,35 @@ describe('treeAreaFields', () => {
     })
   })
 
+  it('multiplies the per-tree area by the number of trees the point stands for', () => {
+    // A Medium point with a Count of 3 is three Medium trees: 3 × 0.0163 ha.
+    expect(treeAreaFields('Medium', 3)).toEqual({
+      sizeSquareMetres: 489,
+      area: 489
+    })
+    expect(treeAreaFields('Small', '4')).toEqual({
+      sizeSquareMetres: 164,
+      area: 164
+    })
+  })
+
+  it.each([undefined, null, '', 0, -2, 'many'])(
+    'prices a point whose Count is %j as one tree',
+    (count) => {
+      expect(treeAreaFields('Large', count)).toEqual({
+        sizeSquareMetres: 366,
+        area: 366
+      })
+    }
+  )
+
+  it('returns nulls for a missing or unrecognised size whatever the count', () => {
+    expect(treeAreaFields(null, 3)).toEqual({
+      sizeSquareMetres: null,
+      area: null
+    })
+  })
+
   it('returns nulls for a missing or unrecognised size', () => {
     expect(treeAreaFields(null)).toEqual({ sizeSquareMetres: null, area: null })
     expect(treeAreaFields('Gigantic')).toEqual({
@@ -24,6 +57,22 @@ describe('treeAreaFields', () => {
       area: null
     })
   })
+})
+
+describe('treeCountOrDefault', () => {
+  it('reads a positive count, as a number or numeric text', () => {
+    expect(treeCountOrDefault(3)).toBe(3)
+    expect(treeCountOrDefault('2')).toBe(2)
+  })
+
+  // Only a blank reaches here from an upload; the rest are refused by
+  // tree-count-check.js first, and default defensively.
+  it.each([undefined, null, '', 0, -1, 2.5, 'two', Number.NaN])(
+    'defaults %j to one tree',
+    (count) => {
+      expect(treeCountOrDefault(count)).toBe(1)
+    }
+  )
 })
 
 describe('summarizeTreeSizes', () => {

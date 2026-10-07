@@ -64,7 +64,7 @@ export const habitatSizesSummarySchema = Joi.object({
       .required()
       .description('Total notional area of rural trees, in m².')
   }).description(
-    'Individual tree areas (notional, per-size reference). Absent when there are no trees (e.g. post-intervention).'
+    'Individual tree areas (notional: each per-size reference area times its Count column). Absent when there are no trees (e.g. post-intervention).'
   ),
   site: Joi.object({
     totalSquareMetres: Joi.number()

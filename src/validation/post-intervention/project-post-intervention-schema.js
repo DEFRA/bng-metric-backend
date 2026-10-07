@@ -283,10 +283,14 @@ function treeSideCommonFields() {
       ),
     sizeSquareMetres: Joi.number()
       .allow(null)
-      .description('Notional tree area in square metres (per-size reference).'),
+      .description(
+        'Notional tree area in square metres: the per-size reference area times the Count column.'
+      ),
     area: Joi.number()
       .allow(null)
-      .description('Notional tree area in square metres, rounded.')
+      .description(
+        'Notional tree area in square metres: the per-size reference area times the Count column, rounded.'
+      )
   }
 }
 
@@ -321,7 +325,7 @@ const postInterventionTreeSchema = Joi.object({
   count: Joi.number()
     .allow(null)
     .description(
-      'Count column from the GeoPackage; each tree is treated as a single tree (one row).'
+      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE).'
     ),
   baseline: postInterventionTreeBaselineSubSchema,
   proposed: postInterventionTreeProposedSubSchema,
