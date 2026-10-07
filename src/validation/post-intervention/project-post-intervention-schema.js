@@ -105,12 +105,12 @@ function proposedCommonFields() {
     strategicSignificanceCategory: Joi.string()
       .allow(null, '')
       .description(
-        'Strategic significance category (High, Medium or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features.'
+        'Strategic significance category (High or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features, and null where the imported value was not Low or High (BMD-1051).'
       ),
     strategicSignificanceScore: Joi.number()
       .allow(null)
       .description(
-        'Strategic significance multiplier from bng-library/metric (High 1.15, Medium 1.1, Low 1). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1.'
+        'Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0.'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')

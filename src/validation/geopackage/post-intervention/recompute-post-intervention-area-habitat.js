@@ -35,6 +35,8 @@ function pickProposedRecomputeFields(proposed) {
  *
  * @param {object} existing — persisted post-intervention habitat feature
  * @param {{ broadType: string | null, habitatType: string | null, condition: string | null }} edits
+ * @param {{ warn: Function }} [logger] receives the warning when the stored
+ *   proposed strategic significance is invalid and the habitat prices at zero
  * @returns {{
  *   distinctiveness: string | null,
  *   distinctivenessScore: number | null,
@@ -52,7 +54,11 @@ function pickProposedRecomputeFields(proposed) {
  *   updatedFeature: object
  * }}
  */
-export function recomputePostInterventionAreaHabitat(existing, edits) {
+export function recomputePostInterventionAreaHabitat(
+  existing,
+  edits,
+  logger = NO_OP_LOGGER
+) {
   const feature = structuredClone(existing)
   feature.proposed = {
     ...feature.proposed,
@@ -63,7 +69,7 @@ export function recomputePostInterventionAreaHabitat(existing, edits) {
   feature.units = null
   feature.status = HABITAT_STATUS.INCOMPLETE
 
-  enrichPostInterventionAreaHabitat(feature, NO_OP_LOGGER)
+  enrichPostInterventionAreaHabitat(feature, logger)
 
   return {
     ...pickProposedRecomputeFields(feature.proposed),

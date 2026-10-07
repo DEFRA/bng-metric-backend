@@ -578,6 +578,10 @@ function enhancedProjectFixture() {
             type: 'Modified grassland',
             broadType: 'Grassland',
             condition: 'Moderate',
+            // Enhancement needs a valid Proposed Strategic Significance, otherwise the
+            // edit prices it at zero (BMD-1051).
+            strategicSignificance:
+              'Area/compensation not in local strategy/ no local strategy',
             advanceYears: 0,
             delayYears: 0
           }
@@ -697,6 +701,41 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     expect(areaHabitats.low.netUnitChange).toBe(-3)
     expect(result.tradingRules).toEqual(
       result.project.postIntervention.tradingRules
+    )
+  })
+
+  // BMD-1051 — an edit re-prices the feature with its stored strategic
+  // significance. A stored Medium (imported before Medium was rejected, say)
+  // is nulled and priced at zero, and the request logger hears about it.
+  test('warns through the request logger when the stored strategic significance is invalid', () => {
+    const project = enhancedProjectFixture()
+    project.postIntervention.habitats[0].proposed.strategicSignificance =
+      'Location ecologically desirable but not in local strategy'
+    const logger = { warn: vi.fn() }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention',
+      logger
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.units).toBe(0)
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.proposed.strategicSignificance).toBeNull()
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'strategic-significance-invalid',
+        featureId: HABITAT_ID,
+        ref: 'H1-1',
+        reason: 'medium'
+      }),
+      expect.stringContaining('invalid proposed strategic significance')
     )
   })
 

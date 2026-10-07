@@ -1,5 +1,10 @@
 export const FEAT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 
+// Created and enhanced features carry a valid Proposed Strategic Significance,
+// otherwise the import nulls it and prices them at zero (BMD-1051).
+export const LOW_STRATEGIC_SIGNIFICANCE =
+  'Area/compensation not in local strategy/ no local strategy'
+
 // ---------------------------------------------------------------------------
 // Area habitat fixtures
 // ---------------------------------------------------------------------------
@@ -34,7 +39,7 @@ export function makeAreaHabitat(overrides = {}) {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      strategicSignificance: null,
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE,
       advanceYears: 0,
       delayYears: 0
     },
@@ -108,6 +113,7 @@ export function makeHedgerow(overrides = {}) {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE,
       advanceYears: 0,
       delayYears: 0
     },
@@ -160,6 +166,7 @@ export function makeEnhancedHedgerow() {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE,
       advanceYears: 0,
       delayYears: 0
     }
@@ -203,7 +210,7 @@ export function makeWatercourse(overrides = {}) {
       delayYears: 0,
       riparianEncroachment: WC_RIPARIAN_ENCROACHMENT_MINOR,
       watercourseEncroachment: WC_WATERCOURSE_ENCROACHMENT_MINOR,
-      strategicSignificance: null
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     },
     properties: {},
     ...overrides
@@ -233,7 +240,7 @@ export function makeCreatedWatercourse() {
       delayYears: 0,
       riparianEncroachment: 'No Encroachment/No Encroachment',
       watercourseEncroachment: 'No Encroachment',
-      strategicSignificance: null
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     }
   })
 }
@@ -279,7 +286,7 @@ export function makeEnhancedWatercourse() {
       delayYears: 0,
       riparianEncroachment: null,
       watercourseEncroachment: null,
-      strategicSignificance: null
+      strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     }
   })
 }

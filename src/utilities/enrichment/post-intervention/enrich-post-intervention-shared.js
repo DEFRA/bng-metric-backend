@@ -1,7 +1,10 @@
 // Shared constants, guards, and result-application helpers used across the
 // post-intervention enrichment sub-modules.
 
-import { isRecognisedStrategicSignificance } from 'bng-library/metric'
+import {
+  isRecognisedStrategicSignificance,
+  resolveStrategicSignificance
+} from 'bng-library/metric'
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
@@ -209,28 +212,136 @@ export function skipProposedEnrichment(feature, context, reason, logger) {
 }
 
 /**
+ * The strategic significance categories a created or enhanced habitat may
+ * carry (BMD-1051): Low (×1) or High (×1.15). Medium (×1.10) is not supported
+ * by the service. Retained habitats carry their baseline value, fixed at Low.
+ */
+export const VALID_PROPOSED_STRATEGIC_SIGNIFICANCE_CATEGORIES = Object.freeze([
+  'Low',
+  'High'
+])
+
+const INVALID_STRATEGIC_SIGNIFICANCE_UNITS = 0
+
+/** The `event` field of the warning logged for each rejected value. */
+export const STRATEGIC_SIGNIFICANCE_INVALID_EVENT =
+  'strategic-significance-invalid'
+
+/**
+ * Why an imported Proposed Strategic Significance was rejected, as a log field
+ * so the cases can be counted apart: Medium is a value the metric's own
+ * drop-down offers, so a run of `medium` rejections says users are following
+ * the metric rather than mistyping.
+ */
+export const INVALID_STRATEGIC_SIGNIFICANCE_REASON = Object.freeze({
+  BLANK: 'blank',
+  MEDIUM: 'medium',
+  UNRECOGNISED: 'unrecognised'
+})
+
+/** The metric's labels for Medium, normalised as `strategicSignificanceReason` does. */
+const MEDIUM_STRATEGIC_SIGNIFICANCE_LABELS = Object.freeze([
+  'location ecologically desirable but not in local strategy',
+  'medium',
+  'medium strategic significance'
+])
+
+/**
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isBlankStrategicSignificance(value) {
+  return typeof value !== 'string' || value.trim() === ''
+}
+
+/**
+ * @param {unknown} value an invalid Proposed Strategic Significance
+ * @returns {string} one of INVALID_STRATEGIC_SIGNIFICANCE_REASON
+ */
+function strategicSignificanceReason(value) {
+  if (isBlankStrategicSignificance(value)) {
+    return INVALID_STRATEGIC_SIGNIFICANCE_REASON.BLANK
+  }
+  const normalised = value.trim().toLowerCase().replaceAll(/\s+/g, ' ')
+  return MEDIUM_STRATEGIC_SIGNIFICANCE_LABELS.includes(normalised)
+    ? INVALID_STRATEGIC_SIGNIFICANCE_REASON.MEDIUM
+    : INVALID_STRATEGIC_SIGNIFICANCE_REASON.UNRECOGNISED
+}
+
+/**
+ * Whether an imported Proposed Strategic Significance is one the service
+ * accepts: present, recognised by the engine, and resolving to Low or High.
+ * The category check is what rejects Medium while the pinned bng-library still
+ * lists it; once bng-library's reference data drops Medium, its
+ * `isValidProposedStrategicSignificance` says the same thing.
+ *
+ * @param {unknown} value
+ * @returns {boolean}
+ */
+function isValidProposedStrategicSignificance(value) {
+  if (isBlankStrategicSignificance(value)) {
+    return false
+  }
+  if (!isRecognisedStrategicSignificance(value)) {
+    return false
+  }
+  const { strategicSignificanceCategory } = resolveStrategicSignificance(value)
+  return VALID_PROPOSED_STRATEGIC_SIGNIFICANCE_CATEGORIES.includes(
+    strategicSignificanceCategory
+  )
+}
+
+/**
+ * Persist a created or enhanced feature whose Proposed Strategic Significance
+ * is invalid (BMD-1051 AC4): the value is nulled, nothing resolves from it, and
+ * the units are zero by definition. The feature is saved Incomplete so it can
+ * be highlighted for the user to pick a valid value on habitat details.
+ *
+ * @param {object} feature
+ */
+export function applyInvalidStrategicSignificanceResult(feature) {
+  feature.proposed ??= {}
+  feature.proposed.strategicSignificance = null
+  feature.proposed.strategicSignificanceCategory = null
+  feature.proposed.strategicSignificanceScore = null
+  feature.units = INVALID_STRATEGIC_SIGNIFICANCE_UNITS
+  feature.status = HABITAT_STATUS.INCOMPLETE
+}
+
+/**
  * The Proposed Strategic Significance to hand the engine for a created or
- * enhanced feature. The engine prices it (High ×1.15, Medium ×1.10, Low ×1) and
- * treats an absent value as Low. An unrecognised value is logged and passed as
- * `null`, so it is priced at Low rather than failing the whole feature — the
- * same fallback as an unrecognised encroachment value.
+ * enhanced feature, or `null` when the imported value is not valid. In that
+ * case the invalid result has already been applied to the feature (see
+ * `applyInvalidStrategicSignificanceResult`) and the caller must not price it.
+ *
+ * The rejection is logged as a structured warning, `event`
+ * `strategic-significance-invalid`, with the layer, feature id, parcel ref,
+ * the raw value and the reason, so the cases can be counted in the log
+ * platform. The pino logger carries the request context (and so the upload or
+ * edit it came from); a bare string logger gets the message alone.
  *
  * @param {object} feature
  * @param {string} context - e.g. "Habitat parcel"
- * @param {{ warn: (msg: string) => void }} logger
+ * @param {{ warn: (fields: object, msg: string) => void }} logger
  * @returns {string | null}
  */
-export function proposedStrategicSignificanceForEngine(
-  feature,
-  context,
-  logger
-) {
+export function resolveProposedStrategicSignificance(feature, context, logger) {
   const value = feature.proposed?.strategicSignificance
-  if (!isRecognisedStrategicSignificance(value)) {
-    logger.warn(
-      `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: unrecognised proposed strategic significance ${JSON.stringify(value)} — priced at Low (1)`
-    )
-    return null
+  if (isValidProposedStrategicSignificance(value)) {
+    return value
   }
-  return typeof value === 'string' ? value : null
+  const reason = strategicSignificanceReason(value)
+  logger.warn(
+    {
+      event: STRATEGIC_SIGNIFICANCE_INVALID_EVENT,
+      layer: context,
+      featureId: feature.featureId ?? null,
+      ref: feature.ref ?? null,
+      value: value ?? null,
+      reason
+    },
+    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(value)} (${reason}) — nulled, units 0 (valid values: Low, High)`
+  )
+  applyInvalidStrategicSignificanceResult(feature)
+  return null
 }

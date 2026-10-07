@@ -78,14 +78,18 @@ function normalizeEdits(edits = {}) {
   }
 }
 
-function recomputeForType(type, existing, edits, documentKey) {
+function recomputeForType(type, existing, edits, documentKey, logger) {
   if (type === 'habitat') {
     if (documentKey === 'postIntervention') {
-      return recomputePostInterventionAreaHabitat(existing, {
-        broadType: edits.broadType,
-        habitatType: edits.habitatType,
-        condition: edits.condition
-      })
+      return recomputePostInterventionAreaHabitat(
+        existing,
+        {
+          broadType: edits.broadType,
+          habitatType: edits.habitatType,
+          condition: edits.condition
+        },
+        logger
+      )
     }
     return recomputeAreaHabitat({
       broadType: edits.broadType,
@@ -287,12 +291,12 @@ function refreshFiguresDownstreamOfEdit(
  * apply path below deals only with edits that are going ahead.
  *
  * @param {object | undefined} featureSet the document being edited
- * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string }} params
+ * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string, logger: object }} params
  * @returns {{ found: object, derived: object } | { rejection: object }}
  */
 function resolveEditTarget(
   featureSet,
-  { featureId, normalizedEdits, expectedType, documentKey }
+  { featureId, normalizedEdits, expectedType, documentKey, logger }
 ) {
   const found = findFeature(featureSet, featureId)
   if (!found) {
@@ -307,7 +311,8 @@ function resolveEditTarget(
     found.type,
     found.feature,
     normalizedEdits,
-    documentKey
+    documentKey,
+    logger
   )
   if (!derived) {
     return {
@@ -355,8 +360,9 @@ function resolveEditTarget(
  * @param {object} params.edits  { broadType?, habitatType?, condition? }
  * @param {string} [params.expectedType]
  * @param {'baseline'|'postIntervention'} [params.documentKey]
- * @param {{ warn: (msg: string) => void }} [params.logger] warns about
- *   post-intervention rows the re-derive could not match to a baseline feature
+ * @param {{ warn: Function }} [params.logger] warns about post-intervention
+ *   rows the re-derive could not match to a baseline feature, and about a
+ *   proposed strategic significance the recompute had to reject (BMD-1051)
  * @returns {
  *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
@@ -379,7 +385,8 @@ function applyFeatureUpdate(
     featureId,
     normalizedEdits,
     expectedType,
-    documentKey
+    documentKey,
+    logger
   })
   if (target.rejection) {
     return target.rejection

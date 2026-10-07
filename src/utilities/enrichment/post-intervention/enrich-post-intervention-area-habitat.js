@@ -18,7 +18,7 @@ import {
   runProposedCalculation,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
-  proposedStrategicSignificanceForEngine,
+  resolveProposedStrategicSignificance,
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -206,11 +206,14 @@ function buildCreatedAreaCalculate(
     )
     return null
   }
-  const strategicSignificance = proposedStrategicSignificanceForEngine(
+  const strategicSignificance = resolveProposedStrategicSignificance(
     habitat,
     AREA_PROPOSED_LABEL,
     logger
   )
+  if (strategicSignificance === null) {
+    return null
+  }
   return () =>
     calculateAreaWithCandidates(
       { type: proposed.type, broadType: proposed.broadType },
@@ -245,11 +248,14 @@ function buildEnhancedAreaCalculate(
     )
     return null
   }
-  const strategicSignificance = proposedStrategicSignificanceForEngine(
+  const strategicSignificance = resolveProposedStrategicSignificance(
     habitat,
     AREA_PROPOSED_LABEL,
     logger
   )
+  if (strategicSignificance === null) {
+    return null
+  }
   return () =>
     calculateEnhancedAreaWithCandidates(
       sizeHa,

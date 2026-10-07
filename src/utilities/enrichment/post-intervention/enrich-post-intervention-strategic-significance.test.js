@@ -2,6 +2,10 @@ import { describe, it, expect, vi } from 'vitest'
 
 import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervention-units.js'
 import {
+  INVALID_STRATEGIC_SIGNIFICANCE_REASON as REASON,
+  STRATEGIC_SIGNIFICANCE_INVALID_EVENT
+} from './enrich-post-intervention-shared.js'
+import {
   makeAreaHabitat,
   makeCreatedAreaHabitat,
   makeCreatedHedgerow,
@@ -16,14 +20,15 @@ import {
 
 // BMD-1038 — created and enhanced units are multiplied by the feature's
 // Proposed Strategic Significance; retained units carry the baseline value,
-// which the service fixes at Low (×1).
+// which the service fixes at Low (×1). BMD-1051 — only Low and High are valid;
+// Medium (×1.10) is not supported, and an invalid value is nulled and priced
+// at zero.
 
 const HIGH = 'Formally identified in local strategy'
 const MEDIUM = 'Location ecologically desirable but not in local strategy'
 const LOW = 'Area/compensation not in local strategy/ no local strategy'
 
 const HIGH_MULTIPLIER = 1.15
-const MEDIUM_MULTIPLIER = 1.1
 const LOW_MULTIPLIER = 1
 const DECIMAL_PLACES = 10
 
@@ -77,8 +82,9 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
 
     it.each([
       [HIGH, 'High', HIGH_MULTIPLIER],
-      [MEDIUM, 'Medium', MEDIUM_MULTIPLIER],
-      [LOW, 'Low', LOW_MULTIPLIER]
+      [LOW, 'Low', LOW_MULTIPLIER],
+      ['High', 'High', HIGH_MULTIPLIER],
+      ['Low', 'Low', LOW_MULTIPLIER]
     ])(
       'applies "%s" as %s (×%s) and records it on proposed',
       (label, band, multiplier) => {
@@ -89,27 +95,43 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
           lowUnits() * multiplier,
           DECIMAL_PLACES
         )
+        expect(feature.proposed.strategicSignificance).toBe(label)
         expect(feature.proposed.strategicSignificanceCategory).toBe(band)
         expect(feature.proposed.strategicSignificanceScore).toBe(multiplier)
       }
     )
 
-    it('prices a blank value at Low', () => {
-      const feature = enrich(layer, makeFeature, null)
-      expect(feature.units).toBe(lowUnits())
-      expect(feature.proposed.strategicSignificanceScore).toBe(LOW_MULTIPLIER)
-    })
-
-    it('prices an unrecognised value at Low and warns', () => {
+    // BMD-1051 AC4 — anything but Low or High is invalid: the value is nulled,
+    // the units are zero by definition, and the feature is saved Incomplete so
+    // the user can be asked to pick a valid value.
+    it.each([
+      ['Medium', MEDIUM, REASON.MEDIUM],
+      ['the Medium category name', 'Medium', REASON.MEDIUM],
+      ['an unrecognised value', 'Very important', REASON.UNRECOGNISED],
+      ['N/A', 'N/A', REASON.UNRECOGNISED],
+      ['an empty string', '', REASON.BLANK],
+      ['whitespace', '   ', REASON.BLANK],
+      ['null', null, REASON.BLANK],
+      ['undefined', undefined, REASON.BLANK]
+    ])('nulls %s, prices it at zero and warns', (_name, value, reason) => {
       const logger = { warn: vi.fn() }
-      const feature = enrich(layer, makeFeature, 'Very important', logger)
+      const feature = enrich(layer, makeFeature, value, logger)
 
-      expect(feature.status).toBe('Complete')
-      expect(feature.units).toBe(lowUnits())
-      expect(feature.proposed.strategicSignificanceScore).toBe(LOW_MULTIPLIER)
+      expect(feature.status).toBe('Incomplete')
+      expect(feature.units).toBe(0)
+      expect(feature.proposed.strategicSignificance).toBeNull()
+      expect(feature.proposed.strategicSignificanceCategory).toBeNull()
+      expect(feature.proposed.strategicSignificanceScore).toBeNull()
       expect(logger.warn).toHaveBeenCalledWith(
+        expect.objectContaining({
+          event: STRATEGIC_SIGNIFICANCE_INVALID_EVENT,
+          layer: expect.any(String),
+          featureId: feature.featureId,
+          value: value ?? null,
+          reason
+        }),
         expect.stringContaining(
-          'unrecognised proposed strategic significance "Very important"'
+          `invalid proposed strategic significance ${JSON.stringify(value)} (${reason})`
         )
       )
     })
