@@ -21,16 +21,30 @@ export function isBlankTreeCount(value) {
   return value == null || (typeof value === 'string' && value.trim() === '')
 }
 
+/** Numeric text that spells a count: digits only, give or take whitespace. */
+const DIGITS_ONLY = /^\s*\d+\s*$/
+
 /**
  * Whether a filled-in "Count" is a usable number of trees: a whole number of
- * one or more, as a number or as numeric text.
+ * one or more, as a number or as text of plain digits.
+ *
+ * The template declares the column an integer, so SQLite hands back a number
+ * for anything it could read as one. What arrives as text is what it could
+ * not: "two", "0x3" and the like. Only digits are taken from text, since
+ * `Number("0x3")` is 3 and would price the point as three trees.
  *
  * @param {unknown} value
  * @returns {boolean}
  */
 export function isWholeTreeCount(value) {
-  const n = Number(value)
-  return Number.isInteger(n) && n >= MIN_TREE_COUNT
+  if (typeof value === 'string') {
+    return DIGITS_ONLY.test(value) && Number(value) >= MIN_TREE_COUNT
+  }
+  return (
+    typeof value === 'number' &&
+    Number.isSafeInteger(value) &&
+    value >= MIN_TREE_COUNT
+  )
 }
 
 function describeTree(feature, idx) {

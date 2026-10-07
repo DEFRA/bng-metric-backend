@@ -22,12 +22,19 @@ describe('isBlankTreeCount', () => {
 })
 
 describe('isWholeTreeCount', () => {
-  it.each([1, 3, '2', 10.0, '7.0'])('accepts %j', (value) => {
+  it.each([1, 3, '2', 10.0, ' 4 '])('accepts %j', (value) => {
     expect(isWholeTreeCount(value)).toBe(true)
   })
 
   it.each([0, -1, 2.5, '0.3', 'two', Number.NaN, Number.POSITIVE_INFINITY])(
     'refuses %j',
+    (value) => {
+      expect(isWholeTreeCount(value)).toBe(false)
+    }
+  )
+
+  it.each([true, '0x3', '1e3', '7.0', ' ', '3 trees', [3]])(
+    'refuses %j, which Number() would read as a count',
     (value) => {
       expect(isWholeTreeCount(value)).toBe(false)
     }
