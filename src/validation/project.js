@@ -230,7 +230,7 @@ const treeSchema = habitatSchema
     count: Joi.number()
       .allow(null)
       .description(
-        'Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank, zero or non-numeric count is priced as one tree.'
+        'Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE).'
       )
   })
   .description('An individual tree feature (point).')

@@ -65,7 +65,9 @@ describe('treeCountOrDefault', () => {
     expect(treeCountOrDefault('2')).toBe(2)
   })
 
-  it.each([undefined, null, '', 0, -1, 'two', Number.NaN])(
+  // Only a blank reaches here from an upload; the rest are refused by
+  // tree-count-check.js first, and default defensively.
+  it.each([undefined, null, '', 0, -1, 2.5, 'two', Number.NaN])(
     'defaults %j to one tree',
     (count) => {
       expect(treeCountOrDefault(count)).toBe(1)

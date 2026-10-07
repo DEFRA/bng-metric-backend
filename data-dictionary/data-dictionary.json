@@ -1884,7 +1884,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank, zero or non-numeric count is priced as one tree."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
     },
     {
       "path": "baseline.hedgerows",
@@ -3471,7 +3471,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank, zero or non-numeric count is priced as one tree."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
     },
     {
       "path": "postIntervention.trees[].baseline",

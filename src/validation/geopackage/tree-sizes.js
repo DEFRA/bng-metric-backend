@@ -11,23 +11,27 @@ import {
 } from 'bng-library/metric'
 
 import { URBAN_TREE_TYPE, RURAL_TREE_TYPE } from './tree-constants.js'
+import { isWholeTreeCount } from './tree-count-check.js'
 
 /** Individual trees store area in hectares; persisted sizes are in m². */
 export const SQ_METRES_PER_HECTARE = 10_000
 
-/** A tree point with no usable "Count" stands for one tree, as the metric reads it. */
+/** A tree point with a blank "Count" stands for one tree, as the metric reads it. */
 const DEFAULT_TREE_COUNT = 1
 
 /**
  * The number of trees a tree point stands for: its "Count" column, or 1 when
- * the column is blank or not a positive number.
+ * the column is blank. Upload validation (tree-count-check.js) refuses a file
+ * whose Count is filled in with anything but a whole number of trees, so the
+ * fallback is only ever a blank by the time a document is built; it is kept
+ * for any other value anyway so an unexpected one prices as one tree rather
+ * than as nothing.
  *
  * @param {unknown} count
  * @returns {number}
  */
 export function treeCountOrDefault(count) {
-  const n = Number(count)
-  return Number.isFinite(n) && n > 0 ? n : DEFAULT_TREE_COUNT
+  return isWholeTreeCount(count) ? Number(count) : DEFAULT_TREE_COUNT
 }
 
 /**

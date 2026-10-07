@@ -325,7 +325,7 @@ const postInterventionTreeSchema = Joi.object({
   count: Joi.number()
     .allow(null)
     .description(
-      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank, zero or non-numeric count is priced as one tree.'
+      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE).'
     ),
   baseline: postInterventionTreeBaselineSubSchema,
   proposed: postInterventionTreeProposedSubSchema,
