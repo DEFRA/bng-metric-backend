@@ -472,7 +472,11 @@ function cardHabitat(properties) {
       properties.distinctiveness,
       properties.distinctivenessScore
     ),
-    strategicSignificance: properties.strategicSignificance ?? null,
+    // "High (1.15)", the same shape the habitat detail screens use.
+    strategicSignificance: withScore(
+      properties.strategicSignificance,
+      properties.strategicSignificanceScore
+    ),
     retentionCategory: normaliseRetentionCategory(properties.retentionCategory),
     spatialRiskCategory: properties.spatialRiskCategory ?? null,
     area: Number.isFinite(sqm)

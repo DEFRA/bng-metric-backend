@@ -338,7 +338,7 @@ describe('#addHabitatCards', () => {
       // it, rather than spending a second line on the number.
       distinctiveness: 'Low (2)',
       condition: 'Poor (2)',
-      strategicSignificance: 'Location ecologically desirable',
+      strategicSignificance: 'Low (1)',
       retentionCategory: 'Retained',
       spatialRiskCategory: 'Within LPA',
       status: 'Complete',
