@@ -197,6 +197,13 @@ function buildCreatedAreaCalculate(
   delayYears,
   logger
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    habitat,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
   if (!proposedCondition) {
     skipProposedEnrichment(
       habitat,
@@ -206,11 +213,6 @@ function buildCreatedAreaCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    habitat,
-    AREA_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }
@@ -239,6 +241,13 @@ function buildEnhancedAreaCalculate(
   sizeHa,
   { advanceYears, delayYears, logger }
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    habitat,
+    AREA_PROPOSED_LABEL,
+    logger
+  )
   if (!baselineCondition || !proposedCondition) {
     skipProposedEnrichment(
       habitat,
@@ -248,11 +257,6 @@ function buildEnhancedAreaCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    habitat,
-    AREA_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }

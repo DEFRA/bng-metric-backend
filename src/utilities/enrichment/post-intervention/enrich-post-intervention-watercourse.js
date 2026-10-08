@@ -113,6 +113,13 @@ function buildCreatedWatercourseCalculate(
   delayYears,
   logger
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    watercourse,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(proposed.type) ||
     !isPresentEngineString(proposedCondition)
@@ -125,11 +132,6 @@ function buildCreatedWatercourseCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    watercourse,
-    WATERCOURSE_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }
@@ -156,6 +158,13 @@ function buildEnhancedWatercourseCalculate(
   lengthKm,
   { advanceYears, delayYears, baselineLengthByRef, logger }
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    watercourse,
+    WATERCOURSE_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(baseline.type) ||
     !isPresentEngineString(proposed.type) ||
@@ -170,11 +179,6 @@ function buildEnhancedWatercourseCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    watercourse,
-    WATERCOURSE_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }

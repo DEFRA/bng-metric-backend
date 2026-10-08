@@ -140,6 +140,30 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
     })
   })
 
+  describe.each(['created', 'enhanced'])('%s, unpriceable', (category) => {
+    // The strategic significance is checked before the other inputs, so an
+    // invalid value is nulled and priced at zero even when the feature could
+    // not be priced anyway (here, no proposed condition).
+    it('nulls an invalid value when the proposed condition is missing', () => {
+      const feature = LAYERS[layer][category]()
+      feature.proposed = {
+        ...feature.proposed,
+        condition: null,
+        strategicSignificance: MEDIUM
+      }
+      const doc = makeDoc({ [layer]: [feature] })
+      enrichPostInterventionDocumentWithUnits(doc, undefined, {
+        baselineLengthByRef: BASELINE_LENGTH_BY_REF
+      })
+      const [enriched] = doc[layer]
+
+      expect(enriched.status).toBe('Incomplete')
+      expect(enriched.units).toBe(0)
+      expect(enriched.proposed.strategicSignificance).toBeNull()
+      expect(enriched.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
+    })
+  })
+
   describe.each(['created', 'enhanced'])('%s, priced again', (category) => {
     const makeFeature = LAYERS[layer][category]
 

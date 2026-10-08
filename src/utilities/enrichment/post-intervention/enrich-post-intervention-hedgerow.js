@@ -140,6 +140,13 @@ function buildCreatedHedgerowCalculate(
   delayYears,
   logger
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(proposed.type) ||
     !isPresentEngineString(proposedCondition)
@@ -152,11 +159,6 @@ function buildCreatedHedgerowCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }
@@ -181,6 +183,13 @@ function buildEnhancedHedgerowCalculate(
   lengthKm,
   { advanceYears, delayYears, baselineLengthByRef, logger }
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(baseline.type) ||
     !isPresentEngineString(proposed.type) ||
@@ -195,11 +204,6 @@ function buildEnhancedHedgerowCalculate(
     )
     return null
   }
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
   if (strategicSignificance === null) {
     return null
   }
