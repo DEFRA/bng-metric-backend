@@ -1,10 +1,7 @@
 // Shared constants, guards, and result-application helpers used across the
 // post-intervention enrichment sub-modules.
 
-import {
-  isRecognisedStrategicSignificance,
-  resolveStrategicSignificance
-} from 'bng-library/metric'
+import { isValidProposedStrategicSignificance } from 'bng-library/metric'
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
@@ -216,16 +213,6 @@ export function skipProposedEnrichment(feature, context, reason, logger) {
   )
 }
 
-/**
- * The strategic significance categories a created or enhanced habitat may
- * carry (BMD-1051): Low (×1) or High (×1.15). Medium (×1.10) is not supported
- * by the service. Retained habitats carry their baseline value, fixed at Low.
- */
-export const VALID_PROPOSED_STRATEGIC_SIGNIFICANCE_CATEGORIES = Object.freeze([
-  'Low',
-  'High'
-])
-
 const INVALID_STRATEGIC_SIGNIFICANCE_UNITS = 0
 
 /**
@@ -288,29 +275,6 @@ function strategicSignificanceReason(value) {
   return MEDIUM_STRATEGIC_SIGNIFICANCE_LABELS.includes(normalised)
     ? INVALID_STRATEGIC_SIGNIFICANCE_REASON.MEDIUM
     : INVALID_STRATEGIC_SIGNIFICANCE_REASON.UNRECOGNISED
-}
-
-/**
- * Whether an imported Proposed Strategic Significance is one the service
- * accepts: present, recognised by the engine, and resolving to Low or High.
- * The category check is what rejects Medium while the pinned bng-library still
- * lists it; once bng-library's reference data drops Medium, its
- * `isValidProposedStrategicSignificance` says the same thing.
- *
- * @param {unknown} value
- * @returns {boolean}
- */
-function isValidProposedStrategicSignificance(value) {
-  if (isBlankStrategicSignificance(value)) {
-    return false
-  }
-  if (!isRecognisedStrategicSignificance(value)) {
-    return false
-  }
-  const { strategicSignificanceCategory } = resolveStrategicSignificance(value)
-  return VALID_PROPOSED_STRATEGIC_SIGNIFICANCE_CATEGORIES.includes(
-    strategicSignificanceCategory
-  )
 }
 
 /**

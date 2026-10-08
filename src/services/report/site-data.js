@@ -27,6 +27,16 @@ import {
   GEOMETRY_LAYERS,
   readProjectGeometry
 } from '../../db/project-geometry.js'
+import {
+  RETENTION_RETAINED,
+  normaliseRetentionCategory
+} from '../../utilities/enrichment/post-intervention/retention-category.js'
+
+/** Which side of the project a feature belongs to, as `readProjectGeometry` spells it. */
+const SIDE = Object.freeze({
+  BASELINE: 'baseline',
+  POST_INTERVENTION: 'postIntervention'
+})
 
 /**
  * The post-intervention document nests the values a parcel will have after the
@@ -34,10 +44,11 @@ import {
  * shows what the parcel is proposed to become, falling back to the top-level
  * spelling so a baseline feature reads through the same accessor.
  */
-function attributesOf(feature) {
+function attributesOf(feature, side = SIDE.BASELINE) {
   const proposed = feature.proposed ?? {}
   return {
     ...identity(feature, proposed),
+    ...strategicSignificance(feature, proposed, side),
     ...scores(feature, proposed),
     ...sizes(feature),
     ...intervention(feature, proposed),
@@ -88,9 +99,50 @@ function identity(feature, proposed) {
     // that has not been calculated yet. The report shows what is there and says
     // nothing about what is not — see habitat-cards.js.
     distinctiveness: value('distinctiveness'),
-    strategicSignificance: value('strategicSignificance'),
     retentionCategory: value('retentionCategory'),
     units: numberOrNull(value('units'))
+  }
+}
+
+const LOW_STRATEGIC_SIGNIFICANCE = Object.freeze({
+  strategicSignificance: 'Low',
+  strategicSignificanceScore: 1
+})
+
+const NO_STRATEGIC_SIGNIFICANCE = Object.freeze({
+  strategicSignificance: null,
+  strategicSignificanceScore: null
+})
+
+/**
+ * The strategic significance the parcel was priced at, as the service's screens
+ * show it — not the label the GeoPackage carried, which the calculation may
+ * have ignored or rejected (BMD-1051):
+ *
+ *  - a baseline or retained parcel is always Low (1), whatever was imported;
+ *  - a created or enhanced parcel shows the category its Proposed Strategic
+ *    Significance resolved to, Low (1) or High (1.15). One whose value was
+ *    rejected on import (Medium, blank or unrecognised) has none, and the card
+ *    leaves the line out, as the screen shows nothing.
+ */
+function strategicSignificance(feature, proposed, side) {
+  if (side === SIDE.BASELINE) {
+    return LOW_STRATEGIC_SIGNIFICANCE
+  }
+  const retentionCategory = normaliseRetentionCategory(
+    proposedOr(feature, proposed, 'retentionCategory')
+  )
+  if (retentionCategory === RETENTION_RETAINED) {
+    return LOW_STRATEGIC_SIGNIFICANCE
+  }
+  if (!proposed.strategicSignificanceCategory) {
+    return NO_STRATEGIC_SIGNIFICANCE
+  }
+  return {
+    strategicSignificance: proposed.strategicSignificanceCategory,
+    strategicSignificanceScore: numberOrNull(
+      proposed.strategicSignificanceScore
+    )
   }
 }
 
@@ -153,7 +205,7 @@ function numberOrNull(value) {
  * Document order is preserved: it is the order the habitat list screens use,
  * so the report's rows and the screen's rows read the same way down the page.
  */
-function joinLayer(documentFeatures, geometryFeatures) {
+function joinLayer(documentFeatures, geometryFeatures, side = SIDE.BASELINE) {
   const geometryById = new Map(
     geometryFeatures.map((feature) => [feature.featureId, feature.geometry])
   )
@@ -162,7 +214,7 @@ function joinLayer(documentFeatures, geometryFeatures) {
   for (const feature of documentFeatures ?? []) {
     const geometry = geometryById.get(feature.featureId)
     if (geometry) {
-      joined.push({ properties: attributesOf(feature), geometry })
+      joined.push({ properties: attributesOf(feature, side), geometry })
     }
   }
   return joined
@@ -177,15 +229,16 @@ function joinLayer(documentFeatures, geometryFeatures) {
  * @param {object} document        the project JSONB
  * @param {object} geometry        readProjectGeometry() output
  * @param {string} siteName
+ * @param {string} [side]          one of SIDE
  */
-function buildSite(document, geometry, siteName) {
+function buildSite(document, geometry, siteName, side = SIDE.BASELINE) {
   if (!document) {
     return null
   }
 
   const layers = {}
   for (const layer of GEOMETRY_LAYERS) {
-    layers[layer] = joinLayer(document[layer], geometry.layers[layer])
+    layers[layer] = joinLayer(document[layer], geometry.layers[layer], side)
   }
 
   return {
@@ -254,22 +307,33 @@ async function readSiteData(drizzle, projectRow) {
   const siteName = document.name ?? 'BNG site'
 
   const [baselineGeometry, postInterventionGeometry] = await Promise.all([
-    readProjectGeometry(drizzle, projectRow.id, 'baseline'),
+    readProjectGeometry(drizzle, projectRow.id, SIDE.BASELINE),
     document.postIntervention
-      ? readProjectGeometry(drizzle, projectRow.id, 'postIntervention')
+      ? readProjectGeometry(drizzle, projectRow.id, SIDE.POST_INTERVENTION)
       : null
   ])
 
   return {
     siteName,
-    baseline: buildSite(document.baseline, baselineGeometry, siteName),
+    baseline: buildSite(
+      document.baseline,
+      baselineGeometry,
+      siteName,
+      SIDE.BASELINE
+    ),
     postIntervention: postInterventionGeometry
-      ? buildSite(document.postIntervention, postInterventionGeometry, siteName)
+      ? buildSite(
+          document.postIntervention,
+          postInterventionGeometry,
+          siteName,
+          SIDE.POST_INTERVENTION
+        )
       : null
   }
 }
 
 export {
+  SIDE,
   attributesOf,
   buildSite,
   cappedLayers,

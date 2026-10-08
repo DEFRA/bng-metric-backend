@@ -1,6 +1,7 @@
 import { describe, expect, test, vi } from 'vitest'
 
 import {
+  SIDE,
   attributesOf,
   buildSite,
   cappedLayers,
@@ -54,7 +55,8 @@ describe('#attributesOf', () => {
       broadType: null,
       condition: 'Poor',
       distinctiveness: null,
-      strategicSignificance: null,
+      strategicSignificance: 'Low',
+      strategicSignificanceScore: 1,
       retentionCategory: null,
       units: null,
       sizeSquareMetres: 10_000,
@@ -90,13 +92,14 @@ describe('#attributesOf', () => {
   })
 
   test('carries a missing value through as null rather than inventing one', () => {
-    expect(attributesOf({})).toEqual({
+    expect(attributesOf({}, SIDE.POST_INTERVENTION)).toEqual({
       ref: null,
       type: null,
       broadType: null,
       condition: null,
       distinctiveness: null,
       strategicSignificance: null,
+      strategicSignificanceScore: null,
       retentionCategory: null,
       units: null,
       sizeSquareMetres: null,
@@ -125,7 +128,6 @@ describe('#attributesOf', () => {
       broadType: 'Grassland',
       condition: 'Poor',
       distinctiveness: 'Low',
-      strategicSignificance: 'Location ecologically desirable',
       retentionCategory: 'Retained',
       units: 3.6
     })
@@ -133,7 +135,6 @@ describe('#attributesOf', () => {
     expect(attributes).toMatchObject({
       broadType: 'Grassland',
       distinctiveness: 'Low',
-      strategicSignificance: 'Location ecologically desirable',
       retentionCategory: 'Retained',
       units: 3.6
     })
@@ -215,6 +216,106 @@ describe('#attributesOf', () => {
     expect(
       attributesOf({ sizeSquareMetres: Number.NaN }).sizeSquareMetres
     ).toBeNull()
+  })
+})
+
+// BMD-1051: the report shows the strategic significance a parcel was priced
+// at, as the screens do, never the label the GeoPackage carried.
+describe('#attributesOf strategic significance', () => {
+  const FORMALLY_IDENTIFIED = 'Formally identified in local strategy'
+
+  test('shows a baseline parcel at Low (1) whatever was imported', () => {
+    const attributes = attributesOf(
+      { strategicSignificance: FORMALLY_IDENTIFIED },
+      SIDE.BASELINE
+    )
+
+    expect(attributes).toMatchObject({
+      strategicSignificance: 'Low',
+      strategicSignificanceScore: 1
+    })
+  })
+
+  test.each(['Retained', '1. Retained'])(
+    'shows a "%s" parcel at Low (1) whatever was imported',
+    (retentionCategory) => {
+      const attributes = attributesOf(
+        {
+          retentionCategory,
+          proposed: { strategicSignificance: FORMALLY_IDENTIFIED }
+        },
+        SIDE.POST_INTERVENTION
+      )
+
+      expect(attributes).toMatchObject({
+        strategicSignificance: 'Low',
+        strategicSignificanceScore: 1
+      })
+    }
+  )
+
+  test('shows a created or enhanced parcel at the category it was priced at', () => {
+    const attributes = attributesOf(
+      {
+        retentionCategory: 'Created',
+        proposed: {
+          strategicSignificance: FORMALLY_IDENTIFIED,
+          strategicSignificanceCategory: 'High',
+          strategicSignificanceScore: 1.15
+        }
+      },
+      SIDE.POST_INTERVENTION
+    )
+
+    expect(attributes).toMatchObject({
+      strategicSignificance: 'High',
+      strategicSignificanceScore: 1.15
+    })
+  })
+
+  test('shows nothing for a value rejected on import', () => {
+    // The import nulled it and kept what was rejected aside; neither the
+    // rejected label nor the baseline's value stands in for it.
+    const attributes = attributesOf(
+      {
+        retentionCategory: 'Enhanced',
+        strategicSignificance: FORMALLY_IDENTIFIED,
+        proposed: {
+          strategicSignificance: null,
+          strategicSignificanceCategory: null,
+          strategicSignificanceScore: null,
+          rejectedStrategicSignificance:
+            'Location ecologically desirable but not in local strategy'
+        }
+      },
+      SIDE.POST_INTERVENTION
+    )
+
+    expect(attributes).toMatchObject({
+      strategicSignificance: null,
+      strategicSignificanceScore: null
+    })
+  })
+
+  test('tells the two sides apart when joining a layer', () => {
+    const feature = {
+      featureId: 'f1',
+      retentionCategory: 'Created',
+      proposed: {
+        strategicSignificanceCategory: 'High',
+        strategicSignificanceScore: 1.15
+      }
+    }
+    const geometry = [{ featureId: 'f1', geometry: SQUARE }]
+
+    expect(
+      joinLayer([feature], geometry, SIDE.BASELINE)[0].properties
+        .strategicSignificance
+    ).toBe('Low')
+    expect(
+      joinLayer([feature], geometry, SIDE.POST_INTERVENTION)[0].properties
+        .strategicSignificance
+    ).toBe('High')
   })
 })
 
@@ -507,6 +608,45 @@ describe('#readSiteData', () => {
     expect(site.baseline).not.toBeNull()
     expect(site.postIntervention).not.toBeNull()
     expect(readProjectGeometry).toHaveBeenCalledTimes(2)
+  })
+
+  test('prices strategic significance on the side each feature belongs to', async () => {
+    const feature = {
+      featureId: 'f1',
+      retentionCategory: 'Created',
+      proposed: {
+        strategicSignificanceCategory: 'High',
+        strategicSignificanceScore: 1.15
+      }
+    }
+    readProjectGeometry.mockResolvedValue(
+      emptyGeometry({
+        layers: {
+          habitats: [{ featureId: 'f1', geometry: SQUARE }],
+          hedgerows: [],
+          watercourses: [],
+          trees: []
+        }
+      })
+    )
+
+    const site = await readSiteData(
+      {},
+      {
+        id: 'project-1',
+        project: {
+          baseline: { habitats: [feature] },
+          postIntervention: { habitats: [feature] }
+        }
+      }
+    )
+
+    expect(
+      site.baseline.layers.habitats[0].properties.strategicSignificance
+    ).toBe('Low')
+    expect(
+      site.postIntervention.layers.habitats[0].properties.strategicSignificance
+    ).toBe('High')
   })
 
   test('falls back to a generic site name rather than rendering "undefined"', async () => {
