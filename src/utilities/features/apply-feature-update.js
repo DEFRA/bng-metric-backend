@@ -25,6 +25,8 @@ import {
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
+import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
+import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
@@ -78,7 +80,12 @@ function normalizeEdits(edits = {}) {
   }
 }
 
-function recomputeForType(type, existing, edits, documentKey, logger) {
+function recomputeForType(
+  type,
+  existing,
+  edits,
+  { documentKey, logger, baseline }
+) {
   if (type === 'habitat') {
     if (documentKey === 'postIntervention') {
       return recomputePostInterventionAreaHabitat(
@@ -98,6 +105,17 @@ function recomputeForType(type, existing, edits, documentKey, logger) {
       sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
     })
   } else if (type === 'hedgerow') {
+    if (documentKey === 'postIntervention') {
+      return recomputePostInterventionHedgerow(
+        existing,
+        { habitatType: edits.habitatType, condition: edits.condition },
+        {
+          baselineLengthByRef:
+            postInterventionEnrichOptions(baseline).baselineLengthByRef,
+          logger
+        }
+      )
+    }
     return recomputeHedgerow({
       habitatType: edits.habitatType,
       condition: edits.condition,
@@ -198,7 +216,7 @@ function spliceFeatureInFeatureSet(
 function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    found.type === 'habitat' &&
+    (found.type === 'habitat' || found.type === 'hedgerow') &&
     derived.updatedFeature
   if (recomputedWholeFeature) {
     return derived.updatedFeature
@@ -291,12 +309,14 @@ function refreshFiguresDownstreamOfEdit(
  * apply path below deals only with edits that are going ahead.
  *
  * @param {object | undefined} featureSet the document being edited
- * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string, logger: object }} params
+ * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string, logger: object, baseline?: object }} params
+ *   `baseline` is the project's baseline document, which a post-intervention
+ *   hedgerow edit takes its baseline lengths from
  * @returns {{ found: object, derived: object } | { rejection: object }}
  */
 function resolveEditTarget(
   featureSet,
-  { featureId, normalizedEdits, expectedType, documentKey, logger }
+  { featureId, normalizedEdits, expectedType, documentKey, logger, baseline }
 ) {
   const found = findFeature(featureSet, featureId)
   if (!found) {
@@ -307,13 +327,11 @@ function resolveEditTarget(
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
     }
   }
-  const derived = recomputeForType(
-    found.type,
-    found.feature,
-    normalizedEdits,
+  const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
     documentKey,
-    logger
-  )
+    logger,
+    baseline
+  })
   if (!derived) {
     return {
       rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
@@ -386,7 +404,8 @@ function applyFeatureUpdate(
     normalizedEdits,
     expectedType,
     documentKey,
-    logger
+    logger,
+    baseline: project?.baseline
   })
   if (target.rejection) {
     return target.rejection

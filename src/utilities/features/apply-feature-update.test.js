@@ -42,6 +42,9 @@ function projectFixture() {
   }
 }
 
+const LOW_STRATEGIC_SIGNIFICANCE =
+  'Area/compensation not in local strategy/ no local strategy'
+
 describe('applyFeatureUpdate — habitat dispatch', () => {
   test('recomputes derived fields and writes them under canonical keys', () => {
     const result = applyFeatureUpdate(projectFixture(), {
@@ -783,6 +786,8 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     const project = postInterventionProjectFixture()
     project.baseline.hedgerows = [{ type: 'Native hedgerow', units: 2 }]
     project.postIntervention.hedgerows[0].retentionCategory = 'Created'
+    project.postIntervention.hedgerows[0].proposed.strategicSignificance =
+      LOW_STRATEGIC_SIGNIFICANCE
 
     const asMedium = applyFeatureUpdate(project, {
       featureId: HEDGEROW_ID,
@@ -882,6 +887,52 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     condition: 'Good'
   }
 
+  test('keeps a hedgerow rejected for its strategic significance at zero when edited', () => {
+    // BMD-1051. A post-intervention hedgerow edit is priced through the
+    // hedgerow enrichment, so a created hedgerow rejected on import (Medium,
+    // here) stays nulled at zero units and Incomplete after a type or
+    // condition edit, rather than coming back priced.
+    const project = postInterventionProjectFixture()
+    const hedgerow = project.postIntervention.hedgerows[0]
+    hedgerow.retentionCategory = 'Created'
+    hedgerow.proposed.strategicSignificance =
+      'Location ecologically desirable but not in local strategy'
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow with trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature.proposed).toMatchObject({
+      type: 'Native hedgerow with trees',
+      condition: 'Good',
+      strategicSignificance: null,
+      rejectedStrategicSignificance:
+        'Location ecologically desirable but not in local strategy'
+    })
+  })
+
+  test('prices a created hedgerow edit with its creation multipliers', () => {
+    // The baseline calculator priced a post-intervention hedgerow edit as if
+    // the hedgerow already existed. Through the enrichment, a created hedgerow
+    // takes its time to target and difficulty, and its strategic significance.
+    const project = postInterventionProjectFixture()
+    const hedgerow = project.postIntervention.hedgerows[0]
+    hedgerow.retentionCategory = 'Created'
+    hedgerow.proposed.strategicSignificance = LOW_STRATEGIC_SIGNIFICANCE
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow with trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.feature.status).toBe('Complete')
+    expect(result.feature.proposed.timeMultiplier).toBeLessThan(1)
+    expect(result.feature.proposed.strategicSignificanceCategory).toBe('Low')
+  })
   test('brings the post-intervention copy of the baseline with the edit', () => {
     const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
       featureId: HABITAT_ID,

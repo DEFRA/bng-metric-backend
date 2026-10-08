@@ -20,7 +20,7 @@ const PROPOSED_RECOMPUTE_KEYS = Object.freeze([
  * @param {object} proposed
  * @returns {Record<string, unknown>}
  */
-function pickProposedRecomputeFields(proposed) {
+export function pickProposedRecomputeFields(proposed) {
   /** @type {Record<string, unknown>} */
   const fields = {}
   for (const key of PROPOSED_RECOMPUTE_KEYS) {
