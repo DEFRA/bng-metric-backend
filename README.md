@@ -76,10 +76,12 @@ npm run test:integration
 The _Metric comparison_ workflow (`.github/workflows/metric-comparison.yml`)
 checks the service's figures against the Statutory Biodiversity Metric
 spreadsheet's own, for every scenario in bng-metric-harness's corpus, on each
-pull request and each push to `main`. It calls the harness's workflow with the
-commit to test; the job summary names what was compared and leads with any
-difference nothing known explains, and the full report is in the run's
-artifacts. It reports on a pull request and does not gate the merge.
+pull request, each merge group in the merge queue and each push to `main`. It
+calls the harness's workflow with the commit to test; the job summary names
+what was compared and leads with any difference nothing known explains, and the
+full report is in the run's artifacts. Whether it gates the merge is set by the
+ruleset on `main`: its check is
+`Compare the service with the metric / Compare the service with the metric (library pinned)`.
 
 It exercises this repo's validation and calculation code only. The harness
 imports the modules the validate route uses, straight from the checkout, and
