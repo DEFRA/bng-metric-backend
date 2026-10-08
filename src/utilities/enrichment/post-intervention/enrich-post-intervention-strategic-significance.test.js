@@ -122,6 +122,9 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       expect(feature.proposed.strategicSignificance).toBeNull()
       expect(feature.proposed.strategicSignificanceCategory).toBeNull()
       expect(feature.proposed.strategicSignificanceScore).toBeNull()
+      expect(feature.proposed.rejectedStrategicSignificance).toBe(
+        reason === REASON.BLANK ? null : value
+      )
       expect(logger.warn).toHaveBeenCalledWith(
         expect.objectContaining({
           event: STRATEGIC_SIGNIFICANCE_INVALID_EVENT,
@@ -134,6 +137,36 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
           `invalid proposed strategic significance ${JSON.stringify(value)} (${reason})`
         )
       )
+    })
+  })
+
+  describe.each(['created', 'enhanced'])('%s, priced again', (category) => {
+    const makeFeature = LAYERS[layer][category]
+
+    function enrichAgain(feature) {
+      const doc = makeDoc({ [layer]: [feature] })
+      enrichPostInterventionDocumentWithUnits(doc, undefined, {
+        baselineLengthByRef: BASELINE_LENGTH_BY_REF
+      })
+      return doc[layer][0]
+    }
+
+    it('keeps the rejected value when the nulled feature is priced again', () => {
+      const again = enrichAgain(enrich(layer, makeFeature, MEDIUM))
+
+      expect(again.units).toBe(0)
+      expect(again.status).toBe('Incomplete')
+      expect(again.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
+    })
+
+    it('clears the rejected value once a valid one is priced', () => {
+      const rejected = enrich(layer, makeFeature, MEDIUM)
+      rejected.proposed.strategicSignificance = HIGH
+      const fixed = enrichAgain(rejected)
+
+      expect(fixed.status).toBe('Complete')
+      expect(fixed.proposed.strategicSignificanceCategory).toBe('High')
+      expect(fixed.proposed.rejectedStrategicSignificance).toBeNull()
     })
   })
 

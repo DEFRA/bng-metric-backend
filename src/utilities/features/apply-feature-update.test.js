@@ -937,6 +937,60 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     )
   })
 
+  test('re-prices a stored Medium or blank on an edit to another feature, keeping the value', () => {
+    // BMD-1051. A project saved before invalid values were rejected priced
+    // Medium at ×1.10 and blank as Low. An edit to any baseline feature
+    // re-derives the whole post-intervention document, so A2 and A3 are
+    // re-priced though only A1 was edited: nulled, zero units, Incomplete,
+    // with the rejected value kept.
+    const project = projectWithPostInterventionFixture()
+    const MEDIUM = 'Location ecologically desirable but not in local strategy'
+    for (const ref of ['A2', 'A3']) {
+      project.baseline.habitats.push({
+        ...project.baseline.habitats[0],
+        featureId: `baseline-${ref}`,
+        ref
+      })
+    }
+    for (const [ref, strategicSignificance] of [
+      ['A2', MEDIUM],
+      ['A3', '']
+    ]) {
+      project.postIntervention.habitats.push({
+        ...project.postIntervention.habitats[0],
+        featureId: `post-intervention-${ref}`,
+        ref,
+        retentionCategory: 'Enhanced',
+        units: 3,
+        proposed: {
+          ...project.postIntervention.habitats[0].proposed,
+          condition: 'Good',
+          strategicSignificance
+        }
+      })
+    }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const byRef = Object.fromEntries(
+      result.postIntervention.habitats.map((h) => [h.ref, h])
+    )
+    for (const [ref, rejected] of [
+      ['A2', MEDIUM],
+      ['A3', null]
+    ]) {
+      expect(byRef[ref]).toMatchObject({ units: 0, status: 'Incomplete' })
+      expect(byRef[ref].proposed).toMatchObject({
+        strategicSignificance: null,
+        rejectedStrategicSignificance: rejected
+      })
+    }
+    expect(byRef.A1.status).toBe('Complete')
+  })
+
   test('leaves the caller’s stored document untouched', () => {
     const project = projectWithPostInterventionFixture()
     const stored = structuredClone(project.postIntervention)

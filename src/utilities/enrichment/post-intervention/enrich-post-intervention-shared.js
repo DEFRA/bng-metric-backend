@@ -295,12 +295,26 @@ function isValidProposedStrategicSignificance(value) {
  * Persist a created or enhanced feature whose Proposed Strategic Significance
  * is invalid (BMD-1051 AC4): the value is nulled, nothing resolves from it, and
  * the units are zero by definition. The feature is saved Incomplete so it can
- * be highlighted for the user to pick a valid value on habitat details.
+ * be highlighted. Choosing a valid value on habitat details comes in a
+ * follow-up story; until then, re-uploading the file is the only fix.
+ *
+ * The value that was rejected is kept in `rejectedStrategicSignificance`, so
+ * nulling it loses nothing. That matters because a baseline edit re-prices
+ * every created and enhanced feature (`rederivePostInterventionFromBaseline`),
+ * so a project saved before BMD-1051 with Medium or blank reaches here through
+ * an edit to another feature. A re-run, where the value is already null,
+ * keeps what was recorded first.
  *
  * @param {object} feature
+ * @param {unknown} value the Proposed Strategic Significance that was rejected
  */
-export function applyInvalidStrategicSignificanceResult(feature) {
+export function applyInvalidStrategicSignificanceResult(feature, value) {
   feature.proposed ??= {}
+  feature.proposed.rejectedStrategicSignificance = isBlankStrategicSignificance(
+    value
+  )
+    ? (feature.proposed.rejectedStrategicSignificance ?? null)
+    : value
   feature.proposed.strategicSignificance = null
   feature.proposed.strategicSignificanceCategory = null
   feature.proposed.strategicSignificanceScore = null
@@ -328,6 +342,9 @@ export function applyInvalidStrategicSignificanceResult(feature) {
 export function resolveProposedStrategicSignificance(feature, context, logger) {
   const value = feature.proposed?.strategicSignificance
   if (isValidProposedStrategicSignificance(value)) {
+    if (feature.proposed.rejectedStrategicSignificance != null) {
+      feature.proposed.rejectedStrategicSignificance = null
+    }
     return value
   }
   const reason = strategicSignificanceReason(value)
@@ -342,6 +359,6 @@ export function resolveProposedStrategicSignificance(feature, context, logger) {
     },
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(value)} (${reason}) — nulled, units 0 (valid values: Low, High)`
   )
-  applyInvalidStrategicSignificanceResult(feature)
+  applyInvalidStrategicSignificanceResult(feature, value)
   return null
 }

@@ -107,6 +107,11 @@ function proposedCommonFields() {
       .description(
         'Strategic significance category (High or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features, and null where the imported value was not Low or High (BMD-1051).'
       ),
+    rejectedStrategicSignificance: Joi.string()
+      .allow(null, '')
+      .description(
+        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced.'
+      ),
     strategicSignificanceScore: Joi.number()
       .allow(null)
       .description(
