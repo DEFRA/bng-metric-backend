@@ -1,0 +1,53 @@
+name: Metric comparison
+
+# Compares the service at this commit with the Statutory Biodiversity Metric,
+# figure by figure (BMD-1036). The comparison, the scenario corpus and the
+# metric's answers live in bng-metric-harness; this workflow only calls it
+# with the commit to test. The job summary names the commit and engine
+# compared and leads with any difference nothing explains; the full report
+# (report.html and report.xlsx) is in the run's artifacts.
+#
+# - Pull requests: the branch's head commit, with the engine at this repo's
+#   bng-library pin, which is what the service would deploy. A library
+#   change this repo hasn't adopted has no bearing on a change here.
+# - Merge queue (merge_group): the queue's merge commit, as for a pull
+#   request. The trigger is what lets the comparison be a required check:
+#   without it the queue would wait for a status that never arrives. Whether
+#   it gates the merge is set by the ruleset on main, not here.
+# - Push to main: the pushed commit, with the engine at the pin and again at
+#   bng-library's main, so a regression is seen with the publish rather than
+#   on the harness's next scheduled run. It runs beside Publish, not after
+#   it: the comparison runs the commit in process and needs nothing deployed.
+# - By hand (workflow_dispatch): as for a push to main.
+
+on:
+  pull_request:
+    branches:
+      - main
+  merge_group:
+  push:
+    branches:
+      - main
+  # Manual re-run. workflow_dispatch only fires for workflows on the default
+  # branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: Compare the service with the metric
+    # bng-metric-harness is public and exposes workflow_call, so this runs
+    # on this repo's own GITHUB_TOKEN. No PAT or repository_dispatch needed.
+    # The harness decides the legs from the event: one for a pull request
+    # or a merge group, both otherwise. A newer push to a pull request
+    # cancels the run in flight.
+    uses: DEFRA/bng-metric-harness/.github/workflows/metric-comparison.yml@main
+    with:
+      # Pin to the commit under test, not a branch name, so a push landing
+      # while the job queues cannot swap the code under test. For a pull
+      # request that is the branch's head, not GitHub's merge commit; for a
+      # merge group, the queue's merge commit.
+      backend-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      backend-ref: ${{ github.head_ref || github.ref_name }}

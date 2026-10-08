@@ -71,6 +71,28 @@ For integration tests that exercise the real Hapi server against a running Postg
 npm run test:integration
 ```
 
+#### Metric comparison
+
+The _Metric comparison_ workflow (`.github/workflows/metric-comparison.yml`)
+checks the service's figures against the Statutory Biodiversity Metric
+spreadsheet's own, for every scenario in bng-metric-harness's corpus, on each
+pull request, each merge group in the merge queue and each push to `main`. It
+calls the harness's workflow with the commit to test; the job summary names
+what was compared and leads with any difference nothing known explains, and the
+full report is in the run's artifacts. Whether it gates the merge is set by the
+ruleset on `main`: its check is
+`Compare the service with the metric / Compare the service with the metric (library pinned)`.
+
+It exercises this repo's validation and calculation code only. The harness
+imports the modules the validate route uses, straight from the checkout, and
+runs them in process on a GeoPackage pair read from disk: the format gate, the
+GEOS geometry checks, the data-quality checks, then sizing, extraction,
+enrichment and the schema. Nothing is really uploaded: no HTTP request, no CDP
+Uploader (so no S3 and no virus scan), no worker pool and no database. The
+upload journey itself is covered by the journey tests. How the comparison
+works, what it compares and what fails it are documented in the harness:
+[docs/compare-metric.md](https://github.com/DEFRA/bng-metric-harness/blob/main/docs/compare-metric.md).
+
 For the site report PDF — where its numbers and shapes come from, how it is checked
 against PDF/UA, and how the Ordnance Survey basemap is credited — see
 [`docs/site-report.md`](docs/site-report.md).
