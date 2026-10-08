@@ -25,6 +25,8 @@ import {
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
+import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
+import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
@@ -78,43 +80,74 @@ function normalizeEdits(edits = {}) {
   }
 }
 
-function recomputeForType(type, existing, edits, documentKey) {
-  if (type === 'habitat') {
-    if (documentKey === 'postIntervention') {
-      return recomputePostInterventionAreaHabitat(existing, {
+function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
+  if (documentKey === 'postIntervention') {
+    return recomputePostInterventionAreaHabitat(
+      existing,
+      {
         broadType: edits.broadType,
         habitatType: edits.habitatType,
         condition: edits.condition
-      })
-    }
-    return recomputeAreaHabitat({
-      broadType: edits.broadType,
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
-    })
-  } else if (type === 'hedgerow') {
-    return recomputeHedgerow({
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      sizeMetres: existing.sizeMetres ?? null
-    })
-  } else if (type === 'watercourse') {
-    // Post-intervention watercourse editing is out of scope; only the baseline
-    // document recomputes a watercourse here (BMD-597).
-    if (documentKey === 'postIntervention') {
-      return null
-    }
-    return recomputeWatercourse({
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      watercourseEncroachment: edits.watercourseEncroachment,
-      riparianEncroachment: edits.riparianEncroachment,
-      sizeMetres: existing.sizeMetres ?? null
-    })
-  } else {
+      },
+      logger
+    )
+  }
+  return recomputeAreaHabitat({
+    broadType: edits.broadType,
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
+  })
+}
+
+function recomputeHedgerowEdit(
+  existing,
+  edits,
+  { documentKey, logger, baseline }
+) {
+  if (documentKey === 'postIntervention') {
+    return recomputePostInterventionHedgerow(
+      existing,
+      { habitatType: edits.habitatType, condition: edits.condition },
+      {
+        baselineLengthByRef:
+          postInterventionEnrichOptions(baseline).baselineLengthByRef,
+        logger
+      }
+    )
+  }
+  return recomputeHedgerow({
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    sizeMetres: existing.sizeMetres ?? null
+  })
+}
+
+function recomputeWatercourseEdit(existing, edits, { documentKey }) {
+  // Post-intervention watercourse editing is out of scope; only the baseline
+  // document recomputes a watercourse here (BMD-597).
+  if (documentKey === 'postIntervention') {
     return null
   }
+  return recomputeWatercourse({
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    watercourseEncroachment: edits.watercourseEncroachment,
+    riparianEncroachment: edits.riparianEncroachment,
+    sizeMetres: existing.sizeMetres ?? null
+  })
+}
+
+const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
+  habitat: recomputeHabitatEdit,
+  hedgerow: recomputeHedgerowEdit,
+  watercourse: recomputeWatercourseEdit
+})
+
+function recomputeForType(type, existing, edits, context) {
+  return Object.hasOwn(RECOMPUTE_EDIT_BY_TYPE, type)
+    ? RECOMPUTE_EDIT_BY_TYPE[type](existing, edits, context)
+    : null
 }
 
 function mergeBaselineFeature(type, existing, edits, derived) {
@@ -194,7 +227,7 @@ function spliceFeatureInFeatureSet(
 function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    found.type === 'habitat' &&
+    (found.type === 'habitat' || found.type === 'hedgerow') &&
     derived.updatedFeature
   if (recomputedWholeFeature) {
     return derived.updatedFeature
@@ -287,12 +320,14 @@ function refreshFiguresDownstreamOfEdit(
  * apply path below deals only with edits that are going ahead.
  *
  * @param {object | undefined} featureSet the document being edited
- * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string }} params
+ * @param {{ featureId: string, normalizedEdits: object, expectedType?: string, documentKey: string, logger: object, baseline?: object }} params
+ *   `baseline` is the project's baseline document, which a post-intervention
+ *   hedgerow edit takes its baseline lengths from
  * @returns {{ found: object, derived: object } | { rejection: object }}
  */
 function resolveEditTarget(
   featureSet,
-  { featureId, normalizedEdits, expectedType, documentKey }
+  { featureId, normalizedEdits, expectedType, documentKey, logger, baseline }
 ) {
   const found = findFeature(featureSet, featureId)
   if (!found) {
@@ -303,12 +338,11 @@ function resolveEditTarget(
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
     }
   }
-  const derived = recomputeForType(
-    found.type,
-    found.feature,
-    normalizedEdits,
-    documentKey
-  )
+  const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
+    documentKey,
+    logger,
+    baseline
+  })
   if (!derived) {
     return {
       rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
@@ -355,8 +389,9 @@ function resolveEditTarget(
  * @param {object} params.edits  { broadType?, habitatType?, condition? }
  * @param {string} [params.expectedType]
  * @param {'baseline'|'postIntervention'} [params.documentKey]
- * @param {{ warn: (msg: string) => void }} [params.logger] warns about
- *   post-intervention rows the re-derive could not match to a baseline feature
+ * @param {{ warn: Function }} [params.logger] warns about post-intervention
+ *   rows the re-derive could not match to a baseline feature, and about a
+ *   proposed strategic significance the recompute had to reject (BMD-1051)
  * @returns {
  *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
@@ -379,7 +414,9 @@ function applyFeatureUpdate(
     featureId,
     normalizedEdits,
     expectedType,
-    documentKey
+    documentKey,
+    logger,
+    baseline: project?.baseline
   })
   if (target.rejection) {
     return target.rejection

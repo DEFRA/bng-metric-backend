@@ -42,6 +42,9 @@ function projectFixture() {
   }
 }
 
+const LOW_STRATEGIC_SIGNIFICANCE =
+  'Area/compensation not in local strategy/ no local strategy'
+
 describe('applyFeatureUpdate — habitat dispatch', () => {
   test('recomputes derived fields and writes them under canonical keys', () => {
     const result = applyFeatureUpdate(projectFixture(), {
@@ -578,6 +581,10 @@ function enhancedProjectFixture() {
             type: 'Modified grassland',
             broadType: 'Grassland',
             condition: 'Moderate',
+            // Enhancement needs a valid Proposed Strategic Significance, otherwise the
+            // edit prices it at zero (BMD-1051).
+            strategicSignificance:
+              'Area/compensation not in local strategy/ no local strategy',
             advanceYears: 0,
             delayYears: 0
           }
@@ -700,6 +707,41 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     )
   })
 
+  // BMD-1051 — an edit re-prices the feature with its stored strategic
+  // significance. A stored Medium (imported before Medium was rejected, say)
+  // is nulled and priced at zero, and the request logger hears about it.
+  test('warns through the request logger when the stored strategic significance is invalid', () => {
+    const project = enhancedProjectFixture()
+    project.postIntervention.habitats[0].proposed.strategicSignificance =
+      'Location ecologically desirable but not in local strategy'
+    const logger = { warn: vi.fn() }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention',
+      logger
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.units).toBe(0)
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.proposed.strategicSignificance).toBeNull()
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: 'strategic-significance-invalid',
+        featureId: HABITAT_ID,
+        ref: 'H1-1',
+        reason: 'medium'
+      }),
+      expect.stringContaining('invalid proposed strategic significance')
+    )
+  })
+
   test('re-typing an enhanced parcel into a Low habitat empties the Medium band', () => {
     const result = applyFeatureUpdate(enhancedProjectFixture(), {
       featureId: HABITAT_ID,
@@ -744,6 +786,8 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     const project = postInterventionProjectFixture()
     project.baseline.hedgerows = [{ type: 'Native hedgerow', units: 2 }]
     project.postIntervention.hedgerows[0].retentionCategory = 'Created'
+    project.postIntervention.hedgerows[0].proposed.strategicSignificance =
+      LOW_STRATEGIC_SIGNIFICANCE
 
     const asMedium = applyFeatureUpdate(project, {
       featureId: HEDGEROW_ID,
@@ -843,6 +887,52 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     condition: 'Good'
   }
 
+  test('keeps a hedgerow rejected for its strategic significance at zero when edited', () => {
+    // BMD-1051. A post-intervention hedgerow edit is priced through the
+    // hedgerow enrichment, so a created hedgerow rejected on import (Medium,
+    // here) stays nulled at zero units and Incomplete after a type or
+    // condition edit, rather than coming back priced.
+    const project = postInterventionProjectFixture()
+    const hedgerow = project.postIntervention.hedgerows[0]
+    hedgerow.retentionCategory = 'Created'
+    hedgerow.proposed.strategicSignificance =
+      'Location ecologically desirable but not in local strategy'
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow with trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature.proposed).toMatchObject({
+      type: 'Native hedgerow with trees',
+      condition: 'Good',
+      strategicSignificance: null,
+      rejectedStrategicSignificance:
+        'Location ecologically desirable but not in local strategy'
+    })
+  })
+
+  test('prices a created hedgerow edit with its creation multipliers', () => {
+    // The baseline calculator priced a post-intervention hedgerow edit as if
+    // the hedgerow already existed. Through the enrichment, a created hedgerow
+    // takes its time to target and difficulty, and its strategic significance.
+    const project = postInterventionProjectFixture()
+    const hedgerow = project.postIntervention.hedgerows[0]
+    hedgerow.retentionCategory = 'Created'
+    hedgerow.proposed.strategicSignificance = LOW_STRATEGIC_SIGNIFICANCE
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: 'Native hedgerow with trees', condition: 'Good' },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.feature.status).toBe('Complete')
+    expect(result.feature.proposed.timeMultiplier).toBeLessThan(1)
+    expect(result.feature.proposed.strategicSignificanceCategory).toBe('Low')
+  })
   test('brings the post-intervention copy of the baseline with the edit', () => {
     const result = applyFeatureUpdate(projectWithPostInterventionFixture(), {
       featureId: HABITAT_ID,
@@ -896,6 +986,60 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     expect(result.postIntervention.units.habitatsNetUnitChangePercentage).toBe(
       0
     )
+  })
+
+  test('re-prices a stored Medium or blank on an edit to another feature, keeping the value', () => {
+    // BMD-1051. A project saved before invalid values were rejected priced
+    // Medium at ×1.10 and blank as Low. An edit to any baseline feature
+    // re-derives the whole post-intervention document, so A2 and A3 are
+    // re-priced though only A1 was edited: nulled, zero units, Incomplete,
+    // with the rejected value kept.
+    const project = projectWithPostInterventionFixture()
+    const MEDIUM = 'Location ecologically desirable but not in local strategy'
+    for (const ref of ['A2', 'A3']) {
+      project.baseline.habitats.push({
+        ...project.baseline.habitats[0],
+        featureId: `baseline-${ref}`,
+        ref
+      })
+    }
+    for (const [ref, strategicSignificance] of [
+      ['A2', MEDIUM],
+      ['A3', '']
+    ]) {
+      project.postIntervention.habitats.push({
+        ...project.postIntervention.habitats[0],
+        featureId: `post-intervention-${ref}`,
+        ref,
+        retentionCategory: 'Enhanced',
+        units: 3,
+        proposed: {
+          ...project.postIntervention.habitats[0].proposed,
+          condition: 'Good',
+          strategicSignificance
+        }
+      })
+    }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: RETYPE_EDIT
+    })
+
+    const byRef = Object.fromEntries(
+      result.postIntervention.habitats.map((h) => [h.ref, h])
+    )
+    for (const [ref, rejected] of [
+      ['A2', MEDIUM],
+      ['A3', null]
+    ]) {
+      expect(byRef[ref]).toMatchObject({ units: 0, status: 'Incomplete' })
+      expect(byRef[ref].proposed).toMatchObject({
+        strategicSignificance: null,
+        rejectedStrategicSignificance: rejected
+      })
+    }
+    expect(byRef.A1.status).toBe('Complete')
   })
 
   test('leaves the caller’s stored document untouched', () => {

@@ -16,7 +16,8 @@ import {
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
   runProposedCalculation,
-  proposedStrategicSignificanceForEngine,
+  resolveProposedStrategicSignificance,
+  checkStrategicSignificanceOfUnsizedFeature,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
@@ -140,6 +141,13 @@ function buildCreatedHedgerowCalculate(
   delayYears,
   logger
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(proposed.type) ||
     !isPresentEngineString(proposedCondition)
@@ -152,11 +160,9 @@ function buildCreatedHedgerowCalculate(
     )
     return null
   }
-  const strategicSignificance = proposedStrategicSignificanceForEngine(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
+  if (strategicSignificance === null) {
+    return null
+  }
   return () =>
     calculateCreatedHedgerowPostIntervention(
       lengthKm,
@@ -178,6 +184,13 @@ function buildEnhancedHedgerowCalculate(
   lengthKm,
   { advanceYears, delayYears, baselineLengthByRef, logger }
 ) {
+  // Before the other checks, so an invalid value is always nulled and priced
+  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
+  const strategicSignificance = resolveProposedStrategicSignificance(
+    hedgerow,
+    HEDGEROW_PROPOSED_LABEL,
+    logger
+  )
   if (
     !isPresentEngineString(baseline.type) ||
     !isPresentEngineString(proposed.type) ||
@@ -192,11 +205,9 @@ function buildEnhancedHedgerowCalculate(
     )
     return null
   }
-  const strategicSignificance = proposedStrategicSignificanceForEngine(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
+  if (strategicSignificance === null) {
+    return null
+  }
   return () => {
     const baselineLengthKm = lookupBaselineLinearLength(
       hedgerow.ref,
@@ -331,6 +342,11 @@ export function enrichPostInterventionHedgerowProposedSide(
       hedgerow,
       HEDGEROW_PROPOSED_LABEL,
       'sizeMetres is missing or not positive',
+      logger
+    )
+    checkStrategicSignificanceOfUnsizedFeature(
+      hedgerow,
+      HEDGEROW_PROPOSED_LABEL,
       logger
     )
     return
