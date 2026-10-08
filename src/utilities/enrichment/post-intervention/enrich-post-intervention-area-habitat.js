@@ -165,12 +165,12 @@ function buildRetainedAreaCalculate(
   baseline,
   baselineCondition,
   sizeHa,
-  logger
+  { logger, label }
 ) {
   if (!baselineCondition) {
     skipProposedEnrichment(
       habitat,
-      AREA_PROPOSED_LABEL,
+      label,
       'baseline condition is missing',
       logger
     )
@@ -194,21 +194,19 @@ function buildCreatedAreaCalculate(
   proposed,
   proposedCondition,
   sizeHa,
-  advanceYears,
-  delayYears,
-  logger
+  { advanceYears, delayYears, logger, label }
 ) {
   // Before the other checks, so an invalid value is always nulled and priced
   // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
   const strategicSignificance = resolveProposedStrategicSignificance(
     habitat,
-    AREA_PROPOSED_LABEL,
+    label,
     logger
   )
   if (!proposedCondition) {
     skipProposedEnrichment(
       habitat,
-      AREA_PROPOSED_LABEL,
+      label,
       'proposed condition is missing',
       logger
     )
@@ -240,19 +238,19 @@ function buildEnhancedAreaCalculate(
   baselineCondition,
   proposedCondition,
   sizeHa,
-  { advanceYears, delayYears, logger }
+  { advanceYears, delayYears, logger, label }
 ) {
   // Before the other checks, so an invalid value is always nulled and priced
   // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
   const strategicSignificance = resolveProposedStrategicSignificance(
     habitat,
-    AREA_PROPOSED_LABEL,
+    label,
     logger
   )
   if (!baselineCondition || !proposedCondition) {
     skipProposedEnrichment(
       habitat,
-      AREA_PROPOSED_LABEL,
+      label,
       'baseline or proposed condition is missing',
       logger
     )
@@ -277,7 +275,7 @@ function buildEnhancedAreaCalculate(
  * @param {{ warn: (msg: string) => void }} logger
  * @returns {(() => object) | null}
  */
-function resolveAreaProposedCalculate(habitat, logger) {
+function resolveAreaProposedCalculate(habitat, logger, label) {
   const sizeHa = pricedAreaHectares(habitat)
   const baseline = habitat.baseline ?? {}
   const proposed = habitat.proposed ?? {}
@@ -293,7 +291,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
       baseline,
       baselineCondition,
       sizeHa,
-      logger
+      { logger, label }
     )
   }
   if (category === RETENTION_CREATED) {
@@ -302,9 +300,7 @@ function resolveAreaProposedCalculate(habitat, logger) {
       proposed,
       proposedCondition,
       sizeHa,
-      advanceYears,
-      delayYears,
-      logger
+      { advanceYears, delayYears, logger, label }
     )
   }
   if (category === RETENTION_ENHANCED) {
@@ -315,14 +311,14 @@ function resolveAreaProposedCalculate(habitat, logger) {
       baselineCondition,
       proposedCondition,
       sizeHa,
-      { advanceYears, delayYears, logger }
+      { advanceYears, delayYears, logger, label }
     )
   }
   skipUnrecognisedRetentionCategory(
     habitat,
     category,
     habitat.retentionCategory ?? baseline.retentionCategory,
-    AREA_PROPOSED_LABEL,
+    label,
     logger
   )
   return null
@@ -334,32 +330,34 @@ function resolveAreaProposedCalculate(habitat, logger) {
  *
  * @param {object} habitat
  * @param {{ warn: (msg: string) => void }} logger
+ * @param {string} [label] what the warnings call the feature
  */
-export function enrichPostInterventionAreaProposedSide(habitat, logger) {
+export function enrichPostInterventionAreaProposedSide(
+  habitat,
+  logger,
+  label = AREA_PROPOSED_LABEL
+) {
   if (!hasValidAreaHabitatSize(habitat)) {
-    checkStrategicSignificanceOfUnsizedFeature(
-      habitat,
-      AREA_PROPOSED_LABEL,
-      logger
-    )
+    checkStrategicSignificanceOfUnsizedFeature(habitat, label, logger)
     return
   }
-  const calculate = resolveAreaProposedCalculate(habitat, logger)
-  runProposedCalculation(
-    habitat,
-    calculate,
-    applyProposedResult,
-    AREA_PROPOSED_LABEL,
-    logger
-  )
+  const calculate = resolveAreaProposedCalculate(habitat, logger, label)
+  runProposedCalculation(habitat, calculate, applyProposedResult, label, logger)
 }
 
 /**
  * @param {object} habitat
  * @param {{ warn: (msg: string) => void }} logger
+ * @param {string} [label] what the warnings call the feature: "Individual
+ *   tree" for a tree, which prices on this path too, so a rejected strategic
+ *   significance is logged against the right layer
  */
-export function enrichPostInterventionAreaHabitat(habitat, logger) {
+export function enrichPostInterventionAreaHabitat(
+  habitat,
+  logger,
+  label = AREA_PROPOSED_LABEL
+) {
   enrichPostInterventionAreaBaselineSide(habitat, logger)
-  enrichPostInterventionAreaProposedSide(habitat, logger)
+  enrichPostInterventionAreaProposedSide(habitat, logger, label)
   finalizePostInterventionFeatureStatus(habitat)
 }

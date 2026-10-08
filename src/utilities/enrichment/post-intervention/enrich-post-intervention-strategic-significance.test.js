@@ -252,3 +252,28 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
     expect(high.proposed.strategicSignificanceScore).toBe(LOW_MULTIPLIER)
   })
 })
+
+describe('the layer a rejection is logged against', () => {
+  // Individual trees price on the area-habitat path, so its warnings must
+  // still name the tree layer, or the per-layer counts are wrong.
+  it.each([
+    ['habitats', 'Habitat parcel'],
+    ['trees', 'Individual tree']
+  ])('logs a rejected %s value against "%s"', (layer, label) => {
+    const feature = makeCreatedAreaHabitat()
+    feature.proposed = { ...feature.proposed, strategicSignificance: MEDIUM }
+    const logger = { warn: vi.fn() }
+    enrichPostInterventionDocumentWithUnits(
+      makeDoc({ [layer]: [feature] }),
+      logger
+    )
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.objectContaining({
+        event: STRATEGIC_SIGNIFICANCE_INVALID_EVENT,
+        layer: label
+      }),
+      expect.any(String)
+    )
+  })
+})
