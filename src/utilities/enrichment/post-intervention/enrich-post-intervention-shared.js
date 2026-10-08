@@ -9,7 +9,12 @@ import {
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
 import { applyProposedTimeDifficultyDisplayFields } from './proposed-time-difficulty-display.js'
-import { GPKG_RETENTION_LOST } from './retention-category.js'
+import {
+  GPKG_RETENTION_LOST,
+  RETENTION_CREATED,
+  RETENTION_ENHANCED,
+  resolveRetentionCategory
+} from './retention-category.js'
 import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
 
 export { isPresentEngineString } from '../shared/is-present-engine-string.js'
@@ -320,6 +325,27 @@ export function applyInvalidStrategicSignificanceResult(feature, value) {
   feature.proposed.strategicSignificanceScore = null
   feature.units = INVALID_STRATEGIC_SIGNIFICANCE_UNITS
   feature.status = HABITAT_STATUS.INCOMPLETE
+}
+
+/**
+ * Check the Proposed Strategic Significance of a created or enhanced feature
+ * that has no valid size. Such a feature is skipped before the builders that
+ * check it, so this is where an invalid value is nulled and priced at zero
+ * (BMD-1051 AC4) instead. Other categories carry no proposed value to check.
+ *
+ * @param {object} feature
+ * @param {string} context - e.g. "Habitat parcel"
+ * @param {{ warn: (fields: object, msg: string) => void }} logger
+ */
+export function checkStrategicSignificanceOfUnsizedFeature(
+  feature,
+  context,
+  logger
+) {
+  const category = resolveRetentionCategory(feature)
+  if (category === RETENTION_CREATED || category === RETENTION_ENHANCED) {
+    resolveProposedStrategicSignificance(feature, context, logger)
+  }
 }
 
 /**

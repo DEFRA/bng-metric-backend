@@ -164,6 +164,38 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
     })
   })
 
+  describe.each(['created', 'enhanced'])('%s, unsized', (category) => {
+    // A feature with no valid size is skipped before its builder runs; its
+    // strategic significance is still checked there.
+    it('nulls an invalid value when the feature has no size', () => {
+      const feature = LAYERS[layer][category]()
+      Object.assign(feature, { sizeSquareMetres: 0, area: 0, sizeMetres: 0 })
+      feature.proposed = { ...feature.proposed, strategicSignificance: MEDIUM }
+      const doc = makeDoc({ [layer]: [feature] })
+      enrichPostInterventionDocumentWithUnits(doc, undefined, {
+        baselineLengthByRef: BASELINE_LENGTH_BY_REF
+      })
+      const [enriched] = doc[layer]
+
+      expect(enriched.status).toBe('Incomplete')
+      expect(enriched.units).toBe(0)
+      expect(enriched.proposed.strategicSignificance).toBeNull()
+      expect(enriched.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
+    })
+
+    it('leaves a valid value alone when the feature has no size', () => {
+      const feature = LAYERS[layer][category]()
+      Object.assign(feature, { sizeSquareMetres: 0, area: 0, sizeMetres: 0 })
+      feature.proposed = { ...feature.proposed, strategicSignificance: HIGH }
+      const doc = makeDoc({ [layer]: [feature] })
+      enrichPostInterventionDocumentWithUnits(doc, undefined, {
+        baselineLengthByRef: BASELINE_LENGTH_BY_REF
+      })
+
+      expect(doc[layer][0].proposed.strategicSignificance).toBe(HIGH)
+    })
+  })
+
   describe.each(['created', 'enhanced'])('%s, priced again', (category) => {
     const makeFeature = LAYERS[layer][category]
 

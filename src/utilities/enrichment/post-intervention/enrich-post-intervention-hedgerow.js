@@ -17,6 +17,7 @@ import {
   handleLostLinearCategory,
   runProposedCalculation,
   resolveProposedStrategicSignificance,
+  checkStrategicSignificanceOfUnsizedFeature,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
@@ -341,6 +342,11 @@ export function enrichPostInterventionHedgerowProposedSide(
       hedgerow,
       HEDGEROW_PROPOSED_LABEL,
       'sizeMetres is missing or not positive',
+      logger
+    )
+    checkStrategicSignificanceOfUnsizedFeature(
+      hedgerow,
+      HEDGEROW_PROPOSED_LABEL,
       logger
     )
     return

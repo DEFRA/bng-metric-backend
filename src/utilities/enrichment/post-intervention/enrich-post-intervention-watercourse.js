@@ -19,6 +19,7 @@ import {
   handleLostLinearCategory,
   runProposedCalculation,
   resolveProposedStrategicSignificance,
+  checkStrategicSignificanceOfUnsizedFeature,
   skipUnrecognisedRetentionCategory,
   RETENTION_RETAINED,
   RETENTION_CREATED,
@@ -322,6 +323,11 @@ export function enrichPostInterventionWatercourseProposedSide(
       watercourse,
       WATERCOURSE_PROPOSED_LABEL,
       'sizeMetres is missing or not positive',
+      logger
+    )
+    checkStrategicSignificanceOfUnsizedFeature(
+      watercourse,
+      WATERCOURSE_PROPOSED_LABEL,
       logger
     )
     return

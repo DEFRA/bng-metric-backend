@@ -19,6 +19,7 @@ import {
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   resolveProposedStrategicSignificance,
+  checkStrategicSignificanceOfUnsizedFeature,
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -336,6 +337,11 @@ function resolveAreaProposedCalculate(habitat, logger) {
  */
 export function enrichPostInterventionAreaProposedSide(habitat, logger) {
   if (!hasValidAreaHabitatSize(habitat)) {
+    checkStrategicSignificanceOfUnsizedFeature(
+      habitat,
+      AREA_PROPOSED_LABEL,
+      logger
+    )
     return
   }
   const calculate = resolveAreaProposedCalculate(habitat, logger)
