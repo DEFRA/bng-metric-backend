@@ -80,63 +80,74 @@ function normalizeEdits(edits = {}) {
   }
 }
 
-function recomputeForType(
-  type,
+function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
+  if (documentKey === 'postIntervention') {
+    return recomputePostInterventionAreaHabitat(
+      existing,
+      {
+        broadType: edits.broadType,
+        habitatType: edits.habitatType,
+        condition: edits.condition
+      },
+      logger
+    )
+  }
+  return recomputeAreaHabitat({
+    broadType: edits.broadType,
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
+  })
+}
+
+function recomputeHedgerowEdit(
   existing,
   edits,
   { documentKey, logger, baseline }
 ) {
-  if (type === 'habitat') {
-    if (documentKey === 'postIntervention') {
-      return recomputePostInterventionAreaHabitat(
-        existing,
-        {
-          broadType: edits.broadType,
-          habitatType: edits.habitatType,
-          condition: edits.condition
-        },
+  if (documentKey === 'postIntervention') {
+    return recomputePostInterventionHedgerow(
+      existing,
+      { habitatType: edits.habitatType, condition: edits.condition },
+      {
+        baselineLengthByRef:
+          postInterventionEnrichOptions(baseline).baselineLengthByRef,
         logger
-      )
-    }
-    return recomputeAreaHabitat({
-      broadType: edits.broadType,
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
-    })
-  } else if (type === 'hedgerow') {
-    if (documentKey === 'postIntervention') {
-      return recomputePostInterventionHedgerow(
-        existing,
-        { habitatType: edits.habitatType, condition: edits.condition },
-        {
-          baselineLengthByRef:
-            postInterventionEnrichOptions(baseline).baselineLengthByRef,
-          logger
-        }
-      )
-    }
-    return recomputeHedgerow({
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      sizeMetres: existing.sizeMetres ?? null
-    })
-  } else if (type === 'watercourse') {
-    // Post-intervention watercourse editing is out of scope; only the baseline
-    // document recomputes a watercourse here (BMD-597).
-    if (documentKey === 'postIntervention') {
-      return null
-    }
-    return recomputeWatercourse({
-      habitatType: edits.habitatType,
-      condition: edits.condition,
-      watercourseEncroachment: edits.watercourseEncroachment,
-      riparianEncroachment: edits.riparianEncroachment,
-      sizeMetres: existing.sizeMetres ?? null
-    })
-  } else {
+      }
+    )
+  }
+  return recomputeHedgerow({
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    sizeMetres: existing.sizeMetres ?? null
+  })
+}
+
+function recomputeWatercourseEdit(existing, edits, { documentKey }) {
+  // Post-intervention watercourse editing is out of scope; only the baseline
+  // document recomputes a watercourse here (BMD-597).
+  if (documentKey === 'postIntervention') {
     return null
   }
+  return recomputeWatercourse({
+    habitatType: edits.habitatType,
+    condition: edits.condition,
+    watercourseEncroachment: edits.watercourseEncroachment,
+    riparianEncroachment: edits.riparianEncroachment,
+    sizeMetres: existing.sizeMetres ?? null
+  })
+}
+
+const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
+  habitat: recomputeHabitatEdit,
+  hedgerow: recomputeHedgerowEdit,
+  watercourse: recomputeWatercourseEdit
+})
+
+function recomputeForType(type, existing, edits, context) {
+  return Object.hasOwn(RECOMPUTE_EDIT_BY_TYPE, type)
+    ? RECOMPUTE_EDIT_BY_TYPE[type](existing, edits, context)
+    : null
 }
 
 function mergeBaselineFeature(type, existing, edits, derived) {
