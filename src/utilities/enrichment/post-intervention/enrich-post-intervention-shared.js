@@ -228,6 +228,23 @@ export const VALID_PROPOSED_STRATEGIC_SIGNIFICANCE_CATEGORIES = Object.freeze([
 
 const INVALID_STRATEGIC_SIGNIFICANCE_UNITS = 0
 
+/**
+ * What the engine derives when it prices a proposed side. A rejected feature
+ * isn't priced, so none of these may survive from an earlier pricing (of a
+ * project saved before BMD-1051, or of the habitat it was before a re-type).
+ * `advanceOrDelay` isn't here: it restates what the user entered.
+ */
+const ENGINE_DERIVED_PROPOSED_FIELDS = Object.freeze([
+  'distinctiveness',
+  'distinctivenessScore',
+  'conditionScore',
+  'timeMultiplier',
+  'difficultyMultiplier',
+  'difficulty',
+  'standardTimeToTargetCondition',
+  'finalTimeToTargetCondition'
+])
+
 /** The `event` field of the warning logged for each rejected value. */
 export const STRATEGIC_SIGNIFICANCE_INVALID_EVENT =
   'strategic-significance-invalid'
@@ -299,9 +316,11 @@ function isValidProposedStrategicSignificance(value) {
 /**
  * Persist a created or enhanced feature whose Proposed Strategic Significance
  * is invalid (BMD-1051 AC4): the value is nulled, nothing resolves from it, and
- * the units are zero by definition. The feature is saved Incomplete so it can
- * be highlighted. Choosing a valid value on habitat details comes in a
- * follow-up story; until then, re-uploading the file is the only fix.
+ * the units are zero by definition. Whatever an earlier pricing derived (see
+ * ENGINE_DERIVED_PROPOSED_FIELDS) is cleared with it. The feature is saved
+ * Incomplete so it can be highlighted. Choosing a valid value on habitat
+ * details comes in a follow-up story; until then, re-uploading the file is the
+ * only fix.
  *
  * The value that was rejected is kept in `rejectedStrategicSignificance`, so
  * nulling it loses nothing. That matters because a baseline edit re-prices
@@ -320,6 +339,9 @@ export function applyInvalidStrategicSignificanceResult(feature, value) {
   )
     ? (feature.proposed.rejectedStrategicSignificance ?? null)
     : value
+  for (const field of ENGINE_DERIVED_PROPOSED_FIELDS) {
+    feature.proposed[field] = null
+  }
   feature.proposed.strategicSignificance = null
   feature.proposed.strategicSignificanceCategory = null
   feature.proposed.strategicSignificanceScore = null

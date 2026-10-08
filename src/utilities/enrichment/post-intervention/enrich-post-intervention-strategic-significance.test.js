@@ -215,6 +215,24 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       expect(again.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
     })
 
+    it('clears what an earlier pricing derived when the value is rejected', () => {
+      const priced = enrich(layer, makeFeature, HIGH)
+      expect(priced.proposed.distinctiveness).not.toBeNull()
+      priced.proposed.strategicSignificance = MEDIUM
+      const rejected = enrichAgain(priced)
+
+      expect(rejected.proposed).toMatchObject({
+        distinctiveness: null,
+        distinctivenessScore: null,
+        conditionScore: null,
+        timeMultiplier: null,
+        difficultyMultiplier: null,
+        difficulty: null,
+        standardTimeToTargetCondition: null,
+        finalTimeToTargetCondition: null
+      })
+    })
+
     it('clears the rejected value once a valid one is priced', () => {
       const rejected = enrich(layer, makeFeature, MEDIUM)
       rejected.proposed.strategicSignificance = HIGH
