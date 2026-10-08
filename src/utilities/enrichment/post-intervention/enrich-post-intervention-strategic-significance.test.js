@@ -112,7 +112,9 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       ['an empty string', '', REASON.BLANK],
       ['whitespace', '   ', REASON.BLANK],
       ['null', null, REASON.BLANK],
-      ['undefined', undefined, REASON.BLANK]
+      ['undefined', undefined, REASON.BLANK],
+      // A non-string can't name a category; the check must reject it, not throw.
+      ['a number', HIGH_MULTIPLIER, REASON.BLANK]
     ])('nulls %s, prices it at zero and warns', (_name, value, reason) => {
       const logger = { warn: vi.fn() }
       const feature = enrich(layer, makeFeature, value, logger)
