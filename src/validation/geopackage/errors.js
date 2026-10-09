@@ -74,6 +74,14 @@ export const ERROR_CODES = Object.freeze({
   /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
 
+  /**
+   * The baseline derived from a post-intervention file has no area habitats.
+   * Persisting it would replace the stored baseline, including any feature
+   * edits, with an empty one. A file whose Baseline columns are blank or
+   * placeholders does this.
+   */
+  NO_DERIVED_BASELINE_HABITATS: 'NO_DERIVED_BASELINE_HABITATS',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 

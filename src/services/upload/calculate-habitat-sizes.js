@@ -85,7 +85,8 @@ function appendSize(result, layerName, featureId, sizeValue) {
  * pure function of geometry and the filter only ever removes features, so
  * measuring everything and then discarding some is correct.
  *
- * @param {object} layers layers with featureIds already assigned
+ * @param {object} layers layers in the order the geometry engine measured.
+ *   Measurements are joined by that position, not by featureId.
  * @param {Record<string, Array<{ idx: number, value: number }>>} [sizes]
  * @returns {object} a new layers object; the input is left untouched
  */

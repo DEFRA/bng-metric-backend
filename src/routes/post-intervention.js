@@ -15,6 +15,11 @@ const POST_INTERVENTION_VALIDATION_CONFIG = Object.freeze({
  *     tags:
  *       - Post Intervention
  *     summary: Validate a post-intervention GeoPackage upload
+ *     description: >-
+ *       The file is a combined baseline + post-intervention GeoPackage. The
+ *       baseline is derived from its Baseline columns (every row that is not
+ *       Created), and both the baseline and post-intervention documents are
+ *       replaced together.
  *     parameters:
  *       - in: path
  *         name: uploadId
@@ -32,7 +37,7 @@ const POST_INTERVENTION_VALIDATION_CONFIG = Object.freeze({
  *               projectId:
  *                 type: string
  *                 format: uuid
- *                 description: Saves the unpacked post-intervention data against the project's JSONB document.
+ *                 description: Saves the derived baseline and the post-intervention data against the project's JSONB document.
  *     responses:
  *       200:
  *         description: Returns validation result

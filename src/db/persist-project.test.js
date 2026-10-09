@@ -5,6 +5,7 @@ import {
   insertProject,
   setProjectName,
   setProjectBaseline,
+  setProjectBaselineAndPostIntervention,
   setBaselineFeature,
   setProjectHabitatData,
   setProjectFeature,
@@ -172,6 +173,67 @@ describe('setProjectBaseline', () => {
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
+})
+
+describe('setProjectBaselineAndPostIntervention', () => {
+  const baseline = { importedAt: '2026-01-01T00:00:00.000Z', habitats: [] }
+  const postIntervention = {
+    importedAt: '2026-01-01T00:00:00.000Z',
+    habitats: [],
+    hedgerows: [],
+    watercourses: []
+  }
+
+  test('writes both documents in one update', async () => {
+    const db = makeDb()
+    await setProjectBaselineAndPostIntervention(
+      db,
+      PROJECT_ID,
+      { baseline, postIntervention },
+      ACTOR_ID
+    )
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+    const [{ project }] = db._set.mock.calls[0]
+    const { sql: updateSql, params } = new PgDialect().sqlToQuery(project)
+    expect(updateSql.match(/jsonb_set/g)).toHaveLength(2)
+    expect(params).toEqual(
+      expect.arrayContaining(['{baseline}', '{postIntervention}'])
+    )
+  })
+
+  test('rejects a missing actor before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectBaselineAndPostIntervention(db, PROJECT_ID, {
+        baseline,
+        postIntervention
+      })
+    ).rejects.toThrow(/verified actor identity is required/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test.each([
+    ['baseline', { baseline: { fileSize: -5 }, postIntervention }],
+    [
+      'post-intervention',
+      { baseline, postIntervention: { ...postIntervention, fileSize: -5 } }
+    ]
+  ])(
+    'throws and does not write for an invalid %s document',
+    async (_label, documents) => {
+      const db = makeDb()
+      await expect(
+        setProjectBaselineAndPostIntervention(
+          db,
+          PROJECT_ID,
+          documents,
+          ACTOR_ID
+        )
+      ).rejects.toThrow(/failed schema validation/)
+      expect(db._update).not.toHaveBeenCalled()
+    }
+  )
 })
 
 describe('setBaselineFeature', () => {
