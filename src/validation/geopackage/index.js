@@ -1,7 +1,7 @@
 import { checkAdvanceAndDelayNotBothSet } from './advance-delay-check.js'
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
-import { checkDuplicateHabitatRefs } from './duplicate-ref-check.js'
 import { readGeoPackage } from './geopackage.js'
+import { checkHabitatRefs } from './habitat-ref-check.js'
 import { FEATURE_READ_MODE } from './read-feature-tables.js'
 import { checkTreeCountIsWhole } from './tree-count-check.js'
 import { config } from '../../config.js'
@@ -44,7 +44,7 @@ function workerPool() {
 export function runDataQualityChecks(layers, variant) {
   return [
     checkHabitatDistinctiveness(layers, variant),
-    checkDuplicateHabitatRefs(layers),
+    ...checkHabitatRefs(layers),
     checkAdvanceAndDelayNotBothSet(layers),
     checkTreeCountIsWhole(layers)
   ].filter(Boolean)

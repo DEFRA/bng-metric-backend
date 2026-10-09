@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
 import { PROP_KEYS, featureKeysForVariant, pickProp } from '../properties.js'
+import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   areaStatus,
   hedgerowStatus,
@@ -59,7 +60,7 @@ function buildHabitat(feature, keys) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, keys.habitatType)
-  const ref = pickProp(props, keys.parcelRef)
+  const ref = cleanHabitatRef(pickProp(props, keys.parcelRef))
 
   // NOTE: distinctiveness and distinctivenessScore are not included here because
   // they are calculated separately by the metric engine. rawDistinctiveness is
@@ -138,7 +139,7 @@ function buildLinearFeature(
 ) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
-  const ref = pickProp(props, keys.parcelRef)
+  const ref = cleanHabitatRef(pickProp(props, keys.parcelRef))
   const extraDocumentProperties = pickProps(props, extraProperties)
 
   const document = {
