@@ -8,15 +8,15 @@
 // delete-and-reinsert rather than an update, and no row-level history survives.
 //
 // The stable key is `ref` — the Parcel Ref / Tree Ref column. It is already
-// treated as a natural key elsewhere: duplicate-ref-check.js enforces its
-// uniqueness on the habitats layer, and buildBaselineLinearLengthByRef joins
+// treated as a natural key elsewhere: buildBaselineLinearLengthByRef joins
 // post-intervention linear features back to the baseline on it.
 //
 // Matching is deliberately conservative. A ref only carries an id forward when
-// it is non-blank and unambiguous on BOTH sides — uniqueness is only *enforced*
-// on habitats, so hedgerows, watercourses and trees can legitimately arrive with
-// repeated refs. Anything unmatched, blank or ambiguous falls back to a fresh
-// UUID, exactly as before.
+// it is non-blank and unambiguous on BOTH sides — uniqueness is not enforced on
+// any layer (BMD-1058 allows habitats to share a ref), so any layer can
+// legitimately arrive with repeated refs. Anything unmatched, blank or
+// ambiguous falls back to a fresh UUID, exactly as before.
+import { cleanHabitatRef } from './habitat-ref-check.js'
 import { PROP_KEYS } from './properties.js'
 
 /**
@@ -39,8 +39,11 @@ export const REF_PROP_KEYS_BY_LAYER = Object.freeze({
 export const RED_LINE_KEY = 'redLine'
 
 /**
- * Trim a ref to a comparable string, collapsing blank, missing and non-scalar
- * values to null. Refs reach us as whatever the GeoPackage column held, so a
+ * Clean a ref to a comparable string, collapsing blank, missing and non-scalar
+ * values to null. It is cleaned exactly as a habitat ref is stored (trimmed and
+ * truncated, cleanHabitatRef), so an incoming ref and the stored one it came
+ * from compare equal however long it was. Refs reach us as whatever the
+ * GeoPackage column held, so a
  * numeric ref must stringify the same way on both sides of the comparison —
  * but anything that is not a string or number has no meaningful ref value, and
  * stringifying it would collapse every such feature onto one lookup key
@@ -53,8 +56,8 @@ export function normaliseRef(ref) {
   if (typeof ref !== 'string' && typeof ref !== 'number') {
     return null
   }
-  const trimmed = String(ref).trim()
-  return trimmed === '' ? null : trimmed
+  const cleaned = cleanHabitatRef(ref)
+  return cleaned === '' ? null : cleaned
 }
 
 /**
