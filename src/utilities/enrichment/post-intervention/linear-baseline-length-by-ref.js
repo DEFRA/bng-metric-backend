@@ -1,5 +1,6 @@
 import { BaselineLookupError } from 'bng-library/metric'
 
+import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { pricedLengthKm } from '../shared/enrich-units-shared.js'
 
 /**
@@ -17,6 +18,12 @@ export function linearLengthKmFromSizeMetres(sizeMetres) {
  * Build a Map<parcelRef, lengthKm> from stored baseline hedgerows and
  * watercourses. Used by Enhanced linear post-intervention calculations.
  *
+ * Keyed by the normalised ref (normaliseRef), and looked up the same way, as
+ * the ref carry-forward paths do. A post-intervention ref is stored cleaned
+ * (trimmed, truncated, a number as text: BMD-1058), but a baseline saved
+ * before that may hold ' H001', 12 or a ref over the length limit, so
+ * matching the raw values would miss and leave the Enhanced feature unpriced.
+ *
  * @param {object[]} [hedgerows]
  * @param {object[]} [watercourses]
  * @returns {Map<string, number>}
@@ -27,15 +34,13 @@ export function buildBaselineLinearLengthByRef(
 ) {
   const lengthByRef = new Map()
   for (const feature of [...hedgerows, ...watercourses]) {
+    const ref = normaliseRef(feature.ref)
     if (
-      feature.ref != null &&
+      ref !== null &&
       typeof feature.sizeMetres === 'number' &&
       feature.sizeMetres > 0
     ) {
-      lengthByRef.set(
-        feature.ref,
-        linearLengthKmFromSizeMetres(feature.sizeMetres)
-      )
+      lengthByRef.set(ref, linearLengthKmFromSizeMetres(feature.sizeMetres))
     }
   }
   return lengthByRef
@@ -58,7 +63,8 @@ export function lookupBaselineLinearLength(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${ref}")`
     )
   }
-  const lengthKm = baselineLengthByRef.get(ref)
+  const key = normaliseRef(ref)
+  const lengthKm = key === null ? undefined : baselineLengthByRef.get(key)
   if (lengthKm == null) {
     throw new BaselineLookupError(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for parcel ref "${ref}"`
