@@ -3,6 +3,7 @@ import { randomUUID } from 'node:crypto'
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
 import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
+import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   postInterventionAreaStatus,
   postInterventionHedgerowStatus,
@@ -33,6 +34,9 @@ import {
 import { buildPostInterventionTree } from './extract-post-intervention-trees.js'
 
 /**
+ * The ref is the Parcel Ref as stored: trimmed and truncated
+ * (cleanHabitatRef). Trees read their own Tree Ref instead.
+ *
  * @param {object} feature
  * @returns {{ featureId: string, props: object, ref: string | null }}
  */
@@ -42,7 +46,7 @@ function initParsedFeature(feature) {
   return {
     featureId,
     props,
-    ref: pickProp(props, PROP_KEYS.parcelRef)
+    ref: cleanHabitatRef(pickProp(props, PROP_KEYS.parcelRef))
   }
 }
 

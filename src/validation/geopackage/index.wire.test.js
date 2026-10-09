@@ -153,7 +153,7 @@ describe('validateGeoPackageLayers wired to the worker pool', () => {
     })
 
     const out = await validateGeoPackageLayers(
-      { redline: [1], areas: [{}] },
+      { redline: [1], areas: [{ properties: { 'Parcel Ref': 'H001' } }] },
       'baseline',
       { filePath: FILE }
     )
@@ -174,7 +174,7 @@ describe('validateGeoPackageLayers wired to the worker pool', () => {
     })
 
     const out = await validateGeoPackageLayers(
-      { redline: [1], areas: [{}] },
+      { redline: [1], areas: [{ properties: { 'Parcel Ref': 'H001' } }] },
       'baseline',
       { filePath: FILE }
     )

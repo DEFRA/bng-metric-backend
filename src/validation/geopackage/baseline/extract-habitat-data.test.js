@@ -1334,3 +1334,29 @@ describe('extractHabitatData — post-intervention reads Proposed columns (varia
     )
   })
 })
+
+describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
+  it('trims and truncates the Parcel Ref on area, hedgerow and watercourse habitats, but not on trees', () => {
+    const long = 'L'.repeat(120)
+    const layers = {
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: '  H001  ' })],
+      hedgerows: [feature({ [PARCEL_REF]: long }, SAMPLE_LINESTRING)],
+      watercourses: [feature({ [PARCEL_REF]: '\tR001' }, SAMPLE_LINESTRING)],
+      trees: [
+        feature(
+          { 'Tree Ref': '  T001  ' },
+          { type: 'Point', coordinates: [0, 0] }
+        )
+      ]
+    }
+
+    const { document, geometries } = extractHabitatData(layers)
+
+    expect(document.habitats[0].ref).toBe('H001')
+    expect(geometries.habitats[0].ref).toBe('H001')
+    expect(document.hedgerows[0].ref).toBe('L'.repeat(100))
+    expect(document.watercourses[0].ref).toBe('R001')
+    expect(document.trees[0].ref).toBe('  T001  ')
+  })
+})

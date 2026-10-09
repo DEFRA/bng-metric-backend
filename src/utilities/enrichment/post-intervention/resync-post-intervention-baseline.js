@@ -42,13 +42,10 @@
 // so choosing between them would be a coin flip. Both are left exactly as
 // imported, and logged.
 //
-// Today `checkDuplicateHabitatRefs` rejects a repeated Parcel Ref on the AREA
-// layer at upload, in both variants, so the ambiguous case cannot yet arise on
-// the layer that decides the Met / Not-met verdict. That check is understood to
-// be wrong — duplicate parcel refs are legitimate where parcels combine or
-// split — and is raised separately. Nothing here depends on it: the resolution
-// above is what keeps the verdict safe, so relaxing the upload check needs no
-// change to this file.
+// Upload allows a repeated Parcel Ref on every layer (BMD-1058): duplicate
+// parcel refs are legitimate where parcels combine or split. So the ambiguous
+// case can arise on the area layer, the one that decides the Met / Not-met
+// verdict; the resolution above is what keeps the verdict safe.
 
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
