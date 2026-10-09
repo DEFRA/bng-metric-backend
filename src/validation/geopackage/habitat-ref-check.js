@@ -116,9 +116,13 @@ export function checkHabitatRefs(layers) {
     const features = layers?.[layer] ?? []
     features.forEach((feature, idx) => {
       const ref = pickProp(feature?.properties ?? {}, PROP_KEYS.parcelRef)
+      // A missing reference has no characters to check, so it is reported
+      // as missing only.
       if (isMissing(ref)) {
         missing.push(describe(layer, feature, idx))
-      } else if (hasInvalidCharacters(ref)) {
+        return
+      }
+      if (hasInvalidCharacters(ref)) {
         invalid.push(describe(layer, feature, idx))
       }
     })
