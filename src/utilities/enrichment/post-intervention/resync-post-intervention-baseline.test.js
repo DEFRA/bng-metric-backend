@@ -468,9 +468,8 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
   })
 
   test('resolves an ambiguous ref on the layer the Met / Not-met verdict reads', () => {
-    // checkDuplicateHabitatRefs rejects repeated Parcel Refs at upload today, so
-    // this cannot yet reach the area layer — but that check is wrong, and the
-    // verdict must not start depending on it.
+    // Upload allows repeated Parcel Refs (BMD-1058), so this reaches the area
+    // layer, and the verdict must not depend on which row a ref picks.
     const previousBaseline = {
       habitats: [
         baselineHabitat({ featureId: 'b-grass', units: 2 }),

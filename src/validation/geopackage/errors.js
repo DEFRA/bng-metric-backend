@@ -54,7 +54,12 @@ export const ERROR_CODES = Object.freeze({
   TREES_OUTSIDE_REDLINE: 'TREES_OUTSIDE_REDLINE',
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH',
   HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE',
-  DUPLICATE_HABITAT_REF: 'DUPLICATE_HABITAT_REF',
+
+  /** One or more area, hedgerow or watercourse habitats have no Parcel Ref, or only spaces (BMD-1058). One error for them all. */
+  HABITAT_REF_MISSING: 'HABITAT_REF_MISSING',
+
+  /** One or more Parcel Refs hold characters that are not valid UTF-8 (BMD-1058). One error for them all. */
+  HABITAT_REF_INVALID_CHARACTERS: 'HABITAT_REF_INVALID_CHARACTERS',
 
   /** A feature carries both advance and delay years; the statutory metric allows only one. */
   ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
