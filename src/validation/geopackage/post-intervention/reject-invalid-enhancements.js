@@ -2,7 +2,10 @@
 // baseline. See enhancement-rules.js for the rules.
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
-import { RETENTION_ENHANCED } from '../../../utilities/enrichment/post-intervention/retention-category.js'
+import {
+  RETENTION_ENHANCED,
+  resolveRetentionCategory
+} from '../../../utilities/enrichment/post-intervention/retention-category.js'
 import { NO_OP_LOGGER } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
 import {
   ENHANCEMENT_RULE_LAYERS,
@@ -39,7 +42,7 @@ function applyInvalidEnhancement(feature, rule) {
  * @returns {boolean} whether the enhancement was rejected
  */
 function rejectIfInvalid(feature, layer, logger) {
-  if (feature?.retentionCategory !== RETENTION_ENHANCED) {
+  if (resolveRetentionCategory(feature) !== RETENTION_ENHANCED) {
     return false
   }
   const check = checkFeatureEnhancement(layer, feature)

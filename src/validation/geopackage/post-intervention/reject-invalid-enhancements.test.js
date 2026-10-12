@@ -152,6 +152,21 @@ describe('rejectInvalidEnhancements', () => {
     }
   )
 
+  it('reads the intervention type from the baseline when the feature has none at its root', () => {
+    const habitat = enhancedHabitat({
+      baseline: {
+        type: 'Modified grassland',
+        condition: 'Moderate',
+        retentionCategory: 'Enhanced'
+      },
+      proposed: { type: 'Modified grassland', condition: 'Poor' }
+    })
+    delete habitat.retentionCategory
+
+    expect(rejectInvalidEnhancements({ habitats: [habitat] })).toBe(1)
+    expect(habitat.invalidEnhancement).toBe(ENHANCEMENT_RULE.LOW_AREA)
+  })
+
   it('leaves an enhancement no rule can check to the other validation', () => {
     const habitat = enhancedHabitat({
       baseline: { type: 'Modified grassland', condition: 'Moderate' },
