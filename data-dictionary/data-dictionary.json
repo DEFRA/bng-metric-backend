@@ -3067,6 +3067,23 @@
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
+      "path": "postIntervention.habitats[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "medium-intertidal-area",
+        "medium-area-condition-assessment-na",
+        "medium-area",
+        "low-area-condition-assessment-na",
+        "low-area"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat is not a valid enhancement of its baseline (BMD-820). Every proposed attribute is then nulled and the feature is Incomplete. Absent when the enhancement is valid or was not checked."
+    },
+    {
       "path": "postIntervention.habitats[].baseline",
       "type": "object",
       "required": false,
@@ -3936,6 +3953,17 @@
       "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
     },
     {
+      "path": "postIntervention.hedgerows[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["medium-hedgerow", "low-hedgerow", "very-low-hedgerow"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat is not a valid enhancement of its baseline (BMD-820). Every proposed attribute is then nulled and the feature is Incomplete. Absent when the enhancement is valid or was not checked."
+    },
+    {
       "path": "postIntervention.hedgerows[].featureId",
       "type": "string",
       "required": true,
@@ -4319,6 +4347,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
+    },
+    {
+      "path": "postIntervention.watercourses[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["medium-watercourse", "low-watercourse"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat is not a valid enhancement of its baseline (BMD-820). Every proposed attribute is then nulled and the feature is Incomplete. Absent when the enhancement is valid or was not checked."
     },
     {
       "path": "postIntervention.watercourses[].featureId",
