@@ -31,30 +31,41 @@ const distinctivenessScores = Object.fromEntries(
 )
 
 /**
- * Build a case-insensitive band lookup over one distinctiveness table. The
- * returned function trims the key and matches exactly first, then falls back to
- * a case-insensitive scan so minor formatting differences in the GeoPackage
- * don't fail. Returns null for an unrecognised (or non-string) type.
+ * Build a case-insensitive lookup of a habitat type's key in one
+ * distinctiveness table. The returned function trims the type and matches
+ * exactly first, then falls back to a case-insensitive scan so minor formatting
+ * differences in the GeoPackage don't fail. Returns the key as the table
+ * spells it, or null for an unrecognised (or non-string) type.
  *
  * @param {Record<string, string>} table habitat type string → band
  * @returns {(habitatType: string|null|undefined) => string|null}
  */
-function makeBandLookup(table) {
+function makeKeyLookup(table) {
   return (habitatType) => {
     if (!habitatType || typeof habitatType !== 'string') {
       return null
     }
     const key = habitatType.trim()
     if (key in table) {
-      return table[key]
+      return key
     }
     const lower = key.toLowerCase()
-    for (const k of Object.keys(table)) {
-      if (k.toLowerCase() === lower) {
-        return table[k]
-      }
-    }
-    return null
+    return Object.keys(table).find((k) => k.toLowerCase() === lower) ?? null
+  }
+}
+
+/**
+ * Build a case-insensitive band lookup over one distinctiveness table (see
+ * makeKeyLookup). Returns null for an unrecognised (or non-string) type.
+ *
+ * @param {Record<string, string>} table habitat type string → band
+ * @returns {(habitatType: string|null|undefined) => string|null}
+ */
+function makeBandLookup(table) {
+  const lookupKey = makeKeyLookup(table)
+  return (habitatType) => {
+    const key = lookupKey(habitatType)
+    return key === null ? null : table[key]
   }
 }
 
@@ -85,7 +96,23 @@ const getWatercourseDistinctiveness = makeBandLookup(
   distinctivenessByWatercourseType
 )
 
+/**
+ * The metric's spelling of an area habitat type ("<broad> - <type>"), a hedge
+ * type or a river type, matched as the band lookups match it; null when the
+ * type is not recognised.
+ *
+ * @type {(habitatType: string|null|undefined) => string|null}
+ */
+const canonicalHabitatType = makeKeyLookup(distinctivenessByHabitatType)
+/** @type {(hedgerowType: string|null|undefined) => string|null} */
+const canonicalHedgerowType = makeKeyLookup(distinctivenessByHedgerowType)
+/** @type {(watercourseType: string|null|undefined) => string|null} */
+const canonicalWatercourseType = makeKeyLookup(distinctivenessByWatercourseType)
+
 export {
+  canonicalHabitatType,
+  canonicalHedgerowType,
+  canonicalWatercourseType,
   distinctivenessScores,
   distinctivenessByHabitatType,
   distinctivenessByHedgerowType,

@@ -10,6 +10,7 @@ import {
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
+import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 /**
@@ -115,7 +116,7 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
  *       404:
  *         description: Project or habitat not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -220,6 +221,9 @@ async function runUpdate(
   }
   if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
     throw outOfScopeDistinctivenessError(result.distinctiveness)
+  }
+  if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
+    throw invalidEnhancementError(result.rule)
   }
 
   await setProjectFeature(tx, projectId, {
