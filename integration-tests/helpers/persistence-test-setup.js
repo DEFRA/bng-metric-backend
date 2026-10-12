@@ -44,7 +44,10 @@ export async function createProject(name) {
   return res.result
 }
 
-export async function uploadFixture(fixtureName) {
+export async function uploadFixture(
+  fixtureName,
+  filePath = fixturePath(fixtureName)
+) {
   const initiated = await server.inject({
     method: 'POST',
     url: '/upload/initiate',
@@ -57,7 +60,7 @@ export async function uploadFixture(fixtureName) {
   const { uploadId, uploadUrl } = initiated.result
   await uploadViaCdpUploader({
     uploadUrl,
-    filePath: fixturePath(fixtureName)
+    filePath
   })
   await waitForUploadStatus(server, uploadId, {
     target: 'ready',

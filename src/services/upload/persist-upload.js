@@ -1,4 +1,5 @@
 import Boom from '@hapi/boom'
+import { importEvents } from '../../db/schema/import-events.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
@@ -188,7 +189,7 @@ async function runPersistTransaction(
   projectId,
   document,
   geometries,
-  { projectDocumentKey, featureTables, credentials }
+  { projectDocumentKey, featureTables, credentials, importIssues, uploadId }
 ) {
   await drizzle.transaction(async (tx) => {
     await tx.execute(
@@ -210,6 +211,14 @@ async function runPersistTransaction(
       credentials.sub,
       projectDocumentKey
     )
+    if (importIssues.length > 0) {
+      await tx.insert(importEvents).values({
+        projectId,
+        uploadId,
+        documentKey: projectDocumentKey,
+        details: importIssues
+      })
+    }
   })
 }
 
@@ -248,6 +257,7 @@ async function persistUpload(
     uploadId,
     logger,
     credentials,
+    importIssues = [],
     projectDocumentKey = 'baseline',
     uploadLabel = 'baseline',
     featureTables = FEATURE_TABLE_SETS[projectDocumentKey]
@@ -257,7 +267,9 @@ async function persistUpload(
     await runPersistTransaction(drizzle, projectId, document, geometries, {
       projectDocumentKey,
       featureTables,
-      credentials
+      credentials,
+      importIssues,
+      uploadId
     })
   } catch (err) {
     rethrowPersistError(err, uploadLabel)

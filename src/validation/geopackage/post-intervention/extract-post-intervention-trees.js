@@ -102,10 +102,12 @@ export function buildPostInterventionTree(
     proposed,
     properties: props
   }
-  copyRetainedProposedFromBaseline(document, {
-    copyFields: RETAINED_TREE_PROPOSED_FIELDS,
-    emptinessFields: RETAINED_TREE_EMPTINESS_FIELDS
-  })
+  if (!feature.preserveImportedNulls) {
+    copyRetainedProposedFromBaseline(document, {
+      copyFields: RETAINED_TREE_PROPOSED_FIELDS,
+      emptinessFields: RETAINED_TREE_EMPTINESS_FIELDS
+    })
+  }
   document.area = document.proposed.area
   document.sizeSquareMetres = document.proposed.sizeSquareMetres
   document.status = postInterventionAreaStatus(document)

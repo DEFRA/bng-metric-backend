@@ -18,7 +18,7 @@ async function truncateTestData(dbClient) {
     // CASCADE also clears baseline/post-intervention feature rows that FK to
     // bng.projects.
     await dbClient.query(
-      'TRUNCATE bng.audit_log, bng.login_audit, bng.projects, bng.users, bng.relationships, bng.roles RESTART IDENTITY CASCADE'
+      'TRUNCATE bng.import_events, bng.audit_log, bng.login_audit, bng.projects, bng.users, bng.relationships, bng.roles RESTART IDENTITY CASCADE'
     )
   } finally {
     await dbClient.query(RESTORE_GUARD)

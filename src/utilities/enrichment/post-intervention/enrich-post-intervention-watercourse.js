@@ -94,14 +94,16 @@ function buildRetainedWatercourseCalculate(
     )
     return null
   }
-  return () =>
-    calculateRetainedWatercoursePostIntervention(
+  return () => {
+    const encroachments = resolvedWatercourseEncroachments(baseline, logger)
+    return calculateRetainedWatercoursePostIntervention(
       lengthKm,
       baseline.type,
       baselineCondition,
-      baseline.watercourseEncroachment ?? null,
-      baseline.riparianEncroachment ?? null
+      encroachments.watercourseEncroachment,
+      encroachments.riparianEncroachment
     )
+  }
 }
 
 /** @returns {(() => object) | null} */
@@ -136,17 +138,19 @@ function buildCreatedWatercourseCalculate(
   if (strategicSignificance === null) {
     return null
   }
-  return () =>
-    calculateCreatedWatercoursePostIntervention(
+  return () => {
+    const encroachments = resolvedWatercourseEncroachments(proposed, logger)
+    return calculateCreatedWatercoursePostIntervention(
       lengthKm,
       proposed.type,
       proposedCondition,
-      proposed.watercourseEncroachment ?? null,
-      proposed.riparianEncroachment ?? null,
+      encroachments.watercourseEncroachment,
+      encroachments.riparianEncroachment,
       advanceYears,
       delayYears,
       strategicSignificance
     )
+  }
 }
 
 /** @returns {(() => object) | null} */
@@ -184,6 +188,7 @@ function buildEnhancedWatercourseCalculate(
     return null
   }
   return () => {
+    const encroachments = resolvedWatercourseEncroachments(proposed, logger)
     const baselineLengthKm = lookupBaselineLinearLength(
       watercourse.ref,
       baselineLengthByRef,
@@ -197,8 +202,8 @@ function buildEnhancedWatercourseCalculate(
       baselineCondition,
       proposedCondition,
       {
-        watercourseEncroachment: proposed.watercourseEncroachment ?? null,
-        riparianEncroachment: proposed.riparianEncroachment ?? null,
+        watercourseEncroachment: encroachments.watercourseEncroachment,
+        riparianEncroachment: encroachments.riparianEncroachment,
         advanceYears,
         delayYears,
         strategicSignificance

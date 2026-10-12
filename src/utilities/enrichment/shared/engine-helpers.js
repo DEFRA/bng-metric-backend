@@ -16,14 +16,6 @@ import { stripConditionPrefix } from './condition.js'
 export const LOG_ENRICH_PREFIX = 'enrichBaseline: '
 
 /**
- * Documents the effective encroachment multiplier used when a value is absent
- * or unrecognised. Not applied in code directly — the engine applies multiplier
- * 1 when `null` is passed for an encroachment argument, and unrecognised values
- * are coerced to `null` by {@link coerceEncroachmentForBaseline}.
- */
-const DEFAULT_ENCROACHMENT_MULTIPLIER = 1
-
-/**
  * Engine entry point wrapper around stripConditionPrefix that guarantees a
  * string return value — engine calculators expect a string, not null.
  */
@@ -96,7 +88,6 @@ export function calculateAreaHabitatWithCandidates(sizeHa, habitat, condition) {
  */
 function formatUnrecognisedEncroachmentValue(value) {
   if (typeof value === 'object') {
-    // null is handled upstream by isRecognisedEncroachmentValue, so value is a non-null object here
     return JSON.stringify(value)
   } else {
     return String(value) // NOSONAR S6551 — typeof guard above proves value is a primitive
@@ -107,38 +98,37 @@ function formatUnrecognisedEncroachmentValue(value) {
  * @param {unknown} value
  * @param {Record<string, number>} lookupMap
  * @param {string} label
- * @param {{ warn: (msg: string) => void }} logger
- * @returns {string | null}
+ * @returns {string}
  */
-function coerceEncroachmentForBaseline(value, lookupMap, label, logger) {
-  if (isRecognisedEncroachmentValue(value, lookupMap)) {
-    return typeof value === 'string' ? value : null
-  } else {
-    logger.warn(
-      `${LOG_ENRICH_PREFIX}unrecognised ${label} "${formatUnrecognisedEncroachmentValue(value)}" — defaulting encroachment multiplier to ${DEFAULT_ENCROACHMENT_MULTIPLIER}`
-    )
-    return null
+function coerceEncroachmentForBaseline(value, lookupMap, label) {
+  if (
+    typeof value === 'string' &&
+    value.trim() &&
+    isRecognisedEncroachmentValue(value, lookupMap)
+  ) {
+    return value
   }
+  throw new BaselineLookupError(
+    `Missing or unrecognised ${label}: ${formatUnrecognisedEncroachmentValue(value)}`
+  )
 }
 
 /**
  * @param {object} feature
- * @param {{ warn: (msg: string) => void }} logger
- * @returns {{ watercourseEncroachment: string | null, riparianEncroachment: string | null }}
+ * Missing values must never reach the engine, where null means multiplier 1.
+ * @returns {{ watercourseEncroachment: string, riparianEncroachment: string }}
  */
-export function resolvedWatercourseEncroachments(feature, logger) {
+export function resolvedWatercourseEncroachments(feature) {
   return {
     watercourseEncroachment: coerceEncroachmentForBaseline(
       feature.watercourseEncroachment,
       WATERCOURSE_ENCROACHMENT_MULTIPLIER,
-      'watercourse encroachment',
-      logger
+      'watercourse encroachment'
     ),
     riparianEncroachment: coerceEncroachmentForBaseline(
       feature.riparianEncroachment,
       WATERCOURSE_RIPARIAN_ENCROACHMENT_MULTIPLIER,
-      'riparian encroachment',
-      logger
+      'riparian encroachment'
     )
   }
 }

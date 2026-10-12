@@ -26,6 +26,7 @@ import {
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
+import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
 import {
@@ -203,8 +204,18 @@ export function extractAndValidateDocument({
   habitatSizes
 }) {
   const { uploadId, filename, fileSize } = context
-  const meta = { uploadId, filename, fileSize, habitatSizes }
+  const meta = {
+    uploadId,
+    filename,
+    fileSize,
+    habitatSizes,
+    preserveImportedNulls: true
+  }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
+  const importIssues = normaliseImportedDocument(
+    document,
+    config.projectDocumentKey === 'postIntervention'
+  )
   const enrichOptions =
     config.projectDocumentKey === 'postIntervention'
       ? postInterventionEnrichOptions(storedProject?.baseline)
@@ -213,7 +224,7 @@ export function extractAndValidateDocument({
   const { error } = handlers.documentSchema.validate(document, {
     allowUnknown: true
   })
-  return { document, geometries, schemaError: error }
+  return { document, geometries, importIssues, schemaError: error }
 }
 
 function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
@@ -231,12 +242,13 @@ async function persistUploadAndMaybeReEnrich(
   projectId,
   document,
   geometries,
-  { uploadId, credentials, logger, config }
+  { uploadId, credentials, logger, config, importIssues }
 ) {
   await persistUpload(drizzle, projectId, document, geometries, {
     uploadId,
     logger,
     credentials,
+    importIssues,
     projectDocumentKey: config.projectDocumentKey,
     uploadLabel: config.uploadLabel
   })
@@ -331,7 +343,13 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
         projectId,
         extracted.document,
         extracted.geometries,
-        { uploadId, credentials: context.credentials, logger, config }
+        {
+          uploadId,
+          credentials: context.credentials,
+          logger,
+          config,
+          importIssues: extracted.importIssues
+        }
       )
   )
   return null

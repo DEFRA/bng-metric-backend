@@ -292,6 +292,68 @@
       "uniqueIndexes": []
     },
     {
+      "name": "bng.import_events",
+      "description": "Non-fatal missing or invalid habitat attributes found in an upload, recorded with the project update in the same transaction.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "upload_id",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "document_key",
+          "type": "text",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "details",
+          "type": "jsonb",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "created_at",
+          "type": "timestamp with time zone",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": "now()",
+          "references": null
+        }
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
+    },
+    {
       "name": "bng.local_planning_authorities",
       "description": "Static current English Local Planning Authority names and references from Planning Data, used for project selection.",
       "columns": [

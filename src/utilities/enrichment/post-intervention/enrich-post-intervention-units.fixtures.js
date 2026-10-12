@@ -272,8 +272,8 @@ export function makeEnhancedWatercourse() {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      riparianEncroachment: null,
-      watercourseEncroachment: null,
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      watercourseEncroachment: 'No Encroachment',
       strategicSignificance: null
     },
     proposed: {
@@ -284,8 +284,8 @@ export function makeEnhancedWatercourse() {
       distinctivenessScore: null,
       advanceYears: 0,
       delayYears: 0,
-      riparianEncroachment: null,
-      watercourseEncroachment: null,
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      watercourseEncroachment: 'No Encroachment',
       strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     }
   })

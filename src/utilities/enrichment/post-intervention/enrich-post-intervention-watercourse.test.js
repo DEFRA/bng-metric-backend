@@ -11,6 +11,30 @@ import {
   makeWatercourse
 } from './enrich-post-intervention-units.fixtures.js'
 
+describe('BMD-1059 missing post-intervention encroachment', () => {
+  it.each([
+    ['Retained', makeWatercourse, 'baseline'],
+    ['Created', makeCreatedWatercourse, 'proposed'],
+    ['Enhanced', makeEnhancedWatercourse, 'proposed']
+  ])(
+    'does not default missing encroachment for %s',
+    (_category, makeFeature, side) => {
+      for (const field of ['watercourseEncroachment', 'riparianEncroachment']) {
+        const feature = makeFeature()
+        feature[side][field] = null
+        const doc = makeDoc({ watercourses: [feature] })
+        enrichPostInterventionDocumentWithUnits(doc, undefined, {
+          baselineLengthByRef: new Map([['R1', 1]])
+        })
+        expect(feature.status).toBe('Incomplete')
+        expect(feature.units).toBeNull()
+        expect(feature.proposed.waterEncroachmentMultiplier).toBeUndefined()
+        expect(feature.proposed.riparianEncroachmentMultiplier).toBeUndefined()
+      }
+    }
+  )
+})
+
 describe('watercourse — Retained', () => {
   it('calculates units using baseline encroachments and post-intervention length', () => {
     const doc = makeDoc({ watercourses: [makeWatercourse()] })

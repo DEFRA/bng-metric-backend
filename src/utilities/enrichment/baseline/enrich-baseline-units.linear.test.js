@@ -156,6 +156,8 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
       watercourses: [
         {
           type: 'Priority habitat',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment/No Encroachment',
           condition: 'Good',
           sizeMetres: 1000
         }
@@ -177,6 +179,8 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
       watercourses: [
         {
           type: 'Priority habitat',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment/No Encroachment',
           condition: 'Good',
           sizeMetres: 1000.4
         }
@@ -256,133 +260,51 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
     expect(() =>
       enrichBaselineDocumentWithUnits({
         watercourses: [
-          { type: 'Priority habitat', condition: 'Good', sizeMetres: 1000 }
+          {
+            type: 'Priority habitat',
+            watercourseEncroachment: 'No Encroachment',
+            riparianEncroachment: 'No Encroachment/No Encroachment',
+            condition: 'Good',
+            sizeMetres: 1000
+          }
         ]
       })
     ).toThrow('unexpected watercourse failure')
   })
 })
 
-describe('enrichBaselineDocumentWithUnits — watercourse encroachment coercion', () => {
-  it('silently defaults unrecognised encroachment when no logger is provided', () => {
-    const document = {
-      watercourses: [
-        {
-          type: 'Priority habitat',
-          condition: 'Good',
-          sizeMetres: 1000,
-          watercourseEncroachment: 'Unrecognised'
-        }
-      ]
-    }
-    expect(() => enrichBaselineDocumentWithUnits(document)).not.toThrow()
-    expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
-  })
-
-  it('defaults unrecognised watercourse encroachment to multiplier 1 and logs a warning', () => {
-    const logger = { warn: vi.fn() }
-    const document = {
-      watercourses: [
-        {
-          type: 'Priority habitat',
-          condition: 'Good',
-          sizeMetres: 1000,
-          watercourseEncroachment: 'None',
-          riparianEncroachment: 'No Encroachment/No Encroachment'
-        }
-      ]
-    }
-    enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].riparianEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].units).toBeCloseTo(24)
-    expect(logger.warn).toHaveBeenCalledWith(
-      'enrichBaseline: unrecognised watercourse encroachment "None" — defaulting encroachment multiplier to 1'
-    )
-    expect(calculateWatercourseBaselineMock).toHaveBeenCalledWith(
-      1,
-      'Priority habitat',
-      'Good',
-      null,
-      'No Encroachment/No Encroachment'
-    )
-  })
-
-  it('defaults unrecognised riparian encroachment to multiplier 1 and logs a warning', () => {
-    const logger = { warn: vi.fn() }
-    const document = {
-      watercourses: [
-        {
+describe('BMD-1059 watercourse encroachment', () => {
+  it.each([null, undefined, '', '   ', 'Unknown', 42, { custom: 'value' }])(
+    'does not calculate using a default multiplier for %j',
+    (value) => {
+      for (const field of ['watercourseEncroachment', 'riparianEncroachment']) {
+        calculateWatercourseBaselineMock.mockClear()
+        const logger = { warn: vi.fn() }
+        const feature = {
           type: 'Priority habitat',
           condition: 'Good',
           sizeMetres: 1000,
           watercourseEncroachment: 'No Encroachment',
-          riparianEncroachment: 'Low'
+          riparianEncroachment: 'No Encroachment/No Encroachment',
+          [field]: value
         }
-      ]
+        enrichBaselineDocumentWithUnits({ watercourses: [feature] }, logger)
+        expect(feature.status).toBe('Incomplete')
+        expect(feature.units).toBeUndefined()
+        expect(feature.waterEncroachmentMultiplier).toBeUndefined()
+        expect(feature.riparianEncroachmentMultiplier).toBeUndefined()
+        expect(calculateWatercourseBaselineMock).not.toHaveBeenCalled()
+        expect(logger.warn).toHaveBeenCalledWith(
+          expect.stringContaining('Missing or unrecognised')
+        )
+      }
     }
-    enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].riparianEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].units).toBeCloseTo(24)
-    expect(logger.warn).toHaveBeenCalledWith(
-      'enrichBaseline: unrecognised riparian encroachment "Low" — defaulting encroachment multiplier to 1'
-    )
-    expect(calculateWatercourseBaselineMock).toHaveBeenCalledWith(
-      1,
-      'Priority habitat',
-      'Good',
-      'No Encroachment',
-      null
-    )
-  })
-
-  it('defaults object encroachment values to multiplier 1 and logs the JSON-stringified value', () => {
-    const logger = { warn: vi.fn() }
-    const document = {
-      watercourses: [
-        {
-          type: 'Priority habitat',
-          condition: 'Good',
-          sizeMetres: 1000,
-          watercourseEncroachment: { custom: 'value' },
-          riparianEncroachment: 'No Encroachment/No Encroachment'
-        }
-      ]
-    }
-    enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].units).toBeCloseTo(24)
-    expect(logger.warn).toHaveBeenCalledWith(
-      'enrichBaseline: unrecognised watercourse encroachment "{"custom":"value"}" — defaulting encroachment multiplier to 1'
-    )
-  })
-
-  it('defaults non-string encroachment values to multiplier 1 and logs a warning', () => {
-    const logger = { warn: vi.fn() }
-    const document = {
-      watercourses: [
-        {
-          type: 'Priority habitat',
-          condition: 'Good',
-          sizeMetres: 1000,
-          watercourseEncroachment: 42,
-          riparianEncroachment: 'No Encroachment/No Encroachment'
-        }
-      ]
-    }
-    enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.watercourses[0].waterEncroachmentMultiplier).toBe(1)
-    expect(document.watercourses[0].units).toBeCloseTo(24)
-    expect(logger.warn).toHaveBeenCalledWith(
-      'enrichBaseline: unrecognised watercourse encroachment "42" — defaulting encroachment multiplier to 1'
-    )
-    expect(calculateWatercourseBaselineMock).toHaveBeenCalledWith(
-      1,
-      'Priority habitat',
-      'Good',
-      null,
-      'No Encroachment/No Encroachment'
-    )
+  )
+  it('handles missing encroachments without a logger', () => {
+    const feature = { type: 'Ditches', condition: 'Good', sizeMetres: 1000 }
+    expect(() =>
+      enrichBaselineDocumentWithUnits({ watercourses: [feature] })
+    ).not.toThrow()
+    expect(feature.status).toBe('Incomplete')
   })
 })

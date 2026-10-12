@@ -59,6 +59,8 @@ const dialect = new PgDialect()
 // JSON). Keep each to a single short sentence; add an entry when a new table is
 // introduced.
 const TABLE_DESCRIPTIONS = {
+  'bng.import_events':
+    'Non-fatal missing or invalid habitat attributes found in an upload, recorded with the project update in the same transaction.',
   'bng.local_planning_authorities':
     'Static current English Local Planning Authority names and references from Planning Data, used for project selection.',
   'bng.projects':

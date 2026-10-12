@@ -1,0 +1,306 @@
+import { describe, expect, it } from 'vitest'
+import {
+  normaliseImportedAttributes,
+  normaliseImportedDocument
+} from './normalise-imported-attributes.js'
+import { extractHabitatData } from './baseline/extract-habitat-data.js'
+import { extractPostIntervention } from './post-intervention/extract-post-intervention.js'
+
+const area = () => ({
+  broadType: 'Grassland',
+  type: 'Modified grassland',
+  condition: 'Good',
+  strategicSignificance: 'Keep me',
+  advanceYears: 2,
+  delayYears: 3
+})
+const watercourse = () => ({
+  type: 'Ditches',
+  condition: 'Good',
+  watercourseEncroachment: 'No Encroachment',
+  riparianEncroachment: 'No Encroachment/No Encroachment'
+})
+
+describe('BMD-1059 imported attributes', () => {
+  const examples = {
+    habitats: area,
+    hedgerows: () => ({ type: 'Native hedgerow', condition: 'Good' }),
+    watercourses: watercourse,
+    trees: () => ({
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: 'Good'
+    })
+  }
+  const cases = Object.entries(examples).flatMap(([layer, makeFeature]) =>
+    Object.keys(makeFeature())
+      .filter(
+        (field) =>
+          !['strategicSignificance', 'advanceYears', 'delayYears'].includes(
+            field
+          )
+      )
+      .flatMap((field) =>
+        [false, true].flatMap((proposed) =>
+          [
+            null,
+            '',
+            '\t\n\u00a0',
+            'UNKNOWN',
+            '__proto__',
+            'toString',
+            42,
+            false
+          ].map((value) => ({ layer, makeFeature, field, proposed, value }))
+        )
+      )
+  )
+  it.each(cases)(
+    'AC1/AC2 $layer.$field proposed=$proposed value=$value',
+    ({ layer, makeFeature, field, proposed, value }) => {
+      const attributes = { ...makeFeature(), [field]: value }
+      const issues = []
+      normaliseImportedAttributes(attributes, layer, proposed, (issue) =>
+        issues.push(issue)
+      )
+      expect(attributes[field]).toBeNull()
+      expect(issues).toContainEqual({
+        field,
+        originalValue: value,
+        reason:
+          value === null || (typeof value === 'string' && !value.trim())
+            ? 'missing'
+            : 'invalid'
+      })
+    }
+  )
+
+  it.each(Object.entries(examples))(
+    'keeps valid %s attributes and does not log them',
+    (layer, makeFeature) => {
+      const feature = makeFeature()
+      const document = { [layer]: [{ ...feature }] }
+      expect(normaliseImportedDocument(document)).toEqual([])
+      expect(document[layer][0]).toEqual(feature)
+    }
+  )
+
+  it('logs exact source labels using the appropriate side and case-insensitive aliases', () => {
+    const properties = {
+      baseline_condition: ' \t ',
+      'proposed condition': '99. Unknown',
+      'Baseline Broad Habitat Type': 'Grassland',
+      'Baseline Habitat Type': 'Modified grassland',
+      'Proposed Broad Habitat Type': 'Grassland',
+      'Proposed Habitat Type': 'Modified grassland'
+    }
+    const { document } = extractPostIntervention(
+      { areas: [{ properties }] },
+      { preserveImportedNulls: true }
+    )
+    expect(normaliseImportedDocument(document, true)).toEqual([
+      expect.objectContaining({
+        side: 'baseline',
+        field: 'condition',
+        originalValue: ' \t ',
+        reason: 'missing'
+      }),
+      expect.objectContaining({
+        side: 'proposed',
+        field: 'condition',
+        originalValue: '99. Unknown',
+        reason: 'invalid'
+      })
+    ])
+    expect(document.habitats[0].properties).toEqual(properties)
+  })
+
+  it('does not clear siblings or timing when only condition is missing', () => {
+    const attributes = { ...area(), condition: null }
+    normaliseImportedAttributes(attributes, 'habitats', true)
+    expect(attributes).toEqual({ ...area(), condition: null })
+  })
+
+  it('preserves recognised high-distinctiveness types for the existing scope gate', () => {
+    const attributes = { ...watercourse(), type: 'Priority habitat' }
+    normaliseImportedAttributes(attributes, 'watercourses')
+    expect(attributes.type).toBe('Priority habitat')
+  })
+
+  it('handles empty documents and absent nested sides', () => {
+    expect(normaliseImportedDocument({})).toEqual([])
+    expect(normaliseImportedDocument({ habitats: [{}] }, true)).toEqual([])
+  })
+
+  it.each([null, undefined, '', ' \t\r\n', 'not in the reference', 42, {}])(
+    'nulls unsupported or absent values (%j)',
+    (value) => {
+      for (const field of ['broadType', 'type', 'condition']) {
+        const attributes = { ...area(), [field]: value }
+        normaliseImportedAttributes(attributes, 'habitats')
+        expect(attributes[field]).toBeNull()
+      }
+      for (const field of [
+        'type',
+        'condition',
+        'watercourseEncroachment',
+        'riparianEncroachment'
+      ]) {
+        const attributes = { ...watercourse(), [field]: value }
+        normaliseImportedAttributes(attributes, 'watercourses')
+        expect(attributes[field]).toBeNull()
+      }
+    }
+  )
+
+  it.each(['broadType', 'type'])(
+    'clears dependencies when area %s is null',
+    (field) => {
+      const baseline = { ...area(), [field]: null }
+      normaliseImportedAttributes(baseline, 'habitats')
+      expect(baseline.type).toBeNull()
+      expect(baseline.condition).toBeNull()
+      expect(baseline.strategicSignificance).toBe('Keep me')
+      const proposed = { ...area(), [field]: null }
+      normaliseImportedAttributes(proposed, 'habitats', true)
+      expect(proposed).toMatchObject({
+        type: null,
+        condition: null,
+        strategicSignificance: null,
+        advanceYears: null,
+        delayYears: null
+      })
+    }
+  )
+
+  it('does not require a broad habitat on linear features', () => {
+    const attributes = watercourse()
+    normaliseImportedAttributes(attributes, 'watercourses')
+    expect(attributes).toEqual(watercourse())
+    Object.assign(attributes, {
+      strategicSignificance: 'Keep me',
+      advanceYears: 2,
+      delayYears: 3
+    })
+    attributes.type = null
+    normaliseImportedAttributes(attributes, 'watercourses', true)
+    expect(attributes).toMatchObject({
+      condition: null,
+      watercourseEncroachment: null,
+      riparianEncroachment: null,
+      advanceYears: null,
+      delayYears: null,
+      strategicSignificance: null
+    })
+  })
+
+  it('validates reference membership without validating combinations or strategic significance', () => {
+    const attributes = {
+      ...area(),
+      broadType: 'Cropland',
+      condition: 'N/A - Other'
+    }
+    const original = { ...attributes }
+    normaliseImportedAttributes(attributes, 'habitats', true)
+    expect(attributes).toEqual(original)
+  })
+
+  it('preserves numbered condition and encroachment label support', () => {
+    const attributes = {
+      ...watercourse(),
+      condition: '3. Good',
+      watercourseEncroachment: '2. Minor',
+      riparianEncroachment: '3. Minor/ No Encroachment'
+    }
+    normaliseImportedAttributes(attributes, 'watercourses')
+    expect(attributes).toMatchObject({
+      condition: 'Good',
+      watercourseEncroachment: 'Minor',
+      riparianEncroachment: 'Minor/No Encroachment'
+    })
+  })
+
+  it('returns source issues with feature identity and preserves the original properties', () => {
+    const properties = {
+      'Baseline Broad Habitat Type': 'bad',
+      'Baseline Habitat Type': 'Modified grassland',
+      'Baseline Condition': '  '
+    }
+    const { document } = extractHabitatData({ areas: [{ properties }] })
+    const issues = normaliseImportedDocument(document)
+    expect(document.habitats[0]).toMatchObject({
+      broadType: null,
+      type: null,
+      condition: null,
+      properties
+    })
+    expect(issues).toEqual(
+      expect.arrayContaining([
+        expect.objectContaining({
+          layer: 'habitats',
+          field: 'broadType',
+          reason: 'invalid',
+          originalValue: 'bad',
+          featureId: document.habitats[0].featureId
+        }),
+        expect.objectContaining({ field: 'condition', reason: 'missing' })
+      ])
+    )
+  })
+
+  it('preserves null proposed attributes on retained imports and normalises both sides', () => {
+    const properties = {
+      'Baseline Broad Habitat Type': 'Grassland',
+      'Baseline Habitat Type': 'Modified grassland',
+      'Baseline Condition': 'Good',
+      'Retention Category': 'Retained'
+    }
+    const { document } = extractPostIntervention(
+      { areas: [{ properties }] },
+      { preserveImportedNulls: true }
+    )
+    normaliseImportedDocument(document, true)
+    expect(document.habitats[0].baseline).toMatchObject({
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition: 'Good'
+    })
+    expect(document.habitats[0].proposed).toMatchObject({
+      broadType: null,
+      type: null,
+      condition: null,
+      strategicSignificance: null,
+      advanceYears: null,
+      delayYears: null
+    })
+  })
+
+  it('normalises hedgerows without changing an unknown intervention type', () => {
+    const document = {
+      hedgerows: [
+        {
+          retentionCategory: 'Unknown',
+          baseline: { type: 'Native hedgerow', condition: 'bad' },
+          proposed: {
+            type: 'bad',
+            condition: 'Good',
+            advanceYears: 2,
+            delayYears: 1
+          }
+        }
+      ]
+    }
+    normaliseImportedDocument(document, true)
+    expect(document.hedgerows[0].retentionCategory).toBe('Unknown')
+    expect(document.hedgerows[0].baseline).toMatchObject({
+      type: 'Native hedgerow',
+      condition: null
+    })
+    expect(document.hedgerows[0].proposed).toMatchObject({
+      type: null,
+      condition: null,
+      advanceYears: null,
+      delayYears: null
+    })
+  })
+})

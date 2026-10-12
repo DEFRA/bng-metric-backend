@@ -188,7 +188,8 @@ describe('validatePostIntervention handler persistence', () => {
       uploadId: UPLOAD_ID,
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
-      habitatSizes: EMPTY_HABITAT_SIZES
+      habitatSizes: EMPTY_HABITAT_SIZES,
+      preserveImportedNulls: true
     })
     expect(extractHabitatData).not.toHaveBeenCalled()
     expect(log.transactionCalls).toBe(1)

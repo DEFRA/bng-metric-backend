@@ -125,6 +125,49 @@ describe('saveUploadForProject', () => {
     ).rejects.toThrow('Unsupported projectDocumentKey: unknown')
   })
 
+  it('normalises invalid attributes before enrichment and passes source issues to persistence', async () => {
+    const habitat = {
+      featureId: 'feature-1',
+      broadType: 'Unknown',
+      type: 'Modified grassland',
+      condition: 'Good'
+    }
+    extractHabitatData.mockReturnValue({
+      document: { habitats: [habitat] },
+      geometries: { habitats: [] }
+    })
+    enrichBaselineDocumentWithUnits.mockImplementationOnce((document) => {
+      expect(document.habitats[0]).toMatchObject({
+        broadType: null,
+        type: null,
+        condition: null
+      })
+    })
+    await saveUploadForProject(
+      deps,
+      PROJECT_ID,
+      STUB_LAYERS,
+      { uploadId: UPLOAD_ID, credentials: CREDENTIALS },
+      h,
+      BASELINE_CONFIG
+    )
+    expect(persistUpload).toHaveBeenCalledWith(
+      deps.drizzle,
+      PROJECT_ID,
+      expect.objectContaining({ habitats: [habitat] }),
+      { habitats: [] },
+      expect.objectContaining({
+        importIssues: [
+          expect.objectContaining({
+            field: 'broadType',
+            originalValue: 'Unknown',
+            reason: 'invalid'
+          })
+        ]
+      })
+    )
+  })
+
   it('returns null after a successful extract, enrich, validate and persist', async () => {
     const result = await saveUploadForProject(
       deps,

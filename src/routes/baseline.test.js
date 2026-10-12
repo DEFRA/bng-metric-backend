@@ -1166,6 +1166,7 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       filename: MOCK_FILENAME,
       fileSize: MOCK_FILE_SIZE,
       habitatSizes: EMPTY_HABITAT_SIZES,
+      preserveImportedNulls: true,
       variant: 'baseline'
     })
     expect(log.transactionCalls).toBe(1)

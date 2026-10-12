@@ -262,12 +262,18 @@ function makeDrizzle({ projectExists = true, lockError = null } = {}) {
     deletes: [],
     executes: [],
     updates: [],
+    inserts: [],
     // The condition passed to the project-lock SELECT .where(...) — lets tests
     // assert the write is scoped to a project visible to the requesting user.
     projectWhere: []
   }
 
   const tx = {
+    insert: vi.fn((table) => ({
+      values: vi.fn(async (values) => {
+        log.inserts.push({ table, values })
+      })
+    })),
     select: vi.fn(() => {
       log.selectCalls += 1
       return projectLookupChain(
