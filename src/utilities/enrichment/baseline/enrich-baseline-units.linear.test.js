@@ -236,6 +236,8 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
         {
           featureId: 'wc-1',
           type: 'Unknown watercourse type',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment/No Encroachment',
           condition: 'Good',
           sizeMetres: 1000,
           status: 'Complete'
@@ -281,6 +283,8 @@ describe('BMD-1059 watercourse encroachment', () => {
         calculateWatercourseBaselineMock.mockClear()
         const logger = { warn: vi.fn() }
         const feature = {
+          units: 12,
+          status: 'Complete',
           type: 'Priority habitat',
           condition: 'Good',
           sizeMetres: 1000,
@@ -288,9 +292,15 @@ describe('BMD-1059 watercourse encroachment', () => {
           riparianEncroachment: 'No Encroachment/No Encroachment',
           [field]: value
         }
-        enrichBaselineDocumentWithUnits({ watercourses: [feature] }, logger)
+        const document = {
+          watercourses: [feature],
+          units: { watercoursesTotal: 12, totalUnits: 12 }
+        }
+        enrichBaselineDocumentWithUnits(document, logger)
+        expect(document.units.watercoursesTotal).toBe(0)
+        expect(document.units.totalUnits).toBe(0)
         expect(feature.status).toBe('Incomplete')
-        expect(feature.units).toBeUndefined()
+        expect(feature.units).toBeNull()
         expect(feature.waterEncroachmentMultiplier).toBeUndefined()
         expect(feature.riparianEncroachmentMultiplier).toBeUndefined()
         expect(calculateWatercourseBaselineMock).not.toHaveBeenCalled()

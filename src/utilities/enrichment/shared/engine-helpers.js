@@ -13,6 +13,14 @@ import {
 
 import { stripConditionPrefix } from './condition.js'
 
+/** Identifies the encroachment failures introduced by BMD-1059. */
+export class EncroachmentLookupError extends BaselineLookupError {
+  constructor(message) {
+    super(message)
+    this.name = 'EncroachmentLookupError'
+  }
+}
+
 export const LOG_ENRICH_PREFIX = 'enrichBaseline: '
 
 /**
@@ -108,7 +116,7 @@ function coerceEncroachmentForBaseline(value, lookupMap, label) {
   ) {
     return value
   }
-  throw new BaselineLookupError(
+  throw new EncroachmentLookupError(
     `Missing or unrecognised ${label}: ${formatUnrecognisedEncroachmentValue(value)}`
   )
 }

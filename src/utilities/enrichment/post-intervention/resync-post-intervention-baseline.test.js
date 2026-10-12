@@ -1,4 +1,5 @@
 import { describe, expect, test, vi } from 'vitest'
+import { summariseUnitTypes } from '../../../services/report/unit-summary.js'
 
 import {
   rederivePostInterventionFromBaseline,
@@ -565,8 +566,14 @@ describe('rederivePostInterventionFromBaseline', () => {
         logger
       )
       expect(rederived.watercourses[0].status).toBe('Incomplete')
-      // Existing derived values remain until broader null-unit handling (BMD-1070).
-      expect(rederived.watercourses[0].units).toBe(12)
+      expect(rederived.watercourses[0].units).toBeNull()
+      expect(rederived.units.watercoursesTotal).toBe(0)
+      expect(rederived.units.totalUnits).toBe(0)
+      const summary = summariseUnitTypes(null, {
+        ...rederived,
+        documentCounts: { watercourses: 1 }
+      }).find((item) => item.key === 'watercourses')
+      expect(summary.postInterventionUnits).toBe('0.00 units')
       expect(logger.warn).toHaveBeenCalled()
       expect(feature.units).toBe(12)
       expect(feature.status).toBe('Complete')

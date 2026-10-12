@@ -12,22 +12,33 @@ import {
 } from './enrich-post-intervention-units.fixtures.js'
 
 describe('BMD-1059 missing post-intervention encroachment', () => {
-  it.each([
-    ['Retained', makeWatercourse, 'baseline'],
-    ['Created', makeCreatedWatercourse, 'proposed'],
-    ['Enhanced', makeEnhancedWatercourse, 'proposed']
-  ])(
+  it.each(
+    [
+      ['Retained', makeWatercourse, 'baseline'],
+      ['Created', makeCreatedWatercourse, 'proposed'],
+      ['Enhanced', makeEnhancedWatercourse, 'proposed']
+    ].flatMap((entry) =>
+      [null, '', '   ', 'unknown encroachment'].map((value) => [
+        ...entry,
+        value
+      ])
+    )
+  )(
     'does not default missing encroachment for %s',
-    (_category, makeFeature, side) => {
+    (_category, makeFeature, side, value) => {
       for (const field of ['watercourseEncroachment', 'riparianEncroachment']) {
         const feature = makeFeature()
-        feature[side][field] = null
+        feature.units = 12
+        feature.status = 'Complete'
+        feature[side][field] = value
         const doc = makeDoc({ watercourses: [feature] })
         enrichPostInterventionDocumentWithUnits(doc, undefined, {
           baselineLengthByRef: new Map([['R1', 1]])
         })
         expect(feature.status).toBe('Incomplete')
         expect(feature.units).toBeNull()
+        expect(doc.units.watercoursesTotal).toBe(0)
+        expect(doc.units.totalUnits).toBe(0)
         expect(feature.proposed.waterEncroachmentMultiplier).toBeUndefined()
         expect(feature.proposed.riparianEncroachmentMultiplier).toBeUndefined()
       }

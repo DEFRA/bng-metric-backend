@@ -3,6 +3,8 @@
 
 import { isValidProposedStrategicSignificance } from 'bng-library/metric'
 
+import { EncroachmentLookupError } from '../shared/engine-helpers.js'
+
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
 import { applyProposedTimeDifficultyDisplayFields } from './proposed-time-difficulty-display.js'
@@ -193,6 +195,9 @@ export function runProposedCalculation(
  * @param {{ warn: (msg: string) => void }} logger
  */
 export function handleProposedEnrichmentError(error, feature, context, logger) {
+  if (error instanceof EncroachmentLookupError) {
+    feature.units = null
+  }
   feature.status = HABITAT_STATUS.INCOMPLETE
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: ${error.message}`

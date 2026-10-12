@@ -236,10 +236,11 @@ Missing, blank or unrecognised watercourse/riparian encroachment no longer means
 "no encroachment" or a multiplier of 1. This correction deliberately applies to
 existing projects when they are re-enriched, including post-intervention resync
 following a baseline edit. Affected features become Incomplete and calculation
-warnings identify them. Current baseline and post-intervention enrichment retain
-previously stored units/derived fields when an encroachment lookup fails; those
-figures have not been successfully recalculated and must not be treated as valid
-new results. Broader clearing and aggregation of these fields remains BMD-1070.
+warnings identify them. Baseline and post-intervention enrichment clear
+previously stored units when an encroachment lookup fails, before recalculating
+project totals. Those stale units therefore no longer contribute to totals or
+reports. This is a narrow correction for encroachment failures; broader null-unit
+and derived-field handling remains BMD-1070.
 
 Deployment does not bulk rewrite stored habitat documents or invent encroachment
 values for old records. An absent value cannot safely be migrated to an explicit
