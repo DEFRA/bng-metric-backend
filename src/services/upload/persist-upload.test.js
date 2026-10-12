@@ -36,6 +36,12 @@ function makeManyHabitatRows(count) {
 }
 
 describe('persistUpload', () => {
+  let logger
+
+  beforeEach(() => {
+    logger = { info: vi.fn() }
+  })
+
   it('persists source issues in the same transaction as the upload', async () => {
     const { drizzle, tx } = makeDrizzle()
     const values = vi.fn().mockResolvedValue()
@@ -89,11 +95,6 @@ describe('persistUpload', () => {
         }
       )
     ).rejects.toThrow('event write failed')
-  })
-  let logger
-
-  beforeEach(() => {
-    logger = { info: vi.fn() }
   })
 
   it('AC3/AC4 replaces baseline and removes all baseline and PI geometry rows in one transaction', async () => {

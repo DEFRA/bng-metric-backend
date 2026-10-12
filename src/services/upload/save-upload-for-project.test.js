@@ -128,6 +128,7 @@ describe('saveUploadForProject', () => {
   it('normalises invalid attributes before enrichment and passes source issues to persistence', async () => {
     const habitat = {
       featureId: 'feature-1',
+      status: 'Complete',
       broadType: 'Unknown',
       type: 'Modified grassland',
       condition: 'Good'
@@ -140,7 +141,8 @@ describe('saveUploadForProject', () => {
       expect(document.habitats[0]).toMatchObject({
         broadType: null,
         type: null,
-        condition: null
+        condition: null,
+        status: 'Incomplete'
       })
     })
     await saveUploadForProject(
@@ -151,6 +153,7 @@ describe('saveUploadForProject', () => {
       h,
       BASELINE_CONFIG
     )
+    expect(habitat.status).toBe('Incomplete')
     expect(persistUpload).toHaveBeenCalledWith(
       deps.drizzle,
       PROJECT_ID,

@@ -26,7 +26,10 @@ import {
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
-import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
+import {
+  normaliseImportedDocument,
+  enforceImportedCompleteness
+} from '../../validation/geopackage/normalise-imported-attributes.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
 import {
@@ -208,8 +211,7 @@ export function extractAndValidateDocument({
     uploadId,
     filename,
     fileSize,
-    habitatSizes,
-    preserveImportedNulls: true
+    habitatSizes
   }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
   const importIssues = normaliseImportedDocument(
@@ -221,6 +223,10 @@ export function extractAndValidateDocument({
       ? postInterventionEnrichOptions(storedProject?.baseline)
       : {}
   handlers.enrichDocument(document, logger, enrichOptions)
+  enforceImportedCompleteness(
+    document,
+    config.projectDocumentKey === 'postIntervention'
+  )
   const { error } = handlers.documentSchema.validate(document, {
     allowUnknown: true
   })

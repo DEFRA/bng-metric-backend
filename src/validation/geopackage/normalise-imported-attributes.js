@@ -13,6 +13,24 @@ import { getHabitatsByBroad } from '../reference/habitat-reference.js'
 import { stripConditionPrefix } from '../../utilities/enrichment/shared/condition.js'
 import { featureKeysForVariant, pickProp } from './properties.js'
 
+import { HABITAT_STATUS } from '../../services/upload/habitat-status.js'
+
+// Enrichment can mark retained features Complete using baseline units alone.
+// Missing imported attributes must still leave the saved feature Incomplete.
+export function enforceImportedCompleteness(
+  document,
+  postIntervention = false
+) {
+  for (const [layer, fields] of Object.entries(references)) {
+    for (const feature of document[layer] ?? []) {
+      const attributes = postIntervention ? feature.proposed : feature
+      if (Object.keys(fields).some((field) => attributes?.[field] == null)) {
+        feature.status = HABITAT_STATUS.INCOMPLETE
+      }
+    }
+  }
+}
+
 const areaHabitats = getHabitatsByBroad()
 const broadTypes = new Set(areaHabitats.map((row) => row.broadHabitat))
 // Membership is independent of the selected broad habitat/condition. Invalid
@@ -60,6 +78,44 @@ function normaliseValue(value, field) {
   return value.trim()
 }
 
+function normaliseField(attributes, field, allowed, onIssue) {
+  const originalValue = attributes[field] ?? null
+  const value = normaliseValue(originalValue, field)
+  attributes[field] = allowed.has(value) ? value : null
+  if (attributes[field] === null) {
+    const missing =
+      originalValue === null ||
+      (typeof originalValue === 'string' && !originalValue.trim())
+    onIssue({ field, originalValue, reason: missing ? 'missing' : 'invalid' })
+  }
+}
+
+function nullPopulatedFields(attributes, fields) {
+  for (const field of fields) {
+    if (field in attributes) {
+      attributes[field] = null
+    }
+  }
+}
+
+function clearDependentAttributes(attributes, layer, postIntervention) {
+  if (attributes.type !== null) {
+    return
+  }
+  attributes.condition = null
+  if (layer === 'watercourses') {
+    attributes.watercourseEncroachment = null
+    attributes.riparianEncroachment = null
+  }
+  if (postIntervention) {
+    nullPopulatedFields(attributes, [
+      'strategicSignificance',
+      'advanceYears',
+      'delayYears'
+    ])
+  }
+}
+
 /** Normalise one extracted habitat side in place, preserving raw properties. */
 export function normaliseImportedAttributes(
   attributes,
@@ -72,43 +128,12 @@ export function normaliseImportedAttributes(
     fields.broadType = broadTypes
   }
   for (const [field, allowed] of Object.entries(fields)) {
-    const originalValue = attributes[field] ?? null
-    const value = normaliseValue(originalValue, field)
-    attributes[field] = allowed.has(value) ? value : null
-    if (attributes[field] === null) {
-      onIssue({
-        field,
-        originalValue,
-        reason:
-          value === null &&
-          (originalValue === null ||
-            (typeof originalValue === 'string' && !originalValue.trim()))
-            ? 'missing'
-            : 'invalid'
-      })
-    }
+    normaliseField(attributes, field, allowed, onIssue)
   }
   if ('broadType' in fields && attributes.broadType === null) {
     attributes.type = null
   }
-  if (attributes.type === null) {
-    attributes.condition = null
-    if (layer === 'watercourses') {
-      attributes.watercourseEncroachment = null
-      attributes.riparianEncroachment = null
-    }
-    if (postIntervention) {
-      for (const field of [
-        'strategicSignificance',
-        'advanceYears',
-        'delayYears'
-      ]) {
-        if (field in attributes) {
-          attributes[field] = null
-        }
-      }
-    }
-  }
+  clearDependentAttributes(attributes, layer, postIntervention)
   return attributes
 }
 
@@ -138,32 +163,37 @@ function sourceIssue(feature, layer, side, issue) {
   }
 }
 
+function normaliseFeatureSide(feature, layer, side, issues) {
+  const attributes = side ? feature[side] : feature
+  if (!attributes) {
+    return
+  }
+  normaliseImportedAttributes(
+    attributes,
+    layer,
+    side === 'proposed',
+    (issue) => {
+      issues.push({
+        featureId: feature.featureId,
+        ref: feature.ref ?? null,
+        layer,
+        side,
+        ...sourceIssue(feature, layer, side, issue)
+      })
+    }
+  )
+}
+
 export function normaliseImportedDocument(document, postIntervention = false) {
   const issues = []
+  const sides = postIntervention ? ['baseline', 'proposed'] : [null]
   for (const layer of Object.keys(references)) {
     for (const feature of document[layer] ?? []) {
-      const sides = postIntervention ? ['baseline', 'proposed'] : [null]
       for (const side of sides) {
-        const attributes = side ? feature[side] : feature
-        if (!attributes) {
-          continue
-        }
-        normaliseImportedAttributes(
-          attributes,
-          layer,
-          side === 'proposed',
-          (issue) => {
-            issues.push({
-              featureId: feature.featureId,
-              ref: feature.ref ?? null,
-              layer,
-              side,
-              ...sourceIssue(feature, layer, side, issue)
-            })
-          }
-        )
+        normaliseFeatureSide(feature, layer, side, issues)
       }
     }
   }
+  enforceImportedCompleteness(document, postIntervention)
   return issues
 }

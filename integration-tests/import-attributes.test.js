@@ -27,7 +27,7 @@ afterEach(async () => {
   }
 })
 
-async function changedFixture(proposed = false) {
+async function changedFixture(proposed = false, mode = 'nulls') {
   const directory = await mkdtemp(path.join(tmpdir(), 'bmd1059-'))
   temporaryDirectories.push(directory)
   const file = path.join(directory, 'import-attributes.gpkg')
@@ -63,9 +63,31 @@ async function changedFixture(proposed = false) {
       null,
       ' \t '
     )
+    if (mode === 'populated') {
+      db.prepare(
+        `UPDATE Habitats SET "${prefix} Condition" = 'Good' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Hedgerows SET "${prefix} Hedge Type" = 'Native hedgerow', "${prefix} Condition" = 'unknown condition' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Rivers SET "${prefix} River Type" = 'Ditches', "${prefix} Condition" = 'unknown condition', "${prefix} Encroachment into Watercourse" = 'No Encroachment', "${prefix} Encroachment into riparian zone" = 'No Encroachment/No Encroachment' WHERE "Parcel Ref" = 'R1'`
+      ).run()
+    }
     if (proposed) {
       db.prepare(
         `UPDATE Habitats SET "Proposed Strategic Significance" = 'keep source value', "Habitat created in advance/years" = '2', "Delay in starting habitat creation/years" = '0' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+    }
+    if (mode === 'retained') {
+      db.prepare(
+        `UPDATE Habitats SET "Retention Category" = 'Retained', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Good', "Proposed Broad Habitat Type" = NULL, "Proposed Habitat Type" = NULL, "Proposed Condition" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Hedgerows SET "Retention Category" = 'Retained', "Baseline Hedge Type" = 'Native hedgerow', "Baseline Condition" = 'Good', "Proposed Hedge Type" = NULL, "Proposed Condition" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Rivers SET "Retention Category" = 'Retained', "Baseline River Type" = 'Ditches', "Baseline Condition" = 'Good', "Baseline Encroachment into Watercourse" = 'No Encroachment', "Baseline Encroachment into riparian zone" = 'No Encroachment/No Encroachment', "Proposed River Type" = NULL, "Proposed Condition" = NULL, "Proposed Encroachment into Watercourse" = NULL, "Proposed Encroachment into riparian zone" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'R1'`
       ).run()
     }
   } finally {
@@ -169,6 +191,57 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
       ).toEqual(stored)
     }
   )
+
+  it.each([
+    ['baseline', false, callValidate],
+    ['postIntervention', true, callPostInterventionValidate]
+  ])(
+    'persists Incomplete status for nonempty invalid %s attributes',
+    async (documentKey, proposed, validate) => {
+      const project = await createProject(
+        `BMD-1059 invalid status ${documentKey}`
+      )
+      const uploadId = await changedFixture(proposed, 'populated')
+      expect(
+        (await validate(uploadId, { projectId: project.id })).statusCode
+      ).toBe(200)
+      const stored = (await fetchProject(project.id))[documentKey]
+      for (const [layer, ref] of [
+        ['habitats', 'H1'],
+        ['hedgerows', 'H1'],
+        ['watercourses', 'R1']
+      ]) {
+        const feature = stored[layer].find((item) => item.ref === ref)
+        expect(feature.status).toBe('Incomplete')
+        expect((proposed ? feature.proposed : feature).condition).toBeNull()
+      }
+    }
+  )
+
+  it('saves retained baseline fallback with Complete status and no false missing-value events', async () => {
+    const project = await createProject('BMD-1059 retained fallback')
+    const uploadId = await changedFixture(true, 'retained')
+    expect(
+      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
+        .statusCode
+    ).toBe(200)
+    const stored = (await fetchProject(project.id)).postIntervention
+    const issues = (await events(project.id)).flatMap((event) => event.details)
+    for (const [layer, ref] of [
+      ['habitats', 'H1'],
+      ['hedgerows', 'H1'],
+      ['watercourses', 'R1']
+    ]) {
+      const feature = stored[layer].find((item) => item.ref === ref)
+      expect(feature.proposed.type).toBe(feature.baseline.type)
+      expect(feature.proposed.condition).toBe('Good')
+      expect(feature.status).toBe('Complete')
+      expect(feature.units).toEqual(expect.any(Number))
+      expect(
+        issues.filter((issue) => issue.featureId === feature.featureId)
+      ).toEqual([])
+    }
+  })
 
   it('keeps separate event history and stable feature IDs for re-uploads', async () => {
     const project = await createProject('BMD-1059 repeated upload')

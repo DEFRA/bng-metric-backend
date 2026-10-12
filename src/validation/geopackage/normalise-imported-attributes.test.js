@@ -94,10 +94,7 @@ describe('BMD-1059 imported attributes', () => {
       'Proposed Broad Habitat Type': 'Grassland',
       'Proposed Habitat Type': 'Modified grassland'
     }
-    const { document } = extractPostIntervention(
-      { areas: [{ properties }] },
-      { preserveImportedNulls: true }
-    )
+    const { document } = extractPostIntervention({ areas: [{ properties }] })
     expect(normaliseImportedDocument(document, true)).toEqual([
       expect.objectContaining({
         side: 'baseline',
@@ -248,32 +245,137 @@ describe('BMD-1059 imported attributes', () => {
     )
   })
 
-  it('preserves null proposed attributes on retained imports and normalises both sides', () => {
-    const properties = {
-      'Baseline Broad Habitat Type': 'Grassland',
-      'Baseline Habitat Type': 'Modified grassland',
-      'Baseline Condition': 'Good',
-      'Retention Category': 'Retained'
+  const retainedExamples = [
+    [
+      'areas',
+      'habitats',
+      {
+        'Baseline Broad Habitat Type': 'Grassland',
+        'Baseline Habitat Type': 'Modified grassland'
+      },
+      { broadType: 'Grassland', type: 'Modified grassland', condition: 'Good' }
+    ],
+    [
+      'hedgerows',
+      'hedgerows',
+      { 'Baseline Hedge Type': 'Native hedgerow' },
+      { type: 'Native hedgerow', condition: 'Good' }
+    ],
+    [
+      'watercourses',
+      'watercourses',
+      {
+        'Baseline River Type': 'Ditches',
+        'Baseline Encroachment into Watercourse': 'No Encroachment',
+        'Baseline Encroachment into riparian zone':
+          'No Encroachment/No Encroachment'
+      },
+      watercourse()
+    ],
+    [
+      'trees',
+      'trees',
+      {
+        'Baseline Rural or Urban Tree': 'Urban',
+        'Baseline Tree Size': 'Small'
+      },
+      { broadType: 'Individual trees', type: 'Urban tree', condition: 'Good' }
+    ]
+  ]
+
+  it.each(retainedExamples)(
+    'copies empty retained %s proposed attributes before validation',
+    (sourceLayer, layer, identity, expected) => {
+      const properties = {
+        ...identity,
+        'Baseline Condition': 'Good',
+        'Retention Category': 'Retained'
+      }
+      const { document } = extractPostIntervention({
+        [sourceLayer]: [{ properties }]
+      })
+      expect(normaliseImportedDocument(document, true)).toEqual([])
+      expect(document[layer][0].proposed).toMatchObject(expected)
+      expect(document[layer][0].status).toBe('Complete')
+      expect(document[layer][0].properties).toEqual(properties)
     }
-    const { document } = extractPostIntervention(
-      { areas: [{ properties }] },
-      { preserveImportedNulls: true }
-    )
-    normaliseImportedDocument(document, true)
-    expect(document.habitats[0].baseline).toMatchObject({
-      broadType: 'Grassland',
-      type: 'Modified grassland',
-      condition: 'Good'
-    })
-    expect(document.habitats[0].proposed).toMatchObject({
-      broadType: null,
-      type: null,
-      condition: null,
-      strategicSignificance: null,
-      advanceYears: null,
-      delayYears: null
-    })
-  })
+  )
+
+  it.each(['Created', 'Enhanced'])(
+    'preserves empty proposed attributes for %s features',
+    (retentionCategory) => {
+      const { document } = extractPostIntervention({
+        areas: [
+          {
+            properties: {
+              'Baseline Broad Habitat Type': 'Grassland',
+              'Baseline Habitat Type': 'Modified grassland',
+              'Baseline Condition': 'Good',
+              'Retention Category': retentionCategory
+            }
+          }
+        ]
+      })
+      normaliseImportedDocument(document, true)
+      expect(document.habitats[0].proposed).toMatchObject({
+        broadType: null,
+        type: null,
+        condition: null
+      })
+      expect(document.habitats[0].status).toBe('Incomplete')
+    }
+  )
+
+  it.each(retainedExamples)(
+    'validates invalid baseline values copied to retained %s',
+    (sourceLayer, layer, identity) => {
+      const { document } = extractPostIntervention({
+        [sourceLayer]: [
+          {
+            properties: {
+              ...identity,
+              'Baseline Condition': 'unknown condition',
+              'Retention Category': 'Retained'
+            }
+          }
+        ]
+      })
+      const issues = normaliseImportedDocument(document, true)
+      expect(document[layer][0].baseline.condition).toBeNull()
+      expect(document[layer][0].proposed.condition).toBeNull()
+      expect(document[layer][0].status).toBe('Incomplete')
+      expect(issues).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            field: 'condition',
+            side: 'baseline',
+            reason: 'invalid'
+          }),
+          expect.objectContaining({
+            field: 'condition',
+            side: 'proposed',
+            reason: 'invalid'
+          })
+        ])
+      )
+    }
+  )
+
+  it.each(Object.entries(examples))(
+    'marks nonempty invalid %s conditions Incomplete on either upload type',
+    (layer, makeFeature) => {
+      for (const proposed of [false, true]) {
+        const attributes = { ...makeFeature(), condition: 'unknown condition' }
+        const feature = proposed
+          ? { baseline: makeFeature(), proposed: attributes }
+          : attributes
+        feature.status = 'Complete'
+        normaliseImportedDocument({ [layer]: [feature] }, proposed)
+        expect(feature.status).toBe('Incomplete')
+        expect(attributes.condition).toBeNull()
+      }
+    }
+  )
 
   it('normalises hedgerows without changing an unknown intervention type', () => {
     const document = {

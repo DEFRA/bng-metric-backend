@@ -83,9 +83,7 @@ function buildPostInterventionFeature(
 ) {
   const { featureId, props, ref } = initParsedFeature(feature)
   const document = buildDocument(featureId, ref, props)
-  if (!feature.preserveImportedNulls) {
-    applyRetainedProposedCopy(document, copyFields)
-  }
+  applyRetainedProposedCopy(document, copyFields)
   document.status = statusFn(document)
   return {
     document,
@@ -278,19 +276,10 @@ export function filterLostPostInterventionLayers(layers) {
  * @param {number} [meta.fileSize]
  * @param {string} [meta.importedAt] ISO timestamp; defaults to now
  * @param {object} [meta.habitatSizes] pre-calculated habitat sizes from calculateHabitatSizes
- * @param {boolean} [meta.preserveImportedNulls] keep missing proposed attributes instead of copying retained baseline values
  * @returns {{ document: object, geometries: object }}
  */
 export function extractPostIntervention(layers, meta = {}) {
   const filteredLayers = filterLostPostInterventionLayers(layers)
-  if (meta.preserveImportedNulls) {
-    for (const layer of ['areas', 'hedgerows', 'watercourses', 'trees']) {
-      filteredLayers[layer] = (filteredLayers[layer] ?? []).map((feature) => ({
-        ...feature,
-        preserveImportedNulls: true
-      }))
-    }
-  }
   const redLine = buildRedLine(filteredLayers.redline)
   const habitats = splitFeatures(
     filteredLayers.areas ?? [],
