@@ -79,7 +79,7 @@ async function changedFixture(proposed = false, mode = 'nulls') {
         `UPDATE Habitats SET "Proposed Strategic Significance" = 'keep source value', "Habitat created in advance/years" = '2', "Delay in starting habitat creation/years" = '0' WHERE "Parcel Ref" = 'H1'`
       ).run()
     }
-    if (mode === 'retained') {
+    if (mode === 'retained' || mode === 'retained-invalid') {
       db.prepare(
         `UPDATE Habitats SET "Retention Category" = 'Retained', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Good', "Proposed Broad Habitat Type" = NULL, "Proposed Habitat Type" = NULL, "Proposed Condition" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'H1'`
       ).run()
@@ -88,6 +88,11 @@ async function changedFixture(proposed = false, mode = 'nulls') {
       ).run()
       db.prepare(
         `UPDATE Rivers SET "Retention Category" = 'Retained', "Baseline River Type" = 'Ditches', "Baseline Condition" = 'Good', "Baseline Encroachment into Watercourse" = 'No Encroachment', "Baseline Encroachment into riparian zone" = 'No Encroachment/No Encroachment', "Proposed River Type" = NULL, "Proposed Condition" = NULL, "Proposed Encroachment into Watercourse" = NULL, "Proposed Encroachment into riparian zone" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'R1'`
+      ).run()
+    }
+    if (mode === 'retained-invalid') {
+      db.prepare(
+        `UPDATE Hedgerows SET "Baseline Condition" = 'unknown condition', "Proposed Condition" = '   ' WHERE "Parcel Ref" = 'H1'`
       ).run()
     }
   } finally {
@@ -241,6 +246,38 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
         issues.filter((issue) => issue.featureId === feature.featureId)
       ).toEqual([])
     }
+  })
+
+  it('records the invalid copied baseline value for a retained proposed attribute', async () => {
+    const project = await createProject('BMD-1059 retained issue source')
+    const uploadId = await changedFixture(true, 'retained-invalid')
+    expect(
+      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
+        .statusCode
+    ).toBe(200)
+    const stored = (await fetchProject(project.id)).postIntervention
+    const hedge = stored.hedgerows.find((feature) => feature.ref === 'H1')
+    expect(hedge.baseline.condition).toBeNull()
+    expect(hedge.proposed.condition).toBeNull()
+    expect(hedge.properties['Proposed Condition']).toBe('   ')
+    const issues = (await events(project.id))
+      .flatMap((event) => event.details)
+      .filter(
+        (issue) =>
+          issue.featureId === hedge.featureId && issue.field === 'condition'
+      )
+    expect(issues).toEqual([
+      expect.objectContaining({
+        side: 'baseline',
+        reason: 'invalid',
+        originalValue: 'unknown condition'
+      }),
+      expect.objectContaining({
+        side: 'proposed',
+        reason: 'invalid',
+        originalValue: 'unknown condition'
+      })
+    ])
   })
 
   it('enforces project ownership and declares cascading event deletion', async () => {

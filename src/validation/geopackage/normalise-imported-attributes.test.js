@@ -326,15 +326,23 @@ describe('BMD-1059 imported attributes', () => {
     }
   )
 
-  it.each(retainedExamples)(
+  it.each(
+    retainedExamples.flatMap((example) =>
+      [null, '', ' \t ', undefined].map((proposedCondition) => [
+        ...example,
+        proposedCondition
+      ])
+    )
+  )(
     'validates invalid baseline values copied to retained %s',
-    (sourceLayer, layer, identity) => {
+    (sourceLayer, layer, identity, _expected, proposedCondition) => {
       const { document } = extractPostIntervention({
         [sourceLayer]: [
           {
             properties: {
               ...identity,
               'Baseline Condition': 'unknown condition',
+              'Proposed Condition': proposedCondition,
               'Retention Category': 'Retained'
             }
           }
@@ -349,12 +357,14 @@ describe('BMD-1059 imported attributes', () => {
           expect.objectContaining({
             field: 'condition',
             side: 'baseline',
-            reason: 'invalid'
+            reason: 'invalid',
+            originalValue: 'unknown condition'
           }),
           expect.objectContaining({
             field: 'condition',
             side: 'proposed',
-            reason: 'invalid'
+            reason: 'invalid',
+            originalValue: 'unknown condition'
           })
         ])
       )

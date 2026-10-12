@@ -137,6 +137,17 @@ export function normaliseImportedAttributes(
   return attributes
 }
 
+function originalSourceValue(sourceValue, issue) {
+  const sourceMissing =
+    sourceValue == null ||
+    (typeof sourceValue === 'string' && !sourceValue.trim())
+  // Retained proposed attributes may have been copied from baseline. Keep the
+  // invalid value actually validated instead of substituting an empty column.
+  return sourceMissing && issue.reason === 'invalid'
+    ? issue.originalValue
+    : sourceValue
+}
+
 /** Apply import rules before enrichment and return non-fatal source issues. */
 function sourceIssue(feature, layer, side, issue) {
   if (!feature.properties) {
@@ -159,7 +170,10 @@ function sourceIssue(feature, layer, side, issue) {
   }
   return {
     ...issue,
-    originalValue: pickProp(feature.properties, keys[propertyKey])
+    originalValue: originalSourceValue(
+      pickProp(feature.properties, keys[propertyKey]),
+      issue
+    )
   }
 }
 
