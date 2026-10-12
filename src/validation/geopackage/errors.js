@@ -61,6 +61,9 @@ export const ERROR_CODES = Object.freeze({
   /** One or more Parcel Refs hold characters that are not valid UTF-8 (BMD-1058). One error for them all. */
   HABITAT_REF_INVALID_CHARACTERS: 'HABITAT_REF_INVALID_CHARACTERS',
 
+  /** An edit would leave an enhanced habitat that is not a valid enhancement of its baseline. */
+  ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
+
   /** A feature carries both advance and delay years; the statutory metric allows only one. */
   ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
 

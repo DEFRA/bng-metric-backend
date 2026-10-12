@@ -418,6 +418,37 @@ describe('updatePostInterventionAreaHabitat handler', () => {
   })
 })
 
+describe('updatePostInterventionAreaHabitat handler — enhancement rules', () => {
+  test('throws 422 when the edit leaves an invalid enhancement, and persists nothing', async () => {
+    const habitats = defaultPostInterventionHabitats()
+    habitats[0].retentionCategory = 'Enhanced'
+    const drizzle = makeDrizzle(makeProjectRow(habitats, 'postIntervention'))
+
+    await expect(
+      updatePostInterventionAreaHabitat.handler(
+        {
+          drizzle,
+          auth: AUTH,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_1_ID },
+          payload: {
+            broadType: 'Grassland',
+            habitatType: 'Modified grassland',
+            condition: 'Poor'
+          }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: {
+        statusCode: 422,
+        payload: { code: 'ENHANCEMENT_NOT_VALID', rule: 'low-area' }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+})
+
 describe('updateAreaHabitat handler error cases', () => {
   test('throws 404 when the project does not exist', async () => {
     const drizzle = makeDrizzle(null)

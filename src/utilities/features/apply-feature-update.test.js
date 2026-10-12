@@ -1270,3 +1270,91 @@ describe('applyFeatureUpdate — a baseline ref shared by two features', () => {
     })
   })
 })
+
+describe('applyFeatureUpdate — enhancement rules', () => {
+  /** The enhanced parcel as an import that broke a rule leaves it. */
+  function rejectedOnImportFixture() {
+    const project = enhancedProjectFixture()
+    project.baseline.habitats[0].condition = 'Poor'
+    const [habitat] = project.postIntervention.habitats
+    habitat.invalidEnhancement = 'low-area'
+    for (const field of Object.keys(habitat.proposed)) {
+      habitat.proposed[field] = null
+    }
+    return project
+  }
+
+  test('refuses an edit that leaves an invalid enhancement, and changes nothing', () => {
+    const project = enhancedProjectFixture()
+    const before = JSON.stringify(project)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Poor'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.INVALID_ENHANCEMENT,
+      type: 'habitat',
+      rule: 'low-area'
+    })
+    expect(JSON.stringify(project)).toBe(before)
+  })
+
+  test('accepts a valid enhancement, and removes the rule its import broke', () => {
+    const result = applyFeatureUpdate(rejectedOnImportFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).not.toHaveProperty('invalidEnhancement')
+    expect(result.feature.proposed.type).toBe('Other neutral grassland')
+    expect(result.project.postIntervention.habitats[0]).not.toHaveProperty(
+      'invalidEnhancement'
+    )
+  })
+
+  test('does not check a feature that is not enhanced', () => {
+    const project = enhancedProjectFixture()
+    project.postIntervention.habitats[0].retentionCategory = 'Created'
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Poor'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+  })
+
+  test('keeps the rule an import broke through a baseline edit', () => {
+    const result = applyFeatureUpdate(rejectedOnImportFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Moderate'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    const [habitat] = result.postIntervention.habitats
+    expect(habitat.baseline.condition).toBe('Moderate')
+    expect(habitat.invalidEnhancement).toBe('low-area')
+  })
+})
