@@ -80,11 +80,34 @@ export function enhancementRulesForLayer(layer) {
  */
 
 /**
+ * One side of an enhancement the library checked. It recognised the habitat
+ * and condition, so both are strings.
+ *
+ * @typedef {object} CheckedSide
+ * @property {string} habitat the metric's label
+ * @property {string} condition prefix stripped
+ * @property {string} distinctiveness
+ */
+
+/**
+ * @param {EnhancementSide} side a side the library recognised
+ * @param {string} distinctiveness
+ * @returns {CheckedSide}
+ */
+function checkedSide(side, distinctiveness) {
+  return {
+    habitat: side.habitat ?? '',
+    condition: typeof side.condition === 'string' ? side.condition : '',
+    distinctiveness
+  }
+}
+
+/**
  * @typedef {object} FeatureEnhancementCheck
  * @property {string} rule one of ENHANCEMENT_RULE
  * @property {boolean} valid
- * @property {EnhancementSide & { distinctiveness: string }} baseline
- * @property {EnhancementSide & { distinctiveness: string }} proposed
+ * @property {CheckedSide} baseline
+ * @property {CheckedSide} proposed
  */
 
 /**
@@ -115,7 +138,7 @@ export function checkFeatureEnhancement(layer, feature) {
   return {
     rule: check.rule,
     valid: check.valid,
-    baseline: { ...baseline, distinctiveness: check.baselineDistinctiveness },
-    proposed: { ...proposed, distinctiveness: check.proposedDistinctiveness }
+    baseline: checkedSide(baseline, check.baselineDistinctiveness),
+    proposed: checkedSide(proposed, check.proposedDistinctiveness)
   }
 }
