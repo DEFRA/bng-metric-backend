@@ -93,7 +93,9 @@ export function enhancementRulesForLayer(layer) {
  * @param {string} layer a post-intervention document key: habitats,
  *   hedgerows or watercourses
  * @param {{ baseline?: object, proposed?: object }} feature
- * @returns {FeatureEnhancementCheck | null} null when no rule can be checked
+ * @returns {FeatureEnhancementCheck | null} null when no rule can be checked:
+ *   bad data (left to the checks that own it) and a baseline out of the rules'
+ *   scope are both skipped
  */
 export function checkFeatureEnhancement(layer, feature) {
   const layerKind = KIND_BY_LAYER[layer]
@@ -107,7 +109,7 @@ export function checkFeatureEnhancement(layer, feature) {
   const baseline = readSide(feature?.baseline)
   const proposed = readSide(feature?.proposed)
   const check = checkEnhancement(layerKind.kind, baseline, proposed)
-  if (!check) {
+  if (!check.checked) {
     return null
   }
   return {
