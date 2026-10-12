@@ -1,12 +1,11 @@
-// Enhancement rules (BMD-820): an enhanced habitat must be a valid enhancement
+// Enhancement rules: an enhanced habitat must be a valid enhancement
 // of the baseline habitat it enhances. The rules are bng-library's
 // (`checkEnhancement`); this reads a post-intervention feature's baseline and
 // proposed sides into the labels it takes.
 //
 // A rule is checked only when it can be: both sides must resolve to a habitat
 // and condition the rules know, and the baseline's distinctiveness must have a
-// rule. Anything else is left to the checks that own those attributes
-// (BMD-1059, BMD-1060).
+// rule. Anything else is left to the checks that own those attributes.
 
 import {
   ENHANCEMENT_KIND,
@@ -46,7 +45,7 @@ function linearHabitat(canonicalType) {
 
 /**
  * The layers the rules cover, by post-intervention document key. Individual
- * trees are not covered: BMD-820's rules are for areas, hedgerows and
+ * trees are not covered: the rules are for areas, hedgerows and
  * watercourses.
  */
 const KIND_BY_LAYER = Object.freeze({

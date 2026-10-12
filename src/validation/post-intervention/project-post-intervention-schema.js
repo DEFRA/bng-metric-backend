@@ -44,7 +44,7 @@ function retentionCategoryField() {
   }
 }
 
-// Set on import only (BMD-820), so an Enhanced feature saved before then, or
+// Set on import only, so an Enhanced feature imported before the check, or
 // one whose enhancement is valid, has no such field.
 function invalidEnhancementField(layer) {
   return {

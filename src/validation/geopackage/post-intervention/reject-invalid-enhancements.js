@@ -1,5 +1,5 @@
 // Null the proposed side of every enhancement that is not valid for its
-// baseline (BMD-820). See enhancement-rules.js for the rules.
+// baseline. See enhancement-rules.js for the rules.
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { RETENTION_ENHANCED } from '../../../utilities/enrichment/post-intervention/retention-category.js'

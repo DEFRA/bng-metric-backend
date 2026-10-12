@@ -1,4 +1,4 @@
-// The rules themselves, one case per acceptance criterion of BMD-820, are
+// The rules themselves, with cases for every baseline they cover, are
 // tested in bng-library (src/metric/enhancement-rules.test.mjs). These cover
 // reading a post-intervention feature into the labels they take.
 
