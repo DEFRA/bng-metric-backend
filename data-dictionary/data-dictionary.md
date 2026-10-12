@@ -80,14 +80,14 @@ The mapped line of each baseline watercourse imported from the uploaded GeoPacka
 
 Non-fatal missing or invalid habitat attributes found in an upload, recorded with the project update in the same transaction.
 
-| Column         | Type                       | Nullable | Key | Default             |
-| -------------- | -------------------------- | -------- | --- | ------------------- |
-| `id`           | `uuid`                     | —        | PK  | `gen_random_uuid()` |
-| `project_id`   | `uuid`                     | —        | —   | —                   |
-| `upload_id`    | `text`                     | —        | —   | —                   |
-| `document_key` | `text`                     | —        | —   | —                   |
-| `details`      | `jsonb`                    | —        | —   | —                   |
-| `created_at`   | `timestamp with time zone` | —        | —   | `now()`             |
+| Column         | Type                       | Nullable | Key                | Default             |
+| -------------- | -------------------------- | -------- | ------------------ | ------------------- |
+| `id`           | `uuid`                     | —        | PK                 | `gen_random_uuid()` |
+| `project_id`   | `uuid`                     | —        | FK → `projects.id` | —                   |
+| `upload_id`    | `text`                     | —        | —                  | —                   |
+| `document_key` | `text`                     | —        | —                  | —                   |
+| `details`      | `jsonb`                    | —        | —                  | —                   |
+| `created_at`   | `timestamp with time zone` | —        | —                  | `now()`             |
 
 ### `bng.local_planning_authorities`
 

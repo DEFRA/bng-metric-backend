@@ -311,7 +311,7 @@
           "primaryKey": false,
           "unique": false,
           "default": null,
-          "references": null
+          "references": "projects.id"
         },
         {
           "name": "upload_id",

@@ -221,3 +221,33 @@ Apply the migration in each environment via the CDP Portal using the same publis
 9. Test in dev
 10. CDP Portal  →  promote to test → ext-test → prod
 ```
+
+## BMD-1059 release notes: import validation and existing projects
+
+Changesets 40 and 41 create `bng.import_events` and link it to `bng.projects`
+with `ON DELETE CASCADE`. These issue records belong to the project; they are
+not a permanent audit archive. The foreign key will remove events when their
+project is deleted. The existing unaudited-deletion guard remains in place; this
+change does not introduce or enable a project deletion workflow.
+Changeset 41 is additive so environments that already applied 40 retain a valid
+Liquibase checksum. Apply both before deploying this version.
+
+Missing, blank or unrecognised watercourse/riparian encroachment no longer means
+"no encroachment" or a multiplier of 1. This correction deliberately applies to
+existing projects when they are re-enriched, including post-intervention resync
+following a baseline edit. Affected features become Incomplete and calculation
+warnings identify them. Current baseline and post-intervention enrichment retain
+previously stored units/derived fields when an encroachment lookup fails; those
+figures have not been successfully recalculated and must not be treated as valid
+new results. Broader clearing and aggregation of these fields remains BMD-1070.
+
+Deployment does not bulk rewrite stored habitat documents or invent encroachment
+values for old records. An absent value cannot safely be migrated to an explicit
+"No Encroachment" answer. Before release, assess existing projects with missing or
+invalid encroachment and communicate that their recalculated status and units may
+change. Correct affected attributes from verified source data before relying on
+recalculated totals. Explicit, recognised encroachment values keep their current
+calculation behaviour.
+
+Import issue events are written on upload only. Re-enrichment of an existing
+project does not create a new import event or a BMD-1072 raw/inserted snapshot.

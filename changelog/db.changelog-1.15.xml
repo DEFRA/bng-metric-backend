@@ -19,4 +19,16 @@
         </sql>
         <rollback><sql>DROP TABLE bng.import_events;</sql></rollback>
     </changeSet>
+    <changeSet id="41" author="bng-team">
+        <comment>BMD-1059: Import issues belong to their project and are deleted with it.</comment>
+        <addForeignKeyConstraint baseTableSchemaName="bng"
+            baseTableName="import_events" baseColumnNames="project_id"
+            constraintName="fk_import_events_project_id"
+            referencedTableSchemaName="bng" referencedTableName="projects"
+            referencedColumnNames="id" onDelete="CASCADE"/>
+        <rollback>
+            <dropForeignKeyConstraint baseTableSchemaName="bng"
+                baseTableName="import_events" constraintName="fk_import_events_project_id"/>
+        </rollback>
+    </changeSet>
 </databaseChangeLog>

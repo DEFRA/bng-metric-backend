@@ -243,6 +243,38 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
     }
   })
 
+  it('enforces project ownership and declares cascading event deletion', async () => {
+    const { dbClient } = getPersistenceTestContext()
+    const project = await createProject('BMD-1059 event ownership')
+    const uploadId = await changedFixture()
+    expect(
+      (await callValidate(uploadId, { projectId: project.id })).statusCode
+    ).toBe(200)
+    expect(await events(project.id)).toHaveLength(1)
+    // Project deletion is intentionally blocked until an audited deletion
+    // workflow exists. Verify the validated FK's cascade action without
+    // disabling that guard or modifying audit history.
+    const { rows } = await dbClient.query(`
+      SELECT confdeltype, convalidated,
+        confrelid = 'bng.projects'::regclass AS references_projects
+      FROM pg_constraint
+      WHERE conrelid = 'bng.import_events'::regclass
+        AND conname = 'fk_import_events_project_id'
+    `)
+    expect(rows).toEqual([
+      { confdeltype: 'c', convalidated: true, references_projects: true }
+    ])
+    await expect(
+      dbClient.query(
+        'INSERT INTO bng.import_events (project_id, upload_id, document_key, details) VALUES ($1, $2, $3, $4)',
+        ['00000000-0000-4000-8000-000000000000', uploadId, 'baseline', '[]']
+      )
+    ).rejects.toMatchObject({
+      code: '23503',
+      constraint: 'fk_import_events_project_id'
+    })
+  })
+
   it('keeps separate event history and stable feature IDs for re-uploads', async () => {
     const project = await createProject('BMD-1059 repeated upload')
     const firstUpload = await changedFixture()
