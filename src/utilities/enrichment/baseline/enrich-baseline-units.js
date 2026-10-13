@@ -151,7 +151,7 @@ function createWatercourseEnrichmentConfig(logger) {
   return {
     logger,
     layerLabel: 'Watercourse',
-    calculate: (lengthKm, type, condition, { feature, logger: log }) => {
+    calculate: (lengthKm, type, condition, { feature }) => {
       const encroachments = resolvedWatercourseEncroachments(feature)
       return calculateWatercourseBaseline(
         lengthKm,
