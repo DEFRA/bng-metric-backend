@@ -26,6 +26,11 @@ import {
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
+import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
+import {
+  RETENTION_ENHANCED,
+  resolveRetentionCategory
+} from '../enrichment/post-intervention/retention-category.js'
 import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import {
   copyProposedDisplayFields,
@@ -54,7 +59,8 @@ const APPLY_RESULT = Object.freeze({
   FEATURE_NOT_FOUND: 'featureNotFound',
   FEATURE_WRONG_TYPE: 'featureWrongType',
   UNSUPPORTED_TYPE: 'unsupportedType',
-  OUT_OF_SCOPE: 'outOfScope'
+  OUT_OF_SCOPE: 'outOfScope',
+  INVALID_ENHANCEMENT: 'invalidEnhancement'
 })
 
 function blankToNull(value) {
@@ -224,15 +230,36 @@ function spliceFeatureInFeatureSet(
   }
 }
 
+/**
+ * An edited post-intervention feature no longer carries the rule its import
+ * broke: the edit replaced the proposed values that broke it, and was checked
+ * against the rules itself (`brokenEnhancementRule`).
+ *
+ * @param {object} feature
+ * @param {string} documentKey
+ * @returns {object}
+ */
+function withoutImportedRejection(feature, documentKey) {
+  if (
+    documentKey !== 'postIntervention' ||
+    !('invalidEnhancement' in feature)
+  ) {
+    return feature
+  }
+  const cleared = { ...feature }
+  delete cleared.invalidEnhancement
+  return cleared
+}
+
 function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
     (found.type === 'habitat' || found.type === 'hedgerow') &&
     derived.updatedFeature
-  if (recomputedWholeFeature) {
-    return derived.updatedFeature
-  }
-  return mergeFeature(found.type, found.feature, edits, derived, documentKey)
+  const updated = recomputedWholeFeature
+    ? derived.updatedFeature
+    : mergeFeature(found.type, found.feature, edits, derived, documentKey)
+  return withoutImportedRejection(updated, documentKey)
 }
 
 /**
@@ -315,6 +342,32 @@ function refreshFiguresDownstreamOfEdit(
 }
 
 /**
+ * The enhancement rule an edit to an enhanced post-intervention feature
+ * breaks, or null. An edit must leave a valid enhancement of the feature's
+ * baseline, as an import must (reject-invalid-enhancements.js); unlike an
+ * import, it is refused rather than saved with its proposed values nulled.
+ * The edit replaces only some proposed fields, so the check runs on the
+ * recomputed feature, which carries all of them.
+ *
+ * @param {{ key: string }} found
+ * @param {{ updatedFeature?: object }} derived
+ * @param {string} documentKey
+ * @returns {string | null} one of bng-library's ENHANCEMENT_RULE
+ */
+function brokenEnhancementRule(found, derived, documentKey) {
+  const feature = derived.updatedFeature
+  if (
+    documentKey !== 'postIntervention' ||
+    !feature ||
+    resolveRetentionCategory(feature) !== RETENTION_ENHANCED
+  ) {
+    return null
+  }
+  const check = checkFeatureEnhancement(found.key, feature)
+  return check && !check.valid ? check.rule : null
+}
+
+/**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
  * apply path below deals only with edits that are going ahead.
@@ -365,6 +418,16 @@ function resolveEditTarget(
       }
     }
   }
+  const rule = brokenEnhancementRule(found, derived, documentKey)
+  if (rule) {
+    return {
+      rejection: {
+        status: APPLY_RESULT.INVALID_ENHANCEMENT,
+        type: found.type,
+        rule
+      }
+    }
+  }
   return { found, derived }
 }
 
@@ -395,6 +458,7 @@ function resolveEditTarget(
  * @returns {
  *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
+ *   { status: 'invalidEnhancement', type: string, rule: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */

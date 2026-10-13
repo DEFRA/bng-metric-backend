@@ -10,6 +10,7 @@ import {
   extractPostIntervention,
   filterLostPostInterventionLayers
 } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
+import { rejectInvalidEnhancements } from '../../validation/geopackage/post-intervention/reject-invalid-enhancements.js'
 import {
   ERROR_CODES,
   makeError,
@@ -98,6 +99,8 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
   }),
   postIntervention: Object.freeze({
     extractDocument: extractPostIntervention,
+    // Import only: an edit or a baseline re-derive never re-checks them.
+    checkDocument: rejectInvalidEnhancements,
     enrichDocument: enrichPostInterventionDocumentWithUnits,
     documentSchema: postInterventionDataSchema
   })
@@ -216,6 +219,7 @@ export function extractAndValidateDocument({
     document,
     config.projectDocumentKey === 'postIntervention'
   )
+  handlers.checkDocument?.(document, logger)
   const enrichOptions =
     config.projectDocumentKey === 'postIntervention'
       ? postInterventionEnrichOptions(storedProject?.baseline)

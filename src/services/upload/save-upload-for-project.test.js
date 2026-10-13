@@ -166,6 +166,56 @@ describe('saveUploadForProject', () => {
     )
   })
 
+  it.each([
+    { broadType: 'Grassland', rejected: true },
+    { broadType: 'Unknown', rejected: false }
+  ])(
+    'checks enhancements after normalisation for broad habitat $broadType',
+    async ({ broadType, rejected }) => {
+      const habitat = {
+        retentionCategory: 'Enhanced',
+        status: 'Complete',
+        baseline: {
+          broadType,
+          type: 'Modified grassland',
+          condition: 'Moderate'
+        },
+        proposed: {
+          broadType: 'Grassland',
+          type: 'Modified grassland',
+          condition: 'Poor'
+        }
+      }
+      extractPostIntervention.mockReturnValue({
+        document: { habitats: [habitat] },
+        geometries: { habitats: [] }
+      })
+      enrichPostInterventionDocumentWithUnits.mockImplementationOnce(() => {
+        if (rejected) {
+          expect(habitat.invalidEnhancement).toBeDefined()
+          expect(habitat.proposed.type).toBeNull()
+          expect(habitat.status).toBe('Incomplete')
+        } else {
+          // An invalid baseline identity is nulled first, so no enhancement
+          // rule can be evaluated against the formerly populated type.
+          expect(habitat.baseline.type).toBeNull()
+          expect(habitat.invalidEnhancement).toBeUndefined()
+          expect(habitat.proposed.type).toBe('Modified grassland')
+        }
+      })
+      await saveUploadForProject(
+        deps,
+        PROJECT_ID,
+        STUB_LAYERS,
+        { uploadId: UPLOAD_ID, credentials: CREDENTIALS },
+        h,
+        POST_INTERVENTION_CONFIG
+      )
+      expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledOnce()
+      expect(persistUpload).toHaveBeenCalledOnce()
+    }
+  )
+
   it('returns null after a successful extract, enrich, validate and persist', async () => {
     const result = await saveUploadForProject(
       deps,
