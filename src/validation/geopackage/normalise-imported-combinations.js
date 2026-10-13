@@ -4,6 +4,7 @@ import {
   getConditionsForHedgerowType,
   getConditionsForWatercourseType
 } from '../reference/habitat-reference.js'
+
 const areaHabitatPairs = getHabitatsByBroad()
 const conditionsByLayer = {
   habitats: getConditionsForHabitatType,
@@ -27,6 +28,18 @@ function clearFields(attributes, fields) {
     if (field in attributes) {
       attributes[field] = null
     }
+  }
+}
+
+function nullInvalidCondition(attributes, layer, habitatKey) {
+  if (
+    habitatKey &&
+    attributes.condition != null &&
+    !conditionsByLayer[layer](habitatKey).some(
+      ({ condition }) => condition === attributes.condition
+    )
+  ) {
+    attributes.condition = null
   }
 }
 
@@ -54,15 +67,7 @@ export function normaliseImportedAttributeCombinations(
     }
     return
   }
-  if (
-    habitatKey &&
-    attributes.condition != null &&
-    !conditionsByLayer[layer](habitatKey).some(
-      ({ condition }) => condition === attributes.condition
-    )
-  ) {
-    attributes.condition = null
-  }
+  nullInvalidCondition(attributes, layer, habitatKey)
 }
 
 export const IMPORT_COMBINATION_LAYERS = Object.freeze(
