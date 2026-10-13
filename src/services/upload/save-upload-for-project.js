@@ -26,9 +26,13 @@ import {
   attachGeometrySizes,
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
-import { persistUpload } from './persist-upload.js'
 import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
 import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
+import {
+  countRowsWithoutBaselineType,
+  filterBaselineLayers
+} from './baseline-rows.js'
+import { persistCombinedUpload, persistUpload } from './persist-upload.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
 import {
@@ -36,6 +40,8 @@ import {
   perfNow,
   msSince
 } from '../../common/helpers/perf-evidence.js'
+
+const POST_INTERVENTION_DOCUMENT_KEY = 'postIntervention'
 
 /**
  * Record one save-stage duration as both a `pipeline-inline` evidence line (for
@@ -107,10 +113,9 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
 })
 
 /**
- * Read the project's currently stored JSONB document. Serves two consumers:
- * the featureId carry-forward (which needs the subtree being replaced) and the
- * post-intervention enrichment (which needs the stored baseline). One read
- * covers both.
+ * Read the project's currently stored JSONB document, for the featureId
+ * carry-forward. A post-intervention upload replaces both subtrees, so it
+ * carries ids forward from each. One read covers both.
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
  * @param {string} projectId
@@ -160,25 +165,70 @@ export function layersForUpload(
   const featureIdByRef = buildFeatureIdByRef(
     storedProject?.[projectDocumentKey]
   )
-  // Sizes are stamped on BEFORE the post-intervention Lost filter, because they
-  // are keyed by a feature's position and that filter renumbers what is left.
-  const layersWithIds = attachGeometrySizes(
-    assignFeatureIds(layers, featureIdByRef),
-    geometrySizes
+  if (projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY) {
+    // Sizes are stamped on BEFORE the post-intervention Lost filter, because they
+    // are keyed by a feature's position and that filter renumbers what is left.
+    // Ids stay on the unfiltered layers: a Lost row and the Created row that
+    // replaces it share a ref, and both belong in this document.
+    const layersWithSizes = attachGeometrySizes(
+      assignFeatureIds(layers, featureIdByRef),
+      geometrySizes
+    )
+    return {
+      layersWithIds: layersWithSizes,
+      layersForSizing: filterLostPostInterventionLayers(layersWithSizes)
+    }
+  }
+  // A combined file uploaded as a baseline ignores Created rows: they are
+  // post-intervention data. A placeholder type such as "N/A" is kept, so a
+  // pure baseline file still shows that parcel for the user to complete.
+  // Ids are assigned after the filter, so uniqueness is counted on the
+  // rows that remain.
+  const baselineLayers = assignFeatureIds(
+    filterBaselineLayers(attachGeometrySizes(layers, geometrySizes)),
+    featureIdByRef
   )
-  const layersForSizing =
-    projectDocumentKey === 'postIntervention'
-      ? filterLostPostInterventionLayers(layersWithIds)
-      : layersWithIds
-  return { layersWithIds, layersForSizing }
+  return { layersWithIds: baselineLayers, layersForSizing: baselineLayers }
+}
+
+/**
+ * The baseline a post-intervention file describes, read from its Baseline*
+ * columns before the post-intervention Lost filter: a Lost feature is exactly
+ * what the baseline must still hold. Created rows are ignored, and so is a
+ * Lost row whose Baseline type is blank or a placeholder. A Retained or
+ * Enhanced row with no Baseline type is rejected before extraction.
+ *
+ * Feature ids are carried forward from the stored baseline, not the stored
+ * post-intervention document: the two are separate feature sets. They are
+ * assigned after Created rows are removed. A Lost row and the Created row
+ * that replaces it often share a ref; counted together, that ref is not
+ * unique and the Lost row would receive a new id on every upload.
+ *
+ * @param {object} layers the raw layers of a post-intervention upload
+ * @param {object|undefined} storedProject
+ * @param {object} [geometrySizes] per-feature measurements, keyed by position
+ * @returns {object} layers ready for sizing and baseline extraction
+ */
+export function derivedBaselineLayers(layers, storedProject, geometrySizes) {
+  const featureIdByRef = buildFeatureIdByRef(storedProject?.baseline)
+  const baselineLayers = filterBaselineLayers(
+    attachGeometrySizes(layers, geometrySizes),
+    { strict: true }
+  )
+  return assignFeatureIds(baselineLayers, featureIdByRef)
 }
 
 async function sizeUploadedHabitats(
-  layersForSizing,
+  { layersForSizing, baselineLayers },
   { logger, routeName, uploadId, h }
 ) {
   try {
-    return { habitatSizes: calculateHabitatSizes(layersForSizing) }
+    return {
+      habitatSizes: calculateHabitatSizes(layersForSizing),
+      baselineHabitatSizes: baselineLayers
+        ? calculateHabitatSizes(baselineLayers)
+        : undefined
+    }
   } catch (err) {
     logger.error(
       `${routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
@@ -198,6 +248,11 @@ async function sizeUploadedHabitats(
   }
 }
 
+/**
+ * @param {object} args
+ * @param {object} [args.baselineDocument] the baseline a post-intervention
+ *   document is enriched against; defaults to the stored baseline
+ */
 export function extractAndValidateDocument({
   handlers,
   layersWithIds,
@@ -205,7 +260,8 @@ export function extractAndValidateDocument({
   context,
   logger,
   config,
-  habitatSizes
+  habitatSizes,
+  baselineDocument = storedProject?.baseline
 }) {
   const { uploadId, filename, fileSize } = context
   const meta = {
@@ -217,17 +273,17 @@ export function extractAndValidateDocument({
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
   normaliseImportedDocument(
     document,
-    config.projectDocumentKey === 'postIntervention'
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
   )
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
-    config.projectDocumentKey === 'postIntervention'
-      ? postInterventionEnrichOptions(storedProject?.baseline)
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
+      ? postInterventionEnrichOptions(baselineDocument)
       : {}
   handlers.enrichDocument(document, logger, enrichOptions)
   enforceRequiredAttributeCompleteness(
     document,
-    config.projectDocumentKey === 'postIntervention'
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
   )
   const { error } = handlers.documentSchema.validate(document, {
     allowUnknown: true
@@ -245,20 +301,119 @@ function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
   })
 }
 
-async function persistUploadAndMaybeReEnrich(
+const BASELINE_DOCUMENT_CONFIG = Object.freeze({
+  projectDocumentKey: 'baseline'
+})
+
+const NO_DERIVED_BASELINE_HABITATS_MESSAGE =
+  'This post-intervention file has no baseline area habitats, so it cannot replace the project baseline'
+
+function missingBaselineTypeError(layers) {
+  const count = countRowsWithoutBaselineType(layers)
+  if (count === 0) {
+    return null
+  }
+  return makeError(
+    ERROR_CODES.BASELINE_TYPE_MISSING,
+    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`
+  )
+}
+
+function derivedBaselineHasAreaHabitats(document) {
+  return Array.isArray(document?.habitats) && document.habitats.length > 0
+}
+
+/**
+ * Extract, enrich and schema-check the upload. A post-intervention upload
+ * yields two documents: the baseline derived from the file, then the
+ * post-intervention document enriched against that baseline — not the stored
+ * one, which the same transaction is about to replace.
+ *
+ * @returns {{ schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
+ */
+function extractUploadDocuments(sized, context, logger, config) {
+  const { layersWithIds, baselineLayers, storedProject } = sized
+  const shared = { storedProject, context, logger }
+  if (!baselineLayers) {
+    return extractAndValidateDocument({
+      ...shared,
+      handlers: saveHandlersForConfig(config),
+      layersWithIds,
+      config,
+      habitatSizes: sized.habitatSizes
+    })
+  }
+  const missingBaselineType = missingBaselineTypeError(layersWithIds)
+  if (missingBaselineType) {
+    return { validationError: missingBaselineType }
+  }
+  const baseline = extractAndValidateDocument({
+    ...shared,
+    handlers: SAVE_HANDLERS_BY_DOCUMENT_KEY.baseline,
+    layersWithIds: baselineLayers,
+    config: BASELINE_DOCUMENT_CONFIG,
+    habitatSizes: sized.baselineHabitatSizes
+  })
+  if (baseline.schemaError) {
+    return { schemaError: baseline.schemaError }
+  }
+  // A file made only of Created rows, or Lost rows whose Baseline type is
+  // blank or a placeholder, derives no area habitats. Writing that document
+  // would delete the stored baseline and every feature edit on it.
+  if (!derivedBaselineHasAreaHabitats(baseline.document)) {
+    return {
+      validationError: makeError(
+        ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+        NO_DERIVED_BASELINE_HABITATS_MESSAGE
+      )
+    }
+  }
+  const postIntervention = extractAndValidateDocument({
+    ...shared,
+    handlers: saveHandlersForConfig(config),
+    layersWithIds,
+    config,
+    habitatSizes: sized.habitatSizes,
+    baselineDocument: baseline.document
+  })
+  return {
+    schemaError: postIntervention.schemaError,
+    baseline,
+    postIntervention
+  }
+}
+
+async function persistExtractedUpload(
   drizzle,
   projectId,
-  document,
-  geometries,
+  extracted,
   { uploadId, credentials, logger, config }
 ) {
-  await persistUpload(drizzle, projectId, document, geometries, {
-    uploadId,
-    logger,
-    credentials,
-    projectDocumentKey: config.projectDocumentKey,
-    uploadLabel: config.uploadLabel
-  })
+  if (extracted.baseline) {
+    await persistCombinedUpload(
+      drizzle,
+      projectId,
+      {
+        baseline: extracted.baseline,
+        postIntervention: extracted.postIntervention
+      },
+      { uploadId, logger, credentials, uploadLabel: config.uploadLabel }
+    )
+    return
+  }
+  await persistUpload(
+    drizzle,
+    projectId,
+    extracted.document,
+    extracted.geometries,
+    {
+      uploadId,
+      logger,
+      credentials,
+      projectDocumentKey: config.projectDocumentKey,
+      uploadLabel: config.uploadLabel
+    }
+  )
 }
 
 /**
@@ -269,12 +424,12 @@ async function persistUploadAndMaybeReEnrich(
  * features rather than the second PostGIS round trip it used to be. The metric
  * stays so the drop is visible on the dashboard rather than silently vanishing.
  *
- * @param {object} layersForSizing
+ * @param {{ layersForSizing: object, baselineLayers?: object }} layers
  * @param {{ logger: object, uploadId: string, documentKey: string }} stageContext
  * @param {{ config: object, h: import('@hapi/hapi').ResponseToolkit }} deps
- * @returns {Promise<{ habitatSizes?: object, response?: object }>}
+ * @returns {Promise<{ habitatSizes?: object, baselineHabitatSizes?: object, response?: object }>}
  */
-function runSizingStage(layersForSizing, stageContext, { config, h }) {
+function runSizingStage(layers, stageContext, { config, h }) {
   const { logger, uploadId } = stageContext
   return timeSaveStage(
     {
@@ -283,7 +438,7 @@ function runSizingStage(layersForSizing, stageContext, { config, h }) {
       stage: 'sizing'
     },
     () =>
-      sizeUploadedHabitats(layersForSizing, {
+      sizeUploadedHabitats(layers, {
         logger,
         routeName: config.routeName,
         uploadId,
@@ -299,13 +454,13 @@ function runSizingStage(layersForSizing, stageContext, { config, h }) {
  *
  * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
  * @param {string} projectId
- * @param {{ stageContext: object, layersWithIds: object, storedProject: object | undefined, habitatSizes: object }} sized
+ * @param {{ stageContext: object, layersWithIds: object, baselineLayers?: object, storedProject: object | undefined, habitatSizes: object, baselineHabitatSizes?: object }} sized
  * @param {{ uploadId: string, credentials: { sub: string } }} context
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
 async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
-  const { stageContext, layersWithIds, storedProject, habitatSizes } = sized
+  const { stageContext } = sized
   const { logger, uploadId } = stageContext
 
   // Evidence (Item 8 — extract and engine enrichment loop every feature inline):
@@ -316,16 +471,7 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
       metricName: PERFORMANCE_METRIC.enrichMs,
       stage: 'enrich'
     },
-    () =>
-      extractAndValidateDocument({
-        handlers: saveHandlersForConfig(config),
-        layersWithIds,
-        storedProject,
-        context,
-        logger,
-        config,
-        habitatSizes
-      })
+    () => extractUploadDocuments(sized, context, logger, config)
   )
   if (extracted.schemaError) {
     return schemaErrorResponse(extracted.schemaError, {
@@ -333,6 +479,15 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
       routeName: config.routeName,
       uploadId,
       h
+    })
+  }
+  if (extracted.validationError) {
+    logger.info(
+      `${config.routeName} - derived baseline rejected uploadId ${uploadId}: ${extracted.validationError.message}`
+    )
+    return h.response({
+      valid: false,
+      errors: [extracted.validationError]
     })
   }
 
@@ -345,18 +500,12 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
       stage: 'persist'
     },
     () =>
-      persistUploadAndMaybeReEnrich(
-        drizzle,
-        projectId,
-        extracted.document,
-        extracted.geometries,
-        {
-          uploadId,
-          credentials: context.credentials,
-          logger,
-          config
-        }
-      )
+      persistExtractedUpload(drizzle, projectId, extracted, {
+        uploadId,
+        credentials: context.credentials,
+        logger,
+        config
+      })
   )
   return null
 }
@@ -401,11 +550,16 @@ export async function saveUploadForProject(
     projectDocumentKey,
     context.geometrySizes
   )
+  const baselineLayers =
+    projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
+      ? derivedBaselineLayers(layers, storedProject, context.geometrySizes)
+      : undefined
 
-  const sizing = await runSizingStage(layersForSizing, stageContext, {
-    config,
-    h
-  })
+  const sizing = await runSizingStage(
+    { layersForSizing, baselineLayers },
+    stageContext,
+    { config, h }
+  )
   if (sizing.response) {
     return sizing.response
   }
@@ -416,8 +570,10 @@ export async function saveUploadForProject(
     {
       stageContext,
       layersWithIds,
+      baselineLayers,
       storedProject,
-      habitatSizes: sizing.habitatSizes
+      habitatSizes: sizing.habitatSizes,
+      baselineHabitatSizes: sizing.baselineHabitatSizes
     },
     context,
     h,

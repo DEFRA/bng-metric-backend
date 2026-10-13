@@ -15,7 +15,11 @@ import {
   SAMPLE_GEOM,
   makeDrizzle
 } from '../../routes/validate-geopackage-route.test-fixtures.js'
-import { FEATURE_TABLE_SETS, persistUpload } from './persist-upload.js'
+import {
+  FEATURE_TABLE_SETS,
+  persistCombinedUpload,
+  persistUpload
+} from './persist-upload.js'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 /** Mirrors INSERT_BATCH_SIZE in persist-upload.js */
@@ -309,5 +313,81 @@ describe('persistUpload', () => {
     )
 
     expect(log.executes.length).toBeGreaterThan(0)
+  })
+})
+
+describe('persistCombinedUpload', () => {
+  let logger
+  const combined = {
+    baseline: STUB_EXTRACTED,
+    postIntervention: STUB_POST_INTERVENTION_EXTRACTED
+  }
+
+  beforeEach(() => {
+    logger = { info: vi.fn() }
+  })
+
+  it('AC5-AC7 replaces both documents and both geometry table sets in one transaction', async () => {
+    const { drizzle, log } = makeDrizzle()
+
+    await persistCombinedUpload(drizzle, PROJECT_ID, combined, {
+      uploadId: UPLOAD_ID,
+      logger,
+      credentials: CREDENTIALS
+    })
+
+    expect(log.transactionCalls).toBe(1)
+    expect(log.selectCalls).toBe(1)
+    expect(log.deletes).toEqual([
+      ...Object.values(FEATURE_TABLE_SETS.baseline),
+      ...Object.values(FEATURE_TABLE_SETS.postIntervention)
+    ])
+    const insertedTables = log.executes
+      .map((statement) => new PgDialect().sqlToQuery(statement).sql)
+      .filter((statement) => statement.includes('INSERT INTO'))
+    expect(insertedTables.some((s) => s.includes('baseline_habitats'))).toBe(
+      true
+    )
+    expect(
+      insertedTables.some((s) => s.includes('post_intervention_habitats'))
+    ).toBe(true)
+    expect(log.updates).toHaveLength(1)
+    expect(logger.info).toHaveBeenCalledWith(
+      `post-intervention: persisted baseline and post-intervention for projectId ${PROJECT_ID} from uploadId ${UPLOAD_ID}`
+    )
+  })
+
+  it('throws 404 when the project is not visible to the user', async () => {
+    const { drizzle, log } = makeDrizzle({ projectExists: false })
+
+    await expect(
+      persistCombinedUpload(drizzle, PROJECT_ID, combined, {
+        uploadId: UPLOAD_ID,
+        logger,
+        credentials: CREDENTIALS
+      })
+    ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 404 } })
+    expect(log.deletes).toEqual([])
+    expect(logger.info).not.toHaveBeenCalled()
+  })
+
+  it('throws 409 when the project row lock cannot be acquired', async () => {
+    const lockError = Object.assign(new Error('lock timeout'), {
+      code: PG_LOCK_NOT_AVAILABLE
+    })
+    const { drizzle } = makeDrizzle({ lockError })
+
+    await expect(
+      persistCombinedUpload(drizzle, PROJECT_ID, combined, {
+        uploadId: UPLOAD_ID,
+        logger,
+        credentials: CREDENTIALS
+      })
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: { statusCode: 409 },
+      message:
+        'Another post-intervention upload for this project is in progress'
+    })
   })
 })
