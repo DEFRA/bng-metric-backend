@@ -12,8 +12,6 @@ import {
 import { getHabitatsByBroad } from '../reference/habitat-reference.js'
 import { stripConditionPrefix } from '../../utilities/enrichment/shared/condition.js'
 
-import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
-
 const areaHabitats = getHabitatsByBroad()
 const broadTypes = new Set(areaHabitats.map((row) => row.broadHabitat))
 // Membership is independent of the selected broad habitat/condition. Invalid
@@ -125,6 +123,5 @@ export function normaliseImportedDocument(document, postIntervention = false) {
       }
     }
   }
-  enforceRequiredAttributeCompleteness(document, postIntervention)
   return document
 }

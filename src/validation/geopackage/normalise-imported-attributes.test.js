@@ -105,7 +105,7 @@ describe('BMD-1059 imported attributes', () => {
   it('handles empty documents and absent nested sides', () => {
     expect(normaliseImportedDocument({})).toEqual({})
     expect(normaliseImportedDocument({ habitats: [{}] }, true)).toEqual({
-      habitats: [{ status: 'Incomplete' }]
+      habitats: [{}]
     })
   })
 
@@ -319,12 +319,11 @@ describe('BMD-1059 imported attributes', () => {
       normaliseImportedDocument(document, true)
       expect(document[layer][0].baseline.condition).toBeNull()
       expect(document[layer][0].proposed.condition).toBeNull()
-      expect(document[layer][0].status).toBe('Incomplete')
     }
   )
 
   it.each(Object.entries(examples))(
-    'marks nonempty invalid %s conditions Incomplete on either upload type',
+    'nulls nonempty invalid %s conditions without changing status',
     (layer, makeFeature) => {
       for (const proposed of [false, true]) {
         const attributes = { ...makeFeature(), condition: 'unknown condition' }
@@ -333,7 +332,7 @@ describe('BMD-1059 imported attributes', () => {
           : attributes
         feature.status = 'Complete'
         normaliseImportedDocument({ [layer]: [feature] }, proposed)
-        expect(feature.status).toBe('Incomplete')
+        expect(feature.status).toBe('Complete')
         expect(attributes.condition).toBeNull()
       }
     }

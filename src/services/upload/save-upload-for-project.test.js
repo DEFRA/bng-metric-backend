@@ -146,7 +146,7 @@ describe('saveUploadForProject', () => {
         broadType: null,
         type: null,
         condition: null,
-        status: 'Incomplete'
+        status: 'Complete'
       })
     })
     await saveUploadForProject(
@@ -203,6 +203,9 @@ describe('saveUploadForProject', () => {
           expect(habitat.invalidEnhancement).toBeDefined()
           expect(habitat.proposed.type).toBeNull()
           expect(habitat.status).toBe('Incomplete')
+          // Enrichment may overwrite status; the final completeness check
+          // must still prevent null proposed attributes being saved Complete.
+          habitat.status = 'Complete'
         } else {
           // An invalid baseline identity is nulled first, so no enhancement
           // rule can be evaluated against the formerly populated type.
@@ -221,6 +224,9 @@ describe('saveUploadForProject', () => {
       )
       expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledOnce()
       expect(persistCombinedUpload).toHaveBeenCalledOnce()
+      if (rejected) {
+        expect(habitat.status).toBe('Incomplete')
+      }
     }
   )
 
