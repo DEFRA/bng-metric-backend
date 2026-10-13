@@ -259,6 +259,57 @@ describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-interve
     }
   }
 
+  it('removes stale watercourse units from the saved post-intervention totals after a baseline edit', async () => {
+    const { baselineHabitat, project } = seedBoth()
+    const attributes = {
+      type: 'Ditches',
+      condition: 'Good',
+      watercourseEncroachment: null,
+      riparianEncroachment: 'No Encroachment/No Encroachment'
+    }
+    project.postIntervention.watercourses = [
+      {
+        featureId: randomUUID(),
+        ref: 'R1',
+        retentionCategory: 'Retained',
+        sizeMetres: 1000,
+        units: 12,
+        status: 'Complete',
+        baseline: { ...attributes },
+        proposed: { ...attributes }
+      }
+    ]
+    project.postIntervention.units = {
+      totalUnits: 14,
+      habitatsTotal: 2,
+      watercoursesTotal: 12
+    }
+    const projectId = await seedProject(project)
+    const response = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/habitats/${baselineHabitat.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      }
+    })
+    expect(response.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      'SELECT project FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    const stored = rows[0].project.postIntervention
+    expect(stored.watercourses[0]).toMatchObject({
+      units: null,
+      status: 'Incomplete'
+    })
+    expect(stored.units.watercoursesTotal).toBe(0)
+    expect(stored.units.habitatsTotal).toBe(12)
+    expect(stored.units.totalUnits).toBe(12)
+  })
+
   it('persists the re-derived post-intervention document alongside the edit', async () => {
     const { baselineHabitat, project } = seedBoth()
     const projectId = await seedProject(project)

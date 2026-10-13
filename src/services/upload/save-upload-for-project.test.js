@@ -129,6 +129,107 @@ describe('saveUploadForProject', () => {
     ).rejects.toThrow('Unsupported projectDocumentKey: unknown')
   })
 
+  it('normalises invalid attributes before enrichment and persistence', async () => {
+    const habitat = {
+      featureId: 'feature-1',
+      status: 'Complete',
+      broadType: 'Unknown',
+      type: 'Modified grassland',
+      condition: 'Good'
+    }
+    extractHabitatData.mockReturnValue({
+      document: { habitats: [habitat] },
+      geometries: { habitats: [] }
+    })
+    enrichBaselineDocumentWithUnits.mockImplementationOnce((document) => {
+      expect(document.habitats[0]).toMatchObject({
+        broadType: null,
+        type: null,
+        condition: null,
+        status: 'Complete'
+      })
+    })
+    await saveUploadForProject(
+      deps,
+      PROJECT_ID,
+      STUB_LAYERS,
+      { uploadId: UPLOAD_ID, credentials: CREDENTIALS },
+      h,
+      BASELINE_CONFIG
+    )
+    expect(habitat.status).toBe('Incomplete')
+    expect(persistUpload).toHaveBeenCalledWith(
+      deps.drizzle,
+      PROJECT_ID,
+      expect.objectContaining({ habitats: [habitat] }),
+      { habitats: [] },
+      expect.objectContaining({
+        uploadId: UPLOAD_ID,
+        projectDocumentKey: 'baseline'
+      })
+    )
+  })
+
+  it.each([
+    { broadType: 'Grassland', rejected: true },
+    { broadType: 'Unknown', rejected: false }
+  ])(
+    'checks enhancements after normalisation for broad habitat $broadType',
+    async ({ broadType, rejected }) => {
+      const habitat = {
+        retentionCategory: 'Enhanced',
+        status: 'Complete',
+        baseline: {
+          broadType,
+          type: 'Modified grassland',
+          condition: 'Moderate'
+        },
+        proposed: {
+          broadType: 'Grassland',
+          type: 'Modified grassland',
+          condition: 'Poor'
+        }
+      }
+      extractHabitatData.mockReturnValue({
+        document: { habitats: [{ ...habitat.baseline }] },
+        geometries: { habitats: [] }
+      })
+      extractPostIntervention.mockReturnValue({
+        document: { habitats: [habitat] },
+        geometries: { habitats: [] }
+      })
+      enrichPostInterventionDocumentWithUnits.mockImplementationOnce(() => {
+        if (rejected) {
+          expect(habitat.invalidEnhancement).toBeDefined()
+          expect(habitat.proposed.type).toBeNull()
+          expect(habitat.status).toBe('Incomplete')
+          // Enrichment may overwrite status; the final completeness check
+          // must still prevent null proposed attributes being saved Complete.
+          habitat.status = 'Complete'
+        } else {
+          // An invalid baseline identity is nulled first, so no enhancement
+          // rule can be evaluated against the formerly populated type.
+          expect(habitat.baseline.type).toBeNull()
+          expect(habitat.invalidEnhancement).toBeUndefined()
+          expect(habitat.proposed.type).toBe('Modified grassland')
+        }
+      })
+      await saveUploadForProject(
+        deps,
+        PROJECT_ID,
+        STUB_LAYERS,
+        { uploadId: UPLOAD_ID, credentials: CREDENTIALS },
+        h,
+        POST_INTERVENTION_CONFIG
+      )
+      expect(enrichPostInterventionDocumentWithUnits).toHaveBeenCalledOnce()
+      expect(persistCombinedUpload).toHaveBeenCalledOnce()
+      if (rejected) {
+        expect(habitat.status).toBe('Incomplete')
+      }
+    }
+  )
+
   it('returns null after a successful extract, enrich, validate and persist', async () => {
     const result = await saveUploadForProject(
       deps,

@@ -47,6 +47,7 @@
 // case can arise on the area layer, the one that decides the Met / Not-met
 // verdict; the resolution above is what keeps the verdict safe.
 
+import { enforceRequiredAttributeCompleteness } from '../shared/required-attribute-completeness.js'
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import {
@@ -60,6 +61,7 @@ import { postInterventionEnrichOptions } from './post-intervention-enrich-option
 import {
   RETENTION_CREATED,
   RETENTION_RETAINED,
+  isLegacyLostLinear,
   resolveRetentionCategory
 } from './retention-category.js'
 
@@ -404,6 +406,20 @@ export function rederivePostInterventionFromBaseline(
     rederived,
     logger,
     postInterventionEnrichOptions(baseline)
+  )
+  // Legacy Lost linear rows have no proposed habitat and remain Complete at
+  // zero units. New uploads exclude them, but stored documents may contain them.
+  enforceRequiredAttributeCompleteness(
+    {
+      ...rederived,
+      hedgerows: rederived.hedgerows?.filter(
+        (feature) => !isLegacyLostLinear(feature)
+      ),
+      watercourses: rederived.watercourses?.filter(
+        (feature) => !isLegacyLostLinear(feature)
+      )
+    },
+    true
   )
   return rederived
 }

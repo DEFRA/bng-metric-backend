@@ -1,3 +1,6 @@
+const NO_RIPARIAN_ENCROACHMENT = 'No Encroachment/No Encroachment'
+const NO_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
+
 export const FEAT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 
 // Created and enhanced features carry a valid Proposed Strategic Significance,
@@ -238,8 +241,8 @@ export function makeCreatedWatercourse() {
       distinctivenessScore: null,
       advanceYears: 0,
       delayYears: 0,
-      riparianEncroachment: 'No Encroachment/No Encroachment',
-      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: NO_RIPARIAN_ENCROACHMENT,
+      watercourseEncroachment: NO_WATERCOURSE_ENCROACHMENT,
       strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     }
   })
@@ -272,8 +275,8 @@ export function makeEnhancedWatercourse() {
       conditionScore: null,
       distinctiveness: null,
       distinctivenessScore: null,
-      riparianEncroachment: null,
-      watercourseEncroachment: null,
+      riparianEncroachment: NO_RIPARIAN_ENCROACHMENT,
+      watercourseEncroachment: NO_WATERCOURSE_ENCROACHMENT,
       strategicSignificance: null
     },
     proposed: {
@@ -284,8 +287,8 @@ export function makeEnhancedWatercourse() {
       distinctivenessScore: null,
       advanceYears: 0,
       delayYears: 0,
-      riparianEncroachment: null,
-      watercourseEncroachment: null,
+      riparianEncroachment: NO_RIPARIAN_ENCROACHMENT,
+      watercourseEncroachment: NO_WATERCOURSE_ENCROACHMENT,
       strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE
     }
   })

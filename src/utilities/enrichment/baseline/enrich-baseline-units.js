@@ -13,6 +13,7 @@ import {
 } from '../../../common/helpers/perf-evidence.js'
 import {
   LOG_ENRICH_PREFIX,
+  EncroachmentLookupError,
   calculateAreaHabitatWithCandidates,
   normalizeConditionForEngine,
   resolvedWatercourseEncroachments
@@ -87,6 +88,9 @@ function enrichFeatureWithEngineCalculation(
     feature.status = HABITAT_STATUS.COMPLETE
   } catch (error) {
     if (error instanceof BaselineLookupError) {
+      if (error instanceof EncroachmentLookupError) {
+        feature.units = null
+      }
       feature.status = HABITAT_STATUS.INCOMPLETE
       const featureId = feature.featureId ?? 'unknown'
       logger.warn(
@@ -147,8 +151,8 @@ function createWatercourseEnrichmentConfig(logger) {
   return {
     logger,
     layerLabel: 'Watercourse',
-    calculate: (lengthKm, type, condition, { feature, logger: log }) => {
-      const encroachments = resolvedWatercourseEncroachments(feature, log)
+    calculate: (lengthKm, type, condition, { feature }) => {
+      const encroachments = resolvedWatercourseEncroachments(feature)
       return calculateWatercourseBaseline(
         lengthKm,
         type,

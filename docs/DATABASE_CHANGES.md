@@ -221,3 +221,27 @@ Apply the migration in each environment via the CDP Portal using the same publis
 9. Test in dev
 10. CDP Portal  →  promote to test → ext-test → prod
 ```
+
+## BMD-1059 release notes: import validation and existing projects
+
+BMD-1059 introduces no database schema changes. Logging imported or created
+nulls is deferred to BMD-1072; this change does not collect or persist import
+issue events. The logging destination will be decided in that ticket.
+
+Missing, blank or unrecognised watercourse/riparian encroachment no longer means
+"no encroachment" or a multiplier of 1. This correction deliberately applies to
+existing projects when they are re-enriched, including post-intervention resync
+following a baseline edit. Affected features become Incomplete and calculation
+warnings identify them. Baseline and post-intervention enrichment clear
+previously stored units when an encroachment lookup fails, before recalculating
+project totals. Those stale units therefore no longer contribute to totals or
+reports. This is a narrow correction for encroachment failures; broader null-unit
+and derived-field handling remains BMD-1070.
+
+Deployment does not bulk rewrite stored habitat documents or invent encroachment
+values for old records. An absent value cannot safely be migrated to an explicit
+"No Encroachment" answer. Before release, assess existing projects with missing or
+invalid encroachment and communicate that their recalculated status and units may
+change. Correct affected attributes from verified source data before relying on
+recalculated totals. Explicit, recognised encroachment values keep their current
+calculation behaviour.

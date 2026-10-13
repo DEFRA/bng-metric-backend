@@ -26,6 +26,8 @@ import {
   attachGeometrySizes,
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
+import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
+import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
 import {
   countRowsWithoutBaselineType,
   filterBaselineLayers
@@ -262,14 +264,27 @@ export function extractAndValidateDocument({
   baselineDocument = storedProject?.baseline
 }) {
   const { uploadId, filename, fileSize } = context
-  const meta = { uploadId, filename, fileSize, habitatSizes }
+  const meta = {
+    uploadId,
+    filename,
+    fileSize,
+    habitatSizes
+  }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
+  normaliseImportedDocument(
+    document,
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
+  )
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
     config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
       ? postInterventionEnrichOptions(baselineDocument)
       : {}
   handlers.enrichDocument(document, logger, enrichOptions)
+  enforceRequiredAttributeCompleteness(
+    document,
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
+  )
   const { error } = handlers.documentSchema.validate(document, {
     allowUnknown: true
   })

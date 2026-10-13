@@ -1,9 +1,18 @@
 import { describe, expect, test, vi } from 'vitest'
+import { summariseUnitTypes } from '../../../services/report/unit-summary.js'
 
 import {
   rederivePostInterventionFromBaseline,
   resyncPostInterventionBaselineSide
 } from './resync-post-intervention-baseline.js'
+
+import {
+  makeAreaHabitat,
+  makeHedgerow,
+  makeWatercourse,
+  makeLostHedgerow,
+  makeLostWatercourse
+} from './enrich-post-intervention-units.fixtures.js'
 
 const MODIFIED_GRASSLAND = 'Modified grassland' // Grassland, Low
 const NEUTRAL_GRASSLAND = 'Other neutral grassland' // Grassland, Medium
@@ -513,6 +522,81 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
 })
 
 describe('rederivePostInterventionFromBaseline', () => {
+  test.each([
+    ['habitats', makeAreaHabitat],
+    ['trees', makeAreaHabitat],
+    ['hedgerows', makeHedgerow],
+    ['watercourses', makeWatercourse]
+  ])(
+    'keeps retained %s with null proposed condition Incomplete after a baseline edit',
+    (layer, makeFeature) => {
+      const feature = makeFeature()
+      feature.proposed.condition = null
+      const stored = { [layer]: [feature] }
+      const before = structuredClone(stored)
+      const rederived = rederivePostInterventionFromBaseline(stored, {
+        baseline: {
+          [layer]: [
+            {
+              ...feature.baseline,
+              ref: feature.ref,
+              featureId: 'baseline-1',
+              condition: 'Poor'
+            }
+          ]
+        }
+      })
+      expect(rederived[layer][0].baseline.condition).toBe('Poor')
+      expect(rederived[layer][0].proposed.condition).toBeNull()
+      expect(rederived[layer][0].status).toBe('Incomplete')
+      expect(stored).toEqual(before)
+    }
+  )
+
+  test.each([null, '', '   ', 'unknown encroachment'])(
+    'recalculates legacy retained watercourses with encroachment %j as Incomplete',
+    (value) => {
+      const feature = makeWatercourse({ units: 12, status: 'Complete' })
+      feature.baseline.watercourseEncroachment = value
+      feature.proposed.watercourseEncroachment = value
+      const logger = { warn: vi.fn() }
+      const rederived = rederivePostInterventionFromBaseline(
+        { watercourses: [feature] },
+        { baseline: {} },
+        logger
+      )
+      expect(rederived.watercourses[0].status).toBe('Incomplete')
+      expect(rederived.watercourses[0].units).toBeNull()
+      expect(rederived.units.watercoursesTotal).toBe(0)
+      expect(rederived.units.totalUnits).toBe(0)
+      const summary = summariseUnitTypes(null, {
+        ...rederived,
+        documentCounts: { watercourses: 1 }
+      }).find((item) => item.key === 'watercourses')
+      expect(summary.postInterventionUnits).toBe('0.00 units')
+      expect(logger.warn).toHaveBeenCalled()
+      expect(feature.units).toBe(12)
+      expect(feature.status).toBe('Complete')
+    }
+  )
+
+  test.each([
+    ['hedgerows', makeLostHedgerow],
+    ['watercourses', makeLostWatercourse]
+  ])(
+    'preserves Complete zero-unit legacy Lost %s without proposed attributes',
+    (layer, makeFeature) => {
+      const feature = makeFeature()
+      feature.proposed = { type: null, condition: null }
+      const rederived = rederivePostInterventionFromBaseline(
+        { [layer]: [feature] },
+        { baseline: {} }
+      )
+      expect(rederived[layer][0].status).toBe('Complete')
+      expect(rederived[layer][0].units).toBe(0)
+    }
+  )
+
   test('returns null when the project has no post-intervention document', () => {
     expect(
       rederivePostInterventionFromBaseline(null, { baseline: {} })
