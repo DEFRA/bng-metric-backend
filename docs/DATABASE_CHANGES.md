@@ -224,13 +224,9 @@ Apply the migration in each environment via the CDP Portal using the same publis
 
 ## BMD-1059 release notes: import validation and existing projects
 
-Changesets 40 and 41 create `bng.import_events` and link it to `bng.projects`
-with `ON DELETE CASCADE`. These issue records belong to the project; they are
-not a permanent audit archive. The foreign key will remove events when their
-project is deleted. The existing unaudited-deletion guard remains in place; this
-change does not introduce or enable a project deletion workflow.
-Changeset 41 is additive so environments that already applied 40 retain a valid
-Liquibase checksum. Apply both before deploying this version.
+BMD-1059 introduces no database schema changes. Logging imported or created
+nulls is deferred to BMD-1072; this change does not collect or persist import
+issue events. The logging destination will be decided in that ticket.
 
 Missing, blank or unrecognised watercourse/riparian encroachment no longer means
 "no encroachment" or a multiplier of 1. This correction deliberately applies to
@@ -249,6 +245,3 @@ invalid encroachment and communicate that their recalculated status and units ma
 change. Correct affected attributes from verified source data before relying on
 recalculated totals. Explicit, recognised encroachment values keep their current
 calculation behaviour.
-
-Import issue events are written on upload only. Re-enrichment of an existing
-project does not create a new import event or a BMD-1072 raw/inserted snapshot.

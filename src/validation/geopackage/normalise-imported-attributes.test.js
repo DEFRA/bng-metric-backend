@@ -59,33 +59,22 @@ describe('BMD-1059 imported attributes', () => {
     'AC1/AC2 $layer.$field proposed=$proposed value=$value',
     ({ layer, makeFeature, field, proposed, value }) => {
       const attributes = { ...makeFeature(), [field]: value }
-      const issues = []
-      normaliseImportedAttributes(attributes, layer, proposed, (issue) =>
-        issues.push(issue)
-      )
+      normaliseImportedAttributes(attributes, layer, proposed)
       expect(attributes[field]).toBeNull()
-      expect(issues).toContainEqual({
-        field,
-        originalValue: value,
-        reason:
-          value === null || (typeof value === 'string' && !value.trim())
-            ? 'missing'
-            : 'invalid'
-      })
     }
   )
 
   it.each(Object.entries(examples))(
-    'keeps valid %s attributes and does not log them',
+    'keeps valid %s attributes',
     (layer, makeFeature) => {
       const feature = makeFeature()
       const document = { [layer]: [{ ...feature }] }
-      expect(normaliseImportedDocument(document)).toEqual([])
+      normaliseImportedDocument(document)
       expect(document[layer][0]).toEqual(feature)
     }
   )
 
-  it('logs exact source labels using the appropriate side and case-insensitive aliases', () => {
+  it('normalises aliased attributes on both sides without changing source properties', () => {
     const properties = {
       baseline_condition: ' \t ',
       'proposed condition': '99. Unknown',
@@ -95,20 +84,9 @@ describe('BMD-1059 imported attributes', () => {
       'Proposed Habitat Type': 'Modified grassland'
     }
     const { document } = extractPostIntervention({ areas: [{ properties }] })
-    expect(normaliseImportedDocument(document, true)).toEqual([
-      expect.objectContaining({
-        side: 'baseline',
-        field: 'condition',
-        originalValue: ' \t ',
-        reason: 'missing'
-      }),
-      expect.objectContaining({
-        side: 'proposed',
-        field: 'condition',
-        originalValue: '99. Unknown',
-        reason: 'invalid'
-      })
-    ])
+    normaliseImportedDocument(document, true)
+    expect(document.habitats[0].baseline.condition).toBeNull()
+    expect(document.habitats[0].proposed.condition).toBeNull()
     expect(document.habitats[0].properties).toEqual(properties)
   })
 
@@ -125,8 +103,10 @@ describe('BMD-1059 imported attributes', () => {
   })
 
   it('handles empty documents and absent nested sides', () => {
-    expect(normaliseImportedDocument({})).toEqual([])
-    expect(normaliseImportedDocument({ habitats: [{}] }, true)).toEqual([])
+    expect(normaliseImportedDocument({})).toEqual({})
+    expect(normaliseImportedDocument({ habitats: [{}] }, true)).toEqual({
+      habitats: [{ status: 'Incomplete' }]
+    })
   })
 
   it.each([null, undefined, '', ' \t\r\n', 'not in the reference', 42, {}])(
@@ -217,32 +197,20 @@ describe('BMD-1059 imported attributes', () => {
     })
   })
 
-  it('returns source issues with feature identity and preserves the original properties', () => {
+  it('normalises invalid attributes while preserving the original properties', () => {
     const properties = {
       'Baseline Broad Habitat Type': 'bad',
       'Baseline Habitat Type': 'Modified grassland',
       'Baseline Condition': '  '
     }
     const { document } = extractHabitatData({ areas: [{ properties }] })
-    const issues = normaliseImportedDocument(document)
+    normaliseImportedDocument(document)
     expect(document.habitats[0]).toMatchObject({
       broadType: null,
       type: null,
       condition: null,
       properties
     })
-    expect(issues).toEqual(
-      expect.arrayContaining([
-        expect.objectContaining({
-          layer: 'habitats',
-          field: 'broadType',
-          reason: 'invalid',
-          originalValue: 'bad',
-          featureId: document.habitats[0].featureId
-        }),
-        expect.objectContaining({ field: 'condition', reason: 'missing' })
-      ])
-    )
   })
 
   const retainedExamples = [
@@ -294,7 +262,7 @@ describe('BMD-1059 imported attributes', () => {
       const { document } = extractPostIntervention({
         [sourceLayer]: [{ properties }]
       })
-      expect(normaliseImportedDocument(document, true)).toEqual([])
+      normaliseImportedDocument(document, true)
       expect(document[layer][0].proposed).toMatchObject(expected)
       expect(document[layer][0].status).toBe('Complete')
       expect(document[layer][0].properties).toEqual(properties)
@@ -348,26 +316,10 @@ describe('BMD-1059 imported attributes', () => {
           }
         ]
       })
-      const issues = normaliseImportedDocument(document, true)
+      normaliseImportedDocument(document, true)
       expect(document[layer][0].baseline.condition).toBeNull()
       expect(document[layer][0].proposed.condition).toBeNull()
       expect(document[layer][0].status).toBe('Incomplete')
-      expect(issues).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            field: 'condition',
-            side: 'baseline',
-            reason: 'invalid',
-            originalValue: 'unknown condition'
-          }),
-          expect.objectContaining({
-            field: 'condition',
-            side: 'proposed',
-            reason: 'invalid',
-            originalValue: 'unknown condition'
-          })
-        ])
-      )
     }
   )
 

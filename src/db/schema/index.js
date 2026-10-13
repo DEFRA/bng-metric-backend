@@ -4,7 +4,6 @@ export { users } from './users.js'
 export { relationships } from './relationships.js'
 export { roles } from './roles.js'
 export { auditLog } from './audit-log.js'
-export { importEvents } from './import-events.js'
 export { loginAudit } from './login-audit.js'
 export { geometry } from './custom-types.js'
 export {

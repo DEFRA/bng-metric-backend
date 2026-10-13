@@ -125,7 +125,7 @@ describe('saveUploadForProject', () => {
     ).rejects.toThrow('Unsupported projectDocumentKey: unknown')
   })
 
-  it('normalises invalid attributes before enrichment and passes source issues to persistence', async () => {
+  it('normalises invalid attributes before enrichment and persistence', async () => {
     const habitat = {
       featureId: 'feature-1',
       status: 'Complete',
@@ -160,13 +160,8 @@ describe('saveUploadForProject', () => {
       expect.objectContaining({ habitats: [habitat] }),
       { habitats: [] },
       expect.objectContaining({
-        importIssues: [
-          expect.objectContaining({
-            field: 'broadType',
-            originalValue: 'Unknown',
-            reason: 'invalid'
-          })
-        ]
+        uploadId: UPLOAD_ID,
+        projectDocumentKey: 'baseline'
       })
     )
   })

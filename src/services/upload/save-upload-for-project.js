@@ -214,7 +214,7 @@ export function extractAndValidateDocument({
     habitatSizes
   }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
-  const importIssues = normaliseImportedDocument(
+  normaliseImportedDocument(
     document,
     config.projectDocumentKey === 'postIntervention'
   )
@@ -230,7 +230,7 @@ export function extractAndValidateDocument({
   const { error } = handlers.documentSchema.validate(document, {
     allowUnknown: true
   })
-  return { document, geometries, importIssues, schemaError: error }
+  return { document, geometries, schemaError: error }
 }
 
 function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
@@ -248,13 +248,12 @@ async function persistUploadAndMaybeReEnrich(
   projectId,
   document,
   geometries,
-  { uploadId, credentials, logger, config, importIssues }
+  { uploadId, credentials, logger, config }
 ) {
   await persistUpload(drizzle, projectId, document, geometries, {
     uploadId,
     logger,
     credentials,
-    importIssues,
     projectDocumentKey: config.projectDocumentKey,
     uploadLabel: config.uploadLabel
   })
@@ -353,8 +352,7 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
           uploadId,
           credentials: context.credentials,
           logger,
-          config,
-          importIssues: extracted.importIssues
+          config
         }
       )
   )

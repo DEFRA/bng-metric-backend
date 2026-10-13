@@ -13,7 +13,6 @@ import {
   fetchProject,
   fetchProjectAudit,
   fetchLayerRows,
-  getPersistenceTestContext,
   registerPersistenceTestHooks,
   uploadFixture
 } from './helpers/persistence-test-setup.js'
@@ -101,16 +100,7 @@ async function changedFixture(proposed = false, mode = 'nulls') {
   return uploadFixture(FIXTURE, file)
 }
 
-async function events(projectId) {
-  const { dbClient } = getPersistenceTestContext()
-  const result = await dbClient.query(
-    'SELECT * FROM bng.import_events WHERE project_id = $1 ORDER BY created_at, id',
-    [projectId]
-  )
-  return result.rows
-}
-
-describe('BMD-1059 real GeoPackage imports and database events', () => {
+describe('BMD-1059 real GeoPackage imports', () => {
   it.each([
     ['baseline', false, callValidate, 'baseline_habitats'],
     [
@@ -159,35 +149,6 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
         expect(river.waterEncroachmentMultiplier).toBeUndefined()
         expect(river.riparianEncroachmentMultiplier).toBeUndefined()
       }
-      const records = await events(project.id)
-      expect(records).toHaveLength(1)
-      expect(records[0]).toMatchObject({
-        upload_id: uploadId,
-        document_key: documentKey
-      })
-      expect(records[0].details).toEqual(
-        expect.arrayContaining([
-          expect.objectContaining({
-            featureId: area.featureId,
-            field: 'broadType',
-            reason: 'invalid',
-            originalValue: 'not a broad habitat',
-            side: proposed ? 'proposed' : null
-          }),
-          expect.objectContaining({
-            featureId: area.featureId,
-            field: 'condition',
-            reason: 'missing',
-            originalValue: ' \t '
-          }),
-          expect.objectContaining({
-            featureId: river.featureId,
-            field: 'riparianEncroachment',
-            reason: 'missing',
-            originalValue: ' \t '
-          })
-        ])
-      )
       const geometries = await fetchLayerRows(geometryTable, project.id)
       expect(geometries.map((row) => row.id)).toContain(area.featureId)
       expect(geometries.every((row) => row.is_valid)).toBe(true)
@@ -223,7 +184,7 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
     }
   )
 
-  it('saves retained baseline fallback with Complete status and no false missing-value events', async () => {
+  it('saves retained baseline fallback with Complete status', async () => {
     const project = await createProject('BMD-1059 retained fallback')
     const uploadId = await changedFixture(true, 'retained')
     expect(
@@ -231,7 +192,6 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
         .statusCode
     ).toBe(200)
     const stored = (await fetchProject(project.id)).postIntervention
-    const issues = (await events(project.id)).flatMap((event) => event.details)
     for (const [layer, ref] of [
       ['habitats', 'H1'],
       ['hedgerows', 'H1'],
@@ -242,14 +202,11 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
       expect(feature.proposed.condition).toBe('Good')
       expect(feature.status).toBe('Complete')
       expect(feature.units).toEqual(expect.any(Number))
-      expect(
-        issues.filter((issue) => issue.featureId === feature.featureId)
-      ).toEqual([])
     }
   })
 
-  it('records the invalid copied baseline value for a retained proposed attribute', async () => {
-    const project = await createProject('BMD-1059 retained issue source')
+  it('nulls invalid copied baseline attributes on retained imports', async () => {
+    const project = await createProject('BMD-1059 retained invalid attributes')
     const uploadId = await changedFixture(true, 'retained-invalid')
     expect(
       (await callPostInterventionValidate(uploadId, { projectId: project.id }))
@@ -260,59 +217,9 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
     expect(hedge.baseline.condition).toBeNull()
     expect(hedge.proposed.condition).toBeNull()
     expect(hedge.properties['Proposed Condition']).toBe('   ')
-    const issues = (await events(project.id))
-      .flatMap((event) => event.details)
-      .filter(
-        (issue) =>
-          issue.featureId === hedge.featureId && issue.field === 'condition'
-      )
-    expect(issues).toEqual([
-      expect.objectContaining({
-        side: 'baseline',
-        reason: 'invalid',
-        originalValue: 'unknown condition'
-      }),
-      expect.objectContaining({
-        side: 'proposed',
-        reason: 'invalid',
-        originalValue: 'unknown condition'
-      })
-    ])
   })
 
-  it('enforces project ownership and declares cascading event deletion', async () => {
-    const { dbClient } = getPersistenceTestContext()
-    const project = await createProject('BMD-1059 event ownership')
-    const uploadId = await changedFixture()
-    expect(
-      (await callValidate(uploadId, { projectId: project.id })).statusCode
-    ).toBe(200)
-    expect(await events(project.id)).toHaveLength(1)
-    // Project deletion is intentionally blocked until an audited deletion
-    // workflow exists. Verify the validated FK's cascade action without
-    // disabling that guard or modifying audit history.
-    const { rows } = await dbClient.query(`
-      SELECT confdeltype, convalidated,
-        confrelid = 'bng.projects'::regclass AS references_projects
-      FROM pg_constraint
-      WHERE conrelid = 'bng.import_events'::regclass
-        AND conname = 'fk_import_events_project_id'
-    `)
-    expect(rows).toEqual([
-      { confdeltype: 'c', convalidated: true, references_projects: true }
-    ])
-    await expect(
-      dbClient.query(
-        'INSERT INTO bng.import_events (project_id, upload_id, document_key, details) VALUES ($1, $2, $3, $4)',
-        ['00000000-0000-4000-8000-000000000000', uploadId, 'baseline', '[]']
-      )
-    ).rejects.toMatchObject({
-      code: '23503',
-      constraint: 'fk_import_events_project_id'
-    })
-  })
-
-  it('keeps separate event history and stable feature IDs for re-uploads', async () => {
+  it('keeps stable feature IDs for re-uploads', async () => {
     const project = await createProject('BMD-1059 repeated upload')
     const firstUpload = await changedFixture()
     expect(
@@ -327,42 +234,5 @@ describe('BMD-1059 real GeoPackage imports and database events', () => {
     expect(after.habitats.map((feature) => feature.featureId)).toEqual(
       before.habitats.map((feature) => feature.featureId)
     )
-    expect((await events(project.id)).map((event) => event.upload_id)).toEqual([
-      firstUpload,
-      secondUpload
-    ])
-  })
-
-  it('rolls back the project, geometry replacement and audit when event insertion fails', async () => {
-    const { dbClient } = getPersistenceTestContext()
-    const project = await createProject('BMD-1059 rollback')
-    const firstUpload = await changedFixture()
-    expect(
-      (await callValidate(firstUpload, { projectId: project.id })).statusCode
-    ).toBe(200)
-    const before = await fetchProject(project.id)
-    const geometryBefore = await fetchLayerRows('baseline_habitats', project.id)
-    const auditBefore = await fetchProjectAudit(project.id)
-    const eventsBefore = await events(project.id)
-    const secondUpload = await changedFixture()
-    await dbClient.query(
-      `CREATE FUNCTION bng.reject_test_import_event() RETURNS trigger LANGUAGE plpgsql AS 'BEGIN RAISE EXCEPTION ''BMD-1059 test event failure''; END'; CREATE TRIGGER reject_test_import_event BEFORE INSERT ON bng.import_events FOR EACH ROW EXECUTE FUNCTION bng.reject_test_import_event()`
-    )
-    try {
-      const response = await callValidate(secondUpload, {
-        projectId: project.id
-      })
-      expect(response.statusCode).toBe(500)
-      expect(await fetchProject(project.id)).toEqual(before)
-      expect(await fetchLayerRows('baseline_habitats', project.id)).toEqual(
-        geometryBefore
-      )
-      expect(await fetchProjectAudit(project.id)).toEqual(auditBefore)
-      expect(await events(project.id)).toEqual(eventsBefore)
-    } finally {
-      await dbClient.query(
-        'DROP TRIGGER reject_test_import_event ON bng.import_events; DROP FUNCTION bng.reject_test_import_event()'
-      )
-    }
   })
 })

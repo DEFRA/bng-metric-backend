@@ -1,6 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Boom from '@hapi/boom'
-import { importEvents } from '../../db/schema/import-events.js'
 import { PgDialect } from 'drizzle-orm/pg-core'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
@@ -40,61 +39,6 @@ describe('persistUpload', () => {
 
   beforeEach(() => {
     logger = { info: vi.fn() }
-  })
-
-  it('persists source issues in the same transaction as the upload', async () => {
-    const { drizzle, tx } = makeDrizzle()
-    const values = vi.fn().mockResolvedValue()
-    tx.insert = vi.fn(() => ({ values }))
-    const importIssues = [
-      {
-        featureId: 'feature-1',
-        field: 'condition',
-        reason: 'missing',
-        originalValue: null
-      }
-    ]
-    await persistUpload(
-      drizzle,
-      PROJECT_ID,
-      STUB_EXTRACTED.document,
-      STUB_EXTRACTED.geometries,
-      {
-        uploadId: UPLOAD_ID,
-        credentials: CREDENTIALS,
-        logger: { info: vi.fn() },
-        importIssues
-      }
-    )
-    expect(tx.insert).toHaveBeenCalledWith(importEvents)
-    expect(values).toHaveBeenCalledWith({
-      projectId: PROJECT_ID,
-      uploadId: UPLOAD_ID,
-      documentKey: 'baseline',
-      details: importIssues
-    })
-    expect(drizzle.transaction).toHaveBeenCalledTimes(1)
-  })
-
-  it('fails the upload transaction if event persistence fails', async () => {
-    const { drizzle, tx } = makeDrizzle()
-    tx.insert = vi.fn(() => ({
-      values: vi.fn().mockRejectedValue(new Error('event write failed'))
-    }))
-    await expect(
-      persistUpload(
-        drizzle,
-        PROJECT_ID,
-        STUB_EXTRACTED.document,
-        STUB_EXTRACTED.geometries,
-        {
-          uploadId: UPLOAD_ID,
-          credentials: CREDENTIALS,
-          logger: { info: vi.fn() },
-          importIssues: [{ field: 'condition' }]
-        }
-      )
-    ).rejects.toThrow('event write failed')
   })
 
   it('AC3/AC4 replaces baseline and removes all baseline and PI geometry rows in one transaction', async () => {

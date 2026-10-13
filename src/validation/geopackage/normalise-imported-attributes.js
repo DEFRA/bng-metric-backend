@@ -11,7 +11,6 @@ import {
 
 import { getHabitatsByBroad } from '../reference/habitat-reference.js'
 import { stripConditionPrefix } from '../../utilities/enrichment/shared/condition.js'
-import { featureKeysForVariant, pickProp } from './properties.js'
 
 import { HABITAT_STATUS } from '../../services/upload/habitat-status.js'
 
@@ -78,18 +77,6 @@ function normaliseValue(value, field) {
   return value.trim()
 }
 
-function normaliseField(attributes, field, allowed, onIssue) {
-  const originalValue = attributes[field] ?? null
-  const value = normaliseValue(originalValue, field)
-  attributes[field] = allowed.has(value) ? value : null
-  if (attributes[field] === null) {
-    const missing =
-      originalValue === null ||
-      (typeof originalValue === 'string' && !originalValue.trim())
-    onIssue({ field, originalValue, reason: missing ? 'missing' : 'invalid' })
-  }
-}
-
 function nullPopulatedFields(attributes, fields) {
   for (const field of fields) {
     if (field in attributes) {
@@ -120,15 +107,15 @@ function clearDependentAttributes(attributes, layer, postIntervention) {
 export function normaliseImportedAttributes(
   attributes,
   layer,
-  postIntervention = false,
-  onIssue = () => {}
+  postIntervention = false
 ) {
   const fields = { ...references[layer] }
   if (layer === 'habitats' || layer === 'trees') {
     fields.broadType = broadTypes
   }
   for (const [field, allowed] of Object.entries(fields)) {
-    normaliseField(attributes, field, allowed, onIssue)
+    const value = normaliseValue(attributes[field], field)
+    attributes[field] = allowed.has(value) ? value : null
   }
   if ('broadType' in fields && attributes.broadType === null) {
     attributes.type = null
@@ -137,77 +124,23 @@ export function normaliseImportedAttributes(
   return attributes
 }
 
-function originalSourceValue(sourceValue, issue) {
-  const sourceMissing =
-    sourceValue == null ||
-    (typeof sourceValue === 'string' && !sourceValue.trim())
-  // Retained proposed attributes may have been copied from baseline. Keep the
-  // invalid value actually validated instead of substituting an empty column.
-  return sourceMissing && issue.reason === 'invalid'
-    ? issue.originalValue
-    : sourceValue
-}
-
-/** Apply import rules before enrichment and return non-fatal source issues. */
-function sourceIssue(feature, layer, side, issue) {
-  if (!feature.properties) {
-    return issue
-  }
-  const keys = featureKeysForVariant(
-    side === 'proposed' ? 'postIntervention' : 'baseline'
-  )
-  const typeKey = {
-    habitats: 'habitatType',
-    hedgerows: 'hedgerowType',
-    watercourses: 'riverType'
-  }[layer]
-  const propertyKey =
-    { broadType: 'broadHabitat', type: typeKey }[issue.field] ?? issue.field
-  // Tree identity is derived from rural/urban classification rather than a
-  // habitat-type source column. Other fields retain their exact source value.
-  if (layer === 'trees' && ['type', 'broadType'].includes(issue.field)) {
-    return issue
-  }
-  return {
-    ...issue,
-    originalValue: originalSourceValue(
-      pickProp(feature.properties, keys[propertyKey]),
-      issue
-    )
-  }
-}
-
-function normaliseFeatureSide(feature, layer, side, issues) {
+function normaliseFeatureSide(feature, layer, side) {
   const attributes = side ? feature[side] : feature
-  if (!attributes) {
-    return
+  if (attributes) {
+    normaliseImportedAttributes(attributes, layer, side === 'proposed')
   }
-  normaliseImportedAttributes(
-    attributes,
-    layer,
-    side === 'proposed',
-    (issue) => {
-      issues.push({
-        featureId: feature.featureId,
-        ref: feature.ref ?? null,
-        layer,
-        side,
-        ...sourceIssue(feature, layer, side, issue)
-      })
-    }
-  )
 }
 
+/** Apply null-handling rules in place before enrichment. */
 export function normaliseImportedDocument(document, postIntervention = false) {
-  const issues = []
   const sides = postIntervention ? ['baseline', 'proposed'] : [null]
   for (const layer of Object.keys(references)) {
     for (const feature of document[layer] ?? []) {
       for (const side of sides) {
-        normaliseFeatureSide(feature, layer, side, issues)
+        normaliseFeatureSide(feature, layer, side)
       }
     }
   }
   enforceImportedCompleteness(document, postIntervention)
-  return issues
+  return document
 }
