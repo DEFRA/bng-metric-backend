@@ -27,7 +27,7 @@ import {
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
 import {
-  countRetainedOrEnhancedRowsWithoutBaselineType,
+  countRowsWithoutBaselineType,
   filterBaselineLayers
 } from './baseline-rows.js'
 import { persistCombinedUpload, persistUpload } from './persist-upload.js'
@@ -193,8 +193,8 @@ export function layersForUpload(
  * The baseline a post-intervention file describes, read from its Baseline*
  * columns before the post-intervention Lost filter: a Lost feature is exactly
  * what the baseline must still hold. Created rows are ignored, and so is a
- * Lost row whose Baseline type is a placeholder. A Retained or Enhanced row
- * with no Baseline type is rejected before extraction.
+ * Lost row whose Baseline type is blank or a placeholder. A Retained or
+ * Enhanced row with no Baseline type is rejected before extraction.
  *
  * Feature ids are carried forward from the stored baseline, not the stored
  * post-intervention document: the two are separate feature sets. They are
@@ -294,7 +294,7 @@ const NO_DERIVED_BASELINE_HABITATS_MESSAGE =
   'This post-intervention file has no baseline area habitats, so it cannot replace the project baseline'
 
 function missingBaselineTypeError(layers) {
-  const count = countRetainedOrEnhancedRowsWithoutBaselineType(layers)
+  const count = countRowsWithoutBaselineType(layers)
   if (count === 0) {
     return null
   }
@@ -342,9 +342,9 @@ function extractUploadDocuments(sized, context, logger, config) {
   if (baseline.schemaError) {
     return { schemaError: baseline.schemaError }
   }
-  // A file made only of Created rows, or Lost rows whose Baseline type is a
-  // placeholder, derives no area habitats. Writing that document would delete
-  // the stored baseline and every feature edit on it.
+  // A file made only of Created rows, or Lost rows whose Baseline type is
+  // blank or a placeholder, derives no area habitats. Writing that document
+  // would delete the stored baseline and every feature edit on it.
   if (!derivedBaselineHasAreaHabitats(baseline.document)) {
     return {
       validationError: makeError(

@@ -10,9 +10,9 @@
 // A baseline upload only ignores Created rows. A placeholder or blank type on
 // any other row is kept, so the user can complete it. The strict filter, used
 // when a post-intervention file derives its baseline, drops Created rows and
-// Lost rows whose Baseline type is a placeholder. A Retained or Enhanced row
-// always has a baseline habitat: a blank or placeholder type there is an
-// incomplete file, not a row to discard.
+// Lost rows whose Baseline type is blank or a placeholder. A Retained or
+// Enhanced row always has a baseline habitat: a blank or placeholder type
+// there is an incomplete file, not a row to discard.
 
 import { PROP_KEYS, pickProp } from '../../validation/geopackage/properties.js'
 import {
@@ -76,8 +76,9 @@ function hasNoBaselineType(value) {
  * @param {string} layerName raw layer key (areas, hedgerows, watercourses, trees)
  * @param {object} feature
  * @param {{ strict?: boolean }} [options] `strict` also drops a Lost row whose
- *   baseline type is a placeholder. A baseline file does not: only Created
- *   rows are ignored, and every other row is kept for the user to complete.
+ *   baseline type is blank or a placeholder. A baseline file does not: only
+ *   Created rows are ignored, and every other row is kept for the user to
+ *   complete.
  * @returns {boolean}
  */
 export function isBaselineRow(layerName, feature, { strict = false } = {}) {
@@ -90,19 +91,19 @@ export function isBaselineRow(layerName, feature, { strict = false } = {}) {
   }
   return !(
     retention === GPKG_RETENTION_LOST &&
-    isPlaceholder(baselineTypeOf(layerName, feature))
+    hasNoBaselineType(baselineTypeOf(layerName, feature))
   )
 }
 
 /**
  * Retained and Enhanced rows that have no baseline habitat type. Strict
  * derivation must not drop these: the habitat exists, and omitting it would
- * understate the baseline.
+ * understate the baseline. A Lost row with a blank type is dropped instead.
  *
  * @param {object} layers
  * @returns {number}
  */
-export function countRetainedOrEnhancedRowsWithoutBaselineType(layers) {
+export function countRowsWithoutBaselineType(layers) {
   let count = 0
   for (const layerName of Object.keys(BASELINE_TYPE_KEYS_BY_LAYER)) {
     count += missingBaselineTypeCount(layers?.[layerName], layerName)
@@ -114,12 +115,11 @@ function missingBaselineTypeCount(features, layerName) {
   if (!Array.isArray(features)) {
     return 0
   }
-  return features.filter((feature) =>
-    isRetainedOrEnhancedWithoutBaselineType(layerName, feature)
-  ).length
+  return features.filter((feature) => isMissingBaselineType(layerName, feature))
+    .length
 }
 
-function isRetainedOrEnhancedWithoutBaselineType(layerName, feature) {
+function isMissingBaselineType(layerName, feature) {
   return (
     RETENTION_WITH_BASELINE_HABITAT.has(retentionOf(feature)) &&
     hasNoBaselineType(baselineTypeOf(layerName, feature))

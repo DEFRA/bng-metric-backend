@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import {
-  countRetainedOrEnhancedRowsWithoutBaselineType,
+  countRowsWithoutBaselineType,
   filterBaselineLayers,
   isBaselineRow
 } from './baseline-rows.js'
@@ -40,6 +40,23 @@ describe('isBaselineRow', () => {
       const retained = area({
         'Retention Category': 'Retained',
         'Baseline Habitat Type': placeholder
+      })
+      expect(isBaselineRow('areas', lost, { strict: true })).toBe(false)
+      expect(isBaselineRow('areas', retained, { strict: true })).toBe(true)
+      expect(isBaselineRow('areas', lost)).toBe(true)
+    }
+  )
+
+  it.each(['', '  ', undefined])(
+    'drops a Lost row whose baseline type is blank (%j)',
+    (baselineType) => {
+      const lost = area({
+        'Retention Category': '4. Lost',
+        'Baseline Habitat Type': baselineType
+      })
+      const retained = area({
+        'Retention Category': 'Retained',
+        'Baseline Habitat Type': baselineType
       })
       expect(isBaselineRow('areas', lost, { strict: true })).toBe(false)
       expect(isBaselineRow('areas', retained, { strict: true })).toBe(true)
@@ -163,11 +180,15 @@ describe('filterBaselineLayers', () => {
         area({
           'Retention Category': 'Created',
           'Baseline River Type': ''
+        }),
+        area({
+          'Retention Category': 'Lost',
+          'Baseline River Type': '  '
         })
       ]
     }
 
-    expect(countRetainedOrEnhancedRowsWithoutBaselineType(layers)).toBe(2)
+    expect(countRowsWithoutBaselineType(layers)).toBe(2)
   })
 
   it('leaves the red line and non-feature layers untouched', () => {
