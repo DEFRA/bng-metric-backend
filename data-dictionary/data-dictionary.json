@@ -3257,7 +3257,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYears",
@@ -3268,7 +3268,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.habitats[].proposed.timeMultiplier",
@@ -3796,7 +3796,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
@@ -3807,7 +3807,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.trees[].proposed.timeMultiplier",
@@ -4181,7 +4181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.delayYears",
@@ -4192,7 +4192,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.timeMultiplier",
@@ -4621,7 +4621,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.watercourses[].proposed.delayYears",
@@ -4632,7 +4632,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features)."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
     },
     {
       "path": "postIntervention.watercourses[].proposed.timeMultiplier",

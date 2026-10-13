@@ -264,7 +264,7 @@ describe('importing a post-intervention file', () => {
       {
         'Parcel Ref': ref,
         'Retention Category': 'Enhanced',
-        'Baseline River Type': 'Culvert',
+        'Baseline River Type': 'Ditches',
         'Baseline Condition': 'Moderate',
         'Baseline Encroachment into Watercourse': 'No Encroachment',
         'Baseline Encroachment into riparian zone': 'No Encroachment',
@@ -335,7 +335,7 @@ describe('importing a post-intervention file', () => {
         })
       ],
       watercourses: [
-        riverRow('W1', { proposedType: 'Culvert', proposedCondition: 'Poor' })
+        riverRow('W1', { proposedType: 'Canals', proposedCondition: 'Good' })
       ]
     })
 
@@ -364,7 +364,7 @@ describe('importing a post-intervention file', () => {
 
     const [watercourse] = document.watercourses
     expect(watercourse).toMatchObject({
-      invalidEnhancement: ENHANCEMENT_RULE.LOW_WATERCOURSE,
+      invalidEnhancement: ENHANCEMENT_RULE.MEDIUM_WATERCOURSE,
       status: 'Incomplete'
     })
     expect(watercourse.proposed).toMatchObject({

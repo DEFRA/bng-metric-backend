@@ -89,12 +89,12 @@ function proposedCommonFields() {
     advanceYears: Joi.number()
       .allow(null)
       .description(
-        'Habitat created in advance (years) from the GeoPackage; null when the column is N/A (typical for Lost features).'
+        'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats.'
       ),
     delayYears: Joi.number()
       .allow(null)
       .description(
-        'Delay in starting habitat creation (years) from the GeoPackage; null when the column is N/A (typical for Lost features).'
+        'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats.'
       ),
     timeMultiplier: Joi.number()
       .allow(null)

@@ -1,5 +1,28 @@
 # Making Database Changes
 
+## BMD-1060: Invalid imported habitat combinations
+
+No database schema changes or migration are required. Combination validation runs
+on the extracted baseline and proposed attributes after standalone reference
+validation and before enhancement validation and unit enrichment.
+
+- AC1: an inconsistent area broad habitat/type pair keeps the broad habitat and
+  nulls the type, condition, encroachments and timing fields that are present.
+  Proposed strategic significance is also nulled for Created/Enhanced rows.
+- AC2: conditions marked `Not Possible` (or absent for that habitat) in the metric
+  reference tables are nulled across areas, trees, hedgerows and watercourses.
+- AC3: Created/Enhanced rows with positive advance and delay save both as null.
+  The previous whole-file rejection has been removed.
+- AC4: missing or blank timing values stay null during extraction, including when
+  both are missing. Explicit zero values remain zero where relevant.
+- AC5: Retained/Lost rows save advance and delay as null. The original retention
+  category identifies Lost area rows even though extraction maps them to Created.
+
+Raw GeoPackage properties are preserved. Existing enrichment calculations are
+unchanged; their null timing defaults remain a calculation concern for BMD-1070.
+Logging belongs to BMD-1072 and is not introduced here. AC5 follows its explicit
+Retained/Lost condition, rather than its inconsistent Retained/Enhanced heading.
+
 An end-to-end guide for introducing data model changes — from local development through to production. Covers both Postgres column changes and JSONB field changes.
 
 ## Before you start
