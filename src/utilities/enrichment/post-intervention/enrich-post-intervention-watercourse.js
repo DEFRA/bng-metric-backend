@@ -50,15 +50,12 @@ export function enrichPostInterventionWatercourseBaselineSide(
   enrichLinearBaselineSide(watercourse, {
     logger,
     layerLabel: 'Post-intervention watercourse baseline',
-    calculate: (lengthKm, type, condition, { feature, logger: log }) => {
+    calculate: (lengthKm, type, condition, { feature }) => {
       const subObject = feature.baseline
-      const encroachments = resolvedWatercourseEncroachments(
-        {
-          watercourseEncroachment: subObject?.watercourseEncroachment,
-          riparianEncroachment: subObject?.riparianEncroachment
-        },
-        log
-      )
+      const encroachments = resolvedWatercourseEncroachments({
+        watercourseEncroachment: subObject?.watercourseEncroachment,
+        riparianEncroachment: subObject?.riparianEncroachment
+      })
       return calculateWatercourseBaseline(
         lengthKm,
         type,
@@ -95,7 +92,7 @@ function buildRetainedWatercourseCalculate(
     return null
   }
   return () => {
-    const encroachments = resolvedWatercourseEncroachments(baseline, logger)
+    const encroachments = resolvedWatercourseEncroachments(baseline)
     return calculateRetainedWatercoursePostIntervention(
       lengthKm,
       baseline.type,
@@ -139,7 +136,7 @@ function buildCreatedWatercourseCalculate(
     return null
   }
   return () => {
-    const encroachments = resolvedWatercourseEncroachments(proposed, logger)
+    const encroachments = resolvedWatercourseEncroachments(proposed)
     return calculateCreatedWatercoursePostIntervention(
       lengthKm,
       proposed.type,
@@ -188,7 +185,7 @@ function buildEnhancedWatercourseCalculate(
     return null
   }
   return () => {
-    const encroachments = resolvedWatercourseEncroachments(proposed, logger)
+    const encroachments = resolvedWatercourseEncroachments(proposed)
     const baselineLengthKm = lookupBaselineLinearLength(
       watercourse.ref,
       baselineLengthByRef,
