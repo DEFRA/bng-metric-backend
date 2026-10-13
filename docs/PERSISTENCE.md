@@ -24,15 +24,16 @@ We never re-serialise the whole document on a small change — a single habitat
 edit must not rewrite a baseline that can hold ~1000 parcels. Each helper writes
 only its subtree with `jsonb_set`, and validates only that subtree:
 
-| Helper                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                        |
-| ----------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | -------------------------------------------------------- |
-| `insertProject`         | `insertProject(db, { project, userId, orgId?, relationshipId? })`                            | whole row (INSERT)                        | `projectSchema`                                          |
-| `setProjectName`        | `setProjectName(exec, id, name, actorId, where?)`                                            | `{name}`                                  | `projectSchema.extract('name')`                          |
-| `setProjectHabitatData` | `setProjectHabitatData(exec, id, habitatData, actorId, documentKey)`                         | `{postIntervention}`                      | post-intervention habitat document schema                |
-| `setProjectBaseline`    | `setProjectBaseline(exec, id, baseline, actorId)`                                            | `{baseline}`                              | `baselineSchema`                                         |
-| `setProjectFeature`     | `setProjectFeature(exec, id, { documentKey?, layer, index, feature, unitsTotals, actorId })` | one feature + document unit totals        | matching layer item schema + `baselineUnitsTotalsSchema` |
-| `setBaselineFeature`    | `setBaselineFeature(exec, id, { layer, index, feature, unitsTotals, actorId })`              | one baseline feature + `{baseline,units}` | matching layer item schema + `baselineUnitsTotalsSchema` |
-| `setProjectDetails`     | `setProjectDetails(exec, id, patch, actorId, where?)`                                        | `{details}` merge                         | `projectDetailsSchema`                                   |
+| Helper                                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                            |
+| --------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
+| `insertProject`                         | `insertProject(db, { project, userId, orgId?, relationshipId? })`                            | whole row (INSERT)                        | `projectSchema`                                              |
+| `setProjectName`                        | `setProjectName(exec, id, name, actorId, where?)`                                            | `{name}`                                  | `projectSchema.extract('name')`                              |
+| `setProjectHabitatData`                 | `setProjectHabitatData(exec, id, habitatData, actorId, documentKey)`                         | `{postIntervention}`                      | post-intervention habitat document schema                    |
+| `setProjectBaseline`                    | `setProjectBaseline(exec, id, baseline, actorId)`                                            | `{baseline}`                              | `baselineSchema`                                             |
+| `setProjectBaselineAndPostIntervention` | `setProjectBaselineAndPostIntervention(exec, id, { baseline, postIntervention }, actorId)`   | `{baseline}` and `{postIntervention}`     | `baselineSchema` + post-intervention habitat document schema |
+| `setProjectFeature`                     | `setProjectFeature(exec, id, { documentKey?, layer, index, feature, unitsTotals, actorId })` | one feature + document unit totals        | matching layer item schema + `baselineUnitsTotalsSchema`     |
+| `setBaselineFeature`                    | `setBaselineFeature(exec, id, { layer, index, feature, unitsTotals, actorId })`              | one baseline feature + `{baseline,units}` | matching layer item schema + `baselineUnitsTotalsSchema`     |
+| `setProjectDetails`                     | `setProjectDetails(exec, id, patch, actorId, where?)`                                        | `{details}` merge                         | `projectDetailsSchema`                                       |
 
 `setProjectFeature` is the partial-update workhorse: the feature-edit routes
 read the project under `SELECT … FOR UPDATE`, recompute one feature via

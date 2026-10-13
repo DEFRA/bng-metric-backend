@@ -56,6 +56,9 @@ const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
   watercourses: postInterventionWatercourseSchema
 }
 
+const BASELINE_DOCUMENT_KEY = 'baseline'
+const POST_INTERVENTION_DOCUMENT_KEY = 'postIntervention'
+
 function habitatDataSchemaFor(documentKey) {
   const schema = HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY[documentKey]
   if (!schema) {
@@ -68,7 +71,7 @@ function habitatDataSchemaFor(documentKey) {
 
 function featureSchemaFor(documentKey, layer) {
   const schemas =
-    documentKey === 'postIntervention'
+    documentKey === POST_INTERVENTION_DOCUMENT_KEY
       ? POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER
       : FEATURE_SCHEMA_BY_LAYER
   const featureSchema = schemas[layer]
@@ -187,11 +190,52 @@ async function setProjectHabitatData(
 async function setProjectBaseline(exec, id, baseline, actorId) {
   assertActorId(actorId)
   assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
-  const withBaseline = jsonbSet(projects.project, ['baseline'], baseline)
+  const withBaseline = jsonbSet(
+    projects.project,
+    [BASELINE_DOCUMENT_KEY],
+    baseline
+  )
   await exec
     .update(projects)
     .set({
       project: sql`${withBaseline} - 'postIntervention'`,
+      lastModifiedBy: actorId
+    })
+    .where(eq(projects.id, id))
+}
+
+/**
+ * Replace the baseline and post-intervention documents together, as one JSONB
+ * update. Used by a post-intervention upload, which derives its baseline from
+ * the same file: writing the two separately would leave a window in which the
+ * post-intervention document describes a baseline that is not stored.
+ */
+async function setProjectBaselineAndPostIntervention(
+  exec,
+  id,
+  { baseline, postIntervention },
+  actorId
+) {
+  assertActorId(actorId)
+  assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
+  assertFragmentValid(
+    postInterventionDataSchema,
+    postIntervention,
+    'project.postIntervention'
+  )
+  const withBaseline = jsonbSet(
+    projects.project,
+    [BASELINE_DOCUMENT_KEY],
+    baseline
+  )
+  await exec
+    .update(projects)
+    .set({
+      project: jsonbSet(
+        withBaseline,
+        [POST_INTERVENTION_DOCUMENT_KEY],
+        postIntervention
+      ),
       lastModifiedBy: actorId
     })
     .where(eq(projects.id, id))
@@ -222,7 +266,7 @@ async function setProjectFeature(
   exec,
   id,
   {
-    documentKey = 'baseline',
+    documentKey = BASELINE_DOCUMENT_KEY,
     layer,
     index,
     feature,
@@ -233,7 +277,7 @@ async function setProjectFeature(
   }
 ) {
   assertActorId(actorId)
-  if (postIntervention && documentKey === 'postIntervention') {
+  if (postIntervention && documentKey === POST_INTERVENTION_DOCUMENT_KEY) {
     throw Boom.badImplementation(
       'persist: a post-intervention feature edit must not also replace the post-intervention document'
     )
@@ -257,7 +301,7 @@ async function setProjectFeature(
   }
   if (postIntervention) {
     assertFragmentValid(
-      habitatDataSchemaFor('postIntervention'),
+      habitatDataSchemaFor(POST_INTERVENTION_DOCUMENT_KEY),
       postIntervention,
       'project.postIntervention'
     )
@@ -273,7 +317,11 @@ async function setProjectFeature(
     ? jsonbSet(withTotals, [documentKey, 'tradingRules'], tradingRules)
     : withTotals
   const withPostIntervention = postIntervention
-    ? jsonbSet(withTradingRules, ['postIntervention'], postIntervention)
+    ? jsonbSet(
+        withTradingRules,
+        [POST_INTERVENTION_DOCUMENT_KEY],
+        postIntervention
+      )
     : withTradingRules
   await exec
     .update(projects)
@@ -282,7 +330,10 @@ async function setProjectFeature(
 }
 
 async function setBaselineFeature(exec, id, params) {
-  await setProjectFeature(exec, id, { ...params, documentKey: 'baseline' })
+  await setProjectFeature(exec, id, {
+    ...params,
+    documentKey: BASELINE_DOCUMENT_KEY
+  })
 }
 
 /**
@@ -321,6 +372,7 @@ export {
   setProjectName,
   setProjectHabitatData,
   setProjectBaseline,
+  setProjectBaselineAndPostIntervention,
   setProjectFeature,
   setBaselineFeature,
   setProjectDetails

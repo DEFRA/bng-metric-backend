@@ -10,6 +10,7 @@ import {
   MOCK_FILE_SIZE,
   makeDownload,
   STUB_LAYERS,
+  STUB_EXTRACTED,
   STUB_POST_INTERVENTION_EXTRACTED,
   makeH,
   makeDrizzle
@@ -101,9 +102,10 @@ const { calculateHabitatSizes } =
 const { validatePostIntervention } = await import('./post-intervention.js')
 
 // One SET LOCAL lock_timeout + one INSERT per non-empty geometry layer
-// (red line, habitats, hedgerows, watercourses) on the stub data. The stub
-// carries no individual trees, so the trees table is deleted but not inserted.
-const HAPPY_PATH_EXECUTE_COUNT = 5
+// (red line, habitats, hedgerows, watercourses) for each of the derived
+// baseline and the post-intervention document. The stubs carry no individual
+// trees, so the trees tables are deleted but not inserted.
+const HAPPY_PATH_EXECUTE_COUNT = 9
 
 const EMPTY_HABITAT_SIZES = {
   areaHabitats: {
@@ -143,6 +145,7 @@ function setupHappyPathMocks() {
   )
   vi.mocked(assignFeatureIds).mockReturnValue(STUB_LAYERS)
   vi.mocked(calculateHabitatSizes).mockReturnValue(EMPTY_HABITAT_SIZES)
+  vi.mocked(extractHabitatData).mockReturnValue(STUB_EXTRACTED)
   vi.mocked(extractPostIntervention).mockReturnValue(
     STUB_POST_INTERVENTION_EXTRACTED
   )
@@ -175,7 +178,7 @@ describe('validatePostIntervention handler persistence', () => {
     setupHappyPathMocks()
   })
 
-  it('persists the processed document and replaces post-intervention geometry rows', async () => {
+  it('persists the derived baseline and the post-intervention document, replacing both sets of geometry rows', async () => {
     const { drizzle, log } = makeDrizzle()
     const request = makePostInterventionRequest({
       drizzle,
@@ -190,10 +193,13 @@ describe('validatePostIntervention handler persistence', () => {
       fileSize: MOCK_FILE_SIZE,
       habitatSizes: EMPTY_HABITAT_SIZES
     })
-    expect(extractHabitatData).not.toHaveBeenCalled()
+    expect(extractHabitatData).toHaveBeenCalledWith(
+      STUB_LAYERS,
+      expect.objectContaining({ variant: 'baseline' })
+    )
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
-    expect(log.deletes).toHaveLength(5)
+    expect(log.deletes).toHaveLength(10)
     expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
     expect(log.updates).toHaveLength(1)
   })
