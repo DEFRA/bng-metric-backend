@@ -82,6 +82,13 @@ export const ERROR_CODES = Object.freeze({
    */
   NO_DERIVED_BASELINE_HABITATS: 'NO_DERIVED_BASELINE_HABITATS',
 
+  /**
+   * A Retained or Enhanced row has no Baseline type. That habitat belongs in
+   * the derived baseline; dropping it would understate the baseline and
+   * overstate the net change, so the upload is rejected.
+   */
+  BASELINE_TYPE_MISSING: 'BASELINE_TYPE_MISSING',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 

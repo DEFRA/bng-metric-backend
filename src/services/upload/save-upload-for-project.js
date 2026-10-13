@@ -25,7 +25,10 @@ import {
   attachGeometrySizes,
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
-import { filterBaselineLayers } from './baseline-rows.js'
+import {
+  countRetainedOrEnhancedRowsWithoutBaselineType,
+  filterBaselineLayers
+} from './baseline-rows.js'
 import { persistCombinedUpload, persistUpload } from './persist-upload.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
@@ -184,10 +187,11 @@ export function layersForUpload(
 }
 
 /**
- * The baseline a post-intervention file describes: every row with a baseline
- * habitat — Retained, Enhanced and Lost — read from its Baseline* columns. The
- * rows are read before the post-intervention Lost filter, because a Lost
- * feature is exactly what the baseline must still hold.
+ * The baseline a post-intervention file describes, read from its Baseline*
+ * columns before the post-intervention Lost filter: a Lost feature is exactly
+ * what the baseline must still hold. Created rows are ignored, and so is a
+ * Lost row whose Baseline type is a placeholder. A Retained or Enhanced row
+ * with no Baseline type is rejected before extraction.
  *
  * Feature ids are carried forward from the stored baseline, not the stored
  * post-intervention document: the two are separate feature sets. They are
@@ -285,6 +289,17 @@ const BASELINE_DOCUMENT_CONFIG = Object.freeze({
 const NO_DERIVED_BASELINE_HABITATS_MESSAGE =
   'This post-intervention file has no baseline area habitats, so it cannot replace the project baseline'
 
+function missingBaselineTypeError(layers) {
+  const count = countRetainedOrEnhancedRowsWithoutBaselineType(layers)
+  if (count === 0) {
+    return null
+  }
+  return makeError(
+    ERROR_CODES.BASELINE_TYPE_MISSING,
+    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`
+  )
+}
+
 function derivedBaselineHasAreaHabitats(document) {
   return Array.isArray(document?.habitats) && document.habitats.length > 0
 }
@@ -309,6 +324,10 @@ function extractUploadDocuments(sized, context, logger, config) {
       habitatSizes: sized.habitatSizes
     })
   }
+  const missingBaselineType = missingBaselineTypeError(layersWithIds)
+  if (missingBaselineType) {
+    return { validationError: missingBaselineType }
+  }
   const baseline = extractAndValidateDocument({
     ...shared,
     handlers: SAVE_HANDLERS_BY_DOCUMENT_KEY.baseline,
@@ -319,8 +338,9 @@ function extractUploadDocuments(sized, context, logger, config) {
   if (baseline.schemaError) {
     return { schemaError: baseline.schemaError }
   }
-  // A file with blank Baseline columns derives no area habitats. Writing that
-  // document would delete the stored baseline and every feature edit on it.
+  // A file made only of Created rows, or Lost rows whose Baseline type is a
+  // placeholder, derives no area habitats. Writing that document would delete
+  // the stored baseline and every feature edit on it.
   if (!derivedBaselineHasAreaHabitats(baseline.document)) {
     return {
       validationError: makeError(

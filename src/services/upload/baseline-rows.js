@@ -9,12 +9,17 @@
 //
 // A baseline upload only ignores Created rows. A placeholder or blank type on
 // any other row is kept, so the user can complete it. The strict filter, used
-// when a post-intervention file derives its baseline, treats those values as
-// "no baseline habitat" and drops the row.
+// when a post-intervention file derives its baseline, drops Created rows and
+// Lost rows whose Baseline type is a placeholder. A Retained or Enhanced row
+// always has a baseline habitat: a blank or placeholder type there is an
+// incomplete file, not a row to discard.
 
 import { PROP_KEYS, pickProp } from '../../validation/geopackage/properties.js'
 import {
+  GPKG_RETENTION_LOST,
   RETENTION_CREATED,
+  RETENTION_ENHANCED,
+  RETENTION_RETAINED,
   normaliseRetentionCategory
 } from '../../utilities/enrichment/post-intervention/retention-category.js'
 
@@ -45,28 +50,80 @@ function isPlaceholder(value) {
   )
 }
 
+const RETENTION_WITH_BASELINE_HABITAT = new Set([
+  RETENTION_RETAINED,
+  RETENTION_ENHANCED
+])
+
+function retentionOf(feature) {
+  return normaliseRetentionCategory(
+    pickProp(feature?.properties ?? {}, PROP_KEYS.retentionCategory)
+  )
+}
+
+function baselineTypeOf(layerName, feature) {
+  return pickProp(
+    feature?.properties ?? {},
+    BASELINE_TYPE_KEYS_BY_LAYER[layerName]
+  )
+}
+
+function hasNoBaselineType(value) {
+  return isBlank(value) || isPlaceholder(value)
+}
+
 /**
  * @param {string} layerName raw layer key (areas, hedgerows, watercourses, trees)
  * @param {object} feature
- * @param {{ strict?: boolean }} [options] `strict` also rejects a blank or
- *   placeholder baseline type. A post-intervention file uses it, because there
- *   those values mean "no baseline". A baseline file keeps them so the user
- *   can complete the row.
+ * @param {{ strict?: boolean }} [options] `strict` also drops a Lost row whose
+ *   baseline type is a placeholder. A baseline file does not: only Created
+ *   rows are ignored, and every other row is kept for the user to complete.
  * @returns {boolean}
  */
 export function isBaselineRow(layerName, feature, { strict = false } = {}) {
-  const props = feature?.properties ?? {}
-  const retention = normaliseRetentionCategory(
-    pickProp(props, PROP_KEYS.retentionCategory)
-  )
+  const retention = retentionOf(feature)
   if (retention === RETENTION_CREATED) {
     return false
   }
   if (!strict) {
     return true
   }
-  const baselineType = pickProp(props, BASELINE_TYPE_KEYS_BY_LAYER[layerName])
-  return !isPlaceholder(baselineType) && !isBlank(baselineType)
+  return !(
+    retention === GPKG_RETENTION_LOST &&
+    isPlaceholder(baselineTypeOf(layerName, feature))
+  )
+}
+
+/**
+ * Retained and Enhanced rows that have no baseline habitat type. Strict
+ * derivation must not drop these: the habitat exists, and omitting it would
+ * understate the baseline.
+ *
+ * @param {object} layers
+ * @returns {number}
+ */
+export function countRetainedOrEnhancedRowsWithoutBaselineType(layers) {
+  let count = 0
+  for (const layerName of Object.keys(BASELINE_TYPE_KEYS_BY_LAYER)) {
+    count += missingBaselineTypeCount(layers?.[layerName], layerName)
+  }
+  return count
+}
+
+function missingBaselineTypeCount(features, layerName) {
+  if (!Array.isArray(features)) {
+    return 0
+  }
+  return features.filter((feature) =>
+    isRetainedOrEnhancedWithoutBaselineType(layerName, feature)
+  ).length
+}
+
+function isRetainedOrEnhancedWithoutBaselineType(layerName, feature) {
+  return (
+    RETENTION_WITH_BASELINE_HABITAT.has(retentionOf(feature)) &&
+    hasNoBaselineType(baselineTypeOf(layerName, feature))
+  )
 }
 
 /**

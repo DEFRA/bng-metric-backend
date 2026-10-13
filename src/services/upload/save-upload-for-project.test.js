@@ -348,7 +348,7 @@ describe('saveUploadForProject', () => {
       const result = await saveCombined(
         {
           ...STUB_LAYERS,
-          areas: [row('H1', 'Retained', '  '), row('H2', 'Created', 'N/A')]
+          areas: [row('H1', 'Lost', 'N/A'), row('H2', 'Created', 'N/A')]
         },
         POST_INTERVENTION_CONFIG
       )
@@ -365,6 +365,33 @@ describe('saveUploadForProject', () => {
       expect(extractPostIntervention).not.toHaveBeenCalled()
       expect(persistCombinedUpload).not.toHaveBeenCalled()
       expect(persistUpload).not.toHaveBeenCalled()
+    })
+
+    it('rejects a Retained or Enhanced row that has no baseline type', async () => {
+      const result = await saveCombined(
+        {
+          ...STUB_LAYERS,
+          areas: [
+            row('H1', 'Retained', 'Mixed scrub'),
+            row('H2', 'Enhanced', 'N/A')
+          ]
+        },
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(result).toBe(h)
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.BASELINE_TYPE_MISSING,
+            message: expect.stringContaining('1 retained or enhanced')
+          })
+        ]
+      })
+      expect(extractHabitatData).not.toHaveBeenCalled()
+      expect(extractPostIntervention).not.toHaveBeenCalled()
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
     })
 
     it('rejects the upload without persisting when the derived baseline fails its schema', async () => {

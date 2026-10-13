@@ -1,6 +1,10 @@
 import { describe, it, expect } from 'vitest'
 
-import { filterBaselineLayers, isBaselineRow } from './baseline-rows.js'
+import {
+  countRetainedOrEnhancedRowsWithoutBaselineType,
+  filterBaselineLayers,
+  isBaselineRow
+} from './baseline-rows.js'
 
 function area(props) {
   return { properties: props }
@@ -27,21 +31,33 @@ describe('isBaselineRow', () => {
   })
 
   it.each(['Null', 'N/A', '(no selection)', 'To be created', ' n/a '])(
-    'drops a placeholder baseline type %j only in strict mode',
+    'drops a Lost row whose baseline type is the placeholder %j',
     (placeholder) => {
-      const row = area({
+      const lost = area({
+        'Retention Category': 'Lost',
+        'Baseline Habitat Type': placeholder
+      })
+      const retained = area({
         'Retention Category': 'Retained',
         'Baseline Habitat Type': placeholder
       })
-      expect(isBaselineRow('areas', row, { strict: true })).toBe(false)
-      expect(isBaselineRow('areas', row)).toBe(true)
+      expect(isBaselineRow('areas', lost, { strict: true })).toBe(false)
+      expect(isBaselineRow('areas', retained, { strict: true })).toBe(true)
+      expect(isBaselineRow('areas', lost)).toBe(true)
     }
   )
 
-  it('drops a blank baseline type only in strict mode', () => {
-    const row = area({ 'Baseline Habitat Type': '  ' })
-    expect(isBaselineRow('areas', row, { strict: true })).toBe(false)
-    expect(isBaselineRow('areas', row)).toBe(true)
+  it('keeps a Retained or Enhanced row whose baseline type is blank', () => {
+    const retained = area({
+      'Retention Category': 'Retained',
+      'Baseline Habitat Type': '  '
+    })
+    const enhanced = area({
+      'Retention Category': '2. Enhanced',
+      'Baseline Habitat Type': ''
+    })
+    expect(isBaselineRow('areas', retained, { strict: true })).toBe(true)
+    expect(isBaselineRow('areas', enhanced, { strict: true })).toBe(true)
   })
 
   it('keeps a baseline-file row that has no retention category', () => {
@@ -51,17 +67,32 @@ describe('isBaselineRow', () => {
 
   it('reads the baseline type column for each layer', () => {
     expect(
-      isBaselineRow('hedgerows', area({ 'Baseline Hedge Type': 'N/A' }), {
-        strict: true
-      })
+      isBaselineRow(
+        'hedgerows',
+        area({
+          'Retention Category': 'Lost',
+          'Baseline Hedge Type': 'N/A'
+        }),
+        { strict: true }
+      )
     ).toBe(false)
     expect(
-      isBaselineRow('hedgerows', area({ 'Baseline Hedge Type': 'N/A' }))
+      isBaselineRow(
+        'hedgerows',
+        area({
+          'Retention Category': 'Enhanced',
+          'Baseline Hedge Type': 'N/A'
+        }),
+        { strict: true }
+      )
     ).toBe(true)
     expect(
       isBaselineRow(
         'watercourses',
-        area({ 'Baseline River Type': 'To be created' }),
+        area({
+          'Retention Category': '4. Lost',
+          'Baseline River Type': 'To be created'
+        }),
         { strict: true }
       )
     ).toBe(false)
@@ -104,6 +135,39 @@ describe('filterBaselineLayers', () => {
       'H1'
     ])
     expect(filtered.hedgerows).toHaveLength(1)
+  })
+
+  it('counts Retained and Enhanced rows that have no baseline type', () => {
+    const layers = {
+      areas: [
+        area({
+          'Retention Category': 'Retained',
+          'Baseline Habitat Type': '  '
+        }),
+        area({
+          'Retention Category': 'Enhanced',
+          'Baseline Habitat Type': 'N/A'
+        }),
+        area({
+          'Retention Category': 'Retained',
+          'Baseline Habitat Type': 'Mixed scrub'
+        })
+      ],
+      hedgerows: [
+        area({
+          'Retention Category': 'Lost',
+          'Baseline Hedge Type': 'N/A'
+        })
+      ],
+      watercourses: [
+        area({
+          'Retention Category': 'Created',
+          'Baseline River Type': ''
+        })
+      ]
+    }
+
+    expect(countRetainedOrEnhancedRowsWithoutBaselineType(layers)).toBe(2)
   })
 
   it('leaves the red line and non-feature layers untouched', () => {
