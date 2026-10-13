@@ -26,10 +26,8 @@ import {
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
 import { persistUpload } from './persist-upload.js'
-import {
-  normaliseImportedDocument,
-  enforceImportedCompleteness
-} from '../../validation/geopackage/normalise-imported-attributes.js'
+import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
+import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
 import { metricsMillis } from '../../common/helpers/metrics.js'
 import { PERFORMANCE_METRIC } from '../../common/helpers/metric-names.js'
 import {
@@ -223,7 +221,7 @@ export function extractAndValidateDocument({
       ? postInterventionEnrichOptions(storedProject?.baseline)
       : {}
   handlers.enrichDocument(document, logger, enrichOptions)
-  enforceImportedCompleteness(
+  enforceRequiredAttributeCompleteness(
     document,
     config.projectDocumentKey === 'postIntervention'
   )

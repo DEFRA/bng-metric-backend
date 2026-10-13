@@ -12,23 +12,7 @@ import {
 import { getHabitatsByBroad } from '../reference/habitat-reference.js'
 import { stripConditionPrefix } from '../../utilities/enrichment/shared/condition.js'
 
-import { HABITAT_STATUS } from '../../services/upload/habitat-status.js'
-
-// Enrichment can mark retained features Complete using baseline units alone.
-// Missing imported attributes must still leave the saved feature Incomplete.
-export function enforceImportedCompleteness(
-  document,
-  postIntervention = false
-) {
-  for (const [layer, fields] of Object.entries(references)) {
-    for (const feature of document[layer] ?? []) {
-      const attributes = postIntervention ? feature.proposed : feature
-      if (Object.keys(fields).some((field) => attributes?.[field] == null)) {
-        feature.status = HABITAT_STATUS.INCOMPLETE
-      }
-    }
-  }
-}
+import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
 
 const areaHabitats = getHabitatsByBroad()
 const broadTypes = new Set(areaHabitats.map((row) => row.broadHabitat))
@@ -141,6 +125,6 @@ export function normaliseImportedDocument(document, postIntervention = false) {
       }
     }
   }
-  enforceImportedCompleteness(document, postIntervention)
+  enforceRequiredAttributeCompleteness(document, postIntervention)
   return document
 }

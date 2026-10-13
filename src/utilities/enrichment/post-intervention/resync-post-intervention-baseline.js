@@ -47,7 +47,7 @@
 // case can arise on the area layer, the one that decides the Met / Not-met
 // verdict; the resolution above is what keeps the verdict safe.
 
-import { enforceImportedCompleteness } from '../../../validation/geopackage/normalise-imported-attributes.js'
+import { enforceRequiredAttributeCompleteness } from '../shared/required-attribute-completeness.js'
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import {
@@ -409,7 +409,7 @@ export function rederivePostInterventionFromBaseline(
   )
   // Legacy Lost linear rows have no proposed habitat and remain Complete at
   // zero units. New uploads exclude them, but stored documents may contain them.
-  enforceImportedCompleteness(
+  enforceRequiredAttributeCompleteness(
     {
       ...rederived,
       hedgerows: rederived.hedgerows?.filter(
