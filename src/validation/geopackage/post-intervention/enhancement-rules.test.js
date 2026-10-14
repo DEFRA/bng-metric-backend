@@ -57,6 +57,42 @@ describe('checkFeatureEnhancement', () => {
     ).toMatchObject({ rule: ENHANCEMENT_RULE.LOW_AREA, valid: true })
   })
 
+  it('checks a very low area habitat, whose only condition is N/A - Other', () => {
+    expect(
+      check(
+        'habitats',
+        {
+          broadType: 'Urban',
+          type: 'Developed land; sealed surface',
+          condition: 'N/A - Other'
+        },
+        {
+          broadType: 'Urban',
+          type: 'Developed land; sealed surface',
+          condition: 'N/A - Other'
+        }
+      )
+    ).toMatchObject({ rule: ENHANCEMENT_RULE.VERY_LOW_AREA, valid: false })
+  })
+
+  it('checks a very low area habitat enhanced into a low habitat', () => {
+    expect(
+      check(
+        'habitats',
+        {
+          broadType: 'Urban',
+          type: 'Developed land; sealed surface',
+          condition: 'N/A - Other'
+        },
+        {
+          broadType: 'Grassland',
+          type: 'Modified grassland',
+          condition: 'Poor'
+        }
+      )
+    ).toMatchObject({ rule: ENHANCEMENT_RULE.VERY_LOW_AREA, valid: true })
+  })
+
   it('checks hedgerows', () => {
     expect(
       check(

@@ -7,7 +7,7 @@ on the extracted baseline and proposed attributes after standalone reference
 validation and before enhancement validation and unit enrichment.
 
 - AC1: an inconsistent area broad habitat/type pair keeps the broad habitat and
-  nulls the type, condition, encroachments and timing fields that are present.
+  nulls the type, condition, encroachments and timing fields that are present, including the promoted baseline timing metadata.
   Proposed strategic significance is also nulled for Created/Enhanced rows.
 - AC2: conditions marked `Not Possible` (or absent for that habitat) in the metric
   reference tables are nulled across areas, trees, hedgerows and watercourses.
@@ -20,8 +20,8 @@ validation and before enhancement validation and unit enrichment.
 
 Raw GeoPackage properties are preserved. Existing enrichment calculations are
 unchanged; their null timing defaults remain a calculation concern for BMD-1070.
-Logging belongs to BMD-1072 and is not introduced here. AC5 follows its explicit
-Retained/Lost condition, rather than its inconsistent Retained/Enhanced heading.
+Logging belongs to BMD-1072 and is not introduced here. AC5 follows the updated
+Retained/Lost condition and heading.
 
 An end-to-end guide for introducing data model changes — from local development through to production. Covers both Postgres column changes and JSONB field changes.
 

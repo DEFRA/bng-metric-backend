@@ -203,13 +203,17 @@ describe('BMD-1060 import combinations', () => {
         {
           properties: {
             'Retention Category': '4. Lost',
-            'Habitat Created/Enhanced in advance/years': 3,
-            'Delay in starting habitat creation/enhancement in years': 0
+            'Habitat created in advance/years': 3,
+            'Delay in starting habitat creation/years': 0
           }
         }
       ]
     })
     expect(document.habitats[0].retentionCategory).toBe('Created')
+    expect(document.habitats[0].proposed).toMatchObject({
+      advanceYears: 3,
+      delayYears: 0
+    })
     applyCombinations(document, true)
     expect(document.habitats[0].proposed).toMatchObject({
       advanceYears: null,

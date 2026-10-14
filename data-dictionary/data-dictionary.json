@@ -3077,7 +3077,8 @@
         "medium-area-condition-assessment-na",
         "medium-area",
         "low-area-condition-assessment-na",
-        "low-area"
+        "low-area",
+        "very-low-area"
       ],
       "constraints": [],
       "openMap": false,

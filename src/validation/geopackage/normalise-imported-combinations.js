@@ -60,7 +60,10 @@ export function normaliseImportedAttributeCombinations(
       'watercourseEncroachment',
       'riparianEncroachment',
       'advanceYears',
-      'delayYears'
+      'delayYears',
+      // Baseline extraction promotes the same timing columns as metadata.
+      'habitatCreatedInAdvanceYears',
+      'delayInStartingHabitatCreationYears'
     ])
     if (clearStrategic) {
       clearFields(attributes, ['strategicSignificance'])
