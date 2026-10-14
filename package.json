@@ -67,7 +67,7 @@
     "bng-library": "github:DEFRA/bng-library#7ff2a729cf10e04f9297bd22bb4ea3413a5a8336",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
-    "dotenv": "18.0.5",
+    "dotenv": "18.0.6",
     "drizzle-orm": "0.45.3",
     "geos-wasm": "3.1.1",
     "global-agent": "4.1.3",
