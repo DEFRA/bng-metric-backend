@@ -86,7 +86,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
       advanceYears: null,
       delayYears: null
     })
-    expect(proposedFeature.units).toBeGreaterThan(0)
+    expect(proposedFeature).toMatchObject({ units: null, status: 'Incomplete' })
     expect(proposedFeature.properties['Habitat created in advance/years']).toBe(
       '2'
     )
@@ -119,8 +119,12 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
           advanceYears: null,
           delayYears: null
         })
-        expect(feature.status).toBe('Complete')
-        expect(feature.units).toBeGreaterThan(0)
+        if (retention === 'Retained') {
+          expect(feature.status).toBe('Complete')
+          expect(feature.units).toBeGreaterThan(0)
+        } else {
+          expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+        }
       }
     }
   )
@@ -148,7 +152,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         type: null,
         condition: null
       })
-      expect(area.status).toBe('Incomplete')
+      expect(area).toMatchObject({ units: null, status: 'Incomplete' })
       expect(area.properties[`${prefix} Habitat Type`]).toBe(
         'Modified grassland'
       )
@@ -161,6 +165,9 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         (feature) => feature.ref === 'R1'
       )
       expect(side(river)).toMatchObject({ type: 'Culvert', condition: null })
+      for (const feature of [hedge, river]) {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
     }
   )
 
@@ -191,6 +198,12 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         delayYears: null
       })
       expect(feature.proposed.type).not.toBeNull()
+      if (retention === 'Retained') {
+        expect(feature.status).toBe('Complete')
+        expect(feature.units).toBeGreaterThan(0)
+      } else {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
     }
   )
 })

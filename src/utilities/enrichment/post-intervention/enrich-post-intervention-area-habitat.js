@@ -16,10 +16,9 @@ import {
   applyProposedResult,
   finalizePostInterventionFeatureStatus,
   runProposedCalculation,
+  prepareProposedUnitCalculation,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
-  resolveProposedStrategicSignificance,
-  checkStrategicSignificanceOfUnsizedFeature,
   RETENTION_RETAINED,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -196,13 +195,7 @@ function buildCreatedAreaCalculate(
   sizeHa,
   { advanceYears, delayYears, logger, label }
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    habitat,
-    label,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (!proposedCondition) {
     skipProposedEnrichment(
       habitat,
@@ -210,9 +203,6 @@ function buildCreatedAreaCalculate(
       'proposed condition is missing',
       logger
     )
-    return null
-  }
-  if (strategicSignificance === null) {
     return null
   }
   return () =>
@@ -240,13 +230,7 @@ function buildEnhancedAreaCalculate(
   sizeHa,
   { advanceYears, delayYears, logger, label }
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    habitat,
-    label,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (!baselineCondition || !proposedCondition) {
     skipProposedEnrichment(
       habitat,
@@ -254,9 +238,6 @@ function buildEnhancedAreaCalculate(
       'baseline or proposed condition is missing',
       logger
     )
-    return null
-  }
-  if (strategicSignificance === null) {
     return null
   }
   return () =>
@@ -281,8 +262,8 @@ function resolveAreaProposedCalculate(habitat, logger, label) {
   const proposed = habitat.proposed ?? {}
   const baselineCondition = normalizeConditionForEngine(baseline.condition)
   const proposedCondition = normalizeConditionForEngine(proposed.condition)
-  const advanceYears = proposed.advanceYears ?? 0
-  const delayYears = proposed.delayYears ?? 0
+  const advanceYears = proposed.advanceYears
+  const delayYears = proposed.delayYears
   const category = resolveRetentionCategory(habitat)
 
   if (category === RETENTION_RETAINED) {
@@ -337,8 +318,10 @@ export function enrichPostInterventionAreaProposedSide(
   logger,
   label = AREA_PROPOSED_LABEL
 ) {
+  if (!prepareProposedUnitCalculation(habitat, label, logger)) {
+    return
+  }
   if (!hasValidAreaHabitatSize(habitat)) {
-    checkStrategicSignificanceOfUnsizedFeature(habitat, label, logger)
     return
   }
   const calculate = resolveAreaProposedCalculate(habitat, logger, label)

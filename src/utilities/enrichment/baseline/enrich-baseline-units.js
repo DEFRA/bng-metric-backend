@@ -4,6 +4,10 @@ import {
   calculateWatercourseBaseline
 } from 'bng-library/metric'
 
+import {
+  hasRequiredHabitatAttributes,
+  markUnitsIncomplete
+} from '../shared/required-attribute-completeness.js'
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { summarizeFeatureSetUnitsTotals } from '../../features/feature-set-units.js'
 import {
@@ -13,7 +17,6 @@ import {
 } from '../../../common/helpers/perf-evidence.js'
 import {
   LOG_ENRICH_PREFIX,
-  EncroachmentLookupError,
   calculateAreaHabitatWithCandidates,
   normalizeConditionForEngine,
   resolvedWatercourseEncroachments
@@ -36,8 +39,7 @@ function isLinearFeatureReadyForEnrichment(feature, condition) {
     typeof feature.sizeMetres === 'number' &&
     Number.isFinite(feature.sizeMetres) &&
     feature.sizeMetres > 0 &&
-    typeof feature.type === 'string' &&
-    feature.type.length > 0
+    hasRequiredHabitatAttributes(feature)
   )
 }
 
@@ -88,10 +90,7 @@ function enrichFeatureWithEngineCalculation(
     feature.status = HABITAT_STATUS.COMPLETE
   } catch (error) {
     if (error instanceof BaselineLookupError) {
-      if (error instanceof EncroachmentLookupError) {
-        feature.units = null
-      }
-      feature.status = HABITAT_STATUS.INCOMPLETE
+      markUnitsIncomplete(feature)
       const featureId = feature.featureId ?? 'unknown'
       logger.warn(
         `${LOG_ENRICH_PREFIX}${layerLabel} featureId ${featureId} could not be calculated: ${error.message}`
@@ -106,14 +105,14 @@ function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
   const condition = normalizeConditionForEngine(habitat.condition)
   const sizeHa = pricedAreaHectares(habitat)
 
-  if (condition && sizeHa !== null) {
+  if (hasRequiredHabitatAttributes(habitat) && condition && sizeHa !== null) {
     enrichFeatureWithEngineCalculation(
       () => calculateAreaHabitatWithCandidates(sizeHa, habitat, condition),
       habitat,
       { logger, layerLabel: 'Habitat parcel' }
     )
   } else {
-    // condition or area missing / invalid — skip enrichment for this feature
+    markUnitsIncomplete(habitat)
   }
 }
 
@@ -143,7 +142,7 @@ function enrichLinearFeatureWithUnits(
       { logger, layerLabel, mapExtraFields }
     )
   } else {
-    // feature not ready for enrichment (missing type, condition, or size)
+    markUnitsIncomplete(feature)
   }
 }
 
@@ -175,8 +174,8 @@ function createWatercourseEnrichmentConfig(logger) {
  * each hedgerow and watercourse feature with a non-empty type, condition, and
  * positive finite `sizeMetres`, sets the same fields (watercourses also get
  * `waterEncroachmentMultiplier` and `riparianEncroachmentMultiplier`). Rows
- * that lack required fields keep their extracted attributes and do not get
- * a `units` field. Rows where the engine rejects a lookup get
+ * that lack required fields keep their extracted attributes and get null
+ * units and an Incomplete status. Rows where the engine rejects a lookup get
  * `status: 'Incomplete'` and a warning is logged. Always sets
  * `baselineDocument.units` totals afterward.
  *

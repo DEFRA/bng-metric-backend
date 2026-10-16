@@ -1367,7 +1367,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.habitats[].units",
@@ -1378,7 +1378,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
+      "description": "Baseline biodiversity units for the parcel, or null when required calculation inputs are missing. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
     },
     {
       "path": "baseline.habitats[].siteName",
@@ -1609,7 +1609,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.trees[].siteName",
@@ -1829,7 +1829,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation."
+      "description": "Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation; null when required calculation inputs are missing."
     },
     {
       "path": "baseline.trees[].properties",
@@ -2016,7 +2016,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when type and condition are both set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.hedgerows[].units",
@@ -2027,7 +2027,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428)."
+      "description": "Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428). Null when required calculation inputs are missing."
     },
     {
       "path": "baseline.hedgerows[].strategicSignificance",
@@ -2346,7 +2346,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.watercourses[].units",
@@ -2357,7 +2357,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428)."
+      "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428). Null when required calculation inputs are missing."
     },
     {
       "path": "baseline.watercourses[].strategicSignificance",
@@ -3053,7 +3053,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values."
+      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.habitats[].status",
@@ -3346,7 +3346,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceOrDelay",
@@ -3478,7 +3478,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values."
+      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.trees[].status",
@@ -3885,7 +3885,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.trees[].proposed.advanceOrDelay",
@@ -4017,7 +4017,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units, calculated from proposed values."
+      "description": "Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.hedgerows[].status",
@@ -4270,7 +4270,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
@@ -4413,7 +4413,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units, calculated from proposed values."
+      "description": "Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.watercourses[].status",
@@ -4710,7 +4710,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceOrDelay",

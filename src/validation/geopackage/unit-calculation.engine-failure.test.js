@@ -52,7 +52,7 @@ describe('recomputeWatercourse — defensive paths', () => {
     expect(result).toMatchObject({
       distinctiveness: null,
       distinctivenessScore: null,
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })

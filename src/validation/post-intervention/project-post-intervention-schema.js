@@ -129,7 +129,7 @@ function proposedCommonFields() {
     strategicSignificanceScore: Joi.number()
       .allow(null)
       .description(
-        'Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0.'
+        'Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070).'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')
@@ -170,7 +170,7 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     units: Joi.number()
       .allow(null)
       .description(
-        'Post-intervention biodiversity units, calculated from proposed values.'
+        'Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing.'
       ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
@@ -199,7 +199,11 @@ function postInterventionAreaFeatureFields({
     ref: Joi.string().allow(null, '').description(refDescription),
     area: Joi.number().allow(null).description(areaDescription),
     sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),
-    units: Joi.number().allow(null).description(unitsDescription),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        `${unitsDescription} Null when required calculation inputs are missing.`
+      ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
