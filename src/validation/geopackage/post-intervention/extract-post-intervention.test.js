@@ -220,7 +220,7 @@ describe('extractPostIntervention — habitat nested structure', () => {
     expect(out.document.habitats[0].proposed.condition).toBe('N/A - Other')
   })
 
-  it('defaults advanceYears and delayYears to 0 when columns are absent', () => {
+  it('preserves null advanceYears and delayYears when columns are absent', () => {
     const out = extractPostIntervention({
       redline: [],
       areas: [feature({ [PARCEL_REF]: 'P1' })],
@@ -228,8 +228,8 @@ describe('extractPostIntervention — habitat nested structure', () => {
       watercourses: []
     })
 
-    expect(out.document.habitats[0].proposed.advanceYears).toBe(0)
-    expect(out.document.habitats[0].proposed.delayYears).toBe(0)
+    expect(out.document.habitats[0].proposed.advanceYears).toBeNull()
+    expect(out.document.habitats[0].proposed.delayYears).toBeNull()
   })
 
   it('preserves raw GPKG row as top-level properties', () => {
@@ -859,8 +859,8 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         treeSize: 'Medium',
         sizeSquareMetres: MEDIUM_TREE_SQM,
         area: MEDIUM_TREE_SQM,
-        advanceYears: 0,
-        delayYears: 0
+        advanceYears: null,
+        delayYears: null
       })
     )
     // Top-level area/size reflect the proposed side, like the area-habitat parcels.
@@ -1039,7 +1039,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
     })
 
     expect(out.document.trees[0].proposed).toEqual(
-      expect.objectContaining({ advanceYears: 2, delayYears: 0 })
+      expect.objectContaining({ advanceYears: 2, delayYears: null })
     )
   })
 
@@ -1092,7 +1092,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
     })
 
     expect(out.document.trees[0].proposed).toEqual(
-      expect.objectContaining({ advanceYears: 0, delayYears: 3 })
+      expect.objectContaining({ advanceYears: null, delayYears: 3 })
     )
   })
 

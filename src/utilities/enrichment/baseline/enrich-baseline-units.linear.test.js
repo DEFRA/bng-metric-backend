@@ -84,7 +84,7 @@ describe('enrichBaselineDocumentWithUnits — hedgerows', () => {
       hedgerows: [{ type: 'Native hedgerow', condition: 'Good' }]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0]).not.toHaveProperty('units')
+    expect(document.hedgerows[0]).toHaveProperty('units', null)
     expect(document.units.hedgerowsTotal).toBe(0)
   })
 
@@ -93,7 +93,7 @@ describe('enrichBaselineDocumentWithUnits — hedgerows', () => {
       hedgerows: [{ condition: 'Good', sizeMetres: 500 }]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.hedgerows[0]).not.toHaveProperty('units')
+    expect(document.hedgerows[0]).toHaveProperty('units', null)
   })
 
   it('skips hedgerow enrichment for unknown hedge type (BaselineLookupError)', () => {
@@ -110,7 +110,7 @@ describe('enrichBaselineDocumentWithUnits — hedgerows', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.hedgerows[0]).not.toHaveProperty('units')
+    expect(document.hedgerows[0]).toHaveProperty('units', null)
     expect(document.hedgerows[0].status).toBe('Incomplete')
     expect(document.units.hedgerowsTotal).toBe(0)
     expect(logger.warn).toHaveBeenCalledWith(
@@ -217,7 +217,7 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
       watercourses: [{ type: 'Ditches', condition: 'Good' }]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0]).not.toHaveProperty('units')
+    expect(document.watercourses[0]).toHaveProperty('units', null)
     expect(document.units.watercoursesTotal).toBe(0)
   })
 
@@ -226,7 +226,7 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
       watercourses: [{ condition: 'Good', sizeMetres: 1000 }]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.watercourses[0]).not.toHaveProperty('units')
+    expect(document.watercourses[0]).toHaveProperty('units', null)
   })
 
   it('skips watercourse enrichment for unknown watercourse type (BaselineLookupError)', () => {
@@ -245,7 +245,7 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.watercourses[0]).not.toHaveProperty('units')
+    expect(document.watercourses[0]).toHaveProperty('units', null)
     expect(document.watercourses[0].status).toBe('Incomplete')
     expect(document.units.watercoursesTotal).toBe(0)
     expect(logger.warn).toHaveBeenCalledWith(

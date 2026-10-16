@@ -3,7 +3,10 @@
 
 import { isValidProposedStrategicSignificance } from 'bng-library/metric'
 
-import { EncroachmentLookupError } from '../shared/engine-helpers.js'
+import {
+  hasRequiredHabitatAttributes,
+  markUnitsIncomplete
+} from '../shared/required-attribute-completeness.js'
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { copyProposedEngineMetrics } from '../shared/proposed-enrichment-fields.js'
@@ -12,6 +15,7 @@ import {
   GPKG_RETENTION_LOST,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
+  RETENTION_RETAINED,
   resolveRetentionCategory
 } from './retention-category.js'
 import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
@@ -19,6 +23,7 @@ import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
 export { isPresentEngineString } from '../shared/is-present-engine-string.js'
 export {
   normaliseRetentionCategory,
+  importedRetentionCategory,
   resolveRetentionCategory,
   isLegacyLostLinear,
   deriveRetentionCategory,
@@ -77,7 +82,7 @@ export function applyLostLinearResult(feature) {
  */
 export function finalizePostInterventionFeatureStatus(feature) {
   if (typeof feature.units !== 'number' || !Number.isFinite(feature.units)) {
-    feature.status = HABITAT_STATUS.INCOMPLETE
+    markUnitsIncomplete(feature)
   }
 }
 
@@ -195,10 +200,7 @@ export function runProposedCalculation(
  * @param {{ warn: (msg: string) => void }} logger
  */
 export function handleProposedEnrichmentError(error, feature, context, logger) {
-  if (error instanceof EncroachmentLookupError) {
-    feature.units = null
-  }
-  feature.status = HABITAT_STATUS.INCOMPLETE
+  markUnitsIncomplete(feature)
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: ${error.message}`
   )
@@ -213,12 +215,11 @@ export function handleProposedEnrichmentError(error, feature, context, logger) {
  * @param {{ warn: (msg: string) => void }} logger
  */
 export function skipProposedEnrichment(feature, context, reason, logger) {
+  markUnitsIncomplete(feature)
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: skipped proposed enrichment — ${reason}`
   )
 }
-
-const INVALID_STRATEGIC_SIGNIFICANCE_UNITS = 0
 
 /**
  * What the engine derives when it prices a proposed side. A rejected feature
@@ -285,7 +286,7 @@ function strategicSignificanceReason(value) {
 /**
  * Persist a created or enhanced feature whose Proposed Strategic Significance
  * is invalid (BMD-1051 AC4): the value is nulled, nothing resolves from it, and
- * the units are zero by definition. Whatever an earlier pricing derived (see
+ * the units are null (BMD-1070). Whatever an earlier pricing derived (see
  * ENGINE_DERIVED_PROPOSED_FIELDS) is cleared with it. The feature is saved
  * Incomplete so it can be highlighted. Choosing a valid value on habitat
  * details comes in a follow-up story; until then, re-uploading the file is the
@@ -314,29 +315,8 @@ export function applyInvalidStrategicSignificanceResult(feature, value) {
   feature.proposed.strategicSignificance = null
   feature.proposed.strategicSignificanceCategory = null
   feature.proposed.strategicSignificanceScore = null
-  feature.units = INVALID_STRATEGIC_SIGNIFICANCE_UNITS
+  feature.units = null
   feature.status = HABITAT_STATUS.INCOMPLETE
-}
-
-/**
- * Check the Proposed Strategic Significance of a created or enhanced feature
- * that has no valid size. Such a feature is skipped before the builders that
- * check it, so this is where an invalid value is nulled and priced at zero
- * (BMD-1051 AC4) instead. Other categories carry no proposed value to check.
- *
- * @param {object} feature
- * @param {string} context - e.g. "Habitat parcel"
- * @param {{ warn: (fields: object, msg: string) => void }} logger
- */
-export function checkStrategicSignificanceOfUnsizedFeature(
-  feature,
-  context,
-  logger
-) {
-  const category = resolveRetentionCategory(feature)
-  if (category === RETENTION_CREATED || category === RETENTION_ENHANCED) {
-    resolveProposedStrategicSignificance(feature, context, logger)
-  }
 }
 
 /**
@@ -374,8 +354,72 @@ export function resolveProposedStrategicSignificance(feature, context, logger) {
       value: value ?? null,
       reason
     },
-    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(value)} (${reason}) — nulled, units 0 (valid values: Low, High)`
+    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(value)} (${reason}) — nulled, units null (valid values: Low, High)`
   )
   applyInvalidStrategicSignificanceResult(feature, value)
   return null
+}
+
+/**
+ * Reject missing calculation inputs before entering the metric engine. Retained
+ * habitats do not use proposed strategic significance or timing. Enhanced
+ * watercourses use baseline type/condition, but only proposed encroachments.
+ */
+export function prepareProposedUnitCalculation(
+  feature,
+  context,
+  logger,
+  { watercourse = false, timingRequired = true } = {}
+) {
+  markUnitsIncomplete(feature)
+  const category = resolveRetentionCategory(feature)
+  const createdOrEnhanced =
+    category === RETENTION_CREATED || category === RETENTION_ENHANCED
+  if (
+    createdOrEnhanced &&
+    resolveProposedStrategicSignificance(feature, context, logger) === null
+  ) {
+    return false
+  }
+  if (
+    !hasRequiredProposedInputs(
+      feature.proposed,
+      watercourse,
+      createdOrEnhanced && timingRequired
+    )
+  ) {
+    skipProposedEnrichment(
+      feature,
+      context,
+      'required proposed calculation input is missing',
+      logger
+    )
+    return false
+  }
+  if (
+    category !== RETENTION_CREATED &&
+    !hasRequiredHabitatAttributes(
+      feature.baseline,
+      watercourse && category === RETENTION_RETAINED
+    )
+  ) {
+    skipProposedEnrichment(
+      feature,
+      context,
+      'required baseline type, condition or encroachment is missing',
+      logger
+    )
+    return false
+  }
+  return true
+}
+
+function hasRequiredProposedInputs(proposed, watercourse, usesTiming) {
+  return (
+    hasRequiredHabitatAttributes(proposed, watercourse) &&
+    (!usesTiming ||
+      [proposed.advanceYears, proposed.delayYears].every(
+        (value) => value != null
+      ))
+  )
 }
