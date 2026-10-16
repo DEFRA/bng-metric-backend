@@ -23,6 +23,7 @@ import { pricedAreaHectares } from '../shared/enrich-units-shared.js'
 export { isPresentEngineString } from '../shared/is-present-engine-string.js'
 export {
   normaliseRetentionCategory,
+  importedRetentionCategory,
   resolveRetentionCategory,
   isLegacyLostLinear,
   deriveRetentionCategory,
@@ -368,19 +369,25 @@ export function prepareProposedUnitCalculation(
   feature,
   context,
   logger,
-  watercourse = false
+  { watercourse = false, timingRequired = true } = {}
 ) {
   markUnitsIncomplete(feature)
   const category = resolveRetentionCategory(feature)
-  const usesTiming =
+  const createdOrEnhanced =
     category === RETENTION_CREATED || category === RETENTION_ENHANCED
   if (
-    usesTiming &&
+    createdOrEnhanced &&
     resolveProposedStrategicSignificance(feature, context, logger) === null
   ) {
     return false
   }
-  if (!hasRequiredProposedInputs(feature.proposed, watercourse, usesTiming)) {
+  if (
+    !hasRequiredProposedInputs(
+      feature.proposed,
+      watercourse,
+      createdOrEnhanced && timingRequired
+    )
+  ) {
     skipProposedEnrichment(
       feature,
       context,

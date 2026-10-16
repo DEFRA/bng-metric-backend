@@ -19,6 +19,9 @@ import {
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 
+const BASELINE_STATUS_DESCRIPTION =
+  "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
+
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-library/metric.'
 
@@ -148,9 +151,7 @@ const habitatSchema = Joi.object({
   status: Joi.string()
     .valid('Complete', 'Incomplete')
     .required()
-    .description(
-      "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
-    ),
+    .description(BASELINE_STATUS_DESCRIPTION),
   units: Joi.number()
     .allow(null)
     .description(
@@ -312,8 +313,7 @@ const linearHabitatSchema = linearFeatureSchema({
   conditionDescription: 'Hedgerow condition assessment.',
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the hedgerow type.',
-  statusDescription:
-    "'Complete' when units were successfully calculated; otherwise 'Incomplete'.",
+  statusDescription: BASELINE_STATUS_DESCRIPTION,
   unitsDescription:
     'Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428).',
   propertiesDescription:
@@ -335,8 +335,7 @@ const watercourseHabitatSchema = linearFeatureSchema({
   },
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the watercourse type.',
-  statusDescription:
-    "'Complete' when units were successfully calculated; otherwise 'Incomplete'.",
+  statusDescription: BASELINE_STATUS_DESCRIPTION,
   unitsDescription:
     'Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428).',
   beforeProperties: {

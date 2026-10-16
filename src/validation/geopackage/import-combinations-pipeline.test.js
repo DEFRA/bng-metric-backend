@@ -268,6 +268,11 @@ describe('BMD-1060 full extraction, combination validation and enrichment', () =
       advanceYears: 2,
       delayYears: 0
     })
+    expect(lostHabitat.status).toBe('Complete')
+    const withoutTimingCredit = importRows('areas', [
+      row('Created', timingColumns('areas', '0', '0'))
+    ]).habitats[0]
+    expect(lostHabitat.units).toBeCloseTo(withoutTimingCredit.units)
     expect(lostHabitat.units).not.toBe(createdHabitat.units)
   })
 

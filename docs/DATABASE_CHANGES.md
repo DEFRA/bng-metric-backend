@@ -280,7 +280,9 @@ when baseline pricing cannot run. Existing documents are not bulk rewritten.
 Created and Enhanced habitats require both timing values and valid proposed
 strategic significance. Explicit zero timing is valid; null is not zero.
 Retained habitats do not use timing or proposed strategic significance, and
-baseline calculations do not use these metadata fields. Watercourse calculations
+baseline calculations do not use these metadata fields. Original Lost area rows
+use the Created engine with explicit zero timing: BMD-1060 AC5 declares their
+saved null timing irrelevant, rather than missing required input. Watercourse calculations
 require explicit encroachment values on the side being priced. Enhanced
 watercourses use proposed encroachments, not baseline encroachments.
 

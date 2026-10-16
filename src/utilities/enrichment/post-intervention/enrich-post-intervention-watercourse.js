@@ -306,7 +306,7 @@ export function enrichPostInterventionWatercourseProposedSide(
       watercourse,
       WATERCOURSE_PROPOSED_LABEL,
       logger,
-      true
+      { watercourse: true }
     )
   ) {
     return

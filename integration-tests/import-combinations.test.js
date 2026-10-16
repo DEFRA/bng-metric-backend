@@ -86,7 +86,8 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
       advanceYears: null,
       delayYears: null
     })
-    expect(proposedFeature).toMatchObject({ units: null, status: 'Incomplete' })
+    expect(proposedFeature.status).toBe('Complete')
+    expect(proposedFeature.units).toBeGreaterThan(0)
     expect(proposedFeature.properties['Habitat created in advance/years']).toBe(
       '2'
     )
@@ -119,7 +120,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
           advanceYears: null,
           delayYears: null
         })
-        if (retention === 'Retained') {
+        if (retention === 'Retained' || retention === 'Lost') {
           expect(feature.status).toBe('Complete')
           expect(feature.units).toBeGreaterThan(0)
         } else {
@@ -183,7 +184,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
     async (retention, advance, delay) => {
       const project = await createProject(`BMD-1060 timing ${retention}`)
       const upload = await changedFixture([
-        `UPDATE Habitats SET "Retention Category" = '${retention}', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Moderate', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Habitat created in advance/years" = ${advance}, "Delay in starting habitat creation/years" = ${delay} WHERE "Parcel Ref" = 'H1'`
+        `UPDATE Habitats SET "Retention Category" = '${retention}', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Moderate', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Proposed Strategic Significance" = 'Low', "Habitat created in advance/years" = ${advance}, "Delay in starting habitat creation/years" = ${delay} WHERE "Parcel Ref" = 'H1'`
       ])
       const response = await callPostInterventionValidate(upload, {
         projectId: project.id
@@ -198,7 +199,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         delayYears: null
       })
       expect(feature.proposed.type).not.toBeNull()
-      if (retention === 'Retained') {
+      if (retention === 'Retained' || retention === 'Lost') {
         expect(feature.status).toBe('Complete')
         expect(feature.units).toBeGreaterThan(0)
       } else {

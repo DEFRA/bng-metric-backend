@@ -323,3 +323,54 @@ describe('BMD-1070 mixed documents and missing sizes', () => {
     }
   )
 })
+
+describe('BMD-1060 AC5 timing is irrelevant for original Lost areas', () => {
+  it.each(['Lost', '4. Lost'])(
+    '%s retains null timing and prices without timing credit',
+    (retention) => {
+      const feature = makeAreaHabitat({
+        retentionCategory: 'Created',
+        properties: { Retention_Category: retention }
+      })
+      Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+      enrichPostInterventionDocumentWithUnits({ habitats: [feature] })
+      expect(feature.status).toBe('Complete')
+      expect(feature.units).toBeGreaterThan(0)
+      expect(feature.proposed.advanceYears).toBeNull()
+      expect(feature.proposed.delayYears).toBeNull()
+      expect(
+        calculators.calculateCreatedAreaHabitatPostIntervention
+      ).toHaveBeenLastCalledWith(
+        1,
+        expect.any(String),
+        'Good',
+        0,
+        0,
+        expect.any(String)
+      )
+    }
+  )
+})
+
+it('legacy Lost areas with null timing retain the same zero-credit calculation after resync', () => {
+  const feature = makeAreaHabitat({ retentionCategory: undefined })
+  feature.baseline.retentionCategory = 'Lost'
+  Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+  const result = rederivePostInterventionFromBaseline(
+    { habitats: [feature] },
+    { baseline: {} }
+  )
+  expect(result.habitats[0].status).toBe('Complete')
+  expect(result.habitats[0].units).toBeGreaterThan(0)
+  expect(result.habitats[0].proposed.advanceYears).toBeNull()
+  expect(
+    calculators.calculateCreatedAreaHabitatPostIntervention
+  ).toHaveBeenLastCalledWith(
+    1,
+    expect.any(String),
+    'Good',
+    0,
+    0,
+    expect.any(String)
+  )
+})
