@@ -123,7 +123,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
     expect(updateRes.statusCode).toBe(HTTP_OK)
     // H2 is Enhanced with a blank Proposed Strategic Significance in the
     // fixture, so it's rejected (BMD-1051): the edit is saved, but the habitat
-    // stays at zero units and Incomplete until a valid value is chosen.
+    // stays at null units and Incomplete until a valid value is chosen.
     expect(updateRes.result).toEqual(
       expect.objectContaining({
         featureId: habitat.featureId,
@@ -133,7 +133,7 @@ describe('POST /post-intervention/validate/{uploadId} - persistence and feature 
           condition: 'Good',
           strategicSignificance: null
         }),
-        units: 0,
+        units: null,
         status: 'Incomplete'
       })
     )

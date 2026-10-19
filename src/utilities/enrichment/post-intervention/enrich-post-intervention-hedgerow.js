@@ -16,8 +16,7 @@ import {
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
   runProposedCalculation,
-  resolveProposedStrategicSignificance,
-  checkStrategicSignificanceOfUnsizedFeature,
+  prepareProposedUnitCalculation,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
@@ -141,13 +140,7 @@ function buildCreatedHedgerowCalculate(
   delayYears,
   logger
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (
     !isPresentEngineString(proposed.type) ||
     !isPresentEngineString(proposedCondition)
@@ -158,9 +151,6 @@ function buildCreatedHedgerowCalculate(
       'proposed type or condition is missing',
       logger
     )
-    return null
-  }
-  if (strategicSignificance === null) {
     return null
   }
   return () =>
@@ -184,13 +174,7 @@ function buildEnhancedHedgerowCalculate(
   lengthKm,
   { advanceYears, delayYears, baselineLengthByRef, logger }
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    hedgerow,
-    HEDGEROW_PROPOSED_LABEL,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (
     !isPresentEngineString(baseline.type) ||
     !isPresentEngineString(proposed.type) ||
@@ -203,9 +187,6 @@ function buildEnhancedHedgerowCalculate(
       'baseline or proposed type/condition is missing',
       logger
     )
-    return null
-  }
-  if (strategicSignificance === null) {
     return null
   }
   return () => {
@@ -249,8 +230,8 @@ function prepareHedgerowProposedContext(hedgerow) {
     category: resolveRetentionCategory(hedgerow),
     baselineCondition: normalizeConditionForEngine(baseline.condition),
     proposedCondition: normalizeConditionForEngine(proposed.condition),
-    advanceYears: proposed.advanceYears ?? 0,
-    delayYears: proposed.delayYears ?? 0,
+    advanceYears: proposed.advanceYears,
+    delayYears: proposed.delayYears,
     lengthKm: pricedLengthKm(hedgerow.sizeMetres)
   }
 }
@@ -337,16 +318,16 @@ export function enrichPostInterventionHedgerowProposedSide(
     handleLostLinearCategory(hedgerow, GPKG_RETENTION_LOST)
     return
   }
+  if (
+    !prepareProposedUnitCalculation(hedgerow, HEDGEROW_PROPOSED_LABEL, logger)
+  ) {
+    return
+  }
   if (!hasPositiveLinearSize(hedgerow.sizeMetres)) {
     skipProposedEnrichment(
       hedgerow,
       HEDGEROW_PROPOSED_LABEL,
       'sizeMetres is missing or not positive',
-      logger
-    )
-    checkStrategicSignificanceOfUnsizedFeature(
-      hedgerow,
-      HEDGEROW_PROPOSED_LABEL,
       logger
     )
     return

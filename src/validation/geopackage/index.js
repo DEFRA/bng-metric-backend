@@ -1,4 +1,3 @@
-import { checkAdvanceAndDelayNotBothSet } from './advance-delay-check.js'
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { readGeoPackage } from './geopackage.js'
 import { checkHabitatRefs } from './habitat-ref-check.js'
@@ -45,7 +44,6 @@ export function runDataQualityChecks(layers, variant) {
   return [
     checkHabitatDistinctiveness(layers, variant),
     ...checkHabitatRefs(layers),
-    checkAdvanceAndDelayNotBothSet(layers),
     checkTreeCountIsWhole(layers)
   ].filter(Boolean)
 }

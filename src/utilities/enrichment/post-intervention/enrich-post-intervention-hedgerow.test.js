@@ -88,7 +88,7 @@ describe('hedgerow — Retained', () => {
     enrichPostInterventionDocumentWithUnits(doc)
 
     const hedge = doc.hedgerows[0]
-    expect(typeof hedge.units).toBe('number')
+    expect(hedge.units).toBeNull()
     expect(hedge.baseline.distinctiveness).toBeTruthy()
   })
 
@@ -202,7 +202,7 @@ describe('hedgerow — Enhanced', () => {
 
     expect(doc.hedgerows[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('baseline or proposed type/condition is missing')
+      expect.stringContaining('calculation input is missing')
     )
   })
 })
