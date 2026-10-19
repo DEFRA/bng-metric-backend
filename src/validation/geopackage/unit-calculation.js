@@ -12,7 +12,7 @@
 // The engine throws on null/unknown/invalid inputs (it is designed for the
 // happy path of a complete row). The soft-fail policy here: any missing or
 // invalid dropdown returns the canonical shape with `status: 'Incomplete'`
-// and zero units, but the distinctiveness band is still resolved as soon as
+// and null units, but the distinctiveness band is still resolved as soon as
 // the habitat-type pair is recognised so the UI can display it before the
 // user picks a condition.
 
@@ -82,7 +82,7 @@ function buildIncomplete(distinct) {
     distinctiveness: distinct?.distinctiveness ?? null,
     distinctivenessScore: distinct?.distinctivenessScore ?? null,
     conditionScore: null,
-    units: 0,
+    units: null,
     status: HABITAT_STATUS.INCOMPLETE
   }
 }
@@ -99,7 +99,7 @@ function buildIncomplete(distinct) {
  *   distinctiveness: string|null,
  *   distinctivenessScore: number|null,
  *   conditionScore: number|null,
- *   units: number,
+ *   units: number|null,
  *   status: 'Complete' | 'Incomplete'
  * }}
  */
@@ -190,7 +190,7 @@ function recomputeHedgerow({ habitatType, condition, sizeMetres }) {
  *
  * Units require all four dropdowns (habitat type, condition, watercourse
  * encroachment, riparian encroachment) plus a positive length; any missing
- * value returns the canonical incomplete shape with zero units — matching the
+ * value returns the canonical incomplete shape with null units — matching the
  * BMD-597 Save rules (Scenario A complete / Scenario B incomplete). The
  * distinctiveness band is still resolved from the habitat type alone so the
  * saved feature carries it even for an incomplete row.

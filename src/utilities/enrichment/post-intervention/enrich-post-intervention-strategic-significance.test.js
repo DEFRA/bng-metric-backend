@@ -102,7 +102,7 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
     )
 
     // BMD-1051 AC4 — anything but Low or High is invalid: the value is nulled,
-    // the units are zero by definition, and the feature is saved Incomplete so
+    // BMD-1070 leaves the units null, and the feature is saved Incomplete so
     // the user can be asked to pick a valid value.
     it.each([
       ['Medium', MEDIUM, REASON.MEDIUM],
@@ -115,12 +115,12 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       ['undefined', undefined, REASON.BLANK],
       // A non-string can't name a category; the check must reject it, not throw.
       ['a number', HIGH_MULTIPLIER, REASON.BLANK]
-    ])('nulls %s, prices it at zero and warns', (_name, value, reason) => {
+    ])('nulls %s, leaves units null and warns', (_name, value, reason) => {
       const logger = { warn: vi.fn() }
       const feature = enrich(layer, makeFeature, value, logger)
 
       expect(feature.status).toBe('Incomplete')
-      expect(feature.units).toBe(0)
+      expect(feature.units).toBeNull()
       expect(feature.proposed.strategicSignificance).toBeNull()
       expect(feature.proposed.strategicSignificanceCategory).toBeNull()
       expect(feature.proposed.strategicSignificanceScore).toBeNull()
@@ -144,7 +144,7 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
 
   describe.each(['created', 'enhanced'])('%s, unpriceable', (category) => {
     // The strategic significance is checked before the other inputs, so an
-    // invalid value is nulled and priced at zero even when the feature could
+    // invalid value is nulled with null units even when the feature could
     // not be priced anyway (here, no proposed condition).
     it('nulls an invalid value when the proposed condition is missing', () => {
       const feature = LAYERS[layer][category]()
@@ -160,7 +160,7 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       const [enriched] = doc[layer]
 
       expect(enriched.status).toBe('Incomplete')
-      expect(enriched.units).toBe(0)
+      expect(enriched.units).toBeNull()
       expect(enriched.proposed.strategicSignificance).toBeNull()
       expect(enriched.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
     })
@@ -180,7 +180,7 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
       const [enriched] = doc[layer]
 
       expect(enriched.status).toBe('Incomplete')
-      expect(enriched.units).toBe(0)
+      expect(enriched.units).toBeNull()
       expect(enriched.proposed.strategicSignificance).toBeNull()
       expect(enriched.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
     })
@@ -212,7 +212,7 @@ describe.each(Object.keys(LAYERS))('%s', (layer) => {
     it('keeps the rejected value when the nulled feature is priced again', () => {
       const again = enrichAgain(enrich(layer, makeFeature, MEDIUM))
 
-      expect(again.units).toBe(0)
+      expect(again.units).toBeNull()
       expect(again.status).toBe('Incomplete')
       expect(again.proposed.rejectedStrategicSignificance).toBe(MEDIUM)
     })
