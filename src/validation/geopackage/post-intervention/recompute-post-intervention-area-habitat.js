@@ -36,7 +36,7 @@ export function pickProposedRecomputeFields(proposed) {
  * @param {object} existing — persisted post-intervention habitat feature
  * @param {{ broadType: string | null, habitatType: string | null, condition: string | null }} edits
  * @param {{ warn: Function }} [logger] receives the warning when the stored
- *   proposed strategic significance is invalid and the habitat prices at zero
+ *   proposed strategic significance is invalid and the habitat units remain null
  * @returns {{
  *   distinctiveness: string | null,
  *   distinctivenessScore: number | null,

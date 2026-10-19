@@ -24,7 +24,7 @@ describe('recomputeAreaHabitat', () => {
     })
   })
 
-  test('Incomplete + 0 units when broad habitat is missing', () => {
+  test('Incomplete + null units when broad habitat is missing', () => {
     const result = recomputeAreaHabitat({
       broadType: null,
       habitatType: 'Lowland meadows',
@@ -35,12 +35,12 @@ describe('recomputeAreaHabitat', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
 
-  test('Incomplete + 0 units when habitat type is missing', () => {
+  test('Incomplete + null units when habitat type is missing', () => {
     const result = recomputeAreaHabitat({
       broadType: 'Grassland',
       habitatType: null,
@@ -48,10 +48,10 @@ describe('recomputeAreaHabitat', () => {
       sizeSquareMetres: 10_000
     })
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
-  test('Incomplete + 0 units when broad/habitat-type pair is unknown', () => {
+  test('Incomplete + null units when broad/habitat-type pair is unknown', () => {
     const result = recomputeAreaHabitat({
       broadType: 'Grassland',
       habitatType: 'Wrong type',
@@ -62,12 +62,12 @@ describe('recomputeAreaHabitat', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
 
-  test('Incomplete + 0 units when condition is missing — but keeps distinctiveness', () => {
+  test('Incomplete + null units when condition is missing — but keeps distinctiveness', () => {
     const result = recomputeAreaHabitat({
       broadType: 'Grassland',
       habitatType: 'Lowland meadows',
@@ -78,12 +78,12 @@ describe('recomputeAreaHabitat', () => {
       distinctiveness: 'V.High',
       distinctivenessScore: 8,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
 
-  test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
+  test('Incomplete + null units when condition is not permitted for that habitat type', () => {
     // Cropland - Cereal crops only permits "Condition Assessment N/A"
     const result = recomputeAreaHabitat({
       broadType: 'Cropland',
@@ -93,7 +93,7 @@ describe('recomputeAreaHabitat', () => {
     })
     expect(result.conditionScore).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test('Complete + 0 units when condition score is legitimately zero', () => {
@@ -117,7 +117,7 @@ describe('recomputeAreaHabitat', () => {
       sizeSquareMetres: null
     })
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test('converts square metres to hectares for the engine', () => {
@@ -164,7 +164,7 @@ describe('recomputeHedgerow', () => {
     expect(result.status).toBe(HABITAT_STATUS.COMPLETE)
   })
 
-  test('Incomplete + 0 units when habitat type is missing', () => {
+  test('Incomplete + null units when habitat type is missing', () => {
     const result = recomputeHedgerow({
       habitatType: null,
       condition: 'Good',
@@ -174,12 +174,12 @@ describe('recomputeHedgerow', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
 
-  test('Incomplete + 0 units when habitat type is unknown', () => {
+  test('Incomplete + null units when habitat type is unknown', () => {
     const result = recomputeHedgerow({
       habitatType: 'Unknown type',
       condition: 'Good',
@@ -187,7 +187,7 @@ describe('recomputeHedgerow', () => {
     })
     expect(result.distinctiveness).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test('Incomplete but keeps distinctiveness when condition is missing', () => {
@@ -200,7 +200,7 @@ describe('recomputeHedgerow', () => {
       distinctiveness: 'Low',
       distinctivenessScore: 2,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
@@ -222,7 +222,7 @@ describe('recomputeHedgerow', () => {
     })
   })
 
-  test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
+  test('Incomplete + null units when condition is not permitted for that habitat type', () => {
     // Fairly Good is "Not Possible" for Native hedgerow in the engine data.
     const result = recomputeHedgerow({
       habitatType: 'Native hedgerow',
@@ -231,7 +231,7 @@ describe('recomputeHedgerow', () => {
     })
     expect(result.conditionScore).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test('Incomplete when size is missing or zero', () => {
@@ -241,7 +241,7 @@ describe('recomputeHedgerow', () => {
       sizeMetres: null
     })
     expect(noSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(noSize.units).toBe(0)
+    expect(noSize.units).toBeNull()
 
     const zeroSize = recomputeHedgerow({
       habitatType: 'Native hedgerow',
@@ -249,7 +249,7 @@ describe('recomputeHedgerow', () => {
       sizeMetres: 0
     })
     expect(zeroSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(zeroSize.units).toBe(0)
+    expect(zeroSize.units).toBeNull()
   })
 })
 
@@ -292,7 +292,7 @@ describe('recomputeWatercourse', () => {
     expect(result.distinctiveness).toBe('Low')
   })
 
-  test('Incomplete + 0 units when habitat type is missing', () => {
+  test('Incomplete + null units when habitat type is missing', () => {
     const result = recomputeWatercourse({
       habitatType: null,
       condition: 'Moderate',
@@ -304,12 +304,12 @@ describe('recomputeWatercourse', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: HABITAT_STATUS.INCOMPLETE
     })
   })
 
-  test('Incomplete + 0 units when habitat type is unknown', () => {
+  test('Incomplete + null units when habitat type is unknown', () => {
     const result = recomputeWatercourse({
       habitatType: 'Unknown type',
       condition: 'Moderate',
@@ -319,7 +319,7 @@ describe('recomputeWatercourse', () => {
     })
     expect(result.distinctiveness).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test.each([
@@ -341,13 +341,13 @@ describe('recomputeWatercourse', () => {
         distinctiveness: 'High',
         distinctivenessScore: 6,
         conditionScore: null,
-        units: 0,
+        units: null,
         status: HABITAT_STATUS.INCOMPLETE
       })
     }
   )
 
-  test('Incomplete + 0 units when condition is not permitted for that habitat type', () => {
+  test('Incomplete + null units when condition is not permitted for that habitat type', () => {
     const result = recomputeWatercourse({
       habitatType: 'Other rivers and streams',
       condition: 'Not a real condition',
@@ -357,7 +357,7 @@ describe('recomputeWatercourse', () => {
     })
     expect(result.conditionScore).toBeNull()
     expect(result.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(result.units).toBe(0)
+    expect(result.units).toBeNull()
   })
 
   test('Incomplete when size is missing or zero', () => {
@@ -369,7 +369,7 @@ describe('recomputeWatercourse', () => {
       sizeMetres: null
     })
     expect(noSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(noSize.units).toBe(0)
+    expect(noSize.units).toBeNull()
 
     const zeroSize = recomputeWatercourse({
       habitatType: 'Other rivers and streams',
@@ -379,6 +379,6 @@ describe('recomputeWatercourse', () => {
       sizeMetres: 0
     })
     expect(zeroSize.status).toBe(HABITAT_STATUS.INCOMPLETE)
-    expect(zeroSize.units).toBe(0)
+    expect(zeroSize.units).toBeNull()
   })
 })

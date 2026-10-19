@@ -140,7 +140,7 @@ describe('POST /baseline/validate/{uploadId} — persistence (document + red lin
         status: 'Incomplete'
       })
     )
-    expect(habitat).not.toHaveProperty('units')
+    expect(habitat).toHaveProperty('units', null)
   })
 
   it('inserts exactly one red line row in 27700 with valid geometry', async () => {

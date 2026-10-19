@@ -93,7 +93,7 @@ describe('watercourse — Retained', () => {
     enrichPostInterventionDocumentWithUnits(doc)
 
     const wc = doc.watercourses[0]
-    expect(typeof wc.units).toBe('number')
+    expect(wc.units).toBeNull()
     expect(wc.baseline.distinctiveness).toBeTruthy()
   })
 
@@ -122,7 +122,7 @@ describe('watercourse — Retained', () => {
 
     expect(doc.watercourses[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('baseline type or condition is missing')
+      expect.stringContaining('is missing')
     )
   })
 })
@@ -189,7 +189,7 @@ describe('watercourse — Created', () => {
 
     expect(doc.watercourses[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('proposed type or condition is missing')
+      expect.stringContaining('is missing')
     )
   })
 })
@@ -260,7 +260,7 @@ describe('watercourse — Enhanced', () => {
 
     expect(doc.watercourses[0].status).toBe('Incomplete')
     expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringContaining('baseline or proposed type/condition is missing')
+      expect.stringContaining('is missing')
     )
   })
 })
