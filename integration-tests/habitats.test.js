@@ -114,7 +114,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     })
   })
 
-  it('marks the habitat Incomplete with zero units when a dropdown is unset', async () => {
+  it('marks the habitat Incomplete with null units when a dropdown is unset', async () => {
     const habitat = habitatFixture()
     const projectId = await seedProjectWithHabitats([habitat])
 
@@ -132,7 +132,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toMatchObject({
       conditionScore: null,
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })

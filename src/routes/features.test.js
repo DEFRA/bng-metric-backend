@@ -474,7 +474,7 @@ describe('updateFeature handler - error cases', () => {
     )
   })
 
-  test('saves zero units and Incomplete status when a watercourse encroachment is unselected', async () => {
+  test('saves null units and Incomplete status when a watercourse encroachment is unselected', async () => {
     const drizzle = makeTxDrizzle(makeProject())
     const result = await updateFeature.handler(
       {
@@ -494,7 +494,7 @@ describe('updateFeature handler - error cases', () => {
     expect(result.feature).toMatchObject({
       type: 'Ditches',
       status: 'Incomplete',
-      units: 0
+      units: null
     })
   })
 

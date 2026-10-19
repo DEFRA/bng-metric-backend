@@ -26,6 +26,8 @@ import {
   attachGeometrySizes,
   calculateHabitatSizes
 } from './calculate-habitat-sizes.js'
+import { normaliseProposedCombinations } from '../../validation/geopackage/post-intervention/normalise-proposed-combinations.js'
+import { normaliseImportedCombinations } from '../../validation/geopackage/normalise-imported-combinations.js'
 import { normaliseImportedDocument } from '../../validation/geopackage/normalise-imported-attributes.js'
 import { enforceRequiredAttributeCompleteness } from '../../utilities/enrichment/shared/required-attribute-completeness.js'
 import {
@@ -275,6 +277,11 @@ export function extractAndValidateDocument({
     document,
     config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
   )
+  const normaliseCombinations =
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
+      ? normaliseProposedCombinations
+      : normaliseImportedCombinations
+  normaliseCombinations(document)
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
     config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY

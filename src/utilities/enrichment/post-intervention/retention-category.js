@@ -1,6 +1,11 @@
 // Normalisation and assignment of post-intervention retention categories from the
 // GeoPackage Retention Category column.
 
+import {
+  PROP_KEYS,
+  pickProp
+} from '../../../validation/geopackage/properties.js'
+
 export const RETENTION_RETAINED = 'Retained'
 export const RETENTION_CREATED = 'Created'
 export const RETENTION_ENHANCED = 'Enhanced'
@@ -162,4 +167,16 @@ export function isLegacyLostLinear(feature) {
     return false
   }
   return isLostRetentionCategory(feature?.baseline?.retentionCategory)
+}
+
+/** The original import category, before an area Lost row becomes Created. */
+export function importedRetentionCategory(feature) {
+  return (
+    normaliseRetentionCategory(
+      pickProp(feature?.properties ?? {}, PROP_KEYS.retentionCategory)
+    ) ??
+    normaliseRetentionCategory(feature?.baseline?.retentionCategory) ??
+    normaliseRetentionCategory(feature?.retentionCategory) ??
+    resolveRetentionCategory(feature)
+  )
 }

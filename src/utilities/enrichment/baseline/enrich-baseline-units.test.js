@@ -170,11 +170,12 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document)
-    expect(document.habitats[0]).not.toHaveProperty('units')
+    expect(document.habitats[0]).toHaveProperty('units', null)
     expect(document.units.habitatsTotal).toBe(0)
   })
 
-  it('marks a whitespace-only habitat type as Incomplete when no engine labels match', () => {
+  it('marks a whitespace-only habitat type Incomplete without calling the engine', () => {
+    calculateAreaHabitatBaselineMock.mockClear()
     const logger = { warn: vi.fn() }
     const document = {
       habitats: [
@@ -188,11 +189,9 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.habitats[0]).not.toHaveProperty('units')
+    expect(document.habitats[0]).toHaveProperty('units', null)
     expect(document.habitats[0].status).toBe('Incomplete')
-    expect(logger.warn).toHaveBeenCalledWith(
-      expect.stringMatching(/Habitat type is empty or unrecognised/)
-    )
+    expect(calculateAreaHabitatBaselineMock).not.toHaveBeenCalled()
   })
 
   it('skips when the engine does not recognise the habitat', () => {
@@ -209,7 +208,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
       ]
     }
     enrichBaselineDocumentWithUnits(document, logger)
-    expect(document.habitats[0]).not.toHaveProperty('units')
+    expect(document.habitats[0]).toHaveProperty('units', null)
     expect(document.habitats[0].status).toBe('Incomplete')
     expect(document.units.habitatsTotal).toBe(0)
     expect(logger.warn).toHaveBeenCalledWith(

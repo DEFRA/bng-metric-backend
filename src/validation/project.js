@@ -19,6 +19,9 @@ import {
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 
+const BASELINE_STATUS_DESCRIPTION =
+  "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
+
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-library/metric.'
 
@@ -148,13 +151,11 @@ const habitatSchema = Joi.object({
   status: Joi.string()
     .valid('Complete', 'Incomplete')
     .required()
-    .description(
-      "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
-    ),
+    .description(BASELINE_STATUS_DESCRIPTION),
   units: Joi.number()
     .allow(null)
     .description(
-      'Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals.'
+      'Baseline biodiversity units for the parcel, or null when required calculation inputs are missing. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals.'
     ),
   ...metadataSchemaKeys(),
   properties: Joi.object()
@@ -204,7 +205,7 @@ const treeSchema = habitatSchema
     units: Joi.number()
       .allow(null)
       .description(
-        'Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation.'
+        'Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation; null when required calculation inputs are missing.'
       ),
     properties: Joi.object()
       .unknown(true)
@@ -289,7 +290,11 @@ function linearFeatureSchema({
       .valid('Complete', 'Incomplete')
       .required()
       .description(statusDescription),
-    units: Joi.number().allow(null).description(unitsDescription),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        `${unitsDescription} Null when required calculation inputs are missing.`
+      ),
     strategicSignificance: Joi.string()
       .allow(null, '')
       .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
@@ -308,8 +313,7 @@ const linearHabitatSchema = linearFeatureSchema({
   conditionDescription: 'Hedgerow condition assessment.',
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the hedgerow type.',
-  statusDescription:
-    "'Complete' when type and condition are both set; otherwise 'Incomplete'.",
+  statusDescription: BASELINE_STATUS_DESCRIPTION,
   unitsDescription:
     'Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428).',
   propertiesDescription:
@@ -331,8 +335,7 @@ const watercourseHabitatSchema = linearFeatureSchema({
   },
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the watercourse type.',
-  statusDescription:
-    "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'.",
+  statusDescription: BASELINE_STATUS_DESCRIPTION,
   unitsDescription:
     'Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428).',
   beforeProperties: {

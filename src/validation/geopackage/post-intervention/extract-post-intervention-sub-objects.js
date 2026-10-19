@@ -7,9 +7,6 @@ import { deriveRetentionCategory } from '../../../utilities/enrichment/post-inte
 /** GeoPackage literal when advance/delay columns do not apply (Lost features). */
 export const GPKG_NOT_APPLICABLE = 'N/A'
 
-/** Default when advance/delay GPKG columns are absent. */
-export const DEFAULT_ADVANCE_DELAY_YEARS = 0
-
 /** Shared null score/multiplier placeholders on baseline and proposed sub-objects. */
 export function emptyHabitatScoreFields() {
   return {
@@ -41,14 +38,18 @@ function parseAdvanceDelayFromString(normalized) {
  * Parse "Habitat created in advance/years" / "Delay in starting habitat
  * creation/years" from the GeoPackage. NE template files use the literal
  * "N/A" for Lost linear features (and some Lost area rows) where advance/delay
- * do not apply; those map to null. Missing columns default to 0.
+ * do not apply; those map to null. Missing or blank columns remain null.
  *
  * @param {unknown} rawValue
  * @returns {number | null}
  */
 export function parseProposedAdvanceDelayYears(rawValue) {
-  if (rawValue === null || rawValue === undefined || rawValue === '') {
-    return DEFAULT_ADVANCE_DELAY_YEARS
+  if (
+    rawValue === null ||
+    rawValue === undefined ||
+    (typeof rawValue === 'string' && !rawValue.trim())
+  ) {
+    return null
   }
   if (typeof rawValue === 'number') {
     if (Number.isFinite(rawValue)) {
