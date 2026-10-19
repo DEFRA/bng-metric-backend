@@ -31,15 +31,16 @@ import {
 /**
  * @param {object} feature
  * @param {string} condition
+ * @param {boolean} watercourse
  * @returns {boolean}
  */
-function isLinearFeatureReadyForEnrichment(feature, condition) {
+function isLinearFeatureReadyForEnrichment(feature, condition, watercourse) {
   return (
     Boolean(condition) &&
     typeof feature.sizeMetres === 'number' &&
     Number.isFinite(feature.sizeMetres) &&
     feature.sizeMetres > 0 &&
-    hasRequiredHabitatAttributes(feature)
+    hasRequiredHabitatAttributes(feature, watercourse)
   )
 }
 
@@ -127,14 +128,21 @@ function enrichHabitatParcelWithUnits(habitat, logger = NO_OP_LOGGER) {
  *   resolve encroachment values from the feature and log warnings.
  * @param {{ warn: (msg: string) => void }} [config.logger]
  * @param {string} config.layerLabel
+ * @param {boolean} [config.watercourse]
  * @param {(result: object) => Record<string, unknown>} [config.mapExtraFields]
  */
 function enrichLinearFeatureWithUnits(
   feature,
-  { calculate, logger = NO_OP_LOGGER, layerLabel, mapExtraFields = () => ({}) }
+  {
+    calculate,
+    logger = NO_OP_LOGGER,
+    layerLabel,
+    watercourse = false,
+    mapExtraFields = () => ({})
+  }
 ) {
   const condition = normalizeConditionForEngine(feature.condition)
-  if (isLinearFeatureReadyForEnrichment(feature, condition)) {
+  if (isLinearFeatureReadyForEnrichment(feature, condition, watercourse)) {
     const lengthKm = setLengthAndGetKm(feature)
     enrichFeatureWithEngineCalculation(
       () => calculate(lengthKm, feature.type, condition, { feature, logger }),
@@ -150,6 +158,7 @@ function createWatercourseEnrichmentConfig(logger) {
   return {
     logger,
     layerLabel: 'Watercourse',
+    watercourse: true,
     calculate: (lengthKm, type, condition, { feature }) => {
       const encroachments = resolvedWatercourseEncroachments(feature)
       return calculateWatercourseBaseline(

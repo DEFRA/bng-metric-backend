@@ -120,7 +120,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
           advanceYears: null,
           delayYears: null
         })
-        if (retention === 'Retained' || retention === 'Lost') {
+        if (retention === 'Retained') {
           expect(feature.status).toBe('Complete')
           expect(feature.units).toBeGreaterThan(0)
         } else {

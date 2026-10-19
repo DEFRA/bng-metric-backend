@@ -276,9 +276,17 @@ describe('enrichBaselineDocumentWithUnits — watercourses', () => {
 })
 
 describe('BMD-1059 watercourse encroachment', () => {
-  it.each([null, undefined, '', '   ', 'Unknown', 42, { custom: 'value' }])(
+  it.each([
+    [null, false],
+    [undefined, false],
+    ['', false],
+    ['   ', false],
+    ['Unknown', true],
+    [42, false],
+    [{ custom: 'value' }, false]
+  ])(
     'does not calculate using a default multiplier for %j',
-    (value) => {
+    (value, expectsLookupWarning) => {
       for (const field of ['watercourseEncroachment', 'riparianEncroachment']) {
         calculateWatercourseBaselineMock.mockClear()
         const logger = { warn: vi.fn() }
@@ -304,9 +312,13 @@ describe('BMD-1059 watercourse encroachment', () => {
         expect(feature.waterEncroachmentMultiplier).toBeUndefined()
         expect(feature.riparianEncroachmentMultiplier).toBeUndefined()
         expect(calculateWatercourseBaselineMock).not.toHaveBeenCalled()
-        expect(logger.warn).toHaveBeenCalledWith(
-          expect.stringContaining('Missing or unrecognised')
-        )
+        if (expectsLookupWarning) {
+          expect(logger.warn).toHaveBeenCalledWith(
+            expect.stringContaining('Missing or unrecognised')
+          )
+        } else {
+          expect(logger.warn).not.toHaveBeenCalled()
+        }
       }
     }
   )
