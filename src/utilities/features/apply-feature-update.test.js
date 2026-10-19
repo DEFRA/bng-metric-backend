@@ -327,7 +327,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     expect(result.unitsTotals.watercoursesTotal).toBe(6.08)
   })
 
-  test('saves zero units and Incomplete when an encroachment is unselected (Scenario B)', () => {
+  test('saves null units and Incomplete when an encroachment is unselected (Scenario B)', () => {
     const result = applyFeatureUpdate(watercourseProjectFixture(), {
       featureId: WATERCOURSE_ID,
       edits: {
@@ -344,7 +344,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
       watercourseEncroachment: 'Minor',
       riparianEncroachment: null,
       distinctiveness: 'Medium',
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
     expect(result.unitsTotals.watercoursesTotal).toBe(0)
@@ -369,7 +369,7 @@ describe('applyFeatureUpdate — watercourse dispatch', () => {
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.feature).toMatchObject({
       distinctiveness: 'Medium',
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })
@@ -728,7 +728,7 @@ describe('applyFeatureUpdate — postIntervention documentKey', () => {
     })
 
     expect(result.status).toBe(APPLY_RESULT.OK)
-    expect(result.feature.units).toBe(0)
+    expect(result.feature.units).toBeNull()
     expect(result.feature.status).toBe('Incomplete')
     expect(result.feature.proposed.strategicSignificance).toBeNull()
     expect(logger.warn).toHaveBeenCalledWith(
@@ -887,10 +887,10 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     condition: 'Good'
   }
 
-  test('keeps a hedgerow rejected for its strategic significance at zero when edited', () => {
+  test('keeps a hedgerow rejected for its strategic significance unpriced when edited', () => {
     // BMD-1051. A post-intervention hedgerow edit is priced through the
     // hedgerow enrichment, so a created hedgerow rejected on import (Medium,
-    // here) stays nulled at zero units and Incomplete after a type or
+    // here) stays nulled at null units and Incomplete after a type or
     // condition edit, rather than coming back priced.
     const project = postInterventionProjectFixture()
     const hedgerow = project.postIntervention.hedgerows[0]
@@ -904,7 +904,7 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
       documentKey: 'postIntervention'
     })
 
-    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
     expect(result.feature.proposed).toMatchObject({
       type: 'Native hedgerow with trees',
       condition: 'Good',
@@ -992,7 +992,7 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
     // BMD-1051. A project saved before invalid values were rejected priced
     // Medium at ×1.10 and blank as Low. An edit to any baseline feature
     // re-derives the whole post-intervention document, so A2 and A3 are
-    // re-priced though only A1 was edited: nulled, zero units, Incomplete,
+    // re-priced though only A1 was edited: nulled, null units, Incomplete,
     // with the rejected value kept.
     const project = projectWithPostInterventionFixture()
     const MEDIUM = 'Location ecologically desirable but not in local strategy'
@@ -1033,7 +1033,7 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
       ['A2', MEDIUM],
       ['A3', null]
     ]) {
-      expect(byRef[ref]).toMatchObject({ units: 0, status: 'Incomplete' })
+      expect(byRef[ref]).toMatchObject({ units: null, status: 'Incomplete' })
       expect(byRef[ref].proposed).toMatchObject({
         strategicSignificance: null,
         rejectedStrategicSignificance: rejected

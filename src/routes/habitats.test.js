@@ -223,7 +223,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     )
   })
 
-  test('marks the habitat Incomplete with zero units when a dropdown is unset', async () => {
+  test('marks the habitat Incomplete with null units when a dropdown is unset', async () => {
     const habitats = defaultHabitats()
     const drizzle = makeDrizzle(makeProjectRow(habitats))
 
@@ -248,12 +248,12 @@ describe('updateAreaHabitat handler — happy path', () => {
       distinctiveness: 'Medium',
       distinctivenessScore: 4,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })
 
-  test('treats empty strings as deselected (Incomplete + zero units)', async () => {
+  test('treats empty strings as deselected (Incomplete + null units)', async () => {
     const habitats = defaultHabitats()
     const drizzle = makeDrizzle(makeProjectRow(habitats))
 
@@ -274,7 +274,7 @@ describe('updateAreaHabitat handler — happy path', () => {
       distinctiveness: null,
       distinctivenessScore: null,
       conditionScore: null,
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })

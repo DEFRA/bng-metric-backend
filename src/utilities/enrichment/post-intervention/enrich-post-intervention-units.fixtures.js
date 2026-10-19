@@ -4,7 +4,7 @@ const NO_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
 export const FEAT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
 
 // Created and enhanced features carry a valid Proposed Strategic Significance,
-// otherwise the import nulls it and prices them at zero (BMD-1051).
+// otherwise validation nulls it (BMD-1051) and units remain null (BMD-1070).
 export const LOW_STRATEGIC_SIGNIFICANCE =
   'Area/compensation not in local strategy/ no local strategy'
 
