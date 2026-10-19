@@ -126,7 +126,7 @@ describe('area habitat — GPKG Lost mapped to Created', () => {
     expect(typeof proposed.difficultyMultiplier).toBe('number')
   })
 
-  it('calculates units (Complete) when advance/delay years are N/A (null)', () => {
+  it('saves null units and Incomplete when advance/delay years are null', () => {
     const base = makeLostHabitat()
     const doc = makeDoc({
       habitats: [
@@ -139,8 +139,8 @@ describe('area habitat — GPKG Lost mapped to Created', () => {
 
     expect(() => enrichPostInterventionDocumentWithUnits(doc)).not.toThrow()
     const hab = doc.habitats[0]
-    expect(hab.status).toBe('Complete')
-    expect(typeof hab.units).toBe('number')
+    expect(hab.status).toBe('Incomplete')
+    expect(hab.units).toBeNull()
   })
 
   it('marks Incomplete when proposed condition is missing', () => {

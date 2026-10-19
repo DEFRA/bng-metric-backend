@@ -64,9 +64,6 @@ export const ERROR_CODES = Object.freeze({
   /** An edit would leave an enhanced habitat that is not a valid enhancement of its baseline. */
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
-  /** A feature carries both advance and delay years; the statutory metric allows only one. */
-  ADVANCE_AND_DELAY_BOTH_SET: 'ADVANCE_AND_DELAY_BOTH_SET',
-
   /**
    * A tree point's "Count" is filled in but is not a whole number of trees
    * (1 or more). The template declares the column an integer, so there is no

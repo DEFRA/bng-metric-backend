@@ -1,5 +1,28 @@
 # Making Database Changes
 
+## BMD-1060: Invalid imported habitat combinations
+
+No database schema changes or migration are required. Combination validation runs
+on the extracted baseline and proposed attributes after standalone reference
+validation and before enhancement validation and unit enrichment.
+
+- AC1: an inconsistent area broad habitat/type pair keeps the broad habitat and
+  nulls the type, condition, encroachments and timing fields that are present, including the promoted baseline timing metadata.
+  Proposed strategic significance is also nulled for Created/Enhanced rows.
+- AC2: conditions marked `Not Possible` (or absent for that habitat) in the metric
+  reference tables are nulled across areas, trees, hedgerows and watercourses.
+- AC3: Created/Enhanced rows with positive advance and delay save both as null.
+  The previous whole-file rejection has been removed.
+- AC4: missing or blank timing values stay null during extraction, including when
+  both are missing. Explicit zero values remain zero where relevant.
+- AC5: Retained/Lost rows save advance and delay as null. The original retention
+  category identifies Lost area rows even though extraction maps them to Created.
+
+Raw GeoPackage properties are preserved. Existing enrichment calculations are
+unchanged; their null timing defaults remain a calculation concern for BMD-1070.
+Logging belongs to BMD-1072 and is not introduced here. AC5 follows the updated
+Retained/Lost condition and heading.
+
 An end-to-end guide for introducing data model changes — from local development through to production. Covers both Postgres column changes and JSONB field changes.
 
 ## Before you start
@@ -245,3 +268,24 @@ invalid encroachment and communicate that their recalculated status and units ma
 change. Correct affected attributes from verified source data before relying on
 recalculated totals. Explicit, recognised encroachment values keep their current
 calculation behaviour.
+
+## BMD-1070 release notes: incomplete habitat units
+
+No database migration is required: baseline and post-intervention feature units
+already allow JSON null. Missing required calculation inputs now save `units:
+null` and `status: Incomplete`, including when existing documents are recalculated
+after an edit. Previously stored units are cleared before proposed pricing or
+when baseline pricing cannot run. Existing documents are not bulk rewritten.
+
+Created and Enhanced habitats require both timing values and valid proposed
+strategic significance. Explicit zero timing is valid; null is not zero.
+Retained habitats do not use timing or proposed strategic significance, and
+baseline calculations do not use these metadata fields. Original Lost area rows
+use the Created engine with explicit zero timing: BMD-1060 AC5 declares their
+saved null timing irrelevant, rather than missing required input. Watercourse calculations
+require explicit encroachment values on the side being priced. Enhanced
+watercourses use proposed encroachments, not baseline encroachments.
+
+Document totals continue to sum the available numeric habitat units. Missing
+habitat units do not contribute. Changing project-level totals or frontend
+rendering is outside this ticket. Import issue logging remains BMD-1072.

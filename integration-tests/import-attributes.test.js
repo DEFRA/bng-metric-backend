@@ -149,6 +149,9 @@ describe('BMD-1059 real GeoPackage imports', () => {
         expect(river.waterEncroachmentMultiplier).toBeUndefined()
         expect(river.riparianEncroachmentMultiplier).toBeUndefined()
       }
+      for (const feature of [area, hedge, river]) {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
       const geometries = await fetchLayerRows(geometryTable, project.id)
       expect(geometries.map((row) => row.id)).toContain(area.featureId)
       expect(geometries.every((row) => row.is_valid)).toBe(true)
@@ -178,7 +181,7 @@ describe('BMD-1059 real GeoPackage imports', () => {
         ['watercourses', 'R1']
       ]) {
         const feature = stored[layer].find((item) => item.ref === ref)
-        expect(feature.status).toBe('Incomplete')
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
         expect((proposed ? feature.proposed : feature).condition).toBeNull()
       }
     }

@@ -3,7 +3,7 @@
  * @returns {boolean}
  */
 export function isPresentEngineString(value) {
-  if (typeof value !== 'string' || value === '') {
+  if (typeof value !== 'string' || value.trim() === '') {
     return false
   }
   return value.trim().toUpperCase() !== 'N/A'

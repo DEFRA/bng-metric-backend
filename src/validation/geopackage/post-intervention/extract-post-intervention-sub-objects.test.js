@@ -3,21 +3,17 @@ import { describe, expect, it } from 'vitest'
 import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import {
-  DEFAULT_ADVANCE_DELAY_YEARS,
   GPKG_NOT_APPLICABLE,
   parseProposedAdvanceDelayYears
 } from './extract-post-intervention-sub-objects.js'
 
 describe('parseProposedAdvanceDelayYears', () => {
-  it('defaults missing values to zero', () => {
-    expect(parseProposedAdvanceDelayYears(null)).toBe(
-      DEFAULT_ADVANCE_DELAY_YEARS
-    )
-    expect(parseProposedAdvanceDelayYears(undefined)).toBe(
-      DEFAULT_ADVANCE_DELAY_YEARS
-    )
-    expect(parseProposedAdvanceDelayYears('')).toBe(DEFAULT_ADVANCE_DELAY_YEARS)
-  })
+  it.each([null, undefined, '', '   ', '\t'])(
+    'preserves missing value %j as null',
+    (value) => {
+      expect(parseProposedAdvanceDelayYears(value)).toBeNull()
+    }
+  )
 
   it('returns finite numbers verbatim and null for non-finite numbers', () => {
     expect(parseProposedAdvanceDelayYears(2)).toBe(2)
