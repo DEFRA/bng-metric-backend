@@ -655,3 +655,129 @@ describe('rederivePostInterventionFromBaseline', () => {
     expect(rederived.units.habitatsNetUnitChange).toBe(0)
   })
 })
+
+describe('resyncPostInterventionBaselineSide — a renamed baseline ref (BMD-1061)', () => {
+  test('carries the new ref onto the post-intervention row joined to the feature', () => {
+    const previousBaseline = { habitats: [baselineHabitat()] }
+    const baseline = { habitats: [baselineHabitat({ ref: 'B-A1' })] }
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].ref).toBe('B-A1')
+  })
+
+  test('renames every row of a split', () => {
+    const previousBaseline = { habitats: [baselineHabitat()] }
+    const baseline = { habitats: [baselineHabitat({ ref: 'B-A1' })] }
+    const postIntervention = {
+      habitats: [
+        postInterventionHabitat({ featureId: 'pi-1' }),
+        postInterventionHabitat({
+          featureId: 'pi-2',
+          retentionCategory: 'Created'
+        })
+      ]
+    }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(postIntervention.habitats.map((h) => h.ref)).toEqual([
+      'B-A1',
+      'B-A1'
+    ])
+  })
+
+  test('renames only the row resolved to the renamed one of two features sharing a ref', () => {
+    const previousBaseline = {
+      habitats: [
+        baselineHabitat({ featureId: 'b-grass' }),
+        baselineHabitat({
+          featureId: 'b-urban',
+          type: 'Allotments',
+          broadType: 'Urban'
+        })
+      ]
+    }
+    const baseline = {
+      habitats: [
+        baselineHabitat({ featureId: 'b-grass', ref: 'B-A1' }),
+        baselineHabitat({
+          featureId: 'b-urban',
+          type: 'Allotments',
+          broadType: 'Urban'
+        })
+      ]
+    }
+    const postIntervention = {
+      habitats: [
+        postInterventionHabitat({ featureId: 'pi-grass' }),
+        postInterventionHabitat({
+          featureId: 'pi-urban',
+          baseline: { type: 'Allotments', broadType: 'Urban' },
+          proposed: { type: 'Allotments', broadType: 'Urban' }
+        })
+      ]
+    }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(postIntervention.habitats.map((h) => h.ref)).toEqual(['B-A1', 'A1'])
+  })
+
+  test('keeps the ref of a row that cannot be told apart, and says so', () => {
+    const logger = { warn: vi.fn() }
+    const previousBaseline = {
+      habitats: [
+        baselineHabitat({ featureId: 'b-1' }),
+        baselineHabitat({ featureId: 'b-2' })
+      ]
+    }
+    const baseline = {
+      habitats: [
+        baselineHabitat({ featureId: 'b-1', ref: 'B-A1' }),
+        baselineHabitat({ featureId: 'b-2' })
+      ]
+    }
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    resyncPostInterventionBaselineSide(
+      postIntervention,
+      { baseline, previousBaseline },
+      logger
+    )
+
+    expect(postIntervention.habitats[0].ref).toBe('A1')
+    expect(logger.warn).toHaveBeenCalledTimes(1)
+  })
+
+  test('renames a hedgerow row with its baseline hedgerow', () => {
+    const baselineHedgerow = (ref) => ({
+      featureId: 'b-h',
+      ref,
+      type: 'Native hedgerow',
+      condition: 'Good',
+      sizeMetres: 1000
+    })
+    const postIntervention = {
+      hedgerows: [makeHedgerow({ featureId: 'pi-h', ref: 'H1' })]
+    }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: { hedgerows: [baselineHedgerow('B-H1')] },
+      previousBaseline: { hedgerows: [baselineHedgerow('H1')] }
+    })
+
+    expect(postIntervention.hedgerows[0].ref).toBe('B-H1')
+  })
+})
