@@ -201,6 +201,28 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
   })
 })
 
+describe('PUT /projects/{projectId}/post-intervention/habitats/{featureId}', () => {
+  it('returns 404 when the habitat is not in the post-intervention document', async () => {
+    const projectId = await seedProject({
+      name: 'Post-intervention habitat save IT',
+      baseline: { habitats: [habitatFixture()] },
+      postIntervention: { habitats: [] }
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/habitats/${randomUUID()}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+})
+
 describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-intervention document', () => {
   // The post-intervention document keeps its own copy of the baseline and every
   // figure it carries is measured against it, so a baseline edit re-derives the

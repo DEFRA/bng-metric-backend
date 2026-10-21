@@ -1,4 +1,5 @@
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { skipWithServiceTemplate } from '../test/helpers/template-mode.js'
 import { randomUUID } from 'node:crypto'
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
@@ -145,7 +146,8 @@ describe('POST /baseline/validate/{uploadId}', () => {
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
   })
 
-  it('validates a correct GeoPackage as valid', async () => {
+  it('validates a correct GeoPackage as valid', async ({ skip }) => {
+    skipWithServiceTemplate(skip)
     const uploadId = await uploadFixture(server, 'baseline-complete.gpkg')
     const res = await server.inject({
       method: 'POST',
@@ -157,7 +159,10 @@ describe('POST /baseline/validate/{uploadId}', () => {
     expect(res.result.errors).toEqual([])
   })
 
-  it('persists habitatSizes onto the project document when projectId is supplied', async () => {
+  it('persists habitatSizes onto the project document when projectId is supplied', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     await assertHabitatSizesPersisted(server, dbClient)
   })
 
@@ -173,7 +178,10 @@ describe('POST /baseline/validate/{uploadId}', () => {
     expect(res.result.errors.length).toBeGreaterThan(0)
   })
 
-  it('reports a GeoPackage missing red line boundaries as invalid', async () => {
+  it('reports a GeoPackage missing red line boundaries as invalid', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     const uploadId = await uploadFixture(server, 'baseline-no-rlb.gpkg')
     const res = await server.inject({
       method: 'POST',

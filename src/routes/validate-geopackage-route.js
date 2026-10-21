@@ -16,6 +16,7 @@ import {
   validateGpkgFile
 } from '../validation/geopackage/geopackage.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
+import { validateServiceTemplateGpkgFile } from '../validation/geopackage/service-template/service-template-gate.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
@@ -184,6 +185,21 @@ function validateUploadMetadata(uploadId, filename, fileSize, h, config) {
   }
 
   return null
+}
+
+/**
+ * The format gate the service-template flag selects. With the flag on, only a
+ * BNG Service template file in a supported version passes; with it off, only
+ * a legacy file, exactly as before the flag. Nothing switches between the two
+ * by looking at the file. Read per request, so a test can set the flag.
+ *
+ * @param {string} filePath
+ * @returns {{ valid: boolean, errors: Array<{ code: string, message: string }> }}
+ */
+function runFormatGate(filePath) {
+  return appConfig.get('serviceTemplate.enabled')
+    ? validateServiceTemplateGpkgFile(filePath)
+    : validateGpkgFile(filePath)
 }
 
 /**
@@ -525,7 +541,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // unpack block the event loop for their duration. Splitting them does not
     // change that; it changes how long each upload's memory is held.
     const gateStart = perfNow()
-    const gateResult = validateGpkgFile(filePath)
+    const gateResult = runFormatGate(filePath)
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {

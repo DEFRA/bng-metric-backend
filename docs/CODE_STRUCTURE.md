@@ -31,6 +31,7 @@ enrichment steps genuinely differ.
 ```
 src/validation/
   geopackage/                  SHARED parse + validate pipeline
+    service-template/            SHARED BNG Service template: version record + format gate
     baseline/                    baseline extract only
     post-intervention/           post-intervention extract + recompute only
   reference/                   SHARED habitat vocabulary (also serves /reference)

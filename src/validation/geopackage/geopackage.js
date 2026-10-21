@@ -113,30 +113,41 @@ function openStagedGpkgDatabase(buffer, stagingDir) {
   }
 }
 
-/** Structural checks that need no shape data — the early exit of the gate. */
-function runStructuralChecks(db) {
-  const errors = []
-
+/**
+ * Is this a GeoPackage at all: a GeoPackage application_id, then the system
+ * tables every GeoPackage has. Shared by both templates' gates, ahead of
+ * anything template-specific.
+ *
+ * @param {import('better-sqlite3').Database} db
+ * @returns {Array<{ code: string, message: string }>} empty when it is
+ */
+function checkGeoPackageIdentity(db) {
   // 1. Application ID confirms this is a GeoPackage, not a plain SQLite file
   let appId
   try {
     appId = db.pragma('application_id', { simple: true })
   } catch {
     /* v8 ignore next 2 */
-    return { valid: false, errors: [INVALID_FILE_ERROR] }
+    return [INVALID_FILE_ERROR]
   }
   if (!GPKG_APPLICATION_IDS.has(appId)) {
-    errors.push(
+    return [
       makeError(
         ERROR_CODES.GPKG_NOT_A_GEOPACKAGE,
         `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
       )
-    )
-    return { valid: false, errors }
+    ]
   }
 
   // 2. Required system tables
+  const errors = []
   checkSystemTables(db, errors)
+  return errors
+}
+
+/** Structural checks that need no shape data — the early exit of the gate. */
+function runStructuralChecks(db) {
+  const errors = checkGeoPackageIdentity(db)
   if (errors.length > 0) {
     return { valid: false, errors }
   }
@@ -486,3 +497,13 @@ export function readGeoPackage(filePath, mode = FEATURE_READ_MODE.full) {
 }
 
 export { validateGpkg, validateGpkgFile, validateAndReadGpkgFile }
+
+// For the BNG Service template's gate (template/), which opens and identifies
+// a file the same way before checking it against its own template.
+export {
+  baselineTemplateSchema as legacyTemplateSchema,
+  checkGeoPackageIdentity,
+  checkRequiredLayersFromSchema,
+  getFeatureLayerNames,
+  withGpkgFileDatabase
+}

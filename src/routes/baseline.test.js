@@ -66,6 +66,23 @@ vi.mock('../validation/geopackage/geopackage.js', () => ({
   readGeoPackage: vi.fn()
 }))
 
+// With the service-template flag on, the route asks the BNG Service template's
+// gate instead. These tests are about what the route does with a verdict, not
+// which gate gives it, so both gates give the one the test sets on
+// validateGpkgFile, and the tests hold in both CI runs.
+vi.mock(
+  '../validation/geopackage/service-template/service-template-gate.js',
+  async () => {
+    const { validateGpkgFile } =
+      await import('../validation/geopackage/geopackage.js')
+    return {
+      validateServiceTemplateGpkgFile: vi.fn((...args) =>
+        validateGpkgFile(...args)
+      )
+    }
+  }
+)
+
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
   extractHabitatData: vi.fn()
 }))
@@ -131,6 +148,8 @@ const {
 } = await import('../services/s3/download-file.js')
 const { validateGpkgFile, readGeoPackage } =
   await import('../validation/geopackage/geopackage.js')
+const { validateServiceTemplateGpkgFile } =
+  await import('../validation/geopackage/service-template/service-template-gate.js')
 const { assignFeatureIds } =
   await import('../validation/geopackage/assign-feature-ids.js')
 const { extractHabitatData } =
@@ -347,6 +366,39 @@ describe('validateBaseline handler — pipeline calls', () => {
       h
     )
     expect(validateGpkgFile).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
+  })
+
+  describe('the gate the service-template flag selects', () => {
+    const flagAsSet = config.get('serviceTemplate.enabled')
+
+    afterEach(() => {
+      config.set('serviceTemplate.enabled', flagAsSet)
+    })
+
+    it('is the BNG Service template gate when the flag is on', async () => {
+      config.set('serviceTemplate.enabled', true)
+
+      await validateBaseline.handler(
+        makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+        h
+      )
+
+      expect(validateServiceTemplateGpkgFile).toHaveBeenCalledWith(
+        MOCK_DOWNLOAD_PATH
+      )
+    })
+
+    it('is the legacy gate alone when the flag is off', async () => {
+      config.set('serviceTemplate.enabled', false)
+
+      await validateBaseline.handler(
+        makeBaselineRequest({ drizzle: drizzleHarness.drizzle }),
+        h
+      )
+
+      expect(validateGpkgFile).toHaveBeenCalledWith(MOCK_DOWNLOAD_PATH)
+      expect(validateServiceTemplateGpkgFile).not.toHaveBeenCalled()
+    })
   })
 
   // The gate and the unpack are now two reads of the same file, where BMD-910

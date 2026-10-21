@@ -29,6 +29,21 @@ vi.mock('../validation/geopackage/geopackage.js', () => ({
   readGeoPackage: vi.fn()
 }))
 
+// With the service-template flag on, the route asks the BNG Service template's
+// gate instead. These tests are about what the route does with a verdict, not
+// which gate gives it, so both gates give the one the test sets on
+// validateGpkgFile, and the tests hold in both CI runs.
+vi.mock(
+  '../validation/geopackage/service-template/service-template-gate.js',
+  async () => {
+    const { validateGpkgFile } =
+      await import('../validation/geopackage/geopackage.js')
+    return {
+      validateServiceTemplateGpkgFile: (...args) => validateGpkgFile(...args)
+    }
+  }
+)
+
 vi.mock('../validation/geopackage/baseline/extract-habitat-data.js', () => ({
   extractHabitatData: vi.fn()
 }))
