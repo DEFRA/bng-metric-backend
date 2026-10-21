@@ -46,9 +46,9 @@
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1150.0",
+    "@aws-sdk/client-s3": "3.1151.0",
     "@aws-sdk/credential-providers": "3.1150.0",
-    "@aws-sdk/rds-signer": "3.1150.0",
+    "@aws-sdk/rds-signer": "3.1151.0",
     "@defra/cdp-auditing": "0.6.2",
     "@defra/cdp-metrics": "0.6.1",
     "@defra/hapi-secure-context": "0.4.1",
@@ -86,7 +86,7 @@
     "proj4": "2.22.0",
     "swagger-jsdoc": "6.3.0",
     "swagger-ui-dist": "5.33.2",
-    "undici": "8.11.2"
+    "undici": "8.12.1"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.3",
@@ -97,7 +97,7 @@
     "cross-env": "10.1.0",
     "eslint": "9.39.2",
     "husky": "9.1.7",
-    "neostandard": "0.14.0",
+    "neostandard": "0.14.1",
     "prettier": "3.9.10",
     "vitest": "5.0.4",
     "vitest-fetch-mock": "0.4.5"
