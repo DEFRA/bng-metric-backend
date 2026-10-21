@@ -199,7 +199,7 @@ const config = convict({
   },
   serviceTemplate: {
     enabled: {
-      doc: 'Feature flag (BMD-1082): take uploads in the BNG Service template, and refuse the legacy template. Off takes the legacy template only. Set per environment in cdp-app-config.',
+      doc: 'Feature flag: take uploads in the BNG Service template, and refuse the legacy template. Off takes the legacy template only. Set per environment in cdp-app-config.',
       format: STRICT_BOOLEAN,
       default: false,
       env: 'SERVICE_TEMPLATE_ENABLED'

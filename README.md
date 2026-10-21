@@ -146,9 +146,9 @@ The tests run once per state of each flag, and both runs must pass on every
 change: the flag-off run is the existing check, and the flag-on run is a second
 check named after the flag.
 
-| Flag                       | Config key                | What it does                                                                                               |
-| :------------------------- | :------------------------ | :--------------------------------------------------------------------------------------------------------- |
-| `SERVICE_TEMPLATE_ENABLED` | `serviceTemplate.enabled` | Take uploads in the BNG Service template and refuse the legacy template (BMD-1082). Off takes legacy only. |
+| Flag                       | Config key                | What it does                                                                                    |
+| :------------------------- | :------------------------ | :---------------------------------------------------------------------------------------------- |
+| `SERVICE_TEMPLATE_ENABLED` | `serviceTemplate.enabled` | Take uploads in the BNG Service template and refuse the legacy template. Off takes legacy only. |
 
 To run the tests with a flag on locally:
 
