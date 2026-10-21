@@ -135,6 +135,27 @@ If you are having issues with formatting of line breaks on Windows update your g
 git config --global core.autocrlf false
 ```
 
+## Feature flags
+
+A feature flag is an entry in `src/config.js` with the `strict-boolean` format,
+read from an environment variable and **off by default in every environment**.
+It is set per environment in cdp-app-config, so turning it on needs no release.
+Read it where it is used, with `config.get(...)`, so a test can set it.
+
+The tests run once per state of each flag, and both runs must pass on every
+change: the flag-off run is the existing check, and the flag-on run is a second
+check named after the flag.
+
+| Flag                       | Config key                | What it does                                                                                               |
+| :------------------------- | :------------------------ | :--------------------------------------------------------------------------------------------------------- |
+| `SERVICE_TEMPLATE_ENABLED` | `serviceTemplate.enabled` | Take uploads in the BNG Service template and refuse the legacy template (BMD-1082). Off takes legacy only. |
+
+To run the tests with a flag on locally:
+
+```bash
+SERVICE_TEMPLATE_ENABLED=true npm test
+```
+
 ## API endpoints
 
 | Endpoint             | Description                    |
