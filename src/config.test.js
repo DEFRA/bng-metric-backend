@@ -67,6 +67,52 @@ describe('#config boolean flags from the environment', () => {
   })
 })
 
+describe('#config service-template flag', () => {
+  const reload = async () => {
+    vi.resetModules()
+    const { config } = await import('./config.js')
+    return config
+  }
+
+  test('Should default to off, so every environment takes the legacy template until it is set', async () => {
+    vi.stubEnv('SERVICE_TEMPLATE_ENABLED', undefined)
+
+    const config = await reload()
+
+    expect(config.get('serviceTemplate.enabled')).toBe(false)
+
+    vi.unstubAllEnvs()
+  })
+
+  test.each([
+    ['true', true],
+    ['on', true],
+    ['1', true],
+    ['false', false],
+    ['off', false],
+    ['0', false]
+  ])(
+    'Should read SERVICE_TEMPLATE_ENABLED=%s as %s',
+    async (value, expected) => {
+      vi.stubEnv('SERVICE_TEMPLATE_ENABLED', value)
+
+      const config = await reload()
+
+      expect(config.get('serviceTemplate.enabled')).toBe(expected)
+
+      vi.unstubAllEnvs()
+    }
+  )
+
+  test('Should refuse a value that is not recognisably a boolean', async () => {
+    vi.stubEnv('SERVICE_TEMPLATE_ENABLED', 'enabled')
+
+    await expect(reload()).rejects.toThrow(/must be one of true\/false/)
+
+    vi.unstubAllEnvs()
+  })
+})
+
 describe('#config perf-evidence flag', () => {
   const reload = async () => {
     vi.resetModules()

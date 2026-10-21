@@ -197,6 +197,14 @@ const config = convict({
     default: true,
     env: 'ENABLE_PERF_EVIDENCE'
   },
+  serviceTemplate: {
+    enabled: {
+      doc: 'Feature flag: take uploads in the BNG Service template, and refuse the legacy template. Off takes the legacy template only. Set per environment in cdp-app-config.',
+      format: STRICT_BOOLEAN,
+      default: false,
+      env: 'SERVICE_TEMPLATE_ENABLED'
+    }
+  },
   tracing: {
     header: {
       doc: 'CDP tracing header name',
