@@ -114,12 +114,17 @@ jobs:
           exit 1
 
       - name: Install Liquibase
+        # Both hosts rate-limit unauthenticated downloads (HTTP 429), and the
+        # integration matrix downloads twice per push, so retry rather than
+        # fail. The tarball is saved before it is extracted: a retry part way
+        # through would otherwise feed tar the broken attempt and the retry.
         run: |
           mkdir -p ./liquibase-bin/lib
-          curl -fsSL --proto '=https' --tlsv1.2 \
+          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
             "https://github.com/liquibase/liquibase/releases/download/v${BNG_LIQUIBASE_VERSION}/liquibase-${BNG_LIQUIBASE_VERSION}.tar.gz" \
-            | tar xz -C ./liquibase-bin
-          curl -fsSL --proto '=https' --tlsv1.2 \
+            -o liquibase.tar.gz
+          tar xzf liquibase.tar.gz -C ./liquibase-bin
+          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
             "https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar" \
             -o "./liquibase-bin/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar"
 
