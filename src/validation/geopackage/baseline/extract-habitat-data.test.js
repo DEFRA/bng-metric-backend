@@ -120,6 +120,28 @@ describe('extractHabitatData — top-level shape', () => {
     expect(out.document.filename).toBeNull()
     expect(out.document.fileSize).toBeNull()
   })
+
+  it('records the template and version a BNG Service template file is in', () => {
+    const template = { name: 'bng-service', version: '1.0' }
+    const out = extractHabitatData(
+      { redline: [], areas: [], hedgerows: [], watercourses: [] },
+      { template }
+    )
+
+    expect(out.document.template).toEqual(template)
+    expect(out.geometries).not.toHaveProperty('template')
+  })
+
+  it('records no template for a legacy file', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document).not.toHaveProperty('template')
+  })
 })
 
 const SAMPLE_POINT = { type: 'Point', coordinates: [0, 0] }

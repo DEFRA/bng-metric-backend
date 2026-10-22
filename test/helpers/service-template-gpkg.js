@@ -21,7 +21,9 @@ import { createSystemTables, quoteIdent } from './gpkg-db-ddl.js'
  * own reading of it, so a mistake in the backend's schema shows up as a failing
  * test instead of being built into the fixtures. Tables are empty unless the
  * caller gives them rows: the format gate never reads a feature, the reader
- * does. {@link populatedBaselineRows} gives one valid row per Baseline table.
+ * does. {@link populatedBaselineRows} gives one valid row per Baseline table,
+ * and {@link populatedPostInterventionRows} one per Post-Intervention table
+ * the service reads.
  *
  * The legacy helpers (gpkg-build.js) stay for the flag-off tests.
  */
@@ -100,6 +102,85 @@ export function populatedBaselineRows() {
         Length: 1,
         feature_uuid: '0c55b68c-6afb-59c6-9453-618d89539d76'
       }
+    ]
+  }
+}
+
+const AREA_HABITATS_PI = 'Area Habitats Post-Intervention'
+const HEDGEROWS_PI = 'Hedgerows Post-Intervention'
+const WATERCOURSES_PI = 'Watercourses Post-Intervention'
+
+const NO_ADVANCE_OR_DELAY = {
+  'Habitat created in advance/years': '0',
+  'Delay in starting habitat creation/years': '0',
+  'Spatial risk category': 'N/A'
+}
+
+/**
+ * The baseline row a post-intervention row continues: its Baseline columns,
+ * its ref as Parent Ref, and its uuid as parent_uuid.
+ */
+function continuing(baselineRow, proposed) {
+  const { 'Habitat Ref': ref, feature_uuid: uuid, ...baseline } = baselineRow
+  return {
+    'Habitat Ref': ref,
+    'Parent Ref': ref,
+    ...baseline,
+    ...NO_ADVANCE_OR_DELAY,
+    ...proposed,
+    parent_uuid: uuid
+  }
+}
+
+/**
+ * One valid row in each Post-Intervention table the service reads, each
+ * continuing the row {@link populatedBaselineRows} gives (from the harness
+ * corpus's valid/plain-site.gpkg): the area habitat Enhanced to a better
+ * condition, at High strategic significance; the hedgerow and the
+ * watercourse Retained.
+ *
+ * @returns {Record<string, object[]>} rows by table, as `rows` takes them
+ */
+export function populatedPostInterventionRows() {
+  const baseline = populatedBaselineRows()
+  const [area] = baseline[AREA_HABITATS_BASELINE]
+  const [hedge] = baseline[HEDGEROWS_BASELINE]
+  const [river] = baseline[WATERCOURSES_BASELINE]
+  return {
+    [AREA_HABITATS_PI]: [
+      continuing(area, {
+        'Retention Category': 'Enhanced',
+        'Proposed Broad Habitat Type': area['Baseline Broad Habitat Type'],
+        'Proposed Habitat Type': area['Baseline Habitat Type'],
+        'Proposed Distinctiveness': area['Baseline Distinctiveness'],
+        'Proposed Condition': 'Moderate',
+        'Proposed Strategic Significance': 'High'
+      })
+    ],
+    [HEDGEROWS_PI]: [
+      continuing(hedge, {
+        'Retention Category': 'Retained',
+        'Proposed Hedge Type': hedge['Baseline Hedge Type'],
+        'Proposed Distinctiveness': hedge['Baseline Distinctiveness'],
+        'Proposed Condition': hedge['Baseline Condition'],
+        'Proposed Strategic Significance': 'Low',
+        'Baseline Length': hedge.Length
+      })
+    ],
+    [WATERCOURSES_PI]: [
+      continuing(river, {
+        'Retention Category': 'Retained',
+        'Proposed River Type': river['Baseline River Type'],
+        'Proposed Distinctiveness': river['Baseline Distinctiveness'],
+        'Proposed Condition': river['Baseline Condition'],
+        'Proposed Strategic Significance': 'Low',
+        'Proposed Encroachment into Watercourse':
+          river['Baseline Encroachment into Watercourse'],
+        'Proposed Encroachment into riparian zone':
+          river['Baseline Encroachment into riparian zone'],
+        'Enhancement Type': 'N/A',
+        'Baseline Length': river.Length
+      })
     ]
   }
 }

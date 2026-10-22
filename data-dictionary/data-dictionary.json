@@ -1150,6 +1150,39 @@
       "description": "ISO 8601 timestamp of when the data was imported."
     },
     {
+      "path": "baseline.template",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file."
+    },
+    {
+      "path": "baseline.template.name",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template the GeoPackage is in: `bng-service`."
+    },
+    {
+      "path": "baseline.template.version",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template version, from its version record, e.g. `1.0`."
+    },
+    {
       "path": "baseline.redLine",
       "type": "object",
       "required": false,
@@ -2911,6 +2944,39 @@
       "constraints": ["ISO 8601 date"],
       "openMap": false,
       "description": "ISO 8601 timestamp of when the data was imported."
+    },
+    {
+      "path": "postIntervention.template",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file."
+    },
+    {
+      "path": "postIntervention.template.name",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template the GeoPackage is in: `bng-service`."
+    },
+    {
+      "path": "postIntervention.template.version",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template version, from its version record, e.g. `1.0`."
     },
     {
       "path": "postIntervention.redLine",

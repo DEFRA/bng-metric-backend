@@ -21,6 +21,10 @@ import {
 } from '../validation/geopackage/geos/worker-pool.js'
 import { getParseBudget } from '../validation/geopackage/parse-budget.js'
 import {
+  readBaselineStage,
+  validateBaselineStage
+} from '../validation/geopackage/service-template/baseline-stage.js'
+import {
   busyReason,
   respondToBusy,
   respondToUnavailable
@@ -290,6 +294,14 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     readSource
   } = context
 
+  // A BNG Service template file at the baseline + post-intervention endpoint
+  // saves the baseline its Baseline tables hold, so those are checked first,
+  // as the baseline endpoint checks them. Null for every other upload.
+  const baselineCheck = await validateBaselineStage(context)
+  if (baselineCheck && !baselineCheck.valid) {
+    return respondToGeometryRejection(baselineCheck, uploadId, h, config)
+  }
+
   // The unpacked layers, once the pool hands them back. Captured here so the
   // metrics below can report on what was actually read — `validateGeoPackageLayers`
   // calls the loader on the far side of the queue wait, so this is set by the
@@ -380,7 +392,15 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     { drizzle, logger },
     projectId,
     geometryLayers,
-    { uploadId, credentials, filename, fileSize, geometrySizes: result.sizes },
+    {
+      uploadId,
+      credentials,
+      filename,
+      fileSize,
+      geometrySizes: result.sizes,
+      template: context.template,
+      baselineStage: readBaselineStage(context, baselineCheck)
+    },
     h,
     config
   )
@@ -446,28 +466,34 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
       return await respondToGateRejection(gateResult, uploadId, h, config)
     }
 
+    // Attributes only. The geometry checks run in the worker against the file
+    // itself, and the data-quality checks read properties — so nothing before
+    // the accept decision needs a decoded shape, and a file we reject never
+    // pays for one.
+    const loadAttributes = (source) => {
+      // The budget is reserved HERE, at the moment the layers come into
+      // existence, and not before `validateLayers` — because the pool wait
+      // sits between the two and a waiting request holds a path, not a heap.
+      // Charging it the full unpack estimate for that wait made queue depth
+      // consume the parse budget: sixteen queued 704 KB uploads reserved
+      // 142 MB while doing no work, and large uploads were refused
+      // `memory_budget` because of it. Reserved once: a template file read at
+      // both stages holds one stage's layers at a time.
+      releaseParseBudget ??= parseBudget().reserve(context.fileSize)
+      return readGeoPackage(filePath, FEATURE_READ_MODE.properties, source)
+    }
     return await validateLayers(
-      // Attributes only. The geometry checks run in the worker against the file
-      // itself, and the data-quality checks read properties — so nothing before
-      // the accept decision needs a decoded shape, and a file we reject never
-      // pays for one.
-      () => {
-        // The budget is reserved HERE, at the moment the layers come into
-        // existence, and not before `validateLayers` — because the pool wait
-        // sits between the two and a waiting request holds a path, not a heap.
-        // Charging it the full unpack estimate for that wait made queue depth
-        // consume the parse budget: sixteen queued 704 KB uploads reserved
-        // 142 MB while doing no work, and large uploads were refused
-        // `memory_budget` because of it.
-        releaseParseBudget = parseBudget().reserve(context.fileSize)
-        return readGeoPackage(
-          filePath,
-          FEATURE_READ_MODE.properties,
-          gateResult.readSource
-        )
-      },
+      () => loadAttributes(gateResult.readSource),
       drizzle,
-      { ...context, filePath, gateMs, readSource: gateResult.readSource },
+      {
+        ...context,
+        filePath,
+        gateMs,
+        readSource: gateResult.readSource,
+        baselineReadSource: gateResult.baselineReadSource,
+        loadBaselineLayers: () => loadAttributes(gateResult.baselineReadSource),
+        template: gateResult.template
+      },
       h,
       config
     )
