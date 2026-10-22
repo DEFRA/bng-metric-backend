@@ -246,3 +246,72 @@ describe('assignFeatureIds', () => {
     })
   })
 })
+
+describe('assignFeatureIds — a BNG Service template feature’s own uuid', () => {
+  const FILE_UUID = '44444444-4444-4444-8444-444444444444'
+  const FILE_UUID_2 = '55555555-5555-4555-8555-555555555555'
+
+  const templateFeature = (parcelRef, featureUuid) => ({
+    properties: { 'Parcel Ref': parcelRef, feature_uuid: featureUuid }
+  })
+
+  it('uses the file’s feature_uuid as the featureId', () => {
+    const result = assignFeatureIds({
+      areas: [templateFeature('H1', FILE_UUID)],
+      hedgerows: [templateFeature('HG1', FILE_UUID_2)]
+    })
+
+    expect(result.areas[0].featureId).toBe(FILE_UUID)
+    expect(result.hedgerows[0].featureId).toBe(FILE_UUID_2)
+  })
+
+  it('prefers it to the id stored for the same ref', () => {
+    const result = assignFeatureIds(
+      { areas: [templateFeature('H1', FILE_UUID)] },
+      new Map([[refLookupKey('habitats', 'H1'), STORED_ID]])
+    )
+
+    expect(result.areas[0].featureId).toBe(FILE_UUID)
+  })
+
+  it('lets features share a Habitat Ref, each keeping its own uuid', () => {
+    const result = assignFeatureIds({
+      areas: [
+        templateFeature('H1', FILE_UUID),
+        templateFeature('H1', FILE_UUID_2)
+      ]
+    })
+
+    expect(result.areas.map((f) => f.featureId)).toEqual([
+      FILE_UUID,
+      FILE_UUID_2
+    ])
+  })
+
+  it('does not use a uuid two features share, even in different layers', () => {
+    const result = assignFeatureIds({
+      areas: [templateFeature('H1', FILE_UUID)],
+      hedgerows: [templateFeature('HG1', FILE_UUID)]
+    })
+
+    expect(result.areas[0].featureId).not.toBe(FILE_UUID)
+    expect(result.hedgerows[0].featureId).not.toBe(FILE_UUID)
+    expect(result.areas[0].featureId).toMatch(UUID_REGEX)
+  })
+
+  it.each([
+    ['blank', ''],
+    ['not a uuid', 'H1-uuid'],
+    ['not text', 42]
+  ])(
+    'falls back to the usual rules for a feature_uuid that is %s',
+    (_, uuid) => {
+      const result = assignFeatureIds(
+        { areas: [templateFeature('H1', uuid)] },
+        new Map([[refLookupKey('habitats', 'H1'), STORED_ID]])
+      )
+
+      expect(result.areas[0].featureId).toBe(STORED_ID)
+    }
+  )
+})

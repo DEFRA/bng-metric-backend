@@ -182,3 +182,50 @@ describe('cleanHabitatRef', () => {
     expect(cleanHabitatRef(undefined)).toBeUndefined()
   })
 })
+
+describe('checkHabitatRefs — a BNG Service template file', () => {
+  const layerTables = {
+    areas: 'Area Habitats Baseline',
+    hedgerows: 'Hedgerows Baseline',
+    watercourses: 'Watercourses Baseline'
+  }
+
+  it('names the table and row of a blank Habitat Ref, in the template’s terms', () => {
+    const layers = {
+      areas: [feature('H001', { fid: 1 }), feature('  ', { fid: 2 })],
+      hedgerows: [feature(null, { fid: 7 })],
+      layerTables
+    }
+
+    const [error] = checkHabitatRefs(layers)
+
+    expect(error.code).toBe(ERROR_CODES.HABITAT_REF_MISSING)
+    expect(error.message).toBe(
+      'Every habitat must have a Habitat Ref: Area Habitats Baseline fid 2, Hedgerows Baseline fid 7'
+    )
+    expect(error.details.sample).toEqual([
+      { layer: 'areas', table: 'Area Habitats Baseline', idx: 1, fid: 2 },
+      { layer: 'hedgerows', table: 'Hedgerows Baseline', idx: 0, fid: 7 }
+    ])
+  })
+
+  it('names the table of a Habitat Ref with invalid characters', () => {
+    const layers = {
+      watercourses: [feature('R�01', { fid: 3 })],
+      layerTables
+    }
+
+    expect(checkHabitatRefs(layers)[0].message).toBe(
+      'One or more Habitat Refs contain characters that are not valid UTF-8: Watercourses Baseline fid 3'
+    )
+  })
+
+  it('allows Habitat Refs to repeat', () => {
+    const layers = {
+      areas: [feature('H001', { fid: 1 }), feature('H001', { fid: 2 })],
+      layerTables
+    }
+
+    expect(checkHabitatRefs(layers)).toEqual([])
+  })
+})

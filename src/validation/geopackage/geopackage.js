@@ -481,12 +481,19 @@ function getTableNames(db) {
  * @param {string} [mode] one of {@link FEATURE_READ_MODE}. Defaults to `full`,
  *   which is what the GEOS worker and the persistence path need; callers that
  *   only read attributes should ask for `properties` and skip the decode.
+ * @param {import('./service-template/template-tables.js').TemplateReadSource} [source]
+ *   for a BNG Service template file, the version and stage to read; omitted
+ *   for a legacy file
  * @returns {ReturnType<typeof toLayers>}
  */
-export function readGeoPackage(filePath, mode = FEATURE_READ_MODE.full) {
+export function readGeoPackage(
+  filePath,
+  mode = FEATURE_READ_MODE.full,
+  source = undefined
+) {
   const db = new Database(filePath, { readonly: true, fileMustExist: true })
   try {
-    const featureTables = readFeatureTables(db, { mode })
+    const featureTables = readFeatureTables(db, { mode, source })
     logger.info(
       `readGeoPackage - file: ${filePath}, feature tables: ${JSON.stringify(featureTables.tableNames)}`
     )

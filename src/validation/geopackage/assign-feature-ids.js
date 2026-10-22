@@ -1,5 +1,7 @@
 import { randomUUID } from 'node:crypto'
 
+import { FEATURE_UUID } from 'bng-library/bng-service'
+
 import {
   REF_PROP_KEYS_BY_LAYER,
   RED_LINE_KEY,
@@ -24,6 +26,43 @@ const RAW_TO_DOCUMENT_LAYER = Object.freeze({
 
 /** Lookup used when a layer has nothing to carry forward. */
 const noCarryForward = () => null
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/** A feature's own identity from the file, when it carries a valid one. */
+function fileFeatureUuid(feature) {
+  const uuid = feature?.properties?.[FEATURE_UUID]
+  return typeof uuid === 'string' && UUID_PATTERN.test(uuid) ? uuid : null
+}
+
+/**
+ * The BNG Service template gives every baseline feature a `feature_uuid`, which
+ * is its stable identity: a split feature keeps its parent's Habitat Ref, so
+ * the ref cannot be. The uuids that appear exactly once in the file, across
+ * every layer. One shared by two features cannot say which it belongs to, so
+ * neither uses it. A legacy file has none.
+ *
+ * @param {object} layers
+ * @returns {Set<string>}
+ */
+function uniqueFileFeatureUuids(layers) {
+  const counts = new Map()
+  for (const features of Object.values(layers)) {
+    if (!Array.isArray(features)) {
+      continue
+    }
+    for (const feature of features) {
+      const uuid = fileFeatureUuid(feature)
+      if (uuid) {
+        counts.set(uuid, (counts.get(uuid) ?? 0) + 1)
+      }
+    }
+  }
+  return new Set(
+    [...counts].filter(([, count]) => count === 1).map(([uuid]) => uuid)
+  )
+}
 
 /**
  * Refs appearing exactly once in the incoming layer. A ref shared by two
@@ -104,9 +143,15 @@ function carryForwardLookup(documentLayer, features, featureIdByRef) {
  * @param {string} rawLayerName
  * @param {object[]} features
  * @param {Map<string, string>} featureIdByRef
+ * @param {Set<string>} fileUuids the file's own feature uuids, used as ids
  * @returns {object[]}
  */
-function assignLayerFeatureIds(rawLayerName, features, featureIdByRef) {
+function assignLayerFeatureIds(
+  rawLayerName,
+  features,
+  featureIdByRef,
+  fileUuids
+) {
   const documentLayer = RAW_TO_DOCUMENT_LAYER[rawLayerName]
   const existingFeatureId = carryForwardLookup(
     documentLayer,
@@ -119,9 +164,13 @@ function assignLayerFeatureIds(rawLayerName, features, featureIdByRef) {
     if (feature === null || typeof feature !== 'object') {
       return feature
     }
+    const ownUuid = fileFeatureUuid(feature)
     return {
       ...feature,
-      featureId: existingFeatureId(feature, index) ?? randomUUID()
+      featureId:
+        (fileUuids.has(ownUuid) ? ownUuid : null) ??
+        existingFeatureId(feature, index) ??
+        randomUUID()
     }
   })
 }
@@ -139,15 +188,20 @@ function assignLayerFeatureIds(rawLayerName, features, featureIdByRef) {
  * rows rather than replacing them. Omit it and every feature gets a fresh UUID,
  * which is the correct behaviour for a project's first import.
  *
+ * A BNG Service template feature's own `feature_uuid`, where it is valid and
+ * unique in the file, comes first: it is the same on every upload of the file,
+ * so it carries the feature's identity without a lookup.
+ *
  * @param {object} layers  The raw layers object from readGeoPackage.
  * @param {Map<string, string>} [featureIdByRef]  ref → existing featureId.
  * @returns {object}       New layers object with featureId on every feature.
  */
 export function assignFeatureIds(layers, featureIdByRef = new Map()) {
+  const fileUuids = uniqueFileFeatureUuids(layers)
   const result = {}
   for (const [layerName, features] of Object.entries(layers)) {
     result[layerName] = Array.isArray(features)
-      ? assignLayerFeatureIds(layerName, features, featureIdByRef)
+      ? assignLayerFeatureIds(layerName, features, featureIdByRef, fileUuids)
       : features
   }
   return result

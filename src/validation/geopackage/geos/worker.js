@@ -22,6 +22,7 @@
 import { parentPort } from 'node:worker_threads'
 
 import { readGeoPackage } from '../geopackage.js'
+import { FEATURE_READ_MODE } from '../read-feature-tables.js'
 import { validateGeoPackageLayersGeos } from './index.js'
 import { loadGeosRuntime } from './geos-runtime.js'
 
@@ -40,9 +41,9 @@ parentPort.on('message', async (message) => {
   if (message?.type !== VALIDATE) {
     return
   }
-  const { jobId, filePath, includeSizes } = message
+  const { jobId, filePath, includeSizes, source } = message
   try {
-    const layers = readGeoPackage(filePath)
+    const layers = readGeoPackage(filePath, FEATURE_READ_MODE.full, source)
     const result = await validateGeoPackageLayersGeos(layers, { includeSizes })
     parentPort.postMessage({ jobId, result })
   } catch (error) {

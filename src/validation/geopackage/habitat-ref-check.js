@@ -1,3 +1,5 @@
+import { HABITAT_REF } from 'bng-library/bng-service'
+
 import { ERROR_CODES, makeError } from './errors.js'
 import { PROP_KEYS, pickProp } from './properties.js'
 
@@ -9,6 +11,9 @@ import { PROP_KEYS, pickProp } from './properties.js'
 export const MAX_HABITAT_REF_LENGTH = 100
 
 const SAMPLE_CAP = 50
+
+/** The legacy template's name for a habitat's reference column. */
+const LEGACY_REF_COLUMN = 'Parcel Ref'
 
 /**
  * The character a UTF-8 decoder puts in place of bytes that are not valid
@@ -64,13 +69,22 @@ function hasInvalidCharacters(ref) {
   return typeof ref !== 'number'
 }
 
-function describe(layer, feature, idx) {
+/**
+ * @param {string} layer
+ * @param {object} feature
+ * @param {number} idx
+ * @param {string} [table] the BNG Service template table the layer was read
+ *   from, which the message names; absent for a legacy file
+ */
+function describe(layer, feature, idx, table) {
   const fid = pickProp(feature?.properties ?? {}, PROP_KEYS.fid)
-  return fid == null || fid === '' ? { layer, idx } : { layer, idx, fid }
+  const where = table ? { layer, table, idx } : { layer, idx }
+  return fid == null || fid === '' ? where : { ...where, fid }
 }
 
-function labelOf({ layer, fid, idx }) {
-  return fid == null ? `${layer} feature #${idx}` : `${layer} fid ${fid}`
+function labelOf({ layer, table, fid, idx }) {
+  const name = table ?? layer
+  return fid == null ? `${name} feature #${idx}` : `${name} fid ${fid}`
 }
 
 /**
@@ -112,30 +126,35 @@ function collated(code, heading, offenders) {
 export function checkHabitatRefs(layers) {
   const missing = []
   const invalid = []
+  // A BNG Service template file names its tables, and calls the column Habitat
+  // Ref; the messages use the file's own names.
+  const tables = layers?.layerTables
+  const refColumn = tables ? HABITAT_REF : LEGACY_REF_COLUMN
   for (const layer of HABITAT_REF_LAYERS) {
     const features = layers?.[layer] ?? []
+    const table = tables?.[layer]
     features.forEach((feature, idx) => {
       const ref = pickProp(feature?.properties ?? {}, PROP_KEYS.parcelRef)
       // A missing reference has no characters to check, so it is reported
       // as missing only.
       if (isMissing(ref)) {
-        missing.push(describe(layer, feature, idx))
+        missing.push(describe(layer, feature, idx, table))
         return
       }
       if (hasInvalidCharacters(ref)) {
-        invalid.push(describe(layer, feature, idx))
+        invalid.push(describe(layer, feature, idx, table))
       }
     })
   }
   return [
     collated(
       ERROR_CODES.HABITAT_REF_MISSING,
-      'Every habitat must have a Parcel Ref',
+      `Every habitat must have a ${refColumn}`,
       missing
     ),
     collated(
       ERROR_CODES.HABITAT_REF_INVALID_CHARACTERS,
-      'One or more Parcel Refs contain characters that are not valid UTF-8',
+      `One or more ${refColumn}s contain characters that are not valid UTF-8`,
       invalid
     )
   ].filter(Boolean)

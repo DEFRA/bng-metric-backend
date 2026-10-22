@@ -11,6 +11,12 @@ import {
   closeGeosWorkerPool,
   getGeosWorkerPool
 } from './worker-pool.js'
+import { templateReadSource } from '../service-template/template-tables.js'
+import {
+  buildServiceTemplateBuffer,
+  populatedBaselineRows
+} from '../../../../test/helpers/service-template-gpkg.js'
+import { withTempGpkgFile } from '../../../../test/helpers/gpkg.js'
 
 /**
  * These tests drive real worker threads, because the properties worth asserting
@@ -545,5 +551,25 @@ describe('ValidationTimeoutError — contention', () => {
 
   it('still reports the budget it overran', () => {
     expect(timeout({ queueDepth: 0, busyWorkers: 1 }).message).toContain('5000')
+  })
+})
+
+describe('GeosWorkerPool — a BNG Service template file', () => {
+  it('has the worker read the tables the source names', async () => {
+    const pool = openPool()
+    const buffer = buildServiceTemplateBuffer({ rows: populatedBaselineRows() })
+
+    const result = await withTempGpkgFile(buffer, (filePath) =>
+      pool.run(filePath, {
+        includeSizes: true,
+        source: templateReadSource('1.0', 'baseline')
+      })
+    )
+
+    // Measured, so the worker found the area habitat in Area Habitats
+    // Baseline, which the legacy aliases would not have.
+    expect(result.sizes.areas).toHaveLength(1)
+    expect(result.sizes.hedgerows).toHaveLength(1)
+    expect(result.sizes.watercourses).toHaveLength(1)
   })
 })

@@ -286,7 +286,8 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     filename,
     fileSize,
     filePath,
-    gateMs
+    gateMs,
+    readSource
   } = context
 
   // The unpacked layers, once the pool hands them back. Captured here so the
@@ -311,7 +312,7 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
-    { filePath, includeSizes: Boolean(projectId) }
+    { filePath, includeSizes: Boolean(projectId), source: readSource }
   )
   const featureCount = countFeatures(layers)
   // Attributes have told us everything they can — the checks have run and the
@@ -369,7 +370,11 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // `serialised`, not `full`: the inserts bind geometry as JSON text into
   // ST_GeomFromGeoJSON and never read a coordinate, so the decoded object graph
   // would be built, held across the whole transaction, and never used.
-  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.serialised)
+  const geometryLayers = readGeoPackage(
+    filePath,
+    FEATURE_READ_MODE.serialised,
+    readSource
+  )
 
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
@@ -422,7 +427,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // unpack block the event loop for their duration. Splitting them does not
     // change that; it changes how long each upload's memory is held.
     const gateStart = perfNow()
-    const gateResult = runFormatGate(filePath)
+    const gateResult = runFormatGate(filePath, config.projectDocumentKey)
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {
@@ -455,10 +460,14 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
         // 142 MB while doing no work, and large uploads were refused
         // `memory_budget` because of it.
         releaseParseBudget = parseBudget().reserve(context.fileSize)
-        return readGeoPackage(filePath, FEATURE_READ_MODE.properties)
+        return readGeoPackage(
+          filePath,
+          FEATURE_READ_MODE.properties,
+          gateResult.readSource
+        )
       },
       drizzle,
-      { ...context, filePath, gateMs },
+      { ...context, filePath, gateMs, readSource: gateResult.readSource },
       h,
       config
     )
