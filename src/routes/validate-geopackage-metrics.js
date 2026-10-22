@@ -78,10 +78,15 @@ export async function recordPoolHealth(poolTelemetry, config) {
  * each worker trip — one per stage checked.
  *
  * @param {{ uploadId: string, fileSize?: number | null, gateMs: number, featureCount: number, validateStart: number }} measured
- * @param {Array<{ poolTelemetry?: object } | null>} checks each stage's verdict
+ * @param {{ baselineCheck: { poolTelemetry?: object } | null, result: { poolTelemetry?: object } }} checks
+ *   the Baseline tables' verdict, if they were checked, and the endpoint's own
  * @param {object} config route config carrying projectDocumentKey
  */
-export async function recordValidationMetrics(measured, checks, config) {
+export async function recordValidationMetrics(
+  measured,
+  { baselineCheck, result },
+  config
+) {
   const { uploadId, fileSize, gateMs, featureCount, validateStart } = measured
   // Recorded here rather than before the queue because that is where the read
   // now happens. `gateMs` is the cheap structural pass in front of the queue;
@@ -102,9 +107,8 @@ export async function recordValidationMetrics(measured, checks, config) {
   await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
     documentKey: config.projectDocumentKey
   })
-  for (const check of checks) {
-    await recordPoolHealth(check?.poolTelemetry, config)
-  }
+  await recordPoolHealth(baselineCheck?.poolTelemetry, config)
+  await recordPoolHealth(result.poolTelemetry, config)
   await recordStage(
     PERFORMANCE_METRIC.geometryValidateMs,
     msSince(validateStart),

@@ -255,7 +255,7 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
 
   await recordValidationMetrics(
     { uploadId, fileSize, gateMs, featureCount, validateStart },
-    [baselineCheck, result],
+    { baselineCheck, result },
     config
   )
 
