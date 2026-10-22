@@ -4,6 +4,7 @@
 // every upload re-keyed every feature — a ~1000-parcel site looked like 1000
 // deletes and 1000 inserts on their side.
 import { describe, expect, it } from 'vitest'
+import { skipWithServiceTemplate } from '../test/helpers/template-mode.js'
 
 import { HTTP_OK } from './helpers/http-status.js'
 import {
@@ -56,7 +57,10 @@ describe('featureId stability across edits and re-uploads', () => {
     expect(project.projectId).toBe(project.id)
   })
 
-  it('keeps every featureId when the same GeoPackage is re-uploaded', async () => {
+  it('keeps every featureId when the same GeoPackage is re-uploaded', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     const project = await createProject('Integration test — re-upload')
 
     const first = await importBaseline(project.id)
@@ -76,7 +80,8 @@ describe('featureId stability across edits and re-uploads', () => {
     }
   })
 
-  it('keeps the red line featureId across a re-upload', async () => {
+  it('keeps the red line featureId across a re-upload', async ({ skip }) => {
+    skipWithServiceTemplate(skip)
     const project = await createProject('Integration test — red line')
 
     const first = await importBaseline(project.id)
@@ -89,7 +94,10 @@ describe('featureId stability across edits and re-uploads', () => {
     )
   })
 
-  it('re-points the geometry rows at the carried-forward ids', async () => {
+  it('re-points the geometry rows at the carried-forward ids', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     const project = await createProject('Integration test — geometry join')
 
     await importBaseline(project.id)
@@ -105,7 +113,10 @@ describe('featureId stability across edits and re-uploads', () => {
     expect(geometryIds).toEqual(documentIds)
   })
 
-  it('keeps the featureId when a feature is edited, then re-uploaded', async () => {
+  it('keeps the featureId when a feature is edited, then re-uploaded', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     const { server, headers } = getPersistenceTestContext()
     const project = await createProject('Integration test — edit then reupload')
 
@@ -143,7 +154,10 @@ describe('featureId stability across edits and re-uploads', () => {
   // feature re-keys while every other ref keeps its id. Mutating the stored ref
   // is the cheapest way to model "a parcel was renamed in QGIS" without a
   // second fixture.
-  it('re-keys only the features whose ref no longer matches', async () => {
+  it('re-keys only the features whose ref no longer matches', async ({
+    skip
+  }) => {
+    skipWithServiceTemplate(skip)
     const { dbClient } = getPersistenceTestContext()
     const project = await createProject('Integration test — partial match')
 

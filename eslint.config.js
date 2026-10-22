@@ -93,6 +93,7 @@ export default [
     // flow-specific enrichment or completeness-status modules.
     files: [
       'src/validation/geopackage/*.js',
+      'src/validation/geopackage/service-template/**/*.js',
       'src/routes/validate-geopackage-route.js'
     ],
     rules: restrictedImportPatterns([

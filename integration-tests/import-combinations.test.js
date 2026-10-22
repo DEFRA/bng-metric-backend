@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
+// Every suite here uploads a legacy file, so runs with the service-template
+// flag off only.
+import { describeLegacy as describe } from '../test/helpers/template-mode.js'
 import { copyFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'

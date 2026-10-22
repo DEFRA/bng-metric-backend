@@ -89,6 +89,38 @@ export const ERROR_CODES = Object.freeze({
    */
   BASELINE_TYPE_MISSING: 'BASELINE_TYPE_MISSING',
 
+  /**
+   * The file has no BNG Service template version record, and is not a legacy
+   * file either, so there is nothing to say which template it is.
+   */
+  TEMPLATE_VERSION_MISSING: 'TEMPLATE_VERSION_MISSING',
+
+  /** The file has more than one template version record, so its version is ambiguous. */
+  TEMPLATE_VERSION_DUPLICATED: 'TEMPLATE_VERSION_DUPLICATED',
+
+  /**
+   * The file's template version record cannot be read: it is not referenced to
+   * the whole GeoPackage, is not JSON, or does not name the bng-service format
+   * and a version.
+   */
+  TEMPLATE_VERSION_INVALID: 'TEMPLATE_VERSION_INVALID',
+
+  /** The file's template version is not one the service reads. `details.version` names it. */
+  TEMPLATE_VERSION_UNSUPPORTED: 'TEMPLATE_VERSION_UNSUPPORTED',
+
+  /**
+   * A legacy (Natural England) template file, uploaded while the service takes
+   * the BNG Service template. The user converts it with the QGIS plugin.
+   */
+  LEGACY_TEMPLATE_NOT_ACCEPTED: 'LEGACY_TEMPLATE_NOT_ACCEPTED',
+
+  /**
+   * A valid BNG Service template file, refused because the service does not
+   * read its habitats yet. `details.template` names the template and version.
+   * Removed when the BNG Service template reader lands.
+   */
+  SERVICE_TEMPLATE_NOT_YET_READ: 'SERVICE_TEMPLATE_NOT_YET_READ',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 

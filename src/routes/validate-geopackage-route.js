@@ -11,10 +11,8 @@ import {
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import {
-  readGeoPackage,
-  validateGpkgFile
-} from '../validation/geopackage/geopackage.js'
+import { readGeoPackage } from '../validation/geopackage/geopackage.js'
+import { runFormatGate } from '../validation/geopackage/format-gate.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
@@ -525,7 +523,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // unpack block the event loop for their duration. Splitting them does not
     // change that; it changes how long each upload's memory is held.
     const gateStart = perfNow()
-    const gateResult = validateGpkgFile(filePath)
+    const gateResult = runFormatGate(filePath)
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {

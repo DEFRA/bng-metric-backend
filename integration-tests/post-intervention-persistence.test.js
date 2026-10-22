@@ -1,5 +1,8 @@
 import { calculatePostInterventionNetUnitChanges } from 'bng-library/metric'
-import { describe, expect, it } from 'vitest'
+import { expect, it } from 'vitest'
+// Every suite here uploads a legacy file, so runs with the service-template
+// flag off only.
+import { describeLegacy as describe } from '../test/helpers/template-mode.js'
 
 import { HTTP_OK } from './helpers/http-status.js'
 import {
