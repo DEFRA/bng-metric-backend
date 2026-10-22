@@ -8,6 +8,8 @@ rather than editing these.
 
 | File                                        | Harness path        |
 | :------------------------------------------ | :------------------ |
+| `default-site.gpkg`                         | `valid/`            |
+| `default-site-baseline.gpkg`                | `valid/`            |
 | `version-record-missing.gpkg`               | `version-problems/` |
 | `version-record-duplicated.gpkg`            | `version-problems/` |
 | `version-unsupported.gpkg`                  | `version-problems/` |

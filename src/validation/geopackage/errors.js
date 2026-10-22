@@ -114,6 +114,13 @@ export const ERROR_CODES = Object.freeze({
    */
   LEGACY_TEMPLATE_NOT_ACCEPTED: 'LEGACY_TEMPLATE_NOT_ACCEPTED',
 
+  /**
+   * A valid BNG Service template file, refused because the service does not
+   * read its habitats yet. `details.template` names the template and version.
+   * Removed when the BNG Service template reader lands.
+   */
+  SERVICE_TEMPLATE_NOT_YET_READ: 'SERVICE_TEMPLATE_NOT_YET_READ',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 

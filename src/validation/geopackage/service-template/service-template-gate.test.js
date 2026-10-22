@@ -274,6 +274,48 @@ describe('validateServiceTemplateGpkgFile', () => {
       }
     })
 
+    // The gate rewords the shared comparison's messages by matching their
+    // legacy text (TEMPLATE_WORDING). If that text changes, the rewording
+    // quietly stops: so every message the comparison gives, for each kind of
+    // flaw, must be in this template's terms and keep no legacy wording.
+    test.each([
+      ['a missing column', { dropColumns: { [AREA_BASELINE]: ['Area'] } }],
+      [
+        'a column of the wrong type',
+        { columnTypes: { [AREA_BASELINE]: { Area: 'TEXT' } } }
+      ],
+      [
+        'the wrong geometry type',
+        { geometryTypes: { [AREA_BASELINE]: 'MULTIPOLYGON' } }
+      ],
+      ['another spatial reference', { srsIds: { [RED_LINE_BOUNDARY]: 4326 } }],
+      [
+        'a misnamed geometry column',
+        { geometryColumnNames: { [AREA_BASELINE]: 'geometry' } }
+      ],
+      [
+        'an unregistered geometry column',
+        { unregisteredGeometry: [AREA_BASELINE] }
+      ],
+      ['a table the template does not have', { extraFeatureTables: ['Ponds'] }]
+    ])(
+      'words the comparison’s message for %s in the template’s terms',
+      async (_, options) => {
+        const result = await gate(options)
+
+        const compared = result.errors.filter(
+          (error) =>
+            error.code.startsWith('GPKG_BASELINE_') ||
+            error.code === ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER
+        )
+        expect(compared.length).toBeGreaterThan(0)
+        for (const error of compared) {
+          expect(error.message).toContain('BNG Service template')
+          expect(error.message).not.toMatch(/baseline (mismatch|template)/i)
+        }
+      }
+    )
+
     test('still names the template and version of a file it refuses', async () => {
       const result = await gate({ omitTables: [AREA_BASELINE] })
 

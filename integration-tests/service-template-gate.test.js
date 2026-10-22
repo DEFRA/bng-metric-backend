@@ -20,8 +20,25 @@ const ENDPOINTS = [
   ['baseline + post-intervention', callPostInterventionValidate]
 ]
 
+const NOT_YET_READ = {
+  code: ERROR_CODES.SERVICE_TEMPLATE_NOT_YET_READ,
+  details: { template: { name: 'bng-service', version: '1.0' } }
+}
+
 /** What each file is refused with, and why. */
 const REFUSALS = [
+  // Until the template reader lands, a file that passes the gate is refused
+  // too, rather than going on into the legacy reader.
+  [
+    'a valid file holding both stages, as not yet read',
+    'service-template/default-site.gpkg',
+    NOT_YET_READ
+  ],
+  [
+    'a valid baseline-stage file, as not yet read',
+    'service-template/default-site-baseline.gpkg',
+    NOT_YET_READ
+  ],
   [
     'a file with no version record',
     'service-template/version-record-missing.gpkg',
