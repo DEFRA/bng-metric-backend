@@ -103,9 +103,20 @@ describe('the Baseline tables of a combined upload', () => {
   })
 
   describe('readBaselineStage', () => {
-    test('reads nothing when there is no baseline stage', () => {
-      expect(readBaselineStage(FILE, undefined, null)).toBeUndefined()
-      expect(readBaselineStage(FILE, BASELINE_SOURCE, null)).toBeUndefined()
+    test('reads nothing without a baseline stage to read', () => {
+      expect(
+        readBaselineStage({ filePath: FILE }, { sizes: {} })
+      ).toBeUndefined()
+      expect(readGeoPackage).not.toHaveBeenCalled()
+    })
+
+    test('reads nothing when the Baseline tables were not checked', () => {
+      expect(
+        readBaselineStage(
+          { filePath: FILE, baselineReadSource: BASELINE_SOURCE },
+          null
+        )
+      ).toBeUndefined()
       expect(readGeoPackage).not.toHaveBeenCalled()
     })
 
