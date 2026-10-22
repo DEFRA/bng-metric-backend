@@ -439,10 +439,12 @@ describe('validateBaseline handler — pipeline calls', () => {
 
     expect(unpackedBeforePool).toBe(false)
     // And when it does read, it reads attributes only — the shapes are decoded
-    // on the persistence path, which a rejected file never reaches.
+    // on the persistence path, which a rejected file never reaches. A legacy
+    // file is read with no template source.
     expect(readGeoPackage).toHaveBeenCalledWith(
       MOCK_DOWNLOAD_PATH,
-      FEATURE_READ_MODE.properties
+      FEATURE_READ_MODE.properties,
+      undefined
     )
   })
 

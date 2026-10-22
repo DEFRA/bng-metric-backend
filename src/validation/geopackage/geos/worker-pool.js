@@ -638,7 +638,8 @@ export class GeosWorkerPool {
       type: VALIDATE,
       jobId: job.id,
       filePath: job.filePath,
-      includeSizes: job.includeSizes
+      includeSizes: job.includeSizes,
+      source: job.source
     })
   }
 
@@ -670,10 +671,12 @@ export class GeosWorkerPool {
    * Validate a GeoPackage on a worker thread.
    *
    * @param {string} filePath the uploaded file, already on local disk
-   * @param {{ includeSizes?: boolean }} [options]
+   * @param {{ includeSizes?: boolean, source?: import('../service-template/template-tables.js').TemplateReadSource }} [options]
+   *   `source` is how the worker reads a BNG Service template file; omitted
+   *   for a legacy file
    * @returns {Promise<object>} the verdict from validateGeoPackageLayersGeos
    */
-  run(filePath, { includeSizes = false } = {}) {
+  run(filePath, { includeSizes = false, source } = {}) {
     if (this.broken) {
       return Promise.reject(this.broken)
     }
@@ -693,6 +696,7 @@ export class GeosWorkerPool {
         id,
         filePath,
         includeSizes,
+        source,
         enqueuedAt: Date.now(),
         settled: false,
         resolve: (value) => {

@@ -20,25 +20,8 @@ const ENDPOINTS = [
   ['baseline + post-intervention', callPostInterventionValidate]
 ]
 
-const NOT_YET_READ = {
-  code: ERROR_CODES.SERVICE_TEMPLATE_NOT_YET_READ,
-  details: { template: { name: 'bng-service', version: '1.0' } }
-}
-
 /** What each file is refused with, and why. */
 const REFUSALS = [
-  // Until the template reader lands, a file that passes the gate is refused
-  // too, rather than going on into the legacy reader.
-  [
-    'a valid file holding both stages, as not yet read',
-    'service-template/default-site.gpkg',
-    NOT_YET_READ
-  ],
-  [
-    'a valid baseline-stage file, as not yet read',
-    'service-template/default-site-baseline.gpkg',
-    NOT_YET_READ
-  ],
   [
     'a file with no version record',
     'service-template/version-record-missing.gpkg',
@@ -114,5 +97,44 @@ describeServiceTemplate(
         expect(stored.postIntervention).toBeUndefined()
       }
     )
+  }
+)
+
+// The baseline + post-intervention endpoint cannot save a BNG Service template
+// file until it reads both stages, so a file that passes the gate is refused
+// there, rather than going on into the legacy reader. The baseline endpoint
+// reads it: see service-template-baseline.test.js.
+describeServiceTemplate(
+  'BNG Service template at the baseline + post-intervention endpoint — with the service-template flag on',
+  () => {
+    it.each([
+      ['a valid file holding both stages', 'service-template/plain-site.gpkg'],
+      [
+        'a valid baseline-stage file',
+        'service-template/large-site-baseline.gpkg'
+      ]
+    ])('refuses %s as not yet read, and stores nothing', async (_, fixture) => {
+      const project = await createProject('Service template not yet read')
+      const uploadId = await uploadFixture(fixture)
+
+      const res = await callPostInterventionValidate(uploadId, {
+        projectId: project.id
+      })
+
+      expect(res.statusCode).toBe(HTTP_OK)
+      expect(res.result).toEqual({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.SERVICE_TEMPLATE_NOT_YET_READ,
+            details: { template: { name: 'bng-service', version: '1.0' } }
+          })
+        ]
+      })
+
+      const stored = await fetchProject(project.id)
+      expect(stored.baseline).toBeUndefined()
+      expect(stored.postIntervention).toBeUndefined()
+    })
   }
 )

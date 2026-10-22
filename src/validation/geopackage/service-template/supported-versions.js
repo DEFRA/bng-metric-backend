@@ -1,13 +1,14 @@
 import { TEMPLATE_SCHEMA } from 'bng-library/bng-service'
 
 import { GPKG_CONTENTS_FEATURES_DATA_TYPE } from '../geopackage-constants.js'
+import { TEMPLATE_MAPPING_1_0 } from './template-mapping.js'
 
 /**
  * The BNG Service template versions the service reads, and how to read each.
  *
  * Choosing by version, rather than by the flag, is what lets a later template
- * version be supported by adding an entry here — with its own schema, and in
- * time its own column mapping — without changing the flag or the endpoints.
+ * version be supported by adding an entry here — with its own schema and
+ * column mapping — without changing the flag or the endpoints.
  * A version not listed is refused, naming the version found.
  */
 
@@ -70,7 +71,13 @@ export function toStructuralSchema(templateSchema) {
  * here, which the test on this map forces.
  */
 const SUPPORTED_TEMPLATE_VERSIONS = new Map([
-  ['1.0', Object.freeze({ schema: toStructuralSchema(TEMPLATE_SCHEMA) })]
+  [
+    '1.0',
+    Object.freeze({
+      schema: toStructuralSchema(TEMPLATE_SCHEMA),
+      mapping: TEMPLATE_MAPPING_1_0
+    })
+  ]
 ])
 
 /** The template versions the service reads, for messages and tests. */
@@ -82,7 +89,7 @@ export function supportedTemplateVersions() {
  * How to read a template version, or null when the service does not read it.
  *
  * @param {string} version
- * @returns {{ schema: { layers: object[] } } | null}
+ * @returns {{ schema: { layers: object[] }, mapping: Record<string, import('./template-mapping.js').LayerMapping> } | null}
  */
 export function templateForVersion(version) {
   return SUPPORTED_TEMPLATE_VERSIONS.get(version) ?? null

@@ -6,6 +6,12 @@ import {
 } from 'bng-library/bng-service'
 
 import { GPKG_APP_ID_GPKG } from '../../src/validation/geopackage/geopackage-constants.js'
+import {
+  readTestLineStringWkb,
+  readTestPointWkb,
+  readTestPolygonWkb,
+  wrapGpkgWkb
+} from './gpkg-db-blobs.js'
 import { createSystemTables, quoteIdent } from './gpkg-db-ddl.js'
 
 /**
@@ -13,8 +19,9 @@ import { createSystemTables, quoteIdent } from './gpkg-db-ddl.js'
  *
  * Built from bng-library's copy of the template rather than from the backend's
  * own reading of it, so a mistake in the backend's schema shows up as a failing
- * test instead of being built into the fixtures. Tables are empty: the format
- * gate never reads a feature.
+ * test instead of being built into the fixtures. Tables are empty unless the
+ * caller gives them rows: the format gate never reads a feature, the reader
+ * does. {@link populatedBaselineRows} gives one valid row per Baseline table.
  *
  * The legacy helpers (gpkg-build.js) stay for the flag-off tests.
  */
@@ -34,6 +41,82 @@ const SPATIAL_REF_SYS = [
   ],
   ['WGS 84', WGS84_SRS_ID, 'EPSG', WGS84_SRS_ID, 'GEOGCS["WGS 84"]']
 ]
+
+/** A geometry of each type the template uses, in British National Grid. */
+const TEST_GEOMETRY_WKB = {
+  POLYGON: readTestPolygonWkb,
+  LINESTRING: readTestLineStringWkb,
+  POINT: readTestPointWkb
+}
+
+const AREA_HABITATS_BASELINE = 'Area Habitats Baseline'
+const HEDGEROWS_BASELINE = 'Hedgerows Baseline'
+const WATERCOURSES_BASELINE = 'Watercourses Baseline'
+const RED_LINE_BOUNDARY = 'Red Line Boundary'
+
+/**
+ * One valid row in each Baseline table and the Red Line Boundary, with values
+ * the template offers and the service accepts (from the harness corpus's
+ * valid/plain-site.gpkg). Each habitat row carries its own feature_uuid.
+ *
+ * @returns {Record<string, object[]>} rows by table, as `rows` takes them
+ */
+export function populatedBaselineRows() {
+  return {
+    [RED_LINE_BOUNDARY]: [{ 'Site Name': 'Oakwood Regional Development' }],
+    [AREA_HABITATS_BASELINE]: [
+      {
+        'Habitat Ref': 'H001',
+        'Baseline Broad Habitat Type': 'Grassland',
+        'Baseline Habitat Type': 'Other lowland acid grassland',
+        'Baseline Distinctiveness': 'Medium',
+        'Baseline Condition': 'Fairly Poor',
+        'Baseline Strategic Significance': 'Low',
+        'Irreplaceable Habitat': 'No',
+        Area: 1,
+        feature_uuid: 'de9d1450-90f7-584a-9710-edf7ec189de4'
+      }
+    ],
+    [HEDGEROWS_BASELINE]: [
+      {
+        'Habitat Ref': 'HG001',
+        'Baseline Hedge Type': 'Line of trees - associated with bank or ditch',
+        'Baseline Distinctiveness': 'Low',
+        'Baseline Condition': 'Poor',
+        'Baseline Strategic Significance': 'Low',
+        Length: 1,
+        feature_uuid: '058245bc-2cce-58fa-9b8f-de304545f380'
+      }
+    ],
+    [WATERCOURSES_BASELINE]: [
+      {
+        'Habitat Ref': 'R001',
+        'Baseline River Type': 'Culvert',
+        'Baseline Distinctiveness': 'Low',
+        'Baseline Condition': 'Poor',
+        'Baseline Strategic Significance': 'Low',
+        'Baseline Encroachment into Watercourse': 'N/A - Culvert',
+        'Baseline Encroachment into riparian zone': 'N/A - Culvert',
+        Length: 1,
+        feature_uuid: '0c55b68c-6afb-59c6-9453-618d89539d76'
+      }
+    ]
+  }
+}
+
+/**
+ * Insert rows into a built table. A row's geometry is a test shape of the
+ * table's geometry type unless the row gives its own `geom` blob.
+ */
+function insertRows(db, table, rows) {
+  for (const { geom, ...values } of rows) {
+    const columns = [table.geometryColumn, ...Object.keys(values)]
+    const blob = geom ?? wrapGpkgWkb(TEST_GEOMETRY_WKB[table.geometryType]())
+    db.prepare(
+      `INSERT INTO ${quoteIdent(table.name)} (${columns.map(quoteIdent).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
+    ).run(blob, ...Object.values(values))
+  }
+}
 
 function createMetadataTables(db) {
   db.exec(`
@@ -131,6 +214,8 @@ function createTemplateTable(db, table) {
  * @param {Record<string, number>} [options.srsIds] by table
  * @param {string[]} [options.unregisteredGeometry] tables with no gpkg_geometry_columns row
  * @param {string[]} [options.extraFeatureTables] feature tables the template does not have
+ * @param {Record<string, object[]>} [options.rows] rows by table, each an
+ *   object of column values, with an optional `geom` blob
  * @returns {Buffer}
  */
 export function buildServiceTemplateBuffer(options = {}) {
@@ -139,7 +224,8 @@ export function buildServiceTemplateBuffer(options = {}) {
     recordScope = GEOPACKAGE_SCOPE,
     standardUri = TEMPLATE_SOURCE.metadataUri,
     omitTables = [],
-    extraFeatureTables = []
+    extraFeatureTables = [],
+    rows = {}
   } = options
 
   const db = new Database(':memory:')
@@ -157,7 +243,9 @@ export function buildServiceTemplateBuffer(options = {}) {
 
     for (const table of TEMPLATE_SCHEMA.tables) {
       if (!omitTables.includes(table.name)) {
-        createTemplateTable(db, tableDefinition(table, options))
+        const definition = tableDefinition(table, options)
+        createTemplateTable(db, definition)
+        insertRows(db, definition, rows[table.name] ?? [])
       }
     }
     for (const name of extraFeatureTables) {

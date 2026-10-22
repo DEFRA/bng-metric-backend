@@ -17,15 +17,14 @@ import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
-  ValidationQueueFullError,
-  ValidationQueueWaitError,
-  ValidationTimeoutError,
   ValidationUnavailableError
 } from '../validation/geopackage/geos/worker-pool.js'
+import { getParseBudget } from '../validation/geopackage/parse-budget.js'
 import {
-  getParseBudget,
-  ParseBudgetExceededError
-} from '../validation/geopackage/parse-budget.js'
+  busyReason,
+  respondToBusy,
+  respondToUnavailable
+} from './validate-geopackage-responses.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -197,16 +196,7 @@ async function respondToGateRejection(gateResult, uploadId, h, config) {
   return h.response({ valid: gateResult.valid, errors: gateResult.errors })
 }
 
-/**
- * Every validation worker was busy and the queue was full, so the file was
- * never looked at.
- *
- * This is the one rejection that is NOT about the user's file, and it is
- * answered differently on purpose. A 503 with Retry-After says "come back",
- * which is both true and actionable; returning the usual 200-with-errors would
- * put a capacity problem on the same screen as "your polygons overlap" and
- * invite the user to go and edit a file that is perfectly fine.
- */
+/** The process-wide GEOS worker pool, sized from the application config. */
 function validationPool() {
   return getGeosWorkerPool({
     size: appConfig.get('validation.workerCount'),
@@ -223,97 +213,6 @@ function validationPool() {
  */
 function parseBudget() {
   return getParseBudget(appConfig.get('validation.parseBudgetBytes'))
-}
-
-/**
- * Every way a file can be refused for want of capacity rather than merit.
- *
- * All but one of these are decided before the file is looked at. The exception
- * is a worker timeout, and it only belongs here SOMETIMES — which is the whole
- * subtlety of this function.
- *
- * A burst is the case it was added for. With one worker and a slow file, the
- * requests behind the first are refused `queue_wait` before they start, retry,
- * and pass; the one that actually reached a worker was killed mid-job and, as a
- * 500, was the only one in the burst that could not recover. Same capacity
- * problem, opposite outcome, purely because of where in the pipeline it was
- * discovered.
- *
- * But a timeout on an EMPTY pool is a different animal. The file had the box to
- * itself and still could not be validated inside the budget, so a retry only
- * reproduces the failure — and, because `Retry-After` is shorter than the budget
- * it just overran, it would do so repeatedly: every attempt burns a full budget
- * of worker time and costs a worker restart, for the two minutes the frontend
- * keeps trying. That is the "pathological file re-fed to the pool" the design
- * note in docs/geometry-validation.md warns about, and it is why a timeout is
- * not simply reclassified as busy.
- *
- * `contended` is what tells them apart, and the pool records it at the moment
- * the timer fires. Retry only what a retry could plausibly fix.
- */
-function busyReason(error) {
-  if (error instanceof ValidationQueueFullError) {
-    return VALIDATION_BUSY_REASON.queueFull
-  }
-  if (error instanceof ValidationQueueWaitError) {
-    return VALIDATION_BUSY_REASON.queueWait
-  }
-  if (error instanceof ValidationTimeoutError && error.contended) {
-    return VALIDATION_BUSY_REASON.workerTimeout
-  }
-  if (error instanceof ParseBudgetExceededError) {
-    return VALIDATION_BUSY_REASON.memoryBudget
-  }
-  return null
-}
-
-async function respondToBusy(uploadId, h, config, reason) {
-  logger.warn(
-    `${config.routeName} - validation refused as busy (${reason}) for uploadId ${uploadId}; asked the caller to retry`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationBusy, 1, { reason })
-  return h
-    .response({
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.VALIDATION_BUSY,
-          'The service is busy checking other files. Please try again in a few moments.'
-        )
-      ]
-    })
-    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
-    .header(
-      'Retry-After',
-      String(appConfig.get('validation.busyRetryAfterSeconds'))
-    )
-}
-
-/**
- * The pool has permanently given up — its workers cannot start — so this is
- * `respondToBusy`'s opposite in everything but the status code. Busy means the
- * next attempt may well pass; here every retry meets the same wall until an
- * operator restarts the service. Hence no Retry-After, and a code that is
- * deliberately NOT VALIDATION_BUSY: the frontend re-polls only on that exact
- * code, so this answer drops the caller out of its polling loop and onto an
- * honest error page instead of two minutes of pointless refreshing.
- */
-async function respondToUnavailable(uploadId, h, config) {
-  logger.error(
-    `${config.routeName} - validation unavailable (worker pool has given up) for uploadId ${uploadId}; told the caller not to retry`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationUnavailable)
-  return h
-    .response({
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.VALIDATION_UNAVAILABLE,
-          'The file checking service is currently unavailable. Please try again later.'
-        )
-      ]
-    })
-    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
 }
 
 /**
@@ -387,7 +286,8 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     filename,
     fileSize,
     filePath,
-    gateMs
+    gateMs,
+    readSource
   } = context
 
   // The unpacked layers, once the pool hands them back. Captured here so the
@@ -412,7 +312,7 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
-    { filePath, includeSizes: Boolean(projectId) }
+    { filePath, includeSizes: Boolean(projectId), source: readSource }
   )
   const featureCount = countFeatures(layers)
   // Attributes have told us everything they can — the checks have run and the
@@ -470,7 +370,11 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // `serialised`, not `full`: the inserts bind geometry as JSON text into
   // ST_GeomFromGeoJSON and never read a coordinate, so the decoded object graph
   // would be built, held across the whole transaction, and never used.
-  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.serialised)
+  const geometryLayers = readGeoPackage(
+    filePath,
+    FEATURE_READ_MODE.serialised,
+    readSource
+  )
 
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
@@ -523,7 +427,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // unpack block the event loop for their duration. Splitting them does not
     // change that; it changes how long each upload's memory is held.
     const gateStart = perfNow()
-    const gateResult = runFormatGate(filePath)
+    const gateResult = runFormatGate(filePath, config.projectDocumentKey)
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {
@@ -556,10 +460,14 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
         // 142 MB while doing no work, and large uploads were refused
         // `memory_budget` because of it.
         releaseParseBudget = parseBudget().reserve(context.fileSize)
-        return readGeoPackage(filePath, FEATURE_READ_MODE.properties)
+        return readGeoPackage(
+          filePath,
+          FEATURE_READ_MODE.properties,
+          gateResult.readSource
+        )
       },
       drizzle,
-      { ...context, filePath, gateMs },
+      { ...context, filePath, gateMs, readSource: gateResult.readSource },
       h,
       config
     )
