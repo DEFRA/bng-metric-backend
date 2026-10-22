@@ -498,8 +498,8 @@ export function readGeoPackage(filePath, mode = FEATURE_READ_MODE.full) {
 
 export { validateGpkg, validateGpkgFile, validateAndReadGpkgFile }
 
-// For the BNG Service template's gate (template/), which opens and identifies
-// a file the same way before checking it against its own template.
+// For the BNG Service template's gate (service-template/), which opens and
+// identifies a file the same way before checking it against its own template.
 export {
   baselineTemplateSchema as legacyTemplateSchema,
   checkGeoPackageIdentity,

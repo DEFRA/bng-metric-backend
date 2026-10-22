@@ -146,6 +146,9 @@ describe('GET /projects/{projectId}/features/{featureId}', () => {
   })
 })
 
+// The route-coverage check needs every route hit with the service-template
+// flag on too, where the legacy upload tests that used to reach this one are
+// skipped. Seeding the document directly holds with the flag in either state.
 describe('GET /projects/{projectId}/post-intervention/features/{featureId}', () => {
   it('returns 404 when the feature is not in the post-intervention document', async () => {
     const projectId = await seedProjectWithBaseline({ habitats: [] })

@@ -3,6 +3,7 @@ import { TEMPLATE_SCHEMA, versionRecordText } from 'bng-library/bng-service'
 
 import { ERROR_CODES } from '../errors.js'
 import { validateServiceTemplateGpkgFile } from './service-template-gate.js'
+import { readTemplateVersion } from './version-record.js'
 import { buildServiceTemplateBuffer } from '../../../../test/helpers/service-template-gpkg.js'
 import {
   fullReadBuffer,
@@ -131,6 +132,44 @@ describe('validateServiceTemplateGpkgFile', () => {
       )
 
       expect(codes(result)).toEqual([ERROR_CODES.TEMPLATE_VERSION_INVALID])
+    })
+
+    test.each([
+      [
+        'a gpkg_metadata table with no md_standard_uri column',
+        `DROP TABLE gpkg_metadata_reference; DROP TABLE gpkg_metadata;
+         CREATE TABLE gpkg_metadata (id INTEGER PRIMARY KEY, metadata TEXT)`
+      ],
+      [
+        'a gpkg_metadata_reference table with no md_file_id column',
+        `DROP TABLE gpkg_metadata_reference;
+         CREATE TABLE gpkg_metadata_reference (reference_scope TEXT)`
+      ]
+    ])(
+      'refuses a record it cannot query, in %s, as invalid',
+      async (_, sql) => {
+        const buffer = mutateSerializedBuffer(
+          buildServiceTemplateBuffer(),
+          (db) => db.exec(sql)
+        )
+
+        const result = await withTempGpkgFile(buffer, (filePath) =>
+          validateServiceTemplateGpkgFile(filePath)
+        )
+
+        expect(codes(result)).toEqual([ERROR_CODES.TEMPLATE_VERSION_INVALID])
+      }
+    )
+
+    test('lets an error that is not SQLite’s through, as a fault', () => {
+      const fault = new TypeError('not a database')
+      const db = {
+        prepare: () => {
+          throw fault
+        }
+      }
+
+      expect(() => readTemplateVersion(db)).toThrow(fault)
     })
 
     test('is read before the tables, so a file without one reports only that', async () => {

@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import { FORMAT_BNG_SERVICE, TEMPLATE_SOURCE } from 'bng-library/bng-service'
 
 import { ERROR_CODES, makeError } from '../errors.js'
@@ -96,7 +97,18 @@ function parseRecord(metadata) {
  * @returns {{ format: string, version: string } | { missing: true } | { error: { code: string, message: string } }}
  */
 export function readTemplateVersion(db) {
-  const records = versionRecords(db)
+  let records
+  try {
+    records = versionRecords(db)
+  } catch (error) {
+    // A metadata table without the columns the extension defines — a file
+    // edited by hand, say — cannot be queried. That is a record that cannot be
+    // read, not a fault in the service.
+    if (error instanceof Database.SqliteError) {
+      return { error: invalidRecordError() }
+    }
+    throw error
+  }
   if (records.length === 0) {
     return { missing: true }
   }
@@ -111,14 +123,16 @@ export function readTemplateVersion(db) {
   const [record] = records
   const named = record.wholeFile ? parseRecord(record.metadata) : null
   if (!named) {
-    return {
-      error: makeError(
-        ERROR_CODES.TEMPLATE_VERSION_INVALID,
-        "The file's template version record cannot be read, so its template version is unknown."
-      )
-    }
+    return { error: invalidRecordError() }
   }
   return named
+}
+
+function invalidRecordError() {
+  return makeError(
+    ERROR_CODES.TEMPLATE_VERSION_INVALID,
+    "The file's template version record cannot be read, so its template version is unknown."
+  )
 }
 
 /** The error for a file with no version record that is not a legacy file. */
