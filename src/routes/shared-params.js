@@ -17,7 +17,7 @@ export const projectFeatureIdParams = Joi.object({
  * same shape.
  *
  * `ref` is only acted on by the unified feature PUT; the legacy area-habitat
- * route reads the dropdown fields alone.
+ * route reads the dropdown fields alone and forbids it (habitats.js).
  *
  * The two encroachment fields only apply to watercourse features; the area
  * and hedgerow forms never submit them. They live on the shared schema rather

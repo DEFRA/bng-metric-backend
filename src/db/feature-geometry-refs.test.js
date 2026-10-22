@@ -45,7 +45,7 @@ describe('setGeometryRefs', () => {
     expect(update).not.toHaveBeenCalled()
   })
 
-  test('skips a layer with no geometry table', async () => {
+  test('skips the red line, whose geometry table has no ref column', async () => {
     const { exec, update } = makeExec()
 
     await setGeometryRefs(exec, 'project-1', [

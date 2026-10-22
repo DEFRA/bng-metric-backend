@@ -11,31 +11,7 @@
 
 import { and, eq } from 'drizzle-orm'
 
-import {
-  baselineHabitats,
-  baselineHedgerows,
-  baselineTrees,
-  baselineWatercourses,
-  postInterventionHabitats,
-  postInterventionHedgerows,
-  postInterventionTrees,
-  postInterventionWatercourses
-} from './schema/index.js'
-
-const GEOMETRY_TABLES = Object.freeze({
-  baseline: Object.freeze({
-    habitats: baselineHabitats,
-    hedgerows: baselineHedgerows,
-    watercourses: baselineWatercourses,
-    trees: baselineTrees
-  }),
-  postIntervention: Object.freeze({
-    habitats: postInterventionHabitats,
-    hedgerows: postInterventionHedgerows,
-    watercourses: postInterventionWatercourses,
-    trees: postInterventionTrees
-  })
-})
+import { FEATURE_TABLE_SETS } from './feature-tables.js'
 
 /**
  * @param {object} exec Drizzle transaction (or client)
@@ -45,8 +21,9 @@ const GEOMETRY_TABLES = Object.freeze({
  */
 export async function setGeometryRefs(exec, projectId, renames) {
   for (const { documentKey, layer, featureId, ref } of renames) {
-    const table = GEOMETRY_TABLES[documentKey]?.[layer]
-    if (!table) {
+    const table = FEATURE_TABLE_SETS[documentKey]?.[layer]
+    // The red line has a geometry table but no ref column.
+    if (!table?.ref) {
       continue
     }
     // One transaction holds one connection, so the updates run in turn.

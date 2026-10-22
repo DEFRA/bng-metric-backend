@@ -3,19 +3,12 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
 import { visibleToUser } from '../../db/project-visibility.js'
+import { projects } from '../../db/schema/index.js'
 import {
-  projects,
-  baselineRedLine,
-  baselineHabitats,
-  baselineHedgerows,
-  baselineWatercourses,
-  baselineTrees,
-  postInterventionRedLine,
-  postInterventionHabitats,
-  postInterventionHedgerows,
-  postInterventionWatercourses,
-  postInterventionTrees
-} from '../../db/schema/index.js'
+  BASELINE_FEATURE_TABLES,
+  FEATURE_TABLE_SETS,
+  POST_INTERVENTION_FEATURE_TABLES
+} from '../../db/feature-tables.js'
 import {
   setProjectBaseline,
   setProjectBaselineAndPostIntervention,
@@ -29,27 +22,6 @@ const INSERT_BATCH_SIZE = 500
 
 /** Maximum wait for the project row lock during concurrent baseline uploads. */
 const PERSIST_LOCK_TIMEOUT = '5s'
-
-const BASELINE_FEATURE_TABLES = Object.freeze({
-  redLine: baselineRedLine,
-  habitats: baselineHabitats,
-  hedgerows: baselineHedgerows,
-  watercourses: baselineWatercourses,
-  trees: baselineTrees
-})
-
-const POST_INTERVENTION_FEATURE_TABLES = Object.freeze({
-  redLine: postInterventionRedLine,
-  habitats: postInterventionHabitats,
-  hedgerows: postInterventionHedgerows,
-  watercourses: postInterventionWatercourses,
-  trees: postInterventionTrees
-})
-
-const FEATURE_TABLE_SETS = Object.freeze({
-  baseline: BASELINE_FEATURE_TABLES,
-  postIntervention: POST_INTERVENTION_FEATURE_TABLES
-})
 
 function transformToBngMultiGeomSql(geomJson, sourceSrid) {
   return sql`ST_Multi(ST_Transform(ST_SetSRID(ST_GeomFromGeoJSON(${geomJson}), ${sourceSrid}), ${sql.raw(String(EPSG_BNG))}))`
@@ -347,4 +319,4 @@ async function persistCombinedUpload(
   )
 }
 
-export { persistUpload, persistCombinedUpload, FEATURE_TABLE_SETS }
+export { persistUpload, persistCombinedUpload }
