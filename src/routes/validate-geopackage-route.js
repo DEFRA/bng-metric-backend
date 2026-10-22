@@ -31,6 +31,10 @@ import {
   respondToBusy,
   respondToUnavailable
 } from './validate-geopackage-responses.js'
+import {
+  recordStage,
+  recordValidationMetrics
+} from './validate-geopackage-metrics.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -40,55 +44,19 @@ import {
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
-import {
-  metricsCounter,
-  metricsByteSize,
-  metricsMillis,
-  metricsGauge
-} from '../common/helpers/metrics.js'
+import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
 import {
   GEOPACKAGE_METRIC,
   PERFORMANCE_METRIC,
   VALIDATION_BUSY_REASON,
-  VALIDATION_CATEGORY,
-  VALIDATION_METRIC
+  VALIDATION_CATEGORY
 } from '../common/helpers/metric-names.js'
-import {
-  logPerf,
-  memoryUsageMb,
-  msSince,
-  perfNow
-} from '../common/helpers/perf-evidence.js'
+import { msSince, perfNow } from '../common/helpers/perf-evidence.js'
 // Aliased: every function in this file takes a route `config` object, and the
 // application config is a different thing entirely.
 import { config as appConfig } from '../config.js'
 
 const logger = createLogger()
-
-/**
- * Record one pipeline stage twice over, because the two destinations answer
- * different questions and neither substitutes for the other:
- *
- *   - a `pipeline-inline` evidence LINE, carrying the high-cardinality detail
- *     (uploadId, feature counts) that you need when investigating one slow
- *     upload in the logs;
- *   - an EMF duration METRIC, carrying only a two-valued `documentKey`
- *     dimension, which is what CloudWatch aggregates and Grafana charts.
- *
- * Both come off the same measurement, so a dashboard and a log line can never
- * disagree about how long a stage took.
- *
- * @param {string} metricName one of PERFORMANCE_METRIC
- * @param {number} durationMs
- * @param {object} fields evidence-line fields (must include `stage`)
- * @param {object} config route config carrying projectDocumentKey
- */
-async function recordStage(metricName, durationMs, fields, config) {
-  logPerf(logger, 'pipeline-inline', { ...fields, elapsedMs: durationMs })
-  await metricsMillis(metricName, durationMs, {
-    documentKey: config.projectDocumentKey
-  })
-}
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -234,35 +202,6 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
   return validationResponse(result, h)
 }
 
-/**
- * Promote the worker pool's own numbers to metrics.
- *
- * These are the LEADING indicators. `GeoPackageValidationBusy` only moves once
- * users are being turned away; queue depth and wait time start climbing well
- * before that. Resident memory rides along because it is the figure that decides
- * whether adding workers is even an option — the workers share this process, and
- * their WebAssembly heaps never shrink.
- *
- * Sampled once per validation rather than on a timer: uploads are infrequent
- * enough that this is a handful of flushes a minute, and the moment just after a
- * validation is exactly when the high-water mark is worth reading.
- */
-async function recordPoolHealth(poolTelemetry, config) {
-  if (!poolTelemetry) {
-    return
-  }
-  await metricsMillis(
-    PERFORMANCE_METRIC.queueWaitMs,
-    poolTelemetry.queueWaitMs,
-    { documentKey: config.projectDocumentKey }
-  )
-  await metricsGauge(
-    VALIDATION_METRIC.workerQueueDepth,
-    poolTelemetry.queueDepth
-  )
-  await metricsGauge(VALIDATION_METRIC.processResidentMb, memoryUsageMb().rssMb)
-}
-
 async function validateLayers(loadLayers, drizzle, context, h, config) {
   const {
     uploadId,
@@ -314,35 +253,9 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // without this, phase 1 would have made accepted files dearer, not cheaper.
   layers = null
 
-  // Recorded here rather than before the queue because that is where the read
-  // now happens. `gateMs` is the cheap structural pass in front of the queue;
-  // the rest of this stage's time is the unpack, which the pool wait separates
-  // from it.
-  await recordStage(
-    PERFORMANCE_METRIC.parseMs,
-    gateMs,
-    {
-      uploadId,
-      stage: 'parse',
-      fileSizeBytes: fileSize ?? null,
-      featureCount,
-      valid: true
-    },
-    config
-  )
-  await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
-    documentKey: config.projectDocumentKey
-  })
-  await recordPoolHealth(baselineCheck?.poolTelemetry, config)
-  await recordPoolHealth(result.poolTelemetry, config)
-  await recordStage(
-    PERFORMANCE_METRIC.geometryValidateMs,
-    msSince(validateStart),
-    {
-      uploadId,
-      stage: 'geometry-validate',
-      featureCount
-    },
+  await recordValidationMetrics(
+    { uploadId, fileSize, gateMs, featureCount, validateStart },
+    [baselineCheck, result],
     config
   )
 
@@ -391,6 +304,31 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
 }
 
 /**
+ * Refuse a file the format gate rejected, recording the parse stage it got
+ * through first.
+ */
+async function rejectAtGate(
+  gateResult,
+  { uploadId, fileSize, gateMs },
+  h,
+  config
+) {
+  await recordStage(
+    PERFORMANCE_METRIC.parseMs,
+    gateMs,
+    {
+      uploadId,
+      stage: 'parse',
+      fileSizeBytes: fileSize ?? null,
+      featureCount: 0,
+      valid: false
+    },
+    config
+  )
+  return respondToGateRejection(gateResult, uploadId, h, config)
+}
+
+/**
  * Validate the downloaded file end to end. The GeoPackage is opened once, in
  * place on disk: the format gate rejects a structurally broken file before any
  * shape is unpacked, and an accepted file hands back its parsed layers from
@@ -434,19 +372,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {
-      await recordStage(
-        PERFORMANCE_METRIC.parseMs,
-        gateMs,
-        {
-          uploadId,
-          stage: 'parse',
-          fileSizeBytes: context.fileSize ?? null,
-          featureCount: 0,
-          valid: false
-        },
-        config
-      )
-      return await respondToGateRejection(gateResult, uploadId, h, config)
+      return await rejectAtGate(gateResult, { ...context, gateMs }, h, config)
     }
 
     // Attributes only. The geometry checks run in the worker against the file
