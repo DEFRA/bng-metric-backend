@@ -210,5 +210,15 @@ export const featureDataEnvelopeFields = {
     .description('Size of the uploaded GeoPackage, in bytes.'),
   importedAt: Joi.string()
     .isoDate()
-    .description('ISO 8601 timestamp of when the data was imported.')
+    .description('ISO 8601 timestamp of when the data was imported.'),
+  template: Joi.object({
+    name: Joi.string()
+      .required()
+      .description('The template the GeoPackage is in: `bng-service`.'),
+    version: Joi.string()
+      .required()
+      .description('The template version, from its version record, e.g. `1.0`.')
+  }).description(
+    'The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file.'
+  )
 }

@@ -78,7 +78,9 @@ export const ERROR_CODES = Object.freeze({
    * The baseline derived from a post-intervention file has no area habitats.
    * Persisting it would replace the stored baseline, including any feature
    * edits, with an empty one. A file whose Baseline columns are blank or
-   * placeholders does this.
+   * placeholders does this. For a BNG Service template file, whose baseline
+   * is read from its own tables, the message names the empty Area Habitats
+   * Baseline table instead; the code is the same, as the frontend's answer is.
    */
   NO_DERIVED_BASELINE_HABITATS: 'NO_DERIVED_BASELINE_HABITATS',
 
@@ -115,11 +117,12 @@ export const ERROR_CODES = Object.freeze({
   LEGACY_TEMPLATE_NOT_ACCEPTED: 'LEGACY_TEMPLATE_NOT_ACCEPTED',
 
   /**
-   * A valid BNG Service template file, refused because the service does not
-   * read its habitats yet. `details.template` names the template and version.
-   * Removed when the BNG Service template reader lands.
+   * A BNG Service template file uploaded at the baseline + post-intervention
+   * endpoint whose Post-Intervention tables are all empty, so it has no
+   * post-intervention stage to save. `details.template` names the template and
+   * version. The frontend sends the user to the drop-out page.
    */
-  SERVICE_TEMPLATE_NOT_YET_READ: 'SERVICE_TEMPLATE_NOT_YET_READ',
+  POST_INTERVENTION_TABLES_EMPTY: 'POST_INTERVENTION_TABLES_EMPTY',
 
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',

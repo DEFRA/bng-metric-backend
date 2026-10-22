@@ -166,7 +166,8 @@ export function embedPostInterventionHabitatSizes(parts, habitatSizes) {
 /**
  * Assemble the `{ document, geometries }` result shared by both extract paths.
  *
- * @param {object} meta upload metadata (uploadId/filename/fileSize/importedAt)
+ * @param {object} meta upload metadata (uploadId/filename/fileSize/importedAt,
+ *   and template for a BNG Service template file)
  * @param {{ redLine: object, habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
  *   each `*.documents` / `*.geometries` pair from splitFeatures (redLine is `{ document, geometryRow }`)
  * @param {object | null} habitatSizesSummary
@@ -180,6 +181,9 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
       filename: meta.filename ?? null,
       fileSize: meta.fileSize ?? null,
       importedAt: meta.importedAt ?? new Date().toISOString(),
+      // A BNG Service template file names its template and version; a
+      // legacy file has neither, so its documents carry no `template`.
+      ...(meta.template && { template: meta.template }),
       redLine: redLine.document,
       habitats: habitats.documents,
       hedgerows: hedgerows.documents,

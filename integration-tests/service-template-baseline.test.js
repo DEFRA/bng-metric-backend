@@ -62,6 +62,10 @@ describeServiceTemplate(
 
         const { baseline, postIntervention } = await fetchProject(project.id)
         expect(postIntervention).toBeUndefined()
+        expect(baseline.template).toEqual({
+          name: 'bng-service',
+          version: '1.0'
+        })
         expect(baseline.redLine.featureId).toEqual(expect.any(String))
 
         // Each feature is the Baseline table's row, identified by its own
