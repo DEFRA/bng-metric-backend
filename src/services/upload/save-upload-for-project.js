@@ -353,6 +353,12 @@ const BASELINE_DOCUMENT_CONFIG = Object.freeze({
 const NO_DERIVED_BASELINE_HABITATS_MESSAGE =
   'This post-intervention file has no baseline area habitats, so it cannot replace the project baseline'
 
+// For a file whose baseline is read from its own tables. The baseline checks
+// refuse an empty Area Habitats Baseline table first (NO_HABITAT_AREAS), so
+// this is a backstop that keeps the stored baseline from being wiped.
+const NO_READ_BASELINE_HABITATS_MESSAGE =
+  'The Area Habitats Baseline table in this file has no habitats, so it cannot replace the project baseline'
+
 function missingBaselineTypeError(layers) {
   const count = countRowsWithoutBaselineType(layers)
   if (count === 0) {
@@ -413,7 +419,9 @@ function extractUploadDocuments(sized, context, logger, config) {
     return {
       validationError: makeError(
         ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
-        NO_DERIVED_BASELINE_HABITATS_MESSAGE
+        baselineRead
+          ? NO_READ_BASELINE_HABITATS_MESSAGE
+          : NO_DERIVED_BASELINE_HABITATS_MESSAGE
       )
     }
   }

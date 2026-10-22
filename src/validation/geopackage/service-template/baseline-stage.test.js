@@ -4,7 +4,11 @@ import { readGeoPackage } from '../geopackage.js'
 import { validateGeoPackageLayers } from '../index.js'
 import { EXTRACT_VARIANT } from '../properties.js'
 import { FEATURE_READ_MODE } from '../read-feature-tables.js'
-import { readBaselineStage, validateBaselineStage } from './baseline-stage.js'
+import {
+  mergeStageVerdicts,
+  readBaselineStage,
+  validateBaselineStage
+} from './baseline-stage.js'
 
 vi.mock('../geopackage.js', () => ({ readGeoPackage: vi.fn() }))
 vi.mock('../index.js', () => ({ validateGeoPackageLayers: vi.fn() }))
@@ -33,25 +37,69 @@ describe('the Baseline tables of a combined upload', () => {
       expect(validateGeoPackageLayers).not.toHaveBeenCalled()
     })
 
-    test('checks the Baseline tables as the baseline endpoint does', async () => {
+    test('checks the Baseline tables as the baseline endpoint does, and counts their features', async () => {
+      const layers = { areas: [{}, {}], hedgerows: [{}], missingLayers: [] }
       const verdict = { valid: true, errors: [], sizes: { areas: [] } }
-      validateGeoPackageLayers.mockResolvedValue(verdict)
-      const loadLayers = vi.fn()
+      validateGeoPackageLayers.mockImplementation(async (load) => {
+        load()
+        return verdict
+      })
 
       const result = await validateBaselineStage({
         filePath: FILE,
         baselineReadSource: BASELINE_SOURCE,
-        loadBaselineLayers: loadLayers,
+        loadBaselineLayers: () => layers,
         projectId: 'p'
       })
 
-      expect(result).toBe(verdict)
+      expect(result).toEqual({ ...verdict, featureCount: 3 })
       expect(validateGeoPackageLayers).toHaveBeenCalledWith(
-        loadLayers,
+        expect.any(Function),
         EXTRACT_VARIANT.BASELINE,
         { filePath: FILE, includeSizes: true, source: BASELINE_SOURCE }
       )
     })
+  })
+
+  describe('mergeStageVerdicts', () => {
+    const error = (code) => ({ code, message: code })
+
+    test('passes the endpoint’s own verdict on unchanged without a baseline stage', () => {
+      const result = { valid: false, errors: [error('A')], sizes: {} }
+
+      expect(mergeStageVerdicts(null, result)).toBe(result)
+    })
+
+    test('reports both stages’ errors, each naming its stage', () => {
+      const merged = mergeStageVerdicts(
+        { valid: false, errors: [error('A')] },
+        { valid: false, errors: [error('B')] }
+      )
+
+      expect(merged).toEqual({
+        valid: false,
+        errors: [
+          { ...error('A'), stage: 'baseline' },
+          { ...error('B'), stage: 'post-intervention' }
+        ]
+      })
+    })
+
+    test.each([
+      [true, true, true],
+      [false, true, false],
+      [true, false, false]
+    ])(
+      'is valid only when both stages are (baseline %s, post-intervention %s)',
+      (baselineValid, piValid, valid) => {
+        expect(
+          mergeStageVerdicts(
+            { valid: baselineValid, errors: [] },
+            { valid: piValid, errors: [] }
+          ).valid
+        ).toBe(valid)
+      }
+    )
   })
 
   describe('readBaselineStage', () => {

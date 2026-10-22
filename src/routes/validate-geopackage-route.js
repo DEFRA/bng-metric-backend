@@ -20,7 +20,9 @@ import {
   ValidationUnavailableError
 } from '../validation/geopackage/geos/worker-pool.js'
 import { getParseBudget } from '../validation/geopackage/parse-budget.js'
+import { countFeatures } from '../validation/geopackage/count-features.js'
 import {
+  mergeStageVerdicts,
   readBaselineStage,
   validateBaselineStage
 } from '../validation/geopackage/service-template/baseline-stage.js'
@@ -62,27 +64,6 @@ import {
 import { config as appConfig } from '../config.js'
 
 const logger = createLogger()
-
-/** Layer keys in a parsed GeoPackage that are not arrays of features. */
-const NON_FEATURE_LAYER_KEYS = new Set(['missingLayers'])
-
-/**
- * Total features parsed out of a GeoPackage, across every layer. This is the
- * scale figure that makes every duration below interpretable — a 4 s validate
- * means nothing without knowing whether it covered 40 parcels or 40,000.
- *
- * @param {object} layers
- * @returns {number}
- */
-function countFeatures(layers) {
-  let total = 0
-  for (const [key, value] of Object.entries(layers ?? {})) {
-    if (!NON_FEATURE_LAYER_KEYS.has(key) && Array.isArray(value)) {
-      total += value.length
-    }
-  }
-  return total
-}
 
 /**
  * Record one pipeline stage twice over, because the two destinations answer
@@ -294,14 +275,6 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     readSource
   } = context
 
-  // A BNG Service template file at the baseline + post-intervention endpoint
-  // saves the baseline its Baseline tables hold, so those are checked first,
-  // as the baseline endpoint checks them. Null for every other upload.
-  const baselineCheck = await validateBaselineStage(context)
-  if (baselineCheck && !baselineCheck.valid) {
-    return respondToGeometryRejection(baselineCheck, uploadId, h, config)
-  }
-
   // The unpacked layers, once the pool hands them back. Captured here so the
   // metrics below can report on what was actually read — `validateGeoPackageLayers`
   // calls the loader on the far side of the queue wait, so this is set by the
@@ -321,12 +294,20 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // of the layers. Sizes are only worth asking for when there is a project to
   // persist them against.
   const validateStart = perfNow()
+  // A BNG Service template file at the baseline + post-intervention endpoint
+  // saves the baseline its Baseline tables hold, so those are checked too, as
+  // the baseline endpoint checks them, in a worker trip of their own. Both
+  // stages are checked whatever either finds, so the user sees every error at
+  // once. Null for every other upload. The stage timings and counts below
+  // cover both stages.
+  const baselineCheck = await validateBaselineStage(context)
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
     { filePath, includeSizes: Boolean(projectId), source: readSource }
   )
-  const featureCount = countFeatures(layers)
+  const featureCount =
+    countFeatures(layers) + (baselineCheck?.featureCount ?? 0)
   // Attributes have told us everything they can — the checks have run and the
   // count is taken. Dropped before the shapes are decoded below, so an accepted
   // file never holds the properties set and the geometry set at the same time;
@@ -352,6 +333,7 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
     documentKey: config.projectDocumentKey
   })
+  await recordPoolHealth(baselineCheck?.poolTelemetry, config)
   await recordPoolHealth(result.poolTelemetry, config)
   await recordStage(
     PERFORMANCE_METRIC.geometryValidateMs,
@@ -364,8 +346,9 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     config
   )
 
-  if (!result.valid) {
-    return respondToGeometryRejection(result, uploadId, h, config)
+  const verdict = mergeStageVerdicts(baselineCheck, result)
+  if (!verdict.valid) {
+    return respondToGeometryRejection(verdict, uploadId, h, config)
   }
 
   logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
@@ -477,8 +460,10 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
       // Charging it the full unpack estimate for that wait made queue depth
       // consume the parse budget: sixteen queued 704 KB uploads reserved
       // 142 MB while doing no work, and large uploads were refused
-      // `memory_budget` because of it. Reserved once: a template file read at
-      // both stages holds one stage's layers at a time.
+      // `memory_budget` because of it. Reserved once for a template file
+      // read at both stages: the estimate is per byte of the file, fitted to
+      // reading every feature in it, and the two stages' tables together are
+      // the file's features read once — at save, both stages' shapes.
       releaseParseBudget ??= parseBudget().reserve(context.fileSize)
       return readGeoPackage(filePath, FEATURE_READ_MODE.properties, source)
     }

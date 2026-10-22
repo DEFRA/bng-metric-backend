@@ -667,6 +667,28 @@ describe('saveUploadForProject', () => {
       })
     })
 
+    it('names the empty Area Habitats Baseline table when the baseline has no area habitats', async () => {
+      extractHabitatData.mockReturnValue({
+        document: { habitats: [] },
+        geometries: { habitats: [] }
+      })
+
+      await saveTemplate()
+
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            message: expect.stringContaining(
+              'Area Habitats Baseline table in this file has no habitats'
+            )
+          })
+        ]
+      })
+    })
+
     it('does not ask the post-intervention rows for a Baseline type', async () => {
       await saveTemplate()
 

@@ -78,7 +78,9 @@ export const ERROR_CODES = Object.freeze({
    * The baseline derived from a post-intervention file has no area habitats.
    * Persisting it would replace the stored baseline, including any feature
    * edits, with an empty one. A file whose Baseline columns are blank or
-   * placeholders does this.
+   * placeholders does this. For a BNG Service template file, whose baseline
+   * is read from its own tables, the message names the empty Area Habitats
+   * Baseline table instead; the code is the same, as the frontend's answer is.
    */
   NO_DERIVED_BASELINE_HABITATS: 'NO_DERIVED_BASELINE_HABITATS',
 

@@ -1,6 +1,6 @@
 import { POST_INTERVENTION } from 'bng-library/bng-service'
 
-import { withGpkgFileDatabase } from '../geopackage.js'
+import { getFeatureLayerNames, withGpkgFileDatabase } from '../geopackage.js'
 import { templateForVersion } from './supported-versions.js'
 
 /**
@@ -9,10 +9,12 @@ import { templateForVersion } from './supported-versions.js'
  *
  * Every Post-Intervention table of the version counts, including those the
  * service does not read yet (vertical area habitats, individual trees): a file
- * with features in any of them describes a post-intervention stage. The format
- * gate has already checked the file against its version, so every table is
- * there to count. A file that cannot be opened counts as having features, and
- * the reads that follow report it.
+ * with features in any of them describes a post-intervention stage. Every
+ * table of a version is required, so the format gate has already refused a
+ * file missing one; only the tables the file has are counted all the same, so
+ * a table a later version makes optional cannot fail the count. A file that
+ * cannot be opened counts as having features, and the reads that follow
+ * report it.
  *
  * @param {string} filePath
  * @param {string} version a template version the service reads
@@ -22,10 +24,15 @@ export function hasPostInterventionFeatures(filePath, version) {
   const tables = templateForVersion(version)
     .schema.layers.map((layer) => layer.tableName)
     .filter((table) => table.endsWith(` ${POST_INTERVENTION}`))
-  const result = withGpkgFileDatabase(filePath, (db) =>
-    tables.some((table) =>
-      db.prepare(`SELECT 1 FROM "${table.replaceAll('"', '""')}" LIMIT 1`).get()
-    )
-  )
+  const result = withGpkgFileDatabase(filePath, (db) => {
+    const present = getFeatureLayerNames(db)
+    return tables
+      .filter((table) => present.has(table.toLowerCase()))
+      .some((table) =>
+        db
+          .prepare(`SELECT 1 FROM "${table.replaceAll('"', '""')}" LIMIT 1`)
+          .get()
+      )
+  })
   return result !== false
 }

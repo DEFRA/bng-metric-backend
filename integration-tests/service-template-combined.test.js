@@ -239,11 +239,11 @@ describeServiceTemplate(
     })
 
     it.each([
-      ['Area Habitats Baseline', 'a Baseline'],
-      ['Area Habitats Post-Intervention', 'a Post-Intervention']
+      ['Area Habitats Baseline', 'baseline'],
+      ['Area Habitats Post-Intervention', 'post-intervention']
     ])(
-      'refuses a blank Habitat Ref in %s, naming the table and row, and stores nothing',
-      async (table) => {
+      'refuses a blank Habitat Ref in %s, naming the table, row and stage, and stores nothing',
+      async (table, stage) => {
         const project = await createProject('Service template blank ref')
         const filePath = withValue(BOTH_STAGES, {
           table,
@@ -259,7 +259,8 @@ describeServiceTemplate(
         expect(res.result.errors).toContainEqual(
           expect.objectContaining({
             code: ERROR_CODES.HABITAT_REF_MISSING,
-            message: expect.stringContaining(`${table} fid 2`)
+            message: expect.stringContaining(`${table} fid 2`),
+            stage
           })
         )
         const stored = await fetchProject(project.id)
@@ -267,5 +268,45 @@ describeServiceTemplate(
         expect(stored.postIntervention).toBeUndefined()
       }
     )
+
+    it('reports the errors in both stages at once', async () => {
+      const project = await createProject('Service template both stages')
+      const baselineBlank = withValue(BOTH_STAGES, {
+        table: 'Area Habitats Baseline',
+        fid: 2,
+        column: 'Habitat Ref',
+        value: ''
+      })
+      const db = new Database(baselineBlank)
+      try {
+        db.prepare(
+          `UPDATE "Area Habitats Post-Intervention" SET "Habitat Ref" = '' WHERE fid = 3`
+        ).run()
+      } finally {
+        db.close()
+      }
+
+      const res = await uploadCombined(project.id, BOTH_STAGES, baselineBlank)
+
+      expect(res.result.valid).toBe(false)
+      expect(res.result.errors).toEqual(
+        expect.arrayContaining([
+          expect.objectContaining({
+            code: ERROR_CODES.HABITAT_REF_MISSING,
+            message: expect.stringContaining('Area Habitats Baseline fid 2'),
+            stage: 'baseline'
+          }),
+          expect.objectContaining({
+            code: ERROR_CODES.HABITAT_REF_MISSING,
+            message: expect.stringContaining(
+              'Area Habitats Post-Intervention fid 3'
+            ),
+            stage: 'post-intervention'
+          })
+        ])
+      )
+      const stored = await fetchProject(project.id)
+      expect(stored.baseline).toBeUndefined()
+    })
   }
 )

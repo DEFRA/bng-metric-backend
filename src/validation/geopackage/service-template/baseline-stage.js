@@ -1,3 +1,9 @@
+import {
+  STAGE_BASELINE,
+  STAGE_POST_INTERVENTION
+} from 'bng-library/bng-service'
+
+import { countFeatures } from '../count-features.js'
 import { readGeoPackage } from '../geopackage.js'
 import { validateGeoPackageLayers } from '../index.js'
 import { EXTRACT_VARIANT } from '../properties.js'
@@ -11,7 +17,7 @@ import { FEATURE_READ_MODE } from '../read-feature-tables.js'
  * post-intervention rows, so the Baseline tables are checked exactly as the
  * baseline endpoint checks them, and their shapes are read for saving with
  * the sizes the check measured. The Post-Intervention tables go through the
- * endpoint's own checks.
+ * endpoint's own checks, and the two stages' verdicts are merged.
  */
 
 /**
@@ -26,7 +32,9 @@ import { FEATURE_READ_MODE } from '../read-feature-tables.js'
  * @param {() => object} [upload.loadBaselineLayers] the Baseline tables' attributes
  * @param {string | null} [upload.projectId] measure each feature, to save it
  *   to this project
- * @returns {Promise<{ valid: boolean, errors: Array<object>, sizes?: object } | null>}
+ * @returns {Promise<{ valid: boolean, errors: Array<object>, sizes?: object, poolTelemetry?: object, featureCount: number } | null>}
+ *   `featureCount` is the features the Baseline tables hold, for the route's
+ *   metrics
  */
 export async function validateBaselineStage({
   filePath,
@@ -37,8 +45,13 @@ export async function validateBaselineStage({
   if (!baselineReadSource) {
     return null
   }
-  return validateGeoPackageLayers(
-    loadBaselineLayers,
+  let featureCount = 0
+  const verdict = await validateGeoPackageLayers(
+    () => {
+      const layers = loadBaselineLayers()
+      featureCount = countFeatures(layers)
+      return layers
+    },
     EXTRACT_VARIANT.BASELINE,
     {
       filePath,
@@ -46,6 +59,34 @@ export async function validateBaselineStage({
       source: baselineReadSource
     }
   )
+  return { ...verdict, featureCount }
+}
+
+const withStage = (errors, stage) =>
+  errors.map((error) => ({ ...error, stage }))
+
+/**
+ * One verdict on an upload from both stages' checks: valid only when both
+ * are. Each error names the `stage` whose tables it was found in, as the
+ * geometry messages do not name a table. Without a baseline stage, the
+ * endpoint's own verdict, unchanged.
+ *
+ * @param {{ valid: boolean, errors: Array<object> } | null} baselineCheck
+ * @param {{ valid: boolean, errors: Array<object> }} result the endpoint's
+ *   own checks, of the Post-Intervention tables
+ * @returns {{ valid: boolean, errors: Array<object> }}
+ */
+export function mergeStageVerdicts(baselineCheck, result) {
+  if (!baselineCheck) {
+    return result
+  }
+  return {
+    valid: baselineCheck.valid && result.valid,
+    errors: [
+      ...withStage(baselineCheck.errors, STAGE_BASELINE),
+      ...withStage(result.errors, STAGE_POST_INTERVENTION)
+    ]
+  }
 }
 
 /**
