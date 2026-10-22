@@ -67,9 +67,11 @@ function versionRecords(db) {
  * @returns {{ format: string, version: string } | null}
  */
 function parseRecord(metadata) {
+  // The column is TEXT, but a row written as a BLOB comes back as a Buffer.
+  const text = Buffer.isBuffer(metadata) ? metadata.toString('utf8') : metadata
   let parsed
   try {
-    parsed = JSON.parse(String(metadata))
+    parsed = JSON.parse(text)
   } catch {
     return null
   }

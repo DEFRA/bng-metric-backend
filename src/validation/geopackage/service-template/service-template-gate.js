@@ -171,10 +171,10 @@ function runServiceTemplateGate(db) {
     return refused([unsupportedVersionError(record.version)])
   }
 
-  const errors = checkStructure(db, template.schema)
+  const structureErrors = checkStructure(db, template.schema)
   return {
-    valid: errors.length === 0,
-    errors,
+    valid: structureErrors.length === 0,
+    errors: structureErrors,
     template: { name: FORMAT_BNG_SERVICE, version: record.version }
   }
 }

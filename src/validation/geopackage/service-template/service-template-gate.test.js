@@ -89,6 +89,21 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(codes(result)).toEqual([ERROR_CODES.TEMPLATE_VERSION_INVALID])
     })
 
+    test('reads a record stored as a BLOB', async () => {
+      const buffer = mutateSerializedBuffer(
+        buildServiceTemplateBuffer(),
+        (db) =>
+          db.exec('UPDATE gpkg_metadata SET metadata = CAST(metadata AS BLOB)')
+      )
+
+      const result = await withTempGpkgFile(buffer, (filePath) =>
+        validateServiceTemplateGpkgFile(filePath)
+      )
+
+      expect(result.valid).toBe(true)
+      expect(result.template).toEqual({ name: 'bng-service', version: '1.0' })
+    })
+
     test('refuses a file without the metadata extension as having none', async () => {
       const buffer = mutateSerializedBuffer(
         buildServiceTemplateBuffer(),
