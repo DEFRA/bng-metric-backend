@@ -32,8 +32,16 @@ function baselineRows(fixture, table) {
   }
 }
 
-const featuresOf = (habitats) =>
-  habitats.map(({ ref, featureId }) => ({ ref, uuid: featureId }))
+const featuresOf = (features) =>
+  features.map(({ ref, properties }) => ({
+    ref,
+    uuid: properties.feature_uuid
+  }))
+
+const featureIdsOf = (baseline) =>
+  ['habitats', 'hedgerows', 'watercourses'].flatMap((layer) =>
+    baseline[layer].map(({ featureId }) => featureId)
+  )
 
 describeServiceTemplate(
   'BNG Service template at the baseline endpoint — with the service-template flag on',
@@ -87,9 +95,41 @@ describeServiceTemplate(
       })
       const second = await fetchProject(project.id)
 
-      expect(featuresOf(second.baseline.habitats)).toEqual(
-        featuresOf(first.baseline.habitats)
+      expect(second.baseline.habitats).toEqual(
+        first.baseline.habitats.map((habitat) =>
+          expect.objectContaining({
+            featureId: habitat.featureId,
+            properties: expect.objectContaining({
+              feature_uuid: habitat.properties.feature_uuid
+            })
+          })
+        )
       )
+    })
+
+    // The geometry tables' primary key spans every project, so a file's own
+    // feature uuids cannot be the stored ids: one file in two projects would
+    // collide.
+    it('saves the same file to two projects, each with ids of its own', async () => {
+      const projects = [
+        await createProject('Service template project A'),
+        await createProject('Service template project B')
+      ]
+      for (const project of projects) {
+        const res = await callValidate(await uploadFixture(BOTH_STAGES), {
+          projectId: project.id
+        })
+        expect(res.result).toEqual({ valid: true, errors: [] })
+      }
+
+      const [a, b] = await Promise.all(
+        projects.map(
+          async (project) => (await fetchProject(project.id)).baseline
+        )
+      )
+      expect(featuresOf(b.habitats)).toEqual(featuresOf(a.habitats))
+      const idsOfA = new Set(featureIdsOf(a))
+      expect(featureIdsOf(b).filter((id) => idsOfA.has(id))).toEqual([])
     })
 
     it.each([

@@ -1,7 +1,11 @@
 import { describe, it, expect } from 'vitest'
 
 import { assignFeatureIds } from './assign-feature-ids.js'
-import { refLookupKey, RED_LINE_KEY } from './carry-forward-feature-ids.js'
+import {
+  featureUuidLookupKey,
+  refLookupKey,
+  RED_LINE_KEY
+} from './carry-forward-feature-ids.js'
 
 const UUID_REGEX =
   /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
@@ -250,53 +254,96 @@ describe('assignFeatureIds', () => {
 describe('assignFeatureIds — a BNG Service template feature’s own uuid', () => {
   const FILE_UUID = '44444444-4444-4444-8444-444444444444'
   const FILE_UUID_2 = '55555555-5555-4555-8555-555555555555'
+  const STORED_ID_2 = '22222222-2222-4222-8222-222222222222'
 
   const templateFeature = (parcelRef, featureUuid) => ({
     properties: { 'Parcel Ref': parcelRef, feature_uuid: featureUuid }
   })
+  const storedFor = (...entries) =>
+    new Map(entries.map(([uuid, id]) => [featureUuidLookupKey(uuid), id]))
 
-  it('uses the file’s feature_uuid as the featureId', () => {
+  it('never uses the file’s feature_uuid as the featureId', () => {
     const result = assignFeatureIds({
       areas: [templateFeature('H1', FILE_UUID)],
       hedgerows: [templateFeature('HG1', FILE_UUID_2)]
     })
 
-    expect(result.areas[0].featureId).toBe(FILE_UUID)
-    expect(result.hedgerows[0].featureId).toBe(FILE_UUID_2)
+    expect(result.areas[0].featureId).toMatch(UUID_REGEX)
+    expect(result.areas[0].featureId).not.toBe(FILE_UUID)
+    expect(result.hedgerows[0].featureId).not.toBe(FILE_UUID_2)
   })
 
-  it('prefers it to the id stored for the same ref', () => {
+  it('carries forward the id this project stored for the same uuid', () => {
+    const result = assignFeatureIds(
+      {
+        areas: [templateFeature('H1', FILE_UUID)],
+        hedgerows: [templateFeature('HG1', FILE_UUID_2)]
+      },
+      storedFor([FILE_UUID, STORED_ID], [FILE_UUID_2, STORED_ID_2])
+    )
+
+    expect(result.areas[0].featureId).toBe(STORED_ID)
+    expect(result.hedgerows[0].featureId).toBe(STORED_ID_2)
+  })
+
+  it('matches on the uuid alone, not on the ref of a feature with one', () => {
     const result = assignFeatureIds(
       { areas: [templateFeature('H1', FILE_UUID)] },
       new Map([[refLookupKey('habitats', 'H1'), STORED_ID]])
     )
 
-    expect(result.areas[0].featureId).toBe(FILE_UUID)
+    expect(result.areas[0].featureId).not.toBe(STORED_ID)
+    expect(result.areas[0].featureId).toMatch(UUID_REGEX)
   })
 
-  it('lets features share a Habitat Ref, each keeping its own uuid', () => {
-    const result = assignFeatureIds({
-      areas: [
-        templateFeature('H1', FILE_UUID),
-        templateFeature('H1', FILE_UUID_2)
-      ]
-    })
+  it('lets features share a Habitat Ref, each matched on its own uuid', () => {
+    const result = assignFeatureIds(
+      {
+        areas: [
+          templateFeature('H1', FILE_UUID),
+          templateFeature('H1', FILE_UUID_2)
+        ]
+      },
+      storedFor([FILE_UUID, STORED_ID], [FILE_UUID_2, STORED_ID_2])
+    )
 
     expect(result.areas.map((f) => f.featureId)).toEqual([
-      FILE_UUID,
-      FILE_UUID_2
+      STORED_ID,
+      STORED_ID_2
     ])
   })
 
-  it('does not use a uuid two features share, even in different layers', () => {
-    const result = assignFeatureIds({
-      areas: [templateFeature('H1', FILE_UUID)],
-      hedgerows: [templateFeature('HG1', FILE_UUID)]
-    })
+  it('does not match a uuid two features share, even in different layers', () => {
+    const result = assignFeatureIds(
+      {
+        areas: [templateFeature('H1', FILE_UUID)],
+        hedgerows: [templateFeature('HG1', FILE_UUID)]
+      },
+      storedFor([FILE_UUID, STORED_ID])
+    )
 
-    expect(result.areas[0].featureId).not.toBe(FILE_UUID)
-    expect(result.hedgerows[0].featureId).not.toBe(FILE_UUID)
+    expect(result.areas[0].featureId).not.toBe(STORED_ID)
+    expect(result.hedgerows[0].featureId).not.toBe(STORED_ID)
     expect(result.areas[0].featureId).toMatch(UUID_REGEX)
+  })
+
+  it('does not give a feature by its ref an id a uuid match has claimed', () => {
+    const stored = storedFor([FILE_UUID, STORED_ID])
+    stored.set(refLookupKey('habitats', 'H2'), STORED_ID)
+
+    const result = assignFeatureIds(
+      {
+        areas: [
+          templateFeature('H1', FILE_UUID),
+          { properties: { 'Parcel Ref': 'H2' } }
+        ]
+      },
+      stored
+    )
+
+    expect(result.areas[0].featureId).toBe(STORED_ID)
+    expect(result.areas[1].featureId).not.toBe(STORED_ID)
+    expect(result.areas[1].featureId).toMatch(UUID_REGEX)
   })
 
   it.each([
