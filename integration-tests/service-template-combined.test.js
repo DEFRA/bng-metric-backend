@@ -53,14 +53,20 @@ afterAll(() => {
 
 let copies = 0
 
+/** A copy of a fixture, to edit. */
+function copyOf(fixture) {
+  copies += 1
+  const filePath = path.join(scratch, `edited-${copies}.gpkg`)
+  copyFileSync(fixturePath(fixture), filePath)
+  return filePath
+}
+
 /**
  * A copy of a fixture with one value of one row changed, so the file is
  * otherwise one the service accepts.
  */
 function withValue(fixture, { table, fid, column, value }) {
-  copies += 1
-  const filePath = path.join(scratch, `edited-${copies}.gpkg`)
-  copyFileSync(fixturePath(fixture), filePath)
+  const filePath = copyOf(fixture)
   const db = new Database(filePath)
   try {
     db.prepare(`UPDATE "${table}" SET "${column}" = ? WHERE fid = ?`).run(
@@ -307,6 +313,49 @@ describeServiceTemplate(
       )
       const stored = await fetchProject(project.id)
       expect(stored.baseline).toBeUndefined()
+    })
+
+    // Every Post-Intervention table counts towards the empty check, including
+    // those not read yet (trees, BMD-1172; vertical area habitats, BMD-1084),
+    // as the ticket defines it. A file whose only post-intervention rows are
+    // trees passes that check, and must still be refused, with nothing stored.
+    it('refuses a file whose only post-intervention features are in tables not read yet, and changes nothing', async () => {
+      const project = await createProject('Service template trees only')
+      await uploadCombined(project.id, BOTH_STAGES)
+      const before = await fetchProject(project.id)
+      const copy = copyOf(BOTH_STAGES)
+      const db = new Database(copy)
+      try {
+        for (const table of [
+          'Area Habitats Post-Intervention',
+          'Hedgerows Post-Intervention',
+          'Watercourses Post-Intervention'
+        ]) {
+          db.prepare(`DELETE FROM "${table}"`).run()
+        }
+        expect(
+          db
+            .prepare(
+              'SELECT count(*) AS n FROM "Individual Trees Post-Intervention"'
+            )
+            .get().n
+        ).toBeGreaterThan(0)
+      } finally {
+        db.close()
+      }
+
+      const res = await uploadCombined(project.id, BOTH_STAGES, copy)
+
+      expect(res.result).toEqual({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.NO_HABITAT_AREAS,
+            stage: 'post-intervention'
+          })
+        ]
+      })
+      expect(await fetchProject(project.id)).toEqual(before)
     })
   }
 )

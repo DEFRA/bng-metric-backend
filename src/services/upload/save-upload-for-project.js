@@ -49,7 +49,7 @@ const POST_INTERVENTION_DOCUMENT_KEY = 'postIntervention'
  * Record one save-stage duration as both a `pipeline-inline` evidence line (for
  * log search, keyed by uploadId) and an EMF duration metric (for the Grafana
  * dashboard, dimensioned only by documentKey). See recordStage in
- * src/routes/validate-geopackage-route.js for why both exist.
+ * src/routes/validate-geopackage-metrics.js for why both exist.
  *
  * @param {{ info?: Function }} logger
  * @param {string} metricName one of PERFORMANCE_METRIC

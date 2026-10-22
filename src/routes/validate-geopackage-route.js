@@ -238,7 +238,9 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // the baseline endpoint checks them, in a worker trip of their own. Both
   // stages are checked whatever either finds, so the user sees every error at
   // once. Null for every other upload. The stage timings and counts below
-  // cover both stages.
+  // cover both stages. The two trips run one after the other on purpose, not
+  // in parallel: each holds its stage's attributes until its checks are done,
+  // and the parse budget is reserved once, for one stage's set at a time.
   const baselineCheck = await validateBaselineStage(context)
   const result = await validateGeoPackageLayers(
     loadAndRemember,
