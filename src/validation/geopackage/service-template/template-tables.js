@@ -1,5 +1,6 @@
 import { FORMAT_BNG_SERVICE } from 'bng-library/bng-service'
 
+import { parseProposedAdvanceDelayYears } from '../post-intervention/extract-post-intervention-sub-objects.js'
 import { templateForVersion } from './supported-versions.js'
 
 /**
@@ -13,6 +14,43 @@ import { templateForVersion } from './supported-versions.js'
 
 /** The primary key, kept on every feature: messages name a row by it. */
 const FID = 'fid'
+
+// The template's years created in advance and years of delay. Its form greys
+// out one while the other is above 0, so a surveyor cannot fill it in: it is
+// left blank, and means 0 years.
+const ADVANCE = 'Habitat created in advance/years'
+const DELAY = 'Delay in starting habitat creation/years'
+const NO_YEARS = '0'
+
+const isBlank = (value) =>
+  value === null ||
+  value === undefined ||
+  (typeof value === 'string' && value.trim() === '')
+
+// Years as the calculation reads them, so only real years grey the other
+// column out: not N/A, 0, 0.0 or a negative number.
+const aboveZero = (value) => (parseProposedAdvanceDelayYears(value) ?? 0) > 0
+
+/**
+ * Read the timing column the template greys out as 0 years, so a row with
+ * years in advance and no delay (or a delay and no years in advance) has both
+ * values the calculation needs.
+ */
+function withGreyedOutTimingAsZero(properties) {
+  for (const [column, other] of [
+    [ADVANCE, DELAY],
+    [DELAY, ADVANCE]
+  ]) {
+    if (
+      column in properties &&
+      isBlank(properties[column]) &&
+      aboveZero(properties[other])
+    ) {
+      properties[column] = NO_YEARS
+    }
+  }
+  return properties
+}
 
 /**
  * @typedef {object} TemplateReadSource
@@ -73,6 +111,7 @@ export function resolveTemplateTables(tableNames, source) {
 /**
  * A template row's attributes under the names the pipeline reads them by.
  * Columns the mapping does not read are left out; the primary key is kept.
+ * The timing column the template greys out is read as 0 years.
  *
  * @param {object} row
  * @param {string} geometryColumn
@@ -91,5 +130,5 @@ export function templateFeatureProperties(row, geometryColumn, columns) {
       properties[name] = value
     }
   }
-  return properties
+  return withGreyedOutTimingAsZero(properties)
 }

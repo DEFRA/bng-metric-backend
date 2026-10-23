@@ -8,7 +8,8 @@ import { FEATURE_READ_MODE } from '../read-feature-tables.js'
 import { resolveTemplateTables, templateReadSource } from './template-tables.js'
 import {
   buildServiceTemplateBuffer,
-  populatedBaselineRows
+  populatedBaselineRows,
+  populatedPostInterventionRows
 } from '../../../../test/helpers/service-template-gpkg.js'
 import {
   fullReadBuffer,
@@ -136,6 +137,43 @@ describe('reading a BNG Service template file', () => {
       parent_uuid: 'de9d1450-90f7-584a-9710-edf7ec189de4'
     })
   })
+
+  // The template's form greys out one timing column while the other is above
+  // 0, so the surveyor leaves it blank: 0 years.
+  test.each([
+    ['years in advance', '5', null, '5', '0'],
+    ['a delay', null, '3', '0', '3'],
+    ['30+ years in advance', '30+', '', '30+', '0'],
+    ['neither', null, null, null, null],
+    ['both at 0', '0', '0', '0', '0'],
+    ['N/A', 'N/A', null, 'N/A', null],
+    ['0.0', '0.0', null, '0.0', null],
+    ['a negative number', '-1', null, '-1', null],
+    [' 0 ', ' 0 ', null, ' 0 ', null]
+  ])(
+    'beside %s, reads a blank timing column as 0 years only when the other is above 0',
+    async (_, advance, delay, readAdvance, readDelay) => {
+      const rows = {
+        ...populatedBaselineRows(),
+        ...populatedPostInterventionRows()
+      }
+      Object.assign(rows['Area Habitats Post-Intervention'][0], {
+        'Habitat created in advance/years': advance,
+        'Delay in starting habitat creation/years': delay
+      })
+
+      const layers = await read(
+        { rows },
+        FEATURE_READ_MODE.properties,
+        templateReadSource('1.0', STAGE_POST_INTERVENTION)
+      )
+
+      expect(layers.areas[0].properties).toMatchObject({
+        'Habitat created in advance/years': readAdvance,
+        'Delay in starting habitat creation/years': readDelay
+      })
+    }
+  )
 
   test('reports a layer whose table is missing', async () => {
     const layers = await read({ omitTables: ['Hedgerows Baseline'] })

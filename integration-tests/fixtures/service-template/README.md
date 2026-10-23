@@ -1,13 +1,15 @@
 # BNG Service template fixtures
 
 Copies of files from bng-metric-harness's curated corpus,
-`example-files/service-template/`, at harness commit `624d976`. The harness's
+`example-files/service-template/`, at harness commit `624d976`
+(`default-site.gpkg` at `fa5ff55`). The harness's
 README there says how each file was made and what the service should do with
 it; the harness rebuilds them from recipes, so take a fresh copy from there
 rather than editing these.
 
 | File                                        | Harness path          |
 | :------------------------------------------ | :-------------------- |
+| `default-site.gpkg`                         | `valid/`              |
 | `plain-site.gpkg`                           | `valid/`              |
 | `large-site-baseline.gpkg`                  | `valid/`              |
 | `missing-habitat-ref.gpkg`                  | `attribute-problems/` |
