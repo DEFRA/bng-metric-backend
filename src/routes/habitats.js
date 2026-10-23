@@ -13,6 +13,13 @@ import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
+// These routes save the dropdown fields alone. A ref sent here is refused
+// rather than accepted and dropped, so a client that means to rename uses the
+// feature PUT (BMD-1061).
+const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
+  schema.forbidden()
+)
+
 /**
  * @openapi
  * /projects/{projectId}/habitats/{featureId}:
@@ -128,7 +135,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
-        payload: featureEditPayload
+        payload: areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {

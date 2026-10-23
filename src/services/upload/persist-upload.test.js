@@ -15,11 +15,8 @@ import {
   SAMPLE_GEOM,
   makeDrizzle
 } from '../../routes/validate-geopackage-route.test-fixtures.js'
-import {
-  FEATURE_TABLE_SETS,
-  persistCombinedUpload,
-  persistUpload
-} from './persist-upload.js'
+import { FEATURE_TABLE_SETS } from '../../db/feature-tables.js'
+import { persistCombinedUpload, persistUpload } from './persist-upload.js'
 
 const UPLOAD_ID = 'f6b667d8-998f-4f55-8a20-204c0c289147'
 /** Mirrors INSERT_BATCH_SIZE in persist-upload.js */
