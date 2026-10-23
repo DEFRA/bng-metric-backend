@@ -27,6 +27,10 @@ import {
   validateBaselineStage
 } from '../validation/geopackage/service-template/baseline-stage.js'
 import {
+  validateLineageStage,
+  withLineageVerdict
+} from '../validation/geopackage/service-template/lineage-stage.js'
+import {
   busyReason,
   respondToBusy,
   respondToUnavailable
@@ -261,7 +265,13 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     config
   )
 
-  const verdict = mergeStageVerdicts(baselineCheck, result)
+  // The parent links between the two stages, once both stages are read
+  // (BMD-1083). Null for every upload with no baseline stage.
+  const lineageCheck = validateLineageStage(context)
+  const verdict = mergeStageVerdicts(
+    baselineCheck,
+    withLineageVerdict(result, lineageCheck)
+  )
   if (!verdict.valid) {
     return respondToGeometryRejection(verdict, uploadId, h, config)
   }
