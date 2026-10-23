@@ -191,7 +191,7 @@ function buildEnhancedHedgerowCalculate(
   }
   return () => {
     const baselineLengthKm = lookupBaselineLinearLength(
-      hedgerow.ref,
+      hedgerow,
       baselineLengthByRef,
       'hedgerow'
     )
