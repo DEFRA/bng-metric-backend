@@ -5,6 +5,7 @@ import Database from 'better-sqlite3'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 
 import { describeServiceTemplate } from '../test/helpers/template-mode.js'
+import { parseProposedAdvanceDelayYears } from '../src/validation/geopackage/post-intervention/extract-post-intervention-sub-objects.js'
 import { TEMPLATE_MAPPING_1_0 } from '../src/validation/geopackage/service-template/template-mapping.js'
 import {
   STAGE_BASELINE,
@@ -63,6 +64,8 @@ const DELAY = 'Delay in starting habitat creation/years'
 const TIMING = { [ADVANCE]: DELAY, [DELAY]: ADVANCE }
 const NO_YEARS = '0'
 const isBlank = (value) => value === null || String(value).trim() === ''
+// Years above 0, parsed as the calculation parses them.
+const aboveZero = (value) => (parseProposedAdvanceDelayYears(value) ?? 0) > 0
 
 /**
  * A column's value as the pipeline keeps it: a reference trimmed, and a timing
@@ -74,12 +77,7 @@ function asKept(column, row) {
     return value.trim()
   }
   const other = TIMING[column]
-  if (
-    other &&
-    isBlank(value) &&
-    !isBlank(row[other]) &&
-    row[other] !== NO_YEARS
-  ) {
+  if (other && isBlank(value) && aboveZero(row[other])) {
     return NO_YEARS
   }
   return value

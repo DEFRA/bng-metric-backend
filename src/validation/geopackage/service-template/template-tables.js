@@ -1,5 +1,6 @@
 import { FORMAT_BNG_SERVICE } from 'bng-library/bng-service'
 
+import { parseProposedAdvanceDelayYears } from '../post-intervention/extract-post-intervention-sub-objects.js'
 import { templateForVersion } from './supported-versions.js'
 
 /**
@@ -26,8 +27,9 @@ const isBlank = (value) =>
   value === undefined ||
   (typeof value === 'string' && value.trim() === '')
 
-const aboveZero = (value) =>
-  !isBlank(value) && String(value).trim() !== NO_YEARS
+// Years as the calculation reads them, so only real years grey the other
+// column out: not N/A, 0, 0.0 or a negative number.
+const aboveZero = (value) => (parseProposedAdvanceDelayYears(value) ?? 0) > 0
 
 /**
  * Read the timing column the template greys out as 0 years, so a row with

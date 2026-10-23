@@ -145,9 +145,13 @@ describe('reading a BNG Service template file', () => {
     ['a delay', null, '3', '0', '3'],
     ['30+ years in advance', '30+', '', '30+', '0'],
     ['neither', null, null, null, null],
-    ['both at 0', '0', '0', '0', '0']
+    ['both at 0', '0', '0', '0', '0'],
+    ['N/A', 'N/A', null, 'N/A', null],
+    ['0.0', '0.0', null, '0.0', null],
+    ['a negative number', '-1', null, '-1', null],
+    [' 0 ', ' 0 ', null, ' 0 ', null]
   ])(
-    'reads the timing column greyed out beside %s as 0 years',
+    'beside %s, reads a blank timing column as 0 years only when the other is above 0',
     async (_, advance, delay, readAdvance, readDelay) => {
       const rows = {
         ...populatedBaselineRows(),
