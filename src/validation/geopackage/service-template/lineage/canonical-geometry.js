@@ -60,6 +60,8 @@ export const MATCH_TOLERANCE_M = 0.0011
 // closer than this to the line through their neighbours are collinear.
 const VERTEX_TOLERANCE = 0.001
 const MIN_OPEN_PATH_VERTICES = 2
+/** `.at()` index of the second-to-last vertex kept. */
+const SECOND_LAST = -2
 const MIN_RING_VERTICES = 3
 
 /** Ordinates kept per position: x and y. */
@@ -135,7 +137,7 @@ function stripCollinear(points) {
   for (const vertex of points) {
     while (
       result.length >= MIN_OPEN_PATH_VERTICES &&
-      perpendicularDistance(result.at(-1), result.at(-2), vertex) <
+      perpendicularDistance(result.at(-1), result.at(SECOND_LAST), vertex) <
         VERTEX_TOLERANCE
     ) {
       result.pop()
@@ -405,7 +407,7 @@ function coordinatesMatch(a, b) {
  * @returns {boolean}
  */
 export function canonicalGeometriesMatch(a, b) {
-  if (!a || a.type !== b?.type) {
+  if (!a?.type || a.type !== b?.type) {
     return false
   }
   return coordinatesMatch(a.coordinates, b.coordinates)

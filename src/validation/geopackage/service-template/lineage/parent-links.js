@@ -180,25 +180,32 @@ function addChild(entries, key, make, feature) {
 function checkRow(feature, { layer, tables, parents, matches, found }) {
   const properties = feature.properties ?? {}
   const uuid = text(properties[PARENT_UUID])
-  const named = uuid === null ? undefined : parents.get(uuid)
   if (uuid === null) {
     if (continues(properties)) {
       found.unlinked.push(offendingRow(layer, tables.postIntervention, feature))
     }
-  } else if (!named) {
+    return
+  }
+  const named = parents.get(uuid)
+  if (!named) {
     found.missing.push(offendingRow(layer, tables.postIntervention, feature))
-  } else if (named.length > 1) {
+    return
+  }
+  if (named.length > 1) {
     addChild(
       found.ambiguous,
       uuid,
       () => ambiguousParent(layer, tables.baseline, uuid, named),
       feature
     )
-  } else if (!matches(properties[PARENT_GEOM], named[0])) {
+    return
+  }
+  const [parent] = named
+  if (!matches(properties[PARENT_GEOM], parent)) {
     addChild(
       found.changed,
-      named[0],
-      () => changedParent(layer, tables.baseline, named[0]),
+      parent,
+      () => changedParent(layer, tables.baseline, parent),
       feature
     )
   }
