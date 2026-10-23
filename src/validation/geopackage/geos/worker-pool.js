@@ -639,7 +639,8 @@ export class GeosWorkerPool {
       jobId: job.id,
       filePath: job.filePath,
       includeSizes: job.includeSizes,
-      source: job.source
+      source: job.source,
+      lineageSource: job.lineageSource
     })
   }
 
@@ -671,12 +672,14 @@ export class GeosWorkerPool {
    * Validate a GeoPackage on a worker thread.
    *
    * @param {string} filePath the uploaded file, already on local disk
-   * @param {{ includeSizes?: boolean, source?: import('../service-template/template-tables.js').TemplateReadSource }} [options]
+   * @param {{ includeSizes?: boolean, source?: import('../service-template/template-tables.js').TemplateReadSource, lineageSource?: import('../service-template/template-tables.js').TemplateReadSource }} [options]
    *   `source` is how the worker reads a BNG Service template file; omitted
-   *   for a legacy file
+   *   for a legacy file. `lineageSource` is how it reads the Baseline tables
+   *   the rows `source` names are linked to, for their parent links to be
+   *   checked (BMD-1083); omitted when there is no baseline stage
    * @returns {Promise<object>} the verdict from validateGeoPackageLayersGeos
    */
-  run(filePath, { includeSizes = false, source } = {}) {
+  run(filePath, { includeSizes = false, source, lineageSource } = {}) {
     if (this.broken) {
       return Promise.reject(this.broken)
     }
@@ -697,6 +700,7 @@ export class GeosWorkerPool {
         filePath,
         includeSizes,
         source,
+        lineageSource,
         enqueuedAt: Date.now(),
         settled: false,
         resolve: (value) => {

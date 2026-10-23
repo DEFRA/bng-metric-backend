@@ -168,7 +168,7 @@ function buildEnhancedWatercourseCalculate(
   return () => {
     const encroachments = resolvedWatercourseEncroachments(proposed)
     const baselineLengthKm = lookupBaselineLinearLength(
-      watercourse.ref,
+      watercourse,
       baselineLengthByRef,
       'watercourse'
     )

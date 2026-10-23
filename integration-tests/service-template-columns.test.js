@@ -45,6 +45,8 @@ const PROPOSED_SIGNIFICANCE = 'Proposed Strategic Significance'
 const MULTIPLIERS = { Low: 1, High: 1.15 }
 // What a document records about its upload rather than the file's contents.
 const UPLOAD_FIELDS = ['uploadId', 'importedAt', 'filename', 'fileSize']
+// Ids each project gives its own features, and so its links to them.
+const PER_PROJECT_IDS = new Set(['featureId', 'parentFeatureId'])
 
 /** Each row of a fixture's table, by fid. */
 function rowsOf(filePath, table) {
@@ -94,7 +96,9 @@ function contents(project) {
   const strip = (document) =>
     JSON.parse(
       JSON.stringify(document, (key, value) =>
-        UPLOAD_FIELDS.includes(key) || key === 'featureId' ? undefined : value
+        UPLOAD_FIELDS.includes(key) || PER_PROJECT_IDS.has(key)
+          ? undefined
+          : value
       )
     )
   return {

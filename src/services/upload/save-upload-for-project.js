@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import { assignFeatureIds } from '../../validation/geopackage/assign-feature-ids.js'
 import { buildFeatureIdByRef } from '../../validation/geopackage/carry-forward-feature-ids.js'
+import { linkToParents } from '../../validation/geopackage/service-template/lineage/link-parents.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/enrichment/baseline/enrich-baseline-units.js'
 import { postInterventionEnrichOptions } from '../../utilities/enrichment/post-intervention/post-intervention-enrich-options.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
@@ -320,6 +321,15 @@ export function extractAndValidateDocument({
       ? normaliseProposedCombinations
       : normaliseImportedCombinations
   normaliseCombinations(document)
+  // A BNG Service template file names each row's parent, so its
+  // post-intervention features are linked to the baseline saved with them
+  // before they are priced (BMD-1083). A legacy file names none.
+  if (
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY &&
+    template
+  ) {
+    linkToParents(document, baselineDocument)
+  }
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
     config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
