@@ -201,6 +201,46 @@ describe('checkParentLinks', () => {
     })
   })
 
+  it('refuses a row whose parent_uuid more than one baseline habitat has, listing them and the rows that name it', () => {
+    const errors = check({
+      baseline: [
+        baselineParcel(),
+        { ...baselineParcel({ fid: 2, 'Parcel Ref': 'H001 copy' }) }
+      ],
+      pi: [linkedRow(), linkedRow({ fid: 2, 'Parcel Ref': 'H001b' })]
+    })
+
+    expect(errors).toEqual([
+      {
+        code: ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
+        message:
+          'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has: Area Habitats Baseline H001, H001 copy, named by H001, H001b',
+        details: {
+          count: 1,
+          sample: [
+            {
+              layer: 'areas',
+              table: AREA_BASELINE,
+              parentUuid: PARENT_UUID,
+              refs: ['H001', 'H001 copy'],
+              habitatType: 'Other lowland acid grassland',
+              childRefs: ['H001', 'H001b']
+            }
+          ]
+        }
+      }
+    ])
+  })
+
+  it('accepts a baseline uuid two habitats share when no row names it', () => {
+    expect(
+      check({
+        baseline: [baselineParcel(), baselineParcel({ fid: 2 })],
+        pi: [linkedRow({ 'Retention Category': 'Created', parent_uuid: null })]
+      })
+    ).toEqual([])
+  })
+
   it('refuses a parent whose shape has moved since the copy, listing the parent and each affected row once', () => {
     const moved = PARCEL.map(([x, y]) => [x + 5, y])
     const errors = check({

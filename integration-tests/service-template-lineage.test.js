@@ -156,6 +156,40 @@ describeServiceTemplate(
       }
     )
 
+    it('refuses a row whose parent’s feature_uuid another baseline habitat shares, naming both, and stores nothing', async () => {
+      const project = await createProject('Lineage ambiguous parent')
+      const filePath = path.join(scratch, 'shared-uuid.gpkg')
+      copyFileSync(fixturePath(EVERY_COLUMN), filePath)
+      const db = new Database(filePath)
+      try {
+        db.prepare(
+          `UPDATE "${AREA_BASELINE}" SET feature_uuid = (SELECT feature_uuid FROM "${AREA_BASELINE}" WHERE fid = 1) WHERE fid = 2`
+        ).run()
+      } finally {
+        db.close()
+      }
+
+      const res = await uploadCombined(project.id, EVERY_COLUMN, filePath)
+
+      expect(res.result.valid).toBe(false)
+      expect(res.result.errors).toContainEqual(
+        expect.objectContaining({
+          code: ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
+          stage: 'post-intervention',
+          details: {
+            count: 1,
+            sample: [
+              expect.objectContaining({
+                table: AREA_BASELINE,
+                refs: ['H001', 'H002']
+              })
+            ]
+          }
+        })
+      )
+      expect((await fetchProject(project.id)).postIntervention).toBeUndefined()
+    })
+
     it('gives each linked post-intervention feature its parent’s featureId, and an unlinked one none', async () => {
       const project = await createProject('Lineage parent featureId')
 

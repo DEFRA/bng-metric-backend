@@ -572,4 +572,37 @@ describe('GeosWorkerPool — a BNG Service template file', () => {
     expect(result.sizes.hedgerows).toHaveLength(1)
     expect(result.sizes.watercourses).toHaveLength(1)
   })
+
+  it('has the worker check the parent links when given the Baseline tables to check them against', async () => {
+    const pool = openPool()
+    const rows = populatedBaselineRows()
+    rows['Area Habitats Post-Intervention'] = [
+      {
+        'Habitat Ref': 'H001',
+        'Retention Category': 'Retained',
+        parent_uuid: '00000000-0000-4000-8000-000000000000'
+      }
+    ]
+    const buffer = buildServiceTemplateBuffer({ rows })
+    const run = (options) =>
+      withTempGpkgFile(buffer, (filePath) =>
+        pool.run(filePath, {
+          source: templateReadSource('1.0', 'post-intervention'),
+          ...options
+        })
+      )
+
+    const checked = await run({
+      lineageSource: templateReadSource('1.0', 'baseline')
+    })
+    const unchecked = await run()
+
+    expect(checked.valid).toBe(false)
+    expect(checked.errors.map((e) => e.code)).toContain(
+      'STAGED_UNKNOWN_PARENT_REF'
+    )
+    expect(unchecked.errors.map((e) => e.code)).not.toContain(
+      'STAGED_UNKNOWN_PARENT_REF'
+    )
+  })
 })

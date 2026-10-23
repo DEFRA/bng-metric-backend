@@ -142,6 +142,15 @@ export const ERROR_CODES = Object.freeze({
   STAGED_UNKNOWN_PARENT_REF: 'STAGED_UNKNOWN_PARENT_REF',
 
   /**
+   * BNG Service template rows whose `parent_uuid` names a `feature_uuid` that
+   * more than one baseline feature of their layer has (a pasted copy can), so
+   * which one each row continues is not known (BMD-1083). `details.sample`
+   * lists each uuid's baseline table and Habitat Refs, and the Habitat Ref of
+   * each row that names it. The frontend sends the user to the drop-out page.
+   */
+  STAGED_AMBIGUOUS_PARENT: 'STAGED_AMBIGUOUS_PARENT',
+
+  /**
    * BNG Service template baseline features whose shape is not the one their
    * linked post-intervention rows recorded in `parent_geom`: the baseline was
    * edited after the copy, or a row's `parent_geom` is missing or cannot be

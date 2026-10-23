@@ -90,13 +90,16 @@ export async function validateBaselineFile(filePath, variant) {
  *   lengths, so the sizing pass need not re-measure the same geometry
  * @param {import('./service-template/template-tables.js').TemplateReadSource} [options.source]
  *   how the worker reads a BNG Service template file; omitted for a legacy one
+ * @param {import('./service-template/template-tables.js').TemplateReadSource} [options.lineageSource]
+ *   the Baseline tables the `source` rows are linked to, whose parent links
+ *   the worker checks too (BMD-1083); omitted when there is no baseline stage
  */
 export async function validateGeoPackageLayers(
   layersOrLoad,
   variant,
   options = {}
 ) {
-  const { filePath, includeSizes = false, source } = options
+  const { filePath, includeSizes = false, source, lineageSource } = options
   if (!filePath) {
     throw new Error('validateGeoPackageLayers requires a GeoPackage file path')
   }
@@ -117,7 +120,7 @@ export async function validateGeoPackageLayers(
   const start = perfNow()
   const { valid, errors, sizes, geosVersion, queueWaitMs } = await pool.run(
     filePath,
-    { includeSizes, source }
+    { includeSizes, source, lineageSource }
   )
   const stats = pool.stats()
   logPerf(logger, 'geos-worker-validate', {

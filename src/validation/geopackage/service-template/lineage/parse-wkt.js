@@ -39,7 +39,7 @@ const MAX_ORDINATES = 4
 const WORD = /[A-Za-z]+/y
 const NUMBER = /[-+]?(?:\d+(?:\.\d*)?|\.\d+)(?:[eE][-+]?\d+)?/y
 const WHITESPACE = new Set([' ', '\t', '\n', '\r'])
-const NUMBER_START = new Set([...'+-.0123456789'])
+const NUMBER_START = new Set('+-.0123456789')
 
 class WktSyntaxError extends Error {}
 
@@ -149,18 +149,28 @@ function readMultiPointMember(cursor) {
   return position
 }
 
+function readPoint(cursor) {
+  cursor.expect('(')
+  const position = readPosition(cursor)
+  cursor.expect(')')
+  return position
+}
+
+function readMultiPoint(cursor) {
+  return readList(cursor, readMultiPointMember)
+}
+
+function readPolygonList(cursor) {
+  return readList(cursor, readRingList)
+}
+
 const BODY_READERS = Object.freeze({
-  POINT: (cursor) => {
-    cursor.expect('(')
-    const position = readPosition(cursor)
-    cursor.expect(')')
-    return position
-  },
+  POINT: readPoint,
   LINESTRING: readPositionList,
   POLYGON: readRingList,
-  MULTIPOINT: (cursor) => readList(cursor, readMultiPointMember),
+  MULTIPOINT: readMultiPoint,
   MULTILINESTRING: readRingList,
-  MULTIPOLYGON: (cursor) => readList(cursor, readRingList)
+  MULTIPOLYGON: readPolygonList
 })
 
 /** The type name, with any dimension suffix or dimension word consumed. */

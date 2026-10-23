@@ -17,6 +17,9 @@ import {
  * - no parent link: a Retained or Enhanced row, which carries a baseline
  *   habitat forward, names no parent, so it is not known which one;
  * - a missing parent: `parent_uuid` names no baseline feature of the layer;
+ * - an ambiguous parent: `parent_uuid` names a `feature_uuid` that more than
+ *   one baseline feature of the layer has, as a pasted copy can, so which
+ *   one the row continues, and whose length it is priced on, is not known;
  * - a parent shape changed: the row's `parent_geom`, the parent's shape when
  *   the row was copied, pasted or last refreshed, no longer matches the
  *   parent's baseline shape, so the baseline was edited after the copy. A
@@ -104,13 +107,13 @@ function createShapeCache() {
   }
 }
 
-/** The baseline features of a layer, by `feature_uuid`. */
+/** The baseline features of a layer, by `feature_uuid`: each uuid's list. */
 function parentsByUuid(baseline) {
   const parents = new Map()
   for (const feature of baseline) {
     const uuid = text(feature.properties?.[FEATURE_UUID])
     if (uuid !== null) {
-      parents.set(uuid, feature)
+      parents.set(uuid, [...(parents.get(uuid) ?? []), feature])
     }
   }
   return parents
@@ -150,40 +153,91 @@ function changedParent(layer, table, parent) {
   }
 }
 
-/** One layer's unlinked rows, missing parents and changed parents. */
-function checkLayer(layer, baseline, postIntervention) {
-  const parents = parentsByUuid(baseline.features)
-  const matches = createShapeCache()
-  const unlinked = []
-  const missing = []
-  const changed = new Map()
-  for (const feature of postIntervention.features) {
-    const uuid = text(feature.properties?.[PARENT_UUID])
-    if (uuid === null) {
-      if (continues(feature.properties ?? {})) {
-        unlinked.push(offendingRow(layer, postIntervention.table, feature))
-      }
-      continue
-    }
-    const parent = parents.get(uuid)
-    if (!parent) {
-      missing.push(offendingRow(layer, postIntervention.table, feature))
-      continue
-    }
-    if (matches(feature.properties[PARENT_GEOM], parent)) {
-      continue
-    }
-    const entry =
-      changed.get(parent) ?? changedParent(layer, baseline.table, parent)
-    entry.childRefs.push(text(feature.properties[REF]))
-    changed.set(parent, entry)
+/** A `feature_uuid` that more than one baseline feature has. */
+function ambiguousParent(layer, table, uuid, parents) {
+  return {
+    layer,
+    table,
+    parentUuid: uuid,
+    refs: parents.map(({ properties }) => text(properties[REF])),
+    habitatType: text(parents[0].properties[HABITAT_TYPE[layer][0]]),
+    childRefs: []
   }
-  return { unlinked, missing, changed: [...changed.values()] }
 }
 
-const label = (offender) =>
-  `${offender.table} ${offender.ref ?? `fid ${offender.fid}`}` +
-  (offender.habitatType ? ` (${offender.habitatType})` : '')
+/** Add a row's Habitat Ref to the entry for `key`, made by `make` if new. */
+function addChild(entries, key, make, feature) {
+  const entry = entries.get(key) ?? make()
+  entry.childRefs.push(text(feature.properties[REF]))
+  entries.set(key, entry)
+}
+
+/**
+ * Check one post-intervention row's link, recording what is wrong with it in
+ * `found`. A row that names no parent is checked only if it carries one
+ * forward; a row that names one is checked whatever its Retention Category.
+ */
+function checkRow(feature, { layer, tables, parents, matches, found }) {
+  const properties = feature.properties ?? {}
+  const uuid = text(properties[PARENT_UUID])
+  const named = uuid === null ? undefined : parents.get(uuid)
+  if (uuid === null) {
+    if (continues(properties)) {
+      found.unlinked.push(offendingRow(layer, tables.postIntervention, feature))
+    }
+  } else if (!named) {
+    found.missing.push(offendingRow(layer, tables.postIntervention, feature))
+  } else if (named.length > 1) {
+    addChild(
+      found.ambiguous,
+      uuid,
+      () => ambiguousParent(layer, tables.baseline, uuid, named),
+      feature
+    )
+  } else if (!matches(properties[PARENT_GEOM], named[0])) {
+    addChild(
+      found.changed,
+      named[0],
+      () => changedParent(layer, tables.baseline, named[0]),
+      feature
+    )
+  }
+}
+
+/** One layer's unlinked rows and missing, ambiguous and changed parents. */
+function checkLayer(layer, baseline, postIntervention) {
+  const context = {
+    layer,
+    tables: {
+      baseline: baseline.table,
+      postIntervention: postIntervention.table
+    },
+    parents: parentsByUuid(baseline.features),
+    matches: createShapeCache(),
+    found: {
+      unlinked: [],
+      missing: [],
+      ambiguous: new Map(),
+      changed: new Map()
+    }
+  }
+  for (const feature of postIntervention.features) {
+    checkRow(feature, context)
+  }
+  const { unlinked, missing, ambiguous, changed } = context.found
+  return {
+    unlinked,
+    missing,
+    ambiguous: [...ambiguous.values()],
+    changed: [...changed.values()]
+  }
+}
+
+function label(offender) {
+  const name = offender.ref ?? `fid ${offender.fid}`
+  const habitatType = offender.habitatType ? ` (${offender.habitatType})` : ''
+  return `${offender.table} ${name}${habitatType}`
+}
 
 function collated(code, heading, offenders, describe) {
   if (offenders.length === 0) {
@@ -214,6 +268,7 @@ function collated(code, heading, offenders, describe) {
 export function checkParentLinks(baselineLayers, postInterventionLayers) {
   const unlinked = []
   const missing = []
+  const ambiguous = []
   const changed = []
   for (const layer of LINKED_LAYERS) {
     const found = checkLayer(
@@ -229,6 +284,7 @@ export function checkParentLinks(baselineLayers, postInterventionLayers) {
     )
     unlinked.push(...found.unlinked)
     missing.push(...found.missing)
+    ambiguous.push(...found.ambiguous)
     changed.push(...found.changed)
   }
   return [
@@ -243,6 +299,13 @@ export function checkParentLinks(baselineLayers, postInterventionLayers) {
       'One or more post-intervention habitats name a baseline habitat that is not in the file',
       missing,
       label
+    ),
+    collated(
+      ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
+      'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has',
+      ambiguous,
+      (parent) =>
+        `${parent.table} ${parent.refs.join(', ')}, named by ${parent.childRefs.join(', ')}`
     ),
     collated(
       ERROR_CODES.STAGED_BASELINE_DRIFTED,

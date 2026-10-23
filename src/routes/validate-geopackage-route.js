@@ -27,10 +27,6 @@ import {
   validateBaselineStage
 } from '../validation/geopackage/service-template/baseline-stage.js'
 import {
-  validateLineageStage,
-  withLineageVerdict
-} from '../validation/geopackage/service-template/lineage-stage.js'
-import {
   busyReason,
   respondToBusy,
   respondToUnavailable
@@ -246,10 +242,18 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // in parallel: each holds its stage's attributes until its checks are done,
   // and the parse budget is reserved once, for one stage's set at a time.
   const baselineCheck = await validateBaselineStage(context)
+  // A template file read at both stages has its parent links checked on the
+  // Post-Intervention trip too, in the worker (BMD-1083): `lineageSource`
+  // names the Baseline tables they link to. Absent for every other upload.
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
-    { filePath, includeSizes: Boolean(projectId), source: readSource }
+    {
+      filePath,
+      includeSizes: Boolean(projectId),
+      source: readSource,
+      lineageSource: context.baselineReadSource
+    }
   )
   const featureCount =
     countFeatures(layers) + (baselineCheck?.featureCount ?? 0)
@@ -265,13 +269,7 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     config
   )
 
-  // The parent links between the two stages, once both stages are read
-  // (BMD-1083). Null for every upload with no baseline stage.
-  const lineageCheck = validateLineageStage(context)
-  const verdict = mergeStageVerdicts(
-    baselineCheck,
-    withLineageVerdict(result, lineageCheck)
-  )
+  const verdict = mergeStageVerdicts(baselineCheck, result)
   if (!verdict.valid) {
     return respondToGeometryRejection(verdict, uploadId, h, config)
   }

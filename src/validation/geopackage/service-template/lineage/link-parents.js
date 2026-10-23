@@ -30,11 +30,13 @@ const text = (value) =>
  */
 export function linkToParents(postIntervention, baseline) {
   for (const layer of LINKED_LAYERS) {
+    // A uuid two baseline features share links neither: the parent checks
+    // refuse a row that names one (STAGED_AMBIGUOUS_PARENT).
     const parentIds = new Map()
     for (const parent of baseline?.[layer] ?? []) {
       const uuid = text(parent.properties?.[FEATURE_UUID])
       if (uuid !== null) {
-        parentIds.set(uuid, parent.featureId)
+        parentIds.set(uuid, parentIds.has(uuid) ? null : parent.featureId)
       }
     }
     for (const feature of postIntervention[layer] ?? []) {

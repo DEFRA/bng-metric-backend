@@ -104,7 +104,7 @@ function samePosition(p, q) {
 function dedupeRuns(points) {
   const out = [points[0]]
   for (let i = 1; i < points.length; i += 1) {
-    if (distance(points[i], out[out.length - 1]) >= VERTEX_TOLERANCE) {
+    if (distance(points[i], out.at(-1)) >= VERTEX_TOLERANCE) {
       out.push(points[i])
     }
   }
@@ -119,8 +119,8 @@ function dedupeRuns(points) {
  */
 function dedupeOpenPath(points) {
   const out = dedupeRuns(points)
-  const finalPoint = points[points.length - 1]
-  if (!samePosition(out[out.length - 1], finalPoint)) {
+  const finalPoint = points.at(-1)
+  if (!samePosition(out.at(-1), finalPoint)) {
     out[out.length - 1] = finalPoint
   }
   return out
@@ -135,11 +135,8 @@ function stripCollinear(points) {
   for (const vertex of points) {
     while (
       result.length >= MIN_OPEN_PATH_VERTICES &&
-      perpendicularDistance(
-        result[result.length - 1],
-        result[result.length - 2],
-        vertex
-      ) < VERTEX_TOLERANCE
+      perpendicularDistance(result.at(-1), result.at(-2), vertex) <
+        VERTEX_TOLERANCE
     ) {
       result.pop()
     }
@@ -167,25 +164,33 @@ function canonicaliseOpenPath(points) {
  * the original vertex count). Mutates and returns `pts`.
  */
 function stripRingJunction(pts, maxIterations) {
-  for (let i = 0; i < maxIterations; i += 1) {
-    const last = pts.length - 1
-    if (
-      pts.length > MIN_RING_VERTICES &&
-      perpendicularDistance(pts[0], pts[last], pts[1]) < VERTEX_TOLERANCE
-    ) {
-      pts.shift()
-      continue
-    }
-    if (
-      pts.length > MIN_RING_VERTICES &&
-      perpendicularDistance(pts[last], pts[last - 1], pts[0]) < VERTEX_TOLERANCE
-    ) {
-      pts.pop()
-      continue
-    }
-    break
+  let removed = 0
+  while (removed < maxIterations && stripJunctionVertex(pts)) {
+    removed += 1
   }
   return pts
+}
+
+/**
+ * Remove the first or the last vertex of an open ring when it is collinear
+ * with its neighbours across the closing junction. True when one was removed.
+ */
+function stripJunctionVertex(pts) {
+  if (pts.length <= MIN_RING_VERTICES) {
+    return false
+  }
+  const last = pts.length - 1
+  if (perpendicularDistance(pts[0], pts[last], pts[1]) < VERTEX_TOLERANCE) {
+    pts.shift()
+    return true
+  }
+  if (
+    perpendicularDistance(pts[last], pts[last - 1], pts[0]) < VERTEX_TOLERANCE
+  ) {
+    pts.pop()
+    return true
+  }
+  return false
 }
 
 /** Dedupe the open form of a ring, then drop a last vertex that has crept within tolerance of the first. */
@@ -193,7 +198,7 @@ function dedupeRing(openRing) {
   const deduped = dedupeRuns(openRing)
   if (
     deduped.length > 1 &&
-    distance(deduped[0], deduped[deduped.length - 1]) < VERTEX_TOLERANCE
+    distance(deduped[0], deduped.at(-1)) < VERTEX_TOLERANCE
   ) {
     deduped.pop()
   }
@@ -219,12 +224,19 @@ function canonicalisePolygon(rings) {
   return rings.map((ring) => canonicaliseRing(ring))
 }
 
+function canonicaliseOpenPaths(lines) {
+  return lines.map((line) => canonicaliseOpenPath(line))
+}
+
+function canonicalisePolygons(polygons) {
+  return polygons.map((rings) => canonicalisePolygon(rings))
+}
+
 const CANONICALISERS = {
   LINESTRING: canonicaliseOpenPath,
-  MULTILINESTRING: (lines) => lines.map((line) => canonicaliseOpenPath(line)),
+  MULTILINESTRING: canonicaliseOpenPaths,
   POLYGON: canonicalisePolygon,
-  MULTIPOLYGON: (polygons) =>
-    polygons.map((rings) => canonicalisePolygon(rings))
+  MULTIPOLYGON: canonicalisePolygons
 }
 
 /**
@@ -393,7 +405,7 @@ function coordinatesMatch(a, b) {
  * @returns {boolean}
  */
 export function canonicalGeometriesMatch(a, b) {
-  if (!a || !b || a.type !== b.type) {
+  if (!a || a.type !== b?.type) {
     return false
   }
   return coordinatesMatch(a.coordinates, b.coordinates)

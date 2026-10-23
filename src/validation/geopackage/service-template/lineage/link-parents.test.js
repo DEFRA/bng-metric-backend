@@ -71,6 +71,29 @@ describe('linkToParents', () => {
     expect(postIntervention.hedgerows[0]).not.toHaveProperty('parentFeatureId')
   })
 
+  it('links no feature to a uuid two baseline features share', () => {
+    const shared = {
+      habitats: [
+        ...baseline.habitats,
+        {
+          featureId: HEDGE_ID,
+          ref: 'H001 copy',
+          properties: { feature_uuid: PARCEL_UUID }
+        },
+        {
+          featureId: PARCEL_ID,
+          ref: 'H001 again',
+          properties: { feature_uuid: PARCEL_UUID }
+        }
+      ]
+    }
+    const postIntervention = { habitats: [row('Retained', PARCEL_UUID)] }
+
+    linkToParents(postIntervention, shared)
+
+    expect(postIntervention.habitats[0]).not.toHaveProperty('parentFeatureId')
+  })
+
   it('links nothing without a baseline', () => {
     const postIntervention = { habitats: [row('Retained', PARCEL_UUID)] }
 

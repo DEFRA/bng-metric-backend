@@ -6,52 +6,49 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * The lineage check of a BNG Service template file uploaded at the baseline +
  * post-intervention endpoint (BMD-1083): every post-intervention row that
  * names a baseline parent must name one that is in the file, with the shape
- * the row recorded for it. Null when the upload has no baseline stage to link
- * to: a legacy file, or the baseline endpoint.
+ * the row recorded for it.
  *
- * Pure JavaScript, on the request thread: the Baseline tables are read with
- * their geometry, which the shape check needs, and the Post-Intervention
- * tables for their attributes. Run whatever the stage checks found, so the
- * user sees every error at once.
+ * Run in the GEOS worker, on the trip that checks the Post-Intervention
+ * tables (geos/worker.js), so it is kept off the request thread and counted
+ * in that trip's time: the worker already holds those tables' rows, and reads
+ * the Baseline tables, with their geometry, for the shape check.
  *
- * @param {object} upload the route's context for the upload
- * @param {string} upload.filePath
- * @param {import('./template-tables.js').TemplateReadSource} [upload.readSource]
- * @param {import('./template-tables.js').TemplateReadSource} [upload.baselineReadSource]
- * @returns {{ valid: boolean, errors: Array<object> } | null}
+ * @param {string} filePath
+ * @param {object} postInterventionLayers the Post-Intervention tables, read
+ * @param {import('./template-tables.js').TemplateReadSource} [lineageSource]
+ *   how to read the Baseline tables; absent when there is no baseline stage
+ *   to link to (a legacy file, or the baseline endpoint)
+ * @returns {Array<object>} the lineage errors; none without a lineageSource
  */
-export function validateLineageStage({
+export function lineageErrorsFor(
   filePath,
-  readSource,
-  baselineReadSource
-}) {
-  if (!baselineReadSource) {
-    return null
+  postInterventionLayers,
+  lineageSource
+) {
+  if (!lineageSource) {
+    return []
   }
-  const errors = checkParentLinks(
-    readGeoPackage(filePath, FEATURE_READ_MODE.full, baselineReadSource),
-    readGeoPackage(filePath, FEATURE_READ_MODE.properties, readSource)
+  return checkParentLinks(
+    readGeoPackage(filePath, FEATURE_READ_MODE.full, lineageSource),
+    postInterventionLayers
   )
-  return { valid: errors.length === 0, errors }
 }
 
 /**
- * The post-intervention stage's verdict with the lineage check's errors
- * added: the rows it found wrong are post-intervention rows. Unchanged
- * without a lineage check.
+ * A stage's verdict with the lineage errors added after its own: the rows
+ * they name are that stage's rows. Unchanged when there are none.
  *
- * @param {{ valid: boolean, errors: Array<object> }} result the endpoint's
- *   own checks, of the Post-Intervention tables
- * @param {{ valid: boolean, errors: Array<object> } | null} lineageCheck
+ * @param {{ valid: boolean, errors: Array<object> }} result
+ * @param {Array<object>} lineageErrors
  * @returns {{ valid: boolean, errors: Array<object> }}
  */
-export function withLineageVerdict(result, lineageCheck) {
-  if (!lineageCheck) {
+export function withLineageErrors(result, lineageErrors) {
+  if (lineageErrors.length === 0) {
     return result
   }
   return {
     ...result,
-    valid: result.valid && lineageCheck.valid,
-    errors: [...result.errors, ...lineageCheck.errors]
+    valid: false,
+    errors: [...result.errors, ...lineageErrors]
   }
 }
