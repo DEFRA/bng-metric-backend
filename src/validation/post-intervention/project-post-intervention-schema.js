@@ -479,6 +479,47 @@ const postInterventionWatercourseSchema = Joi.object({
     )
 }).description('A post-intervention watercourse (linear) feature.')
 
+// Set on a BNG Service template upload only (BMD-1083), from its parent links.
+const lostHabitatSchema = Joi.object({
+  layer: Joi.string()
+    .valid('habitats', 'hedgerows', 'watercourses')
+    .required()
+    .description('The baseline layer the lost habitat is in.'),
+  featureId: Joi.string()
+    .uuid()
+    .required()
+    .description('The featureId of the lost baseline feature.'),
+  ref: Joi.string()
+    .allow(null)
+    .description('The Habitat Ref of the lost baseline feature.'),
+  type: Joi.string()
+    .allow(null)
+    .description('The habitat type of the lost baseline feature.'),
+  outcome: Joi.string()
+    .valid('removed', 'lostAndRecreated', 'lost')
+    .required()
+    .description(
+      'How it is lost: `removed` when no post-intervention habitat names it; `lostAndRecreated` when a Created habitat of its own type names it (a habitat that gets worse, recorded as lost and created again); `lost` when it is lost, in full or in part, to creations of another type or to nothing.'
+    ),
+  lostSizeSquareMetres: Joi.number()
+    .min(0)
+    .description(
+      'An area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres.'
+    ),
+  lostSizeMetres: Joi.number()
+    .min(0)
+    .description(
+      'A hedgerow or watercourse: its length less that of its Retained and Enhanced post-intervention habitats, in metres.'
+    ),
+  recreatedAs: Joi.array()
+    .items(Joi.string().uuid())
+    .description(
+      'The featureIds of the Created post-intervention habitats of its own type that re-create it. Empty unless `outcome` is `lostAndRecreated`.'
+    )
+}).description(
+  'A baseline habitat a BNG Service template upload loses, in full or in part.'
+)
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Top-level post-intervention data schema
 // ──────────────────────────────────────────────────────────────────────────────
@@ -500,7 +541,12 @@ const postInterventionDataSchema = Joi.object({
     .description('Post-intervention watercourse (linear) features.'),
   habitatSizes: habitatSizesSummarySchema,
   units: baselineUnitsTotalsSchema,
-  tradingRules: tradingRulesSchema
+  tradingRules: tradingRulesSchema,
+  lostHabitats: Joi.array()
+    .items(lostHabitatSchema)
+    .description(
+      'The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported (BMD-1083). Absent on a legacy upload.'
+    )
 }).description(
   'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes, unit totals and trading-rules unit figures.'
 )

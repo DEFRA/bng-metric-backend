@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 367 schema fields.
+**22 tables**, mapping 375 schema fields.
 
 ## Diagram
 
@@ -344,19 +344,27 @@ Project details entered by the user. Exactly one per project; null until the use
 
 ### `feature_set`
 
-One row per imported document per project: the GeoPackage upload that produced it. 6 column(s) mapped from the JSON document.
+One row per imported document per project: the GeoPackage upload that produced it. 14 column(s) mapped from the JSON document.
 
-| Column             | Type          | Key | JSON path                                                          | Notes                                                              |
-| ------------------ | ------------- | --- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `feature_set_id`   | `text`        | PK  | —                                                                  | `{projectId}:{documentKey}`                                        |
-| `project_id`       | `uuid`        | FK  | —                                                                  | → project.project_id                                               |
-| `document_key`     | `text`        |     | —                                                                  | 'baseline' or 'postIntervention' — which subtree the row came from |
-| `upload_id`        | `uuid`        |     | `baseline.uploadId`<br>`postIntervention.uploadId`                 |                                                                    |
-| `filename`         | `text`        |     | `baseline.filename`<br>`postIntervention.filename`                 |                                                                    |
-| `file_size`        | `integer`     |     | `baseline.fileSize`<br>`postIntervention.fileSize`                 |                                                                    |
-| `imported_at`      | `timestamptz` |     | `baseline.importedAt`<br>`postIntervention.importedAt`             |                                                                    |
-| `template_name`    | `text`        |     | `baseline.template.name`<br>`postIntervention.template.name`       |                                                                    |
-| `template_version` | `text`        |     | `baseline.template.version`<br>`postIntervention.template.version` |                                                                    |
+| Column                                  | Type          | Key | JSON path                                                          | Notes                                                              |
+| --------------------------------------- | ------------- | --- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `feature_set_id`                        | `text`        | PK  | —                                                                  | `{projectId}:{documentKey}`                                        |
+| `project_id`                            | `uuid`        | FK  | —                                                                  | → project.project_id                                               |
+| `document_key`                          | `text`        |     | —                                                                  | 'baseline' or 'postIntervention' — which subtree the row came from |
+| `upload_id`                             | `uuid`        |     | `baseline.uploadId`<br>`postIntervention.uploadId`                 |                                                                    |
+| `filename`                              | `text`        |     | `baseline.filename`<br>`postIntervention.filename`                 |                                                                    |
+| `file_size`                             | `integer`     |     | `baseline.fileSize`<br>`postIntervention.fileSize`                 |                                                                    |
+| `imported_at`                           | `timestamptz` |     | `baseline.importedAt`<br>`postIntervention.importedAt`             |                                                                    |
+| `template_name`                         | `text`        |     | `baseline.template.name`<br>`postIntervention.template.name`       |                                                                    |
+| `template_version`                      | `text`        |     | `baseline.template.version`<br>`postIntervention.template.version` |                                                                    |
+| `lost_habitats_layer`                   | `text`        |     | `postIntervention.lostHabitats[].layer`                            |                                                                    |
+| `lost_habitats_feature_id`              | `uuid`        |     | `postIntervention.lostHabitats[].featureId`                        |                                                                    |
+| `lost_habitats_ref`                     | `text`        |     | `postIntervention.lostHabitats[].ref`                              |                                                                    |
+| `lost_habitats_type`                    | `text`        |     | `postIntervention.lostHabitats[].type`                             |                                                                    |
+| `lost_habitats_outcome`                 | `text`        |     | `postIntervention.lostHabitats[].outcome`                          |                                                                    |
+| `lost_habitats_lost_size_square_metres` | `numeric`     |     | `postIntervention.lostHabitats[].lostSizeSquareMetres`             |                                                                    |
+| `lost_habitats_lost_size_metres`        | `numeric`     |     | `postIntervention.lostHabitats[].lostSizeMetres`                   |                                                                    |
+| `lost_habitats_recreated_as`            | `uuid`        |     | `postIntervention.lostHabitats[].recreatedAs[]`                    |                                                                    |
 
 ### `feature_set_units`
 

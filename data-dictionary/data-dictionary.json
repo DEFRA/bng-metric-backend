@@ -5690,6 +5690,127 @@
       "constraints": [],
       "openMap": false,
       "description": "Units available to the Very Low band: the Very Low net change plus the Low cumulative availability when that is greater than zero. A shortfall is never carried down. Matches the Statutory Metric's Trading Summary Hedgerows sheet."
+    },
+    {
+      "path": "postIntervention.lostHabitats",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported (BMD-1083). Absent on a legacy upload."
+    },
+    {
+      "path": "postIntervention.lostHabitats[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "A baseline habitat a BNG Service template upload loses, in full or in part."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].layer",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["habitats", "hedgerows", "watercourses"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The baseline layer the lost habitat is in."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the lost baseline feature."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The Habitat Ref of the lost baseline feature."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The habitat type of the lost baseline feature."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].outcome",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["removed", "lostAndRecreated", "lost"],
+      "constraints": [],
+      "openMap": false,
+      "description": "How it is lost: `removed` when no post-intervention habitat names it; `lostAndRecreated` when a Created habitat of its own type names it (a habitat that gets worse, recorded as lost and created again); `lost` when it is lost, in full or in part, to creations of another type or to nothing."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].lostSizeSquareMetres",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["min 0"],
+      "openMap": false,
+      "description": "An area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].lostSizeMetres",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["min 0"],
+      "openMap": false,
+      "description": "A hedgerow or watercourse: its length less that of its Retained and Enhanced post-intervention habitats, in metres."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].recreatedAs",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The featureIds of the Created post-intervention habitats of its own type that re-create it. Empty unless `outcome` is `lostAndRecreated`."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].recreatedAs[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": ""
     }
   ]
 }
