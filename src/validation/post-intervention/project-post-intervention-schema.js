@@ -98,12 +98,14 @@ function proposedCommonFields() {
       .description(
         'Proposed condition assessment stripped of list-index prefix.'
       ),
-    advanceYears: Joi.number()
+    advanceYears: Joi.alternatives()
+      .try(Joi.number(), Joi.valid('30+'))
       .allow(null)
       .description(
         'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats.'
       ),
-    delayYears: Joi.number()
+    delayYears: Joi.alternatives()
+      .try(Joi.number(), Joi.valid('30+'))
       .allow(null)
       .description(
         'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats.'

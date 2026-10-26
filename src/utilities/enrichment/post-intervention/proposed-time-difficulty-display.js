@@ -16,6 +16,9 @@ import {
  * @returns {number}
  */
 function finiteYearsOrZero(value) {
+  if (value === MAX_YEARS_PLUS) {
+    return MAX_YEARS
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }

@@ -3328,7 +3328,7 @@
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3339,7 +3339,7 @@
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3867,7 +3867,7 @@
     },
     {
       "path": "postIntervention.trees[].proposed.advanceYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3878,7 +3878,7 @@
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4263,7 +4263,7 @@
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4274,7 +4274,7 @@
     },
     {
       "path": "postIntervention.hedgerows[].proposed.delayYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4714,7 +4714,7 @@
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4725,7 +4725,7 @@
     },
     {
       "path": "postIntervention.watercourses[].proposed.delayYears",
-      "type": "number",
+      "type": "alternatives",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,

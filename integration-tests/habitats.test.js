@@ -416,3 +416,80 @@ describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-interve
     expect(rows[0].project.postIntervention).toBeUndefined()
   })
 })
+
+describe('BMD-1048 Created area editing', () => {
+  it('persists complete and incomplete edits and rejects conflicting timing without writing', async () => {
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'P-1',
+      retentionCategory: 'Created',
+      sizeSquareMetres: ONE_HECTARE_IN_SQUARE_METRES,
+      units: 0,
+      status: 'Incomplete',
+      baseline: {},
+      proposed: {}
+    }
+    const projectId = await seedProject({
+      name: 'Created area editing IT',
+      postIntervention: { habitats: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`
+    const payload = {
+      ref: 'New reference',
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Good',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: '30+'
+    }
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result).toMatchObject({
+      ref: 'New reference',
+      status: 'Complete',
+      proposed: { delayYears: '30+', advanceYears: 0 }
+    })
+    expect(saved.result.units).toBeGreaterThan(0)
+    const readProject = async () => {
+      const { rows } = await dbClient.query(
+        'SELECT project, last_modified_by FROM bng.projects WHERE id = $1',
+        [projectId]
+      )
+      return rows[0]
+    }
+    const complete = await readProject()
+    expect(complete.project.postIntervention.habitats[0]).toEqual(saved.result)
+    expect(complete.project.postIntervention.units.habitatsTotal).toBe(
+      saved.result.units
+    )
+    expect(complete.last_modified_by).toBe(userId)
+
+    const rejected = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, advanceYears: 1, delayYears: 1 }
+    })
+    expect(rejected.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(await readProject()).toEqual(complete)
+
+    const partial = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, delayYears: null }
+    })
+    expect(partial.statusCode).toBe(HTTP_OK)
+    expect(partial.result).toMatchObject({
+      units: 0,
+      status: 'Incomplete',
+      proposed: { delayYears: null, finalTimeToTargetCondition: null }
+    })
+    const incomplete = await readProject()
+    expect(incomplete.project.postIntervention.habitats[0]).toEqual(
+      partial.result
+    )
+    expect(incomplete.project.postIntervention.units.habitatsTotal).toBe(0)
+  })
+})

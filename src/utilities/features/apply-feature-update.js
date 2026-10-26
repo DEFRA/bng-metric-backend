@@ -18,6 +18,7 @@
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
+import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
   recomputeHedgerow,
@@ -78,6 +79,14 @@ function blankToNull(value) {
 
 function normalizeEdits(edits = {}) {
   return {
+    ...(Object.hasOwn(edits, 'ref')
+      ? {
+          ref: edits.ref,
+          strategicSignificance: blankToNull(edits.strategicSignificance),
+          advanceYears: edits.advanceYears,
+          delayYears: edits.delayYears
+        }
+      : {}),
     broadType: blankToNull(edits.broadType),
     habitatType: blankToNull(edits.habitatType),
     condition: blankToNull(edits.condition),
@@ -88,6 +97,9 @@ function normalizeEdits(edits = {}) {
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   if (documentKey === 'postIntervention') {
+    if (Object.hasOwn(edits, 'ref')) {
+      return recomputeCreatedAreaEdit(existing, edits)
+    }
     return recomputePostInterventionAreaHabitat(
       existing,
       {

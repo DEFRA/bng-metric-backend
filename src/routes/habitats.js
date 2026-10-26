@@ -1,4 +1,8 @@
 import Boom from '@hapi/boom'
+import {
+  postInterventionAreaEditPayload,
+  validateCreatedAreaEdit
+} from './created-area-edit.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -128,7 +132,10 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
-        payload: featureEditPayload
+        payload:
+          documentKey === 'postIntervention'
+            ? postInterventionAreaEditPayload
+            : featureEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -144,6 +151,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             broadType,
             habitatType,
             condition,
+            edits: request.payload,
             documentKey,
             credentials,
             logger: request.logger
@@ -180,6 +188,7 @@ async function runUpdate(
     broadType,
     habitatType,
     condition,
+    edits,
     documentKey,
     credentials,
     logger
@@ -204,9 +213,18 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
+  if (documentKey === 'postIntervention') {
+    const feature = row.project?.postIntervention?.habitats?.find(
+      (f) => f.featureId === featureId
+    )
+    if (feature) {
+      validateCreatedAreaEdit(feature, edits)
+    }
+  }
+
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
-    edits: { broadType, habitatType, condition },
+    edits: { ...edits, broadType, habitatType, condition },
     expectedType: 'habitat',
     documentKey,
     logger

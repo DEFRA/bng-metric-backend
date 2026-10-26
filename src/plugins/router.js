@@ -30,6 +30,7 @@ import {
   updateProjectDetails
 } from '../routes/project-details.js'
 import {
+  getAreaCreation,
   getBroadHabitats,
   getLocalPlanningAuthorities,
   getHabitatTypes,
@@ -68,6 +69,7 @@ const router = {
         getProjectReport,
         getProjectDetails,
         updateProjectDetails,
+        getAreaCreation,
         getBroadHabitats,
         getLocalPlanningAuthorities,
         getHabitatTypes,
