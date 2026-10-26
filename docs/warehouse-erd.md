@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 364 schema fields.
+**22 tables**, mapping 367 schema fields.
 
 ## Diagram
 
@@ -640,7 +640,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 33 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 34 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -653,6 +653,7 @@ habitats in the postIntervention document. 33 column(s) mapped from the JSON doc
 | `units`                                      | `numeric` |     | `postIntervention.habitats[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.habitats[].status`                                 |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.habitats[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.habitats[].baseline.broadType`                     |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.habitats[].baseline.condition`                     |                                                                                  |
@@ -734,7 +735,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 31 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 32 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -742,6 +743,7 @@ hedgerows in the postIntervention document. 31 column(s) mapped from the JSON do
 | `feature_set_id`                             | `text`    | FK  | —                                                                     | → feature_set.feature_set_id                                                     |
 | `retention_category`                         | `text`    |     | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.hedgerows[].length`                                 |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
@@ -774,7 +776,7 @@ hedgerows in the postIntervention document. 31 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 39 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 40 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -782,6 +784,7 @@ watercourses in the postIntervention document. 39 column(s) mapped from the JSON
 | `feature_set_id`                             | `text`    | FK  | —                                                                         | → feature_set.feature_set_id                                                     |
 | `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.watercourses[].ref`                                     |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.watercourses[].length`                                  |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |

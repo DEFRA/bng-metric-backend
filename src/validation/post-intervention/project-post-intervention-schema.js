@@ -57,6 +57,18 @@ function invalidEnhancementField(layer) {
   }
 }
 
+// Set on a BNG Service template upload only (BMD-1083), from the row's
+// parent_uuid, so a legacy upload's features have no such field.
+function parentFeatureIdField() {
+  return {
+    parentFeatureId: Joi.string()
+      .uuid()
+      .description(
+        'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
+      )
+  }
+}
+
 function baselineCommonFields() {
   return {
     condition: Joi.string()
@@ -152,6 +164,7 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
   return {
     ...retentionCategoryField(),
     ...invalidEnhancementField(layer),
+    ...parentFeatureIdField(),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -261,6 +274,7 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
+  ...parentFeatureIdField(),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()

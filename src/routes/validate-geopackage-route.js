@@ -242,10 +242,18 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // in parallel: each holds its stage's attributes until its checks are done,
   // and the parse budget is reserved once, for one stage's set at a time.
   const baselineCheck = await validateBaselineStage(context)
+  // A template file read at both stages has its parent links checked on the
+  // Post-Intervention trip too, in the worker (BMD-1083): `lineageSource`
+  // names the Baseline tables they link to. Absent for every other upload.
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
-    { filePath, includeSizes: Boolean(projectId), source: readSource }
+    {
+      filePath,
+      includeSizes: Boolean(projectId),
+      source: readSource,
+      lineageSource: context.baselineReadSource
+    }
   )
   const featureCount =
     countFeatures(layers) + (baselineCheck?.featureCount ?? 0)
