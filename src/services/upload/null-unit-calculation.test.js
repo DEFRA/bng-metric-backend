@@ -324,27 +324,27 @@ describe('BMD-1070 mixed documents and missing sizes', () => {
   )
 })
 
-describe('BMD-1060 AC5 timing is irrelevant for original Lost areas', () => {
+describe('BMD-1060 AC5 Lost area replacements follow Created timing rules', () => {
   it.each(['Lost', '4. Lost'])(
-    '%s retains null timing and prices without timing credit',
+    '%s uses its populated timing when calculating replacement units',
     (retention) => {
       const feature = makeAreaHabitat({
         retentionCategory: 'Created',
         properties: { Retention_Category: retention }
       })
-      Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+      Object.assign(feature.proposed, { advanceYears: 2, delayYears: 0 })
       enrichPostInterventionDocumentWithUnits({ habitats: [feature] })
       expect(feature.status).toBe('Complete')
       expect(feature.units).toBeGreaterThan(0)
-      expect(feature.proposed.advanceYears).toBeNull()
-      expect(feature.proposed.delayYears).toBeNull()
+      expect(feature.proposed.advanceYears).toBe(2)
+      expect(feature.proposed.delayYears).toBe(0)
       expect(
         calculators.calculateCreatedAreaHabitatPostIntervention
       ).toHaveBeenLastCalledWith(
         1,
         expect.any(String),
         'Good',
-        0,
+        2,
         0,
         expect.any(String)
       )
@@ -352,7 +352,7 @@ describe('BMD-1060 AC5 timing is irrelevant for original Lost areas', () => {
   )
 })
 
-it('legacy Lost areas with null timing retain the same zero-credit calculation after resync', () => {
+it('legacy Lost area replacements with null timing stay incomplete after resync', () => {
   const feature = makeAreaHabitat({ retentionCategory: undefined })
   feature.baseline.retentionCategory = 'Lost'
   Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
@@ -360,17 +360,12 @@ it('legacy Lost areas with null timing retain the same zero-credit calculation a
     { habitats: [feature] },
     { baseline: {} }
   )
-  expect(result.habitats[0].status).toBe('Complete')
-  expect(result.habitats[0].units).toBeGreaterThan(0)
+  expect(result.habitats[0]).toMatchObject({
+    status: 'Incomplete',
+    units: null
+  })
   expect(result.habitats[0].proposed.advanceYears).toBeNull()
   expect(
     calculators.calculateCreatedAreaHabitatPostIntervention
-  ).toHaveBeenLastCalledWith(
-    1,
-    expect.any(String),
-    'Good',
-    0,
-    0,
-    expect.any(String)
-  )
+  ).not.toHaveBeenCalled()
 })
