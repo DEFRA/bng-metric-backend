@@ -1,12 +1,16 @@
 import { readGeoPackage } from '../geopackage.js'
 import { FEATURE_READ_MODE } from '../read-feature-tables.js'
+import { checkLineageRules } from './lineage/lineage-rules.js'
 import { checkParentLinks } from './lineage/parent-links.js'
 
 /**
  * The lineage check of a BNG Service template file uploaded at the baseline +
  * post-intervention endpoint (BMD-1083): every post-intervention row that
  * names a baseline parent must name one that is in the file, with the shape
- * the row recorded for it.
+ * the row recorded for it. Once every link can be trusted, the rows must
+ * continue, lose and degrade their parents as the Metric guide asks
+ * (lineage-rules.js); while one cannot, those rules would be checked against
+ * the wrong parent, so only the links are reported.
  *
  * Run in the GEOS worker, on the trip that checks the Post-Intervention
  * tables (geos/worker.js), so it is kept off the request thread and counted
@@ -28,10 +32,16 @@ export function lineageErrorsFor(
   if (!lineageSource) {
     return []
   }
-  return checkParentLinks(
-    readGeoPackage(filePath, FEATURE_READ_MODE.full, lineageSource),
-    postInterventionLayers
+  const baselineLayers = readGeoPackage(
+    filePath,
+    FEATURE_READ_MODE.full,
+    lineageSource
   )
+  const linkErrors = checkParentLinks(baselineLayers, postInterventionLayers)
+  if (linkErrors.length > 0) {
+    return linkErrors
+  }
+  return checkLineageRules(baselineLayers, postInterventionLayers)
 }
 
 /**

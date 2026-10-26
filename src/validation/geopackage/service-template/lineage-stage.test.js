@@ -48,6 +48,24 @@ describe('lineageErrorsFor', () => {
       ERROR_CODES.STAGED_UNKNOWN_PARENT_REF
     ])
   })
+
+  it('checks the Metric’s lineage rules once every link can be trusted', async () => {
+    // The Baseline tables' culvert has no post-intervention habitat, and a
+    // culvert cannot be permanently lost.
+    const errors = await withTempGpkgFile(
+      buildServiceTemplateBuffer({ rows: populatedBaselineRows() }),
+      (filePath) =>
+        lineageErrorsFor(
+          filePath,
+          { areas: [], layerTables: postInterventionLayers.layerTables },
+          templateReadSource('1.0', STAGE_BASELINE)
+        )
+    )
+
+    expect(errors.map((e) => e.code)).toEqual([
+      ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST
+    ])
+  })
 })
 
 describe('withLineageErrors', () => {
