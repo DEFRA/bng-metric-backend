@@ -11,23 +11,30 @@ import {
   S3FileTooLargeError,
   S3TimeoutError
 } from '../services/s3/download-file.js'
-import {
-  readGeoPackage,
-  validateGpkgFile
-} from '../validation/geopackage/geopackage.js'
+import { readGeoPackage } from '../validation/geopackage/geopackage.js'
+import { runFormatGate } from '../validation/geopackage/format-gate.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
 import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
-  ValidationQueueFullError,
-  ValidationQueueWaitError,
-  ValidationTimeoutError,
   ValidationUnavailableError
 } from '../validation/geopackage/geos/worker-pool.js'
+import { getParseBudget } from '../validation/geopackage/parse-budget.js'
+import { countFeatures } from '../validation/geopackage/count-features.js'
 import {
-  getParseBudget,
-  ParseBudgetExceededError
-} from '../validation/geopackage/parse-budget.js'
+  mergeStageVerdicts,
+  readBaselineStage,
+  validateBaselineStage
+} from '../validation/geopackage/service-template/baseline-stage.js'
+import {
+  busyReason,
+  respondToBusy,
+  respondToUnavailable
+} from './validate-geopackage-responses.js'
+import {
+  recordStage,
+  recordValidationMetrics
+} from './validate-geopackage-metrics.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
 import {
   ERROR_CODES,
@@ -37,76 +44,19 @@ import {
 import { habitatDataSchema } from '../validation/project.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
-import {
-  metricsCounter,
-  metricsByteSize,
-  metricsMillis,
-  metricsGauge
-} from '../common/helpers/metrics.js'
+import { metricsCounter, metricsByteSize } from '../common/helpers/metrics.js'
 import {
   GEOPACKAGE_METRIC,
   PERFORMANCE_METRIC,
   VALIDATION_BUSY_REASON,
-  VALIDATION_CATEGORY,
-  VALIDATION_METRIC
+  VALIDATION_CATEGORY
 } from '../common/helpers/metric-names.js'
-import {
-  logPerf,
-  memoryUsageMb,
-  msSince,
-  perfNow
-} from '../common/helpers/perf-evidence.js'
+import { msSince, perfNow } from '../common/helpers/perf-evidence.js'
 // Aliased: every function in this file takes a route `config` object, and the
 // application config is a different thing entirely.
 import { config as appConfig } from '../config.js'
 
 const logger = createLogger()
-
-/** Layer keys in a parsed GeoPackage that are not arrays of features. */
-const NON_FEATURE_LAYER_KEYS = new Set(['missingLayers'])
-
-/**
- * Total features parsed out of a GeoPackage, across every layer. This is the
- * scale figure that makes every duration below interpretable — a 4 s validate
- * means nothing without knowing whether it covered 40 parcels or 40,000.
- *
- * @param {object} layers
- * @returns {number}
- */
-function countFeatures(layers) {
-  let total = 0
-  for (const [key, value] of Object.entries(layers ?? {})) {
-    if (!NON_FEATURE_LAYER_KEYS.has(key) && Array.isArray(value)) {
-      total += value.length
-    }
-  }
-  return total
-}
-
-/**
- * Record one pipeline stage twice over, because the two destinations answer
- * different questions and neither substitutes for the other:
- *
- *   - a `pipeline-inline` evidence LINE, carrying the high-cardinality detail
- *     (uploadId, feature counts) that you need when investigating one slow
- *     upload in the logs;
- *   - an EMF duration METRIC, carrying only a two-valued `documentKey`
- *     dimension, which is what CloudWatch aggregates and Grafana charts.
- *
- * Both come off the same measurement, so a dashboard and a log line can never
- * disagree about how long a stage took.
- *
- * @param {string} metricName one of PERFORMANCE_METRIC
- * @param {number} durationMs
- * @param {object} fields evidence-line fields (must include `stage`)
- * @param {object} config route config carrying projectDocumentKey
- */
-async function recordStage(metricName, durationMs, fields, config) {
-  logPerf(logger, 'pipeline-inline', { ...fields, elapsedMs: durationMs })
-  await metricsMillis(metricName, durationMs, {
-    documentKey: config.projectDocumentKey
-  })
-}
 
 async function resolveUploadLocation(uploadId, config) {
   try {
@@ -199,16 +149,7 @@ async function respondToGateRejection(gateResult, uploadId, h, config) {
   return h.response({ valid: gateResult.valid, errors: gateResult.errors })
 }
 
-/**
- * Every validation worker was busy and the queue was full, so the file was
- * never looked at.
- *
- * This is the one rejection that is NOT about the user's file, and it is
- * answered differently on purpose. A 503 with Retry-After says "come back",
- * which is both true and actionable; returning the usual 200-with-errors would
- * put a capacity problem on the same screen as "your polygons overlap" and
- * invite the user to go and edit a file that is perfectly fine.
- */
+/** The process-wide GEOS worker pool, sized from the application config. */
 function validationPool() {
   return getGeosWorkerPool({
     size: appConfig.get('validation.workerCount'),
@@ -225,97 +166,6 @@ function validationPool() {
  */
 function parseBudget() {
   return getParseBudget(appConfig.get('validation.parseBudgetBytes'))
-}
-
-/**
- * Every way a file can be refused for want of capacity rather than merit.
- *
- * All but one of these are decided before the file is looked at. The exception
- * is a worker timeout, and it only belongs here SOMETIMES — which is the whole
- * subtlety of this function.
- *
- * A burst is the case it was added for. With one worker and a slow file, the
- * requests behind the first are refused `queue_wait` before they start, retry,
- * and pass; the one that actually reached a worker was killed mid-job and, as a
- * 500, was the only one in the burst that could not recover. Same capacity
- * problem, opposite outcome, purely because of where in the pipeline it was
- * discovered.
- *
- * But a timeout on an EMPTY pool is a different animal. The file had the box to
- * itself and still could not be validated inside the budget, so a retry only
- * reproduces the failure — and, because `Retry-After` is shorter than the budget
- * it just overran, it would do so repeatedly: every attempt burns a full budget
- * of worker time and costs a worker restart, for the two minutes the frontend
- * keeps trying. That is the "pathological file re-fed to the pool" the design
- * note in docs/geometry-validation.md warns about, and it is why a timeout is
- * not simply reclassified as busy.
- *
- * `contended` is what tells them apart, and the pool records it at the moment
- * the timer fires. Retry only what a retry could plausibly fix.
- */
-function busyReason(error) {
-  if (error instanceof ValidationQueueFullError) {
-    return VALIDATION_BUSY_REASON.queueFull
-  }
-  if (error instanceof ValidationQueueWaitError) {
-    return VALIDATION_BUSY_REASON.queueWait
-  }
-  if (error instanceof ValidationTimeoutError && error.contended) {
-    return VALIDATION_BUSY_REASON.workerTimeout
-  }
-  if (error instanceof ParseBudgetExceededError) {
-    return VALIDATION_BUSY_REASON.memoryBudget
-  }
-  return null
-}
-
-async function respondToBusy(uploadId, h, config, reason) {
-  logger.warn(
-    `${config.routeName} - validation refused as busy (${reason}) for uploadId ${uploadId}; asked the caller to retry`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationBusy, 1, { reason })
-  return h
-    .response({
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.VALIDATION_BUSY,
-          'The service is busy checking other files. Please try again in a few moments.'
-        )
-      ]
-    })
-    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
-    .header(
-      'Retry-After',
-      String(appConfig.get('validation.busyRetryAfterSeconds'))
-    )
-}
-
-/**
- * The pool has permanently given up — its workers cannot start — so this is
- * `respondToBusy`'s opposite in everything but the status code. Busy means the
- * next attempt may well pass; here every retry meets the same wall until an
- * operator restarts the service. Hence no Retry-After, and a code that is
- * deliberately NOT VALIDATION_BUSY: the frontend re-polls only on that exact
- * code, so this answer drops the caller out of its polling loop and onto an
- * honest error page instead of two minutes of pointless refreshing.
- */
-async function respondToUnavailable(uploadId, h, config) {
-  logger.error(
-    `${config.routeName} - validation unavailable (worker pool has given up) for uploadId ${uploadId}; told the caller not to retry`
-  )
-  await metricsCounter(GEOPACKAGE_METRIC.validationUnavailable)
-  return h
-    .response({
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.VALIDATION_UNAVAILABLE,
-          'The file checking service is currently unavailable. Please try again later.'
-        )
-      ]
-    })
-    .code(HTTP_STATUS.SERVICE_UNAVAILABLE)
 }
 
 /**
@@ -352,35 +202,6 @@ async function respondToGeometryRejection(result, uploadId, h, config) {
   return validationResponse(result, h)
 }
 
-/**
- * Promote the worker pool's own numbers to metrics.
- *
- * These are the LEADING indicators. `GeoPackageValidationBusy` only moves once
- * users are being turned away; queue depth and wait time start climbing well
- * before that. Resident memory rides along because it is the figure that decides
- * whether adding workers is even an option — the workers share this process, and
- * their WebAssembly heaps never shrink.
- *
- * Sampled once per validation rather than on a timer: uploads are infrequent
- * enough that this is a handful of flushes a minute, and the moment just after a
- * validation is exactly when the high-water mark is worth reading.
- */
-async function recordPoolHealth(poolTelemetry, config) {
-  if (!poolTelemetry) {
-    return
-  }
-  await metricsMillis(
-    PERFORMANCE_METRIC.queueWaitMs,
-    poolTelemetry.queueWaitMs,
-    { documentKey: config.projectDocumentKey }
-  )
-  await metricsGauge(
-    VALIDATION_METRIC.workerQueueDepth,
-    poolTelemetry.queueDepth
-  )
-  await metricsGauge(VALIDATION_METRIC.processResidentMb, memoryUsageMb().rssMb)
-}
-
 async function validateLayers(loadLayers, drizzle, context, h, config) {
   const {
     uploadId,
@@ -389,7 +210,8 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     filename,
     fileSize,
     filePath,
-    gateMs
+    gateMs,
+    readSource
   } = context
 
   // The unpacked layers, once the pool hands them back. Captured here so the
@@ -411,51 +233,45 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // of the layers. Sizes are only worth asking for when there is a project to
   // persist them against.
   const validateStart = perfNow()
+  // A BNG Service template file at the baseline + post-intervention endpoint
+  // saves the baseline its Baseline tables hold, so those are checked too, as
+  // the baseline endpoint checks them, in a worker trip of their own. Both
+  // stages are checked whatever either finds, so the user sees every error at
+  // once. Null for every other upload. The stage timings and counts below
+  // cover both stages. The two trips run one after the other on purpose, not
+  // in parallel: each holds its stage's attributes until its checks are done,
+  // and the parse budget is reserved once, for one stage's set at a time.
+  const baselineCheck = await validateBaselineStage(context)
+  // A template file read at both stages has its parent links checked on the
+  // Post-Intervention trip too, in the worker (BMD-1083): `lineageSource`
+  // names the Baseline tables they link to. Absent for every other upload.
   const result = await validateGeoPackageLayers(
     loadAndRemember,
     config.projectDocumentKey,
-    { filePath, includeSizes: Boolean(projectId) }
+    {
+      filePath,
+      includeSizes: Boolean(projectId),
+      source: readSource,
+      lineageSource: context.baselineReadSource
+    }
   )
-  const featureCount = countFeatures(layers)
+  const featureCount =
+    countFeatures(layers) + (baselineCheck?.featureCount ?? 0)
   // Attributes have told us everything they can — the checks have run and the
   // count is taken. Dropped before the shapes are decoded below, so an accepted
   // file never holds the properties set and the geometry set at the same time;
   // without this, phase 1 would have made accepted files dearer, not cheaper.
   layers = null
 
-  // Recorded here rather than before the queue because that is where the read
-  // now happens. `gateMs` is the cheap structural pass in front of the queue;
-  // the rest of this stage's time is the unpack, which the pool wait separates
-  // from it.
-  await recordStage(
-    PERFORMANCE_METRIC.parseMs,
-    gateMs,
-    {
-      uploadId,
-      stage: 'parse',
-      fileSizeBytes: fileSize ?? null,
-      featureCount,
-      valid: true
-    },
-    config
-  )
-  await metricsGauge(PERFORMANCE_METRIC.featureCount, featureCount, {
-    documentKey: config.projectDocumentKey
-  })
-  await recordPoolHealth(result.poolTelemetry, config)
-  await recordStage(
-    PERFORMANCE_METRIC.geometryValidateMs,
-    msSince(validateStart),
-    {
-      uploadId,
-      stage: 'geometry-validate',
-      featureCount
-    },
+  await recordValidationMetrics(
+    { uploadId, fileSize, gateMs, featureCount, validateStart },
+    { baselineCheck, result },
     config
   )
 
-  if (!result.valid) {
-    return respondToGeometryRejection(result, uploadId, h, config)
+  const verdict = mergeStageVerdicts(baselineCheck, result)
+  if (!verdict.valid) {
+    return respondToGeometryRejection(verdict, uploadId, h, config)
   }
 
   logger.info(`${config.routeName} - accepted uploadId ${uploadId}`)
@@ -472,17 +288,54 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // `serialised`, not `full`: the inserts bind geometry as JSON text into
   // ST_GeomFromGeoJSON and never read a coordinate, so the decoded object graph
   // would be built, held across the whole transaction, and never used.
-  const geometryLayers = readGeoPackage(filePath, FEATURE_READ_MODE.serialised)
+  const geometryLayers = readGeoPackage(
+    filePath,
+    FEATURE_READ_MODE.serialised,
+    readSource
+  )
 
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
     projectId,
     geometryLayers,
-    { uploadId, credentials, filename, fileSize, geometrySizes: result.sizes },
+    {
+      uploadId,
+      credentials,
+      filename,
+      fileSize,
+      geometrySizes: result.sizes,
+      template: context.template,
+      baselineStage: readBaselineStage(context, baselineCheck)
+    },
     h,
     config
   )
   return errorResponse ?? validationResponse(result, h)
+}
+
+/**
+ * Refuse a file the format gate rejected, recording the parse stage it got
+ * through first.
+ */
+async function rejectAtGate(
+  gateResult,
+  { uploadId, fileSize, gateMs },
+  h,
+  config
+) {
+  await recordStage(
+    PERFORMANCE_METRIC.parseMs,
+    gateMs,
+    {
+      uploadId,
+      stage: 'parse',
+      fileSizeBytes: fileSize ?? null,
+      featureCount: 0,
+      valid: false
+    },
+    config
+  )
+  return respondToGateRejection(gateResult, uploadId, h, config)
 }
 
 /**
@@ -525,43 +378,43 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // unpack block the event loop for their duration. Splitting them does not
     // change that; it changes how long each upload's memory is held.
     const gateStart = perfNow()
-    const gateResult = validateGpkgFile(filePath)
+    const gateResult = runFormatGate(filePath, config.projectDocumentKey)
     const gateMs = msSince(gateStart)
 
     if (!gateResult.valid) {
-      await recordStage(
-        PERFORMANCE_METRIC.parseMs,
-        gateMs,
-        {
-          uploadId,
-          stage: 'parse',
-          fileSizeBytes: context.fileSize ?? null,
-          featureCount: 0,
-          valid: false
-        },
-        config
-      )
-      return await respondToGateRejection(gateResult, uploadId, h, config)
+      return await rejectAtGate(gateResult, { ...context, gateMs }, h, config)
     }
 
+    // Attributes only. The geometry checks run in the worker against the file
+    // itself, and the data-quality checks read properties — so nothing before
+    // the accept decision needs a decoded shape, and a file we reject never
+    // pays for one.
+    const loadAttributes = (source) => {
+      // The budget is reserved HERE, at the moment the layers come into
+      // existence, and not before `validateLayers` — because the pool wait
+      // sits between the two and a waiting request holds a path, not a heap.
+      // Charging it the full unpack estimate for that wait made queue depth
+      // consume the parse budget: sixteen queued 704 KB uploads reserved
+      // 142 MB while doing no work, and large uploads were refused
+      // `memory_budget` because of it. Reserved once for a template file
+      // read at both stages: the estimate is per byte of the file, fitted to
+      // reading every feature in it, and the two stages' tables together are
+      // the file's features read once — at save, both stages' shapes.
+      releaseParseBudget ??= parseBudget().reserve(context.fileSize)
+      return readGeoPackage(filePath, FEATURE_READ_MODE.properties, source)
+    }
     return await validateLayers(
-      // Attributes only. The geometry checks run in the worker against the file
-      // itself, and the data-quality checks read properties — so nothing before
-      // the accept decision needs a decoded shape, and a file we reject never
-      // pays for one.
-      () => {
-        // The budget is reserved HERE, at the moment the layers come into
-        // existence, and not before `validateLayers` — because the pool wait
-        // sits between the two and a waiting request holds a path, not a heap.
-        // Charging it the full unpack estimate for that wait made queue depth
-        // consume the parse budget: sixteen queued 704 KB uploads reserved
-        // 142 MB while doing no work, and large uploads were refused
-        // `memory_budget` because of it.
-        releaseParseBudget = parseBudget().reserve(context.fileSize)
-        return readGeoPackage(filePath, FEATURE_READ_MODE.properties)
-      },
+      () => loadAttributes(gateResult.readSource),
       drizzle,
-      { ...context, filePath, gateMs },
+      {
+        ...context,
+        filePath,
+        gateMs,
+        readSource: gateResult.readSource,
+        baselineReadSource: gateResult.baselineReadSource,
+        loadBaselineLayers: () => loadAttributes(gateResult.baselineReadSource),
+        template: gateResult.template
+      },
       h,
       config
     )

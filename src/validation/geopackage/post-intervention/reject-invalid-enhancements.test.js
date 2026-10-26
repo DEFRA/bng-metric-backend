@@ -253,8 +253,8 @@ describe('importing a post-intervention file', () => {
       'Proposed Habitat Type': proposedType,
       'Proposed Condition': proposedCondition,
       'Proposed Strategic Significance': LOW_STRATEGIC_SIGNIFICANCE,
-      'Habitat Created/Enhanced in advance/years': 0,
-      'Delay in starting habitat creation/enhancement in years': 0
+      'Habitat created in advance/years': 0,
+      'Delay in starting habitat creation/years': 0
     })
     return withFeatureId(row, ref)
   }

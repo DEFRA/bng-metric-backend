@@ -183,3 +183,27 @@ describe('validateGeoPackageLayers wired to the worker pool', () => {
     expect(out.errors).toHaveLength(1)
   })
 })
+
+describe('validateGeoPackageLayers wired to the worker pool', () => {
+  it('tells the worker how to read a BNG Service template file', async () => {
+    vi.clearAllMocks()
+    const { validateGeoPackageLayers } = await import('./index.js')
+    const { getGeosWorkerPool } = await import('./geos/worker-pool.js')
+    const run = poolRuns(getGeosWorkerPool, async () => ({
+      valid: true,
+      errors: []
+    }))
+    const source = { format: 'bng-service', version: '1.0', stage: 'baseline' }
+
+    await validateGeoPackageLayers(
+      { redline: [], areas: [], missingLayers: [] },
+      'baseline',
+      { filePath: '/tmp/upload.gpkg', includeSizes: true, source }
+    )
+
+    expect(run).toHaveBeenCalledWith('/tmp/upload.gpkg', {
+      includeSizes: true,
+      source
+    })
+  })
+})

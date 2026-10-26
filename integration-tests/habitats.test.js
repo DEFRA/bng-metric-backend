@@ -114,7 +114,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     })
   })
 
-  it('marks the habitat Incomplete with zero units when a dropdown is unset', async () => {
+  it('marks the habitat Incomplete with null units when a dropdown is unset', async () => {
     const habitat = habitatFixture()
     const projectId = await seedProjectWithHabitats([habitat])
 
@@ -132,7 +132,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
     expect(res.statusCode).toBe(HTTP_OK)
     expect(res.result).toMatchObject({
       conditionScore: null,
-      units: 0,
+      units: null,
       status: 'Incomplete'
     })
   })
@@ -198,6 +198,31 @@ describe('PUT /projects/{projectId}/habitats/{featureId}', () => {
       }
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+})
+
+// The route-coverage check needs every route hit with the service-template
+// flag on too, where the legacy upload tests that used to reach this one are
+// skipped. Seeding the document directly holds with the flag in either state.
+describe('PUT /projects/{projectId}/post-intervention/habitats/{featureId}', () => {
+  it('returns 404 when the habitat is not in the post-intervention document', async () => {
+    const projectId = await seedProject({
+      name: 'Post-intervention habitat save IT',
+      baseline: { habitats: [habitatFixture()] },
+      postIntervention: { habitats: [] }
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/habitats/${randomUUID()}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Lowland meadows',
+        condition: 'Good'
+      }
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
 })
 

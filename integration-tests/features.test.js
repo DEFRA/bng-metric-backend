@@ -146,6 +146,28 @@ describe('GET /projects/{projectId}/features/{featureId}', () => {
   })
 })
 
+// The route-coverage check needs every route hit with the service-template
+// flag on too, where the legacy upload tests that used to reach this one are
+// skipped. Seeding the document directly holds with the flag in either state.
+describe('GET /projects/{projectId}/post-intervention/features/{featureId}', () => {
+  it('returns 404 when the feature is not in the post-intervention document', async () => {
+    const projectId = await seedProjectWithBaseline({ habitats: [] })
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(project, '{postIntervention}', $2::jsonb)
+        WHERE id = $1`,
+      [projectId, { habitats: [{ featureId: randomUUID(), ref: 'P1' }] }]
+    )
+
+    const res = await server.inject({
+      headers,
+      method: 'GET',
+      url: `/projects/${projectId}/post-intervention/features/${randomUUID()}`
+    })
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+})
+
 describe('PUT /projects/{projectId}/features/{featureId}', () => {
   const ONE_HECTARE_IN_SQUARE_METRES = 10_000
 

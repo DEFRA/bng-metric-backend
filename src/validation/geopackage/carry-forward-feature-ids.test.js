@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   buildFeatureIdByRef,
+  featureUuidLookupKey,
   normaliseRef,
   refLookupKey,
   RED_LINE_KEY
@@ -133,5 +134,40 @@ describe('#buildFeatureIdByRef', () => {
     })
 
     expect(map.get(refLookupKey('habitats', 'PR-1'))).toBe(ID_1)
+  })
+})
+
+describe('#buildFeatureIdByRef — stored feature uuids', () => {
+  const UUID_A = 'aaaaaaaa-aaaa-4aaa-8aaa-aaaaaaaaaaaa'
+  const UUID_B = 'bbbbbbbb-bbbb-4bbb-8bbb-bbbbbbbbbbbb'
+  const stored = (featureId, uuid) => ({
+    ref: 'H1',
+    featureId,
+    properties: { feature_uuid: uuid }
+  })
+
+  it('records each stored feature_uuid against its featureId, in every layer', () => {
+    const map = buildFeatureIdByRef({
+      habitats: [stored(ID_1, UUID_A)],
+      hedgerows: [stored(ID_2, UUID_B.toUpperCase())]
+    })
+
+    expect(map.get(featureUuidLookupKey(UUID_A))).toBe(ID_1)
+    expect(map.get(featureUuidLookupKey(UUID_B))).toBe(ID_2)
+  })
+
+  it('drops a uuid two stored features carry, even in different layers', () => {
+    const map = buildFeatureIdByRef({
+      habitats: [stored(ID_1, UUID_A)],
+      watercourses: [stored(ID_2, UUID_A)]
+    })
+
+    expect(map.has(featureUuidLookupKey(UUID_A))).toBe(false)
+  })
+
+  it('ignores a feature_uuid that is not a uuid', () => {
+    const map = buildFeatureIdByRef({ habitats: [stored(ID_1, 'H1-uuid')] })
+
+    expect(map.has(featureUuidLookupKey('h1-uuid'))).toBe(false)
   })
 })

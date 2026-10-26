@@ -6,7 +6,10 @@
 // real Postgres, reads the persisted JSONB straight back out of bng.projects
 // (and the bng.audit_log snapshots), and asserts every field is declared by the
 // Joi schema — i.e. is documented in the generated data dictionary.
-import { afterAll, afterEach, beforeAll, describe, expect, it } from 'vitest'
+import { afterAll, afterEach, beforeAll, expect, it } from 'vitest'
+// Every suite here uploads a legacy file, so runs with the service-template
+// flag off only.
+import { describeLegacy as describe } from '../test/helpers/template-mode.js'
 import { randomUUID } from 'node:crypto'
 
 import { startServer, stopServer } from './helpers/server.js'

@@ -9,6 +9,7 @@
 
 import { randomUUID } from 'node:crypto'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+import { skipWithServiceTemplate } from '../test/helpers/template-mode.js'
 
 import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
@@ -96,7 +97,8 @@ function getReport(projectId, requestHeaders = headers) {
 }
 
 describe('GET /projects/{projectId}/report.pdf', () => {
-  it('renders a PDF from the geometry stored in PostGIS', async () => {
+  it('renders a PDF from the geometry stored in PostGIS', async ({ skip }) => {
+    skipWithServiceTemplate(skip)
     const projectId = await createProject()
     await uploadBaseline(projectId)
 
@@ -115,7 +117,8 @@ describe('GET /projects/{projectId}/report.pdf', () => {
     expect(response.rawPayload.length).toBeGreaterThan(20_000)
   }, 60_000)
 
-  it('names the file after the site', async () => {
+  it('names the file after the site', async ({ skip }) => {
+    skipWithServiceTemplate(skip)
     const projectId = await createProject('Willow Brook Farm')
     await uploadBaseline(projectId)
 

@@ -44,6 +44,8 @@ function row(retention = 'Created', overrides = {}) {
       'Proposed Encroachment into riparian zone':
         'No Encroachment/No Encroachment',
       Count: 1,
+      ...timingColumns('areas', '0', '0'),
+      ...timingColumns('trees', '0', '0'),
       ...overrides
     }
   }
@@ -198,6 +200,8 @@ describe('BMD-1060 full extraction, combination validation and enrichment', () =
         ['2', '3', null, null],
         ['0.5', '0.25', null, null],
         [null, null, null, null],
+        [null, '0', null, 0],
+        ['0', null, 0, null],
         [' ', '\t', null, null],
         ['2', '0', 2, 0],
         ['0', '3', 0, 3],
@@ -235,8 +239,15 @@ describe('BMD-1060 full extraction, combination validation and enrichment', () =
       })
       expect(habitat.proposed.type).not.toBeNull()
       expect(habitat.proposed.condition).toBe('Good')
-      expect(habitat.status).toBe('Complete')
-      expect(habitat.units).toBeGreaterThan(0)
+      if (
+        retention === 'Retained' ||
+        (expectedAdvance !== null && expectedDelay !== null)
+      ) {
+        expect(habitat.status).toBe('Complete')
+        expect(habitat.units).toBeGreaterThan(0)
+      } else {
+        expect(habitat).toMatchObject({ status: 'Incomplete', units: null })
+      }
       expect(habitat.properties).toEqual(feature.properties)
     }
   )
@@ -257,6 +268,11 @@ describe('BMD-1060 full extraction, combination validation and enrichment', () =
       advanceYears: 2,
       delayYears: 0
     })
+    expect(lostHabitat.status).toBe('Complete')
+    const withoutTimingCredit = importRows('areas', [
+      row('Created', timingColumns('areas', '0', '0'))
+    ]).habitats[0]
+    expect(lostHabitat.units).toBeCloseTo(withoutTimingCredit.units)
     expect(lostHabitat.units).not.toBe(createdHabitat.units)
   })
 

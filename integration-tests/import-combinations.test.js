@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
+// Every suite here uploads a legacy file, so runs with the service-template
+// flag off only.
+import { describeLegacy as describe } from '../test/helpers/template-mode.js'
 import { copyFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -86,6 +89,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
       advanceYears: null,
       delayYears: null
     })
+    expect(proposedFeature.status).toBe('Complete')
     expect(proposedFeature.units).toBeGreaterThan(0)
     expect(proposedFeature.properties['Habitat created in advance/years']).toBe(
       '2'
@@ -119,8 +123,12 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
           advanceYears: null,
           delayYears: null
         })
-        expect(feature.status).toBe('Complete')
-        expect(feature.units).toBeGreaterThan(0)
+        if (retention === 'Retained') {
+          expect(feature.status).toBe('Complete')
+          expect(feature.units).toBeGreaterThan(0)
+        } else {
+          expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+        }
       }
     }
   )
@@ -148,7 +156,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         type: null,
         condition: null
       })
-      expect(area.status).toBe('Incomplete')
+      expect(area).toMatchObject({ units: null, status: 'Incomplete' })
       expect(area.properties[`${prefix} Habitat Type`]).toBe(
         'Modified grassland'
       )
@@ -161,6 +169,9 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         (feature) => feature.ref === 'R1'
       )
       expect(side(river)).toMatchObject({ type: 'Culvert', condition: null })
+      for (const feature of [hedge, river]) {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
     }
   )
 
@@ -176,7 +187,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
     async (retention, advance, delay) => {
       const project = await createProject(`BMD-1060 timing ${retention}`)
       const upload = await changedFixture([
-        `UPDATE Habitats SET "Retention Category" = '${retention}', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Moderate', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Habitat created in advance/years" = ${advance}, "Delay in starting habitat creation/years" = ${delay} WHERE "Parcel Ref" = 'H1'`
+        `UPDATE Habitats SET "Retention Category" = '${retention}', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Moderate', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Proposed Strategic Significance" = 'Low', "Habitat created in advance/years" = ${advance}, "Delay in starting habitat creation/years" = ${delay} WHERE "Parcel Ref" = 'H1'`
       ])
       const response = await callPostInterventionValidate(upload, {
         projectId: project.id
@@ -191,6 +202,12 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         delayYears: null
       })
       expect(feature.proposed.type).not.toBeNull()
+      if (retention === 'Retained' || retention === 'Lost') {
+        expect(feature.status).toBe('Complete')
+        expect(feature.units).toBeGreaterThan(0)
+      } else {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
     }
   )
 })

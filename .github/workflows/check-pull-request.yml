@@ -21,8 +21,21 @@ on:
 
 jobs:
   backend-integration-tests:
-    name: Backend Integration Tests
+    # The suite runs once per state of the SERVICE_TEMPLATE_ENABLED flag, and
+    # both must pass. The names come from the matrix so the flag-off run keeps
+    # the check name the ruleset on main already requires.
+    name: ${{ matrix.check }}
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - check: Backend Integration Tests
+            service-template: 'false'
+            coverage-artifact: integration-coverage
+          - check: Backend Integration Tests (service template)
+            service-template: 'true'
+            coverage-artifact: integration-coverage-service-template
     env:
       # Prefer BNG_* so Liquibase 5 does not treat this as one of its own
       # LIQUIBASE_* community environment variables.
@@ -72,7 +85,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Set up Node.js
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -101,12 +114,17 @@ jobs:
           exit 1
 
       - name: Install Liquibase
+        # Both hosts rate-limit unauthenticated downloads (HTTP 429), and the
+        # integration matrix downloads twice per push, so retry rather than
+        # fail. The tarball is saved before it is extracted: a retry part way
+        # through would otherwise feed tar the broken attempt and the retry.
         run: |
           mkdir -p ./liquibase-bin/lib
-          curl -fsSL --proto '=https' --tlsv1.2 \
+          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
             "https://github.com/liquibase/liquibase/releases/download/v${BNG_LIQUIBASE_VERSION}/liquibase-${BNG_LIQUIBASE_VERSION}.tar.gz" \
-            | tar xz -C ./liquibase-bin
-          curl -fsSL --proto '=https' --tlsv1.2 \
+            -o liquibase.tar.gz
+          tar xzf liquibase.tar.gz -C ./liquibase-bin
+          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
             "https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar" \
             -o "./liquibase-bin/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar"
 
@@ -167,13 +185,14 @@ jobs:
           DB_DATABASE: bng_metric_backend
           CDP_UPLOADER_URL: http://127.0.0.1:7337
           S3_ENDPOINT: http://127.0.0.1:4566
+          SERVICE_TEMPLATE_ENABLED: ${{ matrix.service-template }}
         run: npm run test:integration:full
 
       - name: Upload integration coverage report
         if: always()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: integration-coverage
+          name: ${{ matrix.coverage-artifact }}
           path: coverage/integration/
           if-no-files-found: warn
 
@@ -189,7 +208,7 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
 
       - name: Test code and Create Test Coverage Reports
-        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v6
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
         with:
           node-version-file: .nvmrc
           cache: npm
@@ -204,6 +223,10 @@ jobs:
           npm run format:check
           npm run lint
           npm test
+        env:
+          # Stated rather than left to the default, so this run is plainly the
+          # flag-off half of the pair. The flag-on half is unit-tests-service-template.
+          SERVICE_TEMPLATE_ENABLED: 'false'
 
       # The GEOS validation engine reads a pre-projected copy of the England
       # reference polygon rather than reprojecting it on every request. This is
@@ -231,3 +254,30 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
           SONAR_TOKEN: ${{ secrets.SONAR_TOKEN }}
+
+  unit-tests-service-template:
+    # The unit tests again with the SERVICE_TEMPLATE_ENABLED flag on.
+    # Only the tests: lint, the Docker build and SonarCloud do not depend on
+    # the flag, and run once in pr-validator.
+    name: Unit Tests (service template)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Set up Node.js
+        uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v6
+        with:
+          node-version-file: .nvmrc
+          cache: npm
+
+      - name: Install dependencies
+        # Strips min-release-age for npm ci, as the jobs above do (npm/cli#9005).
+        run: |
+          sed -i '/^min-release-age=/d' .npmrc
+          npm ci
+
+      - name: Run unit tests with the flag on
+        env:
+          SERVICE_TEMPLATE_ENABLED: 'true'
+        run: npm test

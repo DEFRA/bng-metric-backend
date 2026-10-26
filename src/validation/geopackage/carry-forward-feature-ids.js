@@ -16,6 +16,14 @@
 // any layer (BMD-1058 allows habitats to share a ref), so any layer can
 // legitimately arrive with repeated refs. Anything unmatched, blank or
 // ambiguous falls back to a fresh UUID, exactly as before.
+//
+// A BNG Service template feature also carries its own `feature_uuid`, which a
+// split feature does not share with its parent as it shares the Habitat Ref.
+// It is matched against the uuids stored for this project, under keys of their
+// own, and never used as the id itself: the geometry tables' primary key spans
+// every project, and the file, and so the uuid, is the user's.
+import { FEATURE_UUID } from 'bng-library/bng-service'
+
 import { cleanHabitatRef } from './habitat-ref-check.js'
 import { PROP_KEYS } from './properties.js'
 
@@ -58,6 +66,61 @@ export function normaliseRef(ref) {
   }
   const cleaned = cleanHabitatRef(ref)
   return cleaned === '' ? null : cleaned
+}
+
+const UUID_PATTERN =
+  /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i
+
+/**
+ * A feature's `feature_uuid`, lower-cased, when it holds a valid one.
+ *
+ * @param {object | undefined} properties
+ * @returns {string | null}
+ */
+export function featureUuidOf(properties) {
+  const uuid = properties?.[FEATURE_UUID]
+  return typeof uuid === 'string' && UUID_PATTERN.test(uuid)
+    ? uuid.toLowerCase()
+    : null
+}
+
+/**
+ * @param {string} uuid as featureUuidOf gives it
+ * @returns {string}
+ */
+export function featureUuidLookupKey(uuid) {
+  return `${FEATURE_UUID}:${uuid}`
+}
+
+/**
+ * Record the stored features' uuids against their featureIds, across every
+ * layer, dropping any uuid two features carry.
+ *
+ * @param {Map<string, string>} map
+ * @param {object} storedDocument
+ */
+function addFeatureUuidEntries(map, storedDocument) {
+  const idByUuid = new Map()
+  const duplicated = new Set()
+  for (const layer of Object.keys(REF_PROP_KEYS_BY_LAYER)) {
+    const features = storedDocument[layer]
+    for (const feature of Array.isArray(features) ? features : []) {
+      const uuid = featureUuidOf(feature?.properties)
+      if (uuid === null || !feature?.featureId) {
+        continue
+      }
+      if (idByUuid.has(uuid)) {
+        duplicated.add(uuid)
+      } else {
+        idByUuid.set(uuid, feature.featureId)
+      }
+    }
+  }
+  for (const [uuid, featureId] of idByUuid) {
+    if (!duplicated.has(uuid)) {
+      map.set(featureUuidLookupKey(uuid), featureId)
+    }
+  }
 }
 
 /**
@@ -104,7 +167,8 @@ function addLayerEntries(map, layer, features) {
 
 /**
  * Build the ref → featureId lookup for one stored document subtree
- * (project.baseline or project.postIntervention).
+ * (project.baseline or project.postIntervention), with each stored
+ * feature_uuid → featureId under featureUuidLookupKey.
  *
  * @param {object | null | undefined} storedDocument
  * @returns {Map<string, string>} empty when there is nothing stored yet
@@ -117,6 +181,7 @@ export function buildFeatureIdByRef(storedDocument) {
   for (const layer of Object.keys(REF_PROP_KEYS_BY_LAYER)) {
     addLayerEntries(featureIdByRef, layer, storedDocument[layer])
   }
+  addFeatureUuidEntries(featureIdByRef, storedDocument)
   const redLineFeatureId = storedDocument[RED_LINE_KEY]?.featureId
   if (redLineFeatureId) {
     featureIdByRef.set(RED_LINE_KEY, redLineFeatureId)

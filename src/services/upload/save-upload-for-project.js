@@ -2,6 +2,7 @@ import { eq } from 'drizzle-orm'
 
 import { assignFeatureIds } from '../../validation/geopackage/assign-feature-ids.js'
 import { buildFeatureIdByRef } from '../../validation/geopackage/carry-forward-feature-ids.js'
+import { linkToParents } from '../../validation/geopackage/service-template/lineage/link-parents.js'
 import { enrichBaselineDocumentWithUnits } from '../../utilities/enrichment/baseline/enrich-baseline-units.js'
 import { postInterventionEnrichOptions } from '../../utilities/enrichment/post-intervention/post-intervention-enrich-options.js'
 import { enrichPostInterventionDocumentWithUnits } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.js'
@@ -49,7 +50,7 @@ const POST_INTERVENTION_DOCUMENT_KEY = 'postIntervention'
  * Record one save-stage duration as both a `pipeline-inline` evidence line (for
  * log search, keyed by uploadId) and an EMF duration metric (for the Grafana
  * dashboard, dimensioned only by documentKey). See recordStage in
- * src/routes/validate-geopackage-route.js for why both exist.
+ * src/routes/validate-geopackage-metrics.js for why both exist.
  *
  * @param {{ info?: Function }} logger
  * @param {string} metricName one of PERFORMANCE_METRIC
@@ -220,6 +221,43 @@ export function derivedBaselineLayers(layers, storedProject, geometrySizes) {
   return assignFeatureIds(baselineLayers, featureIdByRef)
 }
 
+/**
+ * The baseline a combined (baseline + post-intervention) upload saves, or
+ * undefined for an upload of one document.
+ *
+ * A BNG Service template file holds its baseline in tables of its own, read
+ * at the route as `context.baselineStage`; they are taken exactly as the
+ * baseline endpoint takes them, with ids carried forward from the stored
+ * baseline. A legacy file's baseline is derived from its post-intervention
+ * rows.
+ *
+ * @param {object} layers the post-intervention layers
+ * @param {object|undefined} storedProject
+ * @param {{ geometrySizes?: object, baselineStage?: { layers: object, geometrySizes?: object } }} context
+ * @param {string} projectDocumentKey
+ * @returns {object|undefined}
+ */
+function combinedBaselineLayers(
+  layers,
+  storedProject,
+  context,
+  projectDocumentKey
+) {
+  if (projectDocumentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
+    return undefined
+  }
+  const { baselineStage } = context
+  if (baselineStage) {
+    return layersForUpload(
+      baselineStage.layers,
+      storedProject,
+      BASELINE_DOCUMENT_CONFIG.projectDocumentKey,
+      baselineStage.geometrySizes
+    ).layersWithIds
+  }
+  return derivedBaselineLayers(layers, storedProject, context.geometrySizes)
+}
+
 async function sizeUploadedHabitats(
   { layersForSizing, baselineLayers },
   { logger, routeName, uploadId, h }
@@ -265,11 +303,12 @@ export function extractAndValidateDocument({
   habitatSizes,
   baselineDocument = storedProject?.baseline
 }) {
-  const { uploadId, filename, fileSize } = context
+  const { uploadId, filename, fileSize, template } = context
   const meta = {
     uploadId,
     filename,
     fileSize,
+    template,
     habitatSizes
   }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
@@ -282,6 +321,15 @@ export function extractAndValidateDocument({
       ? normaliseProposedCombinations
       : normaliseImportedCombinations
   normaliseCombinations(document)
+  // A BNG Service template file names each row's parent, so its
+  // post-intervention features are linked to the baseline saved with them
+  // before they are priced (BMD-1083). A legacy file names none.
+  if (
+    config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY &&
+    template
+  ) {
+    linkToParents(document, baselineDocument)
+  }
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
     config.projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
@@ -315,6 +363,12 @@ const BASELINE_DOCUMENT_CONFIG = Object.freeze({
 const NO_DERIVED_BASELINE_HABITATS_MESSAGE =
   'This post-intervention file has no baseline area habitats, so it cannot replace the project baseline'
 
+// For a file whose baseline is read from its own tables. The baseline checks
+// refuse an empty Area Habitats Baseline table first (NO_HABITAT_AREAS), so
+// this is a backstop that keeps the stored baseline from being wiped.
+const NO_READ_BASELINE_HABITATS_MESSAGE =
+  'The Area Habitats Baseline table in this file has no habitats, so it cannot replace the project baseline'
+
 function missingBaselineTypeError(layers) {
   const count = countRowsWithoutBaselineType(layers)
   if (count === 0) {
@@ -339,7 +393,7 @@ function derivedBaselineHasAreaHabitats(document) {
  * @returns {{ schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
  */
 function extractUploadDocuments(sized, context, logger, config) {
-  const { layersWithIds, baselineLayers, storedProject } = sized
+  const { layersWithIds, baselineLayers, baselineRead, storedProject } = sized
   const shared = { storedProject, context, logger }
   if (!baselineLayers) {
     return extractAndValidateDocument({
@@ -350,7 +404,11 @@ function extractUploadDocuments(sized, context, logger, config) {
       habitatSizes: sized.habitatSizes
     })
   }
-  const missingBaselineType = missingBaselineTypeError(layersWithIds)
+  // Only a derived baseline needs every kept row's Baseline type: one read
+  // from its own tables does not come from the post-intervention rows.
+  const missingBaselineType = baselineRead
+    ? null
+    : missingBaselineTypeError(layersWithIds)
   if (missingBaselineType) {
     return { validationError: missingBaselineType }
   }
@@ -371,7 +429,9 @@ function extractUploadDocuments(sized, context, logger, config) {
     return {
       validationError: makeError(
         ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
-        NO_DERIVED_BASELINE_HABITATS_MESSAGE
+        baselineRead
+          ? NO_READ_BASELINE_HABITATS_MESSAGE
+          : NO_DERIVED_BASELINE_HABITATS_MESSAGE
       )
     }
   }
@@ -525,7 +585,10 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
  * @param {{ drizzle: import('drizzle-orm/node-postgres').NodePgDatabase, logger: { info: Function, error: Function, warn: Function } }} deps
  * @param {string} projectId
  * @param {object} layers
- * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null, geometrySizes?: object }} context
+ * @param {{ uploadId: string, credentials: { sub: string }, filename?: string | null, fileSize?: number | null, geometrySizes?: object, template?: { name: string, version: string }, baselineStage?: { layers: object, geometrySizes?: object } }} context
+ *   `template` names the BNG Service template and version the file was read
+ *   in, and is stored on each document; `baselineStage` is a template file's
+ *   Baseline tables, which a combined upload saves as its baseline
  * @param {import('@hapi/hapi').ResponseToolkit} h
  * @param {object} config
  */
@@ -557,10 +620,12 @@ export async function saveUploadForProject(
     projectDocumentKey,
     context.geometrySizes
   )
-  const baselineLayers =
-    projectDocumentKey === POST_INTERVENTION_DOCUMENT_KEY
-      ? derivedBaselineLayers(layers, storedProject, context.geometrySizes)
-      : undefined
+  const baselineLayers = combinedBaselineLayers(
+    layers,
+    storedProject,
+    context,
+    projectDocumentKey
+  )
 
   const sizing = await runSizingStage(
     { layersForSizing, baselineLayers },
@@ -578,6 +643,7 @@ export async function saveUploadForProject(
       stageContext,
       layersWithIds,
       baselineLayers,
+      baselineRead: Boolean(context.baselineStage),
       storedProject,
       habitatSizes: sizing.habitatSizes,
       baselineHabitatSizes: sizing.baselineHabitatSizes

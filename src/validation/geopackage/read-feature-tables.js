@@ -28,6 +28,10 @@ import {
   getWkbType,
   quoteSqliteIdent
 } from './geopackage-internals-sqlite.js'
+import {
+  resolveTemplateTables,
+  templateFeatureProperties
+} from './service-template/template-tables.js'
 
 const logger = createLogger()
 
@@ -123,6 +127,8 @@ const GATE_LAYER_KEYS = new Set([
 /**
  * @typedef {object} FeatureTable
  * @property {string} tableName actual `gpkg_contents.table_name`
+ * @property {Map<string, string|null>|null} columnMap for a BNG Service
+ *   template table, how each column is carried; null for a legacy table
  * @property {boolean} hasGeometryRegistration row present in gpkg_geometry_columns
  * @property {string|null} geometryColumn registered geometry column name
  * @property {boolean} geometryColumnSafe name usable in dynamic SQL
@@ -278,6 +284,19 @@ function featureProperties(row, geometryColumn) {
 }
 
 /**
+ * A row's attributes as the pipeline reads them: every column but the
+ * geometry for a legacy file, or the template's columns under their mapped
+ * names for a BNG Service template file.
+ * @param {object} row
+ * @param {FeatureTable} table
+ */
+function propertiesOf(row, table) {
+  return table.columnMap
+    ? templateFeatureProperties(row, table.geometryColumn, table.columnMap)
+    : featureProperties(row, table.geometryColumn)
+}
+
+/**
  * Decode one row into a GeoJSON Feature in its native SRID (PostGIS reprojects
  * to 27700 in-query). Returns null for a blob too short to carry a header.
  * @param {object} row
@@ -303,7 +322,7 @@ function decodeFeature(row, blob, table, keepGeometryObject) {
 
   const feature = {
     type: 'Feature',
-    properties: featureProperties(row, table.geometryColumn),
+    properties: propertiesOf(row, table),
     // Stringified once here so validation, sizing and persist can all reuse
     // it rather than each re-serialising the same geometry. In-memory only.
     geometryJson: JSON.stringify(decoded.geometry),
@@ -395,17 +414,19 @@ function collectFeature(row, blob, table, keepGeometryObject) {
 function collectProperties(row, table) {
   table.features.push({
     type: 'Feature',
-    properties: featureProperties(row, table.geometryColumn)
+    properties: propertiesOf(row, table)
   })
 }
 
 /**
  * @param {string} tableName
+ * @param {Map<string, string | null> | null} columnMap
  * @returns {FeatureTable}
  */
-function emptyFeatureTable(tableName) {
+function emptyFeatureTable(tableName, columnMap) {
   return {
     tableName,
+    columnMap,
     hasGeometryRegistration: false,
     geometryColumn: null,
     geometryColumnSafe: false,
@@ -423,10 +444,12 @@ function emptyFeatureTable(tableName) {
  * @param {import('better-sqlite3').Database} db
  * @param {string} tableName
  * @param {string} mode one of {@link FEATURE_READ_MODE}
+ * @param {Map<string, string | null> | null} [columnMap] how a BNG Service
+ *   template table's columns are carried; null for a legacy table
  * @returns {FeatureTable}
  */
-function readFeatureTable(db, tableName, mode) {
-  const table = emptyFeatureTable(tableName)
+function readFeatureTable(db, tableName, mode, columnMap = null) {
+  const table = emptyFeatureTable(tableName, columnMap)
   table.rowCount = countTableRows(db, tableName)
 
   const registration = geometryRegistration(db, tableName)
@@ -492,21 +515,30 @@ function readFeatureTable(db, tableName, mode) {
  * that carry data are decoded in the same walk, so nothing has to open the
  * file a second time to get at the shapes.
  *
+ * A BNG Service template file is read from the tables its `source` names, at
+ * its stage, with each column carried as the template version's mapping says.
+ * Without a source, the legacy template's aliases find the tables and every
+ * column is carried as it is.
+ *
  * @param {import('better-sqlite3').Database} db
- * @param {{ mode?: string }} [options] `mode` is one of {@link FEATURE_READ_MODE}
+ * @param {{ mode?: string, source?: import('./service-template/template-tables.js').TemplateReadSource }} [options]
+ *   `mode` is one of {@link FEATURE_READ_MODE}
  * @returns {{
  *   tables: Map<string, FeatureTable>,
  *   logicalTables: Map<string, string>,
  *   missingLayers: string[],
- *   tableNames: string[]
+ *   tableNames: string[],
+ *   templateRead: boolean
  * }}
  */
 export function readFeatureTables(
   db,
-  { mode = FEATURE_READ_MODE.classify } = {}
+  { mode = FEATURE_READ_MODE.classify, source } = {}
 ) {
   const tableNames = featureTableNames(db)
-  const { logicalTables, missingLayers } = resolveLogicalTables(tableNames)
+  const { logicalTables, missingLayers, columnMaps } = source
+    ? resolveTemplateTables(tableNames, source)
+    : { ...resolveLogicalTables(tableNames), columnMaps: new Map() }
   // Only the layers that carry data are read at the requested mode; everything
   // else the gate looks at is classified, which is all it ever wanted.
   const dataTables =
@@ -523,13 +555,20 @@ export function readFeatureTables(
         readFeatureTable(
           db,
           tableName,
-          isDataTable ? mode : FEATURE_READ_MODE.classify
+          isDataTable ? mode : FEATURE_READ_MODE.classify,
+          columnMaps.get(tableName.toLowerCase()) ?? null
         )
       )
     }
   }
 
-  return { tables, logicalTables, missingLayers, tableNames }
+  return {
+    tables,
+    logicalTables,
+    missingLayers,
+    tableNames,
+    templateRead: Boolean(source)
+  }
 }
 
 /**
@@ -548,10 +587,17 @@ export function readFeatureTables(
  *   watercourses: object[],
  *   iggis: object[],
  *   trees: object[],
- *   missingLayers: string[]
- * }}
+ *   missingLayers: string[],
+ *   layerTables?: Record<string, string>
+ * }} `layerTables`, for a BNG Service template file only, names the table
+ *   each layer was read from, so a message can name it
  */
-export function toLayers({ tables, logicalTables, missingLayers }) {
+export function toLayers({
+  tables,
+  logicalTables,
+  missingLayers,
+  templateRead
+}) {
   const layers = {}
   for (const logical of Object.keys(LAYER_ALIASES)) {
     layers[logical] = []
@@ -567,5 +613,8 @@ export function toLayers({ tables, logicalTables, missingLayers }) {
   }
 
   layers.missingLayers = missingLayers
+  if (templateRead) {
+    layers.layerTables = Object.fromEntries(logicalTables)
+  }
   return layers
 }

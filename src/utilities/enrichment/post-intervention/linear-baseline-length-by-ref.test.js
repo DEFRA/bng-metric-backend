@@ -40,7 +40,9 @@ describe('a baseline saved before references were cleaned (BMD-1058)', () => {
         []
       )
 
-      expect(lookupBaselineLinearLength(cleanedRef, map, 'hedgerow')).toBe(1)
+      expect(
+        lookupBaselineLinearLength({ ref: cleanedRef }, map, 'hedgerow')
+      ).toBe(1)
     }
   )
 
@@ -50,7 +52,9 @@ describe('a baseline saved before references were cleaned (BMD-1058)', () => {
       [{ ref: 'R1', sizeMetres: 2000 }]
     )
 
-    expect(lookupBaselineLinearLength(' R1', map, 'watercourse')).toBe(2)
+    expect(lookupBaselineLinearLength({ ref: ' R1' }, map, 'watercourse')).toBe(
+      2
+    )
   })
 
   it('leaves out a stored feature with a blank ref', () => {
@@ -60,22 +64,67 @@ describe('a baseline saved before references were cleaned (BMD-1058)', () => {
     )
 
     expect(map.size).toBe(0)
-    expect(() => lookupBaselineLinearLength('   ', map, 'hedgerow')).toThrow(
-      /no baseline hedgerow found/
-    )
+    expect(() =>
+      lookupBaselineLinearLength({ ref: '   ' }, map, 'hedgerow')
+    ).toThrow(/no baseline hedgerow found/)
   })
 })
 
 describe('lookupBaselineLinearLength', () => {
   it('throws when the map is missing', () => {
     expect(() =>
-      lookupBaselineLinearLength('R1', undefined, 'watercourse')
+      lookupBaselineLinearLength({ ref: 'R1' }, undefined, 'watercourse')
     ).toThrow(/no baseline data was provided/)
   })
 
   it('throws when the ref is absent from the map', () => {
     expect(() =>
-      lookupBaselineLinearLength('R1', new Map(), 'watercourse')
+      lookupBaselineLinearLength({ ref: 'R1' }, new Map(), 'watercourse')
     ).toThrow(/no baseline watercourse found/)
+  })
+})
+
+describe('a BNG Service template feature, linked to its parent (BMD-1083)', () => {
+  const HEDGE_ID = '6d5f2c1e-8f43-4a8e-9b51-2a3c4d5e6f70'
+  const RIVER_ID = '7e6a3d2f-9a54-4b9f-8c62-3b4d5e6f7081'
+  const lengths = buildBaselineLinearLengthByRef(
+    [{ ref: 'HG005', featureId: HEDGE_ID, sizeMetres: 1000 }],
+    [{ ref: 'R001', featureId: RIVER_ID, sizeMetres: 2000 }]
+  )
+
+  it('is priced against its parent’s length, whatever its own ref', () => {
+    expect(
+      lookupBaselineLinearLength(
+        { ref: 'HG005x', parentFeatureId: HEDGE_ID },
+        lengths,
+        'hedgerow'
+      )
+    ).toBe(1)
+  })
+
+  it('is never priced against another feature that shares its ref', () => {
+    // A watercourse whose ref is a hedgerow's takes its own parent's length.
+    expect(
+      lookupBaselineLinearLength(
+        { ref: 'HG005', parentFeatureId: RIVER_ID },
+        lengths,
+        'watercourse'
+      )
+    ).toBe(2)
+  })
+
+  it('throws when its parent has no measured length', () => {
+    expect(() =>
+      lookupBaselineLinearLength(
+        {
+          ref: 'R001',
+          parentFeatureId: '00000000-0000-4000-8000-000000000000'
+        },
+        lengths,
+        'watercourse'
+      )
+    ).toThrow(
+      /no baseline watercourse found for the parent of parcel ref "R001"/
+    )
   })
 })

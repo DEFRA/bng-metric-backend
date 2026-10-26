@@ -1150,6 +1150,39 @@
       "description": "ISO 8601 timestamp of when the data was imported."
     },
     {
+      "path": "baseline.template",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file."
+    },
+    {
+      "path": "baseline.template.name",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template the GeoPackage is in: `bng-service`."
+    },
+    {
+      "path": "baseline.template.version",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template version, from its version record, e.g. `1.0`."
+    },
+    {
       "path": "baseline.redLine",
       "type": "object",
       "required": false,
@@ -1367,7 +1400,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.habitats[].units",
@@ -1378,7 +1411,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the parcel. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
+      "description": "Baseline biodiversity units for the parcel, or null when required calculation inputs are missing. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals."
     },
     {
       "path": "baseline.habitats[].siteName",
@@ -1609,7 +1642,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when broad type, habitat type and condition are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.trees[].siteName",
@@ -1829,7 +1862,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation."
+      "description": "Baseline biodiversity units for the tree, from bng-library/metric using the area-habitat calculation; null when required calculation inputs are missing."
     },
     {
       "path": "baseline.trees[].properties",
@@ -2016,7 +2049,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when type and condition are both set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.hedgerows[].units",
@@ -2027,7 +2060,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428)."
+      "description": "Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428). Null when required calculation inputs are missing."
     },
     {
       "path": "baseline.hedgerows[].strategicSignificance",
@@ -2346,7 +2379,7 @@
       "enumValues": ["Complete", "Incomplete"],
       "constraints": [],
       "openMap": false,
-      "description": "'Complete' when type, condition, riparian encroachment and watercourse encroachment are all set; otherwise 'Incomplete'."
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
     },
     {
       "path": "baseline.watercourses[].units",
@@ -2357,7 +2390,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428)."
+      "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428). Null when required calculation inputs are missing."
     },
     {
       "path": "baseline.watercourses[].strategicSignificance",
@@ -2913,6 +2946,39 @@
       "description": "ISO 8601 timestamp of when the data was imported."
     },
     {
+      "path": "postIntervention.template",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file."
+    },
+    {
+      "path": "postIntervention.template.name",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template the GeoPackage is in: `bng-service`."
+    },
+    {
+      "path": "postIntervention.template.version",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The template version, from its version record, e.g. `1.0`."
+    },
+    {
       "path": "postIntervention.redLine",
       "type": "object",
       "required": false,
@@ -3053,7 +3119,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values."
+      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.habitats[].status",
@@ -3083,6 +3149,17 @@
       "constraints": [],
       "openMap": false,
       "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked."
+    },
+    {
+      "path": "postIntervention.habitats[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
     },
     {
       "path": "postIntervention.habitats[].baseline",
@@ -3346,7 +3423,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceOrDelay",
@@ -3478,7 +3555,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values."
+      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.trees[].status",
@@ -3885,7 +3962,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.trees[].proposed.advanceOrDelay",
@@ -3965,6 +4042,17 @@
       "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked."
     },
     {
+      "path": "postIntervention.hedgerows[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+    },
+    {
       "path": "postIntervention.hedgerows[].featureId",
       "type": "string",
       "required": true,
@@ -4017,7 +4105,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units, calculated from proposed values."
+      "description": "Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.hedgerows[].status",
@@ -4270,7 +4358,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceOrDelay",
@@ -4361,6 +4449,17 @@
       "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked."
     },
     {
+      "path": "postIntervention.watercourses[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+    },
+    {
       "path": "postIntervention.watercourses[].featureId",
       "type": "string",
       "required": true,
@@ -4413,7 +4512,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units, calculated from proposed values."
+      "description": "Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing."
     },
     {
       "path": "postIntervention.watercourses[].status",
@@ -4710,7 +4809,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0."
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceOrDelay",

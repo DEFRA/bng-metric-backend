@@ -599,6 +599,110 @@ describe('saveUploadForProject', () => {
     })
   })
 
+  describe('a BNG Service template file at the combined endpoint', () => {
+    const TEMPLATE = { name: 'bng-service', version: '1.0' }
+    const area = (ref, properties = {}) => ({
+      properties: { 'Parcel Ref': ref, ...properties }
+    })
+    // A Retained row with no Baseline type: a legacy combined file is refused
+    // for it, as its baseline is derived from these rows.
+    const POST_INTERVENTION_LAYERS = {
+      ...STUB_LAYERS,
+      areas: [area('H1', { 'Retention Category': 'Retained' })]
+    }
+    const BASELINE_STAGE_LAYERS = {
+      ...STUB_LAYERS,
+      areas: [area('H1'), area('H2')]
+    }
+
+    function saveTemplate(context = {}) {
+      return saveUploadForProject(
+        deps,
+        PROJECT_ID,
+        POST_INTERVENTION_LAYERS,
+        {
+          uploadId: UPLOAD_ID,
+          credentials: CREDENTIALS,
+          filename: MOCK_FILENAME,
+          fileSize: MOCK_FILE_SIZE,
+          template: TEMPLATE,
+          baselineStage: { layers: BASELINE_STAGE_LAYERS },
+          ...context
+        },
+        h,
+        POST_INTERVENTION_CONFIG
+      )
+    }
+
+    beforeEach(() => {
+      extractHabitatData.mockReturnValue({
+        document: { habitats: [{ ref: 'H1' }, { ref: 'H2' }] },
+        geometries: { habitats: [] }
+      })
+    })
+
+    it('saves the Baseline tables as the baseline, not one derived from the post-intervention rows', async () => {
+      const result = await saveTemplate()
+
+      expect(result).toBeNull()
+      const [baselineLayers] = extractHabitatData.mock.calls[0]
+      expect(
+        baselineLayers.areas.map((f) => f.properties['Parcel Ref'])
+      ).toEqual(['H1', 'H2'])
+      expect(extractPostIntervention).toHaveBeenCalledWith(
+        POST_INTERVENTION_LAYERS,
+        expect.anything()
+      )
+      expect(persistCombinedUpload).toHaveBeenCalled()
+    })
+
+    it('records the template and version on both documents', async () => {
+      await saveTemplate()
+
+      expect(extractHabitatData.mock.calls[0][1]).toMatchObject({
+        template: TEMPLATE
+      })
+      expect(extractPostIntervention.mock.calls[0][1]).toMatchObject({
+        template: TEMPLATE
+      })
+    })
+
+    it('names the empty Area Habitats Baseline table when the baseline has no area habitats', async () => {
+      extractHabitatData.mockReturnValue({
+        document: { habitats: [] },
+        geometries: { habitats: [] }
+      })
+
+      await saveTemplate()
+
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            message: expect.stringContaining(
+              'Area Habitats Baseline table in this file has no habitats'
+            )
+          })
+        ]
+      })
+    })
+
+    it('does not ask the post-intervention rows for a Baseline type', async () => {
+      await saveTemplate()
+
+      expect(persistCombinedUpload).toHaveBeenCalled()
+      expect(h.response).not.toHaveBeenCalledWith(
+        expect.objectContaining({
+          errors: [
+            expect.objectContaining({ code: ERROR_CODES.BASELINE_TYPE_MISSING })
+          ]
+        })
+      )
+    })
+  })
+
   describe('featureId carry-forward', () => {
     const STORED_ID = '11111111-1111-4111-8111-111111111111'
 

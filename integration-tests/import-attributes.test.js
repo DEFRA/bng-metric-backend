@@ -1,4 +1,7 @@
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, expect, it } from 'vitest'
+// Every suite here uploads a legacy file, so runs with the service-template
+// flag off only.
+import { describeLegacy as describe } from '../test/helpers/template-mode.js'
 import { copyFile, mkdtemp, rm } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
@@ -149,6 +152,9 @@ describe('BMD-1059 real GeoPackage imports', () => {
         expect(river.waterEncroachmentMultiplier).toBeUndefined()
         expect(river.riparianEncroachmentMultiplier).toBeUndefined()
       }
+      for (const feature of [area, hedge, river]) {
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+      }
       const geometries = await fetchLayerRows(geometryTable, project.id)
       expect(geometries.map((row) => row.id)).toContain(area.featureId)
       expect(geometries.every((row) => row.is_valid)).toBe(true)
@@ -178,7 +184,7 @@ describe('BMD-1059 real GeoPackage imports', () => {
         ['watercourses', 'R1']
       ]) {
         const feature = stored[layer].find((item) => item.ref === ref)
-        expect(feature.status).toBe('Incomplete')
+        expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
         expect((proposed ? feature.proposed : feature).condition).toBeNull()
       }
     }

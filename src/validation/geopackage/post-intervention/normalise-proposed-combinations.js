@@ -1,11 +1,9 @@
-import { PROP_KEYS, pickProp } from '../properties.js'
 import {
   GPKG_RETENTION_LOST,
   RETENTION_CREATED,
   RETENTION_ENHANCED,
   RETENTION_RETAINED,
-  normaliseRetentionCategory,
-  resolveRetentionCategory
+  importedRetentionCategory
 } from '../../../utilities/enrichment/post-intervention/retention-category.js'
 
 import {
@@ -15,18 +13,6 @@ import {
 
 function isCreatedOrEnhanced(retention) {
   return retention === RETENTION_CREATED || retention === RETENTION_ENHANCED
-}
-
-function importedRetention(feature) {
-  // Area Lost rows are mapped to Created during extraction. Read the original
-  // category so their redundant timing values are still removed (AC5).
-  return (
-    normaliseRetentionCategory(
-      pickProp(feature.properties ?? {}, PROP_KEYS.retentionCategory)
-    ) ??
-    normaliseRetentionCategory(feature.retentionCategory) ??
-    resolveRetentionCategory(feature)
-  )
 }
 
 function normaliseTiming(proposed, retention) {
@@ -49,7 +35,7 @@ function normaliseTiming(proposed, retention) {
 export function normaliseProposedCombinations(document) {
   for (const layer of IMPORT_COMBINATION_LAYERS) {
     for (const feature of document[layer] ?? []) {
-      const retention = importedRetention(feature)
+      const retention = importedRetentionCategory(feature)
       normaliseImportedAttributeCombinations(feature.baseline, layer)
       normaliseImportedAttributeCombinations(
         feature.proposed,

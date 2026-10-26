@@ -11,6 +11,12 @@ import {
   closeGeosWorkerPool,
   getGeosWorkerPool
 } from './worker-pool.js'
+import { templateReadSource } from '../service-template/template-tables.js'
+import {
+  buildServiceTemplateBuffer,
+  populatedBaselineRows
+} from '../../../../test/helpers/service-template-gpkg.js'
+import { withTempGpkgFile } from '../../../../test/helpers/gpkg.js'
 
 /**
  * These tests drive real worker threads, because the properties worth asserting
@@ -545,5 +551,58 @@ describe('ValidationTimeoutError — contention', () => {
 
   it('still reports the budget it overran', () => {
     expect(timeout({ queueDepth: 0, busyWorkers: 1 }).message).toContain('5000')
+  })
+})
+
+describe('GeosWorkerPool — a BNG Service template file', () => {
+  it('has the worker read the tables the source names', async () => {
+    const pool = openPool()
+    const buffer = buildServiceTemplateBuffer({ rows: populatedBaselineRows() })
+
+    const result = await withTempGpkgFile(buffer, (filePath) =>
+      pool.run(filePath, {
+        includeSizes: true,
+        source: templateReadSource('1.0', 'baseline')
+      })
+    )
+
+    // Measured, so the worker found the area habitat in Area Habitats
+    // Baseline, which the legacy aliases would not have.
+    expect(result.sizes.areas).toHaveLength(1)
+    expect(result.sizes.hedgerows).toHaveLength(1)
+    expect(result.sizes.watercourses).toHaveLength(1)
+  })
+
+  it('has the worker check the parent links when given the Baseline tables to check them against', async () => {
+    const pool = openPool()
+    const rows = populatedBaselineRows()
+    rows['Area Habitats Post-Intervention'] = [
+      {
+        'Habitat Ref': 'H001',
+        'Retention Category': 'Retained',
+        parent_uuid: '00000000-0000-4000-8000-000000000000'
+      }
+    ]
+    const buffer = buildServiceTemplateBuffer({ rows })
+    const run = (options) =>
+      withTempGpkgFile(buffer, (filePath) =>
+        pool.run(filePath, {
+          source: templateReadSource('1.0', 'post-intervention'),
+          ...options
+        })
+      )
+
+    const checked = await run({
+      lineageSource: templateReadSource('1.0', 'baseline')
+    })
+    const unchecked = await run()
+
+    expect(checked.valid).toBe(false)
+    expect(checked.errors.map((e) => e.code)).toContain(
+      'STAGED_UNKNOWN_PARENT_REF'
+    )
+    expect(unchecked.errors.map((e) => e.code)).not.toContain(
+      'STAGED_UNKNOWN_PARENT_REF'
+    )
   })
 })

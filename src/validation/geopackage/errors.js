@@ -78,7 +78,9 @@ export const ERROR_CODES = Object.freeze({
    * The baseline derived from a post-intervention file has no area habitats.
    * Persisting it would replace the stored baseline, including any feature
    * edits, with an empty one. A file whose Baseline columns are blank or
-   * placeholders does this.
+   * placeholders does this. For a BNG Service template file, whose baseline
+   * is read from its own tables, the message names the empty Area Habitats
+   * Baseline table instead; the code is the same, as the frontend's answer is.
    */
   NO_DERIVED_BASELINE_HABITATS: 'NO_DERIVED_BASELINE_HABITATS',
 
@@ -88,6 +90,76 @@ export const ERROR_CODES = Object.freeze({
    * overstate the net change, so the upload is rejected.
    */
   BASELINE_TYPE_MISSING: 'BASELINE_TYPE_MISSING',
+
+  /**
+   * The file has no BNG Service template version record, and is not a legacy
+   * file either, so there is nothing to say which template it is.
+   */
+  TEMPLATE_VERSION_MISSING: 'TEMPLATE_VERSION_MISSING',
+
+  /** The file has more than one template version record, so its version is ambiguous. */
+  TEMPLATE_VERSION_DUPLICATED: 'TEMPLATE_VERSION_DUPLICATED',
+
+  /**
+   * The file's template version record cannot be read: it is not referenced to
+   * the whole GeoPackage, is not JSON, or does not name the bng-service format
+   * and a version.
+   */
+  TEMPLATE_VERSION_INVALID: 'TEMPLATE_VERSION_INVALID',
+
+  /** The file's template version is not one the service reads. `details.version` names it. */
+  TEMPLATE_VERSION_UNSUPPORTED: 'TEMPLATE_VERSION_UNSUPPORTED',
+
+  /**
+   * A legacy (Natural England) template file, uploaded while the service takes
+   * the BNG Service template. The user converts it with the QGIS plugin.
+   */
+  LEGACY_TEMPLATE_NOT_ACCEPTED: 'LEGACY_TEMPLATE_NOT_ACCEPTED',
+
+  /**
+   * A BNG Service template file uploaded at the baseline + post-intervention
+   * endpoint whose Post-Intervention tables are all empty, so it has no
+   * post-intervention stage to save. `details.template` names the template and
+   * version. The frontend sends the user to the drop-out page.
+   */
+  POST_INTERVENTION_TABLES_EMPTY: 'POST_INTERVENTION_TABLES_EMPTY',
+
+  /**
+   * BNG Service template Retained or Enhanced rows with no `parent_uuid`, so
+   * the baseline habitat they continue is not known (BMD-1083). The service
+   * does not infer it: the user links the row in the template. `details.sample`
+   * lists each row's table, Habitat Ref and habitat type. The frontend sends
+   * the user to the drop-out page.
+   */
+  STAGED_PARENT_LINK_MISSING: 'STAGED_PARENT_LINK_MISSING',
+
+  /**
+   * BNG Service template rows whose `parent_uuid` names no baseline feature of
+   * their layer, so their parent is missing (BMD-1083). `details.sample` lists
+   * each row's table, Habitat Ref and habitat type. The frontend sends the user
+   * to the drop-out page.
+   */
+  STAGED_UNKNOWN_PARENT_REF: 'STAGED_UNKNOWN_PARENT_REF',
+
+  /**
+   * BNG Service template rows whose `parent_uuid` names a `feature_uuid` that
+   * more than one baseline feature of their layer has (a pasted copy can), so
+   * which one each row continues is not known (BMD-1083). `details.sample`
+   * lists each uuid's baseline table and Habitat Refs, and the Habitat Ref of
+   * each row that names it. The frontend sends the user to the drop-out page.
+   */
+  STAGED_AMBIGUOUS_PARENT: 'STAGED_AMBIGUOUS_PARENT',
+
+  /**
+   * BNG Service template baseline features whose shape is not the one their
+   * linked post-intervention rows recorded in `parent_geom`: the baseline was
+   * edited after the copy, or a row's `parent_geom` is missing or cannot be
+   * read, so the link cannot be checked (BMD-1083). `details.sample` lists
+   * each parent's table, Habitat Ref and habitat type, and the Habitat Ref of
+   * each affected post-intervention row. The frontend sends the user to the
+   * drop-out page.
+   */
+  STAGED_BASELINE_DRIFTED: 'STAGED_BASELINE_DRIFTED',
 
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',

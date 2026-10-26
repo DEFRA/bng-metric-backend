@@ -18,8 +18,7 @@ import {
   finalizePostInterventionFeatureStatus,
   handleLostLinearCategory,
   runProposedCalculation,
-  resolveProposedStrategicSignificance,
-  checkStrategicSignificanceOfUnsizedFeature,
+  prepareProposedUnitCalculation,
   skipUnrecognisedRetentionCategory,
   RETENTION_RETAINED,
   RETENTION_CREATED,
@@ -113,13 +112,7 @@ function buildCreatedWatercourseCalculate(
   delayYears,
   logger
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    watercourse,
-    WATERCOURSE_PROPOSED_LABEL,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (
     !isPresentEngineString(proposed.type) ||
     !isPresentEngineString(proposedCondition)
@@ -130,9 +123,6 @@ function buildCreatedWatercourseCalculate(
       'proposed type or condition is missing',
       logger
     )
-    return null
-  }
-  if (strategicSignificance === null) {
     return null
   }
   return () => {
@@ -160,13 +150,7 @@ function buildEnhancedWatercourseCalculate(
   lengthKm,
   { advanceYears, delayYears, baselineLengthByRef, logger }
 ) {
-  // Before the other checks, so an invalid value is always nulled and priced
-  // at zero (BMD-1051 AC4), even when the feature can't be priced anyway.
-  const strategicSignificance = resolveProposedStrategicSignificance(
-    watercourse,
-    WATERCOURSE_PROPOSED_LABEL,
-    logger
-  )
+  const strategicSignificance = proposed.strategicSignificance
   if (
     !isPresentEngineString(baseline.type) ||
     !isPresentEngineString(proposed.type) ||
@@ -181,13 +165,10 @@ function buildEnhancedWatercourseCalculate(
     )
     return null
   }
-  if (strategicSignificance === null) {
-    return null
-  }
   return () => {
     const encroachments = resolvedWatercourseEncroachments(proposed)
     const baselineLengthKm = lookupBaselineLinearLength(
-      watercourse.ref,
+      watercourse,
       baselineLengthByRef,
       'watercourse'
     )
@@ -232,8 +213,8 @@ function prepareWatercourseProposedContext(watercourse) {
     category: resolveRetentionCategory(watercourse),
     baselineCondition: normalizeConditionForEngine(baseline.condition),
     proposedCondition: normalizeConditionForEngine(proposed.condition),
-    advanceYears: proposed.advanceYears ?? 0,
-    delayYears: proposed.delayYears ?? 0,
+    advanceYears: proposed.advanceYears,
+    delayYears: proposed.delayYears,
     lengthKm: pricedLengthKm(watercourse.sizeMetres)
   }
 }
@@ -320,16 +301,21 @@ export function enrichPostInterventionWatercourseProposedSide(
     handleLostLinearCategory(watercourse, GPKG_RETENTION_LOST)
     return
   }
+  if (
+    !prepareProposedUnitCalculation(
+      watercourse,
+      WATERCOURSE_PROPOSED_LABEL,
+      logger,
+      { watercourse: true }
+    )
+  ) {
+    return
+  }
   if (!hasPositiveLinearSize(watercourse.sizeMetres)) {
     skipProposedEnrichment(
       watercourse,
       WATERCOURSE_PROPOSED_LABEL,
       'sizeMetres is missing or not positive',
-      logger
-    )
-    checkStrategicSignificanceOfUnsizedFeature(
-      watercourse,
-      WATERCOURSE_PROPOSED_LABEL,
       logger
     )
     return

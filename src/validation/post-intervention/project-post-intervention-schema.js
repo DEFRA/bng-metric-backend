@@ -57,6 +57,18 @@ function invalidEnhancementField(layer) {
   }
 }
 
+// Set on a BNG Service template upload only (BMD-1083), from the row's
+// parent_uuid, so a legacy upload's features have no such field.
+function parentFeatureIdField() {
+  return {
+    parentFeatureId: Joi.string()
+      .uuid()
+      .description(
+        'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
+      )
+  }
+}
+
 function baselineCommonFields() {
   return {
     condition: Joi.string()
@@ -129,7 +141,7 @@ function proposedCommonFields() {
     strategicSignificanceScore: Joi.number()
       .allow(null)
       .description(
-        'Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then 0.'
+        'Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070).'
       ),
     advanceOrDelay: Joi.string()
       .allow(null, '')
@@ -152,6 +164,7 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
   return {
     ...retentionCategoryField(),
     ...invalidEnhancementField(layer),
+    ...parentFeatureIdField(),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -170,7 +183,7 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     units: Joi.number()
       .allow(null)
       .description(
-        'Post-intervention biodiversity units, calculated from proposed values.'
+        'Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing.'
       ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
@@ -199,7 +212,11 @@ function postInterventionAreaFeatureFields({
     ref: Joi.string().allow(null, '').description(refDescription),
     area: Joi.number().allow(null).description(areaDescription),
     sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),
-    units: Joi.number().allow(null).description(unitsDescription),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        `${unitsDescription} Null when required calculation inputs are missing.`
+      ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
@@ -257,6 +274,7 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
+  ...parentFeatureIdField(),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()
