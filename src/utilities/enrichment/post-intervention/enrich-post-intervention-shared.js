@@ -201,6 +201,7 @@ export function runProposedCalculation(
  */
 export function handleProposedEnrichmentError(error, feature, context, logger) {
   markUnitsIncomplete(feature)
+  clearEngineDerivedProposedFields(feature)
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: ${error.message}`
   )
@@ -216,6 +217,7 @@ export function handleProposedEnrichmentError(error, feature, context, logger) {
  */
 export function skipProposedEnrichment(feature, context, reason, logger) {
   markUnitsIncomplete(feature)
+  clearEngineDerivedProposedFields(feature)
   logger.warn(
     `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: skipped proposed enrichment — ${reason}`
   )
@@ -237,6 +239,16 @@ const ENGINE_DERIVED_PROPOSED_FIELDS = Object.freeze([
   'standardTimeToTargetCondition',
   'finalTimeToTargetCondition'
 ])
+
+/** Remove pricing results when the feature cannot be priced again. */
+export function clearEngineDerivedProposedFields(feature) {
+  if (!feature.proposed) {
+    return
+  }
+  for (const field of ENGINE_DERIVED_PROPOSED_FIELDS) {
+    feature.proposed[field] = null
+  }
+}
 
 /** The `event` field of the warning logged for each rejected value. */
 export const STRATEGIC_SIGNIFICANCE_INVALID_EVENT =
@@ -309,9 +321,7 @@ export function applyInvalidStrategicSignificanceResult(feature, value) {
   )
     ? (feature.proposed.rejectedStrategicSignificance ?? null)
     : value
-  for (const field of ENGINE_DERIVED_PROPOSED_FIELDS) {
-    feature.proposed[field] = null
-  }
+  clearEngineDerivedProposedFields(feature)
   feature.proposed.strategicSignificance = null
   feature.proposed.strategicSignificanceCategory = null
   feature.proposed.strategicSignificanceScore = null
@@ -369,7 +379,7 @@ export function prepareProposedUnitCalculation(
   feature,
   context,
   logger,
-  { watercourse = false, timingRequired = true } = {}
+  { watercourse = false } = {}
 ) {
   markUnitsIncomplete(feature)
   const category = resolveRetentionCategory(feature)
@@ -382,11 +392,7 @@ export function prepareProposedUnitCalculation(
     return false
   }
   if (
-    !hasRequiredProposedInputs(
-      feature.proposed,
-      watercourse,
-      createdOrEnhanced && timingRequired
-    )
+    !hasRequiredProposedInputs(feature.proposed, watercourse, createdOrEnhanced)
   ) {
     skipProposedEnrichment(
       feature,

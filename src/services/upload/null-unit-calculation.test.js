@@ -380,3 +380,38 @@ it('legacy Lost area replacements with null timing stay incomplete after resync'
     calculators.calculateCreatedAreaHabitatPostIntervention
   ).not.toHaveBeenCalled()
 })
+
+it.each(LAYERS)(
+  'a rejected %s calculation clears every stale pricing field',
+  (layer, factory) => {
+    const feature = makeProposedFeature(layer, factory, 'Created')
+    const fields = [
+      'distinctiveness',
+      'distinctivenessScore',
+      'conditionScore',
+      'timeMultiplier',
+      'difficultyMultiplier',
+      'difficulty',
+      'standardTimeToTargetCondition',
+      'finalTimeToTargetCondition'
+    ]
+    for (const field of fields) {
+      feature.proposed[field] = 'stale pricing result'
+    }
+    feature.units = 99
+    feature.status = 'Complete'
+    feature.proposed.condition = null
+    feature.proposed.advanceOrDelay = 'Original input summary'
+    enrichPostInterventionDocumentWithUnits(
+      { [layer]: [feature] },
+      undefined,
+      OPTIONS
+    )
+    expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+    for (const field of fields) {
+      expect(feature.proposed[field], field).toBeNull()
+    }
+    expect(feature.proposed.advanceOrDelay).toBe('Original input summary')
+    assertNoProposedCalculation()
+  }
+)
