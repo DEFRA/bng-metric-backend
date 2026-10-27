@@ -24,6 +24,7 @@ import {
   recomputeWatercourse
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
+import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
 import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
@@ -76,8 +77,26 @@ function blankToNull(value) {
   }
 }
 
+/**
+ * The edited ref as it is stored, or undefined when the edit leaves the ref
+ * alone. Unlike the dropdown fields, an absent ref is not a request to clear
+ * it: a habitat must always have one (BMD-1058), and only the unified baseline
+ * route sends it (BMD-1061). The route has already refused a blank one.
+ *
+ * @param {unknown} ref
+ * @returns {string | undefined}
+ */
+function normalizeRef(ref) {
+  if (ref === undefined || ref === null) {
+    return undefined
+  }
+  const cleaned = cleanHabitatRef(ref)
+  return cleaned === '' ? undefined : cleaned
+}
+
 function normalizeEdits(edits = {}) {
   return {
+    ref: normalizeRef(edits.ref),
     broadType: blankToNull(edits.broadType),
     habitatType: blankToNull(edits.habitatType),
     condition: blankToNull(edits.condition),
@@ -159,6 +178,7 @@ function recomputeForType(type, existing, edits, context) {
 function mergeBaselineFeature(type, existing, edits, derived) {
   const base = {
     ...existing,
+    ...(edits.ref === undefined ? {} : { ref: edits.ref }),
     condition: edits.condition,
     distinctiveness: derived.distinctiveness,
     distinctivenessScore: derived.distinctivenessScore,
@@ -449,7 +469,11 @@ function resolveEditTarget(
  * @param {object} project — full row.project JSONB
  * @param {object} params
  * @param {string} params.featureId
- * @param {object} params.edits  { broadType?, habitatType?, condition? }
+ * @param {object} params.edits  { ref?, broadType?, habitatType?, condition? }
+ *   `ref` renames a baseline feature (BMD-1061); post-intervention edits
+ *   ignore it. The re-derive then carries the new ref onto the
+ *   post-intervention rows measured against the feature, so the two documents
+ *   stay joined (resync-post-intervention-baseline.js).
  * @param {string} [params.expectedType]
  * @param {'baseline'|'postIntervention'} [params.documentKey]
  * @param {{ warn: Function }} [params.logger] warns about post-intervention

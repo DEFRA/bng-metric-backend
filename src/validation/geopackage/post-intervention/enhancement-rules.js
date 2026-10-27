@@ -10,7 +10,8 @@
 import {
   ENHANCEMENT_KIND,
   checkEnhancement,
-  enhancementRulesFor
+  enhancementRulesFor,
+  unenhanceableBaseline
 } from 'bng-library/metric'
 
 import { engineHabitatTypeCandidates } from '../../../utilities/enrichment/shared/engine-helpers.js'
@@ -74,6 +75,18 @@ export function enhancementRulesForLayer(layer) {
 }
 
 /**
+ * @param {{ habitatOf: (side: object | undefined) => string | null }} layerKind
+ * @param {object | undefined} side
+ * @returns {EnhancementSide}
+ */
+function readSide(layerKind, side) {
+  return {
+    habitat: layerKind.habitatOf(side),
+    condition: stripConditionPrefix(side?.condition)
+  }
+}
+
+/**
  * @typedef {object} EnhancementSide
  * @property {string | null} habitat the metric's label, null if unrecognised
  * @property {unknown} condition prefix stripped
@@ -125,12 +138,8 @@ export function checkFeatureEnhancement(layer, feature) {
   if (!layerKind) {
     return null
   }
-  const readSide = (side) => ({
-    habitat: layerKind.habitatOf(side),
-    condition: stripConditionPrefix(side?.condition)
-  })
-  const baseline = readSide(feature?.baseline)
-  const proposed = readSide(feature?.proposed)
+  const baseline = readSide(layerKind, feature?.baseline)
+  const proposed = readSide(layerKind, feature?.proposed)
   const check = checkEnhancement(layerKind.kind, baseline, proposed)
   if (!check.checked) {
     return null
@@ -140,5 +149,58 @@ export function checkFeatureEnhancement(layer, feature) {
     valid: check.valid,
     baseline: checkedSide(baseline, check.baselineDistinctiveness),
     proposed: checkedSide(proposed, check.proposedDistinctiveness)
+  }
+}
+
+/**
+ * @typedef {object} UnenhanceableFeatureBaseline
+ * @property {string} rule one of bng-library's UNENHANCEABLE_BASELINE
+ * @property {boolean} mvsOnly
+ * @property {CheckedSide} baseline
+ */
+
+/**
+ * The layers checked for a baseline that cannot be enhanced. Individual trees
+ * are area habitats there (a Rural or Urban tree is a Medium habitat), though
+ * the enhancement rules do not cover them.
+ */
+const BASELINE_KIND_BY_LAYER = Object.freeze({
+  ...KIND_BY_LAYER,
+  trees: { kind: ENHANCEMENT_KIND.area, habitatOf: areaHabitat }
+})
+
+/** The post-intervention layers checked for a baseline that cannot be enhanced. */
+export const UNENHANCEABLE_BASELINE_LAYERS = Object.freeze(
+  Object.keys(BASELINE_KIND_BY_LAYER)
+)
+
+/**
+ * Whether a baseline is one the service cannot enhance at all (BMD-1182),
+ * whatever it is enhanced into. The rules are bng-library's
+ * (`unenhanceableBaseline`).
+ *
+ * @param {string} layer a post-intervention document key: habitats,
+ *   hedgerows, watercourses or trees
+ * @param {{ type?: unknown, broadType?: unknown, condition?: unknown } | undefined} side
+ *   the baseline habitat: a post-intervention feature's `baseline` side, or a
+ *   baseline document feature
+ * @returns {UnenhanceableFeatureBaseline | null} null when the baseline can be
+ *   enhanced, or its habitat is not one the metric knows (left to the checks
+ *   that own it)
+ */
+export function checkBaselineEnhanceable(layer, side) {
+  const layerKind = BASELINE_KIND_BY_LAYER[layer]
+  if (!layerKind) {
+    return null
+  }
+  const baseline = readSide(layerKind, side)
+  const match = unenhanceableBaseline(layerKind.kind, baseline)
+  if (!match) {
+    return null
+  }
+  return {
+    rule: match.rule,
+    mvsOnly: match.mvsOnly,
+    baseline: checkedSide(baseline, match.distinctiveness)
   }
 }
