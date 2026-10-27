@@ -12,7 +12,7 @@ import {
   getConditionsForHabitatType
 } from './habitat-reference.js'
 
-export function getAreaCreationReference() {
+function buildAreaCreationReference() {
   const habitatTypes = Object.entries(getAreaHabitatTypesByBroad())
     .filter(([broad]) => broad !== 'Individual trees')
     .flatMap(([broad, types]) =>
@@ -52,4 +52,12 @@ export function getAreaCreationReference() {
       [MAX_YEARS_PLUS]: TIME_TO_TARGET_MULTIPLIER[OVER_MAX_YEARS]
     }
   }
+}
+
+// The pinned library reference data is static for this process. Keep the
+// cached snapshot private so callers cannot mutate another request's choices.
+const areaCreationReference = structuredClone(buildAreaCreationReference())
+
+export function getAreaCreationReference() {
+  return structuredClone(areaCreationReference)
 }

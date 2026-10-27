@@ -1,12 +1,11 @@
-import {
-  calculateCreatedAreaHabitatPostIntervention,
-  MAX_YEARS,
-  MAX_YEARS_PLUS,
-  OVER_MAX_YEARS
-} from 'bng-library/metric'
+import { MAX_YEARS, MAX_YEARS_PLUS, OVER_MAX_YEARS } from 'bng-library/metric'
 import { getAreaCreationReference } from '../../reference/area-creation.js'
 import { clearEngineDerivedProposedFields } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-shared.js'
-import { pricedAreaHectares } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
+import {
+  pricedAreaHectares,
+  NO_OP_LOGGER
+} from '../../../utilities/enrichment/shared/enrich-units-shared.js'
+import { enrichPostInterventionAreaProposedSide } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-area-habitat.js'
 import {
   resolveAdvanceOrDelay,
   resolveFinalYears,
@@ -113,26 +112,8 @@ function canCalculate(feature, type, condition, sizeHa) {
   )
 }
 
-function applyCalculation(feature, sizeHa, type, condition) {
-  const proposed = feature.proposed
-  const calculated = calculateCreatedAreaHabitatPostIntervention(
-    sizeHa,
-    `${type.broad} - ${type.name}`,
-    condition.condition,
-    proposed.advanceYears,
-    proposed.delayYears,
-    proposed.strategicSignificanceCategory
-  )
-  feature.units = calculated.units
-  // The saved risk and its display use the same calculator result.
-  proposed.difficultyMultiplier = calculated.difficultyMultiplier
-  proposed.timeMultiplier = calculated.timeMultiplier
-  proposed.finalTimeToTargetCondition =
-    resolveFinalTimeToTargetCondition(proposed)
-}
-
-// Standard difficulty is type-derived. Saved units and applied multipliers use
-// the same metric calculator as import; incomplete saves clear pricing results.
+// Complete saves share pricing and result mapping with import and resync.
+// Incomplete saves retain entered attributes and clear pricing results.
 export function recomputeCreatedAreaEdit(existing, edits) {
   const feature = structuredClone(existing)
   const reference = getAreaCreationReference()
@@ -154,12 +135,12 @@ export function recomputeCreatedAreaEdit(existing, edits) {
   const sizeHa = pricedAreaHectares(feature)
   const complete = canCalculate(feature, type, condition, sizeHa)
   feature.units = null
+  feature.status = 'Incomplete'
   if (complete) {
-    applyCalculation(feature, sizeHa, type, condition)
+    enrichPostInterventionAreaProposedSide(feature, NO_OP_LOGGER)
   } else {
     clearEngineDerivedProposedFields(feature)
   }
-  feature.status = complete ? 'Complete' : 'Incomplete'
   return {
     distinctiveness: feature.proposed.distinctiveness,
     units: feature.units,

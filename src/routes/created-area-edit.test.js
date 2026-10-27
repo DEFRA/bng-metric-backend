@@ -427,15 +427,22 @@ describe('BMD-1048 Created area edits', () => {
   })
 })
 
-test('every offered creation combination saves the same units as the metric calculator', () => {
+test('every offered complete creation edit matches the metric and survives resync unchanged', () => {
   for (const type of getAreaCreationReference().habitatTypes) {
     for (const condition of type.conditions) {
-      for (const advanceYears of [0, 5, '30+']) {
+      for (const [advanceYears, delayYears] of [
+        [0, 0],
+        [5, 0],
+        [0, 5],
+        ['30+', 0],
+        [0, '30+']
+      ]) {
         const values = {
           broadType: type.broad,
           habitatType: type.name,
           condition: condition.condition,
-          advanceYears
+          advanceYears,
+          delayYears
         }
         const result = update(values)
         const expected = calculateCreatedAreaHabitatPostIntervention(
@@ -443,7 +450,7 @@ test('every offered creation combination saves the same units as the metric calc
           `${type.broad} - ${type.name}`,
           condition.condition,
           advanceYears,
-          0,
+          delayYears,
           'High'
         )
         expect(result.feature.units).toBe(expected.units)
@@ -456,6 +463,13 @@ test('every offered creation combination saves the same units as the metric calc
         expect(result.feature.proposed.finalTimeToTargetCondition).toContain(
           `(${expected.timeMultiplier})`
         )
+        const resynced = rederivePostInterventionFromBaseline(
+          { habitats: [result.feature] },
+          { baseline: {} }
+        ).habitats[0]
+        expect(resynced.units).toBe(result.feature.units)
+        expect(resynced.status).toBe(result.feature.status)
+        expect(resynced.proposed).toEqual(result.feature.proposed)
       }
     }
   }
@@ -537,3 +551,13 @@ test.each([true, false, 'template', 'legacy empty', 'legacy placeholder'])(
     expect(postInterventionHabitatSchema.validate(saved).error).toBeUndefined()
   }
 )
+
+test('callers cannot mutate the cached creation reference', () => {
+  const reference = getAreaCreationReference()
+  const expected = structuredClone(reference)
+  reference.habitatTypes[0].conditions.length = 0
+  reference.habitatTypes.length = 0
+  reference.strategicSignificance[0].score = -1
+  reference.timeMultipliers[0] = -1
+  expect(getAreaCreationReference()).toEqual(expected)
+})
