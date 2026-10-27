@@ -103,4 +103,6 @@ Changing a Created area's reference preserves its original baseline parent by
 featureId where it can be identified unambiguously. A null parent explicitly
 records no link. Later baseline edits cannot attach it to another parcel just
 because the user chose the same reference; valid Lost replacements and split
-parcels retain their original baseline association.
+parcels retain their original baseline association. `referenceEdited` confines
+this protection to user-renamed Created areas; untouched template and legacy
+rows keep their baseline-reference rename behaviour.

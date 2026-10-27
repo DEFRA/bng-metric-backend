@@ -282,6 +282,9 @@ const postInterventionHabitatSchema = Joi.object({
   }),
   ...invalidEnhancementField('habitats'),
   ...parentFeatureIdField(),
+  referenceEdited: Joi.boolean().description(
+    'Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
+  ),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()

@@ -152,7 +152,7 @@ export function recomputeCreatedAreaEdit(existing, edits) {
   applyTiming(feature.proposed, condition, reference)
   const sizeHa = pricedAreaHectares(feature)
   const complete = canCalculate(feature, type, condition, sizeHa)
-  feature.units = 0
+  feature.units = null
   if (complete) {
     applyCalculation(feature, sizeHa, type, condition)
   }

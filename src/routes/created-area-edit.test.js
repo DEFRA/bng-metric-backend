@@ -12,7 +12,10 @@ import {
   validateCreatedAreaEdit,
   postInterventionAreaEditPayload
 } from './created-area-edit.js'
-import { resyncPostInterventionBaselineSide } from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  resyncPostInterventionBaselineSide,
+  rederivePostInterventionFromBaseline
+} from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { normaliseProposedCombinations } from '../validation/geopackage/post-intervention/normalise-proposed-combinations.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
@@ -138,7 +141,7 @@ describe('BMD-1048 Created area edits', () => {
     'strategicSignificance',
     'advanceYears',
     'delayYears'
-  ])('null %s saves zero units and Incomplete', (field) => {
+  ])('null %s saves null units and Incomplete', (field) => {
     const cleared = { [field]: null }
     if (field === 'broadType') {
       cleared.habitatType = null
@@ -148,8 +151,21 @@ describe('BMD-1048 Created area edits', () => {
       cleared.condition = null
     }
     const result = update(cleared)
-    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
     expect(result.unitsTotals.habitatsTotal).toBe(4)
+  })
+
+  test('an incomplete Created edit stays unpriced after a baseline resync', () => {
+    const edited = update({ advanceYears: null }).feature
+    expect(edited).toMatchObject({ units: null, status: 'Incomplete' })
+    const rederived = rederivePostInterventionFromBaseline(
+      { habitats: [edited] },
+      { baseline: {} }
+    )
+    expect(rederived.habitats[0]).toMatchObject({
+      units: null,
+      status: 'Incomplete'
+    })
   })
 
   test('partial edits retain independent derived values and clear dependent ones', () => {
@@ -261,7 +277,7 @@ describe('BMD-1048 Created area edits', () => {
 
   test('partial edits share the timing bucket rule with display enrichment', () => {
     const result = update({ strategicSignificance: null, advanceYears: 10 })
-    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
     expect(result.feature.proposed).toMatchObject({
       timeMultiplier: 1,
       finalTimeToTargetCondition: '0 years (1)'
@@ -423,13 +439,16 @@ test('every offered creation combination saves the same units as the metric calc
   }
 })
 
-test.each([true, false])(
+test.each([true, false, 'template'])(
   'a renamed Created area keeps its original parent association (%s)',
   (hasParent) => {
     const originalParentId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
     const otherParentId = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
     const original = {
       ...feature,
+      ...(hasParent === 'template'
+        ? { parentFeatureId: originalParentId }
+        : {}),
       baseline: hasParent
         ? {
             type: 'Modified grassland',
@@ -471,6 +490,7 @@ test.each([true, false])(
     )
     const saved = result.feature
     expect(saved.parentFeatureId).toBe(hasParent ? originalParentId : null)
+    expect(saved.referenceEdited).toBe(true)
     const changedBaseline = structuredClone(baseline)
     if (hasParent) {
       changedBaseline.habitats[0].ref = 'Baseline renamed'

@@ -3162,6 +3162,17 @@
       "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
     },
     {
+      "path": "postIntervention.habitats[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour."
+    },
+    {
       "path": "postIntervention.habitats[].baseline",
       "type": "object",
       "required": false,

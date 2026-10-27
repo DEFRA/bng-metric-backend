@@ -17,7 +17,7 @@
 // A baseline edit can rename a feature's ref (BMD-1061). The row resolved to it
 // takes the new ref too, so the join holds after the rename.
 //
-// Created rows with an explicit parentFeatureId retain that parent independently
+// Reference-edited Created areas retain their explicit parent independently
 // of their editable ref; null explicitly means no parent. Other legacy rows
 // use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
@@ -253,7 +253,7 @@ function syncFeatureIdentity(feature, source, fields) {
 function syncRef(feature, source) {
   if (
     resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    Object.hasOwn(feature, 'parentFeatureId')
+    feature.referenceEdited === true
   ) {
     return false
   }
@@ -308,9 +308,12 @@ export function preserveCreatedAreaParent(
   if (
     !areaEdit ||
     resolveRetentionCategory(existing) !== RETENTION_CREATED ||
-    updated.ref === existing.ref ||
-    Object.hasOwn(existing, 'parentFeatureId')
+    updated.ref === existing.ref
   ) {
+    return
+  }
+  updated.referenceEdited = true
+  if (Object.hasOwn(existing, 'parentFeatureId')) {
     return
   }
   const candidates =
@@ -336,7 +339,7 @@ export function preserveCreatedAreaParent(
 function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
   if (
     resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    Object.hasOwn(feature, 'parentFeatureId')
+    feature.referenceEdited === true
   ) {
     const source = updatedById.get(feature.parentFeatureId)
     return source
