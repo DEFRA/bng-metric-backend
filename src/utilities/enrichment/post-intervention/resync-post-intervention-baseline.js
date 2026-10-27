@@ -17,7 +17,9 @@
 // A baseline edit can rename a feature's ref (BMD-1061). The row resolved to it
 // takes the new ref too, so the join holds after the rename.
 //
-// The join key is `ref` — the Parcel Ref / Tree Ref column — for the same
+// Created rows with an explicit parentFeatureId retain that parent independently
+// of their editable ref; null explicitly means no parent. Other legacy rows
+// use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
 // post-intervention row describing it share no id.
@@ -296,14 +298,6 @@ function warnUnresolved(
   )
 }
 
-/**
- * Resolve one post-intervention row to the post-edit baseline feature it should
- * take its values from, or say why it cannot be resolved.
- *
- * @param {object} feature
- * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
- * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
- */
 /** Preserve lineage before an editable Created reference changes its join key. */
 export function preserveCreatedAreaParent(
   existing,
@@ -331,6 +325,14 @@ export function preserveCreatedAreaParent(
   updated.parentFeatureId = matches.length === 1 ? matches[0].featureId : null
 }
 
+/**
+ * Resolve one post-intervention row to the post-edit baseline feature it should
+ * take its values from, or say why it cannot be resolved.
+ *
+ * @param {object} feature
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
 function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
   if (
     resolveRetentionCategory(feature) === RETENTION_CREATED &&

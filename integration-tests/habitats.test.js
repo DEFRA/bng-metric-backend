@@ -433,6 +433,19 @@ describe('BMD-1048 Created area editing', () => {
       name: 'Created area editing IT',
       postIntervention: { habitats: [feature] }
     })
+    await dbClient.query(
+      `INSERT INTO bng.post_intervention_habitats (id, project_id, ref, geom)
+       VALUES ($1, $2, $3, ST_Multi(ST_MakeEnvelope(530000, 180000, 530100, 180100, 27700)))`,
+      [feature.featureId, projectId, feature.ref]
+    )
+    const readGeometry = async () => {
+      const { rows } = await dbClient.query(
+        'SELECT ref, ST_AsText(geom) AS geometry FROM bng.post_intervention_habitats WHERE id = $1 AND project_id = $2',
+        [feature.featureId, projectId]
+      )
+      return rows[0]
+    }
+    const originalGeometry = await readGeometry()
     const url = `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`
     const payload = {
       ref: 'New reference',
@@ -472,6 +485,10 @@ describe('BMD-1048 Created area editing', () => {
       saved.result.units
     )
     expect(complete.last_modified_by).toBe(userId)
+    expect(await readGeometry()).toEqual({
+      ...originalGeometry,
+      ref: payload.ref
+    })
 
     const rejected = await server.inject({
       method: 'PUT',
@@ -481,6 +498,10 @@ describe('BMD-1048 Created area editing', () => {
     })
     expect(rejected.statusCode).toBe(HTTP_BAD_REQUEST)
     expect(await readProject()).toEqual(complete)
+    expect(await readGeometry()).toEqual({
+      ...originalGeometry,
+      ref: payload.ref
+    })
 
     const partial = await server.inject({
       method: 'PUT',

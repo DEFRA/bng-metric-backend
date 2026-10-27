@@ -13,7 +13,6 @@ const years = Joi.alternatives()
   .allow(null)
 export const postInterventionAreaEditPayload = featureEditPayload
   .keys({
-    ref: Joi.string().allow('').optional(),
     strategicSignificance: Joi.string()
       .valid(
         ...getAreaCreationReference().strategicSignificance.map((s) => s.value)
@@ -59,15 +58,13 @@ function validateAreaChoices(edits) {
 }
 
 function validateReferenceAndTiming(edits) {
-  if (
-    typeof edits.ref !== 'string' ||
-    !edits.ref.trim() ||
-    !edits.ref.isWellFormed() ||
-    edits.ref.includes('\uFFFD')
-  ) {
-    throw Boom.badRequest(
-      'Enter a habitat reference containing valid UTF-8 characters'
-    )
+  const { error } = featureEditPayload
+    .extract('ref')
+    .required()
+    .label('ref')
+    .validate(edits.ref)
+  if (error) {
+    throw Boom.badRequest(error.message)
   }
   if (
     Number.parseInt(edits.advanceYears) > 0 &&

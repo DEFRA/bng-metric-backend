@@ -57,8 +57,8 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Set on a BNG Service template upload only (BMD-1083), from the row's
-// parent_uuid, so a legacy upload's features have no such field.
+// Imported BNG Service parent links (BMD-1083), also preserved when editing a
+// legacy Created reference so that its baseline association cannot drift.
 function parentFeatureIdField() {
   return {
     parentFeatureId: Joi.string()
@@ -102,12 +102,12 @@ function proposedCommonFields() {
     advanceYears: Joi.number()
       .allow(null)
       .description(
-        'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats.'
+        'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules.'
       ),
     delayYears: Joi.number()
       .allow(null)
       .description(
-        'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats.'
+        'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules.'
       ),
     advanceYearsIs30Plus: Joi.boolean().description(
       'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'

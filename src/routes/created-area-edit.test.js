@@ -16,9 +16,15 @@ import { resyncPostInterventionBaselineSide } from '../utilities/enrichment/post
 import { normaliseProposedCombinations } from '../validation/geopackage/post-intervention/normalise-proposed-combinations.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { setGeometryRefs } from '../db/feature-geometry-refs.js'
+import { featureEditPayload } from './shared-params.js'
 
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
+}))
+
+vi.mock('../db/feature-geometry-refs.js', () => ({
+  setGeometryRefs: vi.fn().mockResolvedValue(undefined)
 }))
 
 const featureId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
@@ -301,6 +307,19 @@ describe('BMD-1048 Created area edits', () => {
     ).toThrow()
   })
 
+  test.each(['', ' ', '\uD800', '\uFFFD'])(
+    'uses the shared reference rule for invalid input %j',
+    (ref) => {
+      const expected = featureEditPayload.validate({ ref }).error
+      const actual = postInterventionAreaEditPayload.validate({
+        ...edits,
+        ref
+      }).error
+      expect(actual?.message).toBe(expected?.message)
+      expect(actual).toBeDefined()
+    }
+  )
+
   test('allows duplicate references and valid UTF-8', () => {
     expect(() =>
       validateCreatedAreaEdit(feature, { ...edits, ref: 'P-1' })
@@ -351,12 +370,22 @@ describe('BMD-1048 Created area edits', () => {
       projectId,
       expect.objectContaining({ feature: result, actorId: 'test-user' })
     )
+    expect(setGeometryRefs).toHaveBeenCalledWith(tx, projectId, [
+      {
+        documentKey: 'postIntervention',
+        layer: 'habitats',
+        featureId,
+        ref: edits.ref
+      }
+    ])
     vi.mocked(setProjectFeature).mockClear()
+    vi.mocked(setGeometryRefs).mockClear()
     request.payload = { ...edits, advanceYears: 1, delayYears: 1 }
     await expect(
       updatePostInterventionAreaHabitat.handler(request, {})
     ).rejects.toMatchObject({ output: { statusCode: 400 } })
     expect(setProjectFeature).not.toHaveBeenCalled()
+    expect(setGeometryRefs).not.toHaveBeenCalled()
   })
 })
 

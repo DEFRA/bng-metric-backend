@@ -7,6 +7,8 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { setGeometryRefs } from '../db/feature-geometry-refs.js'
+import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
@@ -227,6 +229,32 @@ function createdAreaEdits(payload) {
   }
 }
 
+async function persistAreaFeatureEdit(
+  tx,
+  { projectId, previousProject, result, documentKey, actorId }
+) {
+  await setProjectFeature(tx, projectId, {
+    documentKey,
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals,
+    tradingRules: result.tradingRules,
+    postIntervention: result.postIntervention,
+    actorId
+  })
+  await setGeometryRefs(
+    tx,
+    projectId,
+    listRenamedRefs(previousProject ?? {}, {
+      documentKey,
+      layer: result.layer,
+      feature: result.feature,
+      postIntervention: result.postIntervention
+    })
+  )
+}
+
 async function runUpdate(
   tx,
   {
@@ -291,14 +319,11 @@ async function runUpdate(
     throw invalidEnhancementError(result.rule)
   }
 
-  await setProjectFeature(tx, projectId, {
+  await persistAreaFeatureEdit(tx, {
+    projectId,
+    previousProject: row.project,
+    result,
     documentKey,
-    layer: result.layer,
-    index: result.index,
-    feature: result.feature,
-    unitsTotals: result.unitsTotals,
-    tradingRules: result.tradingRules,
-    postIntervention: result.postIntervention,
     actorId: credentials.sub
   })
 
