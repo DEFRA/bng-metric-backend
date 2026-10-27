@@ -255,6 +255,27 @@ async function persistAreaFeatureEdit(
   )
 }
 
+function assertSuccessfulAreaEdit(result, projectId, featureId) {
+  if (
+    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
+    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
+  ) {
+    throw Boom.notFound(
+      `Habitat ${featureId} not found in project ${projectId}`
+    )
+  }
+  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
+    throw outOfScopeDistinctivenessError(result.distinctiveness)
+  }
+  if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
+    throw invalidEnhancementError(result.rule)
+  }
+
+  if (result.status !== APPLY_RESULT.OK) {
+    throw Boom.badRequest('This habitat edit is not supported')
+  }
+}
+
 async function runUpdate(
   tx,
   {
@@ -309,20 +330,7 @@ async function runUpdate(
     documentKey,
     logger
   })
-  if (
-    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
-    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
-  ) {
-    throw Boom.notFound(
-      `Habitat ${featureId} not found in project ${projectId}`
-    )
-  }
-  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
-    throw outOfScopeDistinctivenessError(result.distinctiveness)
-  }
-  if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
-    throw invalidEnhancementError(result.rule)
-  }
+  assertSuccessfulAreaEdit(result, projectId, featureId)
 
   await persistAreaFeatureEdit(tx, {
     projectId,

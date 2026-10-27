@@ -11,7 +11,7 @@ import {
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
-import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
+import * as featureUpdates from '../utilities/features/apply-feature-update.js'
 import {
   validateCreatedAreaEdit,
   postInterventionAreaEditPayload
@@ -33,6 +33,8 @@ vi.mock('../db/persist-project.js', () => ({
 vi.mock('../db/feature-geometry-refs.js', () => ({
   setGeometryRefs: vi.fn().mockResolvedValue(undefined)
 }))
+
+const { applyFeatureUpdate } = featureUpdates
 
 const featureId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const projectId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
@@ -402,6 +404,27 @@ describe('BMD-1048 Created area edits', () => {
       expect(setGeometryRefs).not.toHaveBeenCalled()
     }
   )
+
+  test('the route refuses an unsupported shared result before any write', async () => {
+    const spy = vi
+      .spyOn(featureUpdates, 'applyFeatureUpdate')
+      .mockReturnValueOnce({
+        status: featureUpdates.APPLY_RESULT.UNSUPPORTED_TYPE,
+        type: 'habitat'
+      })
+    try {
+      const { request } = routeRequest(edits)
+      await expect(
+        updatePostInterventionAreaHabitat.handler(request, {})
+      ).rejects.toMatchObject({
+        output: { statusCode: 400 }
+      })
+      expect(setProjectFeature).not.toHaveBeenCalled()
+      expect(setGeometryRefs).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+  })
 
   test('route persists the complete edit and records the authenticated actor', async () => {
     const { request, tx } = routeRequest(edits)
