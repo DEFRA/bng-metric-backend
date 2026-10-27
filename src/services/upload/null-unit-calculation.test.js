@@ -381,9 +381,17 @@ it('legacy Lost area replacements with null timing stay incomplete after resync'
   ).not.toHaveBeenCalled()
 })
 
-it.each(LAYERS)(
-  'a rejected %s calculation clears every stale pricing field',
-  (layer, factory) => {
+it.each(
+  LAYERS.flatMap(([layer, factory]) =>
+    ['missing condition', 'invalid size'].map((reason) => [
+      layer,
+      factory,
+      reason
+    ])
+  )
+)(
+  'a rejected %s calculation clears every stale pricing field (%s)',
+  (layer, factory, reason) => {
     const feature = makeProposedFeature(layer, factory, 'Created')
     const fields = [
       'distinctiveness',
@@ -400,7 +408,15 @@ it.each(LAYERS)(
     }
     feature.units = 99
     feature.status = 'Complete'
-    feature.proposed.condition = null
+    if (reason === 'missing condition') {
+      feature.proposed.condition = null
+    } else {
+      Object.assign(feature, {
+        sizeSquareMetres: null,
+        area: null,
+        sizeMetres: null
+      })
+    }
     feature.proposed.advanceOrDelay = 'Original input summary'
     enrichPostInterventionDocumentWithUnits(
       { [layer]: [feature] },
