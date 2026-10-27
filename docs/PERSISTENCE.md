@@ -92,16 +92,15 @@ write, and the audit-log integration tests verify actor, timestamp and snapshots
 
 ## Proposed timing and downstream exports
 
-Created-area edits preserve the `30+` timing selection as a string, alongside
-numeric years and nulls in the existing JSONB document. The metric accepts this
-legacy alias as 30 input years; the separate standard time-to-target `>30`
-bucket still denotes more than 30 years. Imports, legacy edits and timing
-summaries must handle the alias consistently.
+Created-area edits keep `advanceYears` and `delayYears` numeric (or null).
+The input selection `30+` is priced and stored as 30, as the metric requires.
+Optional boolean `advanceYearsIs30Plus` / `delayYearsIs30Plus` flags retain the
+selection for the editor and list display. The existing numeric warehouse
+columns and numeric casts remain valid; consumers may ignore the UI flags.
+No Postgres schema migration is needed for these optional JSONB fields.
 
-This requires no Postgres schema migration in this service: these attributes
-are JSONB fields. The generated warehouse ERD describes them as text because
-the payload is no longer exclusively numeric. The external warehouse loader
-and DDL are not maintained in this repository. Before deploying this contract,
-its owners must support numeric values, `30+` and null rather than blindly
-casting these fields to numeric. Regenerating the ERD does not migrate that
-external database.
+Changing a Created area's reference preserves its original baseline parent by
+featureId where it can be identified unambiguously. A null parent explicitly
+records no link. Later baseline edits cannot attach it to another parcel just
+because the user chose the same reference; valid Lost replacements and split
+parcels retain their original baseline association.

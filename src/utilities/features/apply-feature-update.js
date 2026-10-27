@@ -42,7 +42,10 @@ import {
 import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-watercourse-trading-rules.js'
 import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
-import { rederivePostInterventionFromBaseline } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  rederivePostInterventionFromBaseline,
+  preserveCreatedAreaParent
+} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
   addPostInterventionNetUnitChanges,
@@ -282,7 +285,12 @@ function withoutImportedRejection(feature, documentKey) {
   return cleared
 }
 
-function resolveUpdatedFeature(found, edits, derived, documentKey) {
+function resolveUpdatedFeature(
+  found,
+  edits,
+  derived,
+  { documentKey, baseline }
+) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
     (found.type === 'habitat' || found.type === 'hedgerow') &&
@@ -290,6 +298,11 @@ function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
+  preserveCreatedAreaParent(found.feature, updated, {
+    documentKey,
+    layer: found.key,
+    baseline
+  })
   return withoutImportedRejection(updated, documentKey)
 }
 
@@ -525,7 +538,7 @@ function applyFeatureUpdate(
     found,
     normalizedEdits,
     derived,
-    documentKey
+    { documentKey, baseline: project?.baseline?.habitats }
   )
   const index = featureSet[found.key].findIndex(
     (f) => f?.featureId === featureId

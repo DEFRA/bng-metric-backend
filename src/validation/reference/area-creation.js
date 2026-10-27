@@ -1,6 +1,8 @@
 import {
   DIFFICULTY_MULTIPLIER,
   HABITAT_DIFFICULTY,
+  MAX_YEARS_PLUS,
+  OVER_MAX_YEARS,
   STRATEGIC_SIGNIFICANCE_MULTIPLIER,
   TIME_TO_TARGET_CREATION,
   TIME_TO_TARGET_MULTIPLIER
@@ -25,7 +27,7 @@ export function getAreaCreationReference() {
           const conditions = getConditionsForHabitatType(key)
             .filter((c) => {
               const years = TIME_TO_TARGET_CREATION[key]?.[c.condition]
-              return typeof years === 'number' || years === '30+'
+              return typeof years === 'number' || years === MAX_YEARS_PLUS
             })
             .map((c) => ({
               ...c,
@@ -47,7 +49,7 @@ export function getAreaCreationReference() {
     ),
     timeMultipliers: {
       ...TIME_TO_TARGET_MULTIPLIER,
-      '30+': TIME_TO_TARGET_MULTIPLIER['>30']
+      [MAX_YEARS_PLUS]: TIME_TO_TARGET_MULTIPLIER[OVER_MAX_YEARS]
     }
   }
 }

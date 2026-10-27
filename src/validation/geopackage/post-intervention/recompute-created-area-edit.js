@@ -2,13 +2,13 @@ import {
   calculateCreatedAreaHabitatPostIntervention,
   MAX_YEARS,
   MAX_YEARS_PLUS,
-  MIN_YEARS,
   OVER_MAX_YEARS
 } from 'bng-library/metric'
 import { getAreaCreationReference } from '../../reference/area-creation.js'
 import { pricedAreaHectares } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
 import {
   resolveAdvanceOrDelay,
+  resolveFinalYears,
   resolveFinalTimeToTargetCondition
 } from '../../../utilities/enrichment/post-intervention/proposed-time-difficulty-display.js'
 
@@ -39,6 +39,10 @@ function inputYears(value) {
   return value === MAX_YEARS_PLUS ? MAX_YEARS : Number(value)
 }
 
+function storedYears(value) {
+  return value === MAX_YEARS_PLUS ? MAX_YEARS : value
+}
+
 function timingPopulated(proposed) {
   return proposed.advanceYears !== null && proposed.delayYears !== null
 }
@@ -54,15 +58,14 @@ function applyTiming(proposed, condition, reference) {
   if (!condition) {
     return
   }
-  const advance = inputYears(proposed.advanceYears)
-  const finalYears = Math.max(
-    MIN_YEARS,
-    inputYears(condition.years) + inputYears(proposed.delayYears) - advance
+  const key = String(
+    resolveFinalYears(
+      inputYears(condition.years),
+      condition.years === MAX_YEARS_PLUS,
+      inputYears(proposed.advanceYears),
+      inputYears(proposed.delayYears)
+    )
   )
-  const overMax =
-    finalYears > MAX_YEARS ||
-    (condition.years === MAX_YEARS_PLUS && advance === 0)
-  const key = overMax ? MAX_YEARS_PLUS : String(finalYears)
   proposed.timeMultiplier = reference.timeMultipliers[key]
   proposed.finalTimeToTargetCondition =
     resolveFinalTimeToTargetCondition(proposed)
@@ -81,8 +84,10 @@ function proposedAttributes(existing, edits, reference, type, condition) {
     strategicSignificanceCategory: significance?.value ?? null,
     strategicSignificanceScore: significance?.score ?? null,
     rejectedStrategicSignificance: null,
-    advanceYears: edits.advanceYears,
-    delayYears: edits.delayYears,
+    advanceYears: storedYears(edits.advanceYears),
+    delayYears: storedYears(edits.delayYears),
+    advanceYearsIs30Plus: edits.advanceYears === MAX_YEARS_PLUS,
+    delayYearsIs30Plus: edits.delayYears === MAX_YEARS_PLUS,
     ...typeDerivedFields(type),
     ...conditionDerivedFields(condition),
     timeMultiplier: null,

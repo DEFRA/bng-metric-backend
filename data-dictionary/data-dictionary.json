@@ -3154,12 +3154,12 @@
       "path": "postIntervention.habitats[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
     },
     {
       "path": "postIntervention.habitats[].baseline",
@@ -3328,7 +3328,7 @@
     },
     {
       "path": "postIntervention.habitats[].proposed.advanceYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3339,7 +3339,7 @@
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3347,6 +3347,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
     },
     {
       "path": "postIntervention.habitats[].proposed.timeMultiplier",
@@ -3867,7 +3889,7 @@
     },
     {
       "path": "postIntervention.trees[].proposed.advanceYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3878,7 +3900,7 @@
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -3886,6 +3908,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.trees[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
     },
     {
       "path": "postIntervention.trees[].proposed.timeMultiplier",
@@ -4045,12 +4089,12 @@
       "path": "postIntervention.hedgerows[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -4263,7 +4307,7 @@
     },
     {
       "path": "postIntervention.hedgerows[].proposed.advanceYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4274,7 +4318,7 @@
     },
     {
       "path": "postIntervention.hedgerows[].proposed.delayYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4282,6 +4326,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.timeMultiplier",
@@ -4452,12 +4518,12 @@
       "path": "postIntervention.watercourses[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
     },
     {
       "path": "postIntervention.watercourses[].featureId",
@@ -4714,7 +4780,7 @@
     },
     {
       "path": "postIntervention.watercourses[].proposed.advanceYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4725,7 +4791,7 @@
     },
     {
       "path": "postIntervention.watercourses[].proposed.delayYears",
-      "type": "alternatives",
+      "type": "number",
       "required": false,
       "nullable": true,
       "emptyStringAllowed": false,
@@ -4733,6 +4799,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
     },
     {
       "path": "postIntervention.watercourses[].proposed.timeMultiplier",

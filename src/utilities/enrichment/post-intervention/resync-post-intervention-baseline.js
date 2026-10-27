@@ -249,6 +249,12 @@ function syncFeatureIdentity(feature, source, fields) {
  * @returns {boolean} whether the ref changed
  */
 function syncRef(feature, source) {
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    Object.hasOwn(feature, 'parentFeatureId')
+  ) {
+    return false
+  }
   const next = normaliseRef(source.ref)
   if (next === null || next === normaliseRef(feature.ref)) {
     return false
@@ -298,7 +304,47 @@ function warnUnresolved(
  * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
+/** Preserve lineage before an editable Created reference changes its join key. */
+export function preserveCreatedAreaParent(
+  existing,
+  updated,
+  { documentKey, layer, baseline }
+) {
+  const areaEdit = documentKey === 'postIntervention' && layer === 'habitats'
+  if (
+    !areaEdit ||
+    resolveRetentionCategory(existing) !== RETENTION_CREATED ||
+    updated.ref === existing.ref ||
+    Object.hasOwn(existing, 'parentFeatureId')
+  ) {
+    return
+  }
+  const candidates =
+    buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
+  const matches = candidates.filter((candidate) =>
+    matchesSnapshot(
+      candidate,
+      existing.baseline ?? {},
+      IDENTITY_FIELDS_BY_LAYER.habitats
+    )
+  )
+  updated.parentFeatureId = matches.length === 1 ? matches[0].featureId : null
+}
+
 function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    Object.hasOwn(feature, 'parentFeatureId')
+  ) {
+    const source = updatedById.get(feature.parentFeatureId)
+    return source
+      ? { source }
+      : {
+          unresolvable: 'missing',
+          ref: normaliseRef(feature.ref),
+          candidateCount: 0
+        }
+  }
   const ref = normaliseRef(feature?.ref)
   const candidates = (ref === null ? undefined : candidatesByRef.get(ref)) ?? []
   if (candidates.length === 0) {

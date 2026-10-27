@@ -1,5 +1,6 @@
 import Boom from '@hapi/boom'
 import Joi from 'joi'
+import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 import { featureEditPayload } from './shared-params.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import {
@@ -7,15 +8,16 @@ import {
   RETENTION_CREATED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
-const MAX_YEARS = 30
 const years = Joi.alternatives()
-  .try(Joi.number().integer().min(0).max(MAX_YEARS), Joi.valid('30+'))
+  .try(Joi.number().integer().min(0).max(MAX_YEARS), Joi.valid(MAX_YEARS_PLUS))
   .allow(null)
 export const postInterventionAreaEditPayload = featureEditPayload
   .keys({
     ref: Joi.string().allow('').optional(),
     strategicSignificance: Joi.string()
-      .valid('Low', 'High')
+      .valid(
+        ...getAreaCreationReference().strategicSignificance.map((s) => s.value)
+      )
       .allow(null, '')
       .optional(),
     advanceYears: years.optional(),

@@ -90,7 +90,11 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       for a single post-intervention area habitat, then recomputes the
  *       derived distinctiveness, condition score, habitat-unit total and
  *       Complete/Incomplete status before saving. Returns the updated habitat
- *       document.
+ *       document. Supplying any of ref, strategicSignificance, advanceYears or
+ *       delayYears requires all four, plus broadType, habitatType and condition.
+ *       These extended edits are supported only for Created area habitats.
+ *       The 30+ timing input is stored as numeric 30 with an optional selection
+ *       flag; response timing fields remain numeric or null.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -111,6 +115,29 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *           schema:
  *             type: object
  *             properties:
+ *               ref:
+ *                 type: string
+ *                 description: Valid UTF-8 reference, trimmed and limited to 100 Unicode characters on save.
+ *               strategicSignificance:
+ *                 type: string
+ *                 nullable: true
+ *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
+ *               advanceYears:
+ *                 nullable: true
+ *                 oneOf:
+ *                   - type: integer
+ *                     minimum: 0
+ *                     maximum: 30
+ *                   - type: string
+ *                     enum: ['30+']
+ *               delayYears:
+ *                 nullable: true
+ *                 oneOf:
+ *                   - type: integer
+ *                     minimum: 0
+ *                     maximum: 30
+ *                   - type: string
+ *                     enum: ['30+']
  *               broadType:
  *                 type: string
  *                 nullable: true
@@ -123,6 +150,8 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *     responses:
  *       200:
  *         description: Returns the updated habitat document
+ *       400:
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, an incomplete extended payload, or extended edits to a non-Created area.
  *       404:
  *         description: Project or habitat not found
  *       422:

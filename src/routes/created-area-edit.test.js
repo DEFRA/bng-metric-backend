@@ -12,6 +12,7 @@ import {
   validateCreatedAreaEdit,
   postInterventionAreaEditPayload
 } from './created-area-edit.js'
+import { resyncPostInterventionBaselineSide } from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { normaliseProposedCombinations } from '../validation/geopackage/post-intervention/normalise-proposed-combinations.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
@@ -160,7 +161,8 @@ describe('BMD-1048 Created area edits', () => {
   test('30+ survives persistence validation and uses engine overflow time multiplier', () => {
     const result = update({ delayYears: '30+' })
     expect(result.feature.proposed).toMatchObject({
-      delayYears: '30+',
+      delayYears: 30,
+      delayYearsIs30Plus: true,
       timeMultiplier: TIME_TO_TARGET_MULTIPLIER['>30']
     })
     expect(
@@ -214,7 +216,8 @@ describe('BMD-1048 Created area edits', () => {
       )
       expect(result.feature.status).toBe('Complete')
       expect(result.feature.units).toBe(expected.units)
-      expect(result.feature.proposed[field]).toBe('30+')
+      expect(result.feature.proposed[field]).toBe(30)
+      expect(result.feature.proposed[`${field}Is30Plus`]).toBe(true)
       expect(result.feature.proposed.finalTimeToTargetCondition).toContain(
         `(${expected.timeMultiplier})`
       )
@@ -243,6 +246,32 @@ describe('BMD-1048 Created area edits', () => {
       })
     }
   )
+
+  test('partial edits share the timing bucket rule with display enrichment', () => {
+    const result = update({ strategicSignificance: null, advanceYears: 10 })
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(result.feature.proposed).toMatchObject({
+      timeMultiplier: 1,
+      finalTimeToTargetCondition: '0 years (1)'
+    })
+  })
+
+  test('every offered strategic significance is accepted by the edit schema', () => {
+    for (const { value } of getAreaCreationReference().strategicSignificance) {
+      expect(
+        postInterventionAreaEditPayload.validate({
+          ...edits,
+          strategicSignificance: value
+        }).error
+      ).toBeUndefined()
+    }
+    expect(
+      postInterventionAreaEditPayload.validate({
+        ...edits,
+        strategicSignificance: 'Unknown'
+      }).error
+    ).toBeDefined()
+  })
 
   test('advance can floor time at zero without resetting delay or difficulty', () => {
     const result = update({ advanceYears: 10 })
@@ -358,3 +387,71 @@ test('every offered creation combination saves the same units as the metric calc
     }
   }
 })
+
+test.each([true, false])(
+  'a renamed Created area keeps its original parent association (%s)',
+  (hasParent) => {
+    const originalParentId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
+    const otherParentId = 'ffffffff-ffff-4fff-8fff-ffffffffffff'
+    const original = {
+      ...feature,
+      baseline: hasParent
+        ? {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          }
+        : {}
+    }
+    const baseline = {
+      habitats: [
+        ...(hasParent
+          ? [
+              {
+                featureId: originalParentId,
+                ref: 'P-1',
+                type: 'Modified grassland',
+                broadType: 'Grassland',
+                condition: 'Poor'
+              }
+            ]
+          : []),
+        {
+          featureId: otherParentId,
+          ref: 'Other parcel',
+          type: 'Developed land; sealed surface',
+          broadType: 'Urban',
+          condition: 'N/A - Other'
+        }
+      ]
+    }
+    const result = applyFeatureUpdate(
+      { baseline, postIntervention: { habitats: [original] } },
+      {
+        featureId,
+        edits: { ...edits, ref: 'Other parcel' },
+        documentKey: 'postIntervention',
+        expectedType: 'habitat'
+      }
+    )
+    const saved = result.feature
+    expect(saved.parentFeatureId).toBe(hasParent ? originalParentId : null)
+    const changedBaseline = structuredClone(baseline)
+    if (hasParent) {
+      changedBaseline.habitats[0].ref = 'Baseline renamed'
+      changedBaseline.habitats[0].condition = 'Good'
+    }
+    resyncPostInterventionBaselineSide(
+      { habitats: [saved] },
+      { baseline: changedBaseline, previousBaseline: baseline }
+    )
+    expect(saved.ref).toBe('Other parcel')
+    expect(saved.baseline.broadType).not.toBe('Urban')
+    if (hasParent) {
+      expect(saved.baseline.condition).toBe('Good')
+    } else {
+      expect(saved.baseline).toEqual({})
+    }
+    expect(postInterventionHabitatSchema.validate(saved).error).toBeUndefined()
+  }
+)

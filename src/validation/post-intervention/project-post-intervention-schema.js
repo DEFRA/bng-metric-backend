@@ -63,8 +63,9 @@ function parentFeatureIdField() {
   return {
     parentFeatureId: Joi.string()
       .uuid()
+      .allow(null)
       .description(
-        'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
+        'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
       )
   }
 }
@@ -98,18 +99,22 @@ function proposedCommonFields() {
       .description(
         'Proposed condition assessment stripped of list-index prefix.'
       ),
-    advanceYears: Joi.alternatives()
-      .try(Joi.number(), Joi.valid('30+'))
+    advanceYears: Joi.number()
       .allow(null)
       .description(
         'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats.'
       ),
-    delayYears: Joi.alternatives()
-      .try(Joi.number(), Joi.valid('30+'))
+    delayYears: Joi.number()
       .allow(null)
       .description(
         'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats.'
       ),
+    advanceYearsIs30Plus: Joi.boolean().description(
+      'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'
+    ),
+    delayYearsIs30Plus: Joi.boolean().description(
+      'Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input.'
+    ),
     timeMultiplier: Joi.number()
       .allow(null)
       .description(
