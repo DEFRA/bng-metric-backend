@@ -318,10 +318,6 @@ export function enrichPostInterventionAreaProposedSide(
   label = AREA_PROPOSED_LABEL
 ) {
   if (!prepareProposedUnitCalculation(habitat, label, logger)) {
-    if (habitat.proposed) {
-      habitat.proposed.timeMultiplier = null
-      habitat.proposed.finalTimeToTargetCondition = null
-    }
     return
   }
   if (!hasValidAreaHabitatSize(habitat)) {
