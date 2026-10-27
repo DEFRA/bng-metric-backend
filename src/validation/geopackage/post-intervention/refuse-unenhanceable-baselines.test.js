@@ -155,12 +155,23 @@ describe('refuseUnenhanceableBaselines', () => {
     expect(error.message).toMatch(/\(and 2 more\)$/)
   })
 
-  it('names a habitat with no ref by its layer', () => {
-    const error = refuseUnenhanceableBaselines({
-      watercourses: [linear(undefined, 'Ditches', 'Good')]
-    })
+  it.each([
+    [
+      'habitats',
+      area(undefined, 'Other neutral grassland', 'Good'),
+      'an area habitat'
+    ],
+    [
+      'hedgerows',
+      linear('', 'Native hedgerow with trees', 'Good'),
+      'a hedgerow'
+    ],
+    ['watercourses', linear(undefined, 'Ditches', 'Good'), 'a watercourse'],
+    ['trees', area(null, 'Rural tree', 'Good', 'Individual trees'), 'a tree']
+  ])('names a feature on %s with no ref as %j', (layer, feature, label) => {
+    const error = refuseUnenhanceableBaselines({ [layer]: [feature] })
 
-    expect(error.message).toMatch(/: a watercourses feature$/)
+    expect(error.message).toMatch(new RegExp(`: ${label}$`))
   })
 
   it.each(['Retained', 'Lost', 'Created'])(

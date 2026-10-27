@@ -67,8 +67,18 @@ function offender(layer, feature, check) {
   }
 }
 
+/** How the message names a habitat with no ref, by document layer. */
+const UNNAMED_FEATURE_LABELS = Object.freeze({
+  habitats: 'an area habitat',
+  hedgerows: 'a hedgerow',
+  watercourses: 'a watercourse',
+  trees: 'a tree'
+})
+
 function describeOffender({ layer, feature_ref: ref }) {
-  return ref == null || ref === '' ? `a ${layer} feature` : `Feature Ref ${ref}`
+  return ref == null || ref === ''
+    ? UNNAMED_FEATURE_LABELS[layer]
+    : `Feature Ref ${ref}`
 }
 
 /**
