@@ -321,6 +321,7 @@ export function enrichPostInterventionAreaProposedSide(
     return
   }
   if (!hasValidAreaHabitatSize(habitat)) {
+    skipProposedEnrichment(habitat, label, 'area is missing or invalid', logger)
     return
   }
   const calculate = resolveAreaProposedCalculate(habitat, logger, label)
