@@ -377,7 +377,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
           message:
-            'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced: Hedgerows Post-Intervention HG017 (Native hedgerow), copied from HG001; Hedgerows Post-Intervention HG018 (Native hedgerow), copied from HG001',
+            'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation: Hedgerows Post-Intervention HG017 (Native hedgerow), copied from HG001; Hedgerows Post-Intervention HG018 (Native hedgerow), copied from HG001',
           details: {
             count: 2,
             sample: [
@@ -469,6 +469,76 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
+    it.each([
+      ['an area habitat', 'areas', parcel(1), 'Moderate'],
+      ['an area habitat', 'areas', parcel(1), 'Poor'],
+      ['a hedgerow', 'hedgerows', hedge(1, 100), 'Good'],
+      ['a hedgerow', 'hedgerows', hedge(1, 100), 'Poor']
+    ])(
+      'passes %s put back after a temporary loss, in %s condition, with a delay and no years in advance',
+      (_, layer, parent, condition) => {
+        expect(
+          check(
+            { [layer]: [parent] },
+            {
+              [layer]: [
+                degraded(parent, layer, {
+                  'Proposed Condition': condition,
+                  'Habitat created in advance/years': '0',
+                  'Delay in starting habitat creation/years': '3'
+                })
+              ]
+            }
+          )
+        ).toEqual([])
+      }
+    )
+
+    it.each([null, '', '0'])(
+      'still refuses a row in its parent’s condition with a %j delay under both rules',
+      (delay) => {
+        const parent = parcel(1)
+
+        expect(
+          codes(
+            check(
+              { areas: [parent] },
+              {
+                areas: [
+                  degraded(parent, 'areas', {
+                    'Habitat created in advance/years': '0',
+                    'Delay in starting habitat creation/years': delay
+                  })
+                ]
+              }
+            )
+          )
+        ).toEqual([
+          ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
+          ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
+        ])
+      }
+    )
+
+    it('counts a habitat the Metric gives no condition score as never worse, unless it is put back', () => {
+      const parent = parcel(1, {
+        'Baseline Broad Habitat Type': 'Cropland',
+        'Baseline Habitat Type': 'Cereal crops',
+        'Baseline Condition': 'N/A - Agricultural'
+      })
+      const cropland = (delay) =>
+        degraded(parent, 'areas', {
+          'Proposed Broad Habitat Type': 'Cropland',
+          'Proposed Habitat Type': 'Cereal crops',
+          'Delay in starting habitat creation/years': delay
+        })
+
+      expect(
+        codes(check({ areas: [parent] }, { areas: [cropland('0')] }))
+      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+      expect(check({ areas: [parent] }, { areas: [cropland('3')] })).toEqual([])
+    })
+
     it('accepts 30+ years on a row that is not degraded', () => {
       const parent = parcel(1)
 
@@ -529,7 +599,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
           message:
-            'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained: Watercourses Post-Intervention R001 (Ditches), copied from R001',
+            'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation: Watercourses Post-Intervention R001 (Ditches), copied from R001',
           details: {
             count: 1,
             sample: [
@@ -545,6 +615,24 @@ describe('checkLineageRules', () => {
           }
         }
       ])
+    })
+
+    it('passes one put back after a temporary loss, with a delay and no intervention', () => {
+      const parent = river(1, 100)
+
+      expect(
+        check(
+          { watercourses: [parent] },
+          {
+            watercourses: [
+              degraded(parent, 'watercourses', {
+                'Habitat created in advance/years': '0',
+                'Delay in starting habitat creation/years': '3'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
     })
 
     it('does not ask a degraded watercourse for 30+ years', () => {

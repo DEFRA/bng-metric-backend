@@ -202,17 +202,19 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, but not in a lower condition (BMD-1083): the
-   * habitat was kept. `details.sample` lists each row's table, Habitat Ref and
-   * habitat type, and its parent's Habitat Ref. The drop-out page says a
-   * habitat that is kept should be Retained or Enhanced.
+   * habitat type, linked to it, but not in a lower condition and with no delay
+   * (BMD-1083): the habitat was kept. A row with a delay is a habitat lost for
+   * a time and put back, which no degrade rule refuses. `details.sample` lists
+   * each row's table, Habitat Ref and habitat type, and its parent's Habitat
+   * Ref. The drop-out page says a habitat that is kept should be Retained or
+   * Enhanced, and one put back should give its delay.
    */
   STAGED_DEGRADE_NOT_WORSE: 'STAGED_DEGRADE_NOT_WORSE',
 
   /**
    * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, whose "Habitat created in advance/years" is not
-   * 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
+   * habitat type, linked to it, with no delay, whose "Habitat created in
+   * advance/years" is not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
    * as lost and created again in a lower condition. `details.sample` lists each
    * row as STAGED_DEGRADE_NOT_WORSE does.
    */
@@ -220,10 +222,11 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * BNG Service template watercourses Created in their parent's River Type,
-   * linked to it, with no lower condition, more encroachment or shorter length
-   * (BMD-1083): there was no intervention. `details.sample` lists each row as
-   * STAGED_DEGRADE_NOT_WORSE does. The drop-out page says a watercourse with no
-   * intervention should be Retained.
+   * linked to it, with no lower condition, more encroachment or shorter length,
+   * and no delay (BMD-1083): there was no intervention. `details.sample` lists
+   * each row as STAGED_DEGRADE_NOT_WORSE does. The drop-out page says a
+   * watercourse with no intervention should be Retained, and one put back
+   * should give its delay.
    */
   STAGED_WATERCOURSE_NO_INTERVENTION: 'STAGED_WATERCOURSE_NO_INTERVENTION',
 
