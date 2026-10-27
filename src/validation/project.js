@@ -205,6 +205,9 @@ const treeSchema = habitatSchema
       .description(
         'Notional tree area in square metres: the per-size reference area times the Count column.'
       ),
+    irreplaceable: Joi.boolean().description(
+      'Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable.'
+    ),
     units: Joi.number()
       .allow(null)
       .description(

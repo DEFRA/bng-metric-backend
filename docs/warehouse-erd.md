@@ -555,7 +555,6 @@ trees in the baseline document. 31 column(s) mapped from the JSON document.
 | `condition_score`                          | `numeric` |     | `baseline.trees[].conditionScore`                      |                                                                                  |
 | `strategic_significance`                   | `text`    |     | `baseline.trees[].strategicSignificance`               |                                                                                  |
 | `retention_category`                       | `text`    |     | `baseline.trees[].retentionCategory`                   |                                                                                  |
-| `irreplaceable`                            | `boolean` |     | `baseline.trees[].irreplaceable`                       |                                                                                  |
 | `status`                                   | `text`    |     | `baseline.trees[].status`                              |                                                                                  |
 | `site_name`                                | `text`    |     | `baseline.trees[].siteName`                            |                                                                                  |
 | `survey_date`                              | `text`    |     | `baseline.trees[].surveyDate`                          |                                                                                  |
@@ -575,6 +574,7 @@ trees in the baseline document. 31 column(s) mapped from the JSON document.
 | `distinctiveness`                          | `text`    |     | `baseline.trees[].distinctiveness`                     |                                                                                  |
 | `area`                                     | `numeric` |     | `baseline.trees[].area`                                |                                                                                  |
 | `size_square_metres`                       | `numeric` |     | `baseline.trees[].sizeSquareMetres`                    |                                                                                  |
+| `irreplaceable`                            | `boolean` |     | `baseline.trees[].irreplaceable`                       |                                                                                  |
 | `units`                                    | `numeric` |     | `baseline.trees[].units`                               |                                                                                  |
 | `properties`                               | `jsonb`   |     | `baseline.trees[].properties`                          | verbatim GeoPackage attribute columns                                            |
 | `tree_size`                                | `text`    |     | `baseline.trees[].treeSize`                            |                                                                                  |

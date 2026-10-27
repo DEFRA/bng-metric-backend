@@ -363,6 +363,9 @@ function sqlType(node) {
   if (node.type === 'string') {
     return stringSqlType(node)
   }
+  if (node.type === 'boolean') {
+    return 'boolean'
+  }
   if (node.type === 'object' || node.type === 'array') {
     return 'jsonb'
   }

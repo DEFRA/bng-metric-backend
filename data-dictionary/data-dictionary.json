@@ -1645,17 +1645,6 @@
       "description": "Retention category from the GeoPackage."
     },
     {
-      "path": "baseline.trees[].irreplaceable",
-      "type": "boolean",
-      "required": false,
-      "nullable": false,
-      "emptyStringAllowed": false,
-      "enumValues": [],
-      "constraints": [],
-      "openMap": false,
-      "description": "Whether the habitat is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: true for \"Yes\", false for \"No\" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column."
-    },
-    {
       "path": "baseline.trees[].status",
       "type": "string",
       "required": true,
@@ -1874,6 +1863,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Notional tree area in square metres: the per-size reference area times the Count column."
+    },
+    {
+      "path": "baseline.trees[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable."
     },
     {
       "path": "baseline.trees[].units",
