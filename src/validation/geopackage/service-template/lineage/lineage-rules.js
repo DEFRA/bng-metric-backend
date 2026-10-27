@@ -6,6 +6,7 @@ import { ERROR_CODES } from '../../errors.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
   LENGTH_TOLERANCE_METRES,
+  createdInOwnTypeMetres,
   isLowerCondition,
   isSameHabitatType,
   watercourseChange
@@ -199,14 +200,14 @@ const isCreatedInOwnType = (layer, parent, child) =>
     proposedSide(layer, child.properties)
   )
 
-/**
- * The length of a parent's same-type Created children together: what the
- * watercourse became, however many pieces it is drawn in.
- */
-const createdInOwnTypeMetres = (layer, parent, children) =>
+/** A parent's Created children, as createdInOwnTypeMetres reads them. */
+const createdChildren = (layer, children) =>
   children
-    .filter((child) => isCreatedInOwnType(layer, parent, child))
-    .reduce((sum, child) => sum + measured(child), 0)
+    .filter((child) => isCreated(child.properties))
+    .map((child) => ({
+      side: proposedSide(layer, child.properties),
+      lengthMetres: measured(child)
+    }))
 
 /** A degraded row that is not worse, or not created 30+ years in advance. */
 function checkDegradedRow(parent, child, children, context) {
@@ -225,7 +226,10 @@ function checkDegradedRow(parent, child, children, context) {
       { side: parentSide, lengthMetres: measured(parent) },
       {
         side: childSide,
-        lengthMetres: createdInOwnTypeMetres(layer, parent, children)
+        lengthMetres: createdInOwnTypeMetres(
+          parentSide,
+          createdChildren(layer, children)
+        )
       }
     )
     if (!change.worse) {

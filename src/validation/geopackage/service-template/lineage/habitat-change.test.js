@@ -3,6 +3,7 @@ import { describe, expect, it } from 'vitest'
 import {
   LENGTH_TOLERANCE_METRES,
   conditionScore,
+  createdInOwnTypeMetres,
   encroachmentChange,
   isLowerCondition,
   isSameHabitatType,
@@ -121,6 +122,22 @@ describe('isShorter', () => {
     expect(isShorter(100, 99)).toBe(true)
     expect(isShorter(100, 101)).toBe(false)
     expect(isShorter(Number.NaN, 1)).toBe(false)
+  })
+})
+
+describe('createdInOwnTypeMetres', () => {
+  it('adds up the Created children of the parent’s own type, leaving out any other', () => {
+    expect(
+      createdInOwnTypeMetres(DITCH, [
+        { side: DITCH, lengthMetres: 50 },
+        { side: { ...DITCH, condition: 'Poor' }, lengthMetres: 30 },
+        { side: { ...DITCH, type: 'Canals' }, lengthMetres: 20 }
+      ])
+    ).toBe(80)
+  })
+
+  it('is 0 with no children of its own type', () => {
+    expect(createdInOwnTypeMetres(DITCH, [])).toBe(0)
   })
 })
 
