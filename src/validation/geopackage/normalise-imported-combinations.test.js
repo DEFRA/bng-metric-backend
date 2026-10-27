@@ -65,8 +65,8 @@ describe('BMD-1060 import combinations', () => {
     }
   )
 
-  it.each(['Created', 'Enhanced', 'Retained', 'Lost'])(
-    'AC1 applies strategic-significance cascade only to Created/Enhanced: %s',
+  it.each(['Created', 'Enhanced', 'Retained', 'Lost', '4. Lost'])(
+    'AC1 clears strategic significance on Created/Enhanced and Lost area replacements: %s',
     (retentionCategory) => {
       const feature = {
         retentionCategory,
@@ -89,9 +89,12 @@ describe('BMD-1060 import combinations', () => {
         broadType: 'Grassland',
         type: null,
         condition: null,
-        strategicSignificance: ['Created', 'Enhanced'].includes(
-          retentionCategory
-        )
+        strategicSignificance: [
+          'Created',
+          'Enhanced',
+          'Lost',
+          '4. Lost'
+        ].includes(retentionCategory)
           ? null
           : STRATEGIC,
         advanceYears: null,
