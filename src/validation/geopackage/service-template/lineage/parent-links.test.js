@@ -89,7 +89,7 @@ describe('checkParentLinks', () => {
     ).toEqual([])
   })
 
-  it.each(['Retained', 'Enhanced', ' enhanced '])(
+  it.each(['Retained', 'Enhanced', '2. Enhanced'])(
     'refuses a %s row with no parent link, listing its table, ref and habitat type',
     (category) => {
       const errors = check({

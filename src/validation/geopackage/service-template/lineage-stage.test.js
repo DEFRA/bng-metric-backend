@@ -68,6 +68,46 @@ describe('lineageErrorsFor', () => {
   })
 })
 
+describe('lineageErrorsFor, reading rows as the saved document does', () => {
+  const CULVERT_UUID = '0c55b68c-6afb-59c6-9453-618d89539d76'
+  const layerTables = {
+    areas: 'Area Habitats Post-Intervention',
+    watercourses: 'Watercourses Post-Intervention'
+  }
+
+  const errorsFor = (watercourses) =>
+    withTempGpkgFile(
+      buildServiceTemplateBuffer({ rows: populatedBaselineRows() }),
+      (filePath) =>
+        lineageErrorsFor(
+          filePath,
+          { areas: [], watercourses, layerTables },
+          templateReadSource('1.0', STAGE_BASELINE)
+        )
+    )
+
+  it.each(['Lost', '4. Lost'])(
+    'leaves out a %s watercourse, which the saved document drops: its culvert is still lost',
+    async (category) => {
+      const errors = await errorsFor([
+        {
+          properties: {
+            fid: 1,
+            'Parcel Ref': 'R001',
+            'Retention Category': category,
+            'Proposed River Type': 'Culvert',
+            parent_uuid: CULVERT_UUID
+          }
+        }
+      ])
+
+      expect(errors.map((e) => e.code)).toEqual([
+        ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST
+      ])
+    }
+  )
+})
+
 describe('withLineageErrors', () => {
   const accepted = { valid: true, errors: [], sizes: { areas: [] } }
 

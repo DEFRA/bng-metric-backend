@@ -1,6 +1,7 @@
 import { FEATURE_UUID } from 'bng-library/bng-service'
 
 import { makeError } from '../../errors.js'
+import { retentionCategoryFromProps } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 
 /**
  * What the lineage checks of a BNG Service template file (BMD-1083) share:
@@ -20,11 +21,10 @@ export const LINKED_LAYERS = Object.freeze([
 
 /** The pipeline's name for a habitat's Habitat Ref. */
 export const REF = 'Parcel Ref'
-export const RETENTION_CATEGORY = 'Retention Category'
 
 /** The Retention Categories that carry a baseline habitat forward. */
-const CONTINUING = new Set(['retained', 'enhanced'])
-const CREATED = 'created'
+const CONTINUING = new Set(['Retained', 'Enhanced'])
+const CREATED = 'Created'
 
 /** Each layer's habitat type column, at each stage. */
 export const HABITAT_TYPE = Object.freeze({
@@ -43,8 +43,13 @@ const isBlank = (value) =>
 /** A cell as trimmed text, or null when it is blank. */
 export const text = (value) => (isBlank(value) ? null : String(value).trim())
 
-const retentionOf = (properties) =>
-  text(properties[RETENTION_CATEGORY])?.toLowerCase()
+/**
+ * A row's Retention Category as the saved document records it: a "3. " list
+ * prefix stripped, and an area habitat's Lost read as Created. A Lost
+ * hedgerow or watercourse is not saved at all, so lineage-stage.js leaves it
+ * out before any rule reads it.
+ */
+const retentionOf = (properties) => retentionCategoryFromProps(properties)
 
 /** Whether a row carries a baseline habitat forward: Retained or Enhanced. */
 export const continues = (properties) => CONTINUING.has(retentionOf(properties))
