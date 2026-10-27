@@ -79,6 +79,25 @@ function update(overrides = {}) {
   )
 }
 
+function routeRequest(payload) {
+  const row = { project: { postIntervention: { habitats: [feature] } } }
+  const tx = {
+    execute: vi.fn(),
+    select: () => ({
+      from: () => ({
+        where: () => ({ for: () => ({ limit: async () => [row] }) })
+      })
+    })
+  }
+  const request = {
+    params: { projectId, featureId },
+    payload,
+    auth: { credentials: { sub: 'test-user' } },
+    drizzle: { transaction: (fn) => fn(tx) }
+  }
+  return { request, tx }
+}
+
 describe('BMD-1048 Created area edits', () => {
   beforeEach(() => vi.clearAllMocks())
 
@@ -363,22 +382,27 @@ describe('BMD-1048 Created area edits', () => {
     ).toBeDefined()
   })
 
+  test.each([
+    { broadType: 'Urban' },
+    { habitatType: 'Lowland meadows' },
+    { habitatType: 'Urban tree' },
+    { habitatType: 'Modified grassland (IGGI)' },
+    { habitatType: 'Unknown habitat' },
+    { condition: 'Not Possible' }
+  ])(
+    'the route refuses invalid creation choices without writing: %j',
+    async (invalid) => {
+      const { request } = routeRequest({ ...edits, ...invalid })
+      await expect(
+        updatePostInterventionAreaHabitat.handler(request, {})
+      ).rejects.toMatchObject({ output: { statusCode: 400 } })
+      expect(setProjectFeature).not.toHaveBeenCalled()
+      expect(setGeometryRefs).not.toHaveBeenCalled()
+    }
+  )
+
   test('route persists the complete edit and records the authenticated actor', async () => {
-    const row = { project: { postIntervention: { habitats: [feature] } } }
-    const tx = {
-      execute: vi.fn(),
-      select: () => ({
-        from: () => ({
-          where: () => ({ for: () => ({ limit: async () => [row] }) })
-        })
-      })
-    }
-    const request = {
-      params: { projectId, featureId },
-      payload: edits,
-      auth: { credentials: { sub: 'test-user' } },
-      drizzle: { transaction: (fn) => fn(tx) }
-    }
+    const { request, tx } = routeRequest(edits)
     const result = await updatePostInterventionAreaHabitat.handler(request, {})
     expect(result.status).toBe('Complete')
     expect(setProjectFeature).toHaveBeenCalledWith(

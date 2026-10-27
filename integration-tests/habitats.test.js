@@ -503,6 +503,25 @@ describe('BMD-1048 Created area editing', () => {
       ref: payload.ref
     })
 
+    for (const invalid of [
+      { broadType: 'Urban' },
+      { habitatType: 'Lowland meadows' },
+      { condition: 'Not Possible' }
+    ]) {
+      const invalidChoice = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...payload, ...invalid }
+      })
+      expect(invalidChoice.statusCode).toBe(HTTP_BAD_REQUEST)
+      expect(await readProject()).toEqual(complete)
+      expect(await readGeometry()).toEqual({
+        ...originalGeometry,
+        ref: payload.ref
+      })
+    }
+
     const partial = await server.inject({
       method: 'PUT',
       url,

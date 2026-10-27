@@ -293,7 +293,12 @@ async function runUpdate(
       (f) => f.featureId === featureId
     )
     if (feature) {
-      validateCreatedAreaEdit(feature, edits)
+      validateCreatedAreaEdit(feature, {
+        ...edits,
+        broadType,
+        habitatType,
+        condition
+      })
     }
   }
 
