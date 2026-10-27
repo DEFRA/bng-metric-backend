@@ -318,14 +318,12 @@ export function preserveCreatedAreaParent(
   }
   const candidates =
     buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
-  const matches = candidates.filter((candidate) =>
-    matchesSnapshot(
-      candidate,
-      existing.baseline ?? {},
-      IDENTITY_FIELDS_BY_LAYER.habitats
-    )
+  const resolved = resolveBaselineFeature(
+    candidates,
+    existing,
+    IDENTITY_FIELDS_BY_LAYER.habitats
   )
-  updated.parentFeatureId = matches.length === 1 ? matches[0].featureId : null
+  updated.parentFeatureId = resolved.source?.featureId ?? null
 }
 
 /**

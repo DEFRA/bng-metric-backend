@@ -461,7 +461,7 @@ test('every offered creation combination saves the same units as the metric calc
   }
 })
 
-test.each([true, false, 'template'])(
+test.each([true, false, 'template', 'legacy empty', 'legacy placeholder'])(
   'a renamed Created area keeps its original parent association (%s)',
   (hasParent) => {
     const originalParentId = 'eeeeeeee-eeee-4eee-8eee-eeeeeeeeeeee'
@@ -471,13 +471,18 @@ test.each([true, false, 'template'])(
       ...(hasParent === 'template'
         ? { parentFeatureId: originalParentId }
         : {}),
-      baseline: hasParent
-        ? {
-            type: 'Modified grassland',
-            broadType: 'Grassland',
-            condition: 'Poor'
-          }
-        : {}
+      baseline:
+        hasParent === 'legacy empty'
+          ? {}
+          : hasParent === 'legacy placeholder'
+            ? { type: 'N/A', broadType: 'N/A', condition: 'N/A' }
+            : hasParent
+              ? {
+                  type: 'Modified grassland',
+                  broadType: 'Grassland',
+                  condition: 'Poor'
+                }
+              : {}
     }
     const baseline = {
       habitats: [
