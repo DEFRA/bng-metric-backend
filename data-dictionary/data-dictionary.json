@@ -4078,12 +4078,12 @@
       "path": "postIntervention.hedgerows[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": true,
+      "nullable": false,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -4485,12 +4485,12 @@
       "path": "postIntervention.watercourses[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": true,
+      "nullable": false,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
     },
     {
       "path": "postIntervention.watercourses[].featureId",

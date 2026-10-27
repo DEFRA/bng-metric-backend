@@ -6,7 +6,11 @@ import {
   roundToSigFigs
 } from 'bng-library/metric'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
-import { postInterventionHabitatSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
+import {
+  postInterventionHabitatSchema,
+  postInterventionLinearHabitatSchema,
+  postInterventionWatercourseSchema
+} from '../validation/post-intervention/project-post-intervention-schema.js'
 import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
 import {
   validateCreatedAreaEdit,
@@ -560,4 +564,22 @@ test('callers cannot mutate the cached creation reference', () => {
   reference.strategicSignificance[0].score = -1
   reference.timeMultipliers[0] = -1
   expect(getAreaCreationReference()).toEqual(expected)
+})
+
+test('only area parent links permit an explicit unlinked null', () => {
+  expect(
+    postInterventionHabitatSchema.extract('parentFeatureId').validate(null)
+      .error
+  ).toBeUndefined()
+  for (const schema of [
+    postInterventionLinearHabitatSchema,
+    postInterventionWatercourseSchema
+  ]) {
+    const field = schema.extract('parentFeatureId')
+    expect(field.validate(null).error).toBeDefined()
+    expect(field.validate(undefined).error).toBeUndefined()
+    expect(field.validate(featureId).error).toBeUndefined()
+    expect(field.describe().flags.description).toContain('BNG Service template')
+    expect(field.describe().flags.description).not.toContain('Created area')
+  }
 })

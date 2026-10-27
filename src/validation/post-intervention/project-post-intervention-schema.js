@@ -57,16 +57,20 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Imported BNG Service parent links (BMD-1083), also preserved when editing a
-// legacy Created reference so that its baseline association cannot drift.
-function parentFeatureIdField() {
+// Template links keep their original contract on linear features. Only area
+// edits can explicitly record that a Created reference has no baseline parent.
+function parentFeatureIdField({ editableArea = false } = {}) {
+  const field = Joi.string().uuid()
   return {
-    parentFeatureId: Joi.string()
-      .uuid()
-      .allow(null)
-      .description(
-        'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
-      )
+    parentFeatureId: editableArea
+      ? field
+          .allow(null)
+          .description(
+            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
+          )
+      : field.description(
+          'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
+        )
   }
 }
 
@@ -281,7 +285,7 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
-  ...parentFeatureIdField(),
+  ...parentFeatureIdField({ editableArea: true }),
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
   ),
