@@ -221,6 +221,37 @@ describe('nullDisallowedWatercourseAdvance', () => {
     expect(feature.proposed.advanceYears).toBe(proposed.advanceYears)
   })
 
+  it('keeps the advance on an encroachment-only change drawn in pieces: together they are its length', () => {
+    const encroached = { ...DITCH, watercourseEncroachment: 'Major' }
+    const pieces = [
+      child(1, ditch, 'Created', 50, { ...encroached, advanceYears: 10 }),
+      child(2, ditch, 'Created', 50, { ...encroached, advanceYears: 10 })
+    ]
+
+    expect(
+      nullDisallowedWatercourseAdvance(
+        { watercourses: pieces },
+        { watercourses: [ditch] }
+      )
+    ).toEqual([])
+    expect(pieces.map((piece) => piece.proposed.advanceYears)).toEqual([10, 10])
+  })
+
+  it('nulls the advance on pieces shorter than their parent together', () => {
+    const encroached = { ...DITCH, watercourseEncroachment: 'Major' }
+    const pieces = [
+      child(1, ditch, 'Created', 50, { ...encroached, advanceYears: 10 }),
+      child(2, ditch, 'Created', 40, { ...encroached, advanceYears: 10 })
+    ]
+
+    expect(
+      nullDisallowedWatercourseAdvance(
+        { watercourses: pieces },
+        { watercourses: [ditch] }
+      )
+    ).toEqual(pieces)
+  })
+
   it('leaves a Created watercourse with no parent, and an Enhanced one, alone', () => {
     const unlinked = {
       ...created({ condition: 'Poor', advanceYears: 20 }),

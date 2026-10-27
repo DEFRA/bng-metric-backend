@@ -6,6 +6,7 @@ import {
 } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import {
   LENGTH_TOLERANCE_METRES,
+  createdInOwnTypeMetres,
   isSameHabitatType,
   watercourseChange
 } from '../../validation/geopackage/service-template/lineage/habitat-change.js'
@@ -26,7 +27,10 @@ import {
  * - A watercourse created 10 or more years in advance is what the guide
  *   allows only for an encroachment-only change. On any other Created
  *   watercourse linked to a parent the advance is set to null, so the row is
- *   saved Incomplete for the user to correct.
+ *   saved Incomplete for the user to correct. Its length is that of the
+ *   parent's same-type Created children together, as the file's check
+ *   measures it, so a watercourse drawn in pieces is not shorter for that
+ *   alone.
  */
 
 /** The layers whose parents are tracked, with the size each is measured by. */
@@ -153,20 +157,32 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
   const parents = new Map(
     (baseline?.watercourses ?? []).map((parent) => [parent.featureId, parent])
   )
+  const created = (postIntervention.watercourses ?? []).filter(
+    (feature) =>
+      parents.has(feature.parentFeatureId) &&
+      resolveRetentionCategory(feature) === RETENTION_CREATED
+  )
+  const createdByParent = Map.groupBy(
+    created,
+    (feature) => feature.parentFeatureId
+  )
   const changed = []
-  for (const feature of postIntervention.watercourses ?? []) {
-    const parent = parents.get(feature.parentFeatureId)
+  for (const feature of created) {
     const advance = feature.proposed?.advanceYears
-    if (
-      !parent ||
-      resolveRetentionCategory(feature) !== RETENTION_CREATED ||
-      !(advance >= ENCROACHMENT_ONLY_ADVANCE_YEARS)
-    ) {
+    if (!(advance >= ENCROACHMENT_ONLY_ADVANCE_YEARS)) {
       continue
     }
+    const parent = parents.get(feature.parentFeatureId)
+    const siblings = createdByParent.get(parent.featureId).map((sibling) => ({
+      side: sibling.proposed,
+      lengthMetres: sibling.sizeMetres
+    }))
     const change = watercourseChange(
       { side: parent, lengthMetres: parent.sizeMetres },
-      { side: feature.proposed, lengthMetres: feature.sizeMetres }
+      {
+        side: feature.proposed,
+        lengthMetres: createdInOwnTypeMetres(parent, siblings)
+      }
     )
     if (!change.encroachmentOnly) {
       feature.proposed.advanceYears = null
