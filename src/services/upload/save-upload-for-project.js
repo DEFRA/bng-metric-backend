@@ -13,6 +13,7 @@ import {
   filterLostPostInterventionLayers
 } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
 import { rejectInvalidEnhancements } from '../../validation/geopackage/post-intervention/reject-invalid-enhancements.js'
+import { refuseUnenhanceableBaselines } from '../../validation/geopackage/post-intervention/refuse-unenhanceable-baselines.js'
 import {
   ERROR_CODES,
   makeError,
@@ -109,7 +110,10 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
   }),
   postIntervention: Object.freeze({
     extractDocument: extractPostIntervention,
-    // Import only: an edit or a baseline re-derive never re-checks them.
+    // Import only: an edit or a baseline re-derive never re-checks them. A
+    // file it refuses is not saved at all; checkDocument then nulls what is
+    // left for the user to fix.
+    refuseDocument: refuseUnenhanceableBaselines,
     checkDocument: rejectInvalidEnhancements,
     enrichDocument: enrichPostInterventionDocumentWithUnits,
     documentSchema: postInterventionDataSchema
@@ -293,6 +297,9 @@ async function sizeUploadedHabitats(
  * @param {object} args
  * @param {object} [args.baselineDocument] the baseline a post-intervention
  *   document is enriched against; defaults to the stored baseline
+ * @returns {{ document: object, geometries: object, schemaError?: object, validationError?: object }}
+ *   `validationError` when the handlers refuse the file, which is then
+ *   neither enriched nor schema-checked
  */
 export function extractAndValidateDocument({
   handlers,
@@ -332,6 +339,10 @@ export function extractAndValidateDocument({
   ) {
     linkToParents(document, baselineDocument)
     applyLineageOutcomes(document, baselineDocument, logger)
+  }
+  const validationError = handlers.refuseDocument?.(document, baselineDocument)
+  if (validationError) {
+    return { document, geometries, validationError }
   }
   handlers.checkDocument?.(document, logger)
   const enrichOptions =
@@ -446,6 +457,9 @@ function extractUploadDocuments(sized, context, logger, config) {
     habitatSizes: sized.habitatSizes,
     baselineDocument: baseline.document
   })
+  if (postIntervention.validationError) {
+    return { validationError: postIntervention.validationError }
+  }
   return {
     schemaError: postIntervention.schemaError,
     baseline,
@@ -553,7 +567,7 @@ async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
   }
   if (extracted.validationError) {
     logger.info(
-      `${config.routeName} - derived baseline rejected uploadId ${uploadId}: ${extracted.validationError.message}`
+      `${config.routeName} - upload rejected uploadId ${uploadId}: ${extracted.validationError.message}`
     )
     return h.response({
       valid: false,

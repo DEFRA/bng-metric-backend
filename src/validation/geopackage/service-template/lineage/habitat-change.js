@@ -132,6 +132,23 @@ export function isShorter(parentMetres, childMetres) {
 }
 
 /**
+ * The length of a parent's Created children of its own type together: what
+ * the habitat became, however many pieces it is drawn in. A watercourse drawn
+ * as two pieces is not shorter than its parent for that alone, so this, not a
+ * piece's own length, is the child length watercourseChange compares.
+ *
+ * @param {object} parentSide
+ * @param {Array<{ side: object, lengthMetres: number }>} createdChildren the
+ *   parent's Created children, of any type
+ * @returns {number}
+ */
+export function createdInOwnTypeMetres(parentSide, createdChildren) {
+  return createdChildren
+    .filter((child) => isSameHabitatType(parentSide, child.side))
+    .reduce((sum, child) => sum + child.lengthMetres, 0)
+}
+
+/**
  * How a Created watercourse linked to a parent differs from it. Of one of its
  * own River Type: It gets worse with a lower condition, more encroachment or a
  * shorter length, or any of these together; with none, it is the parent
@@ -141,7 +158,8 @@ export function isShorter(parentMetres, childMetres) {
  * years in advance.
  *
  * @param {{ side: object, lengthMetres: number }} parent
- * @param {{ side: object, lengthMetres: number }} child
+ * @param {{ side: object, lengthMetres: number }} child its `lengthMetres`
+ *   the parent's same-type Created children together (createdInOwnTypeMetres)
  * @returns {{ worse: boolean, encroachmentOnly: boolean }}
  */
 export function watercourseChange(parent, child) {

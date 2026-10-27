@@ -602,6 +602,38 @@ describe('updateFeature validation', () => {
     ).toBeUndefined()
   })
 
+  test('accepts a habitat reference (BMD-1061)', () => {
+    expect(payloadSchema.validate({ ref: 'B-A1' }).error).toBeUndefined()
+  })
+
+  test('trims the habitat reference', () => {
+    expect(payloadSchema.validate({ ref: '  B-A1  ' }).value.ref).toBe('B-A1')
+  })
+
+  test('accepts a reference over 100 characters, which the save truncates (BMD-1058)', () => {
+    expect(
+      payloadSchema.validate({ ref: 'x'.repeat(150) }).error
+    ).toBeUndefined()
+  })
+
+  test.each([
+    ['empty', ''],
+    ['whitespace only', '   '],
+    ['null', null]
+  ])('rejects a %s habitat reference', (_label, ref) => {
+    expect(payloadSchema.validate({ ref }).error).toBeDefined()
+  })
+
+  test('rejects a habitat reference holding characters that are not valid UTF-8', () => {
+    const { error } = payloadSchema.validate({ ref: 'B-A\uFFFD' })
+    expect(error.message).toMatch(/not valid UTF-8/)
+  })
+
+  test('rejects a habitat reference holding a lone surrogate, which has no UTF-8 form', () => {
+    const { error } = payloadSchema.validate({ ref: 'B-A\uD800' })
+    expect(error.message).toMatch(/not valid UTF-8/)
+  })
+
   test('rejects unknown keys to stop the frontend silently leaking new fields', () => {
     expect(
       payloadSchema.validate({
@@ -685,6 +717,57 @@ describe('#updateFeature — project with a post-intervention document', () => {
         netUnitChange: 0
       })
     ])
+  })
+
+  test('renames the feature, the post-intervention row joined to it, and both geometry rows', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithPostIntervention())
+
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        logger: { warn: vi.fn() },
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          ref: 'B-A1',
+          broadType: 'Grassland',
+          habitatType: 'Modified grassland',
+          condition: 'Poor'
+        }
+      },
+      {}
+    )
+
+    expect(result.feature.ref).toBe('B-A1')
+    const [, , params] = setProjectFeature.mock.calls[0]
+    expect(params.feature.ref).toBe('B-A1')
+    expect(params.postIntervention.habitats[0].ref).toBe('B-A1')
+    expect(drizzle._tx.update).toHaveBeenCalledTimes(2)
+    expect(drizzle._updateSet.mock.calls).toEqual([
+      [{ ref: 'B-A1' }],
+      [{ ref: 'B-A1' }]
+    ])
+  })
+
+  test('touches no geometry row when the reference is unchanged', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithPostIntervention())
+
+    await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        logger: { warn: vi.fn() },
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+
+    expect(drizzle._tx.update).not.toHaveBeenCalled()
   })
 
   test('sends nothing extra when the project has no post-intervention document', async () => {

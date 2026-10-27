@@ -3,8 +3,10 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
+import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
   LENGTH_TOLERANCE_METRES,
+  createdInOwnTypeMetres,
   isLowerCondition,
   isSameHabitatType,
   watercourseChange
@@ -42,13 +44,20 @@ import {
  *   Retained or Enhanced. An area habitat or hedgerow gets worse by a lower
  *   condition, and is created 30+ years in advance (guide, "Habitat
  *   retention"). A watercourse gets worse by a lower condition, more
- *   encroachment or a shorter length (guide, watercourse interventions).
+ *   encroachment or a shorter length (guide, watercourse interventions);
+ *   its length is the parent's same-type Created rows together, so a
+ *   watercourse drawn in pieces is not shorter for that alone.
+ *   A Created row of its parent's type with a delay is not degraded: it is a
+ *   habitat lost for a time and put back (guide, "Accounting for temporary
+ *   losses"), which the delay already discounts, so it may be in any
+ *   condition and needs no years in advance.
  *
  * Vertical area habitats (BMD-1084) and individual trees (BMD-1172) are not
  * read yet, so they are not checked.
  */
 
 const ADVANCE = 'Habitat created in advance/years'
+const DELAY = 'Delay in starting habitat creation/years'
 
 /** The watercourse types the Metric lets be permanently lost. */
 const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
@@ -179,14 +188,35 @@ function checkWatercourseFamily(parent, children, context) {
   }
 }
 
+/** Whether a row is put back after a temporary loss: it has a delay. */
+const isPutBack = (properties) =>
+  (parseProposedAdvanceDelayYears(properties[DELAY]) ?? 0) > 0
+
+/** Whether a row is Created in its parent's habitat type. */
+const isCreatedInOwnType = (layer, parent, child) =>
+  isCreated(child.properties) &&
+  isSameHabitatType(
+    baselineSide(layer, parent.properties),
+    proposedSide(layer, child.properties)
+  )
+
+/** A parent's Created children, as createdInOwnTypeMetres reads them. */
+const createdChildren = (layer, children) =>
+  children
+    .filter((child) => isCreated(child.properties))
+    .map((child) => ({
+      side: proposedSide(layer, child.properties),
+      lengthMetres: measured(child)
+    }))
+
 /** A degraded row that is not worse, or not created 30+ years in advance. */
-function checkDegradedRow(parent, child, context) {
+function checkDegradedRow(parent, child, children, context) {
   const { layer, tables, found } = context
   const parentSide = baselineSide(layer, parent.properties)
   const childSide = proposedSide(layer, child.properties)
   if (
-    !isCreated(child.properties) ||
-    !isSameHabitatType(parentSide, childSide)
+    !isCreatedInOwnType(layer, parent, child) ||
+    isPutBack(child.properties)
   ) {
     return
   }
@@ -194,7 +224,13 @@ function checkDegradedRow(parent, child, context) {
   if (layer === 'watercourses') {
     const change = watercourseChange(
       { side: parentSide, lengthMetres: measured(parent) },
-      { side: childSide, lengthMetres: measured(child) }
+      {
+        side: childSide,
+        lengthMetres: createdInOwnTypeMetres(
+          parentSide,
+          createdChildren(layer, children)
+        )
+      }
     )
     if (!change.worse) {
       found.noIntervention.push(row())
@@ -227,7 +263,7 @@ function checkLayer(layer, baseline, postIntervention, found) {
       checkWatercourseFamily(parent, children, context)
     }
     for (const child of children) {
-      checkDegradedRow(parent, child, context)
+      checkDegradedRow(parent, child, children, context)
     }
   }
 }
@@ -293,7 +329,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     ),
     collated(
       ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-      'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced',
+      'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation',
       found.notWorse,
       describeRow
     ),
@@ -305,7 +341,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     ),
     collated(
       ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
-      'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained',
+      'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation',
       found.noIntervention,
       describeRow
     )
