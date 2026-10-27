@@ -15,14 +15,21 @@ function isCreatedOrEnhanced(retention) {
   return retention === RETENTION_CREATED || retention === RETENTION_ENHANCED
 }
 
-function normaliseTiming(proposed, retention) {
+function normaliseTiming(proposed, retention, layer) {
   if (!proposed) {
     return
   }
+  // Lost area parcels are replacement habitats. Their timing follows Created
+  // rules, including AC3's conflict check, rather than AC5's redundant fields.
+  const timingRetention =
+    layer === 'habitats' && retention === GPKG_RETENTION_LOST
+      ? RETENTION_CREATED
+      : retention
   const redundant =
-    retention === RETENTION_RETAINED || retention === GPKG_RETENTION_LOST
+    timingRetention === RETENTION_RETAINED ||
+    timingRetention === GPKG_RETENTION_LOST
   const conflicting =
-    isCreatedOrEnhanced(retention) &&
+    isCreatedOrEnhanced(timingRetention) &&
     Number.parseFloat(proposed.advanceYears) > 0 &&
     Number.parseFloat(proposed.delayYears) > 0
   if (redundant || conflicting) {
@@ -42,7 +49,7 @@ export function normaliseProposedCombinations(document) {
         layer,
         isCreatedOrEnhanced(retention)
       )
-      normaliseTiming(feature.proposed, retention)
+      normaliseTiming(feature.proposed, retention, layer)
     }
   }
   return document

@@ -169,6 +169,12 @@ describe('BMD-1048 Created area edits', () => {
       postInterventionHabitatSchema.validate(result.feature).error
     ).toBeUndefined()
     expect(
+      postInterventionHabitatSchema.validate({
+        ...result.feature,
+        proposed: { ...result.feature.proposed, delayYears: '30+' }
+      }).error
+    ).toBeDefined()
+    expect(
       postInterventionAreaEditPayload.validate({ ...edits, delayYears: '30+' })
         .error
     ).toBeUndefined()

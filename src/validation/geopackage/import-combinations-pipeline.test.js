@@ -252,29 +252,35 @@ describe('BMD-1060 full extraction, combination validation and enrichment', () =
     }
   )
 
-  it('AC5 distinguishes a Lost area from a separate Created row with the same parcel ref', () => {
-    const lost = row('4. Lost', timingColumns('areas', '2', '0'))
-    const created = row('1. Created', timingColumns('areas', '2', '0'))
-    const [lostHabitat, createdHabitat] = importRows('areas', [
-      lost,
-      created
-    ]).habitats
-    expect(lostHabitat.retentionCategory).toBe('Created')
-    expect(lostHabitat.proposed).toMatchObject({
-      advanceYears: null,
-      delayYears: null
-    })
-    expect(createdHabitat.proposed).toMatchObject({
-      advanceYears: 2,
-      delayYears: 0
-    })
-    expect(lostHabitat.status).toBe('Complete')
-    const withoutTimingCredit = importRows('areas', [
-      row('Created', timingColumns('areas', '0', '0'))
-    ]).habitats[0]
-    expect(lostHabitat.units).toBeCloseTo(withoutTimingCredit.units)
-    expect(lostHabitat.units).not.toBe(createdHabitat.units)
-  })
+  it.each([
+    ['2', '0', 2, 0],
+    ['0', '3', 0, 3],
+    ['0', '0', 0, 0],
+    [null, null, null, null],
+    ['2', '3', null, null]
+  ])(
+    'AC5 treats Lost areas as Created for timing (%s, %s)',
+    (advance, delay, expectedAdvance, expectedDelay) => {
+      const lost = row('4. Lost', timingColumns('areas', advance, delay))
+      const created = row('1. Created', timingColumns('areas', advance, delay))
+      const [lostHabitat, createdHabitat] = importRows('areas', [
+        lost,
+        created
+      ]).habitats
+      expect(lostHabitat.retentionCategory).toBe('Created')
+      expect(lostHabitat.proposed).toMatchObject({
+        advanceYears: expectedAdvance,
+        delayYears: expectedDelay
+      })
+      expect(createdHabitat.proposed).toMatchObject({
+        advanceYears: expectedAdvance,
+        delayYears: expectedDelay
+      })
+      expect(lostHabitat.status).toBe(createdHabitat.status)
+      expect(lostHabitat.units).toEqual(createdHabitat.units)
+      expect(lostHabitat.properties).toEqual(lost.properties)
+    }
+  )
 
   it.each(LAYERS.slice(1))(
     'preserves existing exclusion of Lost %s from PI while keeping baseline rows',

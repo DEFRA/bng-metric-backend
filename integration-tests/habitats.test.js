@@ -448,7 +448,12 @@ describe('BMD-1048 Created area editing', () => {
     expect(saved.result).toMatchObject({
       ref: 'New reference',
       status: 'Complete',
-      proposed: { delayYears: '30+', advanceYears: 0 }
+      proposed: {
+        delayYears: 30,
+        delayYearsIs30Plus: true,
+        advanceYears: 0,
+        advanceYearsIs30Plus: false
+      }
     })
     expect(saved.result.units).toBeGreaterThan(0)
     const readProject = async () => {
@@ -460,6 +465,9 @@ describe('BMD-1048 Created area editing', () => {
     }
     const complete = await readProject()
     expect(complete.project.postIntervention.habitats[0]).toEqual(saved.result)
+    expect(
+      typeof complete.project.postIntervention.habitats[0].proposed.delayYears
+    ).toBe('number')
     expect(complete.project.postIntervention.units.habitatsTotal).toBe(
       saved.result.units
     )
