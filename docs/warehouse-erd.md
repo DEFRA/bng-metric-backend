@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 376 schema fields.
+**22 tables**, mapping 370 schema fields.
 
 ## Diagram
 
@@ -662,6 +662,8 @@ habitats in the postIntervention document. 37 column(s) mapped from the JSON doc
 | `baseline_distinctiveness`                   | `text`    |     | `postIntervention.habitats[].baseline.distinctiveness`               |                                                                                  |
 | `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.habitats[].baseline.distinctivenessScore`          |                                                                                  |
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.habitats[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.habitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.habitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.habitats[].proposed.type`                          |                                                                                  |
 | `proposed_broad_type`                        | `text`    |     | `postIntervention.habitats[].proposed.broadType`                     |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.habitats[].proposed.condition`                     |                                                                                  |
@@ -670,8 +672,6 @@ habitats in the postIntervention document. 37 column(s) mapped from the JSON doc
 | `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.habitats[].proposed.distinctivenessScore`          |                                                                                  |
 | `proposed_advance_years`                     | `numeric` |     | `postIntervention.habitats[].proposed.advanceYears`                  |                                                                                  |
 | `proposed_delay_years`                       | `numeric` |     | `postIntervention.habitats[].proposed.delayYears`                    |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.habitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.habitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.habitats[].proposed.timeMultiplier`                |                                                                                  |
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.habitats[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.habitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
@@ -686,7 +686,7 @@ habitats in the postIntervention document. 37 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 45 column(s) mapped from the JSON document.
+trees in the postIntervention document. 43 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -725,8 +725,6 @@ trees in the postIntervention document. 45 column(s) mapped from the JSON docume
 | `proposed_area`                              | `numeric` |     | `postIntervention.trees[].proposed.area`                          |                                                                                  |
 | `proposed_advance_years`                     | `numeric` |     | `postIntervention.trees[].proposed.advanceYears`                  |                                                                                  |
 | `proposed_delay_years`                       | `numeric` |     | `postIntervention.trees[].proposed.delayYears`                    |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.trees[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.trees[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.trees[].proposed.timeMultiplier`                |                                                                                  |
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.trees[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.trees[].proposed.standardTimeToTargetCondition` |                                                                                  |
@@ -740,7 +738,7 @@ trees in the postIntervention document. 45 column(s) mapped from the JSON docume
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 34 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 32 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -767,8 +765,6 @@ hedgerows in the postIntervention document. 34 column(s) mapped from the JSON do
 | `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].proposed.distinctivenessScore`          |                                                                                  |
 | `proposed_advance_years`                     | `numeric` |     | `postIntervention.hedgerows[].proposed.advanceYears`                  |                                                                                  |
 | `proposed_delay_years`                       | `numeric` |     | `postIntervention.hedgerows[].proposed.delayYears`                    |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.hedgerows[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.hedgerows[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.timeMultiplier`                |                                                                                  |
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.hedgerows[].proposed.difficultyMultiplier`          |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.hedgerows[].proposed.standardTimeToTargetCondition` |                                                                                  |
@@ -783,7 +779,7 @@ hedgerows in the postIntervention document. 34 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 42 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 40 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -814,8 +810,6 @@ watercourses in the postIntervention document. 42 column(s) mapped from the JSON
 | `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.watercourses[].proposed.distinctivenessScore`           |                                                                                  |
 | `proposed_advance_years`                     | `numeric` |     | `postIntervention.watercourses[].proposed.advanceYears`                   |                                                                                  |
 | `proposed_delay_years`                       | `numeric` |     | `postIntervention.watercourses[].proposed.delayYears`                     |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.watercourses[].proposed.advanceYearsIs30Plus`           |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.watercourses[].proposed.delayYearsIs30Plus`             |                                                                                  |
 | `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.watercourses[].proposed.timeMultiplier`                 |                                                                                  |
 | `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.watercourses[].proposed.difficultyMultiplier`           |                                                                                  |
 | `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.watercourses[].proposed.standardTimeToTargetCondition`  |                                                                                  |

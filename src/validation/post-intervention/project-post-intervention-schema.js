@@ -109,12 +109,6 @@ function proposedCommonFields() {
       .description(
         'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules.'
       ),
-    advanceYearsIs30Plus: Joi.boolean().description(
-      'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'
-    ),
-    delayYearsIs30Plus: Joi.boolean().description(
-      'Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input.'
-    ),
     timeMultiplier: Joi.number()
       .allow(null)
       .description(
@@ -253,6 +247,12 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
 )
 
 const postInterventionHabitatProposedSubSchema = Joi.object({
+  advanceYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'
+  ),
+  delayYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input.'
+  ),
   type: Joi.string()
     .allow(null, '')
     .description(

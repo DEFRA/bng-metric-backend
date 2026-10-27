@@ -83,6 +83,17 @@ it('advertises persisted Created-area metadata as boolean columns', () => {
       columns.find((column) => column.jsonPaths.includes(path))
     ).toMatchObject({ type: 'boolean' })
   }
+  for (const layer of ['trees', 'hedgerows', 'watercourses']) {
+    for (const field of ['advanceYearsIs30Plus', 'delayYearsIs30Plus']) {
+      expect(
+        columns.some((column) =>
+          column.jsonPaths.includes(
+            `postIntervention.${layer}[].proposed.${field}`
+          )
+        )
+      ).toBe(false)
+    }
+  }
 })
 
 describe('#buildWarehouseModel — schema coverage', () => {
