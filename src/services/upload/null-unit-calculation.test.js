@@ -355,7 +355,13 @@ describe('BMD-1060 AC5 Lost area replacements follow Created timing rules', () =
 it('legacy Lost area replacements with null timing stay incomplete after resync', () => {
   const feature = makeAreaHabitat({ retentionCategory: undefined })
   feature.baseline.retentionCategory = 'Lost'
-  Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+  Object.assign(feature, { units: 42, status: 'Complete' })
+  Object.assign(feature.proposed, {
+    advanceYears: null,
+    delayYears: null,
+    timeMultiplier: 0.8,
+    finalTimeToTargetCondition: '7 years (0.8)'
+  })
   const result = rederivePostInterventionFromBaseline(
     { habitats: [feature] },
     { baseline: {} }
@@ -364,7 +370,12 @@ it('legacy Lost area replacements with null timing stay incomplete after resync'
     status: 'Incomplete',
     units: null
   })
-  expect(result.habitats[0].proposed.advanceYears).toBeNull()
+  expect(result.habitats[0].proposed).toMatchObject({
+    advanceYears: null,
+    delayYears: null,
+    timeMultiplier: null,
+    finalTimeToTargetCondition: null
+  })
   expect(
     calculators.calculateCreatedAreaHabitatPostIntervention
   ).not.toHaveBeenCalled()
