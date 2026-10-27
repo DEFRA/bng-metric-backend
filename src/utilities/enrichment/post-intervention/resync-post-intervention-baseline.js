@@ -14,6 +14,9 @@
 // path that leaves the two documents to diverge, so it is the path that
 // re-derives.
 //
+// A baseline edit can rename a feature's ref (BMD-1061). The row resolved to it
+// takes the new ref too, so the join holds after the rename.
+//
 // The join key is `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
@@ -232,6 +235,29 @@ function syncFeatureIdentity(feature, source, fields) {
 }
 
 /**
+ * Carry a renamed baseline ref onto the post-intervention row resolved to it
+ * (BMD-1061). The ref is the join key between the two documents, so a row left
+ * on the old ref would lose its baseline parcel on the next edit and the
+ * linear baseline lengths would stop finding it. Rows that could not be
+ * resolved keep their ref — see `resolveBaselineFeature`.
+ *
+ * Resolution runs on the pre-edit baseline, so the row's ref always matched its
+ * source before the edit; a difference now can only be the edit's rename.
+ *
+ * @param {object} feature post-intervention feature, mutated
+ * @param {object} source matching post-edit baseline feature
+ * @returns {boolean} whether the ref changed
+ */
+function syncRef(feature, source) {
+  const next = normaliseRef(source.ref)
+  if (next === null || next === normaliseRef(feature.ref)) {
+    return false
+  }
+  feature.ref = next
+  return true
+}
+
+/**
  * Say that a row could not be resolved, and why — a ref nothing carries reads
  * very differently from a shared ref whose candidates none of this row's
  * imported values identify.
@@ -306,7 +332,13 @@ function resyncLayer(features, index, { layer, logger }) {
   for (const feature of features) {
     const resolved = resolveSource(feature, index)
     if (resolved.source) {
-      if (syncFeatureIdentity(feature, resolved.source, index.fields)) {
+      const identityChanged = syncFeatureIdentity(
+        feature,
+        resolved.source,
+        index.fields
+      )
+      const refChanged = syncRef(feature, resolved.source)
+      if (identityChanged || refChanged) {
         changed += 1
       }
     } else {

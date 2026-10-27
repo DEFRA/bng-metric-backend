@@ -59,12 +59,27 @@ function isMissing(ref) {
 }
 
 /**
+ * Whether a text reference holds characters that are not UTF-8: the
+ * replacement character a decoder puts in place of invalid bytes, or a lone
+ * surrogate, which has no UTF-8 encoding at all. Shared with the feature edit
+ * route, which takes a reference typed into the edit page (BMD-1061) — the
+ * request decoder repairs invalid bytes the same way, and a JSON body can
+ * still carry an escaped lone surrogate that Postgres would refuse to store.
+ *
+ * @param {string} ref
+ * @returns {boolean}
+ */
+export function hasInvalidRefCharacters(ref) {
+  return ref.includes(REPLACEMENT_CHARACTER) || !ref.isWellFormed()
+}
+
+/**
  * A reference that is not UTF-8 text: one the decoder had to repair, or a
  * value SQLite returned as bytes (a BLOB) rather than as text.
  */
 function hasInvalidCharacters(ref) {
   if (typeof ref === 'string') {
-    return ref.includes(REPLACEMENT_CHARACTER)
+    return hasInvalidRefCharacters(ref)
   }
   return typeof ref !== 'number'
 }
