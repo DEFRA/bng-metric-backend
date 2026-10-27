@@ -5,7 +5,8 @@ import { setProjectFeature } from '../db/persist-project.js'
 import {
   getFeature,
   getPostInterventionFeature,
-  updateFeature
+  updateFeature,
+  updatePostInterventionFeatureRef
 } from './features.js'
 
 // The route persists surgically via setProjectFeature (a jsonb_set, not an
@@ -789,5 +790,202 @@ describe('#updateFeature — project with a post-intervention document', () => {
 
     const [, , params] = setProjectFeature.mock.calls[0]
     expect(params.postIntervention).toBeNull()
+  })
+})
+
+describe('#updatePostInterventionFeatureRef — renaming a retained habitat (BMD-1180)', () => {
+  const PI_HABITAT_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // A Retained post-intervention row joined to sampleHabitat by its ref.
+  function projectRowWithRetainedRow(row = {}) {
+    const projectRow = makeProject()
+    projectRow.project.postIntervention = {
+      habitats: [
+        {
+          featureId: PI_HABITAT_ID,
+          ref: '1',
+          retentionCategory: 'Retained',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: 4,
+          status: 'Complete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            advanceYears: 0,
+            delayYears: 0
+          },
+          ...row
+        }
+      ],
+      trees: [],
+      hedgerows: [],
+      watercourses: [],
+      units: { totalUnits: 4, habitatsTotal: 4 }
+    }
+    return projectRow
+  }
+
+  function renameRequest(drizzle, ref = 'P-1', featureId = PI_HABITAT_ID) {
+    return {
+      drizzle,
+      auth: AUTH,
+      logger: { warn: vi.fn() },
+      params: { projectId: PROJECT_ID, featureId },
+      payload: { ref }
+    }
+  }
+
+  test('is a PUT at /projects/{projectId}/post-intervention/features/{featureId}', () => {
+    expect(updatePostInterventionFeatureRef.method).toBe('PUT')
+    expect(updatePostInterventionFeatureRef.path).toBe(
+      '/projects/{projectId}/post-intervention/features/{featureId}'
+    )
+    expect(updatePostInterventionFeatureRef.options.auth).toBe('defra-jwt')
+  })
+
+  test('renames the baseline parcel, the retained row and both geometry rows', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithRetainedRow())
+
+    const result = await updatePostInterventionFeatureRef.handler(
+      renameRequest(drizzle),
+      {}
+    )
+
+    expect(result).toEqual({
+      type: 'habitat',
+      feature: expect.objectContaining({ featureId: PI_HABITAT_ID, ref: 'P-1' })
+    })
+    const [, projectId, params] = setProjectFeature.mock.calls[0]
+    expect(projectId).toBe(PROJECT_ID)
+    expect(params).toMatchObject({
+      documentKey: 'baseline',
+      layer: 'habitats',
+      index: 0,
+      feature: { featureId: HABITAT_ID, ref: 'P-1' },
+      actorId: 'test-user-001'
+    })
+    expect(params.postIntervention.habitats[0].ref).toBe('P-1')
+    expect(drizzle._updateSet.mock.calls).toEqual([
+      [{ ref: 'P-1' }],
+      [{ ref: 'P-1' }]
+    ])
+  })
+
+  test('renames only the row, and its geometry row, when it is linked to its parent by id', async () => {
+    const drizzle = makeTxDrizzle(
+      projectRowWithRetainedRow({ parentFeatureId: HABITAT_ID })
+    )
+
+    await updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
+
+    const [, , params] = setProjectFeature.mock.calls[0]
+    expect(params).toMatchObject({
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: { featureId: PI_HABITAT_ID, ref: 'P-1' },
+      unitsTotals: { totalUnits: 4, habitatsTotal: 4 },
+      postIntervention: null
+    })
+    expect(drizzle._updateSet.mock.calls).toEqual([[{ ref: 'P-1' }]])
+  })
+
+  test('touches no geometry row when the reference is unchanged', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithRetainedRow())
+
+    await updatePostInterventionFeatureRef.handler(
+      renameRequest(drizzle, ' 1 '),
+      {}
+    )
+
+    expect(drizzle._tx.update).not.toHaveBeenCalled()
+  })
+
+  test('throws 400 for a habitat that is not Retained, and saves nothing', async () => {
+    const drizzle = makeTxDrizzle(
+      projectRowWithRetainedRow({ retentionCategory: 'Enhanced' })
+    )
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
+    ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 400 } })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('throws 404 when the project does not exist', async () => {
+    const drizzle = makeTxDrizzle(null)
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
+    ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 404 } })
+  })
+
+  test('throws 404 when no post-intervention row has the id', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithRetainedRow())
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(
+        renameRequest(drizzle, 'P-1', UNKNOWN_FEATURE_ID),
+        {}
+      )
+    ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 404 } })
+  })
+
+  test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
+    const lockError = Object.assign(new Error('lock_not_available'), {
+      code: PG_LOCK_NOT_AVAILABLE
+    })
+    const drizzle = makeTxDrizzle(projectRowWithRetainedRow(), { lockError })
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
+    ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 409 } })
+  })
+
+  test('passes on an error that is not a lock timeout', async () => {
+    const drizzle = makeTxDrizzle(projectRowWithRetainedRow(), {
+      lockError: new Error('connection lost')
+    })
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
+    ).rejects.toThrow('connection lost')
+  })
+})
+
+describe('updatePostInterventionFeatureRef validation', () => {
+  const payloadSchema =
+    updatePostInterventionFeatureRef.options.validate.payload
+
+  test('accepts a reference, trimmed', () => {
+    expect(payloadSchema.validate({ ref: '  P-1  ' })).toEqual({
+      value: { ref: 'P-1' }
+    })
+  })
+
+  test('requires a reference', () => {
+    expect(payloadSchema.validate({}).error).toBeDefined()
+  })
+
+  test.each([
+    ['blank', ''],
+    ['whitespace-only', '   '],
+    ['not valid UTF-8', 'A\uFFFD1'],
+    ['a lone surrogate', 'A\uD8001']
+  ])('rejects a reference that is %s', (_label, ref) => {
+    expect(payloadSchema.validate({ ref }).error).toBeDefined()
+  })
+
+  test('rejects any other attribute: nothing else on a Retained habitat is editable', () => {
+    expect(
+      payloadSchema.validate({ ref: 'P-1', condition: 'Good' }).error
+    ).toBeDefined()
   })
 })

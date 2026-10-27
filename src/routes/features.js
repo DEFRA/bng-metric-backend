@@ -10,9 +10,17 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
+import {
+  RETAINED_REF_RESULT,
+  applyRetainedRefEdit
+} from '../utilities/features/apply-retained-ref-edit.js'
 import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
-import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
+import {
+  featureEditPayload,
+  projectFeatureIdParams,
+  retainedRefEditPayload
+} from './shared-params.js'
 import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
 
 /**
@@ -197,36 +205,103 @@ const updateFeature = {
       payload: featureEditPayload
     }
   },
-  handler: async (request, _h) => {
-    const credentials = request.auth.credentials
-    const { projectId, featureId } = request.params
+  handler: (request, _h) =>
+    runInEditTransaction(request, (tx, context) =>
+      runFeatureUpdate(tx, { ...context, edits: request.payload })
+    )
+}
 
-    try {
-      return await request.drizzle.transaction((tx) =>
-        runFeatureUpdate(tx, {
-          projectId,
-          featureId,
-          edits: request.payload,
-          credentials,
-          logger: request.logger
-        })
-      )
-    } catch (err) {
-      if (err?.isBoom) {
-        throw err
-      }
-      if (err?.code === PG_LOCK_NOT_AVAILABLE) {
-        throw Boom.conflict('Another edit for this project is in progress')
-      }
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/features/{featureId}:
+ *   put:
+ *     tags:
+ *       - Projects
+ *     summary: Rename a retained post-intervention habitat
+ *     description: |
+ *       Saves a new habitat reference for a Retained post-intervention area
+ *       habitat, hedgerow or watercourse (BMD-1180), and returns the
+ *       post-intervention feature as `{ type, feature }`. Nothing else on a
+ *       Retained habitat is editable.
+ *
+ *       The reference follows the import rules (BMD-1058): a blank or
+ *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
+ *       one longer than 100 characters is trimmed and truncated.
+ *
+ *       A Retained habitat is joined to its baseline parcel by reference, so
+ *       the rename is made to that parcel and carried onto every
+ *       post-intervention row joined to it, as a baseline rename is
+ *       (BMD-1061). A habitat linked to its parent by id (BNG Service template)
+ *       or whose baseline parcel cannot be told apart is renamed alone. The
+ *       stored geometry rows follow.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref]
+ *             properties:
+ *               ref:
+ *                 type: string
+ *                 description: Habitat reference (Parcel Ref)
+ *     responses:
+ *       200:
+ *         description: Returns the renamed post-intervention feature with its type
+ *       400:
+ *         description: Invalid payload (e.g. a blank habitat reference), or the feature is not a Retained area habitat, hedgerow or watercourse
+ *       404:
+ *         description: Project or feature not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+const updatePostInterventionFeatureRef = {
+  method: 'PUT',
+  path: '/projects/{projectId}/post-intervention/features/{featureId}',
+  options: {
+    auth: 'defra-jwt',
+    validate: {
+      params: projectFeatureIdParams,
+      payload: retainedRefEditPayload
+    }
+  },
+  handler: (request, _h) =>
+    runInEditTransaction(request, (tx, context) =>
+      runRetainedRefUpdate(tx, { ...context, ref: request.payload.ref })
+    )
+}
+
+/**
+ * Run an edit in its own transaction, turning a lock that could not be taken
+ * into a 409.
+ *
+ * @param {object} request
+ * @param {(tx: object, context: object) => Promise<object>} run
+ */
+async function runInEditTransaction(request, run) {
+  const context = {
+    ...request.params,
+    credentials: request.auth.credentials,
+    logger: request.logger
+  }
+  try {
+    return await request.drizzle.transaction((tx) => run(tx, context))
+  } catch (err) {
+    if (err?.isBoom) {
       throw err
     }
+    if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+      throw Boom.conflict('Another edit for this project is in progress')
+    }
+    throw err
   }
 }
 
-async function runFeatureUpdate(
-  tx,
-  { projectId, featureId, edits, credentials, logger }
-) {
+/** Lock the project row for the edit, or 404 when the user cannot see it. */
+async function lockVisibleProject(tx, projectId, credentials) {
   await tx.execute(sql`SET LOCAL lock_timeout = '5s'`)
 
   const [row] = await tx
@@ -238,6 +313,43 @@ async function runFeatureUpdate(
   if (!row) {
     throw Boom.notFound(`Project ${projectId} not found`)
   }
+  return row
+}
+
+/**
+ * Write the edited feature, its document's totals and any re-derived
+ * post-intervention document, then rename the geometry rows that follow.
+ */
+async function persistFeatureEdit(
+  tx,
+  { projectId, project, documentKey, result, actorId }
+) {
+  await setProjectFeature(tx, projectId, {
+    documentKey,
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals,
+    postIntervention: result.postIntervention,
+    actorId
+  })
+  await setGeometryRefs(
+    tx,
+    projectId,
+    listRenamedRefs(project, {
+      documentKey,
+      layer: result.layer,
+      feature: result.feature,
+      postIntervention: result.postIntervention
+    })
+  )
+}
+
+async function runFeatureUpdate(
+  tx,
+  { projectId, featureId, edits, credentials, logger }
+) {
+  const row = await lockVisibleProject(tx, projectId, credentials)
 
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
@@ -258,27 +370,53 @@ async function runFeatureUpdate(
     throw outOfScopeDistinctivenessError(result.distinctiveness)
   }
 
-  await setProjectFeature(tx, projectId, {
+  await persistFeatureEdit(tx, {
+    projectId,
+    project: row.project ?? {},
     documentKey: 'baseline',
-    layer: result.layer,
-    index: result.index,
-    feature: result.feature,
-    unitsTotals: result.unitsTotals,
-    postIntervention: result.postIntervention,
+    result,
     actorId: credentials.sub
   })
-  await setGeometryRefs(
-    tx,
-    projectId,
-    listRenamedRefs(row.project ?? {}, {
-      documentKey: 'baseline',
-      layer: result.layer,
-      feature: result.feature,
-      postIntervention: result.postIntervention
-    })
-  )
 
   return { type: result.type, feature: result.feature }
 }
 
-export { getFeature, getPostInterventionFeature, updateFeature }
+async function runRetainedRefUpdate(
+  tx,
+  { projectId, featureId, ref, credentials, logger }
+) {
+  const row = await lockVisibleProject(tx, projectId, credentials)
+
+  const result = applyRetainedRefEdit(row.project ?? {}, {
+    featureId,
+    ref,
+    logger
+  })
+  if (result.status === RETAINED_REF_RESULT.FEATURE_NOT_FOUND) {
+    throw Boom.notFound(
+      `Feature ${featureId} not found in project ${projectId}`
+    )
+  }
+  if (result.status === RETAINED_REF_RESULT.NOT_RETAINED) {
+    throw Boom.badRequest(
+      'Only the reference of a Retained area habitat, hedgerow or watercourse can be edited via this endpoint'
+    )
+  }
+
+  await persistFeatureEdit(tx, {
+    projectId,
+    project: row.project ?? {},
+    documentKey: result.documentKey,
+    result,
+    actorId: credentials.sub
+  })
+
+  return { type: result.type, feature: result.postInterventionFeature }
+}
+
+export {
+  getFeature,
+  getPostInterventionFeature,
+  updateFeature,
+  updatePostInterventionFeatureRef
+}

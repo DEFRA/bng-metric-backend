@@ -18,7 +18,8 @@ import {
 import {
   getFeature,
   getPostInterventionFeature,
-  updateFeature
+  updateFeature,
+  updatePostInterventionFeatureRef
 } from '../routes/features.js'
 import { initiateUpload, uploadStatus } from '../routes/upload.js'
 import { validateBaseline } from '../routes/baseline.js'
@@ -61,6 +62,7 @@ const router = {
         getFeature,
         getPostInterventionFeature,
         updateFeature,
+        updatePostInterventionFeatureRef,
         initiateUpload,
         uploadStatus,
         validateBaseline,
