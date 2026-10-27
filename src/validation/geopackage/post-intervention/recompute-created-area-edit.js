@@ -5,6 +5,7 @@ import {
   OVER_MAX_YEARS
 } from 'bng-library/metric'
 import { getAreaCreationReference } from '../../reference/area-creation.js'
+import { clearEngineDerivedProposedFields } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-shared.js'
 import { pricedAreaHectares } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
 import {
   resolveAdvanceOrDelay,
@@ -131,7 +132,7 @@ function applyCalculation(feature, sizeHa, type, condition) {
 }
 
 // Standard difficulty is type-derived. Saved units and applied multipliers use
-// the same metric calculator as import; partial edits preserve independent values.
+// the same metric calculator as import; incomplete saves clear pricing results.
 export function recomputeCreatedAreaEdit(existing, edits) {
   const feature = structuredClone(existing)
   const reference = getAreaCreationReference()
@@ -155,6 +156,8 @@ export function recomputeCreatedAreaEdit(existing, edits) {
   feature.units = null
   if (complete) {
     applyCalculation(feature, sizeHa, type, condition)
+  } else {
+    clearEngineDerivedProposedFields(feature)
   }
   feature.status = complete ? 'Complete' : 'Incomplete'
   return {

@@ -106,3 +106,9 @@ because the user chose the same reference; valid Lost replacements and split
 parcels retain their original baseline association. `referenceEdited` confines
 this protection to user-renamed Created areas; untouched template and legacy
 rows keep their baseline-reference rename behaviour.
+
+Incomplete Created-area saves retain the entered attributes but clear all
+engine-derived pricing fields, with null units and Incomplete status. Baseline
+resync applies the same clearing rule. The editor derives available labels
+from the current reference data; saved pricing is populated only when the
+required inputs permit a calculation.

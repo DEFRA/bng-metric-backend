@@ -532,7 +532,13 @@ describe('BMD-1048 Created area editing', () => {
     expect(partial.result).toMatchObject({
       units: null,
       status: 'Incomplete',
-      proposed: { delayYears: null, finalTimeToTargetCondition: null }
+      proposed: {
+        delayYears: null,
+        distinctiveness: null,
+        difficulty: null,
+        difficultyMultiplier: null,
+        finalTimeToTargetCondition: null
+      }
     })
     const incomplete = await readProject()
     expect(incomplete.project.postIntervention.habitats[0]).toEqual(

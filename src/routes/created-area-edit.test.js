@@ -174,30 +174,37 @@ describe('BMD-1048 Created area edits', () => {
     expect(result.unitsTotals.habitatsTotal).toBe(4)
   })
 
-  test('an incomplete Created edit stays unpriced after a baseline resync', () => {
-    const edited = update({ advanceYears: null }).feature
-    expect(edited).toMatchObject({ units: null, status: 'Incomplete' })
-    const rederived = rederivePostInterventionFromBaseline(
-      { habitats: [edited] },
-      { baseline: {} }
-    )
-    expect(rederived.habitats[0]).toMatchObject({
-      units: null,
-      status: 'Incomplete'
-    })
-  })
-
-  test('partial edits retain independent derived values and clear dependent ones', () => {
-    const result = update({ condition: null })
-    expect(result.feature.proposed).toMatchObject({
-      distinctiveness: 'Low',
-      difficulty: 'Low',
-      difficultyMultiplier: 1,
-      standardTimeToTargetCondition: null,
-      finalTimeToTargetCondition: null,
-      timeMultiplier: null
-    })
-  })
+  test.each([
+    'condition',
+    'strategicSignificance',
+    'advanceYears',
+    'delayYears'
+  ])(
+    'incomplete %s pricing stays identical after a baseline resync',
+    (field) => {
+      const edited = update({ [field]: null }).feature
+      const rederived = rederivePostInterventionFromBaseline(
+        { habitats: [edited] },
+        { baseline: {} }
+      ).habitats[0]
+      for (const row of [edited, rederived]) {
+        expect(row).toMatchObject({ units: null, status: 'Incomplete' })
+        expect(row.proposed).toMatchObject({
+          distinctiveness: null,
+          distinctivenessScore: null,
+          difficulty: null,
+          difficultyMultiplier: null,
+          conditionScore: null,
+          standardTimeToTargetCondition: null,
+          finalTimeToTargetCondition: null,
+          timeMultiplier: null
+        })
+        expect(
+          row.proposed[field === 'condition' ? 'condition' : field]
+        ).toBeNull()
+      }
+    }
+  )
 
   test('30+ survives persistence validation and uses engine overflow time multiplier', () => {
     const result = update({ delayYears: '30+' })
@@ -293,15 +300,6 @@ describe('BMD-1048 Created area edits', () => {
       })
     }
   )
-
-  test('partial edits share the timing bucket rule with display enrichment', () => {
-    const result = update({ strategicSignificance: null, advanceYears: 10 })
-    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
-    expect(result.feature.proposed).toMatchObject({
-      timeMultiplier: 1,
-      finalTimeToTargetCondition: '0 years (1)'
-    })
-  })
 
   test('every offered strategic significance is accepted by the edit schema', () => {
     for (const { value } of getAreaCreationReference().strategicSignificance) {
