@@ -43,7 +43,9 @@ import {
  *   Retained or Enhanced. An area habitat or hedgerow gets worse by a lower
  *   condition, and is created 30+ years in advance (guide, "Habitat
  *   retention"). A watercourse gets worse by a lower condition, more
- *   encroachment or a shorter length (guide, watercourse interventions).
+ *   encroachment or a shorter length (guide, watercourse interventions);
+ *   its length is the parent's same-type Created rows together, so a
+ *   watercourse drawn in pieces is not shorter for that alone.
  *   A Created row of its parent's type with a delay is not degraded: it is a
  *   habitat lost for a time and put back (guide, "Accounting for temporary
  *   losses"), which the delay already discounts, so it may be in any
@@ -189,14 +191,30 @@ function checkWatercourseFamily(parent, children, context) {
 const isPutBack = (properties) =>
   (parseProposedAdvanceDelayYears(properties[DELAY]) ?? 0) > 0
 
+/** Whether a row is Created in its parent's habitat type. */
+const isCreatedInOwnType = (layer, parent, child) =>
+  isCreated(child.properties) &&
+  isSameHabitatType(
+    baselineSide(layer, parent.properties),
+    proposedSide(layer, child.properties)
+  )
+
+/**
+ * The length of a parent's same-type Created children together: what the
+ * watercourse became, however many pieces it is drawn in.
+ */
+const createdInOwnTypeMetres = (layer, parent, children) =>
+  children
+    .filter((child) => isCreatedInOwnType(layer, parent, child))
+    .reduce((sum, child) => sum + measured(child), 0)
+
 /** A degraded row that is not worse, or not created 30+ years in advance. */
-function checkDegradedRow(parent, child, context) {
+function checkDegradedRow(parent, child, children, context) {
   const { layer, tables, found } = context
   const parentSide = baselineSide(layer, parent.properties)
   const childSide = proposedSide(layer, child.properties)
   if (
-    !isCreated(child.properties) ||
-    !isSameHabitatType(parentSide, childSide) ||
+    !isCreatedInOwnType(layer, parent, child) ||
     isPutBack(child.properties)
   ) {
     return
@@ -205,7 +223,10 @@ function checkDegradedRow(parent, child, context) {
   if (layer === 'watercourses') {
     const change = watercourseChange(
       { side: parentSide, lengthMetres: measured(parent) },
-      { side: childSide, lengthMetres: measured(child) }
+      {
+        side: childSide,
+        lengthMetres: createdInOwnTypeMetres(layer, parent, children)
+      }
     )
     if (!change.worse) {
       found.noIntervention.push(row())
@@ -238,7 +259,7 @@ function checkLayer(layer, baseline, postIntervention, found) {
       checkWatercourseFamily(parent, children, context)
     }
     for (const child of children) {
-      checkDegradedRow(parent, child, context)
+      checkDegradedRow(parent, child, children, context)
     }
   }
 }

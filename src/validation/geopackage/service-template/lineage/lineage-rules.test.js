@@ -617,6 +617,92 @@ describe('checkLineageRules', () => {
       ])
     })
 
+    /** Two Created pieces of `parent`, `metres` long each, end to end. */
+    const pieces = (parent, [first, second], overrides = [{}, {}]) => [
+      degraded(parent, 'watercourses', {
+        'Parcel Ref': 'R001a',
+        'Habitat created in advance/years': '0',
+        geometry: line(first),
+        ...overrides[0]
+      }),
+      degraded(parent, 'watercourses', {
+        fid: 2,
+        'Parcel Ref': 'R001b',
+        'Habitat created in advance/years': '0',
+        geometry: line(second, first),
+        ...overrides[1]
+      })
+    ]
+
+    it('refuses one drawn in pieces with no intervention: together they are its length, naming each piece', () => {
+      const parent = river(1, 100)
+
+      const errors = check(
+        { watercourses: [parent] },
+        { watercourses: pieces(parent, [50, 50]) }
+      )
+
+      expect(codes(errors)).toEqual([
+        ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION
+      ])
+      expect(errors[0].details.sample).toEqual([
+        expect.objectContaining({ ref: 'R001a', parentRef: 'R001' }),
+        expect.objectContaining({ ref: 'R001b', parentRef: 'R001' })
+      ])
+    })
+
+    it('passes pieces shorter than it together', () => {
+      const parent = river(1, 100)
+
+      expect(
+        check(
+          { watercourses: [parent] },
+          { watercourses: pieces(parent, [50, 40]) }
+        )
+      ).toEqual([])
+    })
+
+    it('judges the condition of each piece on its own', () => {
+      const parent = river(1, 100)
+
+      const errors = check(
+        { watercourses: [parent] },
+        {
+          watercourses: pieces(
+            parent,
+            [50, 50],
+            [{ 'Proposed Condition': 'Poor' }, {}]
+          )
+        }
+      )
+
+      expect(codes(errors)).toEqual([
+        ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION
+      ])
+      expect(errors[0].details.sample).toEqual([
+        expect.objectContaining({ ref: 'R001b' })
+      ])
+    })
+
+    it('counts a piece put back after a temporary loss in its length', () => {
+      const parent = river(1, 100)
+
+      const errors = check(
+        { watercourses: [parent] },
+        {
+          watercourses: pieces(
+            parent,
+            [50, 50],
+            [{}, { 'Delay in starting habitat creation/years': '3' }]
+          )
+        }
+      )
+
+      expect(errors[0].details.sample).toEqual([
+        expect.objectContaining({ ref: 'R001a' })
+      ])
+    })
+
     it('passes one put back after a temporary loss, with a delay and no intervention', () => {
       const parent = river(1, 100)
 
