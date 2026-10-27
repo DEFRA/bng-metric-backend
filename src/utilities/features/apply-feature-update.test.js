@@ -1358,3 +1358,115 @@ describe('applyFeatureUpdate — enhancement rules', () => {
     expect(habitat.invalidEnhancement).toBe('low-area')
   })
 })
+
+describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () => {
+  const PI_HABITAT_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+  const KEEP_HABITAT = {
+    broadType: 'Grassland',
+    habitatType: 'Modified grassland',
+    condition: 'Poor'
+  }
+
+  function projectWithPostIntervention() {
+    const project = projectFixture()
+    project.postIntervention = {
+      habitats: [
+        {
+          featureId: PI_HABITAT_ID,
+          ref: 'A1',
+          retentionCategory: 'Retained',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: 4,
+          status: 'Complete',
+          baseline: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor'
+          },
+          proposed: {
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Poor',
+            advanceYears: 0,
+            delayYears: 0
+          }
+        }
+      ],
+      trees: [],
+      hedgerows: [],
+      watercourses: [],
+      units: { totalUnits: 4, habitatsTotal: 4 }
+    }
+    return project
+  }
+
+  test('saves a new reference on a baseline area habitat', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'B-A1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.ref).toBe('B-A1')
+    expect(result.project.baseline.habitats[0].ref).toBe('B-A1')
+  })
+
+  test('saves a new reference on a baseline hedgerow', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: null, condition: null, ref: 'B-H1' }
+    })
+
+    expect(result.feature.ref).toBe('B-H1')
+  })
+
+  test('keeps the stored reference when the edit does not send one', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: KEEP_HABITAT
+    })
+
+    expect(result.feature.ref).toBe('A1')
+  })
+
+  test('trims the reference and truncates it to 100 characters, as an import does (BMD-1058)', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: `  ${'x'.repeat(120)}  ` }
+    })
+
+    expect(result.feature.ref).toBe('x'.repeat(100))
+  })
+
+  test('keeps the stored reference when the edit sends a blank one', () => {
+    // The route refuses a blank ref; the apply step still never stores one.
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: '   ' }
+    })
+
+    expect(result.feature.ref).toBe('A1')
+  })
+
+  test('renames the post-intervention row joined to the renamed baseline habitat', () => {
+    const result = applyFeatureUpdate(projectWithPostIntervention(), {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'B-A1' }
+    })
+
+    expect(result.postIntervention.habitats[0].ref).toBe('B-A1')
+  })
+
+  test('ignores a reference sent with a post-intervention edit', () => {
+    const project = projectWithPostIntervention()
+    const result = applyFeatureUpdate(project, {
+      featureId: PI_HABITAT_ID,
+      documentKey: 'postIntervention',
+      edits: { ...KEEP_HABITAT, ref: 'P-A1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.ref).toBe('A1')
+  })
+})

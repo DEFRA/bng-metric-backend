@@ -658,4 +658,18 @@ describe('updateAreaHabitat validation', () => {
   test('accepts an empty payload (all fields optional, treated as deselected)', () => {
     expect(payloadSchema.validate({}).error).toBeUndefined()
   })
+
+  test.each([
+    ['updateAreaHabitat', updateAreaHabitat],
+    ['updatePostInterventionAreaHabitat', updatePostInterventionAreaHabitat]
+  ])(
+    '%s refuses a habitat reference, which it would not save (BMD-1061)',
+    (_name, route) => {
+      const { error } = route.options.validate.payload.validate({
+        ref: 'B-A1',
+        condition: 'Good'
+      })
+      expect(error?.message).toBe('"ref" is not allowed')
+    }
+  )
 })

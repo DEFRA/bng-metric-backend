@@ -3,12 +3,14 @@ import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
+import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
@@ -128,16 +130,23 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *   put:
  *     tags:
  *       - Projects
- *     summary: Save dropdown edits to one baseline feature
+ *     summary: Save edits to one baseline feature
  *     description: |
- *       Persists habitat-type / condition (and broad-type for area habitats)
- *       selections, recomputes distinctiveness / condition score / units /
+ *       Persists the habitat reference (BMD-1061) and the habitat-type /
+ *       condition (and broad-type for area habitats) selections, recomputes distinctiveness / condition score / units /
  *       status, refreshes the project-level units totals, then returns
  *       `{ type, feature }`. The feature type is discovered from the data,
  *       so a single endpoint handles habitats, hedgerows and watercourses.
  *       Watercourse edits also persist the watercourse/riparian encroachment
  *       selections and recompute units from the engine's encroachment
  *       multipliers (BMD-597).
+ *
+ *       `ref` is optional; leaving it out keeps the stored reference. When
+ *       sent it follows the import rules (BMD-1058): a blank or
+ *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
+ *       one longer than 100 characters is trimmed and truncated. A renamed
+ *       reference is carried onto the post-intervention rows joined to the
+ *       feature, and onto the stored geometry rows.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -148,6 +157,9 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *           schema:
  *             type: object
  *             properties:
+ *               ref:
+ *                 type: string
+ *                 description: Habitat reference (Parcel Ref)
  *               broadType:
  *                 type: string
  *                 nullable: true
@@ -167,7 +179,7 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Feature type is not editable via this endpoint (e.g. an individual tree)
+ *         description: Invalid payload (e.g. a blank habitat reference), or the feature type is not editable via this endpoint (e.g. an individual tree)
  *       404:
  *         description: Project or feature not found
  *       422:
@@ -255,6 +267,16 @@ async function runFeatureUpdate(
     postIntervention: result.postIntervention,
     actorId: credentials.sub
   })
+  await setGeometryRefs(
+    tx,
+    projectId,
+    listRenamedRefs(row.project ?? {}, {
+      documentKey: 'baseline',
+      layer: result.layer,
+      feature: result.feature,
+      postIntervention: result.postIntervention
+    })
+  )
 
   return { type: result.type, feature: result.feature }
 }
