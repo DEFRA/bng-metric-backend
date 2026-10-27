@@ -65,6 +65,16 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * One or more Enhanced rows enhance a baseline habitat the service cannot
+   * enhance at all, such as a Medium habitat in Good condition (BMD-1182). The
+   * file is refused rather than the enhancement nulled. One error for them
+   * all; `details.sample` lists each row's layer, Habitat Ref, baseline
+   * habitat, condition and distinctiveness, and the rule it breaks. The
+   * frontend sends the user to the drop-out page.
+   */
+  BASELINE_NOT_ENHANCEABLE: 'BASELINE_NOT_ENHANCEABLE',
+
+  /**
    * A tree point's "Count" is filled in but is not a whole number of trees
    * (1 or more). The template declares the column an integer, so there is no
    * right way to price 2.5 trees; the user corrects the file instead.

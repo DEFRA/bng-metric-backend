@@ -1,10 +1,11 @@
-import { ENHANCEMENT_RULE } from 'bng-library/metric'
+import { ENHANCEMENT_RULE, UNENHANCEABLE_BASELINE } from 'bng-library/metric'
 import { describe, expect, it, vi } from 'vitest'
 
 import {
   extractAndValidateDocument,
   saveHandlersForConfig
 } from '../../../services/upload/save-upload-for-project.js'
+import { ERROR_CODES } from '../errors.js'
 import {
   ENHANCEMENT_INVALID_EVENT,
   rejectInvalidEnhancements
@@ -242,13 +243,23 @@ describe('importing a post-intervention file', () => {
     return { ...row, featureId: FEATURE_IDS[ref] }
   }
 
-  function areaRow(ref, { proposedType, proposedCondition }) {
+  function areaRow(
+    ref,
+    {
+      proposedType,
+      proposedCondition,
+      baselineType = 'Modified grassland',
+      baselineCondition = 'Moderate',
+      extra = {}
+    }
+  ) {
     const row = feature({
+      ...extra,
       'Parcel Ref': ref,
       'Retention Category': 'Enhanced',
       'Baseline Broad Habitat Type': 'Grassland',
-      'Baseline Habitat Type': 'Modified grassland',
-      'Baseline Condition': 'Moderate',
+      'Baseline Habitat Type': baselineType,
+      'Baseline Condition': baselineCondition,
       'Proposed Broad Habitat Type': 'Grassland',
       'Proposed Habitat Type': proposedType,
       'Proposed Condition': proposedCondition,
@@ -279,7 +290,7 @@ describe('importing a post-intervention file', () => {
     return withFeatureId(row, ref)
   }
 
-  function importDocument(layers) {
+  function importDocument(layers, { template, baselineDocument } = {}) {
     return extractAndValidateDocument({
       handlers: saveHandlersForConfig({
         projectDocumentKey: 'postIntervention'
@@ -298,8 +309,10 @@ describe('importing a post-intervention file', () => {
       context: {
         uploadId: '11111111-1111-4111-8111-111111111111',
         filename: 'post.gpkg',
-        fileSize: 1
+        fileSize: 1,
+        template
       },
+      ...(baselineDocument ? { baselineDocument } : {}),
       logger: { warn: vi.fn(), info: vi.fn() },
       config: { projectDocumentKey: 'postIntervention' },
       habitatSizes: {
@@ -374,5 +387,95 @@ describe('importing a post-intervention file', () => {
       riparianEncroachment: null
     })
     expect(geometries.watercourses).toHaveLength(1)
+  })
+
+  describe('BMD-1182: an enhanced baseline the service cannot enhance', () => {
+    const NEUTRAL_GRASSLAND = 'Other neutral grassland'
+    const PARENT_ID = '11111111-1111-4111-8111-0000000000aa'
+    const PARENT_UUID = '22222222-2222-4222-8222-0000000000aa'
+    const TEMPLATE = { name: 'bng-service', version: '1.0.0' }
+
+    function enhancedNeutralGrassland(baselineCondition, extra) {
+      return areaRow('VALID', {
+        baselineType: NEUTRAL_GRASSLAND,
+        baselineCondition,
+        proposedType: NEUTRAL_GRASSLAND,
+        proposedCondition: 'Good',
+        extra
+      })
+    }
+
+    function templateBaseline(condition) {
+      return {
+        habitats: [
+          {
+            featureId: PARENT_ID,
+            ref: 'VALID',
+            broadType: 'Grassland',
+            type: NEUTRAL_GRASSLAND,
+            condition,
+            properties: { feature_uuid: PARENT_UUID }
+          }
+        ],
+        watercourses: []
+      }
+    }
+
+    it('refuses a legacy file, reading its Baseline columns, before anything is priced', () => {
+      const { document, validationError, schemaError } = importDocument({
+        areas: [enhancedNeutralGrassland('3. Good')],
+        watercourses: []
+      })
+
+      expect(schemaError).toBeUndefined()
+      expect(validationError).toMatchObject({
+        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+        details: {
+          count: 1,
+          sample: [
+            expect.objectContaining({
+              feature_ref: 'VALID',
+              habitat_type: 'Grassland - Other neutral grassland',
+              condition: 'Good',
+              rule: UNENHANCEABLE_BASELINE.MEDIUM_AREA_GOOD
+            })
+          ]
+        }
+      })
+      expect(document.habitats[0].units).toBeNull()
+      expect(document.habitats[0]).not.toHaveProperty('invalidEnhancement')
+    })
+
+    it("refuses a template file whose row's parent is in Good condition, though the row's copy says Moderate", () => {
+      const { validationError } = importDocument(
+        {
+          areas: [
+            enhancedNeutralGrassland('Moderate', { parent_uuid: PARENT_UUID })
+          ],
+          watercourses: []
+        },
+        { template: TEMPLATE, baselineDocument: templateBaseline('Good') }
+      )
+
+      expect(validationError).toMatchObject({
+        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+        details: { sample: [expect.objectContaining({ condition: 'Good' })] }
+      })
+    })
+
+    it("accepts a template file whose row's parent can be enhanced", () => {
+      const { validationError, document } = importDocument(
+        {
+          areas: [
+            enhancedNeutralGrassland('Good', { parent_uuid: PARENT_UUID })
+          ],
+          watercourses: []
+        },
+        { template: TEMPLATE, baselineDocument: templateBaseline('Moderate') }
+      )
+
+      expect(validationError).toBeUndefined()
+      expect(document.habitats[0].parentFeatureId).toBe(PARENT_ID)
+    })
   })
 })

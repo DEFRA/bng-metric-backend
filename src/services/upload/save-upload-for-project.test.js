@@ -495,6 +495,52 @@ describe('saveUploadForProject', () => {
       expect(persistCombinedUpload).not.toHaveBeenCalled()
     })
 
+    it('BMD-1182 refuses a file that enhances a baseline that cannot be enhanced, and saves neither document', async () => {
+      extractHabitatData.mockReturnValue({
+        document: { habitats: [{ ref: 'H1' }] },
+        geometries: { habitats: [] }
+      })
+      extractPostIntervention.mockReturnValueOnce({
+        document: {
+          habitats: [
+            {
+              ref: 'H1',
+              retentionCategory: 'Enhanced',
+              baseline: {
+                broadType: 'Grassland',
+                type: 'Other neutral grassland',
+                condition: 'Good'
+              },
+              proposed: {
+                broadType: 'Grassland',
+                type: 'Other neutral grassland',
+                condition: 'Good'
+              }
+            }
+          ]
+        },
+        geometries: {}
+      })
+
+      const result = await saveCombined(
+        COMBINED_LAYERS,
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(result).toBe(h)
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE
+          })
+        ]
+      })
+      expect(enrichPostInterventionDocumentWithUnits).not.toHaveBeenCalled()
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(persistUpload).not.toHaveBeenCalled()
+    })
+
     it('rejects the upload without persisting when the derived baseline fails its schema', async () => {
       habitatDataSchema.validate.mockReturnValue({
         error: { message: '"habitats[0].status" is required' }
