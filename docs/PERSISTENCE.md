@@ -89,3 +89,19 @@ write, and the audit-log integration tests verify actor, timestamp and snapshots
    `.insert/.update(projects)` directly — the lint rule will reject it.
 3. If you introduced a new field, add it to `src/validation/project.js` (with a
    `.description()`) and run `npm run data-dictionary`.
+
+## Proposed timing and downstream exports
+
+Created-area edits preserve the `30+` timing selection as a string, alongside
+numeric years and nulls in the existing JSONB document. The metric accepts this
+legacy alias as 30 input years; the separate standard time-to-target `>30`
+bucket still denotes more than 30 years. Imports, legacy edits and timing
+summaries must handle the alias consistently.
+
+This requires no Postgres schema migration in this service: these attributes
+are JSONB fields. The generated warehouse ERD describes them as text because
+the payload is no longer exclusively numeric. The external warehouse loader
+and DDL are not maintained in this repository. Before deploying this contract,
+its owners must support numeric values, `30+` and null rather than blindly
+casting these fields to numeric. Regenerating the ERD does not migrate that
+external database.

@@ -151,7 +151,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             broadType,
             habitatType,
             condition,
-            edits: request.payload,
+            edits: createdAreaEdits(request.payload),
             documentKey,
             credentials,
             logger: request.logger
@@ -179,6 +179,18 @@ const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
   path: '/projects/{projectId}/post-intervention/habitats/{featureId}',
   documentKey: 'postIntervention'
 })
+
+function createdAreaEdits(payload) {
+  if (!Object.hasOwn(payload, 'ref')) {
+    return {}
+  }
+  return {
+    ref: payload.ref,
+    strategicSignificance: payload.strategicSignificance,
+    advanceYears: payload.advanceYears,
+    delayYears: payload.delayYears
+  }
+}
 
 async function runUpdate(
   tx,

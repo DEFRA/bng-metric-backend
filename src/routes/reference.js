@@ -1,22 +1,6 @@
 import Joi from 'joi'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 
-/**
- * @openapi
- * /reference/area-creation:
- *   get:
- *     tags: [Reference]
- *     summary: Area creation habitat types, valid target conditions, difficulty and temporal multipliers
- *     responses:
- *       200:
- *         description: Area-only creation reference data, excluding trees, IGGIs and impossible target conditions
- */
-export const getAreaCreation = {
-  method: 'GET',
-  path: '/reference/area-creation',
-  options: { auth: false },
-  handler: () => getAreaCreationReference()
-}
 import { asc } from 'drizzle-orm'
 import { localPlanningAuthorities } from '../db/schema/index.js'
 
@@ -34,6 +18,23 @@ import {
   tradingRulesByDistinctiveness,
   watercourseTradingRulesByDistinctiveness
 } from '../validation/reference/habitat-reference.js'
+
+/**
+ * @openapi
+ * /reference/area-creation:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Area creation habitat types, valid target conditions, difficulty and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: Area-only creation reference data, excluding trees, IGGIs and impossible target conditions
+ */
+export const getAreaCreation = {
+  method: 'GET',
+  path: '/reference/area-creation',
+  options: { auth: false },
+  handler: () => getAreaCreationReference()
+}
 
 /**
  * @openapi

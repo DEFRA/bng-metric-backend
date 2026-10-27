@@ -33,6 +33,30 @@ export function validateCreatedAreaEdit(feature, edits) {
       'These attributes can only be edited on Created areas'
     )
   }
+  validateReferenceAndTiming(edits)
+  validateAreaChoices(edits)
+}
+
+function validateAreaChoices(edits) {
+  const reference = getAreaCreationReference()
+  const type = reference.habitatTypes.find(
+    (t) => t.broad === edits.broadType && t.name === edits.habitatType
+  )
+  const invalidBroad =
+    edits.broadType &&
+    !reference.habitatTypes.some((t) => t.broad === edits.broadType)
+  const invalidType = edits.habitatType && !type
+  const invalidCondition =
+    edits.condition &&
+    !type?.conditions.some((c) => c.condition === edits.condition)
+  if (invalidBroad || invalidType || invalidCondition) {
+    throw Boom.badRequest(
+      'Choose valid area habitat and target condition options'
+    )
+  }
+}
+
+function validateReferenceAndTiming(edits) {
   if (
     typeof edits.ref !== 'string' ||
     !edits.ref.trim() ||
@@ -49,22 +73,6 @@ export function validateCreatedAreaEdit(feature, edits) {
   ) {
     throw Boom.badRequest(
       'Enter either advance or delay greater than zero, not both'
-    )
-  }
-  const reference = getAreaCreationReference()
-  const type = reference.habitatTypes.find(
-    (t) => t.broad === edits.broadType && t.name === edits.habitatType
-  )
-  const invalidBroad =
-    edits.broadType &&
-    !reference.habitatTypes.some((t) => t.broad === edits.broadType)
-  const invalidType = edits.habitatType && !type
-  const invalidCondition =
-    edits.condition &&
-    !type?.conditions.some((c) => c.condition === edits.condition)
-  if (invalidBroad || invalidType || invalidCondition) {
-    throw Boom.badRequest(
-      'Choose valid area habitat and target condition options'
     )
   }
 }

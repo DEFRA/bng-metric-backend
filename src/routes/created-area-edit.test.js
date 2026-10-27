@@ -12,6 +12,7 @@ import {
   validateCreatedAreaEdit,
   postInterventionAreaEditPayload
 } from './created-area-edit.js'
+import { normaliseProposedCombinations } from '../validation/geopackage/post-intervention/normalise-proposed-combinations.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
 
@@ -171,6 +172,78 @@ describe('BMD-1048 Created area edits', () => {
     ).toBeUndefined()
   })
 
+  test.each([
+    [0, 0, 'Neither'],
+    [2, 0, 'Advance - 2 years'],
+    [0, 3, 'Delay - 3 years'],
+    ['30+', 0, 'Advance - 30 years'],
+    [0, '30+', 'Delay - 30 years']
+  ])(
+    'saves a timing summary for %s/%s',
+    (advanceYears, delayYears, summary) => {
+      expect(
+        update({ advanceYears, delayYears }).feature.proposed.advanceOrDelay
+      ).toBe(summary)
+    }
+  )
+
+  test.each(['advanceYears', 'delayYears'])(
+    'recomputes a legacy edit after saving 30+ %s',
+    (field) => {
+      const saved = update({ [field]: '30+' }).feature
+      const result = applyFeatureUpdate(
+        { postIntervention: { habitats: [saved] } },
+        {
+          featureId,
+          edits: {
+            broadType: 'Grassland',
+            habitatType: 'Modified grassland',
+            condition: 'Moderate'
+          },
+          documentKey: 'postIntervention',
+          expectedType: 'habitat'
+        }
+      )
+      const expected = calculateCreatedAreaHabitatPostIntervention(
+        2.5,
+        'Grassland - Modified grassland',
+        'Moderate',
+        saved.proposed.advanceYears,
+        saved.proposed.delayYears,
+        'High'
+      )
+      expect(result.feature.status).toBe('Complete')
+      expect(result.feature.units).toBe(expected.units)
+      expect(result.feature.proposed[field]).toBe('30+')
+      expect(result.feature.proposed.finalTimeToTargetCondition).toContain(
+        `(${expected.timeMultiplier})`
+      )
+    }
+  )
+
+  test.each(['Created', 'Enhanced'])(
+    'clears a 30+ timing conflict on %s',
+    (retentionCategory) => {
+      const document = {
+        habitats: [
+          {
+            retentionCategory,
+            proposed: {
+              ...feature.proposed,
+              advanceYears: '30+',
+              delayYears: 2
+            }
+          }
+        ]
+      }
+      normaliseProposedCombinations(document)
+      expect(document.habitats[0].proposed).toMatchObject({
+        advanceYears: null,
+        delayYears: null
+      })
+    }
+  )
+
   test('advance can floor time at zero without resetting delay or difficulty', () => {
     const result = update({ advanceYears: 10 })
     expect(result.feature.proposed).toMatchObject({
@@ -277,6 +350,9 @@ test('every offered creation combination saves the same units as the metric calc
         )
         expect(result.feature.proposed.timeMultiplier).toBe(
           expected.timeMultiplier
+        )
+        expect(result.feature.proposed.finalTimeToTargetCondition).toContain(
+          `(${expected.timeMultiplier})`
         )
       }
     }
