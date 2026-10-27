@@ -30,6 +30,7 @@ import { recomputePostInterventionAreaHabitat } from '../../validation/geopackag
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
 import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
 import {
+  RETENTION_CREATED,
   RETENTION_ENHANCED,
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
@@ -411,6 +412,16 @@ function brokenEnhancementRule(found, derived, documentKey) {
   return check && !check.valid ? check.rule : null
 }
 
+function hasUnsupportedTimingEdit(found, edits, documentKey) {
+  return (
+    documentKey === 'postIntervention' &&
+    Object.hasOwn(edits, 'advanceYears') &&
+    (found.type !== 'habitat' ||
+      resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
+      edits.ref === undefined)
+  )
+}
+
 /**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
@@ -433,6 +444,11 @@ function resolveEditTarget(
   if (expectedType && found.type !== expectedType) {
     return {
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
+    }
+  }
+  if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
+    return {
+      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
     }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {

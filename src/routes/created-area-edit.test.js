@@ -583,3 +583,32 @@ test('only area parent links permit an explicit unlinked null', () => {
     expect(field.describe().flags.description).not.toContain('Created area')
   }
 })
+
+test.each([
+  ['Enhanced area', { retentionCategory: 'Enhanced' }],
+  ['Retained area', { retentionCategory: 'Retained' }],
+  ['missing reference', { ref: undefined }],
+  ['blank reference', { ref: ' ' }],
+  ['null reference', { ref: null }],
+  ['hedgerow', { layer: 'hedgerows' }],
+  ['watercourse', { layer: 'watercourses' }]
+])(
+  'the shared edit entry point refuses Created-area timing for %s',
+  (_name, input) => {
+    const { layer = 'habitats', retentionCategory = 'Created' } = input
+    const project = {
+      postIntervention: { [layer]: [{ ...feature, retentionCategory }] }
+    }
+    const original = structuredClone(project)
+    const result = applyFeatureUpdate(project, {
+      featureId,
+      documentKey: 'postIntervention',
+      edits: {
+        ...edits,
+        ...(Object.hasOwn(input, 'ref') ? { ref: input.ref } : {})
+      }
+    })
+    expect(result.status).toBe('unsupportedType')
+    expect(project).toEqual(original)
+  }
+)
