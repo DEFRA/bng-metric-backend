@@ -46,9 +46,9 @@
   "author": "Defra DDTS",
   "license": "OGL-UK-3.0",
   "dependencies": {
-    "@aws-sdk/client-s3": "3.1152.0",
-    "@aws-sdk/credential-providers": "3.1152.0",
-    "@aws-sdk/rds-signer": "3.1152.0",
+    "@aws-sdk/client-s3": "3.1153.0",
+    "@aws-sdk/credential-providers": "3.1153.0",
+    "@aws-sdk/rds-signer": "3.1153.0",
     "@defra/cdp-auditing": "0.6.2",
     "@defra/cdp-metrics": "0.6.1",
     "@defra/hapi-secure-context": "0.4.1",
@@ -64,7 +64,7 @@
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "better-sqlite3": "13.0.3",
-    "bng-library": "github:DEFRA/bng-library#b3d920b65f2d6abb7dcb15b710b5b6f0e5bb2946",
+    "bng-library": "github:DEFRA/bng-library#65e64683e99027b8b490c972b807b14f1a392131",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
     "dotenv": "18.0.8",
@@ -75,7 +75,7 @@
     "hapi-pulse": "4.0.0",
     "https-proxy-agent": "9.1.0",
     "joi": "18.3.0",
-    "jose": "6.2.12",
+    "jose": "6.2.13",
     "node-fetch": "3.3.2",
     "pbf": "5.1.2",
     "pdfkit": "0.20.2",
@@ -85,8 +85,8 @@
     "pino-pretty": "13.2.0",
     "proj4": "2.22.0",
     "swagger-jsdoc": "6.3.0",
-    "swagger-ui-dist": "5.33.3",
-    "undici": "8.12.2"
+    "swagger-ui-dist": "5.34.0",
+    "undici": "8.12.3"
   },
   "devDependencies": {
     "@emnapi/core": "1.11.3",

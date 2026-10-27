@@ -17,6 +17,12 @@ import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
+// The baseline typed route saves dropdowns only; reference renaming belongs to
+// its unified feature route. Created PI edits use their own complete payload.
+const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
+  schema.forbidden()
+)
+
 /**
  * @openapi
  * /projects/{projectId}/habitats/{featureId}:
@@ -135,7 +141,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
         payload:
           documentKey === 'postIntervention'
             ? postInterventionAreaEditPayload
-            : featureEditPayload
+            : areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
