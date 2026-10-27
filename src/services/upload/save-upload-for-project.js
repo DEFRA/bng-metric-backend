@@ -337,7 +337,7 @@ export function extractAndValidateDocument({
   ) {
     linkToParents(document, baselineDocument)
   }
-  const validationError = handlers.refuseDocument?.(document)
+  const validationError = handlers.refuseDocument?.(document, baselineDocument)
   if (validationError) {
     return { document, geometries, validationError }
   }

@@ -204,18 +204,84 @@ describe('refuseUnenhanceableBaselines', () => {
     ).toBeNull()
   })
 
-  it('does not check individual trees', () => {
+  it.each(['Rural tree', 'Urban tree'])(
+    'AC1 refuses an enhanced %s in Good condition, a Medium area habitat',
+    (type) => {
+      const error = refuseUnenhanceableBaselines({
+        trees: [area('T1', type, 'Good', 'Individual trees')]
+      })
+
+      expect(error.details.sample).toEqual([
+        expect.objectContaining({
+          layer: 'trees',
+          feature_ref: 'T1',
+          habitat_type: `Individual trees - ${type}`,
+          rule: UNENHANCEABLE_BASELINE.MEDIUM_AREA_GOOD
+        })
+      ])
+    }
+  )
+
+  it('accepts an enhanced tree in Moderate condition', () => {
     expect(
       refuseUnenhanceableBaselines({
-        trees: [
-          enhanced('T1', {
-            broadType: 'Individual trees',
-            type: 'Rural tree',
-            condition: 'Good'
-          })
-        ]
+        trees: [area('T1', 'Rural tree', 'Moderate', 'Individual trees')]
       })
     ).toBeNull()
+  })
+
+  describe('a row linked to its parent in the baseline (BNG Service template)', () => {
+    const PARENT_ID = '11111111-1111-4111-8111-000000000001'
+
+    function linked(rowCondition) {
+      return {
+        ...area('H1', 'Other neutral grassland', rowCondition),
+        parentFeatureId: PARENT_ID
+      }
+    }
+
+    function baselineWithParent(condition) {
+      return {
+        habitats: [
+          {
+            featureId: PARENT_ID,
+            ref: 'H1',
+            broadType: 'Grassland',
+            type: 'Other neutral grassland',
+            condition
+          }
+        ]
+      }
+    }
+
+    it("is checked against its parent's condition, not the row's copy", () => {
+      const error = refuseUnenhanceableBaselines(
+        { habitats: [linked('Moderate')] },
+        baselineWithParent('Good')
+      )
+
+      expect(error.details.sample).toEqual([
+        expect.objectContaining({ feature_ref: 'H1', condition: 'Good' })
+      ])
+    })
+
+    it("is accepted when its parent can be enhanced, whatever the row's copy says", () => {
+      expect(
+        refuseUnenhanceableBaselines(
+          { habitats: [linked('Good')] },
+          baselineWithParent('Moderate')
+        )
+      ).toBeNull()
+    })
+
+    it('falls back to its own Baseline columns when the parent is not in the baseline', () => {
+      expect(
+        refuseUnenhanceableBaselines(
+          { habitats: [linked('Good')] },
+          { habitats: [] }
+        )
+      ).not.toBeNull()
+    })
   })
 
   it('copes with a document missing layers', () => {
