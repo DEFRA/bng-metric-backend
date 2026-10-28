@@ -656,6 +656,227 @@ describe('rederivePostInterventionFromBaseline', () => {
   })
 })
 
+describe('rederivePostInterventionFromBaseline — a BNG Service template upload’s lineage outcomes (BMD-1083)', () => {
+  const TEMPLATE = { name: 'bng-service', version: '1.0' }
+  const NO_ENCROACHMENT = {
+    watercourseEncroachment: 'No Encroachment',
+    riparianEncroachment: 'No Encroachment/No Encroachment'
+  }
+
+  /** A baseline ditch, 100 m, in `condition`. */
+  const ditch = (condition = 'Moderate') => ({
+    featureId: 'baseline-r1',
+    ref: 'R1',
+    type: 'Ditches',
+    condition,
+    strategicSignificance: 'Low',
+    sizeMetres: 100,
+    ...NO_ENCROACHMENT
+  })
+
+  /** The timing columns as uploaded, in `properties`. */
+  const uploaded = (advance, delay = '0') => ({
+    'Habitat created in advance/years': advance,
+    'Delay in starting habitat creation/years': delay
+  })
+
+  /** The ditch Created again with only more encroachment, 10 years in advance. */
+  const encroached = (properties = uploaded('10')) =>
+    makeWatercourse({
+      properties,
+      featureId: 'pi-r1',
+      ref: 'R1',
+      retentionCategory: 'Created',
+      parentFeatureId: 'baseline-r1',
+      sizeMetres: 100,
+      baseline: { type: 'Ditches', condition: 'Moderate', ...NO_ENCROACHMENT },
+      proposed: {
+        type: 'Ditches',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Major',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        strategicSignificance: 'Low',
+        advanceYears: 10,
+        delayYears: 0
+      }
+    })
+
+  test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+
+  test('nulls the advance once a baseline edit makes it more than an encroachment-only change, so it is re-priced Incomplete', () => {
+    const logger = { warn: vi.fn() }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } },
+      logger
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(rederived.watercourses[0].status).toBe('Incomplete')
+    expect(rederived.watercourses[0].units).toBeNull()
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('advance nulled')
+    )
+  })
+
+  test('replaces a stored outcome a baseline type edit makes stale: lost and re-created becomes lost, with no recreation link', () => {
+    const stored = {
+      template: TEMPLATE,
+      watercourses: [encroached()],
+      lostHabitats: [
+        {
+          layer: 'watercourses',
+          featureId: 'baseline-r1',
+          ref: 'R1',
+          type: 'Ditches',
+          outcome: 'lostAndRecreated',
+          lostSizeMetres: 100,
+          recreatedAs: ['pi-r1']
+        }
+      ]
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(stored, {
+      baseline: { watercourses: [{ ...ditch(), type: 'Canals' }] },
+      previousBaseline: { watercourses: [ditch()] }
+    })
+
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: 'baseline-r1',
+        type: 'Canals',
+        outcome: 'lost',
+        recreatedAs: []
+      })
+    ])
+  })
+
+  test('works out the lost habitats again against the edited baseline', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: 'baseline-r1',
+        outcome: 'lostAndRecreated',
+        lostSizeMetres: 100,
+        recreatedAs: ['pi-r1']
+      })
+    ])
+  })
+
+  test('puts the advance back once the baseline edit is undone, so the row is Complete again', () => {
+    const edited = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+    expect(edited.watercourses[0].proposed.advanceYears).toBeNull()
+
+    const undone = rederivePostInterventionFromBaseline(edited, {
+      baseline: { watercourses: [ditch()] },
+      previousBaseline: { watercourses: [ditch('Good')] }
+    })
+
+    expect(undone.watercourses[0].proposed.advanceYears).toBe(10)
+    expect(undone.watercourses[0].status).toBe('Complete')
+  })
+
+  test('puts back an advance the import nulled, once a baseline edit allows it', () => {
+    const nulledOnImport = encroached()
+    nulledOnImport.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [nulledOnImport], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+
+  test.each([
+    ['no record of its upload', {}],
+    [
+      'a delay as well, which the import read as no advance',
+      uploaded('10', '2')
+    ]
+  ])('puts back no advance for a row with %s', (_, properties) => {
+    const feature = encroached(properties)
+    feature.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [feature], template: TEMPLATE, lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+  })
+
+  test('gives a template upload saved before lost habitats were recorded both outcomes on its next edit', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({ featureId: 'baseline-r1' })
+    ])
+  })
+
+  test('puts back no advance for a row with no recognised River Type, as the import gives it none', () => {
+    const typeless = encroached(uploaded('5'))
+    typeless.proposed.type = null
+    typeless.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [typeless] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+  })
+
+  test('clears the advance label with the advance, when a priced Complete row turns Incomplete', () => {
+    const priced = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+    expect(priced.watercourses[0].status).toBe('Complete')
+    expect(priced.watercourses[0].proposed.advanceOrDelay).toEqual(
+      expect.stringContaining('10')
+    )
+
+    const edited = rederivePostInterventionFromBaseline(priced, {
+      baseline: { watercourses: [ditch('Good')] },
+      previousBaseline: { watercourses: [ditch()] }
+    })
+
+    expect(edited.watercourses[0].status).toBe('Incomplete')
+    expect(edited.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(edited.watercourses[0].proposed.advanceOrDelay).toBeNull()
+  })
+
+  test('leaves a legacy upload, which has no lost habitats, without them', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived).not.toHaveProperty('lostHabitats')
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+})
+
 describe('resyncPostInterventionBaselineSide — a renamed baseline ref (BMD-1061)', () => {
   test('carries the new ref onto the post-intervention row joined to the feature', () => {
     const previousBaseline = { habitats: [baselineHabitat()] }

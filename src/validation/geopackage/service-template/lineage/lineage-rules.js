@@ -209,8 +209,23 @@ const createdChildren = (layer, children) =>
       lengthMetres: measured(child)
     }))
 
+/**
+ * A parent's same-type Created length, worked out the first time one of its
+ * pieces asks and then shared: a parent may have thousands of children.
+ */
+function createdMetresOnce(layer, parent, children) {
+  let metres
+  return () => {
+    metres ??= createdInOwnTypeMetres(
+      baselineSide(layer, parent.properties),
+      createdChildren(layer, children)
+    )
+    return metres
+  }
+}
+
 /** A degraded row that is not worse, or not created 30+ years in advance. */
-function checkDegradedRow(parent, child, children, context) {
+function checkDegradedRow(parent, child, createdMetres, context) {
   const { layer, tables, found } = context
   const parentSide = baselineSide(layer, parent.properties)
   const childSide = proposedSide(layer, child.properties)
@@ -226,10 +241,7 @@ function checkDegradedRow(parent, child, children, context) {
       { side: parentSide, lengthMetres: measured(parent) },
       {
         side: childSide,
-        lengthMetres: createdInOwnTypeMetres(
-          parentSide,
-          createdChildren(layer, children)
-        )
+        lengthMetres: createdMetres()
       }
     )
     if (!change.worse) {
@@ -265,8 +277,9 @@ function checkLayer(layer, baseline, postIntervention, found) {
     if (layer === 'watercourses') {
       checkWatercourseFamily(parent, children, context)
     }
+    const createdMetres = createdMetresOnce(layer, parent, children)
     for (const child of children) {
-      checkDegradedRow(parent, child, children, context)
+      checkDegradedRow(parent, child, createdMetres, context)
     }
   }
 }

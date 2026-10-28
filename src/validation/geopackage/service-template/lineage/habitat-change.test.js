@@ -78,6 +78,23 @@ describe('isSameHabitatType', () => {
     )
     expect(isSameHabitatType({ type: null }, { type: null })).toBe(false)
   })
+
+  it('finds an area habitat the same in its prefixed and short forms, as an import and an edit save it', () => {
+    const imported = {
+      type: 'Grassland - Modified grassland',
+      broadType: 'Grassland'
+    }
+    const edited = { type: 'Modified grassland', broadType: 'Grassland' }
+
+    expect(isSameHabitatType(imported, edited)).toBe(true)
+    expect(isSameHabitatType(edited, imported)).toBe(true)
+    expect(
+      isSameHabitatType(imported, {
+        type: 'Other neutral grassland',
+        broadType: 'Grassland'
+      })
+    ).toBe(false)
+  })
 })
 
 describe('encroachmentChange', () => {

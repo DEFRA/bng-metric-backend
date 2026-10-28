@@ -36,6 +36,10 @@ import {
 } from '../enrichment/post-intervention/retention-category.js'
 import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import {
+  isTemplateUpload,
+  lostBaselineHabitats
+} from '../enrichment/post-intervention/lineage-outcomes.js'
+import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
@@ -358,6 +362,14 @@ function refreshFiguresDownstreamOfEdit(
 ) {
   summarizeFeatureSetUnitsTotals(updatedFeatureSet)
   if (documentKey === 'postIntervention') {
+    // An edit can change a habitat's type, and with it whether its parent
+    // is lost and re-created (BMD-1083).
+    if (isTemplateUpload(updatedFeatureSet)) {
+      updatedFeatureSet.lostHabitats = lostBaselineHabitats(
+        updatedFeatureSet,
+        project?.baseline
+      )
+    }
     addPostInterventionNetUnitChanges(
       updatedFeatureSet,
       project?.baseline?.units
@@ -585,6 +597,12 @@ function applyFeatureUpdate(
     feature: updatedFeature,
     unitsTotals: updatedFeatureSet.units,
     tradingRules: updatedFeatureSet.tradingRules,
+    // Refreshed by a post-intervention edit to a template upload; persisted
+    // alongside the feature, since nothing else writes it (BMD-1083).
+    lostHabitats:
+      documentKey === 'postIntervention'
+        ? updatedFeatureSet.lostHabitats
+        : undefined,
     postIntervention,
     project: rebuiltProject(
       project,

@@ -561,6 +561,71 @@ describe('setProjectFeature — trading rules', () => {
   })
 })
 
+describe('setProjectFeature — lost habitats (BMD-1083)', () => {
+  // A post-intervention edit to a template upload can change which baseline
+  // habitats are lost and how, so the caller passes the refreshed list to be
+  // written in the same surgical update as the feature.
+  const lostHabitats = [
+    {
+      layer: 'habitats',
+      featureId: FEATURE_ID,
+      ref: 'H001',
+      type: 'Tall forbs',
+      outcome: 'lostAndRecreated',
+      lostSizeSquareMetres: 100,
+      recreatedAs: [FEATURE_ID]
+    }
+  ]
+  const edit = (overrides) => ({
+    documentKey: 'postIntervention',
+    layer: 'habitats',
+    index: 0,
+    feature: validPostInterventionHabitat,
+    unitsTotals: validUnitsTotals,
+    actorId: ACTOR_ID,
+    ...overrides
+  })
+
+  test('writes the lost habitats when they are supplied', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, edit({ lostHabitats }))
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const [{ project }] = db._set.mock.calls[0]
+    expect(new PgDialect().sqlToQuery(project).params).toContain(
+      JSON.stringify(lostHabitats)
+    )
+  })
+
+  test('rejects lost habitats that fail their schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(
+        db,
+        PROJECT_ID,
+        edit({ lostHabitats: [{ ...lostHabitats[0], outcome: 'gone' }] })
+      )
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('refuses to write lost habitats into the baseline document', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(
+        db,
+        PROJECT_ID,
+        edit({
+          documentKey: 'baseline',
+          feature: validHabitat,
+          lostHabitats
+        })
+      )
+    ).rejects.toThrow(/only the post-intervention document/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
 describe('setProjectFeature — re-derived post-intervention document', () => {
   // A baseline edit changes what the post-intervention document was measured
   // against, so the caller re-derives that document and hands it over whole —

@@ -45,8 +45,9 @@ const PROPOSED_SIGNIFICANCE = 'Proposed Strategic Significance'
 const MULTIPLIERS = { Low: 1, High: 1.15 }
 // What a document records about its upload rather than the file's contents.
 const UPLOAD_FIELDS = ['uploadId', 'importedAt', 'filename', 'fileSize']
-// Ids each project gives its own features, and so its links to them.
-const PER_PROJECT_IDS = new Set(['featureId', 'parentFeatureId'])
+// Ids each project gives its own features, and so its links to them: a lost
+// habitat's recreatedAs lists the post-intervention features re-creating it.
+const PER_PROJECT_IDS = new Set(['featureId', 'parentFeatureId', 'recreatedAs'])
 
 /** Each row of a fixture's table, by fid. */
 function rowsOf(filePath, table) {

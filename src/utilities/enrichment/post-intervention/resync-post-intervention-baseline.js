@@ -62,6 +62,11 @@ import {
   RETAINED_WATERCOURSE_PROPOSED_FIELDS
 } from './copy-retained-proposed-from-baseline.js'
 import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervention-units.js'
+import {
+  applyLineageOutcomes,
+  isTemplateUpload,
+  restoreUploadedWatercourseAdvance
+} from './lineage-outcomes.js'
 import { postInterventionEnrichOptions } from './post-intervention-enrich-options.js'
 import {
   RETENTION_CREATED,
@@ -447,8 +452,9 @@ export function resyncPostInterventionBaselineSide(
 /**
  * Produce the post-intervention document this project would have if its
  * post-intervention GeoPackage were uploaded again against the supplied
- * baseline: the baseline sub-objects re-synced, then every derived figure
- * recomputed through the same enrichment the upload runs.
+ * baseline: the baseline sub-objects re-synced, a BNG Service template
+ * upload's lineage outcomes worked out again against it, then every derived
+ * figure recomputed through the same enrichment the upload runs.
  *
  * Returns a new document — the caller's stored one is not mutated — or null
  * when the project has no post-intervention document to re-derive.
@@ -483,6 +489,16 @@ export function rederivePostInterventionFromBaseline(
     { baseline, previousBaseline },
     logger
   )
+  // What each parent loses depends on its type and size, and whether a
+  // watercourse is an encroachment-only change on its condition and
+  // encroachment, so both are worked out again before the re-pricing reads
+  // the advance (BMD-1083). The check starts from the advance the user
+  // uploaded, so an advance an earlier edit nulled comes back once the
+  // baseline allows it again.
+  if (isTemplateUpload(rederived)) {
+    restoreUploadedWatercourseAdvance(rederived)
+    applyLineageOutcomes(rederived, baseline, logger)
+  }
   enrichPostInterventionDocumentWithUnits(
     rederived,
     logger,

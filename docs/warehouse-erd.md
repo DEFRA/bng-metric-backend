@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**22 tables**, mapping 370 schema fields.
+**23 tables**, mapping 378 schema fields.
 
 ## Diagram
 
@@ -29,6 +29,7 @@ erDiagram
     feature_set_trading_rules ||--o{ feature_set_trading_rules_area_broad_habitats : "contains"
     feature_set_trading_rules ||--o{ feature_set_trading_rules_watercourse_habitats : "contains"
     feature_set_trading_rules ||--o{ feature_set_trading_rules_hedgerow_habitat_types : "contains"
+    feature_set ||--o{ feature_set_lost_habitats : "contains"
     feature_set ||--o| baseline_red_line : "has"
     feature_set ||--o{ baseline_habitats : "contains"
     feature_set ||--o{ baseline_trees : "contains"
@@ -119,6 +120,14 @@ erDiagram
         text habitat_type
         text distinctiveness
         numeric net_unit_change
+    }
+    feature_set_lost_habitats {
+        text lost_habitat_id PK "{projectId}:postIntervention:lostHabitats:{featureId}"
+        text feature_set_id FK "→ feature_set.feature_set_id"
+        text layer
+        uuid feature_id
+        text outcome
+        uuid[] recreated_as
     }
     baseline_red_line {
         uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
@@ -222,6 +231,7 @@ ids above. Nothing is stored for these; compose them on read.
 | `feature_set_trading_rules_area_broad_habitats`    | `trading_rules_area_broad_habitat_id`    | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}`   |
 | `feature_set_trading_rules_watercourse_habitats`   | `trading_rules_watercourse_habitat_id`   | `{projectId}:postIntervention:tradingRules:watercourses:{habitatType}`           |
 | `feature_set_trading_rules_hedgerow_habitat_types` | `trading_rules_hedgerow_habitat_type_id` | `{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}`              |
+| `feature_set_lost_habitats`                        | `lost_habitat_id`                        | `{projectId}:postIntervention:lostHabitats:{featureId}`                          |
 | `baseline_red_line`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_habitats`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_trees`                                   | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
@@ -466,6 +476,23 @@ Hedgerow net unit change per habitat type. One row per unique Medium, Low or Ver
 | `habitat_type`                           | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].habitatType`     |                                                                     |
 | `distinctiveness`                        | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].distinctiveness` |                                                                     |
 | `net_unit_change`                        | `numeric` |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].netUnitChange`   |                                                                     |
+
+### `feature_set_lost_habitats`
+
+The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 8 column(s) mapped from the JSON document.
+
+| Column                    | Type      | Key | JSON path                                              | Notes                                                   |
+| ------------------------- | --------- | --- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `lost_habitat_id`         | `text`    | PK  | —                                                      | `{projectId}:postIntervention:lostHabitats:{featureId}` |
+| `feature_set_id`          | `text`    | FK  | —                                                      | → feature_set.feature_set_id                            |
+| `layer`                   | `text`    |     | `postIntervention.lostHabitats[].layer`                |                                                         |
+| `feature_id`              | `uuid`    |     | `postIntervention.lostHabitats[].featureId`            |                                                         |
+| `ref`                     | `text`    |     | `postIntervention.lostHabitats[].ref`                  |                                                         |
+| `type`                    | `text`    |     | `postIntervention.lostHabitats[].type`                 |                                                         |
+| `outcome`                 | `text`    |     | `postIntervention.lostHabitats[].outcome`              |                                                         |
+| `lost_size_square_metres` | `numeric` |     | `postIntervention.lostHabitats[].lostSizeSquareMetres` |                                                         |
+| `lost_size_metres`        | `numeric` |     | `postIntervention.lostHabitats[].lostSizeMetres`       |                                                         |
+| `recreated_as`            | `uuid[]`  |     | `postIntervention.lostHabitats[].recreatedAs[]`        |                                                         |
 
 ### `baseline_red_line`
 

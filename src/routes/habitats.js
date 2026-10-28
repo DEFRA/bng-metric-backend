@@ -240,6 +240,7 @@ async function persistAreaFeatureEdit(
     feature: result.feature,
     unitsTotals: result.unitsTotals,
     tradingRules: result.tradingRules,
+    lostHabitats: result.lostHabitats,
     postIntervention: result.postIntervention,
     actorId
   })

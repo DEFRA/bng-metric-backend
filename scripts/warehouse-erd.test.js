@@ -51,6 +51,18 @@ describe('#schemaLeaves', () => {
     ])
   })
 
+  it('makes a list of plain values one column of an array type', () => {
+    const schema = Joi.object({
+      rows: Joi.array().items(
+        Joi.object({ ids: Joi.array().items(Joi.string().uuid()) })
+      )
+    })
+
+    expect(schemaLeaves(schema.describe())).toEqual([
+      { path: 'rows[].ids[]', type: 'uuid[]', openMap: false }
+    ])
+  })
+
   it('treats an open map as one opaque jsonb leaf', () => {
     const schema = Joi.object({ properties: Joi.object().unknown(true) })
 
@@ -197,6 +209,7 @@ const WAREHOUSE_TABLES = [
   'feature_set_trading_rules_area_broad_habitats',
   'feature_set_trading_rules_watercourse_habitats',
   'feature_set_trading_rules_hedgerow_habitat_types',
+  'feature_set_lost_habitats',
   'baseline_red_line',
   'baseline_habitats',
   'baseline_trees',
@@ -286,6 +299,29 @@ describe('#buildWarehouseModel — column layout', () => {
 
   it('builds the expected table set', () => {
     expect(model.tables.map((table) => table.table)).toEqual(WAREHOUSE_TABLES)
+  })
+})
+
+describe('#buildWarehouseModel — lost habitats (BMD-1083)', () => {
+  it('gives the lost habitats a table of their own, one row each, off feature_set', () => {
+    expect(
+      columnNames('feature_set').some((name) => name.includes('lost_habitats'))
+    ).toBe(false)
+    const table = tableByName.get('feature_set_lost_habitats')
+    expect(table.many).toBe(true)
+    expect(table.parent.table).toBe('feature_set')
+    expect(
+      table.columns.find((column) => column.name === 'recreated_as').type
+    ).toBe('uuid[]')
+    expect(columnNames('feature_set_lost_habitats')).toEqual(
+      expect.arrayContaining([
+        'layer',
+        'feature_id',
+        'outcome',
+        'lost_size_square_metres',
+        'lost_size_metres'
+      ])
+    )
   })
 })
 
