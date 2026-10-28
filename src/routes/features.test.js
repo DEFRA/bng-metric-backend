@@ -750,6 +750,35 @@ describe('#updateFeature — project with a post-intervention document', () => {
     ])
   })
 
+  test('throws 422 HABITAT_REF_IN_USE when renaming onto another habitat’s reference', async () => {
+    const drizzle = makeTxDrizzle(
+      makeProject([
+        sampleHabitat,
+        { ...sampleHabitat, featureId: UNKNOWN_FEATURE_ID, ref: '2' }
+      ])
+    )
+
+    await expect(
+      updateFeature.handler(
+        {
+          drizzle,
+          auth: AUTH,
+          params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+          payload: {
+            ref: '2',
+            broadType: 'Grassland',
+            habitatType: 'Modified grassland',
+            condition: 'Poor'
+          }
+        },
+        {}
+      )
+    ).rejects.toMatchObject({
+      output: { statusCode: 422, payload: { code: 'HABITAT_REF_IN_USE' } }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
   test('touches no geometry row when the reference is unchanged', async () => {
     const drizzle = makeTxDrizzle(projectRowWithPostIntervention())
 
@@ -916,6 +945,27 @@ describe('#updatePostInterventionFeatureRef — renaming a retained habitat (BMD
     await expect(
       updatePostInterventionFeatureRef.handler(renameRequest(drizzle), {})
     ).rejects.toMatchObject({ isBoom: true, output: { statusCode: 400 } })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('throws 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
+    const projectRow = projectRowWithRetainedRow()
+    projectRow.project.baseline.habitats.push({
+      ...sampleHabitat,
+      featureId: UNKNOWN_FEATURE_ID,
+      ref: 'A2'
+    })
+    const drizzle = makeTxDrizzle(projectRow)
+
+    await expect(
+      updatePostInterventionFeatureRef.handler(renameRequest(drizzle, 'A2'), {})
+    ).rejects.toMatchObject({
+      isBoom: true,
+      output: {
+        statusCode: 422,
+        payload: { code: 'HABITAT_REF_IN_USE' }
+      }
+    })
     expect(setProjectFeature).not.toHaveBeenCalled()
   })
 

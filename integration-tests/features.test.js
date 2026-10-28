@@ -12,6 +12,7 @@ import {
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_UNAUTHORIZED = 401
+const HTTP_UNPROCESSABLE = 422
 
 let server
 let dbClient
@@ -365,7 +366,17 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     condition: 'Poor'
   }
 
-  async function seedRetainedProject({ retentionCategory = 'Retained' } = {}) {
+  async function seedRetainedProject({
+    retentionCategory = 'Retained',
+    otherBaselineHabitats = [],
+    postInterventionUnits = {
+      totalUnits: 4,
+      habitatsTotal: 4,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0
+    },
+    rowRef = 'A1'
+  } = {}) {
     const baselineHabitat = {
       featureId: randomUUID(),
       ref: 'A1',
@@ -376,7 +387,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     }
     const retainedRow = {
       featureId: randomUUID(),
-      ref: 'A1',
+      ref: rowRef,
       retentionCategory,
       area: 10_000,
       sizeSquareMetres: 10_000,
@@ -394,7 +405,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
         {
           name: 'Retained ref edit IT',
           baseline: {
-            habitats: [baselineHabitat],
+            habitats: [baselineHabitat, ...otherBaselineHabitats],
             trees: [],
             hedgerows: [],
             watercourses: [],
@@ -410,12 +421,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
             trees: [],
             hedgerows: [],
             watercourses: [],
-            units: {
-              totalUnits: 4,
-              habitatsTotal: 4,
-              hedgerowsTotal: 0,
-              watercoursesTotal: 0
-            }
+            units: postInterventionUnits
           }
         },
         userId
@@ -458,6 +464,70 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
       ref: 'P-A1'
     })
     expect(rows[0].last_modified_by).toBe(userId)
+  })
+
+  it('renames a row with no baseline parcel alone, refreshing totals stored without the tree totals', async () => {
+    const { projectId, baselineHabitat, retainedRow } =
+      await seedRetainedProject({
+        rowRef: 'Z9',
+        postInterventionUnits: { totalUnits: 4, habitatsTotal: 4 }
+      })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'P-Z9' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const stored = rows[0].project
+    expect(stored.postIntervention.habitats[0].ref).toBe('P-Z9')
+    expect(stored.postIntervention.units).toMatchObject({
+      totalUnits: 4,
+      treesTotal: 0
+    })
+    expect(stored.baseline.habitats[0]).toMatchObject({
+      featureId: baselineHabitat.featureId,
+      ref: 'A1'
+    })
+  })
+
+  it('returns 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject({
+      otherBaselineHabitats: [
+        {
+          featureId: randomUUID(),
+          ref: 'A2',
+          type: 'Other neutral grassland',
+          broadType: 'Grassland',
+          condition: 'Good',
+          sizeSquareMetres: 10_000,
+          units: 8,
+          status: 'Complete'
+        }
+      ]
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'A2' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(res.result.code).toBe('HABITAT_REF_IN_USE')
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.habitats[0].ref).toBe('A1')
+    expect(rows[0].project.postIntervention.habitats[0].ref).toBe('A1')
   })
 
   it('returns 400 for a habitat that is not Retained, and saves nothing', async () => {

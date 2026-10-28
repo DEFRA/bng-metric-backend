@@ -25,6 +25,9 @@
 //     out (resync-post-intervention-baseline.js). Renaming a guessed parcel
 //     would move a different habitat, so only the row moves, and that is
 //     logged.
+//
+// Either way, a rename onto a reference another baseline habitat already
+// carries is refused, as a baseline rename is (ref-in-use.js).
 
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import {
@@ -37,15 +40,20 @@ import {
   resolveJoinedBaselineFeature
 } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
-import { summarizeFeatureSetUnitsTotals } from './feature-set-units.js'
+import {
+  addPostInterventionNetUnitChanges,
+  summarizeFeatureSetUnitsTotals
+} from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
+import { renameClashes } from './ref-in-use.js'
 
 const LOG_PREFIX = 'applyRetainedRefEdit: '
 
 const RETAINED_REF_RESULT = Object.freeze({
   OK: 'ok',
   FEATURE_NOT_FOUND: 'featureNotFound',
-  NOT_RETAINED: 'notRetained'
+  NOT_RETAINED: 'notRetained',
+  REF_IN_USE: 'refInUse'
 })
 
 /** The layers whose Retained rows have an editable reference (BMD-1180). */
@@ -116,6 +124,11 @@ function renameThroughBaseline(project, found, parcel, ref, logger) {
   }
 }
 
+/**
+ * Rename the row alone. Its unit totals are recomputed rather than handed
+ * back as stored, as a post-intervention edit refreshes them: a document saved
+ * before the tree totals existed would not pass the write's schema check.
+ */
 function renameRowOnly(project, found, ref) {
   const { postIntervention } = project
   const layer = found.key
@@ -123,6 +136,12 @@ function renameRowOnly(project, found, ref) {
     (feature) => feature?.featureId === found.feature.featureId
   )
   const feature = { ...found.feature, ref }
+  const updated = {
+    ...postIntervention,
+    [layer]: replaceAt(postIntervention[layer], index, feature)
+  }
+  summarizeFeatureSetUnitsTotals(updated)
+  addPostInterventionNetUnitChanges(updated, project.baseline?.units)
   return {
     status: RETAINED_REF_RESULT.OK,
     type: found.type,
@@ -130,7 +149,7 @@ function renameRowOnly(project, found, ref) {
     layer,
     index,
     feature,
-    unitsTotals: postIntervention.units,
+    unitsTotals: updated.units,
     postIntervention: null,
     postInterventionFeature: feature
   }
@@ -154,7 +173,8 @@ function renameRowOnly(project, found, ref) {
  * @returns {
  *   { status: 'ok', type: string, documentKey: 'baseline' | 'postIntervention', layer: string, index: number, feature: object, unitsTotals: object, postIntervention: object | null, postInterventionFeature: object } |
  *   { status: 'featureNotFound' } |
- *   { status: 'notRetained', type: string }
+ *   { status: 'notRetained', type: string } |
+ *   { status: 'refInUse', type: string, ref: string }
  * }
  */
 function applyRetainedRefEdit(
@@ -173,6 +193,22 @@ function applyRetainedRefEdit(
   }
   const cleaned = cleanHabitatRef(ref)
   const parcel = baselineParcelToRename(found, project.baseline, logger)
+  // The parcel the row stays joined to may carry the reference itself; any
+  // other baseline habitat carrying it would be merged with it.
+  if (
+    renameClashes(project.baseline, {
+      layer: found.key,
+      current: found.feature.ref,
+      next: cleaned,
+      exceptFeatureId: parcel?.featureId ?? found.feature.parentFeatureId
+    })
+  ) {
+    return {
+      status: RETAINED_REF_RESULT.REF_IN_USE,
+      type: found.type,
+      ref: cleaned
+    }
+  }
   return parcel
     ? renameThroughBaseline(project, found, parcel, cleaned, logger)
     : renameRowOnly(project, found, cleaned)

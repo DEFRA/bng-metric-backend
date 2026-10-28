@@ -16,6 +16,7 @@ import {
 } from '../utilities/features/apply-retained-ref-edit.js'
 import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
+import { refInUseError } from './ref-in-use-error.js'
 import {
   featureEditPayload,
   projectFeatureIdParams,
@@ -152,9 +153,12 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       `ref` is optional; leaving it out keeps the stored reference. When
  *       sent it follows the import rules (BMD-1058): a blank or
  *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
- *       one longer than 100 characters is trimmed and truncated. A renamed
- *       reference is carried onto the post-intervention rows joined to the
- *       feature, and onto the stored geometry rows.
+ *       one longer than 100 characters is trimmed and truncated. Renaming
+ *       onto a reference another baseline habitat in the same layer already
+ *       carries (hedgerows and watercourses count as one layer) is a 422 with
+ *       code HABITAT_REF_IN_USE. A renamed reference is carried onto the
+ *       post-intervention rows joined to the feature, and onto the stored
+ *       geometry rows.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -191,7 +195,7 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       404:
  *         description: Project or feature not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the new reference is already used by another habitat in the same layer (code HABITAT_REF_IN_USE)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -226,7 +230,10 @@ const updateFeature = {
  *
  *       The reference follows the import rules (BMD-1058): a blank or
  *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
- *       one longer than 100 characters is trimmed and truncated.
+ *       one longer than 100 characters is trimmed and truncated. A reference
+ *       another baseline habitat in the same layer already carries is a 422
+ *       with code HABITAT_REF_IN_USE (hedgerows and watercourses count as one
+ *       layer).
  *
  *       A Retained habitat is joined to its baseline parcel by reference, so
  *       the rename is made to that parcel and carried onto every
@@ -255,6 +262,8 @@ const updateFeature = {
  *         description: Invalid payload (e.g. a blank habitat reference), or the feature is not a Retained area habitat, hedgerow or watercourse
  *       404:
  *         description: Project or feature not found
+ *       422:
+ *         description: The new reference is already used by another habitat in the same layer (code HABITAT_REF_IN_USE)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -369,6 +378,9 @@ async function runFeatureUpdate(
   if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
     throw outOfScopeDistinctivenessError(result.distinctiveness)
   }
+  if (result.status === APPLY_RESULT.REF_IN_USE) {
+    throw refInUseError(result.ref)
+  }
 
   await persistFeatureEdit(tx, {
     projectId,
@@ -401,6 +413,9 @@ async function runRetainedRefUpdate(
     throw Boom.badRequest(
       'Only the reference of a Retained area habitat, hedgerow or watercourse can be edited via this endpoint'
     )
+  }
+  if (result.status === RETAINED_REF_RESULT.REF_IN_USE) {
+    throw refInUseError(result.ref)
   }
 
   await persistFeatureEdit(tx, {

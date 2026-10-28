@@ -283,8 +283,7 @@ describe('applyRetainedRefEdit — renaming the row alone', () => {
       documentKey: 'postIntervention',
       layer: 'habitats',
       index: 0,
-      postIntervention: null,
-      unitsTotals: project.postIntervention.units
+      postIntervention: null
     })
     expect(result.feature).toMatchObject({
       featureId: PI_HABITAT_ID,
@@ -403,5 +402,140 @@ describe('applyRetainedRefEdit — edits it turns away', () => {
       status: RETAINED_REF_RESULT.NOT_RETAINED,
       type: 'tree'
     })
+  })
+})
+
+describe('applyRetainedRefEdit — the totals written with a row renamed alone', () => {
+  test('recomputes them, so a document stored without the tree totals still saves', () => {
+    const project = projectFixture()
+    project.postIntervention.habitats[0].parentFeatureId = BASELINE_HABITAT_ID
+    // Stored before the tree totals existed.
+    project.postIntervention.units = { totalUnits: 13, habitatsTotal: 4 }
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'P-A1'
+    })
+
+    expect(result.unitsTotals).toMatchObject({
+      totalUnits: 13,
+      habitatsTotal: 4,
+      hedgerowsTotal: 6,
+      watercoursesTotal: 3,
+      treesTotal: 0,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0
+    })
+    // Measured against the stored baseline totals, as an edit refreshes them.
+    expect(result.unitsTotals).toHaveProperty('habitatsNetUnitChange', 0)
+  })
+
+  test('recomputes them when the document has none at all', () => {
+    const project = projectFixture()
+    project.postIntervention.habitats[0].parentFeatureId = BASELINE_HABITAT_ID
+    delete project.postIntervention.units
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'P-A1'
+    })
+
+    expect(result.unitsTotals.totalUnits).toBe(13)
+  })
+})
+
+describe('applyRetainedRefEdit — a reference another baseline habitat carries', () => {
+  function withSecondArea(project) {
+    project.baseline.habitats.push({
+      featureId: SECOND_BASELINE_HABITAT_ID,
+      ref: 'A2',
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good',
+      sizeSquareMetres: 10_000,
+      units: 8
+    })
+    return project
+  }
+
+  test('refuses to rename an area habitat onto another area habitat’s reference', () => {
+    const project = withSecondArea(projectFixture())
+    const before = structuredClone(project)
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: ' A2 '
+    })
+
+    expect(result).toEqual({
+      status: RETAINED_REF_RESULT.REF_IN_USE,
+      type: 'habitat',
+      ref: 'A2'
+    })
+    expect(project).toEqual(before)
+  })
+
+  test('refuses to rename a hedgerow onto a watercourse’s reference: their lengths share one map', () => {
+    const result = applyRetainedRefEdit(projectFixture(), {
+      featureId: PI_HEDGEROW_ID,
+      ref: 'W1'
+    })
+
+    expect(result).toEqual({
+      status: RETAINED_REF_RESULT.REF_IN_USE,
+      type: 'hedgerow',
+      ref: 'W1'
+    })
+  })
+
+  test('refuses a row renamed alone onto a reference that would join it to another parcel', () => {
+    const project = withSecondArea(projectFixture())
+    project.baseline.habitats[0].ref = 'Z9'
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'A2'
+    })
+
+    expect(result.status).toBe(RETAINED_REF_RESULT.REF_IN_USE)
+  })
+
+  test('lets a template row take its own parent’s reference', () => {
+    const project = projectFixture()
+    project.postIntervention.habitats[0].ref = 'P-A1'
+    project.postIntervention.habitats[0].parentFeatureId = BASELINE_HABITAT_ID
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'A1'
+    })
+
+    expect(result.status).toBe(RETAINED_REF_RESULT.OK)
+    expect(result.feature.ref).toBe('A1')
+  })
+
+  test('lets an area habitat take a reference only a hedgerow carries', () => {
+    const result = applyRetainedRefEdit(projectFixture(), {
+      featureId: PI_HABITAT_ID,
+      ref: 'H1'
+    })
+
+    expect(result.status).toBe(RETAINED_REF_RESULT.OK)
+  })
+
+  test('saves the reference unchanged even where an import shared it', () => {
+    const project = projectFixture()
+    project.baseline.habitats.push({
+      ...project.baseline.habitats[0],
+      featureId: SECOND_BASELINE_HABITAT_ID,
+      type: 'Other neutral grassland'
+    })
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'A1'
+    })
+
+    expect(result.status).toBe(RETAINED_REF_RESULT.OK)
   })
 })

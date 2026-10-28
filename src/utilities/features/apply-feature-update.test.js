@@ -1458,6 +1458,55 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.postIntervention.habitats[0].ref).toBe('B-A1')
   })
 
+  test('refuses to rename onto a reference another area habitat carries', () => {
+    const project = projectFixture()
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
+      ref: 'A2'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'A2' }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.REF_IN_USE,
+      type: 'habitat',
+      ref: 'A2'
+    })
+  })
+
+  test('refuses to rename a hedgerow onto a watercourse’s reference', () => {
+    const project = projectFixture()
+    project.baseline.watercourses.push({
+      featureId: WATERCOURSE_ID,
+      ref: 'W1'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: null, condition: null, ref: 'W1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.REF_IN_USE)
+  })
+
+  test('saves a reference an import already shared when the edit keeps it', () => {
+    const project = projectFixture()
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
+      ref: 'A1'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'A1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+  })
+
   test('ignores a reference sent with a post-intervention edit', () => {
     const project = projectWithPostIntervention()
     const result = applyFeatureUpdate(project, {
