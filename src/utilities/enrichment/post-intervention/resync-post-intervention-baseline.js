@@ -21,6 +21,7 @@
 // `parentFeatureId` (BMD-1083), so its rows re-sync from that parent and
 // nothing else: refs are labels there, not the join, so a row with no parent
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
+// Its trees are not linked yet (BMD-1172), so they still re-sync by ref.
 //
 // In a legacy upload, reference-edited Created areas retain their explicit
 // parent independently of their editable ref; null explicitly means no
@@ -92,6 +93,13 @@ const LOG_PREFIX = 'resyncPostInterventionBaseline: '
  * (`recomputeForType` in apply-feature-update.js has no tree branch), so no
  * route can currently make a tree's two copies disagree.
  */
+/**
+ * The layers a BNG Service template upload links to their parents
+ * (link-parents.js). Trees are not linked until BMD-1172, so a template's
+ * trees still re-sync by ref.
+ */
+const PARENT_LINKED_LAYERS = new Set(['habitats', 'hedgerows', 'watercourses'])
+
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
   trees: RETAINED_TREE_PROPOSED_FIELDS,
@@ -345,41 +353,34 @@ export function preserveCreatedAreaParent(
 }
 
 /**
- * Resolve one post-intervention row to the post-edit baseline feature it should
- * take its values from, or say why it cannot be resolved.
+ * The post-edit baseline feature a row names by `parentFeatureId`, or why it
+ * cannot be had.
  *
  * @param {object} feature
- * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
- *   `byParent` for a BNG Service template upload, whose rows name their parent
+ * @param {Map<string, object>} updatedById
+ * @param {'parentMissing' | 'missing'} reason
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
-function resolveSource(
-  feature,
-  { candidatesByRef, updatedById, fields, byParent }
-) {
-  if (byParent) {
-    const source = updatedById.get(feature.parentFeatureId)
-    return source
-      ? { source }
-      : {
-          unresolvable: 'parentMissing',
-          ref: normaliseRef(feature.ref),
-          candidateCount: 0
-        }
-  }
-  if (
-    resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    feature.referenceEdited === true
-  ) {
-    const source = updatedById.get(feature.parentFeatureId)
-    return source
-      ? { source }
-      : {
-          unresolvable: 'missing',
-          ref: normaliseRef(feature.ref),
-          candidateCount: 0
-        }
-  }
+function resolveByParent(feature, updatedById, reason) {
+  const source = updatedById.get(feature.parentFeatureId)
+  return source
+    ? { source }
+    : {
+        unresolvable: reason,
+        ref: normaliseRef(feature.ref),
+        candidateCount: 0
+      }
+}
+
+/**
+ * The post-edit baseline feature a row describes, found by its ref on the
+ * pre-edit baseline, or why it cannot be had.
+ *
+ * @param {object} feature
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+function resolveByRef(feature, { candidatesByRef, updatedById, fields }) {
   const ref = normaliseRef(feature?.ref)
   const candidates = (ref === null ? undefined : candidatesByRef.get(ref)) ?? []
   if (candidates.length === 0) {
@@ -400,6 +401,28 @@ function resolveSource(
     return { unresolvable: 'missing', ref, candidateCount: candidates.length }
   }
   return { source: updated }
+}
+
+/**
+ * Resolve one post-intervention row to the post-edit baseline feature it should
+ * take its values from, or say why it cannot be resolved.
+ *
+ * @param {object} feature
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
+ *   `byParent` for a layer a BNG Service template upload links to its parents
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+function resolveSource(feature, index) {
+  if (index.byParent) {
+    return resolveByParent(feature, index.updatedById, 'parentMissing')
+  }
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    feature.referenceEdited === true
+  ) {
+    return resolveByParent(feature, index.updatedById, 'missing')
+  }
+  return resolveByRef(feature, index)
 }
 
 /**
@@ -457,7 +480,7 @@ export function resyncPostInterventionBaselineSide(
   logger = NO_OP_LOGGER
 ) {
   let changed = 0
-  const byParent = isTemplateUpload(postInterventionDocument)
+  const templateUpload = isTemplateUpload(postInterventionDocument)
   for (const [layer, fields] of Object.entries(IDENTITY_FIELDS_BY_LAYER)) {
     const features = postInterventionDocument?.[layer]
     if (!Array.isArray(features) || features.length === 0) {
@@ -471,7 +494,7 @@ export function resyncPostInterventionBaselineSide(
         ),
         updatedById: buildFeatureById(baseline?.[layer]),
         fields,
-        byParent
+        byParent: templateUpload && PARENT_LINKED_LAYERS.has(layer)
       },
       { layer, logger }
     )

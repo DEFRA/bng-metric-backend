@@ -1122,6 +1122,43 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
+  test('still re-syncs its trees by ref, which it does not link until BMD-1172', () => {
+    const tree = (overrides) => ({
+      featureId: 'tree-t1',
+      ref: 'T1',
+      type: 'Rural tree',
+      broadType: 'Individual trees',
+      condition: 'Moderate',
+      ...overrides
+    })
+    const postIntervention = {
+      template: TEMPLATE,
+      trees: [
+        {
+          featureId: 'pi-t1',
+          ref: 'T1',
+          retentionCategory: 'Retained',
+          baseline: tree({ featureId: undefined }),
+          proposed: tree({ featureId: undefined })
+        }
+      ]
+    }
+    const logger = { warn: vi.fn() }
+
+    const changed = resyncPostInterventionBaselineSide(
+      postIntervention,
+      {
+        baseline: { trees: [tree({ condition: 'Good' })] },
+        previousBaseline: { trees: [tree()] }
+      },
+      logger
+    )
+
+    expect(changed).toBe(1)
+    expect(postIntervention.trees[0].baseline.condition).toBe('Good')
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
   test('says so when a Retained row’s parent is not in the baseline', () => {
     const postIntervention = { template: TEMPLATE, habitats: [child()] }
     const logger = { warn: vi.fn() }
