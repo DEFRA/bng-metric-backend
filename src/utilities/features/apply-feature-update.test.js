@@ -1564,6 +1564,39 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     ])
   })
 
+  test.each([
+    ['a template upload gives it none', true, undefined],
+    ['a legacy upload finds it by the old ref', false, PARENT_ID]
+  ])(
+    'renaming a Created area that names no parent, whose old ref a baseline parcel shares: %s (BMD-1086)',
+    (_, template, parentFeatureId) => {
+      const project = templateProject({ template })
+      delete project.postIntervention.habitats[0].parentFeatureId
+
+      const result = applyFeatureUpdate(project, {
+        featureId: CHILD_ID,
+        // The Created area edit page's whole form (BMD-1048).
+        edits: {
+          ref: 'H1 renamed',
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Moderate',
+          strategicSignificance: 'Low',
+          advanceYears: 0,
+          delayYears: 0
+        },
+        documentKey: 'postIntervention'
+      })
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature).toMatchObject({
+        ref: 'H1 renamed',
+        referenceEdited: true
+      })
+      expect(result.feature.parentFeatureId).toBe(parentFeatureId)
+    }
+  )
+
   test('gives a template upload saved before they were recorded its lost habitats', () => {
     const result = retype(templateProject())
 

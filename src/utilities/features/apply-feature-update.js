@@ -294,7 +294,7 @@ function resolveUpdatedFeature(
   found,
   edits,
   derived,
-  { documentKey, baseline }
+  { documentKey, baseline, serviceTemplate }
 ) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
@@ -306,7 +306,8 @@ function resolveUpdatedFeature(
   preserveCreatedAreaParent(found.feature, updated, {
     documentKey,
     layer: found.key,
-    baseline
+    baseline,
+    serviceTemplate
   })
   return withoutImportedRejection(updated, documentKey)
 }
@@ -566,7 +567,11 @@ function applyFeatureUpdate(
     found,
     normalizedEdits,
     derived,
-    { documentKey, baseline: project?.baseline?.habitats }
+    {
+      documentKey,
+      baseline: project?.baseline?.habitats,
+      serviceTemplate: isTemplateUpload(project?.postIntervention)
+    }
   )
   const index = featureSet[found.key].findIndex(
     (f) => f?.featureId === featureId

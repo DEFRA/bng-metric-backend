@@ -17,9 +17,15 @@
 // A baseline edit can rename a feature's ref (BMD-1061). The row resolved to it
 // takes the new ref too, so the join holds after the rename.
 //
-// Reference-edited Created areas retain their explicit parent independently
-// of their editable ref; null explicitly means no parent. Other legacy rows
-// use `ref` — the Parcel Ref / Tree Ref column — for the same
+// A BNG Service template upload names each row's baseline parent by
+// `parentFeatureId` (BMD-1083), so its rows re-sync from that parent and
+// nothing else: refs are labels there, not the join, so a row with no parent
+// re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
+// Its trees are not linked yet (BMD-1172), so they still re-sync by ref.
+//
+// In a legacy upload, reference-edited Created areas retain their explicit
+// parent independently of their editable ref; null explicitly means no
+// parent. Other legacy rows use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
 // post-intervention row describing it share no id.
@@ -54,6 +60,7 @@
 
 import { enforceRequiredAttributeCompleteness } from '../shared/required-attribute-completeness.js'
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
+import { PARENT_LINKED_LAYERS } from '../../../validation/geopackage/service-template/lineage/link-parents.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import {
   RETAINED_AREA_PROPOSED_FIELDS,
@@ -285,6 +292,7 @@ function syncRef(feature, source) {
  */
 const UNRESOLVED_REASONS = Object.freeze({
   missing: (ref) => `no baseline feature carries ref "${ref ?? ''}"`,
+  parentMissing: (ref) => `the baseline holds no parent for row "${ref ?? ''}"`,
   unidentified: (ref, count) =>
     `${count} baseline features share ref "${ref}" and none carries this row's imported baseline values`,
   ambiguous: (ref, count) =>
@@ -303,11 +311,18 @@ function warnUnresolved(
   )
 }
 
-/** Preserve lineage before an editable Created reference changes its join key. */
+/**
+ * Preserve lineage before an editable Created reference changes its join key.
+ *
+ * A BNG Service template row's parent is the one its file named, kept as
+ * `parentFeatureId` whatever its ref (BMD-1083). One that names none has no
+ * parent, so renaming it must not find one by its old ref: with
+ * `serviceTemplate`, only the rename is recorded.
+ */
 export function preserveCreatedAreaParent(
   existing,
   updated,
-  { documentKey, layer, baseline }
+  { documentKey, layer, baseline, serviceTemplate = false }
 ) {
   const areaEdit = documentKey === 'postIntervention' && layer === 'habitats'
   if (
@@ -318,7 +333,7 @@ export function preserveCreatedAreaParent(
     return
   }
   updated.referenceEdited = true
-  if (Object.hasOwn(existing, 'parentFeatureId')) {
+  if (serviceTemplate || Object.hasOwn(existing, 'parentFeatureId')) {
     return
   }
   const candidates =
@@ -332,27 +347,34 @@ export function preserveCreatedAreaParent(
 }
 
 /**
- * Resolve one post-intervention row to the post-edit baseline feature it should
- * take its values from, or say why it cannot be resolved.
+ * The post-edit baseline feature a row names by `parentFeatureId`, or why it
+ * cannot be had.
+ *
+ * @param {object} feature
+ * @param {Map<string, object>} updatedById
+ * @param {'parentMissing' | 'missing'} reason
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+function resolveByParent(feature, updatedById, reason) {
+  const source = updatedById.get(feature.parentFeatureId)
+  return source
+    ? { source }
+    : {
+        unresolvable: reason,
+        ref: normaliseRef(feature.ref),
+        candidateCount: 0
+      }
+}
+
+/**
+ * The post-edit baseline feature a row describes, found by its ref on the
+ * pre-edit baseline, or why it cannot be had.
  *
  * @param {object} feature
  * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
-function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
-  if (
-    resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    feature.referenceEdited === true
-  ) {
-    const source = updatedById.get(feature.parentFeatureId)
-    return source
-      ? { source }
-      : {
-          unresolvable: 'missing',
-          ref: normaliseRef(feature.ref),
-          candidateCount: 0
-        }
-  }
+function resolveByRef(feature, { candidatesByRef, updatedById, fields }) {
   const ref = normaliseRef(feature?.ref)
   const candidates = (ref === null ? undefined : candidatesByRef.get(ref)) ?? []
   if (candidates.length === 0) {
@@ -376,8 +398,30 @@ function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
 }
 
 /**
+ * Resolve one post-intervention row to the post-edit baseline feature it should
+ * take its values from, or say why it cannot be resolved.
+ *
+ * @param {object} feature
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
+ *   `byParent` for a layer a BNG Service template upload links to its parents
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+function resolveSource(feature, index) {
+  if (index.byParent) {
+    return resolveByParent(feature, index.updatedById, 'parentMissing')
+  }
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    feature.referenceEdited === true
+  ) {
+    return resolveByParent(feature, index.updatedById, 'missing')
+  }
+  return resolveByRef(feature, index)
+}
+
+/**
  * @param {object[]} features post-intervention features for one layer, mutated
- * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[] }} index
+ * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
  * @param {{ layer: string, logger: object }} context
  * @returns {number} how many features changed
  */
@@ -391,7 +435,8 @@ function resyncLayer(features, index, { layer, logger }) {
         resolved.source,
         index.fields
       )
-      const refChanged = syncRef(feature, resolved.source)
+      // A template row's ref is its own label, not the join (BMD-1083).
+      const refChanged = !index.byParent && syncRef(feature, resolved.source)
       if (identityChanged || refChanged) {
         changed += 1
       }
@@ -429,6 +474,7 @@ export function resyncPostInterventionBaselineSide(
   logger = NO_OP_LOGGER
 ) {
   let changed = 0
+  const templateUpload = isTemplateUpload(postInterventionDocument)
   for (const [layer, fields] of Object.entries(IDENTITY_FIELDS_BY_LAYER)) {
     const features = postInterventionDocument?.[layer]
     if (!Array.isArray(features) || features.length === 0) {
@@ -441,7 +487,9 @@ export function resyncPostInterventionBaselineSide(
           previousBaseline?.[layer]
         ),
         updatedById: buildFeatureById(baseline?.[layer]),
-        fields
+        fields,
+        // Trees are not linked until BMD-1172, so they re-sync by ref.
+        byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
       },
       { layer, logger }
     )
