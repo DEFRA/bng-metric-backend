@@ -324,27 +324,27 @@ describe('BMD-1070 mixed documents and missing sizes', () => {
   )
 })
 
-describe('BMD-1060 AC5 timing is irrelevant for original Lost areas', () => {
+describe('BMD-1060 AC5 Lost area replacements follow Created timing rules', () => {
   it.each(['Lost', '4. Lost'])(
-    '%s retains null timing and prices without timing credit',
+    '%s uses its populated timing when calculating replacement units',
     (retention) => {
       const feature = makeAreaHabitat({
         retentionCategory: 'Created',
         properties: { Retention_Category: retention }
       })
-      Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+      Object.assign(feature.proposed, { advanceYears: 2, delayYears: 0 })
       enrichPostInterventionDocumentWithUnits({ habitats: [feature] })
       expect(feature.status).toBe('Complete')
       expect(feature.units).toBeGreaterThan(0)
-      expect(feature.proposed.advanceYears).toBeNull()
-      expect(feature.proposed.delayYears).toBeNull()
+      expect(feature.proposed.advanceYears).toBe(2)
+      expect(feature.proposed.delayYears).toBe(0)
       expect(
         calculators.calculateCreatedAreaHabitatPostIntervention
       ).toHaveBeenLastCalledWith(
         1,
         expect.any(String),
         'Good',
-        0,
+        2,
         0,
         expect.any(String)
       )
@@ -352,25 +352,82 @@ describe('BMD-1060 AC5 timing is irrelevant for original Lost areas', () => {
   )
 })
 
-it('legacy Lost areas with null timing retain the same zero-credit calculation after resync', () => {
+it('legacy Lost area replacements with null timing stay incomplete after resync', () => {
   const feature = makeAreaHabitat({ retentionCategory: undefined })
   feature.baseline.retentionCategory = 'Lost'
-  Object.assign(feature.proposed, { advanceYears: null, delayYears: null })
+  Object.assign(feature, { units: 42, status: 'Complete' })
+  Object.assign(feature.proposed, {
+    advanceYears: null,
+    delayYears: null,
+    timeMultiplier: 0.8,
+    finalTimeToTargetCondition: '7 years (0.8)'
+  })
   const result = rederivePostInterventionFromBaseline(
     { habitats: [feature] },
     { baseline: {} }
   )
-  expect(result.habitats[0].status).toBe('Complete')
-  expect(result.habitats[0].units).toBeGreaterThan(0)
-  expect(result.habitats[0].proposed.advanceYears).toBeNull()
+  expect(result.habitats[0]).toMatchObject({
+    status: 'Incomplete',
+    units: null
+  })
+  expect(result.habitats[0].proposed).toMatchObject({
+    advanceYears: null,
+    delayYears: null,
+    timeMultiplier: null,
+    finalTimeToTargetCondition: null
+  })
   expect(
     calculators.calculateCreatedAreaHabitatPostIntervention
-  ).toHaveBeenLastCalledWith(
-    1,
-    expect.any(String),
-    'Good',
-    0,
-    0,
-    expect.any(String)
-  )
+  ).not.toHaveBeenCalled()
 })
+
+it.each(
+  LAYERS.flatMap(([layer, factory]) =>
+    ['missing condition', 'invalid size'].map((reason) => [
+      layer,
+      factory,
+      reason
+    ])
+  )
+)(
+  'a rejected %s calculation clears every stale pricing field (%s)',
+  (layer, factory, reason) => {
+    const feature = makeProposedFeature(layer, factory, 'Created')
+    const fields = [
+      'distinctiveness',
+      'distinctivenessScore',
+      'conditionScore',
+      'timeMultiplier',
+      'difficultyMultiplier',
+      'difficulty',
+      'standardTimeToTargetCondition',
+      'finalTimeToTargetCondition'
+    ]
+    for (const field of fields) {
+      feature.proposed[field] = 'stale pricing result'
+    }
+    feature.units = 99
+    feature.status = 'Complete'
+    if (reason === 'missing condition') {
+      feature.proposed.condition = null
+    } else {
+      Object.assign(feature, {
+        sizeSquareMetres: null,
+        area: null,
+        sizeMetres: null
+      })
+    }
+    feature.proposed.advanceOrDelay = 'Original input summary'
+    enrichPostInterventionDocumentWithUnits(
+      { [layer]: [feature] },
+      undefined,
+      OPTIONS
+    )
+    expect(feature).toMatchObject({ units: null, status: 'Incomplete' })
+    for (const field of fields) {
+      expect(feature.proposed[field], field).toBeNull()
+    }
+    expect(feature.proposed.advanceOrDelay).toBe('Original input summary')
+    assertNoProposedCalculation()
+  }
+)

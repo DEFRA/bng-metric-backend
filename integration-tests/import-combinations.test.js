@@ -89,8 +89,7 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
       advanceYears: null,
       delayYears: null
     })
-    expect(proposedFeature.status).toBe('Complete')
-    expect(proposedFeature.units).toBeGreaterThan(0)
+    expect(proposedFeature).toMatchObject({ status: 'Incomplete', units: null })
     expect(proposedFeature.properties['Habitat created in advance/years']).toBe(
       '2'
     )
@@ -176,15 +175,19 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
   )
 
   it.each([
-    ['Created', "'2'", "'3'"],
-    ['Created', 'NULL', 'NULL'],
-    ['Enhanced', "'2'", "'3'"],
-    ['Enhanced', 'NULL', 'NULL'],
-    ['Retained', "'2'", "'0'"],
-    ['Lost', "'2'", "'0'"]
+    ['Created', "'2'", "'3'", null, null],
+    ['Created', 'NULL', 'NULL', null, null],
+    ['Enhanced', "'2'", "'3'", null, null],
+    ['Enhanced', 'NULL', 'NULL', null, null],
+    ['Retained', "'2'", "'0'", null, null],
+    ['Lost', "'2'", "'0'", 2, 0],
+    ['Lost', "'0'", "'3'", 0, 3],
+    ['Lost', "'0'", "'0'", 0, 0],
+    ['Lost', "'2'", "'3'", null, null],
+    ['Lost', 'NULL', 'NULL', null, null]
   ])(
-    'AC3-AC5 persist null timing for %s (%s, %s)',
-    async (retention, advance, delay) => {
+    'AC3-AC5 persist timing for %s (%s, %s)',
+    async (retention, advance, delay, expectedAdvance, expectedDelay) => {
       const project = await createProject(`BMD-1060 timing ${retention}`)
       const upload = await changedFixture([
         `UPDATE Habitats SET "Retention Category" = '${retention}', "Baseline Broad Habitat Type" = 'Grassland', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Moderate', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Proposed Strategic Significance" = 'Low', "Habitat created in advance/years" = ${advance}, "Delay in starting habitat creation/years" = ${delay} WHERE "Parcel Ref" = 'H1'`
@@ -198,11 +201,14 @@ describe('BMD-1060 persisted GeoPackage combinations', () => {
         (entry) => entry.ref === 'H1'
       )
       expect(feature.proposed).toMatchObject({
-        advanceYears: null,
-        delayYears: null
+        advanceYears: expectedAdvance,
+        delayYears: expectedDelay
       })
       expect(feature.proposed.type).not.toBeNull()
-      if (retention === 'Retained' || retention === 'Lost') {
+      if (
+        retention === 'Retained' ||
+        (expectedAdvance !== null && expectedDelay !== null)
+      ) {
         expect(feature.status).toBe('Complete')
         expect(feature.units).toBeGreaterThan(0)
       } else {

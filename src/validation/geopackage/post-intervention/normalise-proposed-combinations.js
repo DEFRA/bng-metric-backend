@@ -35,7 +35,12 @@ function normaliseTiming(proposed, retention) {
 export function normaliseProposedCombinations(document) {
   for (const layer of IMPORT_COMBINATION_LAYERS) {
     for (const feature of document[layer] ?? []) {
-      const retention = importedRetentionCategory(feature)
+      const importedRetention = importedRetentionCategory(feature)
+      // Lost area parcels carry a Created replacement on their proposed side.
+      const retention =
+        layer === 'habitats' && importedRetention === GPKG_RETENTION_LOST
+          ? RETENTION_CREATED
+          : importedRetention
       normaliseImportedAttributeCombinations(feature.baseline, layer)
       normaliseImportedAttributeCombinations(
         feature.proposed,
