@@ -184,5 +184,39 @@ describeServiceTemplate(
         })
       )
     })
+
+    it('carries a baseline edit to every row that names the edited feature as its parent, whatever their refs (BMD-1086)', async () => {
+      const { server, headers } = getPersistenceTestContext()
+      const project = await createProject('Lineage after a baseline edit')
+      await uploadCombined(project.id, EVERY_COLUMN)
+      const stored = await fetchProject(project.id)
+      // HG018, a Native hedgerow in Good condition, is Retained in part as
+      // HG018a and degraded in part as HG018b: neither shares its ref.
+      const parent = byRef(stored.baseline.hedgerows, 'HG018')
+      const children = stored.postIntervention.hedgerows.filter(
+        (f) => f.parentFeatureId === parent.featureId
+      )
+      expect(children.map((f) => f.ref).sort()).toEqual(['HG018a', 'HG018b'])
+      const retainedBefore = byRef(stored.postIntervention.hedgerows, 'HG018a')
+      expect(retainedBefore.baseline.condition).toBe('Good')
+
+      const res = await server.inject({
+        method: 'PUT',
+        url: `/projects/${project.id}/features/${parent.featureId}`,
+        headers,
+        payload: { habitatType: 'Native hedgerow', condition: 'Poor' }
+      })
+
+      expect(res.statusCode).toBe(HTTP_OK)
+      const { postIntervention } = await fetchProject(project.id)
+      const retained = byRef(postIntervention.hedgerows, 'HG018a')
+      const degraded = byRef(postIntervention.hedgerows, 'HG018b')
+      expect(retained.baseline.condition).toBe('Poor')
+      // Retained: its proposed side is its baseline's, so it moves too, and
+      // so do its units.
+      expect(retained.proposed.condition).toBe('Poor')
+      expect(retained.units).toBeLessThan(retainedBefore.units)
+      expect(degraded.baseline.condition).toBe('Poor')
+    })
   }
 )

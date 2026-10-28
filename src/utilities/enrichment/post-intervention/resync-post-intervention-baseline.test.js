@@ -2,6 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { summariseUnitTypes } from '../../../services/report/unit-summary.js'
 
 import {
+  preserveCreatedAreaParent,
   rederivePostInterventionFromBaseline,
   resyncPostInterventionBaselineSide
 } from './resync-post-intervention-baseline.js'
@@ -1030,3 +1031,160 @@ test.each(['habitats', 'trees', 'hedgerows', 'watercourses'])(
     expect(feature.referenceEdited).toBeUndefined()
   }
 )
+
+describe('resyncPostInterventionBaselineSide — a BNG Service template upload, by parent (BMD-1086)', () => {
+  const TEMPLATE = { name: 'bng-service', version: '1.0' }
+
+  /** A template row that names `parentFeatureId` as its parent. */
+  const child = (overrides = {}) => ({
+    ...postInterventionHabitat({ featureId: 'pi-h18a', ref: 'H018a' }),
+    parentFeatureId: 'baseline-h18',
+    ...overrides
+  })
+
+  const parent = (overrides = {}) =>
+    baselineHabitat({ featureId: 'baseline-h18', ref: 'H018', ...overrides })
+
+  test('re-syncs a row from the parent it names, though their refs differ', () => {
+    const postIntervention = { template: TEMPLATE, habitats: [child()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: { habitats: [parent({ condition: 'Good' })] },
+      previousBaseline: { habitats: [parent()] }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+    // Retained, so its proposed copy moves with it.
+    expect(postIntervention.habitats[0].proposed.condition).toBe('Good')
+  })
+
+  test('takes nothing from a baseline feature that only shares its ref', () => {
+    const postIntervention = {
+      template: TEMPLATE,
+      habitats: [child({ ref: 'H020' })]
+    }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [
+          parent(),
+          baselineHabitat({
+            featureId: 'baseline-h20',
+            ref: 'H020',
+            condition: 'Good'
+          })
+        ]
+      }
+    })
+
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Poor')
+  })
+
+  test('leaves a row’s own ref alone when its parent is renamed', () => {
+    const postIntervention = { template: TEMPLATE, habitats: [child()] }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: { habitats: [parent({ ref: 'H018 renamed' })] },
+      previousBaseline: { habitats: [parent()] }
+    })
+
+    expect(postIntervention.habitats[0].ref).toBe('H018a')
+  })
+
+  test('re-syncs a row that names no parent from nothing, even when a baseline ref matches', () => {
+    const unlinked = postInterventionHabitat({
+      featureId: 'pi-h30',
+      ref: 'H030',
+      retentionCategory: 'Created'
+    })
+    const postIntervention = { template: TEMPLATE, habitats: [unlinked] }
+    const logger = { warn: vi.fn() }
+
+    const changed = resyncPostInterventionBaselineSide(
+      postIntervention,
+      {
+        baseline: {
+          habitats: [
+            baselineHabitat({
+              featureId: 'baseline-h30',
+              ref: 'H030',
+              condition: 'Good'
+            })
+          ]
+        }
+      },
+      logger
+    )
+
+    expect(changed).toBe(0)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Poor')
+    expect(logger.warn).not.toHaveBeenCalled()
+  })
+
+  test('says so when a Retained row’s parent is not in the baseline', () => {
+    const postIntervention = { template: TEMPLATE, habitats: [child()] }
+    const logger = { warn: vi.fn() }
+
+    resyncPostInterventionBaselineSide(
+      postIntervention,
+      { baseline: { habitats: [] } },
+      logger
+    )
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('the baseline holds no parent for row "H018a"')
+    )
+  })
+})
+
+describe('preserveCreatedAreaParent', () => {
+  const baseline = [baselineHabitat({ featureId: 'baseline-a1', ref: 'A1' })]
+  const created = (overrides = {}) => ({
+    ...postInterventionHabitat({ retentionCategory: 'Created' }),
+    ...overrides
+  })
+  const renamed = (feature) => ({ ...feature, ref: 'A1 renamed' })
+  const context = {
+    documentKey: 'postIntervention',
+    layer: 'habitats',
+    baseline
+  }
+
+  test('finds a legacy Created area’s parent by its old ref before the rename', () => {
+    const existing = created()
+    const updated = renamed(existing)
+
+    preserveCreatedAreaParent(existing, updated, context)
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('gives a BNG Service template Created area that names no parent none, whatever its old ref matched', () => {
+    const existing = created()
+    const updated = renamed(existing)
+
+    preserveCreatedAreaParent(existing, updated, {
+      ...context,
+      serviceTemplate: true
+    })
+
+    expect(updated.referenceEdited).toBe(true)
+    expect(updated).not.toHaveProperty('parentFeatureId')
+  })
+
+  test('keeps the parent a BNG Service template Created area names', () => {
+    const existing = created({ parentFeatureId: 'baseline-a1' })
+    const updated = renamed(existing)
+
+    preserveCreatedAreaParent(existing, updated, {
+      ...context,
+      serviceTemplate: true
+    })
+
+    expect(updated.parentFeatureId).toBe('baseline-a1')
+  })
+})
