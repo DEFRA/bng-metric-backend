@@ -240,6 +240,20 @@ const TABLES = Object.freeze([
     highlight: ['habitat_type', 'distinctiveness', 'net_unit_change'],
     description:
       'Hedgerow net unit change per habitat type. One row per unique Medium, Low or Very Low hedgerow TYPE, not per feature.'
+  },
+  {
+    table: 'feature_set_lost_habitats',
+    sources: ['postIntervention.lostHabitats[]'],
+    primaryKey: {
+      column: 'lost_habitat_id',
+      type: 'text',
+      derivation: '`{projectId}:postIntervention:lostHabitats:{featureId}`'
+    },
+    parent: { table: 'feature_set', column: 'feature_set_id', type: 'text' },
+    many: true,
+    highlight: ['layer', 'feature_id', 'outcome', 'recreated_as'],
+    description:
+      'The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload.'
   }
 ])
 
@@ -352,6 +366,10 @@ function sqlType(node) {
   return 'text'
 }
 
+function isScalar(node) {
+  return !isOpenMap(node) && node.type !== 'object' && node.type !== 'array'
+}
+
 function childPath(basePath, key) {
   return basePath ? `${basePath}.${key}` : key
 }
@@ -377,6 +395,12 @@ export function schemaLeaves(node, path = '', out = []) {
     return out
   }
   const item = node.type === 'array' ? node.items?.[0] : undefined
+  if (item && isScalar(item)) {
+    // A list of plain values (featureIds, say) is one column of an array
+    // type, not a table: it has no fields for a child table's columns.
+    out.push({ path: `${path}[]`, type: `${sqlType(item)}[]`, openMap: false })
+    return out
+  }
   if (item) {
     schemaLeaves(item, `${path}[]`, out)
     return out

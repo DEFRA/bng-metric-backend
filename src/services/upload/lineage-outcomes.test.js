@@ -162,6 +162,20 @@ describe('lostBaselineHabitats', () => {
     )
   })
 
+  it('records no loss for a sliver below the smallest parcel, but does above it', () => {
+    const area = parcel(1, 1000)
+    const lostFrom = (retained) =>
+      lostBaselineHabitats(
+        { habitats: [child(1, area, 'Retained', retained)] },
+        { habitats: [area] }
+      )
+
+    expect(lostFrom(999.5)).toEqual([])
+    expect(lostFrom(998)).toEqual([
+      expect.objectContaining({ lostSizeSquareMetres: 2 })
+    ])
+  })
+
   it('records no loss for an Enhanced watercourse longer than its parent', () => {
     const ditch = line(1, 100, DITCH)
 

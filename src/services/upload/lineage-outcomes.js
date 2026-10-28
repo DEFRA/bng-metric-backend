@@ -10,6 +10,7 @@ import {
   isSameHabitatType,
   watercourseChange
 } from '../../validation/geopackage/service-template/lineage/habitat-change.js'
+import { MIN_PARCEL_AREA_SQ_M } from '../../validation/geopackage/geometry-constants.js'
 
 /**
  * What a BNG Service template upload's post-intervention habitats do to their
@@ -40,8 +41,14 @@ const LAYERS = Object.freeze({
   watercourses: 'sizeMetres'
 })
 
-/** Below this an area's loss is rounding, as a length's is below a centimetre. */
-const AREA_TOLERANCE_SQUARE_METRES = 0.01
+/**
+ * Below this an area's loss is a sliver, not a habitat lost: the area the
+ * service refuses as too small to be a parcel at all, a digitising artefact
+ * rather than a habitat anyone intended to record. Retained and Enhanced
+ * children drawn by hand rather than cut from their parent fall short of it
+ * by slivers like this.
+ */
+const AREA_TOLERANCE_SQUARE_METRES = MIN_PARCEL_AREA_SQ_M
 
 const TOLERANCE = Object.freeze({
   sizeSquareMetres: AREA_TOLERANCE_SQUARE_METRES,
@@ -148,6 +155,15 @@ export function lostBaselineHabitats(postIntervention, baseline) {
  * Null the advance of each Created watercourse linked to a parent that is
  * created 10 or more years in advance without being an encroachment-only
  * change, so it is saved Incomplete. Returns the features changed.
+ *
+ * Only a linked creation, by design. A Created watercourse linked to a parent
+ * is an intervention on that watercourse, recorded as its loss and a
+ * creation, and the guide allows 10 or more years in advance there only "if
+ * there are increases in encroachment with no other impacts" (watercourse
+ * interventions). A change of River Type is another impact, so a linked
+ * creation of another type loses its advance too. An unlinked creation, a
+ * new length with no associated loss, is no intervention on a baseline
+ * watercourse, so this rule does not reach it.
  *
  * @param {object} postIntervention the post-intervention document, linked
  * @param {object} baseline the baseline document saved with it
