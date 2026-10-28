@@ -1575,6 +1575,27 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     ])
   })
 
+  test('keeps a parent lost and re-created when an edit saves its creation’s habitat in the short form', () => {
+    const project = templateProject()
+    // As imported: both sides carry the metric's prefixed label.
+    project.baseline.habitats[0].type = 'Grassland - Modified grassland'
+    Object.assign(project.postIntervention.habitats[0].proposed, {
+      type: 'Grassland - Modified grassland',
+      condition: 'Poor'
+    })
+
+    const result = retype(project)
+
+    expect(result.feature.proposed.type).toBe('Modified grassland')
+    expect(result.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: PARENT_ID,
+        outcome: 'lostAndRecreated',
+        recreatedAs: [CHILD_ID]
+      })
+    ])
+  })
+
   test('gives a legacy upload, which has none, none', () => {
     const result = retype(templateProject({ template: false }))
 

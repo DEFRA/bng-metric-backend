@@ -102,6 +102,32 @@ describe('lostBaselineHabitats', () => {
     ])
   })
 
+  it('finds a Created child of its parent’s type re-creating it whichever form each names it in', () => {
+    const area = {
+      ...parcel(1),
+      type: 'Grassland - Other neutral grassland'
+    }
+
+    const [lost] = lostBaselineHabitats(
+      {
+        habitats: [
+          child(1, area, 'Created', 1000, {
+            type: 'Other neutral grassland',
+            broadType: 'Grassland'
+          })
+        ]
+      },
+      { habitats: [area] }
+    )
+
+    expect(lost).toEqual(
+      expect.objectContaining({
+        outcome: LOST_OUTCOME.lostAndRecreated,
+        recreatedAs: [id(101)]
+      })
+    )
+  })
+
   it('records built-over ground, Created in another type, as lost in full, not re-created', () => {
     const area = parcel(1, 2500)
 

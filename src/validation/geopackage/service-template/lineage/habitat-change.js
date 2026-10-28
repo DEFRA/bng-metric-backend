@@ -9,6 +9,7 @@ import {
 
 import { stripConditionPrefix } from '../../../../utilities/enrichment/shared/condition.js'
 import { engineHabitatTypeCandidates } from '../../../../utilities/enrichment/shared/engine-helpers.js'
+import { canonicalHabitatType } from '../../../reference/habitat-distinctiveness.js'
 
 /**
  * How a post-intervention habitat linked to a baseline parent differs from it
@@ -85,12 +86,37 @@ export function isLowerCondition(layer, parent, child) {
   return from !== null && to !== null && to < from
 }
 
-/** Whether the child keeps its parent's habitat type. */
+/**
+ * An area habitat side's Metric label, "<broad> - <type>", whichever form it
+ * carries: an import may keep the prefixed label, while an edit saves the
+ * short one the drop-down offers (as enhancement-rules.js reads them). Null
+ * for a hedgerow, a watercourse or a type the Metric does not know.
+ */
+function canonicalAreaHabitat(side) {
+  for (const type of engineHabitatTypeCandidates(side)) {
+    const habitat = canonicalHabitatType(type)
+    if (habitat) {
+      return habitat
+    }
+  }
+  return null
+}
+
+/**
+ * Whether the child keeps its parent's habitat type: the same Metric area
+ * habitat where both sides name one, else the same name.
+ */
 export function isSameHabitatType(parent, child) {
   const from = trimmed(parent.type)
-  return (
-    from !== null && from.toLowerCase() === trimmed(child.type)?.toLowerCase()
-  )
+  if (from === null) {
+    return false
+  }
+  const fromArea = canonicalAreaHabitat(parent)
+  const toArea = canonicalAreaHabitat(child)
+  if (fromArea && toArea) {
+    return fromArea === toArea
+  }
+  return from.toLowerCase() === trimmed(child.type)?.toLowerCase()
 }
 
 function encroachmentMultiplier(value, lookup) {
