@@ -225,6 +225,10 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
     )
     if (!change.encroachmentOnly) {
       feature.proposed.advanceYears = null
+      // The label restates the advance (see clearEngineDerivedProposedFields),
+      // so it goes with it, or the feature and the report would still show
+      // the advance the guide does not allow.
+      feature.proposed.advanceOrDelay = null
       changed.push(feature)
     }
   }
@@ -254,7 +258,9 @@ function uploadedAdvanceYears(feature) {
 /**
  * Put back the uploaded advance of each Created watercourse linked to a
  * parent, before nullDisallowedWatercourseAdvance checks it again against the
- * baseline as it now stands. Without this, an advance nulled by a baseline
+ * baseline as it now stands. Not on a row with no recognised River Type: the
+ * import clears its timing (clearDependentAttributes in
+ * normalise-imported-attributes.js), so a fresh upload would give it none. Without this, an advance nulled by a baseline
  * edit would stay nulled when the edit is undone, and the row Incomplete,
  * with no way for the user to restore it short of uploading again.
  *
@@ -265,7 +271,7 @@ export function restoreUploadedWatercourseAdvance(postIntervention) {
     const advance = uploadedAdvanceYears(feature)
     if (
       feature.parentFeatureId &&
-      feature.proposed &&
+      feature.proposed?.type &&
       resolveRetentionCategory(feature) === RETENTION_CREATED &&
       advance !== undefined
     ) {

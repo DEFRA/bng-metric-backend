@@ -801,6 +801,39 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     ])
   })
 
+  test('puts back no advance for a row with no recognised River Type, as the import gives it none', () => {
+    const typeless = encroached(uploaded('5'))
+    typeless.proposed.type = null
+    typeless.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [typeless] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+  })
+
+  test('clears the advance label with the advance, when a priced Complete row turns Incomplete', () => {
+    const priced = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+    expect(priced.watercourses[0].status).toBe('Complete')
+    expect(priced.watercourses[0].proposed.advanceOrDelay).toEqual(
+      expect.stringContaining('10')
+    )
+
+    const edited = rederivePostInterventionFromBaseline(priced, {
+      baseline: { watercourses: [ditch('Good')] },
+      previousBaseline: { watercourses: [ditch()] }
+    })
+
+    expect(edited.watercourses[0].status).toBe('Incomplete')
+    expect(edited.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(edited.watercourses[0].proposed.advanceOrDelay).toBeNull()
+  })
+
   test('leaves a legacy upload, which has no lost habitats, without them', () => {
     const rederived = rederivePostInterventionFromBaseline(
       { watercourses: [encroached()] },

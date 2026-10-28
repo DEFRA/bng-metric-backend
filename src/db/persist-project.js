@@ -243,45 +243,22 @@ async function setProjectBaselineAndPostIntervention(
 }
 
 /**
- * Patch a single baseline feature and the refreshed unit totals — two small
- * jsonb_set writes instead of rewriting the whole features array. The feature
- * is validated against its layer's item schema and the totals against
- * baselineUnitsTotalsSchema.
+ * Refuse, before anything is written, a feature edit whose fragments do not
+ * each pass their own schema, or that writes a subtree its document does not
+ * carry.
  *
- * @param {object} exec drizzle handle or transaction
- * @param {string} id project id
- * @param {object} params
- * @param {'habitats'|'hedgerows'|'watercourses'} params.layer
- * @param {number} params.index position of the feature within its layer array
- * @param {object} params.feature the updated feature document
- * @param {object} params.unitsTotals refreshed baseline.units totals
- * @param {object} [params.tradingRules] refreshed postIntervention.tradingRules,
- *   omitted on the baseline document, which carries no trading-rules figures
- * @param {Array<object>} [params.lostHabitats] refreshed
- *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
- *   Service template upload; omitted otherwise (BMD-1083)
- * @param {object} [params.postIntervention] the whole re-derived
- *   postIntervention document, written alongside a BASELINE feature edit: that
- *   document holds its own copy of the baseline and an edit can move any number
- *   of its figures, so it is the one subtree that cannot be patched surgically.
- *   Joins the same UPDATE so the two documents can never be persisted apart.
+ * @param {object} fragments setProjectFeature's params, less exec, id and actor
  */
-async function setProjectFeature(
-  exec,
-  id,
-  {
-    documentKey = BASELINE_DOCUMENT_KEY,
-    layer,
-    index,
-    feature,
-    unitsTotals,
-    tradingRules,
-    lostHabitats,
-    postIntervention,
-    actorId
-  }
-) {
-  assertActorId(actorId)
+function assertFeatureEditValid({
+  documentKey,
+  layer,
+  index,
+  feature,
+  unitsTotals,
+  tradingRules,
+  lostHabitats,
+  postIntervention
+}) {
   if (postIntervention && documentKey === POST_INTERVENTION_DOCUMENT_KEY) {
     throw Boom.badImplementation(
       'persist: a post-intervention feature edit must not also replace the post-intervention document'
@@ -323,6 +300,58 @@ async function setProjectFeature(
       'project.postIntervention'
     )
   }
+}
+
+/**
+ * Patch a single baseline feature and the refreshed unit totals — two small
+ * jsonb_set writes instead of rewriting the whole features array. The feature
+ * is validated against its layer's item schema and the totals against
+ * baselineUnitsTotalsSchema.
+ *
+ * @param {object} exec drizzle handle or transaction
+ * @param {string} id project id
+ * @param {object} params
+ * @param {'habitats'|'hedgerows'|'watercourses'} params.layer
+ * @param {number} params.index position of the feature within its layer array
+ * @param {object} params.feature the updated feature document
+ * @param {object} params.unitsTotals refreshed baseline.units totals
+ * @param {object} [params.tradingRules] refreshed postIntervention.tradingRules,
+ *   omitted on the baseline document, which carries no trading-rules figures
+ * @param {Array<object>} [params.lostHabitats] refreshed
+ *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
+ *   Service template upload; omitted otherwise (BMD-1083)
+ * @param {object} [params.postIntervention] the whole re-derived
+ *   postIntervention document, written alongside a BASELINE feature edit: that
+ *   document holds its own copy of the baseline and an edit can move any number
+ *   of its figures, so it is the one subtree that cannot be patched surgically.
+ *   Joins the same UPDATE so the two documents can never be persisted apart.
+ */
+async function setProjectFeature(
+  exec,
+  id,
+  {
+    documentKey = BASELINE_DOCUMENT_KEY,
+    layer,
+    index,
+    feature,
+    unitsTotals,
+    tradingRules,
+    lostHabitats,
+    postIntervention,
+    actorId
+  }
+) {
+  assertActorId(actorId)
+  assertFeatureEditValid({
+    documentKey,
+    layer,
+    index,
+    feature,
+    unitsTotals,
+    tradingRules,
+    lostHabitats,
+    postIntervention
+  })
 
   const withFeature = jsonbSet(
     projects.project,
