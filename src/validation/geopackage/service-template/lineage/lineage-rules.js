@@ -238,7 +238,10 @@ function checkDegradedRow(parent, child, children, context) {
     return
   }
   if (!isLowerCondition(layer, parentSide, childSide)) {
+    // Not degraded at all, so the 30+ years a degraded row needs is beside
+    // the point: one error, saying what it should be instead.
     found.notWorse.push(row())
+    return
   }
   if (text(child.properties[ADVANCE]) !== MAX_YEARS_PLUS) {
     found.advanceNot30Plus.push(row())

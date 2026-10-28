@@ -2,7 +2,7 @@
 
 Copies of files from bng-metric-harness's curated corpus,
 `example-files/service-template/`, as rebuilt for BMD-1083's lineage rules
-(harness branch `BMD-1083-rebuild-corpus`). The harness's
+(DEFRA/bng-metric-harness#196). The harness's
 README there says how each file was made and what the service should do with
 it; the harness rebuilds them from recipes, so take a fresh copy from there
 rather than editing these.

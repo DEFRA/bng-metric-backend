@@ -426,7 +426,7 @@ describe('checkLineageRules', () => {
       }
     )
 
-    it('reports a row that is neither worse nor 30+ under both rules', () => {
+    it('reports a row that is neither worse nor 30+ only as not worse: it is not degraded, so 30+ is beside the point', () => {
       const parent = parcel(1)
 
       expect(
@@ -442,11 +442,28 @@ describe('checkLineageRules', () => {
             }
           )
         )
-      ).toEqual([
-        ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-        ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
-      ])
+      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
     })
+
+    it.each(['Lost', '3. Created'])(
+      'reads an area row of its parent’s type recorded as %s as Created, as the saved document does',
+      (category) => {
+        const parent = parcel(1)
+
+        expect(
+          codes(
+            check(
+              { areas: [parent] },
+              {
+                areas: [
+                  degraded(parent, 'areas', { 'Retention Category': category })
+                ]
+              }
+            )
+          )
+        ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+      }
+    )
 
     it('does not treat built-over ground, Created in another type, as degraded', () => {
       const parent = parcel(1)
@@ -495,7 +512,7 @@ describe('checkLineageRules', () => {
     )
 
     it.each([null, '', '0'])(
-      'still refuses a row in its parent’s condition with a %j delay under both rules',
+      'still refuses a row in its parent’s condition with a %j delay as not worse',
       (delay) => {
         const parent = parcel(1)
 
@@ -513,10 +530,7 @@ describe('checkLineageRules', () => {
               }
             )
           )
-        ).toEqual([
-          ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-          ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
-        ])
+        ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
       }
     )
 

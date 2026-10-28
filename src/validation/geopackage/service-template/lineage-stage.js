@@ -1,4 +1,5 @@
 import { readGeoPackage } from '../geopackage.js'
+import { filterLostPostInterventionLayers } from '../post-intervention/extract-post-intervention.js'
 import { FEATURE_READ_MODE } from '../read-feature-tables.js'
 import { checkLineageRules } from './lineage/lineage-rules.js'
 import { checkParentLinks } from './lineage/parent-links.js'
@@ -37,11 +38,14 @@ export function lineageErrorsFor(
     FEATURE_READ_MODE.full,
     lineageSource
   )
-  const linkErrors = checkParentLinks(baselineLayers, postInterventionLayers)
+  // The rows the saved document keeps: a Lost hedgerow or watercourse is
+  // dropped from it, so it neither continues nor stands for its parent here.
+  const kept = filterLostPostInterventionLayers(postInterventionLayers)
+  const linkErrors = checkParentLinks(baselineLayers, kept)
   if (linkErrors.length > 0) {
     return linkErrors
   }
-  return checkLineageRules(baselineLayers, postInterventionLayers)
+  return checkLineageRules(baselineLayers, kept)
 }
 
 /**
