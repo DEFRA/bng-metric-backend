@@ -346,11 +346,17 @@ describeServiceTemplate(
 
       const res = await uploadCombined(project.id, BOTH_STAGES, copy)
 
+      // Its baseline culvert has no post-intervention habitat left either, and
+      // a culvert cannot be permanently lost.
       expect(res.result).toEqual({
         valid: false,
         errors: [
           expect.objectContaining({
             code: ERROR_CODES.NO_HABITAT_AREAS,
+            stage: 'post-intervention'
+          }),
+          expect.objectContaining({
+            code: ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST,
             stage: 'post-intervention'
           })
         ]

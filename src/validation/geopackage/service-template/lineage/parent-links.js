@@ -1,12 +1,23 @@
-import { FEATURE_UUID, PARENT_GEOM, PARENT_UUID } from 'bng-library/bng-service'
+import { PARENT_GEOM, PARENT_UUID } from 'bng-library/bng-service'
 
-import { ERROR_CODES, makeError } from '../../errors.js'
+import { ERROR_CODES } from '../../errors.js'
 import {
   canonicalGeometriesMatch,
   canonicalGeometry,
   canonicalGeometryFromWkt,
   canonicalGeometryStrippedFirst
 } from './canonical-geometry.js'
+import {
+  LINKED_LAYERS,
+  REF,
+  baselineHabitatTypeOf,
+  collated,
+  continues,
+  habitatTypeOf,
+  label,
+  parentsByUuid,
+  text
+} from './lineage-rows.js'
 
 /**
  * The parent links of a BNG Service template file (BMD-1083): whether each
@@ -32,23 +43,6 @@ import {
  * as canonical-geometry.js compares them.
  */
 
-/** The layers whose links are checked: the habitat layers the service reads. */
-const LINKED_LAYERS = Object.freeze(['areas', 'hedgerows', 'watercourses'])
-
-/** The pipeline's name for a habitat's Habitat Ref. */
-const REF = 'Parcel Ref'
-const RETENTION_CATEGORY = 'Retention Category'
-
-/** The Retention Categories that carry a baseline habitat forward. */
-const CONTINUING = new Set(['retained', 'enhanced'])
-
-/** Each layer's habitat type column, at each stage. */
-const HABITAT_TYPE = Object.freeze({
-  areas: ['Baseline Habitat Type', 'Proposed Habitat Type'],
-  hedgerows: ['Baseline Hedge Type', 'Proposed Hedge Type'],
-  watercourses: ['Baseline River Type', 'Proposed River Type']
-})
-
 /**
  * The longest `parent_geom` text that is read. A vertex at 3 decimals in
  * British National Grid takes about 25 characters, so this holds a parent of
@@ -56,15 +50,6 @@ const HABITAT_TYPE = Object.freeze({
  * be checked, and is refused unread.
  */
 export const MAX_PARENT_GEOM_CHARS = 8_000_000
-
-const SAMPLE_CAP = 50
-
-const isBlank = (value) =>
-  value === null ||
-  value === undefined ||
-  (typeof value === 'string' && value.trim() === '')
-
-const text = (value) => (isBlank(value) ? null : String(value).trim())
 
 /** `compute`, with each key's result worked out at most once. */
 function memoise(compute) {
@@ -107,26 +92,6 @@ function createShapeCache() {
   }
 }
 
-/** The baseline features of a layer, by `feature_uuid`: each uuid's list. */
-function parentsByUuid(baseline) {
-  const parents = new Map()
-  for (const feature of baseline) {
-    const uuid = text(feature.properties?.[FEATURE_UUID])
-    if (uuid !== null) {
-      parents.set(uuid, [...(parents.get(uuid) ?? []), feature])
-    }
-  }
-  return parents
-}
-
-function habitatTypeOf(layer, properties) {
-  const [baselineType, proposedType] = HABITAT_TYPE[layer]
-  return text(properties[proposedType]) ?? text(properties[baselineType])
-}
-
-const continues = (properties) =>
-  CONTINUING.has(text(properties[RETENTION_CATEGORY])?.toLowerCase())
-
 /** A post-intervention row whose parent link is wrong. */
 function offendingRow(layer, table, feature) {
   const { properties } = feature
@@ -148,7 +113,7 @@ function changedParent(layer, table, parent) {
     table,
     fid: properties.fid,
     ref: text(properties[REF]),
-    habitatType: text(properties[HABITAT_TYPE[layer][0]]),
+    habitatType: baselineHabitatTypeOf(layer, properties),
     childRefs: []
   }
 }
@@ -160,7 +125,7 @@ function ambiguousParent(layer, table, uuid, parents) {
     table,
     parentUuid: uuid,
     refs: parents.map(({ properties }) => text(properties[REF])),
-    habitatType: text(parents[0].properties[HABITAT_TYPE[layer][0]]),
+    habitatType: baselineHabitatTypeOf(layer, parents[0].properties),
     childRefs: []
   }
 }
@@ -238,28 +203,6 @@ function checkLayer(layer, baseline, postIntervention) {
     ambiguous: [...ambiguous.values()],
     changed: [...changed.values()]
   }
-}
-
-function label(offender) {
-  const name = offender.ref ?? `fid ${offender.fid}`
-  const habitatType = offender.habitatType ? ` (${offender.habitatType})` : ''
-  return `${offender.table} ${name}${habitatType}`
-}
-
-function collated(code, heading, offenders, describe) {
-  if (offenders.length === 0) {
-    return null
-  }
-  const sample = offenders.slice(0, SAMPLE_CAP)
-  const more =
-    offenders.length > sample.length
-      ? ` (and ${offenders.length - sample.length} more)`
-      : ''
-  return makeError(
-    code,
-    `${heading}: ${sample.map(describe).join('; ')}${more}`,
-    { count: offenders.length, sample }
-  )
 }
 
 /**

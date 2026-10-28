@@ -26,6 +26,14 @@ const UNKNOWN_PARENT = 'service-template/lineage-parent-unknown.gpkg'
 const SHAPE_CHANGED = 'service-template/lineage-parent-geom-mismatch.gpkg'
 const SHAPE_MISSING = 'service-template/lineage-parent-geom-missing.gpkg'
 const EVERY_COLUMN = 'service-template/default-site.gpkg'
+// The harness's attribute-problems/ files: the default site, with one
+// habitat that gets worse recorded as the Metric guide does not allow.
+const DEGRADE_ADVANCE_MISSING = 'service-template/degrade-advance-missing.gpkg'
+const DEGRADE_NOT_WORSE = 'service-template/degrade-not-worse.gpkg'
+const WATERCOURSE_RETAINED_AND_CREATED =
+  'service-template/degrade-watercourse-retained-and-created.gpkg'
+const HEDGE_PI = 'Hedgerows Post-Intervention'
+const WATERCOURSE_BASELINE = 'Watercourses Baseline'
 const AREA_BASELINE = 'Area Habitats Baseline'
 const AREA_PI = 'Area Habitats Post-Intervention'
 const LINKED_LAYERS = ['habitats', 'hedgerows', 'watercourses']
@@ -241,6 +249,88 @@ describeServiceTemplate(
         expect(actual.units).toBe(expected.units)
       }
     )
+
+    it.each([
+      [
+        'a hedgerow that gets worse with no 30+ years in advance',
+        DEGRADE_ADVANCE_MISSING,
+        ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS,
+        HEDGE_PI
+      ],
+      [
+        'a hedgerow Created in its own type that is not worse',
+        DEGRADE_NOT_WORSE,
+        ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
+        HEDGE_PI
+      ],
+      [
+        'a watercourse with both a Retained and a Created part',
+        WATERCOURSE_RETAINED_AND_CREATED,
+        ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,
+        WATERCOURSE_BASELINE
+      ]
+    ])(
+      'refuses %s, naming it, and stores nothing',
+      async (_, fixture, code, table) => {
+        const project = await createProject('Lineage rule')
+
+        const res = await uploadCombined(project.id, fixture)
+
+        expect(res.result).toEqual({
+          valid: false,
+          errors: [
+            expect.objectContaining({
+              code,
+              stage: 'post-intervention',
+              details: {
+                count: 1,
+                sample: [expect.objectContaining({ table })]
+              }
+            })
+          ]
+        })
+        const stored = await fetchProject(project.id)
+        expect(stored.baseline).toBeUndefined()
+        expect(stored.postIntervention).toBeUndefined()
+      }
+    )
+
+    it('refuses a culvert left out of the post-intervention habitats: only a canal or a ditch can be lost', async () => {
+      const project = await createProject('Lineage culvert lost')
+      const filePath = path.join(scratch, 'culvert-lost.gpkg')
+      copyFileSync(fixturePath(EVERY_COLUMN), filePath)
+      const db = new Database(filePath)
+      try {
+        db.prepare(
+          `DELETE FROM "Watercourses Post-Intervention" WHERE parent_uuid = (SELECT feature_uuid FROM "${WATERCOURSE_BASELINE}" WHERE "Baseline River Type" = 'Culvert')`
+        ).run()
+      } finally {
+        db.close()
+      }
+
+      const res = await uploadCombined(project.id, EVERY_COLUMN, filePath)
+
+      expect(res.result).toEqual({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST,
+            stage: 'post-intervention',
+            details: {
+              count: 1,
+              sample: [
+                expect.objectContaining({
+                  table: WATERCOURSE_BASELINE,
+                  ref: 'R001',
+                  habitatType: 'Culvert'
+                })
+              ]
+            }
+          })
+        ]
+      })
+      expect((await fetchProject(project.id)).postIntervention).toBeUndefined()
+    })
 
     it('leaves the baseline endpoint alone: it reads no post-intervention row to link', async () => {
       const project = await createProject('Lineage at the baseline endpoint')

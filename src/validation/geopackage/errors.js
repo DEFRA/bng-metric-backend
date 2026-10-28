@@ -171,6 +171,65 @@ export const ERROR_CODES = Object.freeze({
    */
   STAGED_BASELINE_DRIFTED: 'STAGED_BASELINE_DRIFTED',
 
+  /**
+   * BNG Service template baseline hedgerows shorter than the post-intervention
+   * hedgerows linked to them together, Created ones included (BMD-1083).
+   * `details.sample` lists each parent's table, Habitat Ref and hedge type, the
+   * Habitat Ref of each linked row, and both lengths in metres. The frontend
+   * sends the user to the drop-out page.
+   */
+  STAGED_HEDGEROW_CHILDREN_TOO_LONG: 'STAGED_HEDGEROW_CHILDREN_TOO_LONG',
+
+  /**
+   * BNG Service template baseline watercourses with both a Retained or Enhanced
+   * post-intervention part and a Created part (BMD-1083): the service cannot
+   * split a watercourse's length between continuation and loss.
+   * `details.sample` lists each parent's table, Habitat Ref and River Type, and
+   * the Habitat Ref of each part. The drop-out page tells the user to draw the
+   * baseline watercourse as two features, one for each part.
+   */
+  STAGED_WATERCOURSE_RETAINED_AND_CREATED:
+    'STAGED_WATERCOURSE_RETAINED_AND_CREATED',
+
+  /**
+   * BNG Service template baseline watercourses that are not a canal or a ditch
+   * and have no post-intervention habitat (BMD-1083): the Metric guide lets
+   * only a canal or a ditch be permanently lost. `details.sample` lists each
+   * one's table, Habitat Ref and River Type. The drop-out page tells the user
+   * to record each as Retained, Enhanced or Created.
+   */
+  STAGED_NATURAL_WATERCOURSE_LOST: 'STAGED_NATURAL_WATERCOURSE_LOST',
+
+  /**
+   * BNG Service template area habitats or hedgerows Created in their parent's
+   * habitat type, linked to it, but not in a lower condition and with no delay
+   * (BMD-1083): the habitat was kept. A row with a delay is a habitat lost for
+   * a time and put back, which no degrade rule refuses. `details.sample` lists
+   * each row's table, Habitat Ref and habitat type, and its parent's Habitat
+   * Ref. The drop-out page says a habitat that is kept should be Retained or
+   * Enhanced, and one put back should give its delay.
+   */
+  STAGED_DEGRADE_NOT_WORSE: 'STAGED_DEGRADE_NOT_WORSE',
+
+  /**
+   * BNG Service template area habitats or hedgerows Created in their parent's
+   * habitat type, linked to it, with no delay, whose "Habitat created in
+   * advance/years" is not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
+   * as lost and created again in a lower condition. `details.sample` lists each
+   * row as STAGED_DEGRADE_NOT_WORSE does.
+   */
+  STAGED_DEGRADE_ADVANCE_NOT_30_PLUS: 'STAGED_DEGRADE_ADVANCE_NOT_30_PLUS',
+
+  /**
+   * BNG Service template watercourses Created in their parent's River Type,
+   * linked to it, with no lower condition, more encroachment or shorter length,
+   * and no delay (BMD-1083): there was no intervention. `details.sample` lists
+   * each row as STAGED_DEGRADE_NOT_WORSE does. The drop-out page says a
+   * watercourse with no intervention should be Retained, and one put back
+   * should give its delay.
+   */
+  STAGED_WATERCOURSE_NO_INTERVENTION: 'STAGED_WATERCOURSE_NO_INTERVENTION',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 
