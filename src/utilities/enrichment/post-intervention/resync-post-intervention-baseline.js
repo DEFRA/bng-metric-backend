@@ -64,7 +64,7 @@ import {
 import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervention-units.js'
 import {
   applyLineageOutcomes,
-  hasLineageOutcomes,
+  isTemplateUpload,
   restoreUploadedWatercourseAdvance
 } from './lineage-outcomes.js'
 import { postInterventionEnrichOptions } from './post-intervention-enrich-options.js'
@@ -495,7 +495,7 @@ export function rederivePostInterventionFromBaseline(
   // the advance (BMD-1083). The check starts from the advance the user
   // uploaded, so an advance an earlier edit nulled comes back once the
   // baseline allows it again.
-  if (hasLineageOutcomes(rederived)) {
+  if (isTemplateUpload(rederived)) {
     restoreUploadedWatercourseAdvance(rederived)
     applyLineageOutcomes(rederived, baseline, logger)
   }

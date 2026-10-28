@@ -82,11 +82,12 @@ const sizeOf = (feature, field) =>
 function childrenByParent(features) {
   const children = new Map()
   for (const feature of features ?? []) {
-    if (feature.parentFeatureId) {
-      children.set(feature.parentFeatureId, [
-        ...(children.get(feature.parentFeatureId) ?? []),
-        feature
-      ])
+    const parentId = feature.parentFeatureId
+    if (parentId) {
+      if (!children.has(parentId)) {
+        children.set(parentId, [])
+      }
+      children.get(parentId).push(feature)
     }
   }
   return children
@@ -188,9 +189,21 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
       parents.has(feature.parentFeatureId) &&
       resolveRetentionCategory(feature) === RETENTION_CREATED
   )
-  const createdByParent = Map.groupBy(
-    created,
-    (feature) => feature.parentFeatureId
+  // Each parent's same-type Created length, worked out once and shared by
+  // its pieces: a parent may have thousands of them.
+  const createdMetresByParent = new Map(
+    [...Map.groupBy(created, (feature) => feature.parentFeatureId)].map(
+      ([parentId, pieces]) => [
+        parentId,
+        createdInOwnTypeMetres(
+          parents.get(parentId),
+          pieces.map((piece) => ({
+            side: piece.proposed,
+            lengthMetres: piece.sizeMetres
+          }))
+        )
+      ]
+    )
   )
   const changed = []
   for (const feature of created) {
@@ -203,15 +216,11 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
       continue
     }
     const parent = parents.get(feature.parentFeatureId)
-    const siblings = createdByParent.get(parent.featureId).map((sibling) => ({
-      side: sibling.proposed,
-      lengthMetres: sibling.sizeMetres
-    }))
     const change = watercourseChange(
       { side: parent, lengthMetres: parent.sizeMetres },
       {
         side: feature.proposed,
-        lengthMetres: createdInOwnTypeMetres(parent, siblings)
+        lengthMetres: createdMetresByParent.get(parent.featureId)
       }
     )
     if (!change.encroachmentOnly) {
@@ -266,15 +275,17 @@ export function restoreUploadedWatercourseAdvance(postIntervention) {
 }
 
 /**
- * Whether a post-intervention document carries lineage outcomes: it came
- * from a BNG Service template upload, which records `lostHabitats` (empty
- * when nothing is lost). A legacy upload names no parents, so has none.
+ * Whether a post-intervention document came from a BNG Service template
+ * upload, so its features name their parents and its lineage outcomes apply:
+ * it records the template it was read as (`template`), which a legacy upload
+ * does not. Not `lostHabitats`, which a template upload saved before it was
+ * recorded lacks; such a document gains it on its next edit.
  *
  * @param {object} postIntervention
  * @returns {boolean}
  */
-export const hasLineageOutcomes = (postIntervention) =>
-  Array.isArray(postIntervention?.lostHabitats)
+export const isTemplateUpload = (postIntervention) =>
+  Boolean(postIntervention?.template)
 
 /**
  * Apply both to a template upload's post-intervention document: null the

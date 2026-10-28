@@ -1478,7 +1478,7 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     'Area/compensation not in local strategy/ no local strategy'
 
   /** A parcel lost to a creation of another type, linked to it. */
-  function templateProject({ lostHabitats } = {}) {
+  function templateProject({ template = true, lostHabitats } = {}) {
     const parent = {
       featureId: PARENT_ID,
       ref: 'H1',
@@ -1521,6 +1521,9 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
         hedgerows: [],
         watercourses: [],
         units: {},
+        ...(template
+          ? { template: { name: 'bng-service', version: '1.0' } }
+          : {}),
         ...(lostHabitats ? { lostHabitats } : {})
       }
     }
@@ -1561,8 +1564,19 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     ])
   })
 
-  test('gives a legacy upload, which has none, none', () => {
+  test('gives a template upload saved before they were recorded its lost habitats', () => {
     const result = retype(templateProject())
+
+    expect(result.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: PARENT_ID,
+        outcome: 'lostAndRecreated'
+      })
+    ])
+  })
+
+  test('gives a legacy upload, which has none, none', () => {
+    const result = retype(templateProject({ template: false }))
 
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.project.postIntervention).not.toHaveProperty('lostHabitats')

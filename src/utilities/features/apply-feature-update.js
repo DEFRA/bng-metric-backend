@@ -36,7 +36,7 @@ import {
 } from '../enrichment/post-intervention/retention-category.js'
 import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import {
-  hasLineageOutcomes,
+  isTemplateUpload,
   lostBaselineHabitats
 } from '../enrichment/post-intervention/lineage-outcomes.js'
 import {
@@ -364,7 +364,7 @@ function refreshFiguresDownstreamOfEdit(
   if (documentKey === 'postIntervention') {
     // An edit can change a habitat's type, and with it whether its parent
     // is lost and re-created (BMD-1083).
-    if (hasLineageOutcomes(updatedFeatureSet)) {
+    if (isTemplateUpload(updatedFeatureSet)) {
       updatedFeatureSet.lostHabitats = lostBaselineHabitats(
         updatedFeatureSet,
         project?.baseline

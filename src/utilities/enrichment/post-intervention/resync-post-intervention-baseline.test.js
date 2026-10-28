@@ -657,6 +657,7 @@ describe('rederivePostInterventionFromBaseline', () => {
 })
 
 describe('rederivePostInterventionFromBaseline — a BNG Service template upload’s lineage outcomes (BMD-1083)', () => {
+  const TEMPLATE = { name: 'bng-service', version: '1.0' }
   const NO_ENCROACHMENT = {
     watercourseEncroachment: 'No Encroachment',
     riparianEncroachment: 'No Encroachment/No Encroachment'
@@ -702,7 +703,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
   test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
     const rederived = rederivePostInterventionFromBaseline(
-      { watercourses: [encroached()], lostHabitats: [] },
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch()] } }
     )
 
@@ -713,7 +714,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     const logger = { warn: vi.fn() }
 
     const rederived = rederivePostInterventionFromBaseline(
-      { watercourses: [encroached()], lostHabitats: [] },
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch('Good')] } },
       logger
     )
@@ -728,7 +729,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
   test('works out the lost habitats again against the edited baseline', () => {
     const rederived = rederivePostInterventionFromBaseline(
-      { watercourses: [encroached()], lostHabitats: [] },
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch('Good')] } }
     )
 
@@ -744,7 +745,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
   test('puts the advance back once the baseline edit is undone, so the row is Complete again', () => {
     const edited = rederivePostInterventionFromBaseline(
-      { watercourses: [encroached()], lostHabitats: [] },
+      { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch('Good')] } }
     )
     expect(edited.watercourses[0].proposed.advanceYears).toBeNull()
@@ -763,7 +764,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     nulledOnImport.proposed.advanceYears = null
 
     const rederived = rederivePostInterventionFromBaseline(
-      { watercourses: [nulledOnImport], lostHabitats: [] },
+      { watercourses: [nulledOnImport], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch()] } }
     )
 
@@ -781,11 +782,23 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     feature.proposed.advanceYears = null
 
     const rederived = rederivePostInterventionFromBaseline(
-      { watercourses: [feature], lostHabitats: [] },
+      { watercourses: [feature], template: TEMPLATE, lostHabitats: [] },
       { baseline: { watercourses: [ditch()] } }
     )
 
     expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+  })
+
+  test('gives a template upload saved before lost habitats were recorded both outcomes on its next edit', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { template: TEMPLATE, watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({ featureId: 'baseline-r1' })
+    ])
   })
 
   test('leaves a legacy upload, which has no lost habitats, without them', () => {
