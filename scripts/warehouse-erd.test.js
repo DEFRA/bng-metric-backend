@@ -259,6 +259,25 @@ describe('#buildWarehouseModel — column layout', () => {
     )
   })
 
+  it('keeps properties as a single jsonb column', () => {
+    const properties = tableByName
+      .get('baseline_habitats')
+      .columns.find((column) => column.name === 'properties')
+
+    expect(properties.type).toBe('jsonb')
+  })
+
+  it('separates baseline and post-intervention feature tables', () => {
+    expect(tableByName.has('baseline_habitats')).toBe(true)
+    expect(tableByName.has('post_intervention_habitats')).toBe(true)
+  })
+
+  it('builds the expected table set', () => {
+    expect(model.tables.map((table) => table.table)).toEqual(WAREHOUSE_TABLES)
+  })
+})
+
+describe('#buildWarehouseModel — lost habitats (BMD-1083)', () => {
   it('gives the lost habitats a table of their own, one row each, off feature_set', () => {
     expect(
       columnNames('feature_set').some((name) => name.includes('lost_habitats'))
@@ -278,23 +297,6 @@ describe('#buildWarehouseModel — column layout', () => {
         'lost_size_metres'
       ])
     )
-  })
-
-  it('keeps properties as a single jsonb column', () => {
-    const properties = tableByName
-      .get('baseline_habitats')
-      .columns.find((column) => column.name === 'properties')
-
-    expect(properties.type).toBe('jsonb')
-  })
-
-  it('separates baseline and post-intervention feature tables', () => {
-    expect(tableByName.has('baseline_habitats')).toBe(true)
-    expect(tableByName.has('post_intervention_habitats')).toBe(true)
-  })
-
-  it('builds the expected table set', () => {
-    expect(model.tables.map((table) => table.table)).toEqual(WAREHOUSE_TABLES)
   })
 })
 

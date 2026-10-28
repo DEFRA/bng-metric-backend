@@ -94,6 +94,16 @@ const isDegraded = (parent, child) =>
   resolveRetentionCategory(child) === RETENTION_CREATED &&
   isSameHabitatType(parent, child.proposed ?? {})
 
+/** How a parent with these children is lost, if it is. */
+function lostOutcome(children, recreated) {
+  if (children.length === 0) {
+    return LOST_OUTCOME.removed
+  }
+  return recreated.length > 0
+    ? LOST_OUTCOME.lostAndRecreated
+    : LOST_OUTCOME.lost
+}
+
 /** A parent's loss, or null when its Retained and Enhanced children keep it. */
 function lostParent(layer, parent, children, sizeField) {
   const continuing = children.filter((child) =>
@@ -108,18 +118,12 @@ function lostParent(layer, parent, children, sizeField) {
   if (children.length > 0 && lostSize <= TOLERANCE[sizeField]) {
     return null
   }
-  let outcome = LOST_OUTCOME.lost
-  if (children.length === 0) {
-    outcome = LOST_OUTCOME.removed
-  } else if (recreated.length > 0) {
-    outcome = LOST_OUTCOME.lostAndRecreated
-  }
   return {
     layer,
     featureId: parent.featureId,
     ref: parent.ref ?? null,
     type: parent.type ?? null,
-    outcome,
+    outcome: lostOutcome(children, recreated),
     [sizeField === 'sizeMetres' ? 'lostSizeMetres' : 'lostSizeSquareMetres']:
       lostSize,
     recreatedAs: recreated.map((child) => child.featureId)
@@ -189,7 +193,11 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
   const changed = []
   for (const feature of created) {
     const advance = feature.proposed?.advanceYears
-    if (!(advance >= ENCROACHMENT_ONLY_ADVANCE_YEARS)) {
+    // No advance, or one the guide allows for any change.
+    if (
+      !Number.isFinite(advance) ||
+      advance < ENCROACHMENT_ONLY_ADVANCE_YEARS
+    ) {
       continue
     }
     const parent = parents.get(feature.parentFeatureId)
