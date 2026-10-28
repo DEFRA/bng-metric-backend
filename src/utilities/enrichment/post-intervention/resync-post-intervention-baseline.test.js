@@ -727,6 +727,38 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     )
   })
 
+  test('replaces a stored outcome a baseline type edit makes stale: lost and re-created becomes lost, with no recreation link', () => {
+    const stored = {
+      template: TEMPLATE,
+      watercourses: [encroached()],
+      lostHabitats: [
+        {
+          layer: 'watercourses',
+          featureId: 'baseline-r1',
+          ref: 'R1',
+          type: 'Ditches',
+          outcome: 'lostAndRecreated',
+          lostSizeMetres: 100,
+          recreatedAs: ['pi-r1']
+        }
+      ]
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(stored, {
+      baseline: { watercourses: [{ ...ditch(), type: 'Canals' }] },
+      previousBaseline: { watercourses: [ditch()] }
+    })
+
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: 'baseline-r1',
+        type: 'Canals',
+        outcome: 'lost',
+        recreatedAs: []
+      })
+    ])
+  })
+
   test('works out the lost habitats again against the edited baseline', () => {
     const rederived = rederivePostInterventionFromBaseline(
       { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },

@@ -290,6 +290,10 @@ describe('nullDisallowedWatercourseAdvance', () => {
         { watercourses: [ditch] }
       )
     ).toEqual(pieces)
+    expect(pieces.map((piece) => piece.proposed.advanceYears)).toEqual([
+      null,
+      null
+    ])
   })
 
   it('leaves a Created watercourse with no parent, and an Enhanced one, alone', () => {
