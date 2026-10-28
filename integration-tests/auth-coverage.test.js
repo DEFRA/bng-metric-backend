@@ -25,6 +25,10 @@ const HTTP_UNAUTHORIZED = 401
 // deliberate decision.
 const PUBLIC_ROUTES = new Map([
   [
+    'get /reference/area-creation',
+    'Static area creation reference data; no per-user scope'
+  ],
+  [
     'get /reference/local-planning-authorities',
     'Static Planning Data lookup; no per-user scope'
   ],

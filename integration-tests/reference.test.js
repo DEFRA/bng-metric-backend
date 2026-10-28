@@ -179,3 +179,29 @@ describe('GET /reference/watercourse-encroachments', () => {
     expect(res.result.riparian).toContain('N/A - Culvert')
   })
 })
+
+describe('GET /reference/area-creation', () => {
+  it('serves creation options without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/area-creation'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    const type = res.result.habitatTypes.find(
+      (t) => t.broad === 'Grassland' && t.name === 'Modified grassland'
+    )
+    expect(type).toMatchObject({ difficulty: 'Low', difficultyMultiplier: 1 })
+    expect(type.conditions).toContainEqual({
+      condition: 'Good',
+      score: 3,
+      years: 7
+    })
+    expect(
+      res.result.habitatTypes.some((t) => t.broad === 'Individual trees')
+    ).toBe(false)
+    expect(res.result.strategicSignificance).toContainEqual({
+      value: 'High',
+      score: 1.15
+    })
+  })
+})

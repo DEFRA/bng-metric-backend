@@ -18,6 +18,7 @@
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
+import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
   recomputeHedgerow,
@@ -29,6 +30,7 @@ import { recomputePostInterventionAreaHabitat } from '../../validation/geopackag
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
 import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
 import {
+  RETENTION_CREATED,
   RETENTION_ENHANCED,
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
@@ -41,7 +43,10 @@ import {
 import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-watercourse-trading-rules.js'
 import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
-import { rederivePostInterventionFromBaseline } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  rederivePostInterventionFromBaseline,
+  preserveCreatedAreaParent
+} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
   addPostInterventionNetUnitChanges,
@@ -80,8 +85,8 @@ function blankToNull(value) {
 /**
  * The edited ref as it is stored, or undefined when the edit leaves the ref
  * alone. Unlike the dropdown fields, an absent ref is not a request to clear
- * it: a habitat must always have one (BMD-1058), and only the unified baseline
- * route sends it (BMD-1061). The route has already refused a blank one.
+ * it: a habitat must always have one (BMD-1058), and baseline renaming (BMD-1061) and full Created-area edits
+ * send it. The route has already refused a blank one.
  *
  * @param {unknown} ref
  * @returns {string | undefined}
@@ -97,6 +102,13 @@ function normalizeRef(ref) {
 function normalizeEdits(edits = {}) {
   return {
     ref: normalizeRef(edits.ref),
+    ...(Object.hasOwn(edits, 'advanceYears')
+      ? {
+          strategicSignificance: blankToNull(edits.strategicSignificance),
+          advanceYears: edits.advanceYears,
+          delayYears: edits.delayYears
+        }
+      : {}),
     broadType: blankToNull(edits.broadType),
     habitatType: blankToNull(edits.habitatType),
     condition: blankToNull(edits.condition),
@@ -107,6 +119,9 @@ function normalizeEdits(edits = {}) {
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   if (documentKey === 'postIntervention') {
+    if (Object.hasOwn(edits, 'advanceYears')) {
+      return recomputeCreatedAreaEdit(existing, edits)
+    }
     return recomputePostInterventionAreaHabitat(
       existing,
       {
@@ -271,7 +286,12 @@ function withoutImportedRejection(feature, documentKey) {
   return cleared
 }
 
-function resolveUpdatedFeature(found, edits, derived, documentKey) {
+function resolveUpdatedFeature(
+  found,
+  edits,
+  derived,
+  { documentKey, baseline }
+) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
     (found.type === 'habitat' || found.type === 'hedgerow') &&
@@ -279,6 +299,11 @@ function resolveUpdatedFeature(found, edits, derived, documentKey) {
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
+  preserveCreatedAreaParent(found.feature, updated, {
+    documentKey,
+    layer: found.key,
+    baseline
+  })
   return withoutImportedRejection(updated, documentKey)
 }
 
@@ -387,6 +412,16 @@ function brokenEnhancementRule(found, derived, documentKey) {
   return check && !check.valid ? check.rule : null
 }
 
+function hasUnsupportedTimingEdit(found, edits, documentKey) {
+  return (
+    documentKey === 'postIntervention' &&
+    Object.hasOwn(edits, 'advanceYears') &&
+    (found.type !== 'habitat' ||
+      resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
+      edits.ref === undefined)
+  )
+}
+
 /**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
@@ -409,6 +444,11 @@ function resolveEditTarget(
   if (expectedType && found.type !== expectedType) {
     return {
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
+    }
+  }
+  if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
+    return {
+      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
     }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
@@ -470,8 +510,8 @@ function resolveEditTarget(
  * @param {object} params
  * @param {string} params.featureId
  * @param {object} params.edits  { ref?, broadType?, habitatType?, condition? }
- *   `ref` renames a baseline feature (BMD-1061); post-intervention edits
- *   ignore it. The re-derive then carries the new ref onto the
+ *   `ref` renames a baseline feature (BMD-1061), or a Created area when
+ *   the complete timing/strategic edit payload is supplied (BMD-1048). The re-derive then carries the new ref onto the
  *   post-intervention rows measured against the feature, so the two documents
  *   stay joined (resync-post-intervention-baseline.js).
  * @param {string} [params.expectedType]
@@ -514,7 +554,7 @@ function applyFeatureUpdate(
     found,
     normalizedEdits,
     derived,
-    documentKey
+    { documentKey, baseline: project?.baseline?.habitats }
   )
   const index = featureSet[found.key].findIndex(
     (f) => f?.featureId === featureId

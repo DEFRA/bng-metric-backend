@@ -659,17 +659,22 @@ describe('updateAreaHabitat validation', () => {
     expect(payloadSchema.validate({}).error).toBeUndefined()
   })
 
-  test.each([
-    ['updateAreaHabitat', updateAreaHabitat],
-    ['updatePostInterventionAreaHabitat', updatePostInterventionAreaHabitat]
-  ])(
-    '%s refuses a habitat reference, which it would not save (BMD-1061)',
-    (_name, route) => {
-      const { error } = route.options.validate.payload.validate({
+  test('legacy baseline area route refuses a reference it would not save', () => {
+    const { error } = updateAreaHabitat.options.validate.payload.validate({
+      ref: 'B-A1',
+      condition: 'Good'
+    })
+    expect(error?.message).toBe('"ref" is not allowed')
+  })
+
+  test('PI reference edits require the complete Created-area edit payload', () => {
+    const { error } =
+      updatePostInterventionAreaHabitat.options.validate.payload.validate({
         ref: 'B-A1',
         condition: 'Good'
       })
-      expect(error?.message).toBe('"ref" is not allowed')
-    }
-  )
+    expect(error?.message).toContain(
+      'required peers [strategicSignificance, advanceYears, delayYears]'
+    )
+  })
 })

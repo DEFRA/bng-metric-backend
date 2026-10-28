@@ -340,6 +340,9 @@ function stringSqlType(node) {
  * @returns {string} the SQL type we advertise for the column
  */
 function sqlType(node) {
+  if (node.type === 'boolean') {
+    return 'boolean'
+  }
   if (node.type === 'number') {
     return hasRule(node, 'integer') ? 'integer' : 'numeric'
   }

@@ -3154,12 +3154,23 @@
       "path": "postIntervention.habitats[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
+    },
+    {
+      "path": "postIntervention.habitats[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour."
     },
     {
       "path": "postIntervention.habitats[].baseline",
@@ -3261,6 +3272,28 @@
       "description": "Proposed habitat values extracted from the Proposed * GeoPackage columns."
     },
     {
+      "path": "postIntervention.habitats[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.habitats[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
       "path": "postIntervention.habitats[].proposed.type",
       "type": "string",
       "required": false,
@@ -3335,7 +3368,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYears",
@@ -3346,7 +3379,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.habitats[].proposed.timeMultiplier",
@@ -3874,7 +3907,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.trees[].proposed.delayYears",
@@ -3885,7 +3918,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.trees[].proposed.timeMultiplier",
@@ -4270,7 +4303,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.delayYears",
@@ -4281,7 +4314,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.timeMultiplier",
@@ -4721,7 +4754,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats."
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.watercourses[].proposed.delayYears",
@@ -4732,7 +4765,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats."
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
     },
     {
       "path": "postIntervention.watercourses[].proposed.timeMultiplier",

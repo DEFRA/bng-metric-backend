@@ -23,8 +23,8 @@ function normaliseTiming(proposed, retention) {
     retention === RETENTION_RETAINED || retention === GPKG_RETENTION_LOST
   const conflicting =
     isCreatedOrEnhanced(retention) &&
-    proposed.advanceYears > 0 &&
-    proposed.delayYears > 0
+    Number.parseFloat(proposed.advanceYears) > 0 &&
+    Number.parseFloat(proposed.delayYears) > 0
   if (redundant || conflicting) {
     proposed.advanceYears = null
     proposed.delayYears = null
