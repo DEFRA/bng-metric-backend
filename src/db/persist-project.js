@@ -27,6 +27,7 @@ import {
   postInterventionHabitatSchema,
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema,
+  lostHabitatsSchema,
   tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import {
@@ -256,6 +257,9 @@ async function setProjectBaselineAndPostIntervention(
  * @param {object} params.unitsTotals refreshed baseline.units totals
  * @param {object} [params.tradingRules] refreshed postIntervention.tradingRules,
  *   omitted on the baseline document, which carries no trading-rules figures
+ * @param {Array<object>} [params.lostHabitats] refreshed
+ *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
+ *   Service template upload; omitted otherwise (BMD-1083)
  * @param {object} [params.postIntervention] the whole re-derived
  *   postIntervention document, written alongside a BASELINE feature edit: that
  *   document holds its own copy of the baseline and an edit can move any number
@@ -272,6 +276,7 @@ async function setProjectFeature(
     feature,
     unitsTotals,
     tradingRules,
+    lostHabitats,
     postIntervention,
     actorId
   }
@@ -299,6 +304,18 @@ async function setProjectFeature(
       `${documentKey}.tradingRules`
     )
   }
+  if (lostHabitats) {
+    if (documentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
+      throw Boom.badImplementation(
+        'persist: only the post-intervention document records lost habitats'
+      )
+    }
+    assertFragmentValid(
+      lostHabitatsSchema,
+      lostHabitats,
+      `${documentKey}.lostHabitats`
+    )
+  }
   if (postIntervention) {
     assertFragmentValid(
       habitatDataSchemaFor(POST_INTERVENTION_DOCUMENT_KEY),
@@ -316,13 +333,16 @@ async function setProjectFeature(
   const withTradingRules = tradingRules
     ? jsonbSet(withTotals, [documentKey, 'tradingRules'], tradingRules)
     : withTotals
+  const withLostHabitats = lostHabitats
+    ? jsonbSet(withTradingRules, [documentKey, 'lostHabitats'], lostHabitats)
+    : withTradingRules
   const withPostIntervention = postIntervention
     ? jsonbSet(
-        withTradingRules,
+        withLostHabitats,
         [POST_INTERVENTION_DOCUMENT_KEY],
         postIntervention
       )
-    : withTradingRules
+    : withLostHabitats
   await exec
     .update(projects)
     .set({ project: withPostIntervention, lastModifiedBy: actorId })

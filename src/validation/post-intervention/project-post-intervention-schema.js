@@ -538,6 +538,12 @@ const lostHabitatSchema = Joi.object({
 // Top-level post-intervention data schema
 // ──────────────────────────────────────────────────────────────────────────────
 
+const lostHabitatsSchema = Joi.array()
+  .items(lostHabitatSchema)
+  .description(
+    'The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported, and again when a baseline edit re-derives this document or a post-intervention edit changes a habitat (BMD-1083). Absent on a legacy upload.'
+  )
+
 const postInterventionDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
   redLine: redLineSchema,
@@ -556,11 +562,7 @@ const postInterventionDataSchema = Joi.object({
   habitatSizes: habitatSizesSummarySchema,
   units: baselineUnitsTotalsSchema,
   tradingRules: tradingRulesSchema,
-  lostHabitats: Joi.array()
-    .items(lostHabitatSchema)
-    .description(
-      'The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported, and again when a baseline edit re-derives this document or a post-intervention edit changes a habitat (BMD-1083). Absent on a legacy upload.'
-    )
+  lostHabitats: lostHabitatsSchema
 }).description(
   'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes, unit totals and trading-rules unit figures.'
 )
@@ -568,6 +570,7 @@ const postInterventionDataSchema = Joi.object({
 export {
   postInterventionDataSchema,
   tradingRulesSchema,
+  lostHabitatsSchema,
   postInterventionHabitatSchema,
   postInterventionTreeSchema,
   postInterventionLinearHabitatSchema,

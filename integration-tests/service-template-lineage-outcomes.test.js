@@ -5,11 +5,13 @@ import Database from 'better-sqlite3'
 import { afterAll, beforeAll, expect, it } from 'vitest'
 
 import { describeServiceTemplate } from '../test/helpers/template-mode.js'
+import { HTTP_OK } from './helpers/http-status.js'
 import { fixturePath } from './helpers/upload-fixtures.js'
 import {
   callPostInterventionValidate,
   createProject,
   fetchProject,
+  getPersistenceTestContext,
   registerPersistenceTestHooks,
   uploadFixture
 } from './helpers/persistence-test-setup.js'
@@ -142,6 +144,45 @@ describeServiceTemplate(
       expect(created.status).toBe(INCOMPLETE)
       expect(created.proposed.advanceYears).toBeNull()
       expect(created.proposed.delayYears).toBeNull()
+    })
+
+    it('saves the lost habitats a post-intervention edit changes', async () => {
+      const { server, headers } = getPersistenceTestContext()
+      const project = await createProject('Lineage outcomes after an edit')
+      await uploadCombined(project.id, EVERY_COLUMN)
+      const stored = await fetchProject(project.id)
+      // H014 is Blackthorn scrub Created over Tall forbs: its parent is lost
+      // to another type, not re-created.
+      const parent = byRef(stored.baseline.habitats, 'H014')
+      const creation = byRef(stored.postIntervention.habitats, 'H014')
+      const lostParent = () =>
+        fetchProject(project.id).then(({ postIntervention }) =>
+          postIntervention.lostHabitats.find(
+            (entry) => entry.featureId === parent.featureId
+          )
+        )
+      expect(await lostParent()).toEqual(
+        expect.objectContaining({ outcome: 'lost', recreatedAs: [] })
+      )
+
+      const res = await server.inject({
+        method: 'PUT',
+        url: `/projects/${project.id}/post-intervention/habitats/${creation.featureId}`,
+        headers,
+        payload: {
+          broadType: 'Sparsely vegetated land',
+          habitatType: 'Tall forbs',
+          condition: 'Poor'
+        }
+      })
+
+      expect(res.statusCode).toBe(HTTP_OK)
+      expect(await lostParent()).toEqual(
+        expect.objectContaining({
+          outcome: 'lostAndRecreated',
+          recreatedAs: [creation.featureId]
+        })
+      )
     })
   }
 )

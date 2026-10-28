@@ -597,6 +597,12 @@ function applyFeatureUpdate(
     feature: updatedFeature,
     unitsTotals: updatedFeatureSet.units,
     tradingRules: updatedFeatureSet.tradingRules,
+    // Refreshed by a post-intervention edit to a template upload; persisted
+    // alongside the feature, since nothing else writes it (BMD-1083).
+    lostHabitats:
+      documentKey === 'postIntervention'
+        ? updatedFeatureSet.lostHabitats
+        : undefined,
     postIntervention,
     project: rebuiltProject(
       project,
