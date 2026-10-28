@@ -138,7 +138,6 @@ function withDroppedColumnsChanged() {
     'Baseline Distinctiveness': 'V.High',
     'Proposed Distinctiveness': 'V.High',
     'Spatial risk category': 'Far from site',
-    'Irreplaceable Habitat': '',
     Area: 1,
     Length: 1,
     'Baseline Length': 1
@@ -268,6 +267,44 @@ describeServiceTemplate(
         // are not read yet.
         expect(document.trees).toEqual([])
         expect(document).not.toHaveProperty('verticalHabitats')
+      }
+    })
+
+    it('reads each area habitat’s Irreplaceable Habitat, at both stages', () => {
+      for (const [, documentName] of STAGES) {
+        for (const habitat of stored[documentName].habitats) {
+          expect(habitat.irreplaceable, habitat.ref).toBe(false)
+        }
+      }
+    })
+
+    it('reads "Yes" as irreplaceable, and "No" or blank as not, at both stages', async () => {
+      const project = await createProject('Service template irreplaceable')
+      const fixture = 'service-template/irreplaceable-area-habitat.gpkg'
+      const tables = {
+        baseline: 'Area Habitats Baseline',
+        postIntervention: 'Area Habitats Post-Intervention'
+      }
+
+      const res = await callPostInterventionValidate(
+        await uploadFixture(fixture),
+        { projectId: project.id }
+      )
+
+      expect(res.result).toEqual({ valid: true, errors: [] })
+      const stored = await fetchProject(project.id)
+      for (const [documentName, table] of Object.entries(tables)) {
+        const yes = new Set(
+          rowsOf(fixturePath(fixture), table)
+            .filter((row) => row['Irreplaceable Habitat'] === 'Yes')
+            .map((row) => row.fid)
+        )
+        expect(yes.size, table).toBeGreaterThan(0)
+        for (const habitat of stored[documentName].habitats) {
+          expect(habitat.irreplaceable, `${table} ${habitat.ref}`).toBe(
+            yes.has(habitat.properties.fid)
+          )
+        }
       }
     })
 

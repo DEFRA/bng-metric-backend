@@ -1370,6 +1370,17 @@
       "description": "Retention category from the GeoPackage."
     },
     {
+      "path": "baseline.habitats[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the habitat is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: true for \"Yes\", false for \"No\" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "baseline.habitats[].area",
       "type": "number",
       "required": false,
@@ -1852,6 +1863,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Notional tree area in square metres: the per-size reference area times the Count column."
+    },
+    {
+      "path": "baseline.trees[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable."
     },
     {
       "path": "baseline.trees[].units",
@@ -3171,6 +3193,17 @@
       "constraints": [],
       "openMap": false,
       "description": "Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour."
+    },
+    {
+      "path": "postIntervention.habitats[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the habitat is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: true for \"Yes\", false for \"No\" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.habitats[].baseline",
