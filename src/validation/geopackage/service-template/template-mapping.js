@@ -73,7 +73,8 @@ const LAYER_COLUMNS = {
       'Baseline Habitat Type',
       'Proposed Broad Habitat Type',
       'Proposed Habitat Type',
-      // Read as `irreplaceable`; BMD-1176 refuses a file with one that is.
+      // Read as `irreplaceable`; refusing a file with one that is waits for
+      // BMD-1176.
       'Irreplaceable Habitat'
     ),
     ...dropped('Area')

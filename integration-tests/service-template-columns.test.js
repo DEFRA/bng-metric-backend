@@ -278,15 +278,13 @@ describeServiceTemplate(
       }
     })
 
-    it('reads "Yes" as irreplaceable, and "No" or blank as not', async () => {
+    it('reads "Yes" as irreplaceable, and "No" or blank as not, at both stages', async () => {
       const project = await createProject('Service template irreplaceable')
       const fixture = 'service-template/irreplaceable-area-habitat.gpkg'
-      const yes = new Set(
-        rowsOf(fixturePath(fixture), 'Area Habitats Baseline')
-          .filter((row) => row['Irreplaceable Habitat'] === 'Yes')
-          .map((row) => row.fid)
-      )
-      expect(yes.size).toBeGreaterThan(0)
+      const tables = {
+        baseline: 'Area Habitats Baseline',
+        postIntervention: 'Area Habitats Post-Intervention'
+      }
 
       const res = await callPostInterventionValidate(
         await uploadFixture(fixture),
@@ -294,11 +292,19 @@ describeServiceTemplate(
       )
 
       expect(res.result).toEqual({ valid: true, errors: [] })
-      const { baseline } = await fetchProject(project.id)
-      for (const habitat of baseline.habitats) {
-        expect(habitat.irreplaceable, habitat.ref).toBe(
-          yes.has(habitat.properties.fid)
+      const stored = await fetchProject(project.id)
+      for (const [documentName, table] of Object.entries(tables)) {
+        const yes = new Set(
+          rowsOf(fixturePath(fixture), table)
+            .filter((row) => row['Irreplaceable Habitat'] === 'Yes')
+            .map((row) => row.fid)
         )
+        expect(yes.size, table).toBeGreaterThan(0)
+        for (const habitat of stored[documentName].habitats) {
+          expect(habitat.irreplaceable, `${table} ${habitat.ref}`).toBe(
+            yes.has(habitat.properties.fid)
+          )
+        }
       }
     })
 
