@@ -702,6 +702,23 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       }
     })
 
+  test('takes a baseline edit from the parent a watercourse names, though its own ref differs, and keeps that ref (BMD-1086)', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      {
+        watercourses: [{ ...encroached(), ref: 'R1a' }],
+        template: TEMPLATE,
+        lostHabitats: []
+      },
+      {
+        baseline: { watercourses: [ditch('Good')] },
+        previousBaseline: { watercourses: [ditch()] }
+      }
+    )
+
+    expect(rederived.watercourses[0].baseline.condition).toBe('Good')
+    expect(rederived.watercourses[0].ref).toBe('R1a')
+  })
+
   test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
     const rederived = rederivePostInterventionFromBaseline(
       { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },

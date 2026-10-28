@@ -60,6 +60,7 @@
 
 import { enforceRequiredAttributeCompleteness } from '../shared/required-attribute-completeness.js'
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
+import { PARENT_LINKED_LAYERS } from '../../../validation/geopackage/service-template/lineage/link-parents.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import {
   RETAINED_AREA_PROPOSED_FIELDS,
@@ -93,13 +94,6 @@ const LOG_PREFIX = 'resyncPostInterventionBaseline: '
  * (`recomputeForType` in apply-feature-update.js has no tree branch), so no
  * route can currently make a tree's two copies disagree.
  */
-/**
- * The layers a BNG Service template upload links to their parents
- * (link-parents.js). Trees are not linked until BMD-1172, so a template's
- * trees still re-sync by ref.
- */
-const PARENT_LINKED_LAYERS = new Set(['habitats', 'hedgerows', 'watercourses'])
-
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
   trees: RETAINED_TREE_PROPOSED_FIELDS,
@@ -494,7 +488,8 @@ export function resyncPostInterventionBaselineSide(
         ),
         updatedById: buildFeatureById(baseline?.[layer]),
         fields,
-        byParent: templateUpload && PARENT_LINKED_LAYERS.has(layer)
+        // Trees are not linked until BMD-1172, so they re-sync by ref.
+        byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
       },
       { layer, logger }
     )

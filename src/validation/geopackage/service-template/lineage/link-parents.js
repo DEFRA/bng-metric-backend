@@ -13,8 +13,17 @@ import { FEATURE_UUID, PARENT_UUID } from 'bng-library/bng-service'
  * (linear-baseline-length-by-ref.js), not by ref.
  */
 
-/** The document layers a template upload links: those the service reads. */
-const LINKED_LAYERS = Object.freeze(['habitats', 'hedgerows', 'watercourses'])
+/**
+ * The document layers a template upload links: those the service reads.
+ * Trees join them with BMD-1172. A baseline edit re-syncs these layers' rows
+ * from their parents (resync-post-intervention-baseline.js), so this is the
+ * one list of them.
+ */
+export const PARENT_LINKED_LAYERS = Object.freeze([
+  'habitats',
+  'hedgerows',
+  'watercourses'
+])
 
 const text = (value) =>
   value === null || value === undefined || String(value).trim() === ''
@@ -29,7 +38,7 @@ const text = (value) =>
  *   `parentFeatureId`
  */
 export function linkToParents(postIntervention, baseline) {
-  for (const layer of LINKED_LAYERS) {
+  for (const layer of PARENT_LINKED_LAYERS) {
     // A uuid two baseline features share links neither: the parent checks
     // refuse a row that names one (STAGED_AMBIGUOUS_PARENT).
     const parentIds = new Map()
