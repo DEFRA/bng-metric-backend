@@ -871,3 +871,31 @@ describe('resyncPostInterventionBaselineSide — a renamed baseline ref (BMD-106
     expect(postIntervention.hedgerows[0].ref).toBe('B-H1')
   })
 })
+
+test.each(['habitats', 'trees', 'hedgerows', 'watercourses'])(
+  'an untouched template Created %s row still follows a baseline reference rename',
+  (layer) => {
+    const parentFeatureId = 'baseline-1'
+    const feature = {
+      featureId: 'pi-1',
+      ref: 'A1',
+      retentionCategory: 'Created',
+      parentFeatureId,
+      baseline: { condition: 'Poor' },
+      proposed: {}
+    }
+    const previousBaseline = {
+      [layer]: [{ featureId: parentFeatureId, ref: 'A1', condition: 'Poor' }]
+    }
+    const baseline = {
+      [layer]: [{ featureId: parentFeatureId, ref: 'A2', condition: 'Good' }]
+    }
+    resyncPostInterventionBaselineSide(
+      { [layer]: [feature] },
+      { baseline, previousBaseline }
+    )
+    expect(feature.ref).toBe('A2')
+    expect(feature.baseline.condition).toBe('Good')
+    expect(feature.referenceEdited).toBeUndefined()
+  }
+)

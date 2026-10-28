@@ -89,3 +89,26 @@ write, and the audit-log integration tests verify actor, timestamp and snapshots
    `.insert/.update(projects)` directly — the lint rule will reject it.
 3. If you introduced a new field, add it to `src/validation/project.js` (with a
    `.description()`) and run `npm run data-dictionary`.
+
+## Proposed timing and downstream exports
+
+Created-area edits keep `advanceYears` and `delayYears` numeric (or null).
+The input selection `30+` is priced and stored as 30, as the metric requires.
+Optional boolean `advanceYearsIs30Plus` / `delayYearsIs30Plus` flags retain the
+selection for the editor and list display. The existing numeric warehouse
+columns and numeric casts remain valid; consumers may ignore the UI flags.
+No Postgres schema migration is needed for these optional JSONB fields.
+
+Changing a Created area's reference preserves its original baseline parent by
+featureId where it can be identified unambiguously. A null parent explicitly
+records no link. Later baseline edits cannot attach it to another parcel just
+because the user chose the same reference; valid Lost replacements and split
+parcels retain their original baseline association. `referenceEdited` confines
+this protection to user-renamed Created areas; untouched template and legacy
+rows keep their baseline-reference rename behaviour.
+
+Incomplete Created-area saves retain the entered attributes but clear all
+engine-derived pricing fields, with null units and Incomplete status. Baseline
+resync applies the same clearing rule. The editor derives available labels
+from the current reference data; saved pricing is populated only when the
+required inputs permit a calculation.

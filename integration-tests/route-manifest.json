@@ -20,6 +20,7 @@
   "GET /projects/{id}/details",
   "PATCH /projects/{id}/details",
   "GET /users/{userId}/projects",
+  "GET /reference/area-creation",
   "GET /reference/broad-habitats",
   "GET /reference/habitat-types",
   "GET /reference/habitat-types-by-broad",

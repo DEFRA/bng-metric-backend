@@ -17,8 +17,6 @@ import {
   finalizePostInterventionFeatureStatus,
   runProposedCalculation,
   prepareProposedUnitCalculation,
-  importedRetentionCategory,
-  GPKG_RETENTION_LOST,
   skipUnrecognisedRetentionCategory,
   LOG_ENRICH_PI_PREFIX,
   RETENTION_RETAINED,
@@ -258,14 +256,13 @@ function buildEnhancedAreaCalculate(
  * @param {{ warn: (msg: string) => void }} logger
  * @returns {(() => object) | null}
  */
-function resolveAreaProposedCalculate(habitat, logger, label, originallyLost) {
+function resolveAreaProposedCalculate(habitat, logger, label) {
   const sizeHa = pricedAreaHectares(habitat)
   const baseline = habitat.baseline ?? {}
   const proposed = habitat.proposed ?? {}
   const baselineCondition = normalizeConditionForEngine(baseline.condition)
   const proposedCondition = normalizeConditionForEngine(proposed.condition)
-  const advanceYears = originallyLost ? 0 : proposed.advanceYears
-  const delayYears = originallyLost ? 0 : proposed.delayYears
+  const { advanceYears, delayYears } = proposed
   const category = resolveRetentionCategory(habitat)
 
   if (category === RETENTION_RETAINED) {
@@ -320,26 +317,14 @@ export function enrichPostInterventionAreaProposedSide(
   logger,
   label = AREA_PROPOSED_LABEL
 ) {
-  // BMD-1060 AC5 makes timing irrelevant on original Lost rows. Their area
-  // replacement still prices as Created, with no advance or delay credit.
-  const originallyLost =
-    importedRetentionCategory(habitat) === GPKG_RETENTION_LOST
-  if (
-    !prepareProposedUnitCalculation(habitat, label, logger, {
-      timingRequired: !originallyLost
-    })
-  ) {
+  if (!prepareProposedUnitCalculation(habitat, label, logger)) {
     return
   }
   if (!hasValidAreaHabitatSize(habitat)) {
+    skipProposedEnrichment(habitat, label, 'area is missing or invalid', logger)
     return
   }
-  const calculate = resolveAreaProposedCalculate(
-    habitat,
-    logger,
-    label,
-    originallyLost
-  )
+  const calculate = resolveAreaProposedCalculate(habitat, logger, label)
   runProposedCalculation(habitat, calculate, applyProposedResult, label, logger)
 }
 

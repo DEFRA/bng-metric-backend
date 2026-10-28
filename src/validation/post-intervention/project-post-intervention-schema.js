@@ -57,15 +57,20 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Set on a BNG Service template upload only (BMD-1083), from the row's
-// parent_uuid, so a legacy upload's features have no such field.
-function parentFeatureIdField() {
+// Template links keep their original contract on linear features. Only area
+// edits can explicitly record that a Created reference has no baseline parent.
+function parentFeatureIdField({ editableArea = false } = {}) {
+  const field = Joi.string().uuid()
   return {
-    parentFeatureId: Joi.string()
-      .uuid()
-      .description(
-        'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
-      )
+    parentFeatureId: editableArea
+      ? field
+          .allow(null)
+          .description(
+            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
+          )
+      : field.description(
+          'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
+        )
   }
 }
 
@@ -101,12 +106,12 @@ function proposedCommonFields() {
     advanceYears: Joi.number()
       .allow(null)
       .description(
-        'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained/Lost habitats.'
+        'Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules.'
       ),
     delayYears: Joi.number()
       .allow(null)
       .description(
-        'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained/Lost habitats.'
+        'Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules.'
       ),
     timeMultiplier: Joi.number()
       .allow(null)
@@ -246,6 +251,12 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
 )
 
 const postInterventionHabitatProposedSubSchema = Joi.object({
+  advanceYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'
+  ),
+  delayYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input.'
+  ),
   type: Joi.string()
     .allow(null, '')
     .description(
@@ -274,7 +285,10 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
-  ...parentFeatureIdField(),
+  ...parentFeatureIdField({ editableArea: true }),
+  referenceEdited: Joi.boolean().description(
+    'Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
+  ),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()

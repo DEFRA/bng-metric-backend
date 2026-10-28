@@ -76,11 +76,36 @@ describe('#schemaLeaves', () => {
     [Joi.string().isoDate(), 'timestamptz'],
     [Joi.string(), 'text'],
     [Joi.number(), 'numeric'],
-    [Joi.number().integer(), 'integer']
+    [Joi.number().integer(), 'integer'],
+    [Joi.boolean(), 'boolean']
   ])('types %# as %s', (schema, expected) => {
     const [leaf] = schemaLeaves(Joi.object({ field: schema }).describe())
     expect(leaf.type).toBe(expected)
   })
+})
+
+it('advertises persisted Created-area metadata as boolean columns', () => {
+  const columns = model.tables.flatMap((table) => table.columns)
+  for (const path of [
+    'postIntervention.habitats[].referenceEdited',
+    'postIntervention.habitats[].proposed.advanceYearsIs30Plus',
+    'postIntervention.habitats[].proposed.delayYearsIs30Plus'
+  ]) {
+    expect(
+      columns.find((column) => column.jsonPaths.includes(path))
+    ).toMatchObject({ type: 'boolean' })
+  }
+  for (const layer of ['trees', 'hedgerows', 'watercourses']) {
+    for (const field of ['advanceYearsIs30Plus', 'delayYearsIs30Plus']) {
+      expect(
+        columns.some((column) =>
+          column.jsonPaths.includes(
+            `postIntervention.${layer}[].proposed.${field}`
+          )
+        )
+      ).toBe(false)
+    }
+  }
 })
 
 describe('#buildWarehouseModel — schema coverage', () => {

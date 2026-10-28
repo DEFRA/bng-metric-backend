@@ -65,8 +65,8 @@ describe('BMD-1060 import combinations', () => {
     }
   )
 
-  it.each(['Created', 'Enhanced', 'Retained', 'Lost'])(
-    'AC1 applies strategic-significance cascade only to Created/Enhanced: %s',
+  it.each(['Created', 'Enhanced', 'Retained', 'Lost', '4. Lost'])(
+    'AC1 clears strategic significance on Created/Enhanced and Lost area replacements: %s',
     (retentionCategory) => {
       const feature = {
         retentionCategory,
@@ -89,9 +89,12 @@ describe('BMD-1060 import combinations', () => {
         broadType: 'Grassland',
         type: null,
         condition: null,
-        strategicSignificance: ['Created', 'Enhanced'].includes(
-          retentionCategory
-        )
+        strategicSignificance: [
+          'Created',
+          'Enhanced',
+          'Lost',
+          '4. Lost'
+        ].includes(retentionCategory)
           ? null
           : STRATEGIC,
         advanceYears: null,
@@ -178,9 +181,12 @@ describe('BMD-1060 import combinations', () => {
   )
 
   it.each(['Retained', 'Lost'])(
-    'AC5 removes all timing values from %s across layers',
+    'AC5 removes timing from %s except Lost area replacements',
     (retentionCategory) => {
       for (const layer of ['habitats', 'trees', 'hedgerows', 'watercourses']) {
+        if (layer === 'habitats' && retentionCategory === 'Lost') {
+          continue
+        }
         for (const values of [
           [2, 3],
           [0, 0],
@@ -197,7 +203,7 @@ describe('BMD-1060 import combinations', () => {
     }
   )
 
-  it('AC5 recognises Lost area rows mapped to Created by extraction', () => {
+  it('AC5 preserves timing on Lost area rows mapped to Created by extraction', () => {
     const { document } = extractPostIntervention({
       areas: [
         {
@@ -216,8 +222,8 @@ describe('BMD-1060 import combinations', () => {
     })
     applyCombinations(document, true)
     expect(document.habitats[0].proposed).toMatchObject({
-      advanceYears: null,
-      delayYears: null
+      advanceYears: 3,
+      delayYears: 0
     })
   })
 

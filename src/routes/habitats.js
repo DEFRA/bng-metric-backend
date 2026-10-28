@@ -1,8 +1,14 @@
 import Boom from '@hapi/boom'
+import {
+  postInterventionAreaEditPayload,
+  validateCreatedAreaEdit
+} from './created-area-edit.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
 import { setProjectFeature } from '../db/persist-project.js'
+import { setGeometryRefs } from '../db/feature-geometry-refs.js'
+import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
 import {
@@ -13,9 +19,8 @@ import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
-// These routes save the dropdown fields alone. A ref sent here is refused
-// rather than accepted and dropped, so a client that means to rename uses the
-// feature PUT (BMD-1061).
+// The baseline typed route saves dropdowns only; reference renaming belongs to
+// its unified feature route. Created PI edits use their own complete payload.
 const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
   schema.forbidden()
 )
@@ -87,7 +92,11 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       for a single post-intervention area habitat, then recomputes the
  *       derived distinctiveness, condition score, habitat-unit total and
  *       Complete/Incomplete status before saving. Returns the updated habitat
- *       document.
+ *       document. Supplying any of ref, strategicSignificance, advanceYears or
+ *       delayYears requires all four, plus broadType, habitatType and condition.
+ *       These extended edits are supported only for Created area habitats.
+ *       The 30+ timing input is stored as numeric 30 with an optional selection
+ *       flag; response timing fields remain numeric or null.
  *     parameters:
  *       - in: path
  *         name: projectId
@@ -108,6 +117,29 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *           schema:
  *             type: object
  *             properties:
+ *               ref:
+ *                 type: string
+ *                 description: Valid UTF-8 reference, trimmed and limited to 100 Unicode characters on save.
+ *               strategicSignificance:
+ *                 type: string
+ *                 nullable: true
+ *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
+ *               advanceYears:
+ *                 nullable: true
+ *                 oneOf:
+ *                   - type: integer
+ *                     minimum: 0
+ *                     maximum: 30
+ *                   - type: string
+ *                     enum: ['30+']
+ *               delayYears:
+ *                 nullable: true
+ *                 oneOf:
+ *                   - type: integer
+ *                     minimum: 0
+ *                     maximum: 30
+ *                   - type: string
+ *                     enum: ['30+']
  *               broadType:
  *                 type: string
  *                 nullable: true
@@ -120,6 +152,8 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *     responses:
  *       200:
  *         description: Returns the updated habitat document
+ *       400:
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, an incomplete extended payload, or extended edits to a non-Created area.
  *       404:
  *         description: Project or habitat not found
  *       422:
@@ -135,7 +169,10 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
-        payload: areaHabitatEditPayload
+        payload:
+          documentKey === 'postIntervention'
+            ? postInterventionAreaEditPayload
+            : areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -151,6 +188,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             broadType,
             habitatType,
             condition,
+            edits: createdAreaEdits(request.payload),
             documentKey,
             credentials,
             logger: request.logger
@@ -179,6 +217,65 @@ const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
   documentKey: 'postIntervention'
 })
 
+function createdAreaEdits(payload) {
+  if (!Object.hasOwn(payload, 'ref')) {
+    return {}
+  }
+  return {
+    ref: payload.ref,
+    strategicSignificance: payload.strategicSignificance,
+    advanceYears: payload.advanceYears,
+    delayYears: payload.delayYears
+  }
+}
+
+async function persistAreaFeatureEdit(
+  tx,
+  { projectId, previousProject, result, documentKey, actorId }
+) {
+  await setProjectFeature(tx, projectId, {
+    documentKey,
+    layer: result.layer,
+    index: result.index,
+    feature: result.feature,
+    unitsTotals: result.unitsTotals,
+    tradingRules: result.tradingRules,
+    postIntervention: result.postIntervention,
+    actorId
+  })
+  await setGeometryRefs(
+    tx,
+    projectId,
+    listRenamedRefs(previousProject ?? {}, {
+      documentKey,
+      layer: result.layer,
+      feature: result.feature,
+      postIntervention: result.postIntervention
+    })
+  )
+}
+
+function assertSuccessfulAreaEdit(result, projectId, featureId) {
+  if (
+    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
+    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
+  ) {
+    throw Boom.notFound(
+      `Habitat ${featureId} not found in project ${projectId}`
+    )
+  }
+  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
+    throw outOfScopeDistinctivenessError(result.distinctiveness)
+  }
+  if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
+    throw invalidEnhancementError(result.rule)
+  }
+
+  if (result.status !== APPLY_RESULT.OK) {
+    throw Boom.badRequest('This habitat edit is not supported')
+  }
+}
+
 async function runUpdate(
   tx,
   {
@@ -187,6 +284,7 @@ async function runUpdate(
     broadType,
     habitatType,
     condition,
+    edits,
     documentKey,
     credentials,
     logger
@@ -211,36 +309,34 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
+  if (documentKey === 'postIntervention') {
+    const feature = row.project?.postIntervention?.habitats?.find(
+      (f) => f.featureId === featureId
+    )
+    if (feature) {
+      validateCreatedAreaEdit(feature, {
+        ...edits,
+        broadType,
+        habitatType,
+        condition
+      })
+    }
+  }
+
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
-    edits: { broadType, habitatType, condition },
+    edits: { ...edits, broadType, habitatType, condition },
     expectedType: 'habitat',
     documentKey,
     logger
   })
-  if (
-    result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
-    result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
-  ) {
-    throw Boom.notFound(
-      `Habitat ${featureId} not found in project ${projectId}`
-    )
-  }
-  if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
-    throw outOfScopeDistinctivenessError(result.distinctiveness)
-  }
-  if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
-    throw invalidEnhancementError(result.rule)
-  }
+  assertSuccessfulAreaEdit(result, projectId, featureId)
 
-  await setProjectFeature(tx, projectId, {
+  await persistAreaFeatureEdit(tx, {
+    projectId,
+    previousProject: row.project,
+    result,
     documentKey,
-    layer: result.layer,
-    index: result.index,
-    feature: result.feature,
-    unitsTotals: result.unitsTotals,
-    tradingRules: result.tradingRules,
-    postIntervention: result.postIntervention,
     actorId: credentials.sub
   })
 

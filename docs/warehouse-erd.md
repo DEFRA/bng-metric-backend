@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**23 tables**, mapping 375 schema fields.
+**23 tables**, mapping 378 schema fields.
 
 ## Diagram
 
@@ -667,7 +667,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 34 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 37 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -681,6 +681,7 @@ habitats in the postIntervention document. 34 column(s) mapped from the JSON doc
 | `status`                                     | `text`    |     | `postIntervention.habitats[].status`                                 |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.habitats[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.habitats[].baseline.broadType`                     |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.habitats[].baseline.condition`                     |                                                                                  |
@@ -688,6 +689,8 @@ habitats in the postIntervention document. 34 column(s) mapped from the JSON doc
 | `baseline_distinctiveness`                   | `text`    |     | `postIntervention.habitats[].baseline.distinctiveness`               |                                                                                  |
 | `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.habitats[].baseline.distinctivenessScore`          |                                                                                  |
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.habitats[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.habitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.habitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.habitats[].proposed.type`                          |                                                                                  |
 | `proposed_broad_type`                        | `text`    |     | `postIntervention.habitats[].proposed.broadType`                     |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.habitats[].proposed.condition`                     |                                                                                  |

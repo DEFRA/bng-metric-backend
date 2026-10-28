@@ -16,6 +16,9 @@ import {
  * @returns {number}
  */
 function finiteYearsOrZero(value) {
+  if (value === MAX_YEARS_PLUS) {
+    return MAX_YEARS
+  }
   if (typeof value === 'number' && Number.isFinite(value)) {
     return value
   }
@@ -77,7 +80,12 @@ export function resolveAdvanceOrDelay(advanceYears, delayYears) {
  * @param {number} delay
  * @returns {number | string}
  */
-function resolveFinalYears(standardYears, isOverMaxStandard, advance, delay) {
+export function resolveFinalYears(
+  standardYears,
+  isOverMaxStandard,
+  advance,
+  delay
+) {
   const finalYears = standardYears - advance + delay
   if ((isOverMaxStandard && advance === 0) || finalYears > MAX_YEARS) {
     return MAX_YEARS_PLUS

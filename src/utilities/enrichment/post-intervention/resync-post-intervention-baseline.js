@@ -17,7 +17,9 @@
 // A baseline edit can rename a feature's ref (BMD-1061). The row resolved to it
 // takes the new ref too, so the join holds after the rename.
 //
-// The join key is `ref` — the Parcel Ref / Tree Ref column — for the same
+// Reference-edited Created areas retain their explicit parent independently
+// of their editable ref; null explicitly means no parent. Other legacy rows
+// use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
 // post-intervention row describing it share no id.
@@ -250,6 +252,12 @@ function syncFeatureIdentity(feature, source, fields) {
  * @returns {boolean} whether the ref changed
  */
 function syncRef(feature, source) {
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    feature.referenceEdited === true
+  ) {
+    return false
+  }
   const next = normaliseRef(source.ref)
   if (next === null || next === normaliseRef(feature.ref)) {
     return false
@@ -291,6 +299,34 @@ function warnUnresolved(
   )
 }
 
+/** Preserve lineage before an editable Created reference changes its join key. */
+export function preserveCreatedAreaParent(
+  existing,
+  updated,
+  { documentKey, layer, baseline }
+) {
+  const areaEdit = documentKey === 'postIntervention' && layer === 'habitats'
+  if (
+    !areaEdit ||
+    resolveRetentionCategory(existing) !== RETENTION_CREATED ||
+    updated.ref === existing.ref
+  ) {
+    return
+  }
+  updated.referenceEdited = true
+  if (Object.hasOwn(existing, 'parentFeatureId')) {
+    return
+  }
+  const candidates =
+    buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
+  const resolved = resolveBaselineFeature(
+    candidates,
+    existing,
+    IDENTITY_FIELDS_BY_LAYER.habitats
+  )
+  updated.parentFeatureId = resolved.source?.featureId ?? null
+}
+
 /**
  * Resolve one post-intervention row to the post-edit baseline feature it should
  * take its values from, or say why it cannot be resolved.
@@ -300,6 +336,19 @@ function warnUnresolved(
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
 function resolveSource(feature, { candidatesByRef, updatedById, fields }) {
+  if (
+    resolveRetentionCategory(feature) === RETENTION_CREATED &&
+    feature.referenceEdited === true
+  ) {
+    const source = updatedById.get(feature.parentFeatureId)
+    return source
+      ? { source }
+      : {
+          unresolvable: 'missing',
+          ref: normaliseRef(feature.ref),
+          candidateCount: 0
+        }
+  }
   const ref = normaliseRef(feature?.ref)
   const candidates = (ref === null ? undefined : candidatesByRef.get(ref)) ?? []
   if (candidates.length === 0) {
