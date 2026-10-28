@@ -3,21 +3,25 @@ import {
   RETENTION_ENHANCED,
   RETENTION_RETAINED,
   resolveRetentionCategory
-} from '../../utilities/enrichment/post-intervention/retention-category.js'
+} from './retention-category.js'
 import {
   LENGTH_TOLERANCE_METRES,
   createdInOwnTypeMetres,
   isSameHabitatType,
   watercourseChange
-} from '../../validation/geopackage/service-template/lineage/habitat-change.js'
-import { MIN_PARCEL_AREA_SQ_M } from '../../validation/geopackage/geometry-constants.js'
+} from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
+import { MIN_PARCEL_AREA_SQ_M } from '../../../validation/geopackage/geometry-constants.js'
 
 /**
  * What a BNG Service template upload's post-intervention habitats do to their
  * baseline parents, worked out on the saved documents once each feature has
  * its parent's `featureId` (service-template/lineage/link-parents.js) and before it is priced
  * (BMD-1083). The file's checks (service-template/lineage/lineage-rules.js) have already refused one
- * that breaks the Metric's lineage rules.
+ * that breaks the Metric's lineage rules. They are worked out again when an
+ * edit changes what they depend on: a baseline edit re-derives the
+ * post-intervention document (resync-post-intervention-baseline.js), and a
+ * post-intervention edit, which can change a habitat's type but not a
+ * watercourse, refreshes `lostHabitats` (apply-feature-update.js).
  *
  * - Only a Retained or Enhanced child carries its parent forward, so a parent
  *   is lost by its size less theirs. A Created child, linked or not, is a
@@ -207,6 +211,17 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
   }
   return changed
 }
+
+/**
+ * Whether a post-intervention document carries lineage outcomes: it came
+ * from a BNG Service template upload, which records `lostHabitats` (empty
+ * when nothing is lost). A legacy upload names no parents, so has none.
+ *
+ * @param {object} postIntervention
+ * @returns {boolean}
+ */
+export const hasLineageOutcomes = (postIntervention) =>
+  Array.isArray(postIntervention?.lostHabitats)
 
 /**
  * Apply both to a template upload's post-intervention document: null the

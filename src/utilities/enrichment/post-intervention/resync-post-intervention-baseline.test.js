@@ -656,6 +656,96 @@ describe('rederivePostInterventionFromBaseline', () => {
   })
 })
 
+describe('rederivePostInterventionFromBaseline — a BNG Service template upload’s lineage outcomes (BMD-1083)', () => {
+  const NO_ENCROACHMENT = {
+    watercourseEncroachment: 'No Encroachment',
+    riparianEncroachment: 'No Encroachment/No Encroachment'
+  }
+
+  /** A baseline ditch, 100 m, in `condition`. */
+  const ditch = (condition = 'Moderate') => ({
+    featureId: 'baseline-r1',
+    ref: 'R1',
+    type: 'Ditches',
+    condition,
+    strategicSignificance: 'Low',
+    sizeMetres: 100,
+    ...NO_ENCROACHMENT
+  })
+
+  /** The ditch Created again with only more encroachment, 10 years in advance. */
+  const encroached = () =>
+    makeWatercourse({
+      featureId: 'pi-r1',
+      ref: 'R1',
+      retentionCategory: 'Created',
+      parentFeatureId: 'baseline-r1',
+      sizeMetres: 100,
+      baseline: { type: 'Ditches', condition: 'Moderate', ...NO_ENCROACHMENT },
+      proposed: {
+        type: 'Ditches',
+        condition: 'Moderate',
+        watercourseEncroachment: 'Major',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        strategicSignificance: 'Low',
+        advanceYears: 10,
+        delayYears: 0
+      }
+    })
+
+  test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+
+  test('nulls the advance once a baseline edit makes it more than an encroachment-only change, so it is re-priced Incomplete', () => {
+    const logger = { warn: vi.fn() }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } },
+      logger
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
+    expect(rederived.watercourses[0].status).toBe('Incomplete')
+    expect(rederived.watercourses[0].units).toBeNull()
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('advance nulled')
+    )
+  })
+
+  test('works out the lost habitats again against the edited baseline', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: 'baseline-r1',
+        outcome: 'lostAndRecreated',
+        lostSizeMetres: 100,
+        recreatedAs: ['pi-r1']
+      })
+    ])
+  })
+
+  test('leaves a legacy upload, which has no lost habitats, without them', () => {
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+
+    expect(rederived).not.toHaveProperty('lostHabitats')
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+})
+
 describe('resyncPostInterventionBaselineSide — a renamed baseline ref (BMD-1061)', () => {
   test('carries the new ref onto the post-intervention row joined to the feature', () => {
     const previousBaseline = { habitats: [baselineHabitat()] }

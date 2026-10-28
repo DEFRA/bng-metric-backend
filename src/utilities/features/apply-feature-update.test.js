@@ -1470,3 +1470,101 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.feature.ref).toBe('A1')
   })
 })
+
+describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats (BMD-1083)', () => {
+  const PARENT_ID = 'dd0e8400-e29b-41d4-a716-446655440004'
+  const CHILD_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+  const NO_LOCAL_STRATEGY =
+    'Area/compensation not in local strategy/ no local strategy'
+
+  /** A parcel lost to a creation of another type, linked to it. */
+  function templateProject({ lostHabitats } = {}) {
+    const parent = {
+      featureId: PARENT_ID,
+      ref: 'H1',
+      type: 'Modified grassland',
+      broadType: 'Grassland',
+      condition: 'Moderate',
+      sizeSquareMetres: 10_000,
+      units: 4
+    }
+    return {
+      name: 'Template fixture',
+      baseline: { habitats: [parent], units: {} },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            ref: 'H1',
+            retentionCategory: 'Created',
+            area: 10_000,
+            sizeSquareMetres: 10_000,
+            units: null,
+            status: 'Incomplete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Moderate'
+            },
+            proposed: {
+              type: 'Other neutral grassland',
+              broadType: 'Grassland',
+              condition: 'Moderate',
+              strategicSignificance: NO_LOCAL_STRATEGY,
+              advanceYears: 0,
+              delayYears: 0
+            }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {},
+        ...(lostHabitats ? { lostHabitats } : {})
+      }
+    }
+  }
+
+  const retype = (project) =>
+    applyFeatureUpdate(project, {
+      featureId: CHILD_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Poor'
+      },
+      documentKey: 'postIntervention'
+    })
+
+  test('works them out again when an edit changes a creation’s type to its parent’s', () => {
+    const result = retype(
+      templateProject({
+        lostHabitats: [
+          {
+            layer: 'habitats',
+            featureId: PARENT_ID,
+            outcome: 'lost',
+            recreatedAs: []
+          }
+        ]
+      })
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.project.postIntervention.lostHabitats).toEqual([
+      expect.objectContaining({
+        featureId: PARENT_ID,
+        outcome: 'lostAndRecreated',
+        recreatedAs: [CHILD_ID]
+      })
+    ])
+  })
+
+  test('gives a legacy upload, which has none, none', () => {
+    const result = retype(templateProject())
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.project.postIntervention).not.toHaveProperty('lostHabitats')
+  })
+})

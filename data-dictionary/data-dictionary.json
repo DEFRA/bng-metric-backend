@@ -5700,7 +5700,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported (BMD-1083). Absent on a legacy upload."
+      "description": "The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported, and again when a baseline edit re-derives this document or a post-intervention edit changes a habitat (BMD-1083). Absent on a legacy upload."
     },
     {
       "path": "postIntervention.lostHabitats[]",
