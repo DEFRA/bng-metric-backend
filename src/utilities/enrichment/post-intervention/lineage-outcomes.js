@@ -11,6 +11,8 @@ import {
   watercourseChange
 } from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
 import { MIN_PARCEL_AREA_SQ_M } from '../../../validation/geopackage/geometry-constants.js'
+import { buildAdvanceDelayFields } from '../../../validation/geopackage/post-intervention/extract-post-intervention-sub-objects.js'
+import { PROPOSED_PROP_KEYS } from '../../../validation/geopackage/properties.js'
 
 /**
  * What a BNG Service template upload's post-intervention habitats do to their
@@ -218,6 +220,49 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
     }
   }
   return changed
+}
+
+/**
+ * The advance a Created watercourse was uploaded with, read from
+ * `properties`, the record of what was imported, as the import reads it: an
+ * advance with a delay above 0 as well is no advance
+ * (normalise-proposed-combinations.js). Undefined when the row has no such
+ * record. A post-intervention watercourse cannot be edited (BMD-597), so this
+ * is the advance the user gave.
+ *
+ * @param {object} feature
+ * @returns {number | null | undefined}
+ */
+function uploadedAdvanceYears(feature) {
+  const properties = feature.properties ?? {}
+  if (!PROPOSED_PROP_KEYS.advanceYears.some((key) => key in properties)) {
+    return undefined
+  }
+  const { advanceYears, delayYears } = buildAdvanceDelayFields(properties)
+  return advanceYears > 0 && delayYears > 0 ? null : advanceYears
+}
+
+/**
+ * Put back the uploaded advance of each Created watercourse linked to a
+ * parent, before nullDisallowedWatercourseAdvance checks it again against the
+ * baseline as it now stands. Without this, an advance nulled by a baseline
+ * edit would stay nulled when the edit is undone, and the row Incomplete,
+ * with no way for the user to restore it short of uploading again.
+ *
+ * @param {object} postIntervention
+ */
+export function restoreUploadedWatercourseAdvance(postIntervention) {
+  for (const feature of postIntervention.watercourses ?? []) {
+    const advance = uploadedAdvanceYears(feature)
+    if (
+      feature.parentFeatureId &&
+      feature.proposed &&
+      resolveRetentionCategory(feature) === RETENTION_CREATED &&
+      advance !== undefined
+    ) {
+      feature.proposed.advanceYears = advance
+    }
+  }
 }
 
 /**

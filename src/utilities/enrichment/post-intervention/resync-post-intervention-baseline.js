@@ -62,7 +62,11 @@ import {
   RETAINED_WATERCOURSE_PROPOSED_FIELDS
 } from './copy-retained-proposed-from-baseline.js'
 import { enrichPostInterventionDocumentWithUnits } from './enrich-post-intervention-units.js'
-import { applyLineageOutcomes, hasLineageOutcomes } from './lineage-outcomes.js'
+import {
+  applyLineageOutcomes,
+  hasLineageOutcomes,
+  restoreUploadedWatercourseAdvance
+} from './lineage-outcomes.js'
 import { postInterventionEnrichOptions } from './post-intervention-enrich-options.js'
 import {
   RETENTION_CREATED,
@@ -488,8 +492,11 @@ export function rederivePostInterventionFromBaseline(
   // What each parent loses depends on its type and size, and whether a
   // watercourse is an encroachment-only change on its condition and
   // encroachment, so both are worked out again before the re-pricing reads
-  // the advance (BMD-1083).
+  // the advance (BMD-1083). The check starts from the advance the user
+  // uploaded, so an advance an earlier edit nulled comes back once the
+  // baseline allows it again.
   if (hasLineageOutcomes(rederived)) {
+    restoreUploadedWatercourseAdvance(rederived)
     applyLineageOutcomes(rederived, baseline, logger)
   }
   enrichPostInterventionDocumentWithUnits(

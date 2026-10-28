@@ -673,9 +673,16 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     ...NO_ENCROACHMENT
   })
 
+  /** The timing columns as uploaded, in `properties`. */
+  const uploaded = (advance, delay = '0') => ({
+    'Habitat created in advance/years': advance,
+    'Delay in starting habitat creation/years': delay
+  })
+
   /** The ditch Created again with only more encroachment, 10 years in advance. */
-  const encroached = () =>
+  const encroached = (properties = uploaded('10')) =>
     makeWatercourse({
+      properties,
       featureId: 'pi-r1',
       ref: 'R1',
       retentionCategory: 'Created',
@@ -733,6 +740,52 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
         recreatedAs: ['pi-r1']
       })
     ])
+  })
+
+  test('puts the advance back once the baseline edit is undone, so the row is Complete again', () => {
+    const edited = rederivePostInterventionFromBaseline(
+      { watercourses: [encroached()], lostHabitats: [] },
+      { baseline: { watercourses: [ditch('Good')] } }
+    )
+    expect(edited.watercourses[0].proposed.advanceYears).toBeNull()
+
+    const undone = rederivePostInterventionFromBaseline(edited, {
+      baseline: { watercourses: [ditch()] },
+      previousBaseline: { watercourses: [ditch('Good')] }
+    })
+
+    expect(undone.watercourses[0].proposed.advanceYears).toBe(10)
+    expect(undone.watercourses[0].status).toBe('Complete')
+  })
+
+  test('puts back an advance the import nulled, once a baseline edit allows it', () => {
+    const nulledOnImport = encroached()
+    nulledOnImport.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [nulledOnImport], lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(10)
+  })
+
+  test.each([
+    ['no record of its upload', {}],
+    [
+      'a delay as well, which the import read as no advance',
+      uploaded('10', '2')
+    ]
+  ])('puts back no advance for a row with %s', (_, properties) => {
+    const feature = encroached(properties)
+    feature.proposed.advanceYears = null
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { watercourses: [feature], lostHabitats: [] },
+      { baseline: { watercourses: [ditch()] } }
+    )
+
+    expect(rederived.watercourses[0].proposed.advanceYears).toBeNull()
   })
 
   test('leaves a legacy upload, which has no lost habitats, without them', () => {
