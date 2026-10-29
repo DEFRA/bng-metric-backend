@@ -2,7 +2,9 @@ import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
-import { afterAll, describe, expect, it } from 'vitest'
+import { afterAll, beforeAll, describe, expect, it } from 'vitest'
+
+import { config } from '../../config.js'
 
 import { ERROR_CODES } from '../../validation/geopackage/errors.js'
 import { importUploadFile } from './import-upload-file.js'
@@ -25,9 +27,26 @@ const BASELINE = { projectDocumentKey: 'baseline' }
 const POST_INTERVENTION = { projectDocumentKey: 'postIntervention' }
 const IMPORT_TIMEOUT_MS = 30_000
 
+const TEMPLATE_FIXTURES = path.join(FIXTURES, 'service-template')
+
 const refsOf = (document) => document.habitats.map((h) => h.ref)
 
-describe('importUploadFile', () => {
+/**
+ * Run a describe block's tests with the service-template flag set, as the
+ * format gate reads it per upload, restoring it afterwards: the unit tests
+ * also run with the flag on in CI.
+ */
+function withServiceTemplate(enabled) {
+  let flagAsSet
+  beforeAll(() => {
+    flagAsSet = config.get('serviceTemplate.enabled')
+    config.set('serviceTemplate.enabled', enabled)
+  })
+  afterAll(() => config.set('serviceTemplate.enabled', flagAsSet))
+}
+
+describe('importUploadFile, a legacy file', () => {
+  withServiceTemplate(false)
   const scratch = mkdtempSync(path.join(tmpdir(), 'import-upload-file-'))
   afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 
@@ -161,6 +180,56 @@ describe('importUploadFile', () => {
     },
     IMPORT_TIMEOUT_MS
   )
+})
+
+describe('importUploadFile, a BNG Service template file', () => {
+  withServiceTemplate(true)
+  const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
+
+  it(
+    'saves the baseline from its Baseline tables with the post-intervention upload',
+    async () => {
+      const baseline = await importUploadFile(SITE, {}, BASELINE)
+      const result = await importUploadFile(
+        SITE,
+        baseline.project,
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(true)
+      expect(refsOf(result.project.baseline)).toEqual(
+        refsOf(baseline.project.baseline)
+      )
+      expect(result.project.postIntervention.habitats.length).toBeGreaterThan(0)
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  // The parent links are checked in the geometry pass, which runs on this
+  // thread here rather than in a worker.
+  it.each([
+    ['lineage-parent-missing.gpkg', ERROR_CODES.STAGED_PARENT_LINK_MISSING],
+    ['lineage-parent-unknown.gpkg', ERROR_CODES.STAGED_UNKNOWN_PARENT_REF]
+  ])(
+    'refuses %s for its parent links',
+    async (file, code) => {
+      const result = await importUploadFile(
+        path.join(TEMPLATE_FIXTURES, file),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result).toMatchObject({ accepted: false })
+      expect(result.errors.map((e) => e.code)).toContain(code)
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it('refuses a legacy file at the format gate', async () => {
+    const result = await importUploadFile(BASELINE_FILE, {}, BASELINE)
+
+    expect(result.accepted).toBe(false)
+  })
 })
 
 describe('projectAfterUpload', () => {

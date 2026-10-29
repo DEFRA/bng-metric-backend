@@ -56,11 +56,12 @@ export function runDataQualityChecks(layers, variant) {
  */
 async function runGeometryChecks(filePath, jobOptions, inThread) {
   if (inThread) {
-    const { valid, errors, sizes } = await validateGeoPackageFileGeos(
-      filePath,
-      jobOptions
-    )
-    return { valid, errors, sizes }
+    const verdict = await validateGeoPackageFileGeos(filePath, jobOptions)
+    return {
+      valid: verdict.valid,
+      errors: verdict.errors,
+      sizes: verdict.sizes
+    }
   }
   const pool = workerPool()
   const start = perfNow()
