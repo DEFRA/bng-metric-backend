@@ -56,7 +56,30 @@ describe('the Baseline tables of a combined upload', () => {
       expect(validateGeoPackageLayers).toHaveBeenCalledWith(
         expect.any(Function),
         EXTRACT_VARIANT.BASELINE,
-        { filePath: FILE, includeSizes: true, source: BASELINE_SOURCE }
+        {
+          filePath: FILE,
+          includeSizes: true,
+          source: BASELINE_SOURCE,
+          inThread: false
+        }
+      )
+    })
+
+    test('checks them on this thread when asked to', async () => {
+      validateGeoPackageLayers.mockResolvedValue({ valid: true, errors: [] })
+
+      await validateBaselineStage({
+        filePath: FILE,
+        baselineReadSource: BASELINE_SOURCE,
+        loadBaselineLayers: () => ({}),
+        projectId: 'p',
+        inThread: true
+      })
+
+      expect(validateGeoPackageLayers).toHaveBeenCalledWith(
+        expect.any(Function),
+        EXTRACT_VARIANT.BASELINE,
+        expect.objectContaining({ inThread: true })
       )
     })
   })
