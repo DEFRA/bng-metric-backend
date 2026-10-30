@@ -10,6 +10,7 @@ import {
   POST_INTERVENTION_FEATURE_TABLES
 } from '../../db/feature-tables.js'
 import {
+  assertHabitatDataValid,
   setProjectBaseline,
   setProjectBaselineAndPostIntervention,
   setProjectHabitatData
@@ -319,4 +320,44 @@ async function persistCombinedUpload(
   )
 }
 
-export { persistUpload, persistCombinedUpload }
+/**
+ * The project document an upload leaves stored, computed without a database:
+ * what persistUpload and persistCombinedUpload write to it, with the same
+ * schema checks first. Keep it in step with them.
+ *
+ * - A post-intervention upload replaces both documents together
+ *   (setProjectBaselineAndPostIntervention).
+ * - A baseline upload replaces the baseline and removes the post-intervention
+ *   document, which no longer describes it (setProjectBaseline).
+ * - Any other document replaces only itself (setProjectHabitatData).
+ *
+ * Geometry rows are not modelled: they are stored apart from the document.
+ *
+ * @param {object|undefined} storedProject the project before the upload
+ * @param {{ document?: object, baseline?: { document: object }, postIntervention?: { document: object } }} extracted
+ *   buildUploadDocuments' result, for an upload it accepted
+ * @param {string} projectDocumentKey
+ * @returns {object} a new project document; `storedProject` is not changed
+ * @throws when a document fails the schema check a write makes
+ */
+function projectAfterUpload(storedProject, extracted, projectDocumentKey) {
+  const project = { ...storedProject }
+  if (extracted.baseline) {
+    assertHabitatDataValid('baseline', extracted.baseline.document)
+    assertHabitatDataValid(
+      'postIntervention',
+      extracted.postIntervention.document
+    )
+    project.baseline = extracted.baseline.document
+    project.postIntervention = extracted.postIntervention.document
+    return project
+  }
+  assertHabitatDataValid(projectDocumentKey, extracted.document)
+  project[projectDocumentKey] = extracted.document
+  if (projectDocumentKey === 'baseline') {
+    delete project.postIntervention
+  }
+  return project
+}
+
+export { persistUpload, persistCombinedUpload, projectAfterUpload }

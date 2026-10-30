@@ -30,8 +30,9 @@ import { FEATURE_READ_MODE } from '../read-feature-tables.js'
  * @param {string} upload.filePath
  * @param {import('./template-tables.js').TemplateReadSource} [upload.baselineReadSource]
  * @param {() => object} [upload.loadBaselineLayers] the Baseline tables' attributes
- * @param {string | null} [upload.projectId] measure each feature, to save it
- *   to this project
+ * @param {boolean} [upload.includeSizes] measure each feature, to save it
+ * @param {boolean} [upload.inThread] check the geometry on this thread, not
+ *   in a worker (see validateGeoPackageLayers)
  * @returns {Promise<{ valid: boolean, errors: Array<object>, sizes?: object, poolTelemetry?: object, featureCount: number } | null>}
  *   `featureCount` is the features the Baseline tables hold, for the route's
  *   metrics
@@ -40,7 +41,8 @@ export async function validateBaselineStage({
   filePath,
   baselineReadSource,
   loadBaselineLayers,
-  projectId
+  includeSizes = false,
+  inThread = false
 }) {
   if (!baselineReadSource) {
     return null
@@ -55,8 +57,9 @@ export async function validateBaselineStage({
     EXTRACT_VARIANT.BASELINE,
     {
       filePath,
-      includeSizes: Boolean(projectId),
-      source: baselineReadSource
+      includeSizes,
+      source: baselineReadSource,
+      inThread
     }
   )
   return { ...verdict, featureCount }
