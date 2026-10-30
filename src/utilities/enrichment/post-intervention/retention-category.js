@@ -156,6 +156,35 @@ export function resolveRetentionCategory(feature) {
 }
 
 /**
+ * A stored feature whose retention category is only under `baseline` (a
+ * project imported before the field moved to the feature root), with it moved
+ * to the root, where the post-intervention schema requires it and refuses the
+ * nested one. An edit writing such a feature back would otherwise fail that
+ * check. Only a Retained, Created or Enhanced value moves: a legacy Lost row
+ * keeps its nested value, which isLegacyLostLinear and
+ * importedRetentionCategory read. Any other feature is returned as it is.
+ *
+ * @template {{ retentionCategory?: unknown, baseline?: { retentionCategory?: unknown } }} F
+ * @param {F} feature
+ * @returns {F}
+ */
+export function withRootRetentionCategory(feature) {
+  if (
+    feature?.retentionCategory != null ||
+    !feature?.baseline ||
+    !Object.hasOwn(feature.baseline, 'retentionCategory')
+  ) {
+    return feature
+  }
+  const nested = normaliseRetentionCategory(feature.baseline.retentionCategory)
+  if (!RETENTION_CATEGORY_VALUES.includes(nested)) {
+    return feature
+  }
+  const { retentionCategory: _moved, ...baseline } = feature.baseline
+  return { ...feature, retentionCategory: nested, baseline }
+}
+
+/**
  * Stored post-intervention linear features imported before Lost-linear
  * exclusion may still carry legacy `baseline.retentionCategory: Lost`.
  *

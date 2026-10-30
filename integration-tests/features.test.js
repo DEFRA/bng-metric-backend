@@ -12,6 +12,7 @@ import {
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_UNAUTHORIZED = 401
+const HTTP_UNPROCESSABLE = 422
 
 let server
 let dbClient
@@ -358,6 +359,265 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
   })
 })
 
+describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () => {
+  const RETAINED_IDENTITY = {
+    type: 'Modified grassland',
+    broadType: 'Grassland',
+    condition: 'Poor'
+  }
+
+  async function seedRetainedProject({
+    retentionCategory = 'Retained',
+    otherBaselineHabitats = [],
+    postInterventionUnits = {
+      totalUnits: 4,
+      habitatsTotal: 4,
+      hedgerowsTotal: 0,
+      watercoursesTotal: 0
+    },
+    rowRef = 'A1'
+  } = {}) {
+    const baselineHabitat = {
+      featureId: randomUUID(),
+      ref: 'A1',
+      ...RETAINED_IDENTITY,
+      sizeSquareMetres: 10_000,
+      units: 4,
+      status: 'Complete'
+    }
+    const retainedRow = {
+      featureId: randomUUID(),
+      ref: rowRef,
+      retentionCategory,
+      area: 10_000,
+      sizeSquareMetres: 10_000,
+      units: 4,
+      status: 'Complete',
+      baseline: { ...RETAINED_IDENTITY },
+      proposed: { ...RETAINED_IDENTITY, advanceYears: 0, delayYears: 0 }
+    }
+    const projectId = randomUUID()
+    await dbClient.query(
+      `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+       VALUES ($1, $2, $3, $3)`,
+      [
+        projectId,
+        {
+          name: 'Retained ref edit IT',
+          baseline: {
+            habitats: [baselineHabitat, ...otherBaselineHabitats],
+            trees: [],
+            hedgerows: [],
+            watercourses: [],
+            units: {
+              totalUnits: 4,
+              habitatsTotal: 4,
+              hedgerowsTotal: 0,
+              watercoursesTotal: 0
+            }
+          },
+          postIntervention: {
+            habitats: [retainedRow],
+            trees: [],
+            hedgerows: [],
+            watercourses: [],
+            units: postInterventionUnits
+          }
+        },
+        userId
+      ]
+    )
+    return { projectId, baselineHabitat, retainedRow }
+  }
+
+  it('renames the retained habitat and the baseline parcel it is joined to', async () => {
+    const { projectId, baselineHabitat, retainedRow } =
+      await seedRetainedProject()
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: '  P-A1  ' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({
+      type: 'habitat',
+      feature: expect.objectContaining({
+        featureId: retainedRow.featureId,
+        ref: 'P-A1'
+      })
+    })
+
+    const { rows } = await dbClient.query(
+      `SELECT project, last_modified_by FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const stored = rows[0].project
+    expect(stored.baseline.habitats[0]).toMatchObject({
+      featureId: baselineHabitat.featureId,
+      ref: 'P-A1'
+    })
+    expect(stored.postIntervention.habitats[0]).toMatchObject({
+      featureId: retainedRow.featureId,
+      ref: 'P-A1'
+    })
+    expect(rows[0].last_modified_by).toBe(userId)
+  })
+
+  it('renames a row with no baseline parcel alone, refreshing totals stored without the tree totals', async () => {
+    const { projectId, baselineHabitat, retainedRow } =
+      await seedRetainedProject({
+        rowRef: 'Z9',
+        postInterventionUnits: { totalUnits: 4, habitatsTotal: 4 }
+      })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'P-Z9' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const stored = rows[0].project
+    expect(stored.postIntervention.habitats[0].ref).toBe('P-Z9')
+    expect(stored.postIntervention.units).toMatchObject({
+      totalUnits: 4,
+      treesTotal: 0
+    })
+    expect(stored.baseline.habitats[0]).toMatchObject({
+      featureId: baselineHabitat.featureId,
+      ref: 'A1'
+    })
+  })
+
+  it('returns 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject({
+      otherBaselineHabitats: [
+        {
+          featureId: randomUUID(),
+          ref: 'A2',
+          type: 'Other neutral grassland',
+          broadType: 'Grassland',
+          condition: 'Good',
+          sizeSquareMetres: 10_000,
+          units: 8,
+          status: 'Complete'
+        }
+      ]
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'A2' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(res.result.code).toBe('HABITAT_REF_IN_USE')
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.habitats[0].ref).toBe('A1')
+    expect(rows[0].project.postIntervention.habitats[0].ref).toBe('A1')
+  })
+
+  it('renames a row stored with its category under baseline, writing it at the root', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject()
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(
+                project #- '{postIntervention,habitats,0,retentionCategory}',
+                '{postIntervention,habitats,0,baseline,retentionCategory}',
+                '"Retained"')
+        WHERE id = $1`,
+      [projectId]
+    )
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'P-A1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const row = rows[0].project.postIntervention.habitats[0]
+    expect(row).toMatchObject({ ref: 'P-A1', retentionCategory: 'Retained' })
+    expect(row.baseline).not.toHaveProperty('retentionCategory')
+  })
+
+  it('returns 400 for a habitat that is not Retained, and saves nothing', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject({
+      retentionCategory: 'Enhanced'
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'P-A1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention.habitats[0].ref).toBe('A1')
+    expect(rows[0].project.baseline.habitats[0].ref).toBe('A1')
+  })
+
+  it('returns 400 for a blank reference', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject()
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: '   ' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+  })
+
+  it('returns 404 when no post-intervention row has the id', async () => {
+    const { projectId, baselineHabitat } = await seedRetainedProject()
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${baselineHabitat.featureId}`,
+      payload: { ref: 'P-A1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+
+  it('returns 404 when the project does not exist', async () => {
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${randomUUID()}/post-intervention/features/${randomUUID()}`,
+      payload: { ref: 'P-A1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_NOT_FOUND)
+  })
+})
+
 describe('feature endpoints require authentication', () => {
   it('GET returns 401 without a bearer token', async () => {
     const res = await server.inject({
@@ -372,6 +632,15 @@ describe('feature endpoints require authentication', () => {
       method: 'PUT',
       url: `/projects/${randomUUID()}/features/${randomUUID()}`,
       payload: { habitatType: 'Lowland meadows', condition: 'Good' }
+    })
+    expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
+  })
+
+  it('post-intervention PUT returns 401 without a bearer token', async () => {
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${randomUUID()}/post-intervention/features/${randomUUID()}`,
+      payload: { ref: 'P-A1' }
     })
     expect(res.statusCode).toBe(HTTP_UNAUTHORIZED)
   })

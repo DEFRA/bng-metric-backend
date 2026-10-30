@@ -79,7 +79,8 @@ import {
   RETENTION_CREATED,
   RETENTION_RETAINED,
   isLegacyLostLinear,
-  resolveRetentionCategory
+  resolveRetentionCategory,
+  withRootRetentionCategory
 } from './retention-category.js'
 
 const LOG_PREFIX = 'resyncPostInterventionBaseline: '
@@ -290,7 +291,7 @@ function syncRef(feature, source) {
  * @param {object} feature
  * @param {{ layer: string, ref: string | null, candidateCount: number, logger: { warn: (msg: string) => void } }} context
  */
-const UNRESOLVED_REASONS = Object.freeze({
+export const UNRESOLVED_REASONS = Object.freeze({
   missing: (ref) => `no baseline feature carries ref "${ref ?? ''}"`,
   parentMissing: (ref) => `the baseline holds no parent for row "${ref ?? ''}"`,
   unidentified: (ref, count) =>
@@ -420,6 +421,28 @@ function resolveSource(feature, index) {
 }
 
 /**
+ * The baseline feature a post-intervention row is joined to by its ref, for an
+ * edit that starts on the post-intervention side (BMD-1180). Resolved exactly
+ * as the re-derive resolves it, against the baseline as it stands, so a row
+ * this finds a source for is a row the re-derive will carry a rename onto.
+ *
+ * @param {object} feature post-intervention feature
+ * @param {string} layer document layer: habitats, trees, hedgerows or watercourses
+ * @param {object | undefined} baseline the project's baseline document
+ * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
+ */
+export function resolveJoinedBaselineFeature(feature, layer, baseline) {
+  const features = baseline?.[layer]
+  return resolveSource(feature, {
+    candidatesByRef: buildBaselineCandidatesByRef(features),
+    updatedById: buildFeatureById(features),
+    fields: IDENTITY_FIELDS_BY_LAYER[layer] ?? [],
+    // Only a legacy row is joined by its ref; a template row's parent is named.
+    byParent: false
+  })
+}
+
+/**
  * @param {object[]} features post-intervention features for one layer, mutated
  * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
  * @param {{ layer: string, logger: object }} context
@@ -532,6 +555,13 @@ export function rederivePostInterventionFromBaseline(
     return null
   }
   const rederived = structuredClone(postInterventionDocument)
+  // A legacy row's category moves to the root, as an upload now writes it,
+  // so the re-derived document passes the schema it is written under.
+  for (const layer of Object.keys(IDENTITY_FIELDS_BY_LAYER)) {
+    if (Array.isArray(rederived[layer])) {
+      rederived[layer] = rederived[layer].map(withRootRetentionCategory)
+    }
+  }
   resyncPostInterventionBaselineSide(
     rederived,
     { baseline, previousBaseline },

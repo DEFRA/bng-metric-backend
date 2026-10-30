@@ -57,6 +57,7 @@ import {
   summarizeFeatureSetUnitsTotals
 } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
+import { renameClashes } from './ref-in-use.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -70,7 +71,8 @@ const APPLY_RESULT = Object.freeze({
   FEATURE_WRONG_TYPE: 'featureWrongType',
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
-  INVALID_ENHANCEMENT: 'invalidEnhancement'
+  INVALID_ENHANCEMENT: 'invalidEnhancement',
+  REF_IN_USE: 'refInUse'
 })
 
 function blankToNull(value) {
@@ -436,6 +438,29 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
 }
 
 /**
+ * Whether a baseline edit renames its feature onto a reference another
+ * baseline habitat already carries (ref-in-use.js). Post-intervention edits
+ * ignore `ref`.
+ *
+ * @param {object} featureSet the document being edited
+ * @param {{ key: string, feature: object }} found
+ * @param {{ ref?: string }} normalizedEdits
+ * @param {string} documentKey
+ * @returns {boolean}
+ */
+function renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey) {
+  return (
+    documentKey === 'baseline' &&
+    renameClashes(featureSet, {
+      layer: found.key,
+      current: found.feature.ref,
+      next: normalizedEdits.ref,
+      exceptFeatureId: found.feature.featureId
+    })
+  )
+}
+
+/**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
  * apply path below deals only with edits that are going ahead.
@@ -462,6 +487,15 @@ function resolveEditTarget(
   if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
     return {
       rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+    }
+  }
+  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
+    return {
+      rejection: {
+        status: APPLY_RESULT.REF_IN_USE,
+        type: found.type,
+        ref: normalizedEdits.ref
+      }
     }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
@@ -536,6 +570,7 @@ function resolveEditTarget(
  *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
+ *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */
