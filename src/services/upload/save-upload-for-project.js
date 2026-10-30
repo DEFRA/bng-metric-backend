@@ -289,23 +289,6 @@ function sizeUploadedHabitats({ layersForSizing, baselineLayers }) {
   }
 }
 
-function sizingFailedResponse(sizingError, { logger, routeName, uploadId, h }) {
-  logger.error(
-    `${routeName} - sizing failed for uploadId ${uploadId}: ${sizingError.message}`
-  )
-  return h
-    .response({
-      valid: false,
-      errors: [
-        makeError(
-          ERROR_CODES.SIZING_FAILED,
-          'Unable to calculate habitat sizes'
-        )
-      ]
-    })
-    .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-}
-
 /**
  * @param {object} args
  * @param {object} [args.baselineDocument] the baseline a post-intervention
@@ -371,16 +354,6 @@ export function extractAndValidateDocument({
     allowUnknown: true
   })
   return { document, geometries, schemaError: error }
-}
-
-function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
-  logger.info(
-    `${routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
-  )
-  return h.response({
-    valid: false,
-    errors: [makeMetadataError(schemaError)]
-  })
 }
 
 const BASELINE_DOCUMENT_CONFIG = Object.freeze({
@@ -595,26 +568,69 @@ const SAVE_STAGE_METRICS = Object.freeze({
 })
 
 /**
+ * Why buildUploadDocuments could not build an upload's documents, or null
+ * when it could: the errors the upload answers with, and how to answer.
+ *
+ * The one place a refusal becomes errors. The validate route answers with
+ * it, and so does importUploadFile, so a new way to refuse an upload cannot
+ * reach one and not the other.
+ *
+ * @param {{ sizingError?: Error, schemaError?: object, validationError?: { code: string, message: string } }} extracted
+ * @returns {{ errors: Array<{ code: string, message: string }>, internal: boolean, reason: string, message: string } | null}
+ *   `internal` for a failure of the service's own, answered 500 and logged as
+ *   an error; `reason` and `message` say what to log
+ */
+export function uploadRefusal(extracted) {
+  if (extracted.sizingError) {
+    return {
+      errors: [
+        makeError(
+          ERROR_CODES.SIZING_FAILED,
+          'Unable to calculate habitat sizes'
+        )
+      ],
+      internal: true,
+      reason: 'sizing failed for',
+      message: extracted.sizingError.message
+    }
+  }
+  if (extracted.schemaError) {
+    return {
+      errors: [makeMetadataError(extracted.schemaError)],
+      internal: false,
+      reason: 'document schema rejected',
+      message: extracted.schemaError.message
+    }
+  }
+  if (extracted.validationError) {
+    return {
+      errors: [extracted.validationError],
+      internal: false,
+      reason: 'upload rejected',
+      message: extracted.validationError.message
+    }
+  }
+  return null
+}
+
+/**
  * Answer an upload whose documents could not be built, or null when they
  * were.
  */
-function refusedUploadResponse(extracted, respond) {
-  if (extracted.sizingError) {
-    return sizingFailedResponse(extracted.sizingError, respond)
+function refusedUploadResponse(extracted, { logger, routeName, uploadId, h }) {
+  const refusal = uploadRefusal(extracted)
+  if (!refusal) {
+    return null
   }
-  if (extracted.schemaError) {
-    return schemaErrorResponse(extracted.schemaError, respond)
+  const line = `${routeName} - ${refusal.reason} uploadId ${uploadId}: ${refusal.message}`
+  if (!refusal.internal) {
+    logger.info(line)
+    return h.response({ valid: false, errors: refusal.errors })
   }
-  if (extracted.validationError) {
-    respond.logger.info(
-      `${respond.routeName} - upload rejected uploadId ${respond.uploadId}: ${extracted.validationError.message}`
-    )
-    return respond.h.response({
-      valid: false,
-      errors: [extracted.validationError]
-    })
-  }
-  return null
+  logger.error(line)
+  return h
+    .response({ valid: false, errors: refusal.errors })
+    .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
 }
 
 /**

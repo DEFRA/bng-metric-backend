@@ -26,11 +26,9 @@ import {
   readUploadForSave
 } from '../../validation/geopackage/upload-checks.js'
 import {
-  ERROR_CODES,
-  makeError,
-  makeMetadataError
-} from '../../validation/geopackage/errors.js'
-import { buildUploadDocuments } from './save-upload-for-project.js'
+  buildUploadDocuments,
+  uploadRefusal
+} from './save-upload-for-project.js'
 import { projectAfterUpload } from './persist-upload.js'
 
 /** A logger that says nothing; enrichment only logs engine surprises. */
@@ -40,22 +38,6 @@ const SILENT_LOGGER = Object.freeze({
   error() {},
   debug() {}
 })
-
-/** The errors an upload whose documents could not be built answers with. */
-function refusalErrors(extracted) {
-  if (extracted.sizingError) {
-    return [
-      makeError(ERROR_CODES.SIZING_FAILED, 'Unable to calculate habitat sizes')
-    ]
-  }
-  if (extracted.schemaError) {
-    return [makeMetadataError(extracted.schemaError)]
-  }
-  if (extracted.validationError) {
-    return [extracted.validationError]
-  }
-  return null
-}
 
 /**
  * @param {string} filePath the GeoPackage, on local disk
@@ -108,9 +90,9 @@ export async function importUploadFile(
     },
     { logger, config: { projectDocumentKey } }
   )
-  const errors = refusalErrors(extracted)
-  if (errors) {
-    return { accepted: false, errors }
+  const refusal = uploadRefusal(extracted)
+  if (refusal) {
+    return { accepted: false, errors: refusal.errors }
   }
   return {
     accepted: true,

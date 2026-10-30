@@ -8,6 +8,7 @@ import { config } from '../../config.js'
 
 import { ERROR_CODES } from '../../validation/geopackage/errors.js'
 import { importUploadFile } from './import-upload-file.js'
+import { uploadRefusal } from './save-upload-for-project.js'
 import { projectAfterUpload } from './persist-upload.js'
 
 // importUploadFile is what the metric comparison in bng-metric-harness calls
@@ -301,4 +302,53 @@ describe('projectAfterUpload', () => {
       ).toThrow(message)
     }
   )
+})
+
+// The route and importUploadFile both answer a refusal with this, so a new
+// way buildUploadDocuments refuses an upload reaches both.
+describe('uploadRefusal', () => {
+  it('is null for documents that were built', () => {
+    expect(uploadRefusal({ document: {} })).toBeNull()
+  })
+
+  it("answers a sizing failure as the service's own, with SIZING_FAILED", () => {
+    expect(
+      uploadRefusal({ sizingError: new Error('did not measure areas a1') })
+    ).toEqual({
+      errors: [
+        {
+          code: ERROR_CODES.SIZING_FAILED,
+          message: 'Unable to calculate habitat sizes'
+        }
+      ],
+      internal: true,
+      reason: 'sizing failed for',
+      message: 'did not measure areas a1'
+    })
+  })
+
+  it('answers a schema failure with the metadata error', () => {
+    const refusal = uploadRefusal({
+      schemaError: { message: '"habitats" is required', details: [] }
+    })
+
+    expect(refusal).toMatchObject({
+      internal: false,
+      reason: 'document schema rejected'
+    })
+    expect(refusal.errors).toHaveLength(1)
+  })
+
+  it('passes a validation error through as it is', () => {
+    const validationError = {
+      code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+      message: 'no baseline area habitats'
+    }
+
+    expect(uploadRefusal({ validationError })).toMatchObject({
+      errors: [validationError],
+      internal: false,
+      reason: 'upload rejected'
+    })
+  })
 })
