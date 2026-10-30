@@ -14,7 +14,8 @@ import {
 import { ERROR_CODES, makeError } from '../errors.js'
 import {
   UNENHANCEABLE_BASELINE_LAYERS,
-  checkBaselineEnhanceable
+  checkBaselineEnhanceable,
+  describeProposedSide
 } from './enhancement-rules.js'
 
 const SAMPLE_CAP = 50
@@ -56,12 +57,15 @@ function baselineOf(feature, parents) {
  * @param {NonNullable<ReturnType<typeof checkBaselineEnhanceable>>} check
  */
 function offender(layer, feature, check) {
+  const proposed = describeProposedSide(layer, feature.proposed)
   return {
     layer,
     feature_ref: feature.ref ?? null,
     habitat_type: check.baseline.habitat,
     condition: check.baseline.condition,
     distinctiveness: check.baseline.distinctiveness,
+    proposed_habitat_type: proposed.habitat,
+    proposed_condition: proposed.condition,
     rule: check.rule,
     mvsOnly: check.mvsOnly
   }
