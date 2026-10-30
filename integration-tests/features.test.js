@@ -530,6 +530,35 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     expect(rows[0].project.postIntervention.habitats[0].ref).toBe('A1')
   })
 
+  it('renames a row stored with its category under baseline, writing it at the root', async () => {
+    const { projectId, retainedRow } = await seedRetainedProject()
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(
+                project #- '{postIntervention,habitats,0,retentionCategory}',
+                '{postIntervention,habitats,0,baseline,retentionCategory}',
+                '"Retained"')
+        WHERE id = $1`,
+      [projectId]
+    )
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedRow.featureId}`,
+      payload: { ref: 'P-A1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    const row = rows[0].project.postIntervention.habitats[0]
+    expect(row).toMatchObject({ ref: 'P-A1', retentionCategory: 'Retained' })
+    expect(row.baseline).not.toHaveProperty('retentionCategory')
+  })
+
   it('returns 400 for a habitat that is not Retained, and saves nothing', async () => {
     const { projectId, retainedRow } = await seedRetainedProject({
       retentionCategory: 'Enhanced'

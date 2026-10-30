@@ -79,7 +79,8 @@ import {
   RETENTION_CREATED,
   RETENTION_RETAINED,
   isLegacyLostLinear,
-  resolveRetentionCategory
+  resolveRetentionCategory,
+  withRootRetentionCategory
 } from './retention-category.js'
 
 const LOG_PREFIX = 'resyncPostInterventionBaseline: '
@@ -554,6 +555,13 @@ export function rederivePostInterventionFromBaseline(
     return null
   }
   const rederived = structuredClone(postInterventionDocument)
+  // A legacy row's category moves to the root, as an upload now writes it,
+  // so the re-derived document passes the schema it is written under.
+  for (const layer of Object.keys(IDENTITY_FIELDS_BY_LAYER)) {
+    if (Array.isArray(rederived[layer])) {
+      rederived[layer] = rederived[layer].map(withRootRetentionCategory)
+    }
+  }
   resyncPostInterventionBaselineSide(
     rederived,
     { baseline, previousBaseline },

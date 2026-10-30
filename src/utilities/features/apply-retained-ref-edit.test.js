@@ -488,7 +488,7 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
     })
   })
 
-  test('refuses a row renamed alone onto a reference that would join it to another parcel', () => {
+  test('lets a row with no parcel be renamed onto a parcel’s reference, repairing its join', () => {
     const project = withSecondArea(projectFixture())
     project.baseline.habitats[0].ref = 'Z9'
 
@@ -497,7 +497,11 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
       ref: 'A2'
     })
 
-    expect(result.status).toBe(RETAINED_REF_RESULT.REF_IN_USE)
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      documentKey: 'postIntervention',
+      feature: { featureId: PI_HABITAT_ID, ref: 'A2' }
+    })
   })
 
   test('lets a template row take its own parent’s reference', () => {
@@ -537,5 +541,64 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
     })
 
     expect(result.status).toBe(RETAINED_REF_RESULT.OK)
+  })
+})
+
+describe('applyRetainedRefEdit — a BNG Service template upload', () => {
+  test('renames a template row alone, even one naming no parent', () => {
+    const project = projectFixture()
+    project.postIntervention.template = { name: 'BNG Service template' }
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'P-A1'
+    })
+
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      documentKey: 'postIntervention',
+      postIntervention: null,
+      feature: { featureId: PI_HABITAT_ID, ref: 'P-A1' }
+    })
+  })
+})
+
+describe('applyRetainedRefEdit — a row stored with its category under baseline', () => {
+  function legacyRow(project) {
+    const row = project.postIntervention.habitats[0]
+    delete row.retentionCategory
+    row.baseline.retentionCategory = '1. Retained'
+    return project
+  }
+
+  test('moves the category to the root of a row renamed alone', () => {
+    const project = legacyRow(projectFixture())
+    project.baseline.habitats[0].ref = 'Z9'
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'P-A1'
+    })
+
+    expect(result.feature.retentionCategory).toBe('Retained')
+    expect(result.feature.baseline).not.toHaveProperty('retentionCategory')
+  })
+
+  test('moves the category to the root of every row re-derived through the baseline', () => {
+    const project = legacyRow(projectFixture())
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'P-A1'
+    })
+
+    expect(result.documentKey).toBe('baseline')
+    expect(result.postInterventionFeature).toMatchObject({
+      ref: 'P-A1',
+      retentionCategory: 'Retained'
+    })
+    expect(result.postInterventionFeature.baseline).not.toHaveProperty(
+      'retentionCategory'
+    )
   })
 })

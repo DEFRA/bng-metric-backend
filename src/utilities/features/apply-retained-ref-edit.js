@@ -16,23 +16,29 @@
 //
 // Two cases rename the row alone:
 //
-//   - A row linked to its parent by `parentFeatureId` (a BNG Service template
-//     upload, BMD-1083). The link does not run through the ref, and that
-//     template's refs need not match their parent's, so the baseline keeps its
-//     own.
+//   - A BNG Service template upload's row (BMD-1083). Its parent is named by
+//     `parentFeatureId`, and the re-derive finds it by that and leaves the
+//     row's ref alone (BMD-1086): refs are labels there, not the join, so the
+//     baseline keeps its own. A legacy row carrying a parent is treated the
+//     same way.
 //   - A row whose baseline parcel cannot be told: no baseline feature carries
 //     its ref, or several share it and its imported values do not pick one
 //     out (resync-post-intervention-baseline.js). Renaming a guessed parcel
 //     would move a different habitat, so only the row moves, and that is
-//     logged.
+//     logged. Renaming it onto a parcel's ref joins it to that parcel, which
+//     is how a row imported with a mistyped ref is repaired.
 //
-// Either way, a rename onto a reference another baseline habitat already
-// carries is refused, as a baseline rename is (ref-in-use.js).
+// Only a rename through the baseline changes a baseline ref, so only that one
+// is refused when another baseline habitat already carries the new ref, as a
+// baseline rename is (ref-in-use.js). A row renamed alone creates no clash
+// between baseline habitats.
 
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
+import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'
 import {
   RETENTION_RETAINED,
-  resolveRetentionCategory
+  resolveRetentionCategory,
+  withRootRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
 import {
   UNRESOLVED_REASONS,
@@ -70,18 +76,21 @@ function replaceAt(features, index, feature) {
  * renamed alone (see the header).
  *
  * @param {{ key: string, feature: object }} found the post-intervention row
- * @param {object | undefined} baseline
+ * @param {object} project
  * @param {{ warn: (msg: string) => void }} logger
  * @returns {object | null}
  */
-function baselineParcelToRename(found, baseline, logger) {
-  if (found.feature.parentFeatureId) {
+function baselineParcelToRename(found, project, logger) {
+  if (
+    isTemplateUpload(project.postIntervention) ||
+    found.feature.parentFeatureId
+  ) {
     return null
   }
   const resolved = resolveJoinedBaselineFeature(
     found.feature,
     found.key,
-    baseline
+    project.baseline
   )
   if (resolved.source) {
     return resolved.source
@@ -135,7 +144,7 @@ function renameRowOnly(project, found, ref) {
   const index = postIntervention[layer].findIndex(
     (feature) => feature?.featureId === found.feature.featureId
   )
-  const feature = { ...found.feature, ref }
+  const feature = withRootRetentionCategory({ ...found.feature, ref })
   const updated = {
     ...postIntervention,
     [layer]: replaceAt(postIntervention[layer], index, feature)
@@ -192,15 +201,18 @@ function applyRetainedRefEdit(
     return { status: RETAINED_REF_RESULT.NOT_RETAINED, type: found.type }
   }
   const cleaned = cleanHabitatRef(ref)
-  const parcel = baselineParcelToRename(found, project.baseline, logger)
-  // The parcel the row stays joined to may carry the reference itself; any
-  // other baseline habitat carrying it would be merged with it.
+  const parcel = baselineParcelToRename(found, project, logger)
+  if (!parcel) {
+    return renameRowOnly(project, found, cleaned)
+  }
+  // The parcel may carry the reference itself; any other baseline habitat
+  // carrying it would be merged with it.
   if (
     renameClashes(project.baseline, {
       layer: found.key,
-      current: found.feature.ref,
+      current: parcel.ref,
       next: cleaned,
-      exceptFeatureId: parcel?.featureId ?? found.feature.parentFeatureId
+      exceptFeatureId: parcel.featureId
     })
   ) {
     return {
@@ -209,9 +221,7 @@ function applyRetainedRefEdit(
       ref: cleaned
     }
   }
-  return parcel
-    ? renameThroughBaseline(project, found, parcel, cleaned, logger)
-    : renameRowOnly(project, found, cleaned)
+  return renameThroughBaseline(project, found, parcel, cleaned, logger)
 }
 
 export { applyRetainedRefEdit, RETAINED_REF_RESULT }

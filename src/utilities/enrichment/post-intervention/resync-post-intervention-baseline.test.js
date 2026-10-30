@@ -523,6 +523,28 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
 })
 
 describe('rederivePostInterventionFromBaseline', () => {
+  test('moves a row’s category stored only under baseline to the root, leaving the stored document alone', () => {
+    const feature = makeAreaHabitat()
+    delete feature.retentionCategory
+    feature.baseline.retentionCategory = '1. Retained'
+    const stored = { habitats: [feature] }
+    const before = structuredClone(stored)
+
+    const rederived = rederivePostInterventionFromBaseline(stored, {
+      baseline: {
+        habitats: [
+          { ...feature.baseline, ref: feature.ref, featureId: 'baseline-1' }
+        ]
+      }
+    })
+
+    expect(rederived.habitats[0].retentionCategory).toBe('Retained')
+    expect(rederived.habitats[0].baseline).not.toHaveProperty(
+      'retentionCategory'
+    )
+    expect(stored).toEqual(before)
+  })
+
   test.each([
     ['habitats', makeAreaHabitat],
     ['trees', makeAreaHabitat],
