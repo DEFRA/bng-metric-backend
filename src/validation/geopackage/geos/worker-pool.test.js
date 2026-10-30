@@ -356,15 +356,19 @@ describe('GeosWorkerPool — queue wait limit', () => {
     // queue wait, which is correct — the client is waiting for it either way —
     // but it means only a warm pool can dispatch with zero elapsed time.
     await pool.run(MISSING_FILE).catch(() => {})
+    expect(pool.stats().idle).toBe(1)
     // Freeze the clock: the job is stamped and dispatched in one synchronous
     // call, but a millisecond can still tick between the two readings, and at
     // a limit of 0 that 1ms is enough to refuse it. Only Date is faked, so
     // the worker's own timers and messages run as normal.
     vi.useFakeTimers({ toFake: ['Date'] })
     try {
-      await expect(pool.run(MISSING_FILE)).rejects.not.toBeInstanceOf(
-        ValidationQueueWaitError
-      )
+      const job = pool.run(MISSING_FILE)
+      // Handed over in the same call, not queued for later: a frozen clock
+      // would read 0 wait for a queued job too, so this is what proves the
+      // job went straight to the idle worker.
+      expect(pool.stats()).toMatchObject({ idle: 0, queued: 0 })
+      await expect(job).rejects.not.toBeInstanceOf(ValidationQueueWaitError)
     } finally {
       vi.useRealTimers()
     }
