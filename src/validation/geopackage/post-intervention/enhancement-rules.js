@@ -204,3 +204,35 @@ export function checkBaselineEnhanceable(layer, side) {
     baseline: checkedSide(baseline, match.distinctiveness)
   }
 }
+
+/**
+ * @typedef {object} ProposedSide
+ * @property {string | null} habitat the metric's label, or the file's own
+ *   type when the metric does not know it; null when there is none
+ * @property {string | null} condition prefix stripped; null when there is none
+ */
+
+/**
+ * A feature's proposed habitat and condition as a person reads them, for
+ * showing next to a baseline that cannot be enhanced. Unlike the checks, it
+ * keeps a value the metric does not know rather than dropping it.
+ * @param {string} layer one of UNENHANCEABLE_BASELINE_LAYERS
+ * @param {{ type?: unknown, broadType?: unknown, condition?: unknown } | undefined} side
+ *   a post-intervention feature's `proposed` side
+ * @returns {ProposedSide}
+ */
+export function describeProposedSide(layer, side) {
+  const { habitat, condition } = readSide(BASELINE_KIND_BY_LAYER[layer], side)
+  return {
+    habitat: habitat ?? textOrNull(side?.type),
+    condition: textOrNull(condition)
+  }
+}
+
+/**
+ * @param {unknown} value
+ * @returns {string | null}
+ */
+function textOrNull(value) {
+  return typeof value === 'string' && value.trim() !== '' ? value.trim() : null
+}

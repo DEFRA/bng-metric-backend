@@ -35,6 +35,8 @@ describe('refuseUnenhanceableBaselines, AC5', () => {
         habitat_type: LINE_OF_TREES_BANK,
         condition: 'Good',
         distinctiveness: 'Low',
+        proposed_habitat_type: 'Native hedgerow with trees',
+        proposed_condition: 'Good',
         rule: UNENHANCEABLE_BASELINE.LOW_HEDGEROW_GOOD_NO_MEDIUM_TARGET,
         mvsOnly: true
       }
