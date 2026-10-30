@@ -547,3 +547,83 @@ describe('BMD-1048 Created area editing', () => {
     expect(incomplete.project.postIntervention.units.habitatsTotal).toBe(0)
   })
 })
+
+describe('BMD-1049 Created hedgerow editing', () => {
+  it('persists hedgerow edits, nulls and totals, rejects invalid timing, and requires authentication', async () => {
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'H-1',
+      retentionCategory: 'Created',
+      sizeMetres: 336,
+      units: 0,
+      status: 'Incomplete',
+      baseline: {},
+      proposed: {}
+    }
+    const projectId = await seedProject({
+      name: 'Created hedgerow editing IT',
+      postIntervention: { hedgerows: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/hedgerows/${feature.featureId}`
+    const payload = {
+      ref: 'New hedge',
+      habitatType: 'Native hedgerow',
+      condition: 'Good',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: '30+'
+    }
+    const anonymous = await server.inject({ method: 'PUT', url, payload })
+    expect(anonymous.statusCode).toBe(HTTP_UNAUTHORIZED)
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result).toMatchObject({
+      ref: payload.ref,
+      sizeMetres: 336,
+      status: 'Complete',
+      proposed: { delayYears: 30, delayYearsIs30Plus: true }
+    })
+    expect(saved.result.units).toBeGreaterThan(0)
+    const read = async () =>
+      (
+        await dbClient.query(
+          'SELECT project, last_modified_by FROM bng.projects WHERE id = $1',
+          [projectId]
+        )
+      ).rows[0]
+    const complete = await read()
+    expect(complete.project.postIntervention.hedgerows[0]).toEqual(saved.result)
+    expect(complete.project.postIntervention.units.hedgerowsTotal).toBe(
+      saved.result.units
+    )
+    expect(complete.last_modified_by).toBe(userId)
+    for (const invalid of [
+      { advanceYears: 1, delayYears: 1 },
+      { habitatType: 'Modified grassland' },
+      { ref: ' ' },
+      { broadType: 'Grassland' }
+    ]) {
+      const rejected = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...payload, ...invalid }
+      })
+      expect(rejected.statusCode).toBe(HTTP_BAD_REQUEST)
+      expect(await read()).toEqual(complete)
+    }
+    const partial = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, delayYears: null }
+    })
+    expect(partial.statusCode).toBe(HTTP_OK)
+    expect(partial.result).toMatchObject({
+      units: 0,
+      status: 'Incomplete',
+      proposed: { delayYears: null }
+    })
+    expect((await read()).project.postIntervention.units.hedgerowsTotal).toBe(0)
+  })
+})

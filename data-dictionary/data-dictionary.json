@@ -4273,6 +4273,28 @@
       "description": "Proposed hedgerow values from the Proposed * GeoPackage columns."
     },
     {
+      "path": "postIntervention.hedgerows[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30."
+    },
+    {
       "path": "postIntervention.hedgerows[].proposed.type",
       "type": "string",
       "required": false,

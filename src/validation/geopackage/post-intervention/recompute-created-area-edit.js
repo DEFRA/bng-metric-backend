@@ -11,7 +11,7 @@ function storedYears(value) {
   return value === MAX_YEARS_PLUS ? MAX_YEARS : value
 }
 
-function proposedAttributes(existing, edits) {
+export function proposedAttributes(existing, edits) {
   const advanceYears = storedYears(edits.advanceYears)
   const delayYears = storedYears(edits.delayYears)
   return {

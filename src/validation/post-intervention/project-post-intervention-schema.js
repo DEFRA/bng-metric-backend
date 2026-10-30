@@ -411,6 +411,12 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
 )
 
 const postInterventionLinearProposedSubSchema = Joi.object({
+  advanceYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30.'
+  ),
+  delayYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30.'
+  ),
   type: Joi.string()
     .allow(null, '')
     .description('Proposed hedgerow type from Proposed Hedge Type column.'),

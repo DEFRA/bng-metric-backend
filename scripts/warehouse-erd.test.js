@@ -89,13 +89,15 @@ it('advertises persisted Created-area metadata as boolean columns', () => {
   for (const path of [
     'postIntervention.habitats[].referenceEdited',
     'postIntervention.habitats[].proposed.advanceYearsIs30Plus',
-    'postIntervention.habitats[].proposed.delayYearsIs30Plus'
+    'postIntervention.habitats[].proposed.delayYearsIs30Plus',
+    'postIntervention.hedgerows[].proposed.advanceYearsIs30Plus',
+    'postIntervention.hedgerows[].proposed.delayYearsIs30Plus'
   ]) {
     expect(
       columns.find((column) => column.jsonPaths.includes(path))
     ).toMatchObject({ type: 'boolean' })
   }
-  for (const layer of ['trees', 'hedgerows', 'watercourses']) {
+  for (const layer of ['trees', 'watercourses']) {
     for (const field of ['advanceYearsIs30Plus', 'delayYearsIs30Plus']) {
       expect(
         columns.some((column) =>

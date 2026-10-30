@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**23 tables**, mapping 381 schema fields.
+**23 tables**, mapping 383 schema fields.
 
 ## Diagram
 
@@ -768,7 +768,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 32 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 34 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -788,6 +788,8 @@ hedgerows in the postIntervention document. 32 column(s) mapped from the JSON do
 | `baseline_distinctiveness`                   | `text`    |     | `postIntervention.hedgerows[].baseline.distinctiveness`               |                                                                                  |
 | `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].baseline.distinctivenessScore`          |                                                                                  |
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.hedgerows[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.hedgerows[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.hedgerows[].proposed.type`                          |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.hedgerows[].proposed.condition`                     |                                                                                  |
 | `proposed_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.conditionScore`                |                                                                                  |

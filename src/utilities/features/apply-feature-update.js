@@ -18,6 +18,7 @@
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
+import { recomputeCreatedHedgerowEdit } from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
 import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
@@ -150,6 +151,9 @@ function recomputeHedgerowEdit(
   { documentKey, logger, baseline }
 ) {
   if (documentKey === 'postIntervention') {
+    if (Object.hasOwn(edits, 'advanceYears')) {
+      return recomputeCreatedHedgerowEdit(existing, edits)
+    }
     return recomputePostInterventionHedgerow(
       existing,
       { habitatType: edits.habitatType, condition: edits.condition },
@@ -429,7 +433,7 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (found.type !== 'habitat' ||
+    (!['habitat', 'hedgerow'].includes(found.type) ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
   )
