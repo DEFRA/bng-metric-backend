@@ -98,8 +98,16 @@ Vitest's `globalTeardown` runs in the main process, but tests run in a worker fo
 The upload (`POST /upload/initiate`, `GET /upload/{uploadId}/status`) and validate (`POST /baseline/validate/{uploadId}`) tests run the **real** path: backend → cdp-uploader (HTTP) → LocalStack S3. There is no nock/msw stub of cdp-uploader. Helpers under `integration-tests/helpers/upload-fixtures.js` walk the flow:
 
 - `uploadViaCdpUploader({ uploadUrl, filePath })` — POSTs the file as multipart to the URL returned by `/upload/initiate`.
-- `waitForUploadStatus(server, uploadId)` — polls `/upload/{uploadId}/status` until cdp-uploader's mock virus scan completes (~2s).
+- `waitForUploadStatus(server, uploadId)` — polls `/upload/{uploadId}/status` until cdp-uploader's mock virus scan completes.
 - `assertS3ObjectExists(bucket, key)` — HEADs the LocalStack S3 object via `@aws-sdk/client-s3`.
+
+### The mock virus scan delay
+
+cdp-uploader holds back each mock scan result for `MOCK_VIRUS_RESULT_DELAY` seconds. compose.yml and CI set it to 0: with a few dozen uploads in the suite, a 2s delay made up most of its run time (roughly 4 minutes against 1). In local dev that means the "checking your file" stage flashes past; to see it as a real scan would show it, start the uploader with a delay:
+
+```sh
+MOCK_VIRUS_RESULT_DELAY=2 docker compose up -d cdp-uploader
+```
 
 Both upload-using files (`upload.test.js`, `baseline.test.js`) run two `beforeAll` pre-flight checks:
 
@@ -220,7 +228,7 @@ Override the DB ones if you're pointing at a non-default Postgres. The S3/AWS on
 - `pool: 'forks'` with `singleFork: true` and `fileParallelism: false`. Both are required: `singleFork` keeps everything in one process, `fileParallelism: false` makes files run sequentially within that process. Without the second flag, files run concurrently and trample each other (concurrent `TRUNCATE` deadlocks on overlapping table locks; an `afterEach` truncate in one file wipes data created by another file's in-flight test).
 - `env` block forcing `S3_ENDPOINT`, `AWS_*`, and friends so the backend's S3 client points at LocalStack regardless of `NODE_ENV`.
 - `coverage` block scoped to `src/routes/**`, `src/services/**`, `src/validation/**`.
-- Longer timeouts (the first Liquibase run pulls a Docker image; uploads through cdp-uploader take ~3s).
+- Longer timeouts (the first Liquibase run pulls a Docker image; uploads go through cdp-uploader).
 
 ## CI
 

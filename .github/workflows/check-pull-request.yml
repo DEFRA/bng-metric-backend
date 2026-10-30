@@ -152,7 +152,7 @@ jobs:
             -e REDIS_HOST=localhost \
             -e USE_SINGLE_INSTANCE_CACHE=true \
             -e MOCK_VIRUS_SCAN_ENABLED=true \
-            -e MOCK_VIRUS_RESULT_DELAY=2 \
+            -e MOCK_VIRUS_RESULT_DELAY=0 \
             -e SQS_ENDPOINT=http://localhost:4566 \
             -e S3_ENDPOINT=http://localhost:4566 \
             -e CONSUMER_BUCKETS=baseline-files \
