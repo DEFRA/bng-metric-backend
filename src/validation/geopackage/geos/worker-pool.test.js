@@ -1,6 +1,6 @@
 import { availableParallelism } from 'node:os'
 
-import { afterEach, describe, expect, it } from 'vitest'
+import { afterEach, describe, expect, it, vi } from 'vitest'
 
 import {
   GeosWorkerPool,
@@ -356,9 +356,18 @@ describe('GeosWorkerPool — queue wait limit', () => {
     // queue wait, which is correct — the client is waiting for it either way —
     // but it means only a warm pool can dispatch with zero elapsed time.
     await pool.run(MISSING_FILE).catch(() => {})
-    await expect(pool.run(MISSING_FILE)).rejects.not.toBeInstanceOf(
-      ValidationQueueWaitError
-    )
+    // Freeze the clock: the job is stamped and dispatched in one synchronous
+    // call, but a millisecond can still tick between the two readings, and at
+    // a limit of 0 that 1ms is enough to refuse it. Only Date is faked, so
+    // the worker's own timers and messages run as normal.
+    vi.useFakeTimers({ toFake: ['Date'] })
+    try {
+      await expect(pool.run(MISSING_FILE)).rejects.not.toBeInstanceOf(
+        ValidationQueueWaitError
+      )
+    } finally {
+      vi.useRealTimers()
+    }
   })
 
   it('leaves the pool usable after refusing a stale job', async () => {
