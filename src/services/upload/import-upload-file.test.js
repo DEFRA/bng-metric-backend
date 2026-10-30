@@ -187,18 +187,28 @@ describe('importUploadFile, a BNG Service template file', () => {
   const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
 
   it(
-    'saves the baseline from its Baseline tables with the post-intervention upload',
+    'replaces the stored baseline with its Baseline tables, with the post-intervention upload',
     async () => {
-      const baseline = await importUploadFile(SITE, {}, BASELINE)
-      const result = await importUploadFile(
-        SITE,
-        baseline.project,
-        POST_INTERVENTION
-      )
+      const fromFile = await importUploadFile(SITE, {}, BASELINE)
+      // A stored baseline that differs from the file in every habitat, so
+      // keeping it rather than replacing it cannot pass.
+      const stored = structuredClone(fromFile.project)
+      for (const habitat of stored.baseline.habitats) {
+        habitat.ref = `OLD-${habitat.ref}`
+        habitat.type = 'Modified grassland'
+      }
+
+      const result = await importUploadFile(SITE, stored, POST_INTERVENTION)
 
       expect(result.accepted).toBe(true)
-      expect(refsOf(result.project.baseline)).toEqual(
-        refsOf(baseline.project.baseline)
+      const typesOf = (document) =>
+        document.habitats.map((h) => [h.ref, h.type])
+      expect(typesOf(result.project.baseline)).toEqual(
+        typesOf(fromFile.project.baseline)
+      )
+      expect(result.project.baseline.units.habitatsTotal).toBeCloseTo(
+        fromFile.project.baseline.units.habitatsTotal,
+        10
       )
       expect(result.project.postIntervention.habitats.length).toBeGreaterThan(0)
     },
@@ -233,15 +243,62 @@ describe('importUploadFile, a BNG Service template file', () => {
 })
 
 describe('projectAfterUpload', () => {
-  const stored = Object.freeze({
-    name: 'Site',
-    baseline: {},
-    postIntervention: {}
+  withServiceTemplate(false)
+  let baselineUpload
+  let combinedUpload
+  beforeAll(async () => {
+    const baseline = await importUploadFile(BASELINE_FILE, {}, BASELINE)
+    const combined = await importUploadFile(
+      POST_INTERVENTION_FILE,
+      baseline.project,
+      POST_INTERVENTION
+    )
+    // buildUploadDocuments' result, as projectAfterUpload is given it.
+    baselineUpload = { document: baseline.project.baseline }
+    combinedUpload = {
+      baseline: { document: combined.project.baseline },
+      postIntervention: { document: combined.project.postIntervention }
+    }
+  }, IMPORT_TIMEOUT_MS)
+
+  /** A copy of `document` with a key no schema names. */
+  const withUnknownKey = (document) => ({ ...document, notInTheSchema: true })
+
+  it('accepts the documents an upload builds', () => {
+    expect(() =>
+      projectAfterUpload({}, baselineUpload, 'baseline')
+    ).not.toThrow()
+    expect(() =>
+      projectAfterUpload({}, combinedUpload, 'postIntervention')
+    ).not.toThrow()
   })
 
-  it('refuses a document the write would refuse', () => {
+  // The upload pipeline's own schema check allows unknown keys; the write's
+  // does not, so these documents pass the one and fail the other.
+  it('refuses a baseline upload whose document the write would refuse', () => {
     expect(() =>
-      projectAfterUpload(stored, { document: { habitats: 'none' } }, 'baseline')
+      projectAfterUpload(
+        {},
+        { document: withUnknownKey(baselineUpload.document) },
+        'baseline'
+      )
     ).toThrow(/project\.baseline failed schema validation before persist/)
   })
+
+  it.each([
+    ['baseline', /project\.baseline failed/],
+    ['postIntervention', /project\.postIntervention failed/]
+  ])(
+    'refuses a combined upload whose %s document the write would refuse',
+    (half, message) => {
+      const extracted = {
+        ...combinedUpload,
+        [half]: { document: withUnknownKey(combinedUpload[half].document) }
+      }
+
+      expect(() =>
+        projectAfterUpload({}, extracted, 'postIntervention')
+      ).toThrow(message)
+    }
+  )
 })

@@ -30,7 +30,7 @@ describe('the Baseline tables of a combined upload', () => {
       const result = await validateBaselineStage({
         filePath: FILE,
         loadBaselineLayers: vi.fn(),
-        projectId: 'p'
+        includeSizes: true
       })
 
       expect(result).toBeNull()
@@ -49,7 +49,7 @@ describe('the Baseline tables of a combined upload', () => {
         filePath: FILE,
         baselineReadSource: BASELINE_SOURCE,
         loadBaselineLayers: () => layers,
-        projectId: 'p'
+        includeSizes: true
       })
 
       expect(result).toEqual({ ...verdict, featureCount: 3 })
@@ -72,7 +72,7 @@ describe('the Baseline tables of a combined upload', () => {
         filePath: FILE,
         baselineReadSource: BASELINE_SOURCE,
         loadBaselineLayers: () => ({}),
-        projectId: 'p',
+        includeSizes: true,
         inThread: true
       })
 

@@ -415,7 +415,14 @@ describe('validateBaseline handler — pipeline calls', () => {
     expect(validateGeoPackageLayers).toHaveBeenCalledWith(
       expect.any(Function),
       'baseline',
-      { filePath: MOCK_DOWNLOAD_PATH, includeSizes: false }
+      // In the pool, never on the request thread.
+      {
+        filePath: MOCK_DOWNLOAD_PATH,
+        includeSizes: false,
+        source: undefined,
+        lineageSource: undefined,
+        inThread: false
+      }
     )
   })
 

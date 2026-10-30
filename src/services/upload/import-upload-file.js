@@ -9,27 +9,22 @@
  * it shares with the route:
  *
  * - the format gate (runFormatGate), as the route runs it;
- * - the geometry and data-quality checks (validateGeoPackageLayers, and
- *   validateBaselineStage for a BNG Service template file's Baseline tables),
- *   on this thread rather than in a worker;
+ * - the geometry and data-quality checks and the read for the save
+ *   (checkUploadLayers, readUploadForSave), which the route calls too, here
+ *   with the geometry checked on this thread rather than in a worker;
  * - building the documents (buildUploadDocuments), which saveUploadForProject
  *   also calls: feature ids, the baseline a post-intervention file replaces
  *   the stored one with, sizing, extraction, enrichment and the schema;
  * - the document the write leaves stored (projectAfterUpload).
- *
- * The order of the first two follows validateLayers in
- * src/routes/validate-geopackage-route.js; keep them in step.
  */
 
 import { readGeoPackage } from '../../validation/geopackage/geopackage.js'
 import { runFormatGate } from '../../validation/geopackage/format-gate.js'
 import { FEATURE_READ_MODE } from '../../validation/geopackage/read-feature-tables.js'
-import { validateGeoPackageLayers } from '../../validation/geopackage/index.js'
 import {
-  mergeStageVerdicts,
-  readBaselineStage,
-  validateBaselineStage
-} from '../../validation/geopackage/service-template/baseline-stage.js'
+  checkUploadLayers,
+  readUploadForSave
+} from '../../validation/geopackage/upload-checks.js'
 import {
   ERROR_CODES,
   makeError,
@@ -45,47 +40,6 @@ const SILENT_LOGGER = Object.freeze({
   error() {},
   debug() {}
 })
-
-/**
- * The format gate, then the geometry and data-quality checks, as the
- * validate route runs them, every feature measured for the save.
- *
- * @returns {Promise<{ errors: Array<object>, gate?: object, upload?: object, result?: object, baselineCheck?: object }>}
- */
-async function validateUploadFile(filePath, projectDocumentKey) {
-  const gate = runFormatGate(filePath, projectDocumentKey)
-  if (!gate.valid) {
-    return { errors: gate.errors }
-  }
-  const upload = {
-    filePath,
-    baselineReadSource: gate.baselineReadSource,
-    loadBaselineLayers: () =>
-      readGeoPackage(
-        filePath,
-        FEATURE_READ_MODE.properties,
-        gate.baselineReadSource
-      ),
-    // Any project: the import always saves, so every feature is measured.
-    projectId: 'import',
-    inThread: true
-  }
-  const baselineCheck = await validateBaselineStage(upload)
-  const result = await validateGeoPackageLayers(
-    () =>
-      readGeoPackage(filePath, FEATURE_READ_MODE.properties, gate.readSource),
-    projectDocumentKey,
-    {
-      filePath,
-      includeSizes: true,
-      source: gate.readSource,
-      lineageSource: gate.baselineReadSource,
-      inThread: true
-    }
-  )
-  const verdict = mergeStageVerdicts(baselineCheck, result)
-  return { errors: verdict.errors, gate, upload, result, baselineCheck }
-}
 
 /** The errors an upload whose documents could not be built answers with. */
 function refusalErrors(extracted) {
@@ -119,27 +73,40 @@ export async function importUploadFile(
   storedProject,
   { projectDocumentKey, logger = SILENT_LOGGER }
 ) {
-  const validation = await validateUploadFile(filePath, projectDocumentKey)
-  if (validation.errors.length > 0) {
-    return { accepted: false, errors: validation.errors }
+  const gate = runFormatGate(filePath, projectDocumentKey)
+  if (!gate.valid) {
+    return { accepted: false, errors: gate.errors }
   }
-  const { gate, upload, result, baselineCheck } = validation
+  const attributes = (source) => () =>
+    readGeoPackage(filePath, FEATURE_READ_MODE.properties, source)
+  const upload = {
+    filePath,
+    loadLayers: attributes(gate.readSource),
+    readSource: gate.readSource,
+    baselineReadSource: gate.baselineReadSource,
+    loadBaselineLayers: attributes(gate.baselineReadSource),
+    // An import always saves, so every feature is measured.
+    includeSizes: true,
+    inThread: true
+  }
+  const checks = await checkUploadLayers(upload, projectDocumentKey)
+  if (!checks.verdict.valid) {
+    return { accepted: false, errors: checks.verdict.errors }
+  }
 
-  // The accepted file is re-read in `serialised` mode for the save, as the
-  // route reads it.
-  const config = { projectDocumentKey }
+  const saved = readUploadForSave(upload, checks)
   const extracted = await buildUploadDocuments(
-    readGeoPackage(filePath, FEATURE_READ_MODE.serialised, gate.readSource),
+    saved.layers,
     storedProject,
     {
       uploadId: null,
       filename: null,
       fileSize: null,
-      geometrySizes: result.sizes,
+      geometrySizes: saved.geometrySizes,
       template: gate.template,
-      baselineStage: readBaselineStage(upload, baselineCheck)
+      baselineStage: saved.baselineStage
     },
-    { logger, config }
+    { logger, config: { projectDocumentKey } }
   )
   const errors = refusalErrors(extracted)
   if (errors) {
