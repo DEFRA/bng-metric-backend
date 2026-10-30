@@ -113,18 +113,29 @@ jobs:
           docker ps -a
           exit 1
 
+      # Both download hosts rate-limit unauthenticated downloads, so keep the
+      # installed Liquibase and Postgres driver between runs. The key changes
+      # with either version, so a version bump downloads once.
+      - name: Cache Liquibase
+        id: liquibase-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ./liquibase-bin
+          key: liquibase-${{ env.BNG_LIQUIBASE_VERSION }}-pgjdbc-${{ env.POSTGRES_JDBC_VERSION }}
+
       - name: Install Liquibase
-        # Both hosts rate-limit unauthenticated downloads (HTTP 429), and the
-        # integration matrix downloads twice per push, so retry rather than
-        # fail. The tarball is saved before it is extracted: a retry part way
-        # through would otherwise feed tar the broken attempt and the retry.
+        if: steps.liquibase-cache.outputs.cache-hit != 'true'
+        # Only on a cache miss. The hosts refuse with 429 or 403 when they are
+        # rate-limiting, so retry every error rather than fail. The tarball is
+        # saved before it is extracted: a retry part way through would
+        # otherwise feed tar the broken attempt and the retry.
         run: |
           mkdir -p ./liquibase-bin/lib
-          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors --proto '=https' --tlsv1.2 \
             "https://github.com/liquibase/liquibase/releases/download/v${BNG_LIQUIBASE_VERSION}/liquibase-${BNG_LIQUIBASE_VERSION}.tar.gz" \
             -o liquibase.tar.gz
           tar xzf liquibase.tar.gz -C ./liquibase-bin
-          curl -fsSL --retry 5 --retry-delay 10 --proto '=https' --tlsv1.2 \
+          curl -fsSL --retry 5 --retry-delay 10 --retry-all-errors --proto '=https' --tlsv1.2 \
             "https://repo1.maven.org/maven2/org/postgresql/postgresql/${POSTGRES_JDBC_VERSION}/postgresql-${POSTGRES_JDBC_VERSION}.jar" \
             -o "./liquibase-bin/lib/postgresql-${POSTGRES_JDBC_VERSION}.jar"
 
