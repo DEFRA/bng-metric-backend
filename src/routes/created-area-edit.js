@@ -57,7 +57,7 @@ function validateAreaChoices(edits) {
   }
 }
 
-function validateReferenceAndTiming(edits) {
+export function validateReferenceAndTiming(edits) {
   const { error } = featureEditPayload
     .extract('ref')
     .required()

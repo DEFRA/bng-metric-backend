@@ -1,5 +1,9 @@
 import Boom from '@hapi/boom'
 import {
+  postInterventionHedgerowEditPayload,
+  validateCreatedHedgerowEdit
+} from './created-hedgerow-edit.js'
+import {
   postInterventionAreaEditPayload,
   validateCreatedAreaEdit
 } from './created-area-edit.js'
@@ -161,7 +165,11 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       409:
  *         description: Another edit for this project is in progress
  */
-function createUpdateAreaHabitatRoute({ path, documentKey }) {
+function createUpdateAreaHabitatRoute({
+  path,
+  documentKey,
+  featureType = 'habitat'
+}) {
   return {
     method: 'PUT',
     path,
@@ -170,9 +178,11 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       validate: {
         params: projectFeatureIdParams,
         payload:
-          documentKey === 'postIntervention'
-            ? postInterventionAreaEditPayload
-            : areaHabitatEditPayload
+          featureType === 'hedgerow'
+            ? postInterventionHedgerowEditPayload
+            : documentKey === 'postIntervention'
+              ? postInterventionAreaEditPayload
+              : areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -190,6 +200,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             condition,
             edits: createdAreaEdits(request.payload),
             documentKey,
+            featureType,
             credentials,
             logger: request.logger
           })
@@ -287,6 +298,7 @@ async function runUpdate(
     condition,
     edits,
     documentKey,
+    featureType,
     credentials,
     logger
   }
@@ -311,11 +323,15 @@ async function runUpdate(
   }
 
   if (documentKey === 'postIntervention') {
-    const feature = row.project?.postIntervention?.habitats?.find(
-      (f) => f.featureId === featureId
-    )
+    const feature = row.project?.postIntervention?.[
+      featureType === 'hedgerow' ? 'hedgerows' : 'habitats'
+    ]?.find((f) => f.featureId === featureId)
     if (feature) {
-      validateCreatedAreaEdit(feature, {
+      const validate =
+        featureType === 'hedgerow'
+          ? validateCreatedHedgerowEdit
+          : validateCreatedAreaEdit
+      validate(feature, {
         ...edits,
         broadType,
         habitatType,
@@ -327,7 +343,7 @@ async function runUpdate(
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
     edits: { ...edits, broadType, habitatType, condition },
-    expectedType: 'habitat',
+    expectedType: featureType,
     documentKey,
     logger
   })
@@ -343,5 +359,46 @@ async function runUpdate(
 
   return result.feature
 }
+
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/hedgerows/{featureId}:
+ *   put:
+ *     tags: [Projects]
+ *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref, habitatType, condition, strategicSignificance, advanceYears, delayYears]
+ *             properties:
+ *               ref: { type: string }
+ *               habitatType: { type: string, nullable: true }
+ *               condition: { type: string, nullable: true }
+ *               strategicSignificance: { type: string, nullable: true }
+ *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *     responses:
+ *       200:
+ *         description: Updated hedgerow, with recalculated units, status and project totals
+ *       400:
+ *         description: Invalid reference, choices, timing, or non-Created hedgerow
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Project or hedgerow not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+export const updatePostInterventionHedgerow = createUpdateAreaHabitatRoute({
+  path: '/projects/{projectId}/post-intervention/hedgerows/{featureId}',
+  documentKey: 'postIntervention',
+  featureType: 'hedgerow'
+})
 
 export { updateAreaHabitat, updatePostInterventionAreaHabitat }

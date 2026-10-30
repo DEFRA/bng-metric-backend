@@ -613,7 +613,7 @@ test.each([
   ['missing reference', { ref: undefined }],
   ['blank reference', { ref: ' ' }],
   ['null reference', { ref: null }],
-  ['hedgerow', { layer: 'hedgerows' }],
+  ['Enhanced hedgerow', { layer: 'hedgerows', retentionCategory: 'Enhanced' }],
   ['watercourse', { layer: 'watercourses' }]
 ])(
   'the shared edit entry point refuses Created-area timing for %s',

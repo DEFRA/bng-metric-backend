@@ -12,6 +12,7 @@ import {
   updateProject
 } from '../routes/projects.js'
 import {
+  updatePostInterventionHedgerow,
   updateAreaHabitat,
   updatePostInterventionAreaHabitat
 } from '../routes/habitats.js'
@@ -30,6 +31,7 @@ import {
   updateProjectDetails
 } from '../routes/project-details.js'
 import {
+  getHedgerowCreation,
   getAreaCreation,
   getBroadHabitats,
   getLocalPlanningAuthorities,
@@ -56,6 +58,7 @@ const router = {
         getHabitat,
         createProject,
         updateProject,
+        updatePostInterventionHedgerow,
         updateAreaHabitat,
         updatePostInterventionAreaHabitat,
         getFeature,
@@ -69,6 +72,7 @@ const router = {
         getProjectReport,
         getProjectDetails,
         updateProjectDetails,
+        getHedgerowCreation,
         getAreaCreation,
         getBroadHabitats,
         getLocalPlanningAuthorities,
