@@ -267,6 +267,23 @@ describe('BMD-1049 Created hedgerow edits', () => {
     )
     expect(setGeometryRefs).toHaveBeenCalled()
   })
+  test('normalises legacy Created retention before persisting a hedgerow edit', async () => {
+    const stored = structuredClone(feature)
+    delete stored.retentionCategory
+    stored.baseline.retentionCategory = 'Created'
+    setProjectFeature.mockImplementationOnce((_tx, _id, { feature: saved }) => {
+      expect(
+        postInterventionLinearHabitatSchema.validate(saved).error
+      ).toBeUndefined()
+    })
+    const result = await updatePostInterventionHedgerow.handler(
+      request(edits, stored)
+    )
+    expect(result.retentionCategory).toBe('Created')
+    expect(result.baseline).not.toHaveProperty('retentionCategory')
+    expect(stored.baseline.retentionCategory).toBe('Created')
+    expect(setProjectFeature).toHaveBeenCalledOnce()
+  })
   test('validation fails before any persistence', async () => {
     await expect(
       updatePostInterventionHedgerow.handler(

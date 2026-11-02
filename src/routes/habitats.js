@@ -96,8 +96,9 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       for a single post-intervention area habitat, then recomputes the
  *       derived distinctiveness, condition score, habitat-unit total and
  *       Complete/Incomplete status before saving. Returns the updated habitat
- *       document. Supplying any of ref, strategicSignificance, advanceYears or
- *       delayYears requires all four, plus broadType, habitatType and condition.
+ *       document. Supplying ref requires strategicSignificance, broadType, habitatType
+ *       and condition. Timing is optional: omit it to retain the stored value,
+ *       or supply null to clear it.
  *       These extended edits are supported only for Created area habitats.
  *       The 30+ timing input is stored as numeric 30 with an optional selection
  *       flag; response timing fields remain numeric or null.
@@ -159,7 +160,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, an incomplete extended payload, or extended edits to a non-Created area.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to a non-Created area.
  *       404:
  *         description: Project or habitat not found
  *       422:
