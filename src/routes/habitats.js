@@ -377,7 +377,7 @@ async function runUpdate(
  * @openapi
  * /projects/{projectId}/post-intervention/hedgerows/{featureId}:
  *   put:
- *     tags: [Projects]
+ *     tags: [Habitats]
  *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
  *     description: Omitted timing fields retain the stored values; explicit null clears them. New timing selections must be integer years 0 to 30 or 30+.
  *     parameters:
