@@ -30,7 +30,7 @@ export const postInterventionAreaEditPayload = featureEditPayload
 
 export function validateCreatedAreaEdit(feature, edits) {
   if (!Object.hasOwn(edits, 'ref')) {
-    return
+    return edits
   }
   if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
     throw Boom.badRequest(
