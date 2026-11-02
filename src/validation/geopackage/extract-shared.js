@@ -139,14 +139,14 @@ function embedRoundedLinearFeatureSizes(documents, sizeEntries) {
  *
  * @param {{ areaHabitats: { totalSquareMetres: number }, hedgerows: { totalMetres: number }, watercourses: { totalMetres: number } }} habitatSizes
  * @param {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }} treeSizes
- * @param {{ totalSquareMetres: number }} [verticalSizes] absent for a legacy
- *   file, which has no vertical area habitats
+ * @param {{ totalSquareMetres: number }} verticalSizes 0 for a legacy file,
+ *   which has no vertical area habitats
  * @returns {object}
  */
 export function buildHabitatSizesSummary(
   habitatSizes,
   treeSizes,
-  verticalSizes = { totalSquareMetres: 0 }
+  verticalSizes
 ) {
   const { areaHabitats, hedgerows, watercourses } = habitatSizes
   return {

@@ -383,31 +383,25 @@ function drawMapFurniture(doc, frame, projector, credit) {
   })
 }
 
+/**
+ * The layers drawn over the parcels, in drawing order, each with its style:
+ * lines, then trees on top of them.
+ */
+const OVERLAY_LAYERS = Object.freeze([
+  ['hedgerows', HABITAT_STYLES.hedgerow],
+  ['watercourses', HABITAT_STYLES.watercourse],
+  ['verticalHabitats', HABITAT_STYLES.verticalHabitat],
+  ['trees', HABITAT_STYLES.tree]
+])
+
 function drawSiteLayers(doc, site, projector, style) {
   for (const habitat of site.layers.habitats ?? []) {
     drawGeometry(doc, habitat.geometry, projector, style)
   }
-  for (const hedgerow of site.layers.hedgerows ?? []) {
-    drawGeometry(doc, hedgerow.geometry, projector, HABITAT_STYLES.hedgerow)
-  }
-  for (const watercourse of site.layers.watercourses ?? []) {
-    drawGeometry(
-      doc,
-      watercourse.geometry,
-      projector,
-      HABITAT_STYLES.watercourse
-    )
-  }
-  for (const vertical of site.layers.verticalHabitats ?? []) {
-    drawGeometry(
-      doc,
-      vertical.geometry,
-      projector,
-      HABITAT_STYLES.verticalHabitat
-    )
-  }
-  for (const tree of site.layers.trees ?? []) {
-    drawGeometry(doc, tree.geometry, projector, HABITAT_STYLES.tree)
+  for (const [layer, layerStyle] of OVERLAY_LAYERS) {
+    for (const feature of site.layers[layer] ?? []) {
+      drawGeometry(doc, feature.geometry, projector, layerStyle)
+    }
   }
   if (site.redLine) {
     drawGeometry(doc, site.redLine.geometry, projector, HABITAT_STYLES.redLine)

@@ -6,25 +6,28 @@
  * respect, scored on the Metric's area habitat sheets, and left out of the
  * site area.
  */
+const URBAN = 'Urban'
+const INTERTIDAL_HARD_STRUCTURES = 'Intertidal hard structures'
+
 export const VERTICAL_HABITATS = Object.freeze([
   Object.freeze({
-    broadHabitat: 'Urban',
+    broadHabitat: URBAN,
     habitatType: 'Facade-bound green wall'
   }),
   Object.freeze({
-    broadHabitat: 'Urban',
+    broadHabitat: URBAN,
     habitatType: 'Ground based green wall'
   }),
   Object.freeze({
-    broadHabitat: 'Intertidal hard structures',
+    broadHabitat: INTERTIDAL_HARD_STRUCTURES,
     habitatType: 'Artificial hard structures'
   }),
   Object.freeze({
-    broadHabitat: 'Intertidal hard structures',
+    broadHabitat: INTERTIDAL_HARD_STRUCTURES,
     habitatType: 'Artificial features of hard structures'
   }),
   Object.freeze({
-    broadHabitat: 'Intertidal hard structures',
+    broadHabitat: INTERTIDAL_HARD_STRUCTURES,
     habitatType:
       'Artificial hard structures with integrated greening of grey infrastructure (IGGI)'
   })
