@@ -3,6 +3,7 @@ import Joi from 'joi'
 import { featureEditPayload } from './shared-params.js'
 import {
   createdEditYears,
+  resolveStoredTiming,
   validateReferenceAndTiming
 } from './created-feature-edit.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
@@ -22,7 +23,9 @@ export const postInterventionAreaEditPayload = featureEditPayload
     advanceYears: createdEditYears.optional(),
     delayYears: createdEditYears.optional()
   })
-  .and('ref', 'strategicSignificance', 'advanceYears', 'delayYears')
+  .and('ref', 'strategicSignificance')
+  .with('advanceYears', 'ref')
+  .with('delayYears', 'ref')
   .with('ref', ['broadType', 'habitatType', 'condition'])
 
 export function validateCreatedAreaEdit(feature, edits) {
@@ -34,8 +37,10 @@ export function validateCreatedAreaEdit(feature, edits) {
       'These attributes can only be edited on Created areas'
     )
   }
-  validateReferenceAndTiming(edits)
-  validateAreaChoices(edits)
+  const resolved = resolveStoredTiming(feature, edits)
+  validateReferenceAndTiming(resolved)
+  validateAreaChoices(resolved)
+  return resolved
 }
 
 function validateAreaChoices(edits) {

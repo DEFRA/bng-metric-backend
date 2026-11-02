@@ -25,3 +25,19 @@ export function validateReferenceAndTiming(edits) {
     )
   }
 }
+
+export function resolveStoredTiming(feature, edits) {
+  // Omission means keep the stored value; null is an explicit clear. Resolve
+  // under the project row lock so a stale form cannot restore an older value.
+  const resolved = { ...edits }
+  for (const field of ['advanceYears', 'delayYears']) {
+    if (edits[field] === undefined) {
+      const saved = feature.proposed?.[field] ?? null
+      resolved[field] =
+        saved === MAX_YEARS && feature.proposed?.[`${field}Is30Plus`]
+          ? '30+'
+          : saved
+    }
+  }
+  return resolved
+}

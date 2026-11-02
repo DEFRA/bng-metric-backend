@@ -686,3 +686,62 @@ test.each([
     expect(project).toEqual(original)
   }
 )
+
+test.each([2.5, 31])(
+  'area omission keeps imported timing %s, while null clears and new values stay strict',
+  async (advanceYears) => {
+    const stored = {
+      ...feature,
+      proposed: { ...feature.proposed, advanceYears, delayYears: 0 }
+    }
+    const payload = { ...edits }
+    delete payload.advanceYears
+    delete payload.delayYears
+    expect(
+      postInterventionAreaEditPayload.validate(payload).error
+    ).toBeUndefined()
+    const saved = await updatePostInterventionAreaHabitat.handler(
+      routeRequest(payload, stored).request,
+      {}
+    )
+    expect(saved.proposed).toMatchObject({ advanceYears, delayYears: 0 })
+    expect(
+      postInterventionAreaEditPayload.validate({ ...payload, advanceYears })
+        .error
+    ).toBeDefined()
+    const cleared = await updatePostInterventionAreaHabitat.handler(
+      routeRequest({ ...payload, advanceYears: null }, stored).request,
+      {}
+    )
+    expect(cleared.proposed.advanceYears).toBeNull()
+    await expect(
+      updatePostInterventionAreaHabitat.handler(
+        routeRequest({ ...payload, delayYears: 1 }, stored).request,
+        {}
+      )
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+  }
+)
+
+test('area omitted timing keeps 30+ metadata and timing without an extended edit is invalid', async () => {
+  const payload = { ...edits }
+  delete payload.delayYears
+  const stored = {
+    ...feature,
+    proposed: { ...feature.proposed, delayYears: 30, delayYearsIs30Plus: true }
+  }
+  const saved = await updatePostInterventionAreaHabitat.handler(
+    routeRequest(payload, stored).request,
+    {}
+  )
+  expect(saved.proposed).toMatchObject({
+    delayYears: 30,
+    delayYearsIs30Plus: true
+  })
+  expect(
+    postInterventionAreaEditPayload.validate({ advanceYears: 1 }).error
+  ).toBeDefined()
+  expect(
+    postInterventionAreaEditPayload.validate({ delayYears: 1 }).error
+  ).toBeDefined()
+})

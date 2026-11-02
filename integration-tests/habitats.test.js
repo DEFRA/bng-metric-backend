@@ -703,3 +703,64 @@ describe('BMD-1049 legacy timing and lineage', () => {
     ).toBeNull()
   })
 })
+
+describe('Created area imported timing preservation', () => {
+  it('persists omitted fractional timing and clears it only on an explicit null', async () => {
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'A-imported',
+      retentionCategory: 'Created',
+      sizeSquareMetres: 25000,
+      units: null,
+      status: 'Incomplete',
+      baseline: {},
+      proposed: {
+        broadType: 'Grassland',
+        type: 'Modified grassland',
+        condition: 'Good',
+        strategicSignificance: 'Low',
+        advanceYears: 2.5,
+        delayYears: 0
+      }
+    }
+    const projectId = await seedProject({
+      name: 'Area imported timing IT',
+      postIntervention: { habitats: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`
+    const payload = {
+      ref: 'A-renamed',
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Good',
+      strategicSignificance: 'Low'
+    }
+    const read = async () =>
+      (
+        await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+          projectId
+        ])
+      ).rows[0].project.postIntervention.habitats[0]
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect((await read()).proposed).toMatchObject({
+      advanceYears: 2.5,
+      delayYears: 0
+    })
+    const invalid = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, advanceYears: 2.5 }
+    })
+    expect(invalid.statusCode).toBe(HTTP_BAD_REQUEST)
+    const cleared = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, advanceYears: null }
+    })
+    expect(cleared.statusCode).toBe(HTTP_OK)
+    expect((await read()).proposed.advanceYears).toBeNull()
+  })
+})

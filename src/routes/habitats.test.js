@@ -667,14 +667,12 @@ describe('updateAreaHabitat validation', () => {
     expect(error?.message).toBe('"ref" is not allowed')
   })
 
-  test('PI reference edits require the complete Created-area edit payload', () => {
+  test('PI reference edits require significance alongside the reference', () => {
     const { error } =
       updatePostInterventionAreaHabitat.options.validate.payload.validate({
         ref: 'B-A1',
         condition: 'Good'
       })
-    expect(error?.message).toContain(
-      'required peers [strategicSignificance, advanceYears, delayYears]'
-    )
+    expect(error?.message).toContain('required peers [strategicSignificance]')
   })
 })

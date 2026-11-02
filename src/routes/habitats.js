@@ -129,6 +129,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *                 nullable: true
  *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
  *               advanceYears:
+ *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
  *                 oneOf:
  *                   - type: integer
@@ -137,6 +138,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *                   - type: string
  *                     enum: ['30+']
  *               delayYears:
+ *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
  *                 oneOf:
  *                   - type: integer

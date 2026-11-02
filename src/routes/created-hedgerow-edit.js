@@ -1,8 +1,8 @@
-import { MAX_YEARS } from 'bng-library/metric'
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 import {
   createdEditYears,
+  resolveStoredTiming,
   validateReferenceAndTiming
 } from './created-feature-edit.js'
 import { featureEditPayload } from './shared-params.js'
@@ -27,22 +27,6 @@ export const postInterventionHedgerowEditPayload = Joi.object({
   advanceYears: createdEditYears.optional(),
   delayYears: createdEditYears.optional()
 })
-
-function resolveStoredTiming(feature, edits) {
-  // Omission means keep the stored value; null is an explicit clear. Resolve
-  // under the project row lock so a stale form cannot restore an older value.
-  const resolved = { ...edits }
-  for (const field of ['advanceYears', 'delayYears']) {
-    if (edits[field] === undefined) {
-      const saved = feature.proposed?.[field] ?? null
-      resolved[field] =
-        saved === MAX_YEARS && feature.proposed?.[`${field}Is30Plus`]
-          ? '30+'
-          : saved
-    }
-  }
-  return resolved
-}
 
 export function validateCreatedHedgerowEdit(feature, edits) {
   if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
