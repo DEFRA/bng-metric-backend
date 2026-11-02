@@ -1,3 +1,7 @@
+import {
+  resyncPostInterventionBaselineSide,
+  rederivePostInterventionFromBaseline
+} from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import {
   calculateCreatedHedgerowPostIntervention,
@@ -154,15 +158,30 @@ describe('BMD-1049 Created hedgerow edits', () => {
     }
     const result = update(overrides)
     expect(result.feature.status).toBe('Incomplete')
-    expect(result.feature.units).toBe(0)
+    expect(result.feature.units).toBeNull()
     expect(result.unitsTotals.hedgerowsTotal).toBe(4)
   })
   test.each([
+    { advanceYears: 2, delayYears: 0 },
+    { advanceYears: 0, delayYears: 3 },
     { advanceYears: 30, delayYears: 0 },
     { advanceYears: 0, delayYears: '30+' }
   ])('handles timing %j and persists valid years', (timing) => {
     const result = update(timing)
     expect(result.feature.status).toBe('Complete')
+    const expected = calculateCreatedHedgerowPostIntervention(
+      0.336,
+      edits.habitatType,
+      edits.condition,
+      timing.advanceYears,
+      timing.delayYears,
+      edits.strategicSignificance
+    )
+    expect(result.feature.units).toBe(expected.units)
+    expect(result.feature.proposed.timeMultiplier).toBe(expected.timeMultiplier)
+    expect(result.unitsTotals.hedgerowsTotal).toBeCloseTo(
+      roundToSigFigs(expected.units + 4)
+    )
     expect(
       postInterventionLinearHabitatSchema.validate(result.feature).error
     ).toBeUndefined()
@@ -192,7 +211,7 @@ describe('BMD-1049 Created hedgerow edits', () => {
       ).toThrow()
     }
   )
-  test('schema requires all fields, accepts null and zero, rejects invalid years and fixed fields', () => {
+  test('schema requires editable attributes and allows timing omission, but rejects invalid new years', () => {
     expect(
       postInterventionHedgerowEditPayload.validate(edits).error
     ).toBeUndefined()
@@ -211,9 +230,12 @@ describe('BMD-1049 Created hedgerow edits', () => {
       ).toBeUndefined()
       const missing = { ...edits }
       delete missing[field]
-      expect(
-        postInterventionHedgerowEditPayload.validate(missing).error
-      ).toBeDefined()
+      const error = postInterventionHedgerowEditPayload.validate(missing).error
+      if (['advanceYears', 'delayYears'].includes(field)) {
+        expect(error).toBeUndefined()
+      } else {
+        expect(error).toBeDefined()
+      }
     }
     for (const invalid of [
       { advanceYears: -1 },
@@ -256,16 +278,144 @@ describe('BMD-1049 Created hedgerow edits', () => {
   })
 })
 
-test('saves independently derived fields when strategic significance or timing is null', () => {
-  const timingMissing = update({ delayYears: null }).feature.proposed
-  expect(timingMissing).toMatchObject({
-    distinctiveness: 'Low',
-    difficulty: 'Low',
-    difficultyMultiplier: 1,
-    standardTimeToTargetCondition: '12',
-    finalTimeToTargetCondition: null
+test.each(['condition', 'strategicSignificance', 'advanceYears', 'delayYears'])(
+  'incomplete %s has the same persisted shape after a baseline resync',
+  (field) => {
+    const saved = update({ [field]: null }).feature
+    const rederived = rederivePostInterventionFromBaseline(
+      { hedgerows: [saved] },
+      { baseline: {} }
+    ).hedgerows[0]
+    for (const row of [saved, rederived]) {
+      expect(row).toMatchObject({
+        units: null,
+        status: 'Incomplete',
+        proposed: {
+          distinctiveness: null,
+          difficulty: null,
+          difficultyMultiplier: null,
+          standardTimeToTargetCondition: null,
+          finalTimeToTargetCondition: null
+        }
+      })
+      expect(row.proposed[field]).toBeNull()
+    }
+  }
+)
+
+test.each([2.5, 31])(
+  'omitted timing retains the stored %s without allowing it as a new value',
+  async (advanceYears) => {
+    const payload = { ...edits }
+    delete payload.advanceYears
+    const stored = {
+      ...feature,
+      proposed: { ...feature.proposed, advanceYears, delayYears: 0 }
+    }
+    const result = await updatePostInterventionHedgerow.handler(
+      request(payload, stored)
+    )
+    expect(result.proposed.advanceYears).toBe(advanceYears)
+    expect(
+      postInterventionHedgerowEditPayload.validate({ ...edits, advanceYears })
+        .error
+    ).toBeDefined()
+    const cleared = await updatePostInterventionHedgerow.handler(
+      request({ ...edits, advanceYears: null }, stored)
+    )
+    expect(cleared.proposed.advanceYears).toBeNull()
+  }
+)
+
+test('omitted timing preserves 30+ metadata and validates positive fractions against a new delay', async () => {
+  const payload = { ...edits }
+  delete payload.advanceYears
+  const stored = {
+    ...feature,
+    proposed: {
+      ...feature.proposed,
+      advanceYears: 30,
+      advanceYearsIs30Plus: true,
+      delayYears: 0
+    }
+  }
+  const result = await updatePostInterventionHedgerow.handler(
+    request(payload, stored)
+  )
+  expect(result.proposed).toMatchObject({
+    advanceYears: 30,
+    advanceYearsIs30Plus: true
   })
-  const significanceMissing = update({ strategicSignificance: null }).feature
-    .proposed
-  expect(significanceMissing.finalTimeToTargetCondition).toContain('12 years')
+  await expect(
+    updatePostInterventionHedgerow.handler(
+      request(
+        { ...payload, delayYears: 1 },
+        { ...stored, proposed: { ...stored.proposed, advanceYears: 0.5 } }
+      )
+    )
+  ).rejects.toMatchObject({ output: { statusCode: 400 } })
 })
+
+test.each([true, false])(
+  'a renamed legacy Created hedgerow preserves its original parent (%s) through resync',
+  (hasParent) => {
+    const parentId = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    const otherId = 'dddddddd-dddd-dddd-dddd-dddddddddddd'
+    const original = {
+      ...feature,
+      baseline: { type: 'Native hedgerow', condition: 'Poor' }
+    }
+    const baseline = {
+      hedgerows: [
+        ...(hasParent
+          ? [
+              {
+                featureId: parentId,
+                ref: 'H-1',
+                type: 'Native hedgerow',
+                condition: 'Poor'
+              }
+            ]
+          : []),
+        {
+          featureId: otherId,
+          ref: 'H-2',
+          type: 'Native hedgerow with trees',
+          condition: 'Good'
+        }
+      ]
+    }
+    const result = applyFeatureUpdate(
+      { baseline, postIntervention: { hedgerows: [original] } },
+      {
+        featureId,
+        edits: { ...edits, ref: 'H-2' },
+        expectedType: 'hedgerow',
+        documentKey: 'postIntervention'
+      }
+    )
+    const saved = result.feature
+    expect(saved).toMatchObject({
+      ref: 'H-2',
+      referenceEdited: true,
+      parentFeatureId: hasParent ? parentId : null
+    })
+    const changed = structuredClone(baseline)
+    if (hasParent) {
+      changed.hedgerows[0].ref = 'Baseline renamed'
+      changed.hedgerows[0].condition = 'Moderate'
+    }
+    resyncPostInterventionBaselineSide(
+      { hedgerows: [saved] },
+      { baseline: changed, previousBaseline: baseline }
+    )
+    expect(saved.ref).toBe('H-2')
+    expect(saved.baseline).toMatchObject({
+      type: 'Native hedgerow',
+      condition: hasParent ? 'Moderate' : 'Poor'
+    })
+    expect(
+      postInterventionLinearHabitatSchema.validate(saved).error
+    ).toBeUndefined()
+  }
+)

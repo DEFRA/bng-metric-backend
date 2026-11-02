@@ -50,7 +50,7 @@ import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/pos
 import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
 import {
   rederivePostInterventionFromBaseline,
-  preserveCreatedAreaParent
+  preserveCreatedParent
 } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
@@ -307,7 +307,7 @@ function resolveUpdatedFeature(
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
-  preserveCreatedAreaParent(found.feature, updated, {
+  preserveCreatedParent(found.feature, updated, {
     documentKey,
     layer: found.key,
     baseline,
@@ -573,7 +573,7 @@ function applyFeatureUpdate(
     derived,
     {
       documentKey,
-      baseline: project?.baseline?.habitats,
+      baseline: project?.baseline?.[found.key],
       serviceTemplate: isTemplateUpload(project?.postIntervention)
     }
   )

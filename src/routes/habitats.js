@@ -165,6 +165,19 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       409:
  *         description: Another edit for this project is in progress
  */
+const CREATED_EDIT_TYPES = {
+  habitat: {
+    layer: 'habitats',
+    payload: postInterventionAreaEditPayload,
+    validate: validateCreatedAreaEdit
+  },
+  hedgerow: {
+    layer: 'hedgerows',
+    payload: postInterventionHedgerowEditPayload,
+    validate: validateCreatedHedgerowEdit
+  }
+}
+
 function createUpdateAreaHabitatRoute({
   path,
   documentKey,
@@ -178,11 +191,9 @@ function createUpdateAreaHabitatRoute({
       validate: {
         params: projectFeatureIdParams,
         payload:
-          featureType === 'hedgerow'
-            ? postInterventionHedgerowEditPayload
-            : documentKey === 'postIntervention'
-              ? postInterventionAreaEditPayload
-              : areaHabitatEditPayload
+          documentKey === 'postIntervention'
+            ? CREATED_EDIT_TYPES[featureType].payload
+            : areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -322,27 +333,20 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
+  let resolvedEdits = { ...edits, broadType, habitatType, condition }
   if (documentKey === 'postIntervention') {
-    const feature = row.project?.postIntervention?.[
-      featureType === 'hedgerow' ? 'hedgerows' : 'habitats'
-    ]?.find((f) => f.featureId === featureId)
+    const editType = CREATED_EDIT_TYPES[featureType]
+    const feature = row.project?.postIntervention?.[editType.layer]?.find(
+      (f) => f.featureId === featureId
+    )
     if (feature) {
-      const validate =
-        featureType === 'hedgerow'
-          ? validateCreatedHedgerowEdit
-          : validateCreatedAreaEdit
-      validate(feature, {
-        ...edits,
-        broadType,
-        habitatType,
-        condition
-      })
+      resolvedEdits = editType.validate(feature, resolvedEdits) ?? resolvedEdits
     }
   }
 
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
-    edits: { ...edits, broadType, habitatType, condition },
+    edits: resolvedEdits,
     expectedType: featureType,
     documentKey,
     logger
@@ -366,6 +370,7 @@ async function runUpdate(
  *   put:
  *     tags: [Projects]
  *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
+ *     description: Omitted timing fields retain the stored values; explicit null clears them. New timing selections must be integer years 0 to 30 or 30+.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -375,7 +380,7 @@ async function runUpdate(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [ref, habitatType, condition, strategicSignificance, advanceYears, delayYears]
+ *             required: [ref, habitatType, condition, strategicSignificance]
  *             properties:
  *               ref: { type: string }
  *               habitatType: { type: string, nullable: true }

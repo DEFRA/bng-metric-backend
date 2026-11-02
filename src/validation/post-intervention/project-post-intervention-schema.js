@@ -57,16 +57,16 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Template links keep their original contract on linear features. Only area
+// Template links keep their original contract on linear features. Area and hedgerow
 // edits can explicitly record that a Created reference has no baseline parent.
-function parentFeatureIdField({ editableArea = false } = {}) {
+function parentFeatureIdField({ editableCreated = false } = {}) {
   const field = Joi.string().uuid()
   return {
-    parentFeatureId: editableArea
+    parentFeatureId: editableCreated
       ? field
           .allow(null)
           .description(
-            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
+            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created habitat reference is edited. An explicit null records that an edited Created habitat has no identifiable baseline parent; absent on untouched legacy rows.'
           )
       : field.description(
           'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
@@ -169,7 +169,14 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
   return {
     ...retentionCategoryField(),
     ...invalidEnhancementField(layer),
-    ...parentFeatureIdField(),
+    ...parentFeatureIdField({ editableCreated: layer === 'hedgerows' }),
+    ...(layer === 'hedgerows'
+      ? {
+          referenceEdited: Joi.boolean().description(
+            'Whether a Created hedgerow reference was edited; its stored parent remains independent of the editable reference.'
+          )
+        }
+      : {}),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -285,7 +292,7 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
-  ...parentFeatureIdField({ editableArea: true }),
+  ...parentFeatureIdField({ editableCreated: true }),
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
   ),

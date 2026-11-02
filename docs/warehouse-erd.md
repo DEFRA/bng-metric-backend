@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**23 tables**, mapping 383 schema fields.
+**23 tables**, mapping 384 schema fields.
 
 ## Diagram
 
@@ -768,7 +768,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 34 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 35 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -777,6 +777,7 @@ hedgerows in the postIntervention document. 34 column(s) mapped from the JSON do
 | `retention_category`                         | `text`    |     | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.hedgerows[].referenceEdited`                        |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.hedgerows[].length`                                 |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |

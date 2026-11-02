@@ -67,8 +67,8 @@ export function validateReferenceAndTiming(edits) {
     throw Boom.badRequest(error.message)
   }
   if (
-    Number.parseInt(edits.advanceYears) > 0 &&
-    Number.parseInt(edits.delayYears) > 0
+    Number.parseFloat(edits.advanceYears) > 0 &&
+    Number.parseFloat(edits.delayYears) > 0
   ) {
     throw Boom.badRequest(
       'Enter either advance or delay greater than zero, not both'

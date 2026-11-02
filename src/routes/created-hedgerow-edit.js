@@ -1,3 +1,4 @@
+import { MAX_YEARS } from 'bng-library/metric'
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 import {
@@ -22,7 +23,9 @@ export const postInterventionHedgerowEditPayload = Joi.object(
   Object.fromEntries(
     fields.map((field) => [
       field,
-      postInterventionAreaEditPayload.extract(field).required()
+      ['advanceYears', 'delayYears'].includes(field)
+        ? postInterventionAreaEditPayload.extract(field).optional()
+        : postInterventionAreaEditPayload.extract(field).required()
     ])
   )
 )
@@ -33,7 +36,19 @@ export function validateCreatedHedgerowEdit(feature, edits) {
       'These attributes can only be edited on Created hedgerows'
     )
   }
-  validateReferenceAndTiming(edits)
+  // Omission means keep the stored value; null is an explicit clear. Resolve
+  // under the project row lock so a stale form cannot restore an older value.
+  const resolved = { ...edits }
+  for (const field of ['advanceYears', 'delayYears']) {
+    if (edits[field] === undefined) {
+      const saved = feature.proposed?.[field] ?? null
+      resolved[field] =
+        saved === MAX_YEARS && feature.proposed?.[`${field}Is30Plus`]
+          ? '30+'
+          : saved
+    }
+  }
+  validateReferenceAndTiming(resolved)
   const type = getHedgerowCreationReference().habitatTypes.find(
     (t) => t.name === edits.habitatType
   )
@@ -46,4 +61,5 @@ export function validateCreatedHedgerowEdit(feature, edits) {
       'Choose valid hedgerow habitat and target condition options'
     )
   }
+  return resolved
 }

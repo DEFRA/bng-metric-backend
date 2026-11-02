@@ -620,10 +620,86 @@ describe('BMD-1049 Created hedgerow editing', () => {
     })
     expect(partial.statusCode).toBe(HTTP_OK)
     expect(partial.result).toMatchObject({
-      units: 0,
+      units: null,
       status: 'Incomplete',
       proposed: { delayYears: null }
     })
     expect((await read()).project.postIntervention.units.hedgerowsTotal).toBe(0)
+  })
+})
+
+describe('BMD-1049 legacy timing and lineage', () => {
+  it('preserves omitted imported timing and the original baseline parent across a rename', async () => {
+    const parentId = randomUUID()
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'H-original',
+      retentionCategory: 'Created',
+      sizeMetres: 336,
+      units: null,
+      status: 'Incomplete',
+      baseline: { type: 'Native hedgerow', condition: 'Poor' },
+      proposed: {
+        type: 'Native hedgerow',
+        condition: 'Good',
+        strategicSignificance: 'Low',
+        advanceYears: 2.5,
+        delayYears: 0
+      }
+    }
+    const projectId = await seedProject({
+      name: 'Legacy timing IT',
+      baseline: {
+        hedgerows: [
+          {
+            featureId: parentId,
+            ref: 'H-original',
+            type: 'Native hedgerow',
+            condition: 'Poor'
+          }
+        ]
+      },
+      postIntervention: { hedgerows: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/hedgerows/${feature.featureId}`
+    const payload = {
+      ref: 'H-renamed',
+      habitatType: 'Native hedgerow',
+      condition: 'Good',
+      strategicSignificance: 'Low',
+      delayYears: 0
+    }
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result).toMatchObject({
+      ref: 'H-renamed',
+      referenceEdited: true,
+      parentFeatureId: parentId,
+      proposed: { advanceYears: 2.5 }
+    })
+    const read = async () =>
+      (
+        await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+          projectId
+        ])
+      ).rows[0].project
+    expect((await read()).postIntervention.hedgerows[0]).toEqual(saved.result)
+    const invalid = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, advanceYears: 2.5 }
+    })
+    expect(invalid.statusCode).toBe(HTTP_BAD_REQUEST)
+    const cleared = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, advanceYears: null }
+    })
+    expect(cleared.statusCode).toBe(HTTP_OK)
+    expect(
+      (await read()).postIntervention.hedgerows[0].proposed.advanceYears
+    ).toBeNull()
   })
 })

@@ -8,7 +8,6 @@ import {
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import {
   postInterventionHabitatSchema,
-  postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import * as featureUpdates from '../utilities/features/apply-feature-update.js'
@@ -589,15 +588,12 @@ test('callers cannot mutate the cached creation reference', () => {
   expect(getAreaCreationReference()).toEqual(expected)
 })
 
-test('only area parent links permit an explicit unlinked null', () => {
+test('only editable Created families permit an explicit unlinked null', () => {
   expect(
     postInterventionHabitatSchema.extract('parentFeatureId').validate(null)
       .error
   ).toBeUndefined()
-  for (const schema of [
-    postInterventionLinearHabitatSchema,
-    postInterventionWatercourseSchema
-  ]) {
+  for (const schema of [postInterventionWatercourseSchema]) {
     const field = schema.extract('parentFeatureId')
     expect(field.validate(null).error).toBeDefined()
     expect(field.validate(undefined).error).toBeUndefined()
