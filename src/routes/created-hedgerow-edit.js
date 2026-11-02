@@ -30,12 +30,7 @@ export const postInterventionHedgerowEditPayload = Joi.object(
   )
 )
 
-export function validateCreatedHedgerowEdit(feature, edits) {
-  if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
-    throw Boom.badRequest(
-      'These attributes can only be edited on Created hedgerows'
-    )
-  }
+function resolveStoredTiming(feature, edits) {
   // Omission means keep the stored value; null is an explicit clear. Resolve
   // under the project row lock so a stale form cannot restore an older value.
   const resolved = { ...edits }
@@ -48,6 +43,16 @@ export function validateCreatedHedgerowEdit(feature, edits) {
           : saved
     }
   }
+  return resolved
+}
+
+export function validateCreatedHedgerowEdit(feature, edits) {
+  if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
+    throw Boom.badRequest(
+      'These attributes can only be edited on Created hedgerows'
+    )
+  }
+  const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
   const type = getHedgerowCreationReference().habitatTypes.find(
     (t) => t.name === edits.habitatType
