@@ -50,6 +50,14 @@ export const featureEditPayload = Joi.object({
 })
 
 /**
+ * Joi validator for a post-intervention reference edit (BMD-1180): the
+ * habitat reference alone, required, with the same rules as the baseline one.
+ */
+export const retainedRefEditPayload = Joi.object({
+  ref: featureEditPayload.extract('ref').required()
+})
+
+/**
  * @openapi
  * components:
  *   parameters:

@@ -12,6 +12,7 @@
   "PUT /projects/{projectId}/features/{featureId}",
   "PUT /projects/{projectId}/habitats/{featureId}",
   "PUT /projects/{projectId}/post-intervention/habitats/{featureId}",
+  "PUT /projects/{projectId}/post-intervention/features/{featureId}",
   "POST /upload/initiate",
   "GET /upload/{uploadId}/status",
   "POST /baseline/validate/{uploadId}",

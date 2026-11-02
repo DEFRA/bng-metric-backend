@@ -5,7 +5,8 @@ import {
   isLegacyLostLinear,
   isLostRetentionCategory,
   normaliseRetentionCategory,
-  resolveRetentionCategory
+  resolveRetentionCategory,
+  withRootRetentionCategory
 } from './retention-category.js'
 
 describe('retention-category', () => {
@@ -98,5 +99,49 @@ describe('retention-category', () => {
       expect(isLegacyLostLinear({})).toBe(false)
       expect(isLegacyLostLinear(null)).toBe(false)
     })
+  })
+})
+
+describe('withRootRetentionCategory', () => {
+  it('moves a category stored only under baseline to the root', () => {
+    expect(
+      withRootRetentionCategory({
+        ref: 'A1',
+        baseline: {
+          type: 'Modified grassland',
+          retentionCategory: '2. Enhanced'
+        }
+      })
+    ).toEqual({
+      ref: 'A1',
+      retentionCategory: 'Enhanced',
+      baseline: { type: 'Modified grassland' }
+    })
+  })
+
+  it('leaves a feature that already has a root category as it is', () => {
+    const feature = {
+      retentionCategory: 'Retained',
+      baseline: { retentionCategory: 'Retained' }
+    }
+    expect(withRootRetentionCategory(feature)).toBe(feature)
+  })
+
+  it('leaves a legacy Lost row nested, where isLegacyLostLinear reads it', () => {
+    const feature = { baseline: { retentionCategory: 'Lost' } }
+    expect(withRootRetentionCategory(feature)).toBe(feature)
+    expect(isLegacyLostLinear(withRootRetentionCategory(feature))).toBe(true)
+  })
+
+  it.each([
+    ['no baseline', { ref: 'A1' }],
+    ['no nested category', { baseline: { type: 'Ditches' } }],
+    [
+      'an unknown nested category',
+      { baseline: { retentionCategory: 'Other' } }
+    ],
+    ['nothing at all', undefined]
+  ])('leaves a feature with %s as it is', (_label, feature) => {
+    expect(withRootRetentionCategory(feature)).toBe(feature)
   })
 })
