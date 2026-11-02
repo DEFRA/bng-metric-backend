@@ -267,6 +267,11 @@ const FEATURE_LAYERS = Object.freeze([
   { layer: 'redLine', suffix: 'red_line', singular: true },
   { layer: 'habitats', suffix: 'habitats', singular: false },
   { layer: 'trees', suffix: 'trees', singular: false },
+  {
+    layer: 'verticalHabitats',
+    suffix: 'vertical_habitats',
+    singular: false
+  },
   { layer: 'hedgerows', suffix: 'hedgerows', singular: false },
   { layer: 'watercourses', suffix: 'watercourses', singular: false }
 ])
@@ -287,7 +292,7 @@ const FEATURE_HIGHLIGHT = Object.freeze(['ref', 'type', 'status', 'units'])
 const RED_LINE_HIGHLIGHT = Object.freeze(['site_name', 'area'])
 
 /**
- * Expand the ten feature tables from the layer × document-key grid.
+ * Expand the feature tables from the layer × document-key grid.
  *
  * @returns {object[]}
  */

@@ -274,6 +274,42 @@ describe('importUploadFile, a BNG Service template file', () => {
     IMPORT_TIMEOUT_MS
   )
 
+  it.each([
+    ['negative', -12],
+    ['zero', 0],
+    ['blank', null]
+  ])(
+    'refuses a vertical area habitat whose Area is %s',
+    async (_, area) => {
+      const scratch = mkdtempSync(path.join(tmpdir(), 'vertical-area-'))
+      try {
+        const copy = path.join(scratch, 'vertical-area.gpkg')
+        copyFileSync(SITE, copy)
+        const db = new Database(copy)
+        try {
+          db.prepare(
+            `UPDATE "Vertical Area Habitats Baseline" SET Area = ? WHERE "Habitat Ref" = 'V001'`
+          ).run(area)
+        } finally {
+          db.close()
+        }
+
+        const result = await importUploadFile(copy, {}, POST_INTERVENTION)
+
+        expect(result.accepted).toBe(false)
+        const error = result.errors.find(
+          (e) => e.code === ERROR_CODES.VERTICAL_HABITAT_AREA_NOT_POSITIVE
+        )
+        expect(error.details.sample).toEqual([
+          expect.objectContaining({ feature_ref: 'V001', area })
+        ])
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
   // The parent links are checked in the geometry pass, which runs on this
   // thread here rather than in a worker.
   it.each([

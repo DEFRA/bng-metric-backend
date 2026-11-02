@@ -25,6 +25,46 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     expect(doc.units.habitatsTotal).toBeGreaterThan(0)
   })
 
+  it('prices vertical area habitats on their typed area and counts them in the area total', () => {
+    const wall = (featureId, sizeSquareMetres) =>
+      makeAreaHabitat({
+        featureId,
+        ref: featureId,
+        area: sizeSquareMetres,
+        sizeSquareMetres,
+        retentionCategory: 'Retained',
+        baseline: {
+          type: 'Facade-bound green wall',
+          broadType: 'Urban',
+          condition: 'Poor'
+        },
+        proposed: {
+          type: 'Facade-bound green wall',
+          broadType: 'Urban',
+          condition: 'Poor',
+          strategicSignificance: 'Low',
+          advanceYears: 0,
+          delayYears: 0
+        }
+      })
+    const doc = makeDoc({
+      habitats: [makeAreaHabitat()],
+      verticalHabitats: [wall('V1', 400), wall('V2', 100)]
+    })
+
+    enrichPostInterventionDocumentWithUnits(doc)
+
+    const [v1, v2] = doc.verticalHabitats
+    expect(v1.units).toBeGreaterThan(0)
+    // Priced on the typed area: four times the face, four times the units.
+    expect(v1.units).toBeCloseTo(v2.units * 4, 10)
+    expect(doc.units.verticalHabitatsTotal).toBeCloseTo(v1.units + v2.units, 10)
+    expect(doc.units.habitatsTotal).toBeCloseTo(
+      doc.habitats[0].units + doc.units.verticalHabitatsTotal,
+      10
+    )
+  })
+
   it('handles an empty document gracefully', () => {
     const doc = {}
     enrichPostInterventionDocumentWithUnits(doc)
