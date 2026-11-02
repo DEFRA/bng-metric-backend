@@ -21,14 +21,8 @@
  */
 import { parentPort } from 'node:worker_threads'
 
-import { readGeoPackage } from '../geopackage.js'
-import { FEATURE_READ_MODE } from '../read-feature-tables.js'
-import { validateGeoPackageLayersGeos } from './index.js'
 import { loadGeosRuntime } from './geos-runtime.js'
-import {
-  lineageErrorsFor,
-  withLineageErrors
-} from '../service-template/lineage-stage.js'
+import { validateGeoPackageFileGeos } from './validate-file.js'
 
 /** Message type the pool sends to ask for a validation. */
 const VALIDATE = 'validate'
@@ -47,15 +41,12 @@ parentPort.on('message', async (message) => {
   }
   const { jobId, filePath, includeSizes, source, lineageSource } = message
   try {
-    const layers = readGeoPackage(filePath, FEATURE_READ_MODE.full, source)
-    const result = await validateGeoPackageLayersGeos(layers, { includeSizes })
-    // A BNG Service template file's parent links, checked against these
-    // Post-Intervention rows (BMD-1083); none for any other upload.
-    const lineageErrors = lineageErrorsFor(filePath, layers, lineageSource)
-    parentPort.postMessage({
-      jobId,
-      result: withLineageErrors(result, lineageErrors)
+    const result = await validateGeoPackageFileGeos(filePath, {
+      includeSizes,
+      source,
+      lineageSource
     })
+    parentPort.postMessage({ jobId, result })
   } catch (error) {
     // Errors do not survive a structured clone with their prototype intact, so
     // the pool rebuilds one from these two fields.

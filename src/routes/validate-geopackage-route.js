@@ -14,7 +14,6 @@ import {
 import { readGeoPackage } from '../validation/geopackage/geopackage.js'
 import { runFormatGate } from '../validation/geopackage/format-gate.js'
 import { FEATURE_READ_MODE } from '../validation/geopackage/read-feature-tables.js'
-import { validateGeoPackageLayers } from '../validation/geopackage/index.js'
 import {
   getGeosWorkerPool,
   ValidationUnavailableError
@@ -22,10 +21,9 @@ import {
 import { getParseBudget } from '../validation/geopackage/parse-budget.js'
 import { countFeatures } from '../validation/geopackage/count-features.js'
 import {
-  mergeStageVerdicts,
-  readBaselineStage,
-  validateBaselineStage
-} from '../validation/geopackage/service-template/baseline-stage.js'
+  checkUploadLayers,
+  readUploadForSave
+} from '../validation/geopackage/upload-checks.js'
 import {
   busyReason,
   respondToBusy,
@@ -237,23 +235,22 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // saves the baseline its Baseline tables hold, so those are checked too, as
   // the baseline endpoint checks them, in a worker trip of their own. Both
   // stages are checked whatever either finds, so the user sees every error at
-  // once. Null for every other upload. The stage timings and counts below
-  // cover both stages. The two trips run one after the other on purpose, not
-  // in parallel: each holds its stage's attributes until its checks are done,
-  // and the parse budget is reserved once, for one stage's set at a time.
-  const baselineCheck = await validateBaselineStage(context)
-  // A template file read at both stages has its parent links checked on the
-  // Post-Intervention trip too, in the worker (BMD-1083): `lineageSource`
-  // names the Baseline tables they link to. Absent for every other upload.
-  const result = await validateGeoPackageLayers(
-    loadAndRemember,
-    config.projectDocumentKey,
-    {
-      filePath,
-      includeSizes: Boolean(projectId),
-      source: readSource,
-      lineageSource: context.baselineReadSource
-    }
+  // once. The stage timings and counts below cover both stages. The two trips
+  // run one after the other on purpose, not in parallel: each holds its
+  // stage's attributes until its checks are done, and the parse budget is
+  // reserved once, for one stage's set at a time. checkUploadLayers is the
+  // sequence importUploadFile runs too, for the metric comparison.
+  const upload = {
+    filePath,
+    loadLayers: loadAndRemember,
+    readSource,
+    baselineReadSource: context.baselineReadSource,
+    loadBaselineLayers: context.loadBaselineLayers,
+    includeSizes: Boolean(projectId)
+  }
+  const { verdict, result, baselineCheck } = await checkUploadLayers(
+    upload,
+    config.projectDocumentKey
   )
   const featureCount =
     countFeatures(layers) + (baselineCheck?.featureCount ?? 0)
@@ -269,7 +266,6 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
     config
   )
 
-  const verdict = mergeStageVerdicts(baselineCheck, result)
   if (!verdict.valid) {
     return respondToGeometryRejection(verdict, uploadId, h, config)
   }
@@ -284,28 +280,20 @@ async function validateLayers(loadLayers, drizzle, context, h, config) {
   // only now — the shapes are worth decoding. This is the one consumer that
   // needs them, and it is reached only by files that earned the cost. The
   // re-read is the same ~14 ms trade the queue reorder already accepted.
-  //
-  // `serialised`, not `full`: the inserts bind geometry as JSON text into
-  // ST_GeomFromGeoJSON and never read a coordinate, so the decoded object graph
-  // would be built, held across the whole transaction, and never used.
-  const geometryLayers = readGeoPackage(
-    filePath,
-    FEATURE_READ_MODE.serialised,
-    readSource
-  )
+  const saved = readUploadForSave(upload, { result, baselineCheck })
 
   const errorResponse = await saveUploadForProject(
     { drizzle, logger },
     projectId,
-    geometryLayers,
+    saved.layers,
     {
       uploadId,
       credentials,
       filename,
       fileSize,
-      geometrySizes: result.sizes,
+      geometrySizes: saved.geometrySizes,
       template: context.template,
-      baselineStage: readBaselineStage(context, baselineCheck)
+      baselineStage: saved.baselineStage
     },
     h,
     config

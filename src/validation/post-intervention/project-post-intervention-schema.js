@@ -8,6 +8,7 @@
  * validation in baseline.js.
  */
 import Joi from 'joi'
+import { parentFeatureIdField } from './project-lineage-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import {
@@ -59,20 +60,6 @@ function invalidEnhancementField(layer) {
 
 // Template links keep their original contract on linear features. Area and hedgerow
 // edits can explicitly record that a Created reference has no baseline parent.
-function parentFeatureIdField({ editableCreated = false } = {}) {
-  const field = Joi.string().uuid()
-  return {
-    parentFeatureId: editableCreated
-      ? field
-          .allow(null)
-          .description(
-            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created habitat reference is edited. An explicit null records that an edited Created habitat has no identifiable baseline parent; absent on untouched legacy rows.'
-          )
-      : field.description(
-          'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
-        )
-  }
-}
 
 function baselineCommonFields() {
   return {

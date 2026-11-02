@@ -138,10 +138,14 @@ async function fetchStoredProject(drizzle, projectId) {
   return row?.project
 }
 
-// saveHandlersForConfig, layersForUpload and extractAndValidateDocument are
-// exported for the metric comparison in bng-metric-harness
-// (scripts/metric-comparison), which runs this pipeline in process, without a
-// database, to compare the service's figures with the metric's (BMD-1036).
+// The metric comparison in bng-metric-harness (BMD-1036) imports files through
+// importUploadFile, which calls buildUploadDocuments below. Until the
+// harness's main branch calls it, it still calls layersForUpload,
+// derivedBaselineLayers and extractAndValidateDocument, so they stay
+// exported: a backend pull request runs the harness's main comparison. Once
+// it has moved, only the tests need saveHandlersForConfig and
+// extractAndValidateDocument, and layersForUpload and derivedBaselineLayers
+// need not be exported at all.
 
 /**
  * @param {object} config
@@ -263,10 +267,16 @@ function combinedBaselineLayers(
   return derivedBaselineLayers(layers, storedProject, context.geometrySizes)
 }
 
-async function sizeUploadedHabitats(
-  { layersForSizing, baselineLayers },
-  { logger, routeName, uploadId, h }
-) {
+/**
+ * Size the upload's layers, and its derived baseline's.
+ *
+ * Synchronous now: it reads measurements the validation worker already made,
+ * and throws if any are missing rather than persisting a document with half
+ * its habitats unsized. The error is handed back, for the route to answer.
+ *
+ * @returns {{ habitatSizes?: object, baselineHabitatSizes?: object, sizingError?: Error }}
+ */
+function sizeUploadedHabitats({ layersForSizing, baselineLayers }) {
   try {
     return {
       habitatSizes: calculateHabitatSizes(layersForSizing),
@@ -275,21 +285,7 @@ async function sizeUploadedHabitats(
         : undefined
     }
   } catch (err) {
-    logger.error(
-      `${routeName} - sizing failed for uploadId ${uploadId}: ${err.message}`
-    )
-    const response = h
-      .response({
-        valid: false,
-        errors: [
-          makeError(
-            ERROR_CODES.SIZING_FAILED,
-            'Unable to calculate habitat sizes'
-          )
-        ]
-      })
-      .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
-    return { response }
+    return { sizingError: err }
   }
 }
 
@@ -358,16 +354,6 @@ export function extractAndValidateDocument({
     allowUnknown: true
   })
   return { document, geometries, schemaError: error }
-}
-
-function schemaErrorResponse(schemaError, { logger, routeName, uploadId, h }) {
-  logger.info(
-    `${routeName} - document schema rejected uploadId ${uploadId}: ${schemaError.message}`
-  )
-  return h.response({
-    valid: false,
-    errors: [makeMetadataError(schemaError)]
-  })
 }
 
 const BASELINE_DOCUMENT_CONFIG = Object.freeze({
@@ -500,98 +486,151 @@ async function persistExtractedUpload(
   )
 }
 
-/**
- * Time the sizing pass.
- *
- * Kept as a timed stage even though it no longer does any real work — the
- * measurements now arrive with the validation verdict, so this is a map over
- * features rather than the second PostGIS round trip it used to be. The metric
- * stays so the drop is visible on the dashboard rather than silently vanishing.
- *
- * @param {{ layersForSizing: object, baselineLayers?: object }} layers
- * @param {{ logger: object, uploadId: string, documentKey: string }} stageContext
- * @param {{ config: object, h: import('@hapi/hapi').ResponseToolkit }} deps
- * @returns {Promise<{ habitatSizes?: object, baselineHabitatSizes?: object, response?: object }>}
- */
-function runSizingStage(layers, stageContext, { config, h }) {
-  const { logger, uploadId } = stageContext
-  return timeSaveStage(
-    {
-      ...stageContext,
-      metricName: PERFORMANCE_METRIC.sizingMs,
-      stage: 'sizing'
-    },
-    () =>
-      sizeUploadedHabitats(layers, {
-        logger,
-        routeName: config.routeName,
-        uploadId,
-        h
-      })
-  )
+/** Runs a stage with nothing around it: the default for buildUploadDocuments. */
+function runUntimed(_stage, run) {
+  return run()
 }
 
 /**
- * Extract, enrich, validate and persist the upload document once the habitat
- * sizes are known. Returns a Hapi response if the document fails its schema,
- * or `null` on success.
+ * Build the documents an upload saves, without saving them: feature ids,
+ * the baseline a post-intervention file replaces the stored one with,
+ * sizing, then extraction, enrichment and the schema checks
+ * ({@link extractUploadDocuments}). No database, S3 or Hapi.
  *
- * @param {import('drizzle-orm/node-postgres').NodePgDatabase} drizzle
- * @param {string} projectId
- * @param {{ stageContext: object, layersWithIds: object, baselineLayers?: object, storedProject: object | undefined, habitatSizes: object, baselineHabitatSizes?: object }} sized
- * @param {{ uploadId: string, credentials: { sub: string } }} context
- * @param {import('@hapi/hapi').ResponseToolkit} h
- * @param {object} config
+ * saveUploadForProject calls it before it persists the result, and so does
+ * importUploadFile, which the metric comparison in bng-metric-harness calls
+ * to import a file exactly as an upload does (BMD-1036). One function for
+ * both is what keeps the comparison from drifting from the route.
+ *
+ * @param {object} layers the accepted file, read in `serialised` mode
+ * @param {object|undefined} storedProject the project as stored before this upload
+ * @param {{ uploadId?: string | null, filename?: string | null, fileSize?: number | null, geometrySizes?: object, template?: { name: string, version: string }, baselineStage?: { layers: object, geometrySizes?: object } }} context
+ * @param {{ logger: object, config: { projectDocumentKey: string }, runStage?: (stage: 'sizing' | 'enrich', run: Function) => Promise<object> }} options
+ *   `runStage` wraps each stage; the route times them
+ * @returns {Promise<{ sizingError?: Error, schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }>}
+ *   `baseline` and `postIntervention` for a post-intervention upload, which
+ *   replaces both; `document` for a baseline upload
  */
-async function saveSizedUpload(drizzle, projectId, sized, context, h, config) {
-  const { stageContext } = sized
-  const { logger, uploadId } = stageContext
+export async function buildUploadDocuments(
+  layers,
+  storedProject,
+  context,
+  { logger, config, runStage = runUntimed }
+) {
+  const { projectDocumentKey } = config
+  const { layersWithIds, layersForSizing } = layersForUpload(
+    layers,
+    storedProject,
+    projectDocumentKey,
+    context.geometrySizes
+  )
+  const baselineLayers = combinedBaselineLayers(
+    layers,
+    storedProject,
+    context,
+    projectDocumentKey
+  )
+
+  // Kept as a timed stage even though it no longer does any real work — the
+  // measurements now arrive with the validation verdict, so this is a map over
+  // features rather than the second PostGIS round trip it used to be. The metric
+  // stays so the drop is visible on the dashboard rather than silently vanishing.
+  const sizing = await runStage('sizing', () =>
+    sizeUploadedHabitats({ layersForSizing, baselineLayers })
+  )
+  if (sizing.sizingError) {
+    return { sizingError: sizing.sizingError }
+  }
 
   // Evidence (Item 8 — extract and engine enrichment loop every feature inline):
   // fully synchronous, so this blocks the event loop for its whole duration.
-  const extracted = await timeSaveStage(
-    {
-      ...stageContext,
-      metricName: PERFORMANCE_METRIC.enrichMs,
-      stage: 'enrich'
-    },
-    () => extractUploadDocuments(sized, context, logger, config)
-  )
-  if (extracted.schemaError) {
-    return schemaErrorResponse(extracted.schemaError, {
+  return runStage('enrich', () =>
+    extractUploadDocuments(
+      {
+        layersWithIds,
+        baselineLayers,
+        baselineRead: Boolean(context.baselineStage),
+        storedProject,
+        habitatSizes: sizing.habitatSizes,
+        baselineHabitatSizes: sizing.baselineHabitatSizes
+      },
+      context,
       logger,
-      routeName: config.routeName,
-      uploadId,
-      h
-    })
+      config
+    )
+  )
+}
+
+/** The performance metric each buildUploadDocuments stage is recorded as. */
+const SAVE_STAGE_METRICS = Object.freeze({
+  sizing: PERFORMANCE_METRIC.sizingMs,
+  enrich: PERFORMANCE_METRIC.enrichMs
+})
+
+/**
+ * Why buildUploadDocuments could not build an upload's documents, or null
+ * when it could: the errors the upload answers with, and how to answer.
+ *
+ * The one place a refusal becomes errors. The validate route answers with
+ * it, and so does importUploadFile, so a new way to refuse an upload cannot
+ * reach one and not the other.
+ *
+ * @param {{ sizingError?: Error, schemaError?: object, validationError?: { code: string, message: string } }} extracted
+ * @returns {{ errors: Array<{ code: string, message: string }>, internal: boolean, reason: string, message: string } | null}
+ *   `internal` for a failure of the service's own, answered 500 and logged as
+ *   an error; `reason` and `message` say what to log
+ */
+export function uploadRefusal(extracted) {
+  if (extracted.sizingError) {
+    return {
+      errors: [
+        makeError(
+          ERROR_CODES.SIZING_FAILED,
+          'Unable to calculate habitat sizes'
+        )
+      ],
+      internal: true,
+      reason: 'sizing failed for',
+      message: extracted.sizingError.message
+    }
+  }
+  if (extracted.schemaError) {
+    return {
+      errors: [makeMetadataError(extracted.schemaError)],
+      internal: false,
+      reason: 'document schema rejected',
+      message: extracted.schemaError.message
+    }
   }
   if (extracted.validationError) {
-    logger.info(
-      `${config.routeName} - upload rejected uploadId ${uploadId}: ${extracted.validationError.message}`
-    )
-    return h.response({
-      valid: false,
-      errors: [extracted.validationError]
-    })
+    return {
+      errors: [extracted.validationError],
+      internal: false,
+      reason: 'upload rejected',
+      message: extracted.validationError.message
+    }
   }
-
-  // Evidence (Item 1): the persist transaction — batched geometry inserts plus
-  // the JSONB document update — still on the same request handler.
-  await timeSaveStage(
-    {
-      ...stageContext,
-      metricName: PERFORMANCE_METRIC.persistMs,
-      stage: 'persist'
-    },
-    () =>
-      persistExtractedUpload(drizzle, projectId, extracted, {
-        uploadId,
-        credentials: context.credentials,
-        logger,
-        config
-      })
-  )
   return null
+}
+
+/**
+ * Answer an upload whose documents could not be built, or null when they
+ * were.
+ */
+function refusedUploadResponse(extracted, { logger, routeName, uploadId, h }) {
+  const refusal = uploadRefusal(extracted)
+  if (!refusal) {
+    return null
+  }
+  const line = `${routeName} - ${refusal.reason} uploadId ${uploadId}: ${refusal.message}`
+  if (!refusal.internal) {
+    logger.info(line)
+    return h.response({ valid: false, errors: refusal.errors })
+  }
+  logger.error(line)
+  return h
+    .response({ valid: false, errors: refusal.errors })
+    .code(HTTP_STATUS.INTERNAL_SERVER_ERROR)
 }
 
 /**
@@ -618,11 +657,11 @@ export async function saveUploadForProject(
   config
 ) {
   const { drizzle, logger } = deps
-  const { projectDocumentKey } = config
+  const { uploadId } = context
   const stageContext = {
     logger,
-    uploadId: context.uploadId,
-    documentKey: projectDocumentKey
+    uploadId,
+    documentKey: config.projectDocumentKey
   }
   // Reuse the featureIds already stored for this document wherever the incoming
   // `ref` matches, so a re-upload updates the downstream relational rows rather
@@ -631,42 +670,40 @@ export async function saveUploadForProject(
   // but the worst outcome is a fresh UUID where one could have been reused, and
   // concurrent uploads for the same project already 409 on the lock timeout.
   const storedProject = await fetchStoredProject(drizzle, projectId)
-  const { layersWithIds, layersForSizing } = layersForUpload(
-    layers,
-    storedProject,
-    projectDocumentKey,
-    context.geometrySizes
-  )
-  const baselineLayers = combinedBaselineLayers(
-    layers,
-    storedProject,
-    context,
-    projectDocumentKey
-  )
-
-  const sizing = await runSizingStage(
-    { layersForSizing, baselineLayers },
-    stageContext,
-    { config, h }
-  )
-  if (sizing.response) {
-    return sizing.response
+  const extracted = await buildUploadDocuments(layers, storedProject, context, {
+    logger,
+    config,
+    runStage: (stage, run) =>
+      timeSaveStage(
+        { ...stageContext, metricName: SAVE_STAGE_METRICS[stage], stage },
+        run
+      )
+  })
+  const refused = refusedUploadResponse(extracted, {
+    logger,
+    routeName: config.routeName,
+    uploadId,
+    h
+  })
+  if (refused) {
+    return refused
   }
 
-  return saveSizedUpload(
-    drizzle,
-    projectId,
+  // Evidence (Item 1): the persist transaction — batched geometry inserts plus
+  // the JSONB document update — still on the same request handler.
+  await timeSaveStage(
     {
-      stageContext,
-      layersWithIds,
-      baselineLayers,
-      baselineRead: Boolean(context.baselineStage),
-      storedProject,
-      habitatSizes: sizing.habitatSizes,
-      baselineHabitatSizes: sizing.baselineHabitatSizes
+      ...stageContext,
+      metricName: PERFORMANCE_METRIC.persistMs,
+      stage: 'persist'
     },
-    context,
-    h,
-    config
+    () =>
+      persistExtractedUpload(drizzle, projectId, extracted, {
+        uploadId,
+        credentials: context.credentials,
+        logger,
+        config
+      })
   )
+  return null
 }

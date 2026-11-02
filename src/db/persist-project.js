@@ -91,6 +91,23 @@ function assertFragmentValid(schema, value, label) {
   }
 }
 
+/**
+ * The schema check a baseline or post-intervention document passes before it
+ * is written. Stricter than the upload pipeline's own check, which allows
+ * unknown keys. Exported so importUploadFile, which builds documents without
+ * writing them, refuses exactly what a write would.
+ *
+ * @param {string} documentKey 'baseline' or 'postIntervention'
+ * @param {object} habitatData
+ */
+function assertHabitatDataValid(documentKey, habitatData) {
+  assertFragmentValid(
+    habitatDataSchemaFor(documentKey),
+    habitatData,
+    `project.${documentKey}`
+  )
+}
+
 function assertActorId(actorId) {
   if (typeof actorId !== 'string' || actorId.trim().length === 0) {
     throw Boom.badImplementation(
@@ -169,11 +186,7 @@ async function setProjectHabitatData(
   documentKey
 ) {
   assertActorId(actorId)
-  assertFragmentValid(
-    habitatDataSchemaFor(documentKey),
-    habitatData,
-    `project.${documentKey}`
-  )
+  assertHabitatDataValid(documentKey, habitatData)
   await exec
     .update(projects)
     .set({
@@ -190,7 +203,7 @@ async function setProjectHabitatData(
  */
 async function setProjectBaseline(exec, id, baseline, actorId) {
   assertActorId(actorId)
-  assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
+  assertHabitatDataValid(BASELINE_DOCUMENT_KEY, baseline)
   const withBaseline = jsonbSet(
     projects.project,
     [BASELINE_DOCUMENT_KEY],
@@ -218,12 +231,8 @@ async function setProjectBaselineAndPostIntervention(
   actorId
 ) {
   assertActorId(actorId)
-  assertFragmentValid(habitatDataSchema, baseline, 'project.baseline')
-  assertFragmentValid(
-    postInterventionDataSchema,
-    postIntervention,
-    'project.postIntervention'
-  )
+  assertHabitatDataValid(BASELINE_DOCUMENT_KEY, baseline)
+  assertHabitatDataValid(POST_INTERVENTION_DOCUMENT_KEY, postIntervention)
   const withBaseline = jsonbSet(
     projects.project,
     [BASELINE_DOCUMENT_KEY],
@@ -417,6 +426,7 @@ async function setProjectDetails(
 }
 
 export {
+  assertHabitatDataValid,
   insertProject,
   setProjectName,
   setProjectHabitatData,

@@ -12,7 +12,7 @@ const FIXTURES_DIR = path.resolve(
 export const CDP_UPLOADER_URL =
   process.env.CDP_UPLOADER_URL ?? 'http://localhost:7337'
 const S3_ENDPOINT = process.env.S3_ENDPOINT ?? 'http://localhost:4566'
-const POLL_INTERVAL_MS = 500
+const POLL_INTERVAL_MS = 100
 const HTTP_BAD_REQUEST = 400
 const HEALTH_CHECK_TIMEOUT_MS = 2000
 

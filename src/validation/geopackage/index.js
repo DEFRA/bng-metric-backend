@@ -11,6 +11,7 @@ import {
   perfNow
 } from '../../common/helpers/perf-evidence.js'
 import { getGeosWorkerPool } from './geos/worker-pool.js'
+import { validateGeoPackageFileGeos } from './geos/validate-file.js'
 
 const logger = createLogger()
 
@@ -32,9 +33,9 @@ function workerPool() {
 
 /**
  * The data-quality checks: pure JavaScript over the layers' attributes, with no
- * geometry involved. Exported so a caller that runs the geometry checks itself
- * (the metric comparison in bng-metric-harness, which has no worker pool)
- * applies exactly these.
+ * geometry involved. Exported for the tests, and for the metric comparison in
+ * bng-metric-harness until its main branch calls importUploadFile, which runs
+ * them through validateGeoPackageLayers with `inThread`.
  *
  * @param {object} layers Output of readGeoPackage
  * @param {string} [variant] one of EXTRACT_VARIANT
@@ -46,6 +47,44 @@ export function runDataQualityChecks(layers, variant) {
     ...checkHabitatRefs(layers),
     checkTreeCountIsWhole(layers)
   ].filter(Boolean)
+}
+
+/**
+ * The geometry checks, in the worker pool or, for `inThread`, on this thread.
+ *
+ * @returns {Promise<{ valid: boolean, errors: Array<object>, sizes?: object, poolTelemetry?: { queueWaitMs: number, queueDepth: number } }>}
+ */
+async function runGeometryChecks(filePath, jobOptions, inThread) {
+  if (inThread) {
+    const verdict = await validateGeoPackageFileGeos(filePath, jobOptions)
+    return {
+      valid: verdict.valid,
+      errors: verdict.errors,
+      sizes: verdict.sizes
+    }
+  }
+  const pool = workerPool()
+  const start = perfNow()
+  const { valid, errors, sizes, geosVersion, queueWaitMs } = await pool.run(
+    filePath,
+    jobOptions
+  )
+  const stats = pool.stats()
+  logPerf(logger, 'geos-worker-validate', {
+    validateMs: msSince(start),
+    queueWaitMs,
+    geosVersion,
+    ...stats
+  })
+  // Handed back so the route can promote them to metrics. They are measured
+  // here because this is the only place that sees both the pool and the clock,
+  // and emitted there because the route owns the per-request metric budget.
+  return {
+    valid,
+    errors,
+    sizes,
+    poolTelemetry: { queueWaitMs, queueDepth: stats.queued }
+  }
 }
 
 /**
@@ -93,13 +132,24 @@ export async function validateBaselineFile(filePath, variant) {
  * @param {import('./service-template/template-tables.js').TemplateReadSource} [options.lineageSource]
  *   the Baseline tables the `source` rows are linked to, whose parent links
  *   the worker checks too (BMD-1083); omitted when there is no baseline stage
+ * @param {boolean} [options.inThread] run the geometry checks on this thread
+ *   rather than in the worker pool, for a caller with no pool and no event
+ *   loop to keep free: importUploadFile, which the metric comparison in
+ *   bng-metric-harness calls. Never the upload route. No pool telemetry is
+ *   returned.
  */
 export async function validateGeoPackageLayers(
   layersOrLoad,
   variant,
   options = {}
 ) {
-  const { filePath, includeSizes = false, source, lineageSource } = options
+  const {
+    filePath,
+    includeSizes = false,
+    source,
+    lineageSource,
+    inThread = false
+  } = options
   if (!filePath) {
     throw new Error('validateGeoPackageLayers requires a GeoPackage file path')
   }
@@ -116,19 +166,11 @@ export async function validateGeoPackageLayers(
   // hand and are not queueing behind anything.
   const deferLayers = typeof layersOrLoad === 'function'
 
-  const pool = workerPool()
-  const start = perfNow()
-  const { valid, errors, sizes, geosVersion, queueWaitMs } = await pool.run(
+  const { valid, errors, sizes, poolTelemetry } = await runGeometryChecks(
     filePath,
-    { includeSizes, source, lineageSource }
+    { includeSizes, source, lineageSource },
+    inThread
   )
-  const stats = pool.stats()
-  logPerf(logger, 'geos-worker-validate', {
-    validateMs: msSince(start),
-    queueWaitMs,
-    geosVersion,
-    ...stats
-  })
 
   // Now — and only now — are the shapes needed. Unpacking here rather than
   // before the queue is the whole point: the wait costs a path, not a heap.
@@ -137,11 +179,6 @@ export async function validateGeoPackageLayers(
   // JS-side checks that don't need geometry. Surface ahead of geometry errors so
   // the user sees blocking policy/data-quality issues first.
   const dataQualityErrors = runDataQualityChecks(layers, variant)
-
-  // Handed back so the route can promote them to metrics. They are measured
-  // here because this is the only place that sees both the pool and the clock,
-  // and emitted there because the route owns the per-request metric budget.
-  const poolTelemetry = { queueWaitMs, queueDepth: stats.queued }
 
   if (dataQualityErrors.length === 0) {
     return { valid, errors, sizes, poolTelemetry }
