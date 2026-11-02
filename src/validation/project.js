@@ -456,7 +456,7 @@ const habitatDataSchema = Joi.object({
   verticalHabitats: Joi.array()
     .items(verticalHabitatSchema)
     .description(
-      'Vertical area habitats (green walls and intertidal hard structures) in the baseline. Read from a BNG Service template file only; absent on a legacy upload.'
+      'Vertical area habitats (green walls and intertidal hard structures) in the baseline. Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
     ),
   hedgerows: Joi.array()
     .items(linearHabitatSchema)

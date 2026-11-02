@@ -543,7 +543,7 @@ const postInterventionDataSchema = Joi.object({
   verticalHabitats: Joi.array()
     .items(postInterventionVerticalHabitatSchema)
     .description(
-      'Post-intervention vertical area habitats (green walls and intertidal hard structures). Read from a BNG Service template file only; absent on a legacy upload.'
+      'Post-intervention vertical area habitats (green walls and intertidal hard structures). Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
     ),
   hedgerows: Joi.array()
     .items(postInterventionLinearHabitatSchema)
