@@ -91,7 +91,7 @@
   "devDependencies": {
     "@emnapi/core": "1.11.3",
     "@emnapi/runtime": "1.11.3",
-    "@maplibre/vt-pbf": "4.3.2",
+    "@maplibre/vt-pbf": "4.3.3",
     "@types/node": "26.6.5",
     "@vitest/coverage-v8": "5.0.5",
     "cross-env": "10.1.0",
