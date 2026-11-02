@@ -128,7 +128,7 @@ function proposedCommonFields() {
     rejectedStrategicSignificance: Joi.string()
       .allow(null, '')
       .description(
-        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced.'
+        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced.'
       ),
     strategicSignificanceScore: Joi.number()
       .allow(null)

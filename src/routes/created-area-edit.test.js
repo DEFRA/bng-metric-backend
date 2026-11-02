@@ -84,8 +84,8 @@ function update(overrides = {}) {
   )
 }
 
-function routeRequest(payload) {
-  const row = { project: { postIntervention: { habitats: [feature] } } }
+function routeRequest(payload, stored = feature) {
+  const row = { project: { postIntervention: { habitats: [stored] } } }
   const tx = {
     execute: vi.fn(),
     select: () => ({
@@ -424,6 +424,61 @@ describe('BMD-1048 Created area edits', () => {
       spy.mockRestore()
     }
   })
+
+  test.each([null, ''])(
+    'an unrelated area save keeps rejected significance when blank remains %j, until corrected',
+    async (strategicSignificance) => {
+      const stored = {
+        ...feature,
+        proposed: {
+          ...feature.proposed,
+          strategicSignificance: null,
+          rejectedStrategicSignificance: 'Medium',
+          advanceYears: 0,
+          delayYears: 0
+        }
+      }
+      const { request } = routeRequest(
+        { ...edits, condition: 'Poor', strategicSignificance },
+        stored
+      )
+      const saved = await updatePostInterventionAreaHabitat.handler(request, {})
+      expect(saved).toMatchObject({
+        ref: edits.ref,
+        status: 'Incomplete',
+        units: null,
+        proposed: {
+          strategicSignificance: null,
+          rejectedStrategicSignificance: 'Medium'
+        }
+      })
+      expect(setProjectFeature).toHaveBeenCalledWith(
+        expect.anything(),
+        projectId,
+        expect.objectContaining({ feature: saved })
+      )
+      const correctedRequest = routeRequest(
+        { ...edits, strategicSignificance: 'High' },
+        saved
+      ).request
+      const corrected = await updatePostInterventionAreaHabitat.handler(
+        correctedRequest,
+        {}
+      )
+      expect(corrected).toMatchObject({
+        status: 'Complete',
+        proposed: {
+          strategicSignificance: 'High',
+          rejectedStrategicSignificance: null
+        }
+      })
+      expect(corrected.units).toBeGreaterThan(0)
+      expect(
+        postInterventionHabitatSchema.validate(corrected).error
+      ).toBeUndefined()
+      expect(stored.proposed.rejectedStrategicSignificance).toBe('Medium')
+    }
+  )
 
   test('route persists the complete edit and records the authenticated actor', async () => {
     const { request, tx } = routeRequest(edits)
