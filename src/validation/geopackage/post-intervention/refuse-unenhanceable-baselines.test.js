@@ -162,6 +162,26 @@ describe('refuseUnenhanceableBaselines', () => {
     })
   })
 
+  it.each([
+    ['habitats', area('H1', 'Other neutral grassland', 'Good')],
+    ['trees', area('T1', 'Other neutral grassland', 'Good')],
+    ['hedgerows', linear('HG1', 'Non-native and ornamental hedgerow', 'Poor')],
+    ['watercourses', linear('R1', 'Ditches', 'Good')]
+  ])(
+    'names no proposed habitat or condition for %s with no proposed side',
+    (layer, feature) => {
+      delete feature.proposed
+
+      const error = refuseUnenhanceableBaselines({ [layer]: [feature] })
+
+      expect(error.details.sample[0]).toMatchObject({
+        layer,
+        proposed_habitat_type: null,
+        proposed_condition: null
+      })
+    }
+  )
+
   it('reads a condition with its list number', () => {
     const error = refuseUnenhanceableBaselines({
       habitats: [area('H1', 'Other neutral grassland', '3. Good')]
