@@ -96,6 +96,7 @@ const LOG_PREFIX = 'resyncPostInterventionBaseline: '
  */
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
+  verticalHabitats: RETAINED_AREA_PROPOSED_FIELDS,
   trees: RETAINED_TREE_PROPOSED_FIELDS,
   hedgerows: RETAINED_HEDGEROW_PROPOSED_FIELDS,
   watercourses: RETAINED_WATERCOURSE_PROPOSED_FIELDS

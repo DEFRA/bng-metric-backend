@@ -40,7 +40,7 @@ import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
  *               properties:
  *                 type:
  *                   type: string
- *                   enum: [habitat, tree, hedgerow, watercourse]
+ *                   enum: [habitat, tree, verticalHabitat, hedgerow, watercourse]
  *                 feature:
  *                   type: object
  *       404:
@@ -70,7 +70,7 @@ import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
  *               properties:
  *                 type:
  *                   type: string
- *                   enum: [habitat, tree, hedgerow, watercourse]
+ *                   enum: [habitat, tree, verticalHabitat, hedgerow, watercourse]
  *                 feature:
  *                   type: object
  *       404:

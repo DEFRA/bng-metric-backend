@@ -30,6 +30,7 @@ describe('extractPostIntervention — top-level shape', () => {
           hedgerows: [],
           watercourses: [],
           trees: [],
+          verticalHabitats: [],
           habitatSizes: null
         }),
         geometries: {
@@ -37,7 +38,8 @@ describe('extractPostIntervention — top-level shape', () => {
           habitats: [],
           hedgerows: [],
           watercourses: [],
-          trees: []
+          trees: [],
+          verticalHabitats: []
         }
       })
     )

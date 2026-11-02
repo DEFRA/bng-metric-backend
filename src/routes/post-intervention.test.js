@@ -214,7 +214,7 @@ describe('validatePostIntervention handler persistence', () => {
     )
     expect(log.transactionCalls).toBe(1)
     expect(log.selectCalls).toBe(1)
-    expect(log.deletes).toHaveLength(10)
+    expect(log.deletes).toHaveLength(12)
     expect(log.executes).toHaveLength(HAPPY_PATH_EXECUTE_COUNT)
     expect(log.updates).toHaveLength(1)
   })

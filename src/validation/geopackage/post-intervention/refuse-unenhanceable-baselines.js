@@ -74,6 +74,7 @@ function offender(layer, feature, check) {
 /** How the message names a habitat with no ref, by document layer. */
 const UNNAMED_FEATURE_LABELS = Object.freeze({
   habitats: 'an area habitat',
+  verticalHabitats: 'a vertical area habitat',
   hedgerows: 'a hedgerow',
   watercourses: 'a watercourse',
   trees: 'a tree'

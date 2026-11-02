@@ -97,6 +97,15 @@ function describeLayer(site, role) {
   if (role === 'trees') {
     return plural(features.length, 'tree')
   }
+  if (role === 'verticalHabitats') {
+    // The face area the surveyor typed in, in square metres, as the screens
+    // show it: it is no part of the site's hectares.
+    const sqm = sumBy(
+      features,
+      (feature) => feature.properties.sizeSquareMetres
+    )
+    return `${plural(features.length, 'feature')} (${Math.round(sqm)} m²)`
+  }
   const metres = sumBy(features, (feature) => feature.properties.sizeMetres)
   return `${plural(features.length, 'feature')} (${Math.round(metres)} m)`
 }
@@ -108,7 +117,8 @@ function sumBy(features, read) {
 /**
  * The headline number, taken verbatim from the units the service calculated.
  * Area habitats and individual trees are both "area" units and are summed the
- * same way the summary screen sums them.
+ * same way the summary screen sums them. Vertical area habitats' units are
+ * already in `habitatsTotal`.
  */
 function describeUnits(site) {
   const units = site.units

@@ -306,6 +306,7 @@ describe('updateAreaHabitat handler — happy path', () => {
     projectRow.project.baseline.units = {
       totalUnits: 6,
       habitatsTotal: 6,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0
     }
@@ -337,6 +338,7 @@ describe('updateAreaHabitat handler — happy path', () => {
         unitsTotals: {
           totalUnits: 14,
           habitatsTotal: 14,
+          verticalHabitatsTotal: 0,
           hedgerowsTotal: 0,
           watercoursesTotal: 0,
           treesTotal: 0,

@@ -17,6 +17,7 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
       expect.objectContaining({
         totalUnits: expect.any(Number),
         habitatsTotal: expect.any(Number),
+        verticalHabitatsTotal: 0,
         hedgerowsTotal: 0,
         watercoursesTotal: 0
       })
@@ -31,6 +32,7 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
     expect(doc.units).toEqual({
       totalUnits: 0,
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -48,6 +50,7 @@ describe('enrichPostInterventionDocumentWithUnits — unit totals', () => {
       {
         baselineUnits: {
           habitatsTotal: 6,
+          verticalHabitatsTotal: 0,
           treesTotal: 2,
           hedgerowsTotal: 4,
           watercoursesTotal: 3

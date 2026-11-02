@@ -214,6 +214,52 @@ describe('lostBaselineHabitats', () => {
   })
 })
 
+describe('lostBaselineHabitats — vertical area habitats', () => {
+  const wall = (n, sizeSquareMetres) => ({
+    featureId: id(n),
+    ref: `V00${n}`,
+    type: 'Facade-bound green wall',
+    broadType: 'Urban',
+    condition: 'Moderate',
+    sizeSquareMetres
+  })
+
+  it('records a demolished structure, which no post-intervention row names, as removed in full', () => {
+    const demolished = wall(1, 40)
+
+    expect(
+      lostBaselineHabitats({}, { verticalHabitats: [demolished] })
+    ).toEqual([
+      {
+        layer: 'verticalHabitats',
+        featureId: demolished.featureId,
+        ref: 'V001',
+        type: 'Facade-bound green wall',
+        outcome: LOST_OUTCOME.removed,
+        lostSizeSquareMetres: 40,
+        recreatedAs: []
+      }
+    ])
+  })
+
+  it('records the face area its kept rows do not cover as lost', () => {
+    const kept = wall(1, 40)
+
+    expect(
+      lostBaselineHabitats(
+        { verticalHabitats: [child(1, kept, 'Retained', 25)] },
+        { verticalHabitats: [kept] }
+      )
+    ).toEqual([
+      expect.objectContaining({
+        layer: 'verticalHabitats',
+        outcome: LOST_OUTCOME.lost,
+        lostSizeSquareMetres: 15
+      })
+    ])
+  })
+})
+
 describe('nullDisallowedWatercourseAdvance', () => {
   const ditch = line(1, 100, DITCH)
 

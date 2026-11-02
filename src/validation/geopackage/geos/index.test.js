@@ -393,6 +393,41 @@ describe('validateGeoPackageLayersGeos — non-area layers outside the redline',
     ).toContain(ERROR_CODES.IGGIS_OUTSIDE_REDLINE)
   })
 
+  it('detects a vertical area habitat outside the redline, naming it by its Habitat Ref', async () => {
+    const error = await errorFor(
+      {
+        ...inside,
+        verticalHabitats: [
+          line(
+            [
+              [X0 + 200, Y0],
+              [X0 + 230, Y0]
+            ],
+            { fid: 1, 'Parcel Ref': 'V002' }
+          )
+        ]
+      },
+      ERROR_CODES.VERTICAL_HABITATS_OUTSIDE_REDLINE
+    )
+    expect(error.message).toBe(
+      'One or more vertical area habitats are not entirely within the redline boundary: Feature Ref V002'
+    )
+  })
+
+  it('passes a vertical area habitat along the inside of the redline', async () => {
+    expect(
+      await codesFor({
+        ...inside,
+        verticalHabitats: [
+          line([
+            [X0 + 10, Y0 + 10],
+            [X0 + 40, Y0 + 10]
+          ])
+        ]
+      })
+    ).toEqual([])
+  })
+
   it('detects a tree outside the redline', async () => {
     expect(
       await codesFor({

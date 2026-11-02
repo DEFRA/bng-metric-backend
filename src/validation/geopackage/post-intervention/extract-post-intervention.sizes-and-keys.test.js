@@ -53,6 +53,7 @@ describe('extractPostIntervention — habitatSizes embedding', () => {
         urbanSquareMetres: 0,
         ruralSquareMetres: 0
       },
+      verticalHabitats: { totalSquareMetres: 0 },
       site: { totalSquareMetres: HABITAT_SQM }
     })
   })
@@ -392,5 +393,67 @@ describe('extractPostIntervention — habitatSizes missing featureId fallback', 
 
     expect(out.document.hedgerows[0].sizeMetres).toBeNull()
     expect(out.document.hedgerows[0].length).toBeNull()
+  })
+})
+
+describe('extractPostIntervention — vertical area habitats', () => {
+  it('reads each one as an area habitat sized by its own row’s typed area', () => {
+    const habitatSizes = {
+      areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
+      hedgerows: { individualMetres: [], totalMetres: 0 },
+      watercourses: { individualMetres: [], totalMetres: 0 }
+    }
+    const out = extractPostIntervention(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        verticalHabitats: [
+          {
+            ...feature(
+              {
+                [PARCEL_REF]: 'V001',
+                'Retention Category': 'Enhanced',
+                'Baseline Broad Habitat Type': 'Urban',
+                'Baseline Habitat Type': 'Facade-bound green wall',
+                'Baseline Condition': 'Poor',
+                'Proposed Broad Habitat Type': 'Urban',
+                'Proposed Habitat Type': 'Facade-bound green wall',
+                'Proposed Condition': 'Moderate',
+                Area: 25
+              },
+              SAMPLE_LINESTRING
+            ),
+            featureId: FEAT_ID_AREA
+          }
+        ]
+      },
+      { habitatSizes }
+    )
+
+    expect(out.document.verticalHabitats).toEqual([
+      expect.objectContaining({
+        featureId: FEAT_ID_AREA,
+        ref: 'V001',
+        retentionCategory: 'Enhanced',
+        sizeSquareMetres: 25,
+        area: 25,
+        baseline: expect.objectContaining({
+          type: 'Facade-bound green wall',
+          condition: 'Poor'
+        }),
+        proposed: expect.objectContaining({
+          broadType: 'Urban',
+          type: 'Facade-bound green wall',
+          condition: 'Moderate'
+        })
+      })
+    ])
+    expect(out.document.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 25 },
+      verticalHabitats: { totalSquareMetres: 25 },
+      site: { totalSquareMetres: 0 }
+    })
   })
 })

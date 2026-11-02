@@ -398,6 +398,14 @@ function drawSiteLayers(doc, site, projector, style) {
       HABITAT_STYLES.watercourse
     )
   }
+  for (const vertical of site.layers.verticalHabitats ?? []) {
+    drawGeometry(
+      doc,
+      vertical.geometry,
+      projector,
+      HABITAT_STYLES.verticalHabitat
+    )
+  }
   for (const tree of site.layers.trees ?? []) {
     drawGeometry(doc, tree.geometry, projector, HABITAT_STYLES.tree)
   }

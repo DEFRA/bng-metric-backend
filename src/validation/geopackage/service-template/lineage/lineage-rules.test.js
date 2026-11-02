@@ -6,11 +6,13 @@ import { checkLineageRules } from './lineage-rules.js'
 const TABLES = {
   baseline: {
     areas: 'Area Habitats Baseline',
+    verticalHabitats: 'Vertical Area Habitats Baseline',
     hedgerows: 'Hedgerows Baseline',
     watercourses: 'Watercourses Baseline'
   },
   postIntervention: {
     areas: 'Area Habitats Post-Intervention',
+    verticalHabitats: 'Vertical Area Habitats Post-Intervention',
     hedgerows: 'Hedgerows Post-Intervention',
     watercourses: 'Watercourses Post-Intervention'
   }
@@ -68,6 +70,23 @@ function hedge(n, metres, overrides = {}) {
   }
 }
 
+/** A green wall along a line, with the face area typed in, in m². */
+function wall(n, squareMetres, overrides = {}) {
+  return {
+    properties: {
+      fid: n,
+      'Parcel Ref': `V00${n}`,
+      'Baseline Broad Habitat Type': 'Urban',
+      'Baseline Habitat Type': 'Facade-bound green wall',
+      'Baseline Condition': 'Moderate',
+      Area: squareMetres,
+      feature_uuid: uuid(300 + n),
+      ...overrides
+    },
+    nativeGeometry: line(10)
+  }
+}
+
 function river(n, metres, overrides = {}) {
   return {
     properties: {
@@ -92,6 +111,12 @@ function child(parent, layer, { geometry, ...overrides } = {}) {
       'Proposed Broad Habitat Type': 'Grassland',
       'Proposed Habitat Type':
         parent.properties['Baseline Habitat Type'] ?? null
+    },
+    verticalHabitats: {
+      'Proposed Broad Habitat Type': 'Urban',
+      'Proposed Habitat Type':
+        parent.properties['Baseline Habitat Type'] ?? null,
+      Area: parent.properties.Area
     },
     hedgerows: {
       'Proposed Hedge Type': parent.properties['Baseline Hedge Type'] ?? null
@@ -225,6 +250,111 @@ describe('checkLineageRules', () => {
           }
         }
       ])
+    })
+  })
+
+  describe('vertical area habitats', () => {
+    it('passes children whose typed areas together are no more than their parent’s', () => {
+      const parent = wall(1, 40)
+
+      expect(
+        check(
+          { verticalHabitats: [parent] },
+          {
+            verticalHabitats: [
+              child(parent, 'verticalHabitats', {
+                'Parcel Ref': 'V001a',
+                Area: 25
+              }),
+              child(parent, 'verticalHabitats', {
+                'Parcel Ref': 'V001b',
+                'Retention Category': 'Enhanced',
+                Area: 15
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
+
+    it('passes a baseline vertical area habitat with no child: it is removed', () => {
+      expect(check({ verticalHabitats: [wall(1, 40)] }, {})).toEqual([])
+    })
+
+    it('refuses a parent smaller than its children together, counting a Created child', () => {
+      const parent = wall(1, 40)
+
+      const errors = check(
+        { verticalHabitats: [parent] },
+        {
+          verticalHabitats: [
+            child(parent, 'verticalHabitats', { 'Parcel Ref': 'V001a' }),
+            child(parent, 'verticalHabitats', {
+              'Parcel Ref': 'V001b',
+              'Retention Category': 'Created',
+              'Proposed Habitat Type': 'Ground based green wall',
+              Area: 10.1
+            })
+          ]
+        }
+      )
+
+      expect(errors).toEqual([
+        {
+          code: ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
+          message:
+            'One or more baseline vertical area habitats have a smaller Area (m²) than the post-intervention vertical area habitats linked to them together: Vertical Area Habitats Baseline V001 (Facade-bound green wall), copied to V001a, V001b (40 m², linked 50.1 m²)',
+          details: {
+            count: 1,
+            sample: [
+              {
+                layer: 'verticalHabitats',
+                table: 'Vertical Area Habitats Baseline',
+                fid: 1,
+                ref: 'V001',
+                habitatType: 'Facade-bound green wall',
+                childRefs: ['V001a', 'V001b'],
+                areaSquareMetres: 40,
+                childAreaSquareMetres: 50.1
+              }
+            ]
+          }
+        }
+      ])
+    })
+
+    it('holds a degraded vertical area habitat to the area habitat rule', () => {
+      const parent = wall(1, 40)
+
+      const errors = check(
+        { verticalHabitats: [parent] },
+        {
+          verticalHabitats: [
+            degraded(parent, 'verticalHabitats', {
+              'Parcel Ref': 'V001a',
+              'Proposed Condition': 'Poor',
+              'Habitat created in advance/years': '0'
+            })
+          ]
+        }
+      )
+
+      expect(codes(errors)).toEqual([
+        ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
+      ])
+    })
+
+    it('refuses a degraded vertical area habitat that is not worse', () => {
+      const parent = wall(1, 40)
+
+      expect(
+        codes(
+          check(
+            { verticalHabitats: [parent] },
+            { verticalHabitats: [degraded(parent, 'verticalHabitats')] }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
     })
   })
 

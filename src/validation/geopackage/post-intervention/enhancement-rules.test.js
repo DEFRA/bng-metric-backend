@@ -164,9 +164,13 @@ describe('enhancementRulesForLayer', () => {
   it('lists the rules each layer can break', () => {
     expect(ENHANCEMENT_RULE_LAYERS).toEqual([
       'habitats',
+      'verticalHabitats',
       'hedgerows',
       'watercourses'
     ])
+    expect(enhancementRulesForLayer('verticalHabitats')).toEqual(
+      enhancementRulesForLayer('habitats')
+    )
     expect(enhancementRulesForLayer('hedgerows')).toEqual([
       ENHANCEMENT_RULE.MEDIUM_HEDGEROW,
       ENHANCEMENT_RULE.LOW_HEDGEROW,

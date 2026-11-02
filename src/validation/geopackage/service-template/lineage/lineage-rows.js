@@ -15,6 +15,7 @@ import { retentionCategoryFromProps } from '../../post-intervention/extract-post
 /** The layers whose links are checked: the habitat layers the service reads. */
 export const LINKED_LAYERS = Object.freeze([
   'areas',
+  'verticalHabitats',
   'hedgerows',
   'watercourses'
 ])
@@ -29,6 +30,7 @@ const CREATED = 'Created'
 /** Each layer's habitat type column, at each stage. */
 export const HABITAT_TYPE = Object.freeze({
   areas: ['Baseline Habitat Type', 'Proposed Habitat Type'],
+  verticalHabitats: ['Baseline Habitat Type', 'Proposed Habitat Type'],
   hedgerows: ['Baseline Hedge Type', 'Proposed Hedge Type'],
   watercourses: ['Baseline River Type', 'Proposed River Type']
 })

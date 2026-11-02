@@ -36,6 +36,7 @@ describe('summarizeFeatureSetUnitsTotals', () => {
     expect(featureSet.units).toEqual({
       totalUnits: 103,
       habitatsTotal: 4,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 99,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -54,6 +55,7 @@ describe('summarizeFeatureSetUnitsTotals', () => {
     expect(featureSet.units).toEqual({
       totalUnits: 0,
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -78,6 +80,7 @@ describe('summarizeFeatureSetUnitsTotals', () => {
     expect(featureSet.units).toEqual({
       totalUnits: 3,
       habitatsTotal: 2,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 1,
@@ -100,11 +103,29 @@ describe('summarizeFeatureSetUnitsTotals', () => {
     expect(featureSet.units).toEqual({
       totalUnits: 0.7,
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0.7,
       treesUrbanTotal: 0.2,
       treesRuralTotal: 0.5
+    })
+  })
+
+  it('counts vertical area habitats in the area habitat total, and says how much of it they are', () => {
+    const featureSet = {
+      habitats: [{ units: 2 }],
+      verticalHabitats: [{ units: 0.25 }, { units: 0.5 }, { units: null }],
+      hedgerows: [{ units: 1 }]
+    }
+
+    summarizeFeatureSetUnitsTotals(featureSet)
+
+    expect(featureSet.units).toMatchObject({
+      totalUnits: 3.75,
+      habitatsTotal: 2.75,
+      verticalHabitatsTotal: 0.75,
+      hedgerowsTotal: 1
     })
   })
 })
@@ -149,6 +170,7 @@ describe('addPostInterventionNetUnitChanges', () => {
 
     addPostInterventionNetUnitChanges(postIntervention, {
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0
     })

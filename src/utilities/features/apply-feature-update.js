@@ -57,6 +57,7 @@ import {
   summarizeFeatureSetUnitsTotals
 } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
+import { isVerticalHabitat } from '../../validation/reference/vertical-habitats.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -182,8 +183,28 @@ function recomputeWatercourseEdit(existing, edits, { documentKey }) {
   })
 }
 
+/**
+ * A baseline vertical area habitat is edited as an area habitat, sized by its
+ * typed area, but stays one of the habitats the Metric counts by vertical
+ * area: an edit to any other is turned away. A post-intervention one is not
+ * editable yet.
+ */
+function recomputeVerticalHabitatEdit(existing, edits, context) {
+  if (context.documentKey === 'postIntervention') {
+    return null
+  }
+  if (
+    edits.habitatType !== null &&
+    !isVerticalHabitat(edits.broadType, edits.habitatType)
+  ) {
+    return null
+  }
+  return recomputeHabitatEdit(existing, edits, context)
+}
+
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
   habitat: recomputeHabitatEdit,
+  verticalHabitat: recomputeVerticalHabitatEdit,
   hedgerow: recomputeHedgerowEdit,
   watercourse: recomputeWatercourseEdit
 })
@@ -205,7 +226,7 @@ function mergeBaselineFeature(type, existing, edits, derived) {
     units: derived.units,
     status: derived.status
   }
-  if (type === 'habitat') {
+  if (type === 'habitat' || type === 'verticalHabitat') {
     return { ...base, broadType: edits.broadType, type: edits.habitatType }
   } else if (type === 'watercourse') {
     return {
