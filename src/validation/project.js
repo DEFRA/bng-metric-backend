@@ -270,7 +270,7 @@ const verticalHabitatSchema = habitatSchema
     area: Joi.number()
       .allow(null)
       .description(
-        'Face area in square metres, rounded to the nearest integer, for display.'
+        'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0.'
       ),
     sizeSquareMetres: Joi.number()
       .allow(null)

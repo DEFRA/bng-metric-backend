@@ -3,6 +3,7 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
+import { PROP_KEYS, pickProp } from '../../properties.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
@@ -185,9 +186,14 @@ function checkHedgerowLength(parent, children, context) {
   }
 }
 
-/** A row's typed Area, in square metres; 0 when it is not a number above 0. */
+/**
+ * A row's typed Area, in square metres; 0 when it is not a number above 0.
+ * Read as the upload check and the extract read it.
+ */
 const typedArea = (feature) =>
-  verticalAreaSquareMetres(feature.properties?.Area) ?? 0
+  verticalAreaSquareMetres(
+    pickProp(feature.properties ?? {}, PROP_KEYS.area)
+  ) ?? 0
 
 /** A vertical area habitat parent smaller than its linked children together. */
 function checkVerticalArea(parent, children, context) {

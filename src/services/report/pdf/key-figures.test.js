@@ -59,4 +59,41 @@ describe('addKeyFiguresTable', () => {
       ['Biodiversity units', '2.50 units', 'Not supplied']
     ])
   })
+
+  test('leaves the vertical area habitats row out when neither side holds any, as on a legacy project', () => {
+    const doc = recordingDoc()
+
+    addKeyFiguresTable(
+      doc,
+      null,
+      site({ habitats: [feature({ sizeSquareMetres: 10_000 })] }),
+      site({})
+    )
+
+    expect(doc.rows.map(([measure]) => measure)).toEqual([
+      'Measure',
+      'Area habitats',
+      'Hedgerows',
+      'Watercourses',
+      'Individual trees',
+      'Biodiversity units'
+    ])
+  })
+
+  test('shows the row when only the post-intervention side holds one', () => {
+    const doc = recordingDoc()
+
+    addKeyFiguresTable(
+      doc,
+      null,
+      site({}),
+      site({ verticalHabitats: [feature({ sizeSquareMetres: 40 })] })
+    )
+
+    expect(doc.rows[2]).toEqual([
+      'Vertical area habitats',
+      'None',
+      '1 feature (40 m²)'
+    ])
+  })
 })

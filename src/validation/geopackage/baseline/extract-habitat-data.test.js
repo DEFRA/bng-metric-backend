@@ -1440,7 +1440,8 @@ describe('extractHabitatData — vertical area habitats', () => {
         type: 'Facade-bound green wall',
         condition: 'Poor',
         sizeSquareMetres: WALL_SQM,
-        area: 38,
+        // As typed, not rounded to the square metre.
+        area: WALL_SQM,
         status: 'Complete'
       })
     ])
@@ -1456,6 +1457,15 @@ describe('extractHabitatData — vertical area habitats', () => {
       areaHabitats: { totalSquareMetres: HABITAT_SQM + WALL_SQM },
       verticalHabitats: { totalSquareMetres: WALL_SQM },
       site: { totalSquareMetres: HABITAT_SQM }
+    })
+  })
+
+  it('keeps a face under half a square metre as typed, so it does not show as 0', () => {
+    const out = extractWithWall(0.4)
+
+    expect(out.document.verticalHabitats[0]).toMatchObject({
+      sizeSquareMetres: 0.4,
+      area: 0.4
     })
   })
 

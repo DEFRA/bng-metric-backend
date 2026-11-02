@@ -22,10 +22,30 @@ import { BASELINE, LAYER_LABELS, POST_INTERVENTION } from './labels.js'
 
 const NOT_SUPPLIED = 'Not supplied'
 
+/**
+ * The layers a report lists only when a side holds some: only a BNG Service
+ * template file has vertical area habitats, so a legacy project's report keeps
+ * the rows it always had.
+ */
+const OPTIONAL_LAYERS = new Set(['verticalHabitats'])
+
+function holds(site, role) {
+  return (site?.layers?.[role]?.length ?? 0) > 0
+}
+
+function shownLayers(baseline, postIntervention) {
+  return Object.keys(LAYER_LABELS).filter(
+    (role) =>
+      !OPTIONAL_LAYERS.has(role) ||
+      holds(baseline, role) ||
+      holds(postIntervention, role)
+  )
+}
+
 function addKeyFiguresTable(doc, section, baseline, postIntervention) {
   const rows = [
     ['Measure', BASELINE, POST_INTERVENTION],
-    ...Object.keys(LAYER_LABELS).map((role) => [
+    ...shownLayers(baseline, postIntervention).map((role) => [
       LAYER_LABELS[role],
       describeLayer(baseline, role),
       postIntervention ? describeLayer(postIntervention, role) : NOT_SUPPLIED

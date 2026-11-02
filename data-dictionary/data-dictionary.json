@@ -2324,7 +2324,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, rounded to the nearest integer, for display."
+      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0."
     },
     {
       "path": "baseline.verticalHabitats[].sizeSquareMetres",
@@ -4578,7 +4578,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, rounded to the nearest integer, for display."
+      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded."
     },
     {
       "path": "postIntervention.verticalHabitats[].sizeSquareMetres",

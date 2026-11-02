@@ -49,6 +49,10 @@ export function areaFromSizeSquareMetres(sizeSquareMetres) {
  * it is not measured. Null when it is not a number above 0, which the upload
  * checks refuse (vertical-area-check.js).
  *
+ * `area` is the same value, not rounded to the square metre as a measured
+ * parcel's is: the surveyor typed it, and a face under half a square metre
+ * that the check accepts must not show as 0.
+ *
  * @param {object} properties the row's GeoPackage properties
  * @returns {{ sizeSquareMetres: number | null, area: number | null }}
  */
@@ -56,10 +60,7 @@ export function verticalAreaFields(properties) {
   const sizeSquareMetres = verticalAreaSquareMetres(
     pickProp(properties ?? {}, PROP_KEYS.area)
   )
-  return {
-    sizeSquareMetres,
-    area: areaFromSizeSquareMetres(sizeSquareMetres)
-  }
+  return { sizeSquareMetres, area: sizeSquareMetres }
 }
 
 /**

@@ -323,6 +323,31 @@ describe('checkLineageRules', () => {
       ])
     })
 
+    it('reads a row’s area from Shape_Area too, as the upload check and the extract do', () => {
+      const parent = wall(1, undefined, { Area: undefined, Shape_Area: 40 })
+      const piece = (ref, area) =>
+        child(parent, 'verticalHabitats', {
+          'Parcel Ref': ref,
+          Area: undefined,
+          Shape_Area: area
+        })
+
+      expect(
+        check(
+          { verticalHabitats: [parent] },
+          { verticalHabitats: [piece('V001a', 25), piece('V001b', 15)] }
+        )
+      ).toEqual([])
+      expect(
+        codes(
+          check(
+            { verticalHabitats: [parent] },
+            { verticalHabitats: [piece('V001a', 25), piece('V001b', 25)] }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE])
+    })
+
     it('holds a degraded vertical area habitat to the area habitat rule', () => {
       const parent = wall(1, 40)
 
