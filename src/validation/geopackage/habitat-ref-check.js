@@ -28,6 +28,7 @@ const REPLACEMENT_CHARACTER = '�'
  */
 export const HABITAT_REF_LAYERS = Object.freeze([
   'areas',
+  'verticalHabitats',
   'hedgerows',
   'watercourses'
 ])
@@ -123,8 +124,8 @@ function collated(code, heading, offenders) {
 }
 
 /**
- * Check every habitat's Parcel Ref on the area, hedgerow and watercourse
- * layers (BMD-1058):
+ * Check every habitat's Parcel Ref on the area, vertical area, hedgerow and
+ * watercourse layers (BMD-1058):
  *
  * - every habitat must have one: a missing or blank reference is
  *   HABITAT_REF_MISSING;

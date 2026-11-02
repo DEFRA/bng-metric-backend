@@ -78,6 +78,7 @@ async function assertHabitatSizesPersisted(server, dbClient) {
       ruralSquareMetres: expect.any(Number),
       urbanSquareMetres: expect.any(Number)
     },
+    verticalHabitats: { totalSquareMetres: 0 },
     hedgerows: { totalMetres: expect.any(Number) },
     watercourses: { totalMetres: expect.any(Number) }
   })

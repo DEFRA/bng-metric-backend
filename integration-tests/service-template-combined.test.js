@@ -316,8 +316,7 @@ describeServiceTemplate(
     })
 
     // Every Post-Intervention table counts towards the empty check, including
-    // those not read yet (trees, BMD-1172; vertical area habitats, BMD-1084),
-    // as the ticket defines it. A file whose only post-intervention rows are
+    // one not read yet (trees, BMD-1172), as the ticket defines it. A file whose only post-intervention rows are
     // trees passes that check, and must still be refused, with nothing stored.
     it('refuses a file whose only post-intervention features are in tables not read yet, and changes nothing', async () => {
       const project = await createProject('Service template trees only')
@@ -329,7 +328,8 @@ describeServiceTemplate(
         for (const table of [
           'Area Habitats Post-Intervention',
           'Hedgerows Post-Intervention',
-          'Watercourses Post-Intervention'
+          'Watercourses Post-Intervention',
+          'Vertical Area Habitats Post-Intervention'
         ]) {
           db.prepare(`DELETE FROM "${table}"`).run()
         }

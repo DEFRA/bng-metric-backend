@@ -47,10 +47,12 @@ function linearHabitat(canonicalType) {
 /**
  * The layers the rules cover, by post-intervention document key. Individual
  * trees are not covered: the rules are for areas, hedgerows and
- * watercourses.
+ * watercourses. A vertical area habitat is an area habitat, enhanced by the
+ * area rules.
  */
 const KIND_BY_LAYER = Object.freeze({
   habitats: { kind: ENHANCEMENT_KIND.area, habitatOf: areaHabitat },
+  verticalHabitats: { kind: ENHANCEMENT_KIND.area, habitatOf: areaHabitat },
   hedgerows: {
     kind: ENHANCEMENT_KIND.hedgerow,
     habitatOf: linearHabitat(canonicalHedgerowType)

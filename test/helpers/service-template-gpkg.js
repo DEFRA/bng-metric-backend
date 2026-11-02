@@ -54,6 +54,7 @@ const TEST_GEOMETRY_WKB = {
 const AREA_HABITATS_BASELINE = 'Area Habitats Baseline'
 const HEDGEROWS_BASELINE = 'Hedgerows Baseline'
 const WATERCOURSES_BASELINE = 'Watercourses Baseline'
+const VERTICAL_BASELINE = 'Vertical Area Habitats Baseline'
 const RED_LINE_BOUNDARY = 'Red Line Boundary'
 
 /**
@@ -102,6 +103,20 @@ export function populatedBaselineRows() {
         Length: 1,
         feature_uuid: '0c55b68c-6afb-59c6-9453-618d89539d76'
       }
+    ],
+    [VERTICAL_BASELINE]: [
+      {
+        'Habitat Ref': 'V001',
+        'Baseline Broad Habitat Type': 'Urban',
+        'Baseline Habitat Type': 'Facade-bound green wall',
+        'Baseline Distinctiveness': 'Low',
+        'Baseline Condition': 'Poor',
+        'Baseline Strategic Significance': 'Low',
+        'Irreplaceable Habitat': 'No',
+        // Square metres: the face area the surveyor estimated.
+        Area: 40,
+        feature_uuid: '7a3d0c0e-2f4b-5c1d-8e9f-0a1b2c3d4e5f'
+      }
     ]
   }
 }
@@ -109,6 +124,7 @@ export function populatedBaselineRows() {
 const AREA_HABITATS_PI = 'Area Habitats Post-Intervention'
 const HEDGEROWS_PI = 'Hedgerows Post-Intervention'
 const WATERCOURSES_PI = 'Watercourses Post-Intervention'
+const VERTICAL_PI = 'Vertical Area Habitats Post-Intervention'
 
 const NO_ADVANCE_OR_DELAY = {
   'Habitat created in advance/years': '0',
@@ -136,8 +152,8 @@ function continuing(baselineRow, proposed) {
  * One valid row in each Post-Intervention table the service reads, each
  * continuing the row {@link populatedBaselineRows} gives (from the harness
  * corpus's valid/plain-site.gpkg): the area habitat Enhanced to a better
- * condition, at High strategic significance; the hedgerow and the
- * watercourse Retained.
+ * condition, at High strategic significance; the hedgerow, the watercourse
+ * and the vertical area habitat Retained.
  *
  * @returns {Record<string, object[]>} rows by table, as `rows` takes them
  */
@@ -146,6 +162,7 @@ export function populatedPostInterventionRows() {
   const [area] = baseline[AREA_HABITATS_BASELINE]
   const [hedge] = baseline[HEDGEROWS_BASELINE]
   const [river] = baseline[WATERCOURSES_BASELINE]
+  const [vertical] = baseline[VERTICAL_BASELINE]
   return {
     [AREA_HABITATS_PI]: [
       continuing(area, {
@@ -180,6 +197,16 @@ export function populatedPostInterventionRows() {
           river['Baseline Encroachment into riparian zone'],
         'Enhancement Type': 'N/A',
         'Baseline Length': river.Length
+      })
+    ],
+    [VERTICAL_PI]: [
+      continuing(vertical, {
+        'Retention Category': 'Retained',
+        'Proposed Broad Habitat Type': vertical['Baseline Broad Habitat Type'],
+        'Proposed Habitat Type': vertical['Baseline Habitat Type'],
+        'Proposed Distinctiveness': vertical['Baseline Distinctiveness'],
+        'Proposed Condition': vertical['Baseline Condition'],
+        'Proposed Strategic Significance': 'Low'
       })
     ]
   }

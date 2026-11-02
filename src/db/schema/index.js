@@ -11,12 +11,14 @@ export {
   baselineHabitats,
   baselineHedgerows,
   baselineWatercourses,
-  baselineTrees
+  baselineTrees,
+  baselineVerticalHabitats
 } from './baseline-features.js'
 export {
   postInterventionRedLine,
   postInterventionHabitats,
   postInterventionHedgerows,
   postInterventionWatercourses,
-  postInterventionTrees
+  postInterventionTrees,
+  postInterventionVerticalHabitats
 } from './post-intervention-features.js'

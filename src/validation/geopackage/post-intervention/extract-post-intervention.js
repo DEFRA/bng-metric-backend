@@ -12,7 +12,8 @@ import {
 import {
   splitFeatures,
   embedPostInterventionHabitatSizes,
-  buildExtractResult
+  buildExtractResult,
+  verticalAreaFields
 } from '../extract-shared.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import { isLostRetentionCategory } from '../../../utilities/enrichment/post-intervention/retention-category.js'
@@ -111,6 +112,17 @@ function buildPostInterventionHabitat(feature) {
     postInterventionAreaStatus,
     RETAINED_AREA_PROPOSED_FIELDS
   )
+}
+
+/**
+ * A post-intervention vertical area habitat: an area habitat sized by the
+ * Area its row gives, in square metres, which may differ from its parent's
+ * when part of a structure is kept.
+ */
+function buildPostInterventionVerticalHabitat(feature) {
+  const built = buildPostInterventionHabitat(feature)
+  Object.assign(built.document, verticalAreaFields(feature.properties))
+  return built
 }
 
 function buildPostInterventionHedgerow(feature) {
@@ -240,7 +252,8 @@ function isKeptPostInterventionFeature(feature) {
 
 /**
  * Drop features whose GPKG Retention Category is Lost (hedgerows, watercourses,
- * and trees). Area habitats with Lost are kept and mapped to Created later.
+ * trees and vertical area habitats). Area habitats with Lost are kept and
+ * mapped to Created later.
  *
  * @param {object[]} features
  * @returns {object[]}
@@ -258,7 +271,8 @@ export function filterLostPostInterventionLayers(layers) {
     ...layers,
     hedgerows: excludeLostRetentionFeatures(layers.hedgerows),
     watercourses: excludeLostRetentionFeatures(layers.watercourses),
-    trees: excludeLostRetentionFeatures(layers.trees)
+    trees: excludeLostRetentionFeatures(layers.trees),
+    verticalHabitats: excludeLostRetentionFeatures(layers.verticalHabitats)
   }
 }
 
@@ -272,6 +286,7 @@ export function filterLostPostInterventionLayers(layers) {
  * @param {object[]} layers.hedgerows
  * @param {object[]} layers.watercourses
  * @param {object[]} [layers.trees]
+ * @param {object[]} [layers.verticalHabitats]
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
  * @param {string} [meta.filename]
@@ -298,17 +313,21 @@ export function extractPostIntervention(layers, meta = {}) {
   const trees = splitFeatures(filteredLayers.trees ?? [], (feature) =>
     buildPostInterventionTree(feature, initParsedFeature, buildGeometryRow)
   )
+  const verticalHabitats = splitFeatures(
+    filteredLayers.verticalHabitats ?? [],
+    buildPostInterventionVerticalHabitat
+  )
 
   const habitatSizesSummary = meta.habitatSizes
     ? embedPostInterventionHabitatSizes(
-        { habitats, hedgerows, watercourses, trees },
+        { habitats, hedgerows, watercourses, trees, verticalHabitats },
         meta.habitatSizes
       )
     : null
 
   return buildExtractResult(
     meta,
-    { redLine, habitats, hedgerows, watercourses, trees },
+    { redLine, habitats, hedgerows, watercourses, trees, verticalHabitats },
     habitatSizesSummary
   )
 }

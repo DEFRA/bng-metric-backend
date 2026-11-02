@@ -10,6 +10,10 @@ import {
 } from 'bng-library/metric'
 
 import { getHabitatsByBroad } from '../reference/habitat-reference.js'
+import {
+  VERTICAL_BROAD_HABITATS,
+  VERTICAL_HABITAT_TYPE_NAMES
+} from '../reference/vertical-habitats.js'
 import { stripConditionPrefix } from '../../utilities/enrichment/shared/condition.js'
 
 const areaHabitats = getHabitatsByBroad()
@@ -29,6 +33,13 @@ function conditions(table) {
 
 const references = {
   habitats: { type: areaTypes, condition: conditions(CONDITION_SCORES) },
+  // The Vertical Area Habitats layers offer only the habitats the Metric
+  // counts by their vertical area; any other is cleared, as a value no
+  // drop-down offers is.
+  verticalHabitats: {
+    type: new Set(VERTICAL_HABITAT_TYPE_NAMES),
+    condition: conditions(CONDITION_SCORES)
+  },
   trees: { type: areaTypes, condition: conditions(CONDITION_SCORES) },
   hedgerows: {
     type: new Set(Object.keys(HEDGEROW_DISTINCTIVENESS_CATEGORIES)),
@@ -45,6 +56,9 @@ const references = {
     )
   }
 }
+
+/** The layers whose habitats name a broad habitat, as area habitats do. */
+const AREA_LAYERS = new Set(['habitats', 'verticalHabitats', 'trees'])
 
 function normaliseValue(value, field) {
   if (typeof value !== 'string' || !value.trim()) {
@@ -92,8 +106,11 @@ export function normaliseImportedAttributes(
   postIntervention = false
 ) {
   const fields = { ...references[layer] }
-  if (layer === 'habitats' || layer === 'trees') {
-    fields.broadType = broadTypes
+  if (AREA_LAYERS.has(layer)) {
+    fields.broadType =
+      layer === 'verticalHabitats'
+        ? new Set(VERTICAL_BROAD_HABITATS)
+        : broadTypes
   }
   for (const [field, allowed] of Object.entries(fields)) {
     const value = normaliseValue(attributes[field], field)

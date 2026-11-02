@@ -188,9 +188,10 @@ function createWatercourseEnrichmentConfig(logger) {
  * `status: 'Incomplete'` and a warning is logged. Always sets
  * `baselineDocument.units` totals afterward.
  *
- * Individual trees are enriched on the same path as area-habitat parcels.
+ * Individual trees and vertical area habitats are enriched on the same path
+ * as area-habitat parcels.
  *
- * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} baselineDocument
+ * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[], hedgerows?: object[], watercourses?: object[] }} baselineDocument
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {typeof baselineDocument}
  */
@@ -210,6 +211,13 @@ export function enrichBaselineDocumentWithUnits(
   )
   enrichCollectionIfNonEmpty(
     baselineDocument?.trees,
+    enrichHabitatParcelWithUnits,
+    logger
+  )
+  // A vertical area habitat is an area habitat the Metric sizes by its face:
+  // the area the surveyor typed in, in square metres, priced in hectares.
+  enrichCollectionIfNonEmpty(
+    baselineDocument?.verticalHabitats,
     enrichHabitatParcelWithUnits,
     logger
   )
@@ -242,6 +250,7 @@ export function enrichBaselineDocumentWithUnits(
     enrichedFeatureCount:
       (baselineDocument?.habitats?.length ?? 0) +
       (baselineDocument?.trees?.length ?? 0) +
+      (baselineDocument?.verticalHabitats?.length ?? 0) +
       (baselineDocument?.hedgerows?.length ?? 0) +
       (baselineDocument?.watercourses?.length ?? 0),
     enrichMs: msSince(enrichStart)

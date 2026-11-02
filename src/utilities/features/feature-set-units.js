@@ -53,12 +53,17 @@ function treesOfType(trees, treeType) {
  * Sets `featureSet.units` with cumulative units per layer and overall.
  * Individual trees contribute their own total (and urban/rural sub-totals, which
  * the story requires the system to store) and roll up into `totalUnits`.
+ * Vertical area habitats are area habitats the Metric scores on the same
+ * sheets, so their units are in `habitatsTotal`, and `verticalHabitatsTotal`
+ * says how much of it they are.
  *
- * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} featureSet
+ * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[], hedgerows?: object[], watercourses?: object[] }} featureSet
  * @returns {typeof featureSet}
  */
 export function summarizeFeatureSetUnitsTotals(featureSet) {
-  const habitatsTotal = sumFeatureUnits(featureSet?.habitats)
+  const verticalHabitatsTotal = sumFeatureUnits(featureSet?.verticalHabitats)
+  const habitatsTotal =
+    sumFeatureUnits(featureSet?.habitats) + verticalHabitatsTotal
   const hedgerowsTotal = sumFeatureUnits(featureSet?.hedgerows)
   const watercoursesTotal = sumFeatureUnits(featureSet?.watercourses)
 
@@ -73,6 +78,7 @@ export function summarizeFeatureSetUnitsTotals(featureSet) {
   featureSet.units = {
     totalUnits,
     habitatsTotal,
+    verticalHabitatsTotal,
     hedgerowsTotal,
     watercoursesTotal,
     treesTotal,

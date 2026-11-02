@@ -248,6 +248,50 @@
       "uniqueIndexes": []
     },
     {
+      "name": "bng.baseline_vertical_habitats",
+      "description": "The mapped line along the base of each baseline vertical area habitat (green wall or intertidal hard structure) imported from the uploaded GeoPackage.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiLineString, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
+    },
+    {
       "name": "bng.baseline_watercourses",
       "description": "The mapped line of each baseline watercourse imported from the uploaded GeoPackage.",
       "columns": [
@@ -565,6 +609,50 @@
         {
           "name": "geom",
           "type": "geometry(MultiPoint, 27700)",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        }
+      ],
+      "compositeUniques": [],
+      "uniqueIndexes": []
+    },
+    {
+      "name": "bng.post_intervention_vertical_habitats",
+      "description": "The mapped line along the base of each post-intervention (proposed) vertical area habitat imported from the uploaded GeoPackage.",
+      "columns": [
+        {
+          "name": "id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": true,
+          "unique": false,
+          "default": "gen_random_uuid()",
+          "references": null
+        },
+        {
+          "name": "project_id",
+          "type": "uuid",
+          "nullable": false,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": "projects.id"
+        },
+        {
+          "name": "ref",
+          "type": "text",
+          "nullable": true,
+          "primaryKey": false,
+          "unique": false,
+          "default": null,
+          "references": null
+        },
+        {
+          "name": "geom",
+          "type": "geometry(MultiLineString, 27700)",
           "nullable": false,
           "primaryKey": false,
           "unique": false,
@@ -1942,6 +2030,336 @@
       "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
     },
     {
+      "path": "baseline.verticalHabitats",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Vertical area habitats (green walls and intertidal hard structures) in the baseline. Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read."
+    },
+    {
+      "path": "baseline.verticalHabitats[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "A vertical area habitat (green wall or intertidal hard structure), drawn as a line along its base."
+    },
+    {
+      "path": "baseline.verticalHabitats[].distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-library/metric from the habitat type, e.g. 'High'. Set once the habitat type is recognised."
+    },
+    {
+      "path": "baseline.verticalHabitats[].distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
+    },
+    {
+      "path": "baseline.verticalHabitats[].condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline condition assessment, e.g. 'Good'."
+    },
+    {
+      "path": "baseline.verticalHabitats[].conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits."
+    },
+    {
+      "path": "baseline.verticalHabitats[].strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category from the GeoPackage."
+    },
+    {
+      "path": "baseline.verticalHabitats[].retentionCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Retention category from the GeoPackage."
+    },
+    {
+      "path": "baseline.verticalHabitats[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the habitat is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: true for \"Yes\", false for \"No\" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column."
+    },
+    {
+      "path": "baseline.verticalHabitats[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "baseline.verticalHabitats[].siteName",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Site name from the GeoPackage (Site Name column)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].surveyDate",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Survey date from the GeoPackage (Survey Date column), as stored in the source file."
+    },
+    {
+      "path": "baseline.verticalHabitats[].surveyDetails",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text survey details from the GeoPackage."
+    },
+    {
+      "path": "baseline.verticalHabitats[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].mappedBy",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Name of the surveyor who mapped the feature (Mapped by)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].company",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Company responsible for the survey (Company column)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].baseMap",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Base map used during mapping (Base Map column)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].location",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text location description from the GeoPackage."
+    },
+    {
+      "path": "baseline.verticalHabitats[].spatialRiskCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Spatial risk category from the GeoPackage."
+    },
+    {
+      "path": "baseline.verticalHabitats[].habitatCreatedInAdvanceYears",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].delayInStartingHabitatCreationYears",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].rawDistinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
+    },
+    {
+      "path": "baseline.verticalHabitats[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "Stable UUID for the feature; join key to the bng.baseline_vertical_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+    },
+    {
+      "path": "baseline.verticalHabitats[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Habitat reference from the GeoPackage (Habitat Ref column)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
+    },
+    {
+      "path": "baseline.verticalHabitats[].broadType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
+    },
+    {
+      "path": "baseline.verticalHabitats[].area",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0."
+    },
+    {
+      "path": "baseline.verticalHabitats[].sizeSquareMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+    },
+    {
+      "path": "baseline.verticalHabitats[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline biodiversity units for the vertical area habitat, from bng-library/metric using the area-habitat calculation; null when required calculation inputs are missing."
+    },
+    {
+      "path": "baseline.verticalHabitats[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats Baseline layer."
+    },
+    {
       "path": "baseline.hedgerows",
       "type": "array<object>",
       "required": false,
@@ -2643,7 +3061,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats."
+      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees and vertical area habitats (parcels + trees + vertical area habitats); the per-document Site size excludes special habitats."
     },
     {
       "path": "baseline.habitatSizes.hedgerows",
@@ -2734,6 +3152,28 @@
       "description": "Total notional area of rural trees, in m²."
     },
     {
+      "path": "baseline.habitatSizes.verticalHabitats",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read."
+    },
+    {
+      "path": "baseline.habitatSizes.verticalHabitats.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+    },
+    {
       "path": "baseline.habitatSizes.site",
       "type": "object",
       "required": false,
@@ -2742,7 +3182,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees."
+      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees and vertical area habitats). Absent when there are no trees."
     },
     {
       "path": "baseline.habitatSizes.site.totalSquareMetres",
@@ -2753,7 +3193,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
+      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (individual trees and vertical area habitats). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
     },
     {
       "path": "baseline.units",
@@ -2786,7 +3226,18 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Sum of baseline units across all area habitats."
+      "description": "Sum of baseline units across all area habitats, vertical area habitats included."
+    },
+    {
+      "path": "baseline.units.verticalHabitatsTotal",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across vertical area habitats: the part of habitatsTotal they make up. Absent on a document saved before they were read."
     },
     {
       "path": "baseline.units.hedgerowsTotal",
@@ -4064,6 +4515,475 @@
       "description": "Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer."
     },
     {
+      "path": "postIntervention.verticalHabitats",
+      "type": "array<object>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention vertical area habitats (green walls and intertidal hard structures). Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[]",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "A post-intervention vertical area habitat (green wall or intertidal hard structure), drawn as a line along its base, with nested baseline and proposed sub-objects."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].retentionCategory",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Retained", "Created", "Enhanced"],
+      "constraints": [],
+      "openMap": false,
+      "description": "Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].featureId",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "Stable UUID for the feature; join key to the bng.post_intervention_vertical_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].ref",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Habitat reference from the GeoPackage (Habitat Ref column)."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].area",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].sizeSquareMetres",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Face area in square metres, as the surveyor estimated it and typed it into the template's Area (m²) column. Units are priced on it, in hectares."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].units",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].status",
+      "type": "string",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": ["Complete", "Incomplete"],
+      "constraints": [],
+      "openMap": false,
+      "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "medium-intertidal-area",
+        "medium-area-condition-assessment-na",
+        "medium-area",
+        "low-area-condition-assessment-na",
+        "low-area",
+        "very-low-area"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the habitat is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: true for \"Yes\", false for \"No\" or a blank cell."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline habitat values extracted from the Baseline * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline habitat type from the GeoPackage Baseline Habitat Type column."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.broadType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline broad habitat type."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline condition assessment stripped of list-index prefix."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-library/metric."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].baseline.strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Baseline Strategic Significance from the GeoPackage."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed habitat values extracted from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.type",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed habitat type from the GeoPackage Proposed Habitat Type column."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.broadType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed broad habitat type."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.condition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed condition assessment stripped of list-index prefix."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.conditionScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric condition score set during post-intervention enrichment."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.distinctiveness",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Distinctiveness band resolved by bng-library/metric."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.distinctivenessScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Numeric distinctiveness score for the band, from bng-library/metric."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.advanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Habitat created in advance (years); null when missing, not applicable, conflicting with delay, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.delayYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Delay in starting habitat creation (years); null when missing, not applicable, conflicting with advance, or redundant for Retained or Lost non-area habitats. Lost area replacement timing follows Created rules."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.timeMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Time multiplier from bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.difficultyMultiplier",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty multiplier from bng-library/metric; set for Created and Enhanced features."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.standardTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.difficulty",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Difficulty band label (e.g. Low, Medium, High) from the relevant difficulty reference data; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.strategicSignificanceCategory",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance category (High or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features, and null where the imported value was not Low or High (BMD-1051)."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.rejectedStrategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.strategicSignificanceScore",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Strategic significance multiplier from bng-library/metric (High 1.15, Low 1; Medium is not supported). Applied to Created and Enhanced units; Retained features carry the baseline value, always 1. Null where the imported value was invalid, and the units are then null (BMD-1070)."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.advanceOrDelay",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance/delay summary derived from proposed advanceYears and delayYears (e.g. \"Advance - 3 years\", \"Neither\")."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.finalTimeToTargetCondition",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Final time-to-target display combining statutory years, advance/delay and time multiplier (e.g. \"8 years (0.7)\")."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].proposed.strategicSignificance",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Proposed Strategic Significance from the GeoPackage."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].properties",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": true,
+      "description": "Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats Post-Intervention layer."
+    },
+    {
       "path": "postIntervention.hedgerows",
       "type": "array<object>",
       "required": false,
@@ -4996,7 +5916,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats."
+      "description": "Total area-habitat size in m². On the baseline this is the headline \"Area habitats\" total and includes individual trees and vertical area habitats (parcels + trees + vertical area habitats); the per-document Site size excludes special habitats."
     },
     {
       "path": "postIntervention.habitatSizes.hedgerows",
@@ -5087,6 +6007,28 @@
       "description": "Total notional area of rural trees, in m²."
     },
     {
+      "path": "postIntervention.habitatSizes.verticalHabitats",
+      "type": "object",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read."
+    },
+    {
+      "path": "postIntervention.habitatSizes.verticalHabitats.totalSquareMetres",
+      "type": "number",
+      "required": true,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+    },
+    {
       "path": "postIntervention.habitatSizes.site",
       "type": "object",
       "required": false,
@@ -5095,7 +6037,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees."
+      "description": "Site size (habitat parcels only, excluding special habitats such as individual trees and vertical area habitats). Absent when there are no trees."
     },
     {
       "path": "postIntervention.habitatSizes.site.totalSquareMetres",
@@ -5106,7 +6048,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
+      "description": "Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (individual trees and vertical area habitats). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB."
     },
     {
       "path": "postIntervention.units",
@@ -5139,7 +6081,18 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Sum of baseline units across all area habitats."
+      "description": "Sum of baseline units across all area habitats, vertical area habitats included."
+    },
+    {
+      "path": "postIntervention.units.verticalHabitatsTotal",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Sum of baseline units across vertical area habitats: the part of habitatsTotal they make up. Absent on a document saved before they were read."
     },
     {
       "path": "postIntervention.units.hedgerowsTotal",
@@ -5785,7 +6738,12 @@
       "required": true,
       "nullable": false,
       "emptyStringAllowed": false,
-      "enumValues": ["habitats", "hedgerows", "watercourses"],
+      "enumValues": [
+        "habitats",
+        "verticalHabitats",
+        "hedgerows",
+        "watercourses"
+      ],
       "constraints": [],
       "openMap": false,
       "description": "The baseline layer the lost habitat is in."
@@ -5843,7 +6801,7 @@
       "enumValues": [],
       "constraints": ["min 0"],
       "openMap": false,
-      "description": "An area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres."
+      "description": "An area or vertical area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres."
     },
     {
       "path": "postIntervention.lostHabitats[].lostSizeMetres",

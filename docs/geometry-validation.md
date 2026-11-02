@@ -1,12 +1,13 @@
 # Geometry validation
 
-Uploaded GeoPackages are checked against fifteen geometry rules — the redline
+Uploaded GeoPackages are checked against sixteen geometry rules — the redline
 must be valid, inside England and under 100 km²; parcels must not overlap, must
 not escape the redline, must not be under a square metre; hedgerows,
-watercourses, IGGIs and trees must sit inside the boundary; the parcels must sum
-to the redline.
+watercourses, IGGIs, trees and the lines of vertical area habitats must sit
+inside the boundary; the parcels must sum to the redline. Vertical area
+habitats play no part in that sum: the Metric leaves them out of the site area.
 
-All fifteen run **in this process**, on a worker thread, with GEOS compiled to
+All sixteen run **in this process**, on a worker thread, with GEOS compiled to
 WebAssembly. Validation takes **no database connection at all**.
 
 ## Why it works this way

@@ -48,6 +48,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     expect(document.units).toEqual({
       totalUnits: 0,
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -76,6 +77,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     expect(document.units).toEqual({
       totalUnits: 4,
       habitatsTotal: 4,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -122,6 +124,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     expect(document.units).toEqual({
       totalUnits: 4,
       habitatsTotal: 4,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -322,6 +325,7 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     expect(document.units).toEqual({
       totalUnits: 0,
       habitatsTotal: 0,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -365,5 +369,41 @@ describe('enrichBaselineDocumentWithUnits — area habitats and trees', () => {
     expect(document.units.hedgerowsTotal).toBeCloseTo(12)
     expect(document.units.watercoursesTotal).toBeCloseTo(16)
     expect(document.units.totalUnits).toBeCloseTo(32)
+  })
+})
+
+describe('enrichBaselineDocumentWithUnits — vertical area habitats', () => {
+  it('prices one as an area habitat on its typed area, in hectares, and counts it in the area total', () => {
+    const document = {
+      habitats: [],
+      verticalHabitats: [
+        {
+          featureId: 'v1',
+          broadType: 'Urban',
+          type: 'Facade-bound green wall',
+          condition: 'Poor',
+          sizeSquareMetres: 400
+        }
+      ]
+    }
+
+    enrichBaselineDocumentWithUnits(document)
+
+    const expected = engineActual.calculateAreaHabitatBaseline(
+      0.04,
+      'Urban - Facade-bound green wall',
+      'Poor'
+    )
+    expect(calculateAreaHabitatBaselineMock).toHaveBeenCalledWith(
+      0.04,
+      expect.any(String),
+      'Poor'
+    )
+    expect(document.verticalHabitats[0].units).toBe(expected.units)
+    expect(document.verticalHabitats[0].units).toBeGreaterThan(0)
+    expect(document.units).toMatchObject({
+      habitatsTotal: document.verticalHabitats[0].units,
+      verticalHabitatsTotal: document.verticalHabitats[0].units
+    })
   })
 })

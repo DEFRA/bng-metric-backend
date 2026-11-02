@@ -225,6 +225,15 @@ export const ERROR_BUILDERS = {
       ),
       p
     ),
+  [ERROR_CODES.VERTICAL_HABITATS_OUTSIDE_REDLINE]: (p) =>
+    makeError(
+      ERROR_CODES.VERTICAL_HABITATS_OUTSIDE_REDLINE,
+      formatList(
+        'One or more vertical area habitats are not entirely within the redline boundary',
+        p
+      ),
+      p
+    ),
   [ERROR_CODES.AREA_SUM_MISMATCH]: (p) =>
     makeError(
       ERROR_CODES.AREA_SUM_MISMATCH,

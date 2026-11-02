@@ -34,6 +34,7 @@ export const HABITAT_STYLES = {
   redLine: { stroke: '#d4351c', lineWidth: 1.6, dash: null },
   hedgerow: { stroke: '#00703c', lineWidth: 2 },
   watercourse: { stroke: '#1d70b8', lineWidth: 2 },
+  verticalHabitat: { stroke: '#6f3f1d', lineWidth: 2 },
   tree: { fill: '#0b4b2c', radius: 2 }
 }
 

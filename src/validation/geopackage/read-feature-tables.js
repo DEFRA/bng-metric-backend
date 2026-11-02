@@ -114,6 +114,13 @@ const LAYER_ALIASES = {
 }
 
 /**
+ * Logical layers only the BNG Service template has (template-mapping.js), so
+ * a legacy file never resolves them. Each is still an empty layer then, as
+ * every layer the pipeline reads is.
+ */
+const TEMPLATE_ONLY_LAYERS = Object.freeze(['verticalHabitats'])
+
+/**
  * Lower-case `gpkg_contents.table_name` keys the format gate counts features
  * for. Read even when no logical layer resolves to them.
  */
@@ -587,6 +594,7 @@ export function readFeatureTables(
  *   watercourses: object[],
  *   iggis: object[],
  *   trees: object[],
+ *   verticalHabitats: object[],
  *   missingLayers: string[],
  *   layerTables?: Record<string, string>
  * }} `layerTables`, for a BNG Service template file only, names the table
@@ -599,7 +607,10 @@ export function toLayers({
   templateRead
 }) {
   const layers = {}
-  for (const logical of Object.keys(LAYER_ALIASES)) {
+  for (const logical of [
+    ...Object.keys(LAYER_ALIASES),
+    ...TEMPLATE_ONLY_LAYERS
+  ]) {
     layers[logical] = []
   }
 

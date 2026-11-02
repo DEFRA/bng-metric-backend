@@ -21,7 +21,8 @@ const RAW_TO_DOCUMENT_LAYER = Object.freeze({
   areas: 'habitats',
   hedgerows: 'hedgerows',
   watercourses: 'watercourses',
-  trees: 'trees'
+  trees: 'trees',
+  verticalHabitats: 'verticalHabitats'
 })
 
 /** Lookup used when a layer has nothing to carry forward. */

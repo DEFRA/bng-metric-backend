@@ -236,6 +236,7 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
     expect(rows[0].project.baseline.units).toEqual({
       totalUnits: 12,
       habitatsTotal: 12,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,

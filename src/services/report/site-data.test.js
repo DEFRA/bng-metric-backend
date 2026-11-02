@@ -35,7 +35,13 @@ function emptyGeometry(overrides = {}) {
   return {
     redLine: null,
     redLineAreaSqm: 0,
-    layers: { habitats: [], hedgerows: [], watercourses: [], trees: [] },
+    layers: {
+      habitats: [],
+      hedgerows: [],
+      watercourses: [],
+      trees: [],
+      verticalHabitats: []
+    },
     ...overrides
   }
 }
@@ -376,6 +382,7 @@ describe('#buildSite', () => {
       'habitats',
       'hedgerows',
       'trees',
+      'verticalHabitats',
       'watercourses'
     ])
   })
@@ -524,6 +531,7 @@ describe('#documentCounts', () => {
       habitats: 2,
       hedgerows: 1,
       watercourses: 0,
+      verticalHabitats: 0,
       trees: 0
     })
   })
@@ -553,7 +561,8 @@ describe('#cappedLayers', () => {
         ],
         hedgerows: [],
         watercourses: [],
-        trees: []
+        trees: [],
+        verticalHabitats: []
       }
     })
 
@@ -625,7 +634,8 @@ describe('#readSiteData', () => {
           habitats: [{ featureId: 'f1', geometry: SQUARE }],
           hedgerows: [],
           watercourses: [],
-          trees: []
+          trees: [],
+          verticalHabitats: []
         }
       })
     )

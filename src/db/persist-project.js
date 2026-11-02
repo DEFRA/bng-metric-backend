@@ -37,6 +37,7 @@ import {
   baselineUnitsTotalsSchema,
   habitatSchema,
   linearHabitatSchema,
+  verticalHabitatSchema,
   watercourseHabitatSchema
 } from '../validation/project.js'
 
@@ -47,6 +48,7 @@ const HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY = {
 
 const FEATURE_SCHEMA_BY_LAYER = {
   habitats: habitatSchema,
+  verticalHabitats: verticalHabitatSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
 }
@@ -320,7 +322,7 @@ function assertFeatureEditValid({
  * @param {object} exec drizzle handle or transaction
  * @param {string} id project id
  * @param {object} params
- * @param {'habitats'|'hedgerows'|'watercourses'} params.layer
+ * @param {'habitats'|'verticalHabitats'|'hedgerows'|'watercourses'} params.layer
  * @param {number} params.index position of the feature within its layer array
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals

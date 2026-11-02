@@ -21,6 +21,7 @@ import { FEATURE_UUID, PARENT_UUID } from 'bng-library/bng-service'
  */
 export const PARENT_LINKED_LAYERS = Object.freeze([
   'habitats',
+  'verticalHabitats',
   'hedgerows',
   'watercourses'
 ])

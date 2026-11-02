@@ -8,7 +8,7 @@ import { templateForVersion } from './supported-versions.js'
  * a feature.
  *
  * Every Post-Intervention table of the version counts, including those the
- * service does not read yet (vertical area habitats, individual trees): a file
+ * service does not read yet (individual trees): a file
  * with features in any of them describes a post-intervention stage. Every
  * table of a version is required, so the format gate has already refused a
  * file missing one; only the tables the file has are counted all the same, so

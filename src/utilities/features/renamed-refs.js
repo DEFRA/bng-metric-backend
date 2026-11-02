@@ -11,7 +11,8 @@ const LAYER_KEYS = Object.freeze([
   'habitats',
   'hedgerows',
   'watercourses',
-  'trees'
+  'trees',
+  'verticalHabitats'
 ])
 
 function refsById(features) {

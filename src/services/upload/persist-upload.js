@@ -78,6 +78,7 @@ async function deleteExistingFeatureRows(tx, projectId, featureTables) {
   await deleteFeatureRows(tx, featureTables.hedgerows, projectId)
   await deleteFeatureRows(tx, featureTables.watercourses, projectId)
   await deleteFeatureRows(tx, featureTables.trees, projectId)
+  await deleteFeatureRows(tx, featureTables.verticalHabitats, projectId)
 }
 
 // Lock the project row for update — but only if it is visible to the requesting
@@ -131,6 +132,12 @@ async function persistGeometryLayers(tx, projectId, geometries, featureTables) {
     featureTables.trees,
     projectId,
     geometries.trees ?? []
+  )
+  await insertGeometryRowsBatched(
+    tx,
+    featureTables.verticalHabitats,
+    projectId,
+    geometries.verticalHabitats ?? []
   )
 }
 

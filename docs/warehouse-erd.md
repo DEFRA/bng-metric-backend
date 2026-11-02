@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**23 tables**, mapping 381 schema fields.
+**25 tables**, mapping 451 schema fields.
 
 ## Diagram
 
@@ -33,11 +33,13 @@ erDiagram
     feature_set ||--o| baseline_red_line : "has"
     feature_set ||--o{ baseline_habitats : "contains"
     feature_set ||--o{ baseline_trees : "contains"
+    feature_set ||--o{ baseline_vertical_habitats : "contains"
     feature_set ||--o{ baseline_hedgerows : "contains"
     feature_set ||--o{ baseline_watercourses : "contains"
     feature_set ||--o| post_intervention_red_line : "has"
     feature_set ||--o{ post_intervention_habitats : "contains"
     feature_set ||--o{ post_intervention_trees : "contains"
+    feature_set ||--o{ post_intervention_vertical_habitats : "contains"
     feature_set ||--o{ post_intervention_hedgerows : "contains"
     feature_set ||--o{ post_intervention_watercourses : "contains"
 
@@ -151,6 +153,14 @@ erDiagram
         text type
         numeric units
     }
+    baseline_vertical_habitats {
+        uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
+        text feature_set_id FK "→ feature_set.feature_set_id"
+        text status
+        text ref
+        text type
+        numeric units
+    }
     baseline_hedgerows {
         uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
         text feature_set_id FK "→ feature_set.feature_set_id"
@@ -181,6 +191,13 @@ erDiagram
         text status
     }
     post_intervention_trees {
+        uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
+        text feature_set_id FK "→ feature_set.feature_set_id"
+        text ref
+        numeric units
+        text status
+    }
+    post_intervention_vertical_habitats {
         uuid feature_id PK "the feature's own featureId — also the PK of the matching PostGIS geometry row"
         text feature_set_id FK "→ feature_set.feature_set_id"
         text ref
@@ -235,11 +252,13 @@ ids above. Nothing is stored for these; compose them on read.
 | `baseline_red_line`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_habitats`                                | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_trees`                                   | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `baseline_vertical_habitats`                       | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_hedgerows`                               | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `baseline_watercourses`                            | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `post_intervention_red_line`                       | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `post_intervention_habitats`                       | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `post_intervention_trees`                          | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `post_intervention_vertical_habitats`              | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `post_intervention_hedgerows`                      | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `post_intervention_watercourses`                   | `feature_id`                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 
@@ -370,7 +389,7 @@ One row per imported document per project: the GeoPackage upload that produced i
 
 ### `feature_set_units`
 
-Biodiversity unit totals for one document, summed across its features. 13 column(s) mapped from the JSON document.
+Biodiversity unit totals for one document, summed across its features. 14 column(s) mapped from the JSON document.
 
 | Column                                    | Type      | Key | JSON path                                                                                                            | Notes                             |
 | ----------------------------------------- | --------- | --- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
@@ -378,6 +397,7 @@ Biodiversity unit totals for one document, summed across its features. 13 column
 | `feature_set_id`                          | `text`    | FK  | —                                                                                                                    | → feature_set.feature_set_id      |
 | `total_units`                             | `numeric` |     | `baseline.units.totalUnits`<br>`postIntervention.units.totalUnits`                                                   |                                   |
 | `habitats_total`                          | `numeric` |     | `baseline.units.habitatsTotal`<br>`postIntervention.units.habitatsTotal`                                             |                                   |
+| `vertical_habitats_total`                 | `numeric` |     | `baseline.units.verticalHabitatsTotal`<br>`postIntervention.units.verticalHabitatsTotal`                             |                                   |
 | `hedgerows_total`                         | `numeric` |     | `baseline.units.hedgerowsTotal`<br>`postIntervention.units.hedgerowsTotal`                                           |                                   |
 | `watercourses_total`                      | `numeric` |     | `baseline.units.watercoursesTotal`<br>`postIntervention.units.watercoursesTotal`                                     |                                   |
 | `trees_total`                             | `numeric` |     | `baseline.units.treesTotal`<br>`postIntervention.units.treesTotal`                                                   |                                   |
@@ -392,19 +412,20 @@ Biodiversity unit totals for one document, summed across its features. 13 column
 
 ### `feature_set_habitat_sizes`
 
-Total feature sizes by module, measured from geometry in PostGIS. The five sub-groups in the JSON are flattened into one row. 7 column(s) mapped from the JSON document.
+Total feature sizes by module, measured from geometry in PostGIS. The five sub-groups in the JSON are flattened into one row. 8 column(s) mapped from the JSON document.
 
-| Column                              | Type      | Key | JSON path                                                                                                                | Notes                                    |
-| ----------------------------------- | --------- | --- | ------------------------------------------------------------------------------------------------------------------------ | ---------------------------------------- |
-| `habitat_sizes_id`                  | `text`    | PK  | —                                                                                                                        | `{projectId}:{documentKey}:habitatSizes` |
-| `feature_set_id`                    | `text`    | FK  | —                                                                                                                        | → feature_set.feature_set_id             |
-| `area_habitats_total_square_metres` | `numeric` |     | `baseline.habitatSizes.areaHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.areaHabitats.totalSquareMetres` |                                          |
-| `hedgerows_total_metres`            | `numeric` |     | `baseline.habitatSizes.hedgerows.totalMetres`<br>`postIntervention.habitatSizes.hedgerows.totalMetres`                   |                                          |
-| `watercourses_total_metres`         | `numeric` |     | `baseline.habitatSizes.watercourses.totalMetres`<br>`postIntervention.habitatSizes.watercourses.totalMetres`             |                                          |
-| `trees_total_square_metres`         | `numeric` |     | `baseline.habitatSizes.trees.totalSquareMetres`<br>`postIntervention.habitatSizes.trees.totalSquareMetres`               |                                          |
-| `trees_urban_square_metres`         | `numeric` |     | `baseline.habitatSizes.trees.urbanSquareMetres`<br>`postIntervention.habitatSizes.trees.urbanSquareMetres`               |                                          |
-| `trees_rural_square_metres`         | `numeric` |     | `baseline.habitatSizes.trees.ruralSquareMetres`<br>`postIntervention.habitatSizes.trees.ruralSquareMetres`               |                                          |
-| `site_total_square_metres`          | `numeric` |     | `baseline.habitatSizes.site.totalSquareMetres`<br>`postIntervention.habitatSizes.site.totalSquareMetres`                 |                                          |
+| Column                                  | Type      | Key | JSON path                                                                                                                        | Notes                                    |
+| --------------------------------------- | --------- | --- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `habitat_sizes_id`                      | `text`    | PK  | —                                                                                                                                | `{projectId}:{documentKey}:habitatSizes` |
+| `feature_set_id`                        | `text`    | FK  | —                                                                                                                                | → feature_set.feature_set_id             |
+| `area_habitats_total_square_metres`     | `numeric` |     | `baseline.habitatSizes.areaHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.areaHabitats.totalSquareMetres`         |                                          |
+| `hedgerows_total_metres`                | `numeric` |     | `baseline.habitatSizes.hedgerows.totalMetres`<br>`postIntervention.habitatSizes.hedgerows.totalMetres`                           |                                          |
+| `watercourses_total_metres`             | `numeric` |     | `baseline.habitatSizes.watercourses.totalMetres`<br>`postIntervention.habitatSizes.watercourses.totalMetres`                     |                                          |
+| `trees_total_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.totalSquareMetres`<br>`postIntervention.habitatSizes.trees.totalSquareMetres`                       |                                          |
+| `trees_urban_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.urbanSquareMetres`<br>`postIntervention.habitatSizes.trees.urbanSquareMetres`                       |                                          |
+| `trees_rural_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.ruralSquareMetres`<br>`postIntervention.habitatSizes.trees.ruralSquareMetres`                       |                                          |
+| `vertical_habitats_total_square_metres` | `numeric` |     | `baseline.habitatSizes.verticalHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.verticalHabitats.totalSquareMetres` |                                          |
+| `site_total_square_metres`              | `numeric` |     | `baseline.habitatSizes.site.totalSquareMetres`<br>`postIntervention.habitatSizes.site.totalSquareMetres`                         |                                          |
 
 ### `feature_set_trading_rules`
 
@@ -581,6 +602,42 @@ trees in the baseline document. 31 column(s) mapped from the JSON document.
 | `tree_species`                             | `text`    |     | `baseline.trees[].treeSpecies`                         |                                                                                  |
 | `rural_or_urban`                           | `text`    |     | `baseline.trees[].ruralOrUrban`                        |                                                                                  |
 | `count`                                    | `numeric` |     | `baseline.trees[].count`                               |                                                                                  |
+
+### `baseline_vertical_habitats`
+
+verticalHabitats in the baseline document. 27 column(s) mapped from the JSON document.
+
+| Column                                     | Type      | Key | JSON path                                                         | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —                                                                 | → feature_set.feature_set_id                                                     |
+| `distinctiveness`                          | `text`    |     | `baseline.verticalHabitats[].distinctiveness`                     |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | `baseline.verticalHabitats[].distinctivenessScore`                |                                                                                  |
+| `condition`                                | `text`    |     | `baseline.verticalHabitats[].condition`                           |                                                                                  |
+| `condition_score`                          | `numeric` |     | `baseline.verticalHabitats[].conditionScore`                      |                                                                                  |
+| `strategic_significance`                   | `text`    |     | `baseline.verticalHabitats[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | `baseline.verticalHabitats[].retentionCategory`                   |                                                                                  |
+| `irreplaceable`                            | `boolean` |     | `baseline.verticalHabitats[].irreplaceable`                       |                                                                                  |
+| `status`                                   | `text`    |     | `baseline.verticalHabitats[].status`                              |                                                                                  |
+| `site_name`                                | `text`    |     | `baseline.verticalHabitats[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | `baseline.verticalHabitats[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | `baseline.verticalHabitats[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | `baseline.verticalHabitats[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | `baseline.verticalHabitats[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | `baseline.verticalHabitats[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | `baseline.verticalHabitats[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | `baseline.verticalHabitats[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | `baseline.verticalHabitats[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | `baseline.verticalHabitats[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.verticalHabitats[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | `baseline.verticalHabitats[].rawDistinctiveness`                  |                                                                                  |
+| `ref`                                      | `text`    |     | `baseline.verticalHabitats[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | `baseline.verticalHabitats[].type`                                |                                                                                  |
+| `broad_type`                               | `text`    |     | `baseline.verticalHabitats[].broadType`                           |                                                                                  |
+| `area`                                     | `numeric` |     | `baseline.verticalHabitats[].area`                                |                                                                                  |
+| `size_square_metres`                       | `numeric` |     | `baseline.verticalHabitats[].sizeSquareMetres`                    |                                                                                  |
+| `units`                                    | `numeric` |     | `baseline.verticalHabitats[].units`                               |                                                                                  |
+| `properties`                               | `jsonb`   |     | `baseline.verticalHabitats[].properties`                          | verbatim GeoPackage attribute columns                                            |
 
 ### `baseline_hedgerows`
 
@@ -765,6 +822,52 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.trees[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.trees[].proposed.finalTimeToTargetCondition`    |                                                                                  |
 | `properties`                                 | `jsonb`   |     | `postIntervention.trees[].properties`                             | verbatim GeoPackage attribute columns                                            |
+
+### `post_intervention_vertical_habitats`
+
+verticalHabitats in the postIntervention document. 37 column(s) mapped from the JSON document.
+
+| Column                                       | Type      | Key | JSON path                                                                    | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —                                                                            | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —                                                                            | → feature_set.feature_set_id                                                     |
+| `retention_category`                         | `text`    |     | `postIntervention.verticalHabitats[].retentionCategory`                      |                                                                                  |
+| `ref`                                        | `text`    |     | `postIntervention.verticalHabitats[].ref`                                    |                                                                                  |
+| `area`                                       | `numeric` |     | `postIntervention.verticalHabitats[].area`                                   |                                                                                  |
+| `size_square_metres`                         | `numeric` |     | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
+| `units`                                      | `numeric` |     | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
+| `status`                                     | `text`    |     | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
+| `baseline_type`                              | `text`    |     | `postIntervention.verticalHabitats[].baseline.type`                          |                                                                                  |
+| `baseline_broad_type`                        | `text`    |     | `postIntervention.verticalHabitats[].baseline.broadType`                     |                                                                                  |
+| `baseline_condition`                         | `text`    |     | `postIntervention.verticalHabitats[].baseline.condition`                     |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | `postIntervention.verticalHabitats[].baseline.conditionScore`                |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.verticalHabitats[].baseline.distinctiveness`               |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.verticalHabitats[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | `postIntervention.verticalHabitats[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.verticalHabitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
+| `proposed_type`                              | `text`    |     | `postIntervention.verticalHabitats[].proposed.type`                          |                                                                                  |
+| `proposed_broad_type`                        | `text`    |     | `postIntervention.verticalHabitats[].proposed.broadType`                     |                                                                                  |
+| `proposed_condition`                         | `text`    |     | `postIntervention.verticalHabitats[].proposed.condition`                     |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | `postIntervention.verticalHabitats[].proposed.conditionScore`                |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.verticalHabitats[].proposed.distinctiveness`               |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.verticalHabitats[].proposed.distinctivenessScore`          |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | `postIntervention.verticalHabitats[].proposed.advanceYears`                  |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | `postIntervention.verticalHabitats[].proposed.delayYears`                    |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.verticalHabitats[].proposed.timeMultiplier`                |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.verticalHabitats[].proposed.difficultyMultiplier`          |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.verticalHabitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | `postIntervention.verticalHabitats[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.verticalHabitats[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.verticalHabitats[].proposed.rejectedStrategicSignificance` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.verticalHabitats[].proposed.strategicSignificanceScore`    |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.verticalHabitats[].proposed.advanceOrDelay`                |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.verticalHabitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | `postIntervention.verticalHabitats[].proposed.strategicSignificance`         |                                                                                  |
+| `properties`                                 | `jsonb`   |     | `postIntervention.verticalHabitats[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_hedgerows`
 

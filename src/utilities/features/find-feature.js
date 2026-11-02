@@ -1,6 +1,7 @@
 const FEATURE_LAYERS = [
   { type: 'habitat', key: 'habitats' },
   { type: 'tree', key: 'trees' },
+  { type: 'verticalHabitat', key: 'verticalHabitats' },
   { type: 'hedgerow', key: 'hedgerows' },
   { type: 'watercourse', key: 'watercourses' }
 ]
