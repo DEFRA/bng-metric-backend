@@ -137,8 +137,28 @@ describe('refuseUnenhanceableBaselines', () => {
     })
 
     expect(error.details.sample[0]).toMatchObject({
-      proposed_habitat_type: 'Not a grassland',
+      proposed_habitat_type: 'Grassland - Not a grassland',
       proposed_condition: null
+    })
+  })
+
+  it('keeps a proposed condition the metric does not know, as the file gives it', () => {
+    const error = refuseUnenhanceableBaselines({
+      habitats: [
+        {
+          ...area('H1', 'Other neutral grassland', 'Good'),
+          proposed: {
+            broadType: 'Grassland',
+            type: 'Other neutral grassland',
+            condition: '2. Fairly good'
+          }
+        }
+      ]
+    })
+
+    expect(error.details.sample[0]).toMatchObject({
+      proposed_habitat_type: 'Grassland - Other neutral grassland',
+      proposed_condition: 'Fairly good'
     })
   })
 

@@ -208,7 +208,8 @@ export function checkBaselineEnhanceable(layer, side) {
 /**
  * @typedef {object} ProposedSide
  * @property {string | null} habitat the metric's label, or the file's own
- *   type when the metric does not know it; null when there is none
+ *   habitat in the same form when the metric does not know it; null when
+ *   there is none
  * @property {string | null} condition prefix stripped; null when there is none
  */
 
@@ -222,11 +223,28 @@ export function checkBaselineEnhanceable(layer, side) {
  * @returns {ProposedSide}
  */
 export function describeProposedSide(layer, side) {
-  const { habitat, condition } = readSide(BASELINE_KIND_BY_LAYER[layer], side)
+  const layerKind = BASELINE_KIND_BY_LAYER[layer]
+  const { habitat, condition } = readSide(layerKind, side)
   return {
-    habitat: habitat ?? textOrNull(side?.type),
+    habitat: habitat ?? fileHabitatLabel(layerKind, side),
     condition: textOrNull(condition)
   }
+}
+
+/**
+ * The file's own habitat, read the way the metric's labels read: an area
+ * habitat as "<broad> - <type>" when the file gives its broad habitat.
+ * @param {{ kind: string }} layerKind
+ * @param {{ type?: unknown, broadType?: unknown } | undefined} side
+ * @returns {string | null}
+ */
+function fileHabitatLabel(layerKind, side) {
+  const type = textOrNull(side?.type)
+  const broadType = textOrNull(side?.broadType)
+  if (type && broadType && layerKind.kind === ENHANCEMENT_KIND.area) {
+    return `${broadType} - ${type}`
+  }
+  return type
 }
 
 /**
