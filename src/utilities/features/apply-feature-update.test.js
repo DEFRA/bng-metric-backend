@@ -35,6 +35,7 @@ function projectFixture() {
       units: {
         totalUnits: 4,
         habitatsTotal: 4,
+        verticalHabitatsTotal: 0,
         hedgerowsTotal: 0,
         watercoursesTotal: 0
       }
@@ -90,6 +91,7 @@ describe('applyFeatureUpdate — habitat dispatch', () => {
     expect(result.project.baseline.units).toEqual({
       totalUnits: 12,
       habitatsTotal: 12,
+      verticalHabitatsTotal: 0,
       hedgerowsTotal: 0,
       watercoursesTotal: 0,
       treesTotal: 0,
@@ -467,6 +469,7 @@ function postInterventionProjectFixture() {
       units: {
         totalUnits: 10,
         habitatsTotal: 6,
+        verticalHabitatsTotal: 0,
         hedgerowsTotal: 2,
         watercoursesTotal: 1,
         treesTotal: 1,
@@ -534,6 +537,7 @@ function postInterventionProjectFixture() {
       units: {
         totalUnits: 0,
         habitatsTotal: 0,
+        verticalHabitatsTotal: 0,
         hedgerowsTotal: 0,
         watercoursesTotal: 0
       }
@@ -845,6 +849,7 @@ describe('applyFeatureUpdate — baseline edit with a post-intervention document
         units: {
           totalUnits: 2,
           habitatsTotal: 2,
+          verticalHabitatsTotal: 0,
           hedgerowsTotal: 0,
           watercoursesTotal: 0
         }
@@ -1194,6 +1199,7 @@ describe('applyFeatureUpdate — a baseline ref shared by two features', () => {
         units: {
           totalUnits: 4,
           habitatsTotal: 4,
+          verticalHabitatsTotal: 0,
           hedgerowsTotal: 0,
           watercoursesTotal: 0
         }
@@ -1458,6 +1464,55 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.postIntervention.habitats[0].ref).toBe('B-A1')
   })
 
+  test('refuses to rename onto a reference another area habitat carries', () => {
+    const project = projectFixture()
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
+      ref: 'A2'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'A2' }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.REF_IN_USE,
+      type: 'habitat',
+      ref: 'A2'
+    })
+  })
+
+  test('refuses to rename a hedgerow onto a watercourse’s reference', () => {
+    const project = projectFixture()
+    project.baseline.watercourses.push({
+      featureId: WATERCOURSE_ID,
+      ref: 'W1'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: null, condition: null, ref: 'W1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.REF_IN_USE)
+  })
+
+  test('saves a reference an import already shared when the edit keeps it', () => {
+    const project = projectFixture()
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
+      ref: 'A1'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'A1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+  })
+
   test('ignores a reference sent with a post-intervention edit', () => {
     const project = projectWithPostIntervention()
     const result = applyFeatureUpdate(project, {
@@ -1634,5 +1689,100 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
 
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.project.postIntervention).not.toHaveProperty('lostHabitats')
+  })
+})
+
+describe('applyFeatureUpdate — vertical area habitats', () => {
+  const WALL_ID = 'dd0e8400-e29b-41d4-a716-446655440004'
+
+  function projectWithWall() {
+    const project = projectFixture()
+    project.baseline.verticalHabitats = [
+      {
+        featureId: WALL_ID,
+        ref: 'V001',
+        type: 'Facade-bound green wall',
+        broadType: 'Urban',
+        condition: 'Poor',
+        sizeSquareMetres: 400,
+        units: 0.08
+      }
+    ]
+    return project
+  }
+
+  test('edits one as an area habitat, priced on its typed area', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Ground based green wall',
+        condition: 'Moderate'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.type).toBe('verticalHabitat')
+    expect(result.layer).toBe('verticalHabitats')
+    expect(result.feature).toMatchObject({
+      featureId: WALL_ID,
+      broadType: 'Urban',
+      type: 'Ground based green wall',
+      condition: 'Moderate',
+      sizeSquareMetres: 400,
+      // 0.04 ha × Low (2) × Moderate (2) × strategic significance (1)
+      units: 0.16,
+      status: 'Complete'
+    })
+    expect(result.project.baseline.units).toMatchObject({
+      habitatsTotal: 4.16,
+      verticalHabitatsTotal: 0.16
+    })
+  })
+
+  test('turns away another broad habitat with the habitat type left blank', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: { broadType: 'Grassland', habitatType: '', condition: '' }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'verticalHabitat'
+    })
+  })
+
+  test('keeps a vertical broad habitat with the habitat type left blank, as Incomplete', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: {
+        broadType: 'Intertidal hard structures',
+        habitatType: '',
+        condition: ''
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      broadType: 'Intertidal hard structures',
+      type: null,
+      status: 'Incomplete'
+    })
+  })
+
+  test('turns away an edit to a habitat the Metric does not count by vertical area', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Poor'
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'verticalHabitat'
+    })
   })
 })

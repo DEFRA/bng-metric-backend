@@ -20,13 +20,14 @@ import {
  * features by the legacy column names. Most of the template's columns already
  * have those names; Habitat Ref is the one renamed. A column the service does
  * not use is dropped, so it never reaches the stored document: distinctiveness
- * is derived from the habitat type, and sizes are measured from the geometry.
+ * is derived from the habitat type, and sizes are measured from the geometry,
+ * bar a vertical area habitat's: its Area is the face area the surveyor
+ * estimated on site, in square metres, which a line cannot give.
  * An area habitat's Irreplaceable Habitat is read as its `irreplaceable`
  * status (irreplaceable.js).
  * The Red Line Boundary is read for its geometry alone.
  *
- * Individual trees (BMD-1172) and vertical area habitats (BMD-1084) are not
- * read yet, so they have no entry.
+ * Individual trees (BMD-1172) are not read yet, so they have no entry.
  */
 
 /** The legacy pipeline's name for a habitat's reference. */
@@ -79,6 +80,19 @@ const LAYER_COLUMNS = {
     ),
     ...dropped('Area')
   ],
+  verticalHabitats: [
+    ...COMMON_COLUMNS,
+    ...kept(
+      'Baseline Broad Habitat Type',
+      'Baseline Habitat Type',
+      'Proposed Broad Habitat Type',
+      'Proposed Habitat Type',
+      'Irreplaceable Habitat',
+      // Square metres, as entered: the service converts it to hectares only
+      // to price it.
+      'Area'
+    )
+  ],
   hedgerows: [
     ...COMMON_COLUMNS,
     ...kept('Baseline Hedge Type', 'Proposed Hedge Type'),
@@ -102,6 +116,7 @@ const LAYER_COLUMNS = {
 /** bng-library's key for the template layer behind each habitat layer. */
 const TEMPLATE_LAYERS = {
   areas: 'habitats',
+  verticalHabitats: 'verticalHabitats',
   hedgerows: 'hedgerows',
   watercourses: 'rivers'
 }
@@ -150,6 +165,7 @@ const LAYER_MAPPINGS = Object.freeze({
 
 /**
  * Version 1.0's mapping: each logical layer the service reads, by the key the
- * pipeline knows it by (`redline`, `areas`, `hedgerows`, `watercourses`).
+ * pipeline knows it by (`redline`, `areas`, `verticalHabitats`, `hedgerows`,
+ * `watercourses`).
  */
 export const TEMPLATE_MAPPING_1_0 = LAYER_MAPPINGS

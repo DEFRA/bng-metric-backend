@@ -119,6 +119,12 @@ export function checkHabitatDistinctiveness(
     offenders
   )
   collectOffenders(
+    layers?.verticalHabitats ?? [],
+    (props) => buildHabitatLookupKey(props, keys),
+    getDistinctiveness,
+    offenders
+  )
+  collectOffenders(
     layers?.hedgerows ?? [],
     (props) => linearLookupKey(props, keys.hedgerowType),
     getHedgerowDistinctiveness,

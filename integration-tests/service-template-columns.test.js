@@ -30,6 +30,7 @@ const EVERY_COLUMN = 'service-template/default-site.gpkg'
 // The pipeline's logical layer, and the document key it is stored under.
 const LAYERS = [
   ['areas', 'habitats'],
+  ['verticalHabitats', 'verticalHabitats'],
   ['hedgerows', 'hedgerows'],
   ['watercourses', 'watercourses']
 ]
@@ -256,17 +257,15 @@ describeServiceTemplate(
       }
     })
 
-    it('reads the Red Line Boundary for its geometry alone, and no tree or vertical area habitat yet', () => {
+    it('reads the Red Line Boundary for its geometry alone, and no tree yet', () => {
       for (const [, documentName] of STAGES) {
         const document = stored[documentName]
         expect(document.redLine.properties).toEqual({ fid: 1 })
         expect(JSON.stringify(document.redLine)).not.toContain(
           'Oakwood Regional Development'
         )
-        // Individual trees (BMD-1172) and vertical area habitats (BMD-1084)
-        // are not read yet.
+        // Individual trees (BMD-1172) are not read yet.
         expect(document.trees).toEqual([])
-        expect(document).not.toHaveProperty('verticalHabitats')
       }
     })
 

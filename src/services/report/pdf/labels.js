@@ -12,12 +12,13 @@ const BASELINE = 'Baseline'
 const POST_INTERVENTION = 'Post-intervention'
 
 /**
- * The four feature layers, in the order every page presents them, with the
+ * The five feature layers, in the order every page presents them, with the
  * wording the service's own screens use. Keyed by the layer names
  * `db/project-geometry.js` reads and `site-data.js` joins.
  */
 const LAYER_LABELS = Object.freeze({
   habitats: 'Area habitats',
+  verticalHabitats: 'Vertical area habitats',
   hedgerows: 'Hedgerows',
   watercourses: 'Watercourses',
   trees: 'Individual trees'
@@ -29,6 +30,7 @@ const LAYER_LABELS = Object.freeze({
  */
 const LAYER_NOUNS = Object.freeze({
   habitats: 'habitat parcels',
+  verticalHabitats: 'vertical area habitats',
   hedgerows: 'hedgerows',
   watercourses: 'watercourses',
   trees: 'individual trees'

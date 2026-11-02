@@ -23,6 +23,7 @@ describe('#featureByIdColumns', () => {
       'id',
       'habitats',
       'trees',
+      'verticalHabitats',
       'hedgerows',
       'watercourses'
     ])

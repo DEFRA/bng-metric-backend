@@ -3,6 +3,8 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
+import { PROP_KEYS, pickProp } from '../../properties.js'
+import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
   LENGTH_TOLERANCE_METRES,
@@ -33,6 +35,9 @@ import {
  *
  * - hedgerows: the post-intervention hedgerows linked to a parent, Created
  *   ones included, never total more than its length;
+ * - vertical area habitats: likewise, the post-intervention vertical area
+ *   habitats linked to a parent never total more than its Area, the face area
+ *   the surveyor estimated, as a structure cannot gain face it never had;
  * - watercourses: a parent continues only through a Retained or Enhanced
  *   child, so one with both such a child and a Created child cannot have its
  *   length split between continuation and loss. The surveyor draws the
@@ -41,7 +46,8 @@ import {
  *   other baseline watercourse with no post-intervention child is refused;
  * - a degraded row, a Created row linked to a parent of its own habitat type,
  *   must be worse than its parent, or the habitat was kept and should be
- *   Retained or Enhanced. An area habitat or hedgerow gets worse by a lower
+ *   Retained or Enhanced. An area habitat, vertical area habitat or hedgerow
+ *   gets worse by a lower
  *   condition, and is created 30+ years in advance (guide, "Habitat
  *   retention"). A watercourse gets worse by a lower condition, more
  *   encroachment or a shorter length (guide, watercourse interventions);
@@ -52,8 +58,7 @@ import {
  *   losses"), which the delay already discounts, so it may be in any
  *   condition and needs no years in advance.
  *
- * Vertical area habitats (BMD-1084) and individual trees (BMD-1172) are not
- * read yet, so they are not checked.
+ * Individual trees (BMD-1172) are not read yet, so they are not checked.
  */
 
 const ADVANCE = 'Habitat created in advance/years'
@@ -64,9 +69,23 @@ const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
 
 const LINEAR_LAYERS = new Set(['hedgerows', 'watercourses'])
 
+/** The layers checked, area habitats first, as the messages list them. */
+const CHECKED_LAYERS = ['areas', 'verticalHabitats', ...LINEAR_LAYERS]
+
+/**
+ * The difference in area, in square metres, below which two typed areas are
+ * the same: the template takes an area to the square centimetre at most.
+ */
+const AREA_TOLERANCE_SQUARE_METRES = 0.0001
+
 /** Metres to the millimetre, as the messages give them. */
 const MILLIMETRES = 1000
 const toMillimetre = (metres) => Math.round(metres * MILLIMETRES) / MILLIMETRES
+
+/** Square metres to two places, as the messages give them. */
+const HUNDREDTHS = 100
+const toHundredth = (squareMetres) =>
+  Math.round(squareMetres * HUNDREDTHS) / HUNDREDTHS
 
 /** A baseline row as the comparisons read it. */
 function baselineSide(layer, properties) {
@@ -163,6 +182,36 @@ function checkHedgerowLength(parent, children, context) {
       ),
       lengthMetres: toMillimetre(parentMetres),
       childLengthMetres: toMillimetre(childMetres)
+    })
+  }
+}
+
+/**
+ * A row's typed Area, in square metres; 0 when it is not a number above 0.
+ * Read as the upload check and the extract read it.
+ */
+const typedArea = (feature) =>
+  verticalAreaSquareMetres(
+    pickProp(feature.properties ?? {}, PROP_KEYS.area)
+  ) ?? 0
+
+/** A vertical area habitat parent smaller than its linked children together. */
+function checkVerticalArea(parent, children, context) {
+  if (children.length === 0) {
+    return
+  }
+  const parentArea = typedArea(parent)
+  const childArea = children.reduce((sum, child) => sum + typedArea(child), 0)
+  if (childArea > parentArea + AREA_TOLERANCE_SQUARE_METRES) {
+    context.found.tooLarge.push({
+      ...offendingParent(
+        context.layer,
+        context.tables.baseline,
+        parent,
+        children
+      ),
+      areaSquareMetres: toHundredth(parentArea),
+      childAreaSquareMetres: toHundredth(childArea)
     })
   }
 }
@@ -274,6 +323,9 @@ function checkLayer(layer, baseline, postIntervention, found) {
     if (layer === 'hedgerows') {
       checkHedgerowLength(parent, children, context)
     }
+    if (layer === 'verticalHabitats') {
+      checkVerticalArea(parent, children, context)
+    }
     if (layer === 'watercourses') {
       checkWatercourseFamily(parent, children, context)
     }
@@ -303,13 +355,14 @@ const describeParent = (parent) =>
 export function checkLineageRules(baselineLayers, postInterventionLayers) {
   const found = {
     tooLong: [],
+    tooLarge: [],
     partCreated: [],
     naturalLost: [],
     notWorse: [],
     advanceNot30Plus: [],
     noIntervention: []
   }
-  for (const layer of ['areas', ...LINEAR_LAYERS]) {
+  for (const layer of CHECKED_LAYERS) {
     checkLayer(
       layer,
       {
@@ -330,6 +383,13 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
       found.tooLong,
       (parent) =>
         `${describeParent(parent)} (${parent.lengthMetres} m, linked ${parent.childLengthMetres} m)`
+    ),
+    collated(
+      ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
+      'One or more baseline vertical area habitats have a smaller Area (m²) than the post-intervention vertical area habitats linked to them together',
+      found.tooLarge,
+      (parent) =>
+        `${describeParent(parent)} (${parent.areaSquareMetres} m², linked ${parent.childAreaSquareMetres} m²)`
     ),
     collated(
       ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,

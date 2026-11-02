@@ -66,10 +66,25 @@ const postInterventionTrees = bng.table('post_intervention_trees', {
   geom: geometry('MultiPoint', BNG_SRID)('geom').notNull()
 })
 
+const postInterventionVerticalHabitats = bng.table(
+  'post_intervention_vertical_habitats',
+  {
+    id: uuid('id')
+      .primaryKey()
+      .default(sql`gen_random_uuid()`),
+    projectId: uuid('project_id')
+      .notNull()
+      .references(() => projects.id, { onDelete: 'cascade' }),
+    ref: text('ref'),
+    geom: geometry('MultiLineString', BNG_SRID)('geom').notNull()
+  }
+)
+
 export {
   postInterventionRedLine,
   postInterventionHabitats,
   postInterventionHedgerows,
   postInterventionWatercourses,
-  postInterventionTrees
+  postInterventionTrees,
+  postInterventionVerticalHabitats
 }

@@ -33,7 +33,7 @@ import { enrichPostInterventionHedgerowTradingRules } from './enrich-post-interv
  * watercourses as `options.baselineLengthByRef`; if missing, Enhanced watercourse
  * features will be marked Incomplete with a warning.
  *
- * @param {{ habitats?: object[], trees?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
+ * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
  * @param {{ baselineLengthByRef?: Map<string, number>, baselineUnits?: object, baselineDocument?: object }} [options]
  * @returns {typeof postInterventionDocument}
@@ -55,6 +55,13 @@ export function enrichPostInterventionDocumentWithUnits(
     postInterventionDocument?.trees,
     (tree, log) =>
       enrichPostInterventionAreaHabitat(tree, log, 'Individual tree'),
+    logger
+  )
+  // Vertical area habitats are area habitats sized by their typed face area.
+  enrichCollectionIfNonEmpty(
+    postInterventionDocument?.verticalHabitats,
+    (vertical, log) =>
+      enrichPostInterventionAreaHabitat(vertical, log, 'Vertical area habitat'),
     logger
   )
   if (

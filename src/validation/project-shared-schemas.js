@@ -40,7 +40,7 @@ export const habitatSizesSummarySchema = Joi.object({
     totalSquareMetres: Joi.number()
       .required()
       .description(
-        'Total area-habitat size in m². On the baseline this is the headline "Area habitats" total and includes individual trees (parcels + trees); the per-document Site size excludes special habitats.'
+        'Total area-habitat size in m². On the baseline this is the headline "Area habitats" total and includes individual trees and vertical area habitats (parcels + trees + vertical area habitats); the per-document Site size excludes special habitats.'
       )
   }).required(),
   hedgerows: Joi.object({
@@ -66,14 +66,23 @@ export const habitatSizesSummarySchema = Joi.object({
   }).description(
     'Individual tree areas (notional: each per-size reference area times its Count column). Absent when there are no trees (e.g. post-intervention).'
   ),
+  verticalHabitats: Joi.object({
+    totalSquareMetres: Joi.number()
+      .required()
+      .description(
+        'Total face area of all vertical area habitats, in m², as the surveyor typed it in.'
+      )
+  }).description(
+    'Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read.'
+  ),
   site: Joi.object({
     totalSquareMetres: Joi.number()
       .required()
       .description(
-        'Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (currently individual trees). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB.'
+        'Site size in m²: the sum of all habitat parcel areas, EXCLUDING special habitats (individual trees and vertical area habitats). For a valid GeoPackage this effectively equals the red line boundary area, so it is the figure checked against the RLB.'
       )
   }).description(
-    'Site size (habitat parcels only, excluding special habitats such as individual trees). Absent when there are no trees.'
+    'Site size (habitat parcels only, excluding special habitats such as individual trees and vertical area habitats). Absent when there are no trees.'
   )
 })
   .allow(null)
@@ -87,7 +96,12 @@ export const baselineUnitsTotalsSchema = Joi.object({
     .description('Sum of habitat, hedgerow and watercourse baseline units.'),
   habitatsTotal: Joi.number()
     .required()
-    .description('Sum of baseline units across all area habitats.'),
+    .description(
+      'Sum of baseline units across all area habitats, vertical area habitats included.'
+    ),
+  verticalHabitatsTotal: Joi.number().description(
+    'Sum of baseline units across vertical area habitats: the part of habitatsTotal they make up. Absent on a document saved before they were read.'
+  ),
   hedgerowsTotal: Joi.number()
     .required()
     .description('Sum of baseline units across all hedgerows.'),

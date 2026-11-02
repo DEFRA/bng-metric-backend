@@ -51,7 +51,8 @@ function identity(feature) {
 /**
  * Payload for the error codes that report nothing but *which* features
  * offended: HEDGEROWS_OUTSIDE_REDLINE, WATERCOURSES_OUTSIDE_REDLINE,
- * IGGIS_OUTSIDE_REDLINE, TREES_OUTSIDE_REDLINE.
+ * IGGIS_OUTSIDE_REDLINE, TREES_OUTSIDE_REDLINE,
+ * VERTICAL_HABITATS_OUTSIDE_REDLINE.
  *
  * @param {import('./geometry.js').LoadedFeature[]} features
  */

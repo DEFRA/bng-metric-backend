@@ -36,7 +36,8 @@ const BASELINE_TYPE_KEYS_BY_LAYER = Object.freeze({
   areas: PROP_KEYS.habitatType,
   hedgerows: PROP_KEYS.hedgerowType,
   watercourses: PROP_KEYS.riverType,
-  trees: PROP_KEYS.treeSize
+  trees: PROP_KEYS.treeSize,
+  verticalHabitats: PROP_KEYS.habitatType
 })
 
 function isBlank(value) {

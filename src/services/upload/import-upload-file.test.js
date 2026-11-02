@@ -216,6 +216,100 @@ describe('importUploadFile, a BNG Service template file', () => {
     IMPORT_TIMEOUT_MS
   )
 
+  it(
+    'reads its vertical area habitats, sized by their typed area in square metres, into both documents',
+    async () => {
+      const result = await importUploadFile(SITE, {}, POST_INTERVENTION)
+
+      expect(result.accepted).toBe(true)
+      const { baseline, postIntervention } = result.project
+      // The file types each face area in square metres (V001 is 93 m²).
+      expect(baseline.verticalHabitats.map((v) => v.ref)).toEqual([
+        'V001',
+        'V002',
+        'V003',
+        'V004',
+        'V005'
+      ])
+      expect(baseline.verticalHabitats[0]).toMatchObject({
+        sizeSquareMetres: 93,
+        status: 'Complete',
+        units: expect.any(Number)
+      })
+      expect(baseline.verticalHabitats[0].units).toBeGreaterThan(0)
+      const verticalSquareMetres = baseline.verticalHabitats.reduce(
+        (sum, v) => sum + v.sizeSquareMetres,
+        0
+      )
+      expect(baseline.habitatSizes.verticalHabitats.totalSquareMetres).toBe(
+        verticalSquareMetres
+      )
+      expect(baseline.habitatSizes.areaHabitats.totalSquareMetres).toBeCloseTo(
+        baseline.habitatSizes.site.totalSquareMetres +
+          baseline.habitatSizes.trees.totalSquareMetres +
+          verticalSquareMetres,
+        6
+      )
+      expect(baseline.units.verticalHabitatsTotal).toBeGreaterThan(0)
+
+      // A demolished structure (V004) has no post-intervention row, and is
+      // recorded as removed.
+      expect(postIntervention.verticalHabitats.map((v) => v.ref)).toEqual([
+        'V001',
+        'V002',
+        'V003',
+        'V005'
+      ])
+      expect(
+        postIntervention.verticalHabitats.every((v) => v.parentFeatureId)
+      ).toBe(true)
+      expect(postIntervention.lostHabitats).toContainEqual(
+        expect.objectContaining({
+          layer: 'verticalHabitats',
+          ref: 'V004',
+          outcome: 'removed'
+        })
+      )
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it.each([
+    ['negative', -12],
+    ['zero', 0],
+    ['blank', null]
+  ])(
+    'refuses a vertical area habitat whose Area is %s',
+    async (_, area) => {
+      const scratch = mkdtempSync(path.join(tmpdir(), 'vertical-area-'))
+      try {
+        const copy = path.join(scratch, 'vertical-area.gpkg')
+        copyFileSync(SITE, copy)
+        const db = new Database(copy)
+        try {
+          db.prepare(
+            `UPDATE "Vertical Area Habitats Baseline" SET Area = ? WHERE "Habitat Ref" = 'V001'`
+          ).run(area)
+        } finally {
+          db.close()
+        }
+
+        const result = await importUploadFile(copy, {}, POST_INTERVENTION)
+
+        expect(result.accepted).toBe(false)
+        const error = result.errors.find(
+          (e) => e.code === ERROR_CODES.VERTICAL_HABITAT_AREA_NOT_POSITIVE
+        )
+        expect(error.details.sample).toEqual([
+          expect.objectContaining({ feature_ref: 'V001', area })
+        ])
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
   // The parent links are checked in the geometry pass, which runs on this
   // thread here rather than in a worker.
   it.each([

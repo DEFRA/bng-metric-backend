@@ -3,6 +3,7 @@ import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 
 const requiredAttributesByLayer = {
   habitats: ['type', 'condition'],
+  verticalHabitats: ['type', 'condition'],
   trees: ['type', 'condition'],
   hedgerows: ['type', 'condition'],
   watercourses: [

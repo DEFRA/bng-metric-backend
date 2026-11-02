@@ -96,7 +96,10 @@ function formatOptionalUnits(value) {
   return isFiniteNumber(value) ? `${formatUnits(value)} units` : NOT_AVAILABLE
 }
 
-/** Area habitats and individual trees are one metric module. */
+/**
+ * Area habitats and individual trees are one metric module. Vertical area
+ * habitats are in it too, and their units are already in `habitatsTotal`.
+ */
 function areaUnits(units, missingValue = 0) {
   const habitatsTotal = units?.habitatsTotal
   const treesTotal = units?.treesTotal

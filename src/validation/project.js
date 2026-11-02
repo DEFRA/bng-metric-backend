@@ -242,6 +242,56 @@ const treeSchema = habitatSchema
   })
   .description('An individual tree feature (point).')
 
+// A vertical area habitat (green wall or intertidal hard structure), drawn in
+// the BNG Service template as a line along its base. An area habitat in every
+// respect but its size, so it reuses habitatSchema; only the size and source
+// descriptions differ.
+const verticalHabitatSchema = habitatSchema
+  .append({
+    featureId: Joi.string()
+      .uuid()
+      .required()
+      .description(featureIdDescription('bng.baseline_vertical_habitats')),
+    ref: Joi.string()
+      .allow(null, '')
+      .description(
+        'Habitat reference from the GeoPackage (Habitat Ref column).'
+      ),
+    type: Joi.string()
+      .allow(null, '')
+      .description(
+        "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
+      ),
+    broadType: Joi.string()
+      .allow(null, '')
+      .description(
+        "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
+      ),
+    area: Joi.number()
+      .allow(null)
+      .description(
+        'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0.'
+      ),
+    sizeSquareMetres: Joi.number()
+      .allow(null)
+      .description(
+        "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+      ),
+    units: Joi.number()
+      .allow(null)
+      .description(
+        'Baseline biodiversity units for the vertical area habitat, from bng-library/metric using the area-habitat calculation; null when required calculation inputs are missing.'
+      ),
+    properties: Joi.object()
+      .unknown(true)
+      .description(
+        'Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats Baseline layer.'
+      )
+  })
+  .description(
+    'A vertical area habitat (green wall or intertidal hard structure), drawn as a line along its base.'
+  )
+
 // Hedgerows and watercourses share the same linear-feature shape. This factory
 // keeps their field order and prose identical while letting each supply its own
 // descriptions and module-specific fields. Field order is significant — it
@@ -403,6 +453,11 @@ const habitatDataSchema = Joi.object({
   trees: Joi.array()
     .items(treeSchema)
     .description('Individual tree (point) features in the baseline.'),
+  verticalHabitats: Joi.array()
+    .items(verticalHabitatSchema)
+    .description(
+      'Vertical area habitats (green walls and intertidal hard structures) in the baseline. Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
+    ),
   hedgerows: Joi.array()
     .items(linearHabitatSchema)
     .description('Hedgerow (linear) features in the baseline.'),
@@ -437,6 +492,7 @@ export {
   habitatDataSchema,
   habitatSchema,
   treeSchema,
+  verticalHabitatSchema,
   linearHabitatSchema,
   watercourseHabitatSchema,
   postInterventionDataSchema

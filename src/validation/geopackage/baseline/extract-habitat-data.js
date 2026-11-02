@@ -17,7 +17,8 @@ import { treeAreaFields } from '../tree-sizes.js'
 import {
   splitFeatures,
   embedBaselineHabitatSizes,
-  buildExtractResult
+  buildExtractResult,
+  verticalAreaFields
 } from '../extract-shared.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import { irreplaceableField } from '../irreplaceable.js'
@@ -91,6 +92,17 @@ function buildHabitat(feature, keys) {
     srid: feature.nativeSrid
   }
   return { document, geometryRow }
+}
+
+/**
+ * A vertical area habitat: a green wall or an intertidal hard structure, drawn
+ * as a line along its base. It is an area habitat in every respect but its
+ * size, which is the Area the surveyor typed in, in square metres.
+ */
+function buildVerticalHabitat(feature, keys) {
+  const built = buildHabitat(feature, keys)
+  Object.assign(built.document, verticalAreaFields(feature.properties))
+  return built
 }
 
 function buildTree(feature, keys) {
@@ -246,6 +258,7 @@ function buildRedLine(features) {
  * @param {object[]} layers.areas
  * @param {object[]} layers.hedgerows
  * @param {object[]} layers.watercourses
+ * @param {object[]} [layers.verticalHabitats]
  * @param {object} [meta]
  * @param {string} [meta.uploadId]
  * @param {string} [meta.filename]
@@ -258,7 +271,9 @@ function buildRedLine(features) {
  *     redLine: object|null,
  *     habitats: object[],
  *     hedgerows: object[],
- *     watercourses: object[]
+ *     watercourses: object[],
+ *     trees: object[],
+ *     verticalHabitats: object[]
  *   }
  * }}
  */
@@ -277,6 +292,11 @@ export function extractHabitatData(layers, meta = {}) {
     keys
   )
   const trees = splitFeatures(layers.trees ?? [], buildTree, keys)
+  const verticalHabitats = splitFeatures(
+    layers.verticalHabitats ?? [],
+    buildVerticalHabitat,
+    keys
+  )
 
   // Embed the PostGIS-calculated size directly onto each feature document so
   // consumers (e.g. the frontend) can read habitat.sizeSquareMetres without a
@@ -284,14 +304,14 @@ export function extractHabitatData(layers, meta = {}) {
   let habitatSizesSummary = null
   if (meta.habitatSizes) {
     habitatSizesSummary = embedBaselineHabitatSizes(
-      { habitats, hedgerows, watercourses, trees },
+      { habitats, hedgerows, watercourses, trees, verticalHabitats },
       meta.habitatSizes
     )
   }
 
   return buildExtractResult(
     meta,
-    { redLine, habitats, hedgerows, watercourses, trees },
+    { redLine, habitats, hedgerows, watercourses, trees, verticalHabitats },
     habitatSizesSummary
   )
 }

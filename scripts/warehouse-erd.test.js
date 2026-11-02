@@ -215,11 +215,13 @@ const WAREHOUSE_TABLES = [
   'baseline_red_line',
   'baseline_habitats',
   'baseline_trees',
+  'baseline_vertical_habitats',
   'baseline_hedgerows',
   'baseline_watercourses',
   'post_intervention_red_line',
   'post_intervention_habitats',
   'post_intervention_trees',
+  'post_intervention_vertical_habitats',
   'post_intervention_hedgerows',
   'post_intervention_watercourses'
 ]
@@ -301,6 +303,32 @@ describe('#buildWarehouseModel — column layout', () => {
 
   it('builds the expected table set', () => {
     expect(model.tables.map((table) => table.table)).toEqual(WAREHOUSE_TABLES)
+  })
+})
+
+describe('#buildWarehouseModel — per-feature lists', () => {
+  it('keeps every per-feature list off feature_set, which has one row per document', () => {
+    const listColumns = tableByName
+      .get('feature_set')
+      .columns.filter((column) =>
+        column.jsonPaths.some((jsonPath) => jsonPath.includes('[]'))
+      )
+      .map((column) => column.name)
+
+    expect(listColumns).toEqual([])
+  })
+
+  it('gives vertical area habitats a feature table per document', () => {
+    for (const table of [
+      'baseline_vertical_habitats',
+      'post_intervention_vertical_habitats'
+    ]) {
+      expect(tableByName.get(table).primaryKey.column).toBe('feature_id')
+      expect(tableByName.get(table).many).toBe(true)
+      expect(columnNames(table)).toEqual(
+        expect.arrayContaining(['ref', 'size_square_metres', 'units'])
+      )
+    }
   })
 })
 

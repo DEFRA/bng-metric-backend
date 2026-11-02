@@ -6,7 +6,9 @@
  * document/geometry assembly live here to keep the two paths from drifting.
  */
 
+import { PROP_KEYS, pickProp } from './properties.js'
 import { summarizeTreeSizes } from './tree-sizes.js'
+import { verticalAreaSquareMetres } from './vertical-area-check.js'
 
 /**
  * Map parsed GeoPackage features into parallel document and geometry arrays.
@@ -39,6 +41,42 @@ export function areaFromSizeSquareMetres(sizeSquareMetres) {
     return null
   }
   return Math.round(sizeSquareMetres)
+}
+
+/**
+ * A vertical area habitat's size: the Area the surveyor typed in, in square
+ * metres, as the face area they estimated on site. A line cannot give it, so
+ * it is not measured. Null when it is not a number above 0, which the upload
+ * checks refuse (vertical-area-check.js).
+ *
+ * `area` is the same value, not rounded to the square metre as a measured
+ * parcel's is: the surveyor typed it, and a face under half a square metre
+ * that the check accepts must not show as 0.
+ *
+ * @param {object} properties the row's GeoPackage properties
+ * @returns {{ sizeSquareMetres: number | null, area: number | null }}
+ */
+export function verticalAreaFields(properties) {
+  const sizeSquareMetres = verticalAreaSquareMetres(
+    pickProp(properties ?? {}, PROP_KEYS.area)
+  )
+  return { sizeSquareMetres, area: sizeSquareMetres }
+}
+
+/**
+ * The total typed area of the vertical area habitats, in square metres.
+ *
+ * @param {object[]} verticalDocuments
+ * @returns {{ totalSquareMetres: number }}
+ */
+export function summarizeVerticalHabitatSizes(verticalDocuments) {
+  let totalSquareMetres = 0
+  for (const vertical of verticalDocuments) {
+    if (Number.isFinite(vertical.sizeSquareMetres)) {
+      totalSquareMetres += vertical.sizeSquareMetres
+    }
+  }
+  return { totalSquareMetres }
 }
 
 /**
@@ -94,37 +132,48 @@ function embedRoundedLinearFeatureSizes(documents, sizeEntries) {
 
 /**
  * Build the persisted habitat-size summary from the measured parcel/linear totals
- * plus the notional tree sizes. Trees are a special area habitat: their area is
- * summed into the headline `areaHabitats` total but excluded from `site` (the
- * figure compared against the red line boundary).
+ * plus the notional tree sizes and the typed vertical area habitat sizes. Trees
+ * and vertical area habitats are special area habitats: their area is summed
+ * into the headline `areaHabitats` total but excluded from `site` (the figure
+ * compared against the red line boundary), as the Metric leaves "individual
+ * trees, green walls, intertidal hard structures" out of the site area.
  *
  * @param {{ areaHabitats: { totalSquareMetres: number }, hedgerows: { totalMetres: number }, watercourses: { totalMetres: number } }} habitatSizes
  * @param {{ totalSquareMetres: number, urbanSquareMetres: number, ruralSquareMetres: number }} treeSizes
+ * @param {{ totalSquareMetres: number }} verticalSizes 0 for a legacy file,
+ *   which has no vertical area habitats
  * @returns {object}
  */
-export function buildHabitatSizesSummary(habitatSizes, treeSizes) {
+export function buildHabitatSizesSummary(
+  habitatSizes,
+  treeSizes,
+  verticalSizes
+) {
   const { areaHabitats, hedgerows, watercourses } = habitatSizes
   return {
     areaHabitats: {
       totalSquareMetres:
-        areaHabitats.totalSquareMetres + treeSizes.totalSquareMetres
+        areaHabitats.totalSquareMetres +
+        treeSizes.totalSquareMetres +
+        verticalSizes.totalSquareMetres
     },
     hedgerows: { totalMetres: hedgerows.totalMetres },
     watercourses: { totalMetres: watercourses.totalMetres },
     trees: treeSizes,
+    verticalHabitats: verticalSizes,
     site: { totalSquareMetres: areaHabitats.totalSquareMetres }
   }
 }
 
 /**
- * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
+ * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object, verticalHabitats?: object }} parts
  * @param {object} habitatSizes
  * @param {(tree: object) => string | null | undefined} getTreeType
  * @param {(documents: object[], sizeEntries: object[]) => void} embedLinearSizes
  * @returns {object}
  */
 function embedHabitatSizes(parts, habitatSizes, getTreeType, embedLinearSizes) {
-  const { habitats, hedgerows, watercourses, trees } = parts
+  const { habitats, hedgerows, watercourses, trees, verticalHabitats } = parts
   embedParcelSizes(habitats.documents, habitatSizes.areaHabitats)
   embedLinearSizes(hedgerows.documents, habitatSizes.hedgerows.individualMetres)
   embedLinearSizes(
@@ -132,11 +181,15 @@ function embedHabitatSizes(parts, habitatSizes, getTreeType, embedLinearSizes) {
     habitatSizes.watercourses.individualMetres
   )
   const treeSizes = summarizeTreeSizes(trees.documents, getTreeType)
-  return buildHabitatSizesSummary(habitatSizes, treeSizes)
+  return buildHabitatSizesSummary(
+    habitatSizes,
+    treeSizes,
+    summarizeVerticalHabitatSizes(verticalHabitats?.documents ?? [])
+  )
 }
 
 /**
- * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
+ * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object, verticalHabitats?: object }} parts
  * @param {object} habitatSizes
  * @returns {object}
  */
@@ -150,7 +203,7 @@ export function embedBaselineHabitatSizes(parts, habitatSizes) {
 }
 
 /**
- * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
+ * @param {{ habitats: object, hedgerows: object, watercourses: object, trees: object, verticalHabitats?: object }} parts
  * @param {object} habitatSizes
  * @returns {object}
  */
@@ -168,13 +221,17 @@ export function embedPostInterventionHabitatSizes(parts, habitatSizes) {
  *
  * @param {object} meta upload metadata (uploadId/filename/fileSize/importedAt,
  *   and template for a BNG Service template file)
- * @param {{ redLine: object, habitats: object, hedgerows: object, watercourses: object, trees: object }} parts
+ * @param {{ redLine: object, habitats: object, hedgerows: object, watercourses: object, trees: object, verticalHabitats?: object }} parts
  *   each `*.documents` / `*.geometries` pair from splitFeatures (redLine is `{ document, geometryRow }`)
  * @param {object | null} habitatSizesSummary
  * @returns {{ document: object, geometries: object }}
  */
 export function buildExtractResult(meta, parts, habitatSizesSummary) {
   const { redLine, habitats, hedgerows, watercourses, trees } = parts
+  const verticalHabitats = parts.verticalHabitats ?? {
+    documents: [],
+    geometries: []
+  }
   return {
     document: {
       uploadId: meta.uploadId ?? null,
@@ -189,6 +246,7 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
       hedgerows: hedgerows.documents,
       watercourses: watercourses.documents,
       trees: trees.documents,
+      verticalHabitats: verticalHabitats.documents,
       habitatSizes: habitatSizesSummary
     },
     geometries: {
@@ -196,7 +254,8 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
       habitats: habitats.geometries,
       hedgerows: hedgerows.geometries,
       watercourses: watercourses.geometries,
-      trees: trees.geometries
+      trees: trees.geometries,
+      verticalHabitats: verticalHabitats.geometries
     }
   }
 }

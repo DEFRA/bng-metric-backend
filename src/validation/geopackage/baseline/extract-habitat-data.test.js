@@ -72,6 +72,7 @@ describe('extractHabitatData — top-level shape', () => {
           hedgerows: [],
           watercourses: [],
           trees: [],
+          verticalHabitats: [],
           habitatSizes: null
         }),
         geometries: {
@@ -79,7 +80,8 @@ describe('extractHabitatData — top-level shape', () => {
           habitats: [],
           hedgerows: [],
           watercourses: [],
-          trees: []
+          trees: [],
+          verticalHabitats: []
         }
       })
     )
@@ -349,6 +351,7 @@ describe('extractHabitatData — habitatSizes embedding', () => {
         urbanSquareMetres: 0,
         ruralSquareMetres: 0
       },
+      verticalHabitats: { totalSquareMetres: 0 },
       site: { totalSquareMetres: HABITAT_SQM }
     })
 
@@ -1380,5 +1383,101 @@ describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
     expect(document.hedgerows[0].ref).toBe('L'.repeat(100))
     expect(document.watercourses[0].ref).toBe('R001')
     expect(document.trees[0].ref).toBe('  T001  ')
+  })
+})
+
+describe('extractHabitatData — vertical area habitats', () => {
+  const FEAT_ID_WALL = 'featwall-0000-0000-0000-000000000000'
+  const WALL_SQM = 37.5
+  const habitatSizes = {
+    areaHabitats: {
+      individualSquareMetres: [
+        { featureId: FEAT_ID_AREA, sizeSquareMetres: HABITAT_SQM }
+      ],
+      totalSquareMetres: HABITAT_SQM
+    },
+    hedgerows: { individualMetres: [], totalMetres: 0 },
+    watercourses: { individualMetres: [], totalMetres: 0 }
+  }
+
+  function extractWithWall(area) {
+    return extractHabitatData(
+      {
+        redline: [],
+        areas: [
+          { ...feature({ [PARCEL_REF]: 'P1' }), featureId: FEAT_ID_AREA }
+        ],
+        hedgerows: [],
+        watercourses: [],
+        verticalHabitats: [
+          {
+            ...feature(
+              {
+                [PARCEL_REF]: 'V001',
+                'Baseline Broad Habitat Type': 'Urban',
+                [HABITAT_TYPE]: 'Facade-bound green wall',
+                [CONDITION]: 'Poor',
+                Area: area
+              },
+              SAMPLE_LINESTRING
+            ),
+            featureId: FEAT_ID_WALL
+          }
+        ]
+      },
+      { habitatSizes }
+    )
+  }
+
+  it('sizes each one by the area typed in, in square metres, not by its line', () => {
+    const out = extractWithWall(WALL_SQM)
+
+    expect(out.document.verticalHabitats).toEqual([
+      expect.objectContaining({
+        featureId: FEAT_ID_WALL,
+        ref: 'V001',
+        broadType: 'Urban',
+        type: 'Facade-bound green wall',
+        condition: 'Poor',
+        sizeSquareMetres: WALL_SQM,
+        // As typed, not rounded to the square metre.
+        area: WALL_SQM,
+        status: 'Complete'
+      })
+    ])
+    expect(out.geometries.verticalHabitats).toEqual([
+      expect.objectContaining({ featureId: FEAT_ID_WALL, ref: 'V001' })
+    ])
+  })
+
+  it('counts their area in the area habitats total but not in the site', () => {
+    const out = extractWithWall(WALL_SQM)
+
+    expect(out.document.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: HABITAT_SQM + WALL_SQM },
+      verticalHabitats: { totalSquareMetres: WALL_SQM },
+      site: { totalSquareMetres: HABITAT_SQM }
+    })
+  })
+
+  it('keeps a face under half a square metre as typed, so it does not show as 0', () => {
+    const out = extractWithWall(0.4)
+
+    expect(out.document.verticalHabitats[0]).toMatchObject({
+      sizeSquareMetres: 0.4,
+      area: 0.4
+    })
+  })
+
+  it('leaves one with no area above 0 unsized', () => {
+    const out = extractWithWall(null)
+
+    expect(out.document.verticalHabitats[0]).toMatchObject({
+      sizeSquareMetres: null,
+      area: null
+    })
+    expect(out.document.habitatSizes.verticalHabitats).toEqual({
+      totalSquareMetres: 0
+    })
   })
 })
