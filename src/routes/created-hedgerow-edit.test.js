@@ -419,3 +419,61 @@ test.each([true, false])(
     ).toBeUndefined()
   }
 )
+
+test.each([null, ''])(
+  'reference-only edit preserves rejected significance when blank remains %j',
+  async (strategicSignificance) => {
+    const stored = {
+      ...feature,
+      proposed: {
+        ...feature.proposed,
+        strategicSignificance: null,
+        rejectedStrategicSignificance: 'Medium',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    }
+    const saved = await updatePostInterventionHedgerow.handler(
+      request({ ...edits, condition: 'Poor', strategicSignificance }, stored)
+    )
+    expect(saved).toMatchObject({
+      ref: edits.ref,
+      status: 'Incomplete',
+      units: null,
+      proposed: {
+        strategicSignificance: null,
+        rejectedStrategicSignificance: 'Medium'
+      }
+    })
+    expect(stored.proposed.rejectedStrategicSignificance).toBe('Medium')
+    const corrected = await updatePostInterventionHedgerow.handler(
+      request({ ...edits, strategicSignificance: 'High' }, saved)
+    )
+    expect(corrected).toMatchObject({
+      status: 'Complete',
+      proposed: {
+        strategicSignificance: 'High',
+        rejectedStrategicSignificance: null
+      }
+    })
+    expect(corrected.units).toBeGreaterThan(0)
+    expect(
+      postInterventionLinearHabitatSchema.validate(corrected).error
+    ).toBeUndefined()
+  }
+)
+
+test('a missing hedgerow returns a type-specific 404 without persisting', async () => {
+  await expect(
+    updatePostInterventionHedgerow.handler(
+      request(edits, {
+        ...feature,
+        featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+      })
+    )
+  ).rejects.toMatchObject({
+    output: { statusCode: 404 },
+    message: `Hedgerow ${featureId} not found in project ${projectId}`
+  })
+  expect(setProjectFeature).not.toHaveBeenCalled()
+})

@@ -1,4 +1,4 @@
-import { proposedAttributes } from './recompute-created-area-edit.js'
+import { proposedAttributes } from './created-feature-edit.js'
 import { recomputePostInterventionHedgerow } from './recompute-post-intervention-hedgerow.js'
 import { clearEngineDerivedProposedFields } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-shared.js'
 
@@ -8,7 +8,6 @@ export function recomputeCreatedHedgerowEdit(existing, edits) {
   const feature = structuredClone(existing)
   feature.ref = edits.ref.trim()
   feature.proposed = proposedAttributes(feature.proposed, edits)
-  delete feature.proposed.broadType
   clearEngineDerivedProposedFields(feature)
   return recomputePostInterventionHedgerow(feature, edits)
 }

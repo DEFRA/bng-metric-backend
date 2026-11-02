@@ -168,21 +168,25 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
 const CREATED_EDIT_TYPES = {
   habitat: {
     layer: 'habitats',
+    label: 'Habitat',
     payload: postInterventionAreaEditPayload,
     validate: validateCreatedAreaEdit
   },
   hedgerow: {
     layer: 'hedgerows',
+    label: 'Hedgerow',
     payload: postInterventionHedgerowEditPayload,
     validate: validateCreatedHedgerowEdit
   }
 }
 
-function createUpdateAreaHabitatRoute({
+function createUpdateFeatureRoute({
   path,
   documentKey,
   featureType = 'habitat'
 }) {
+  const editType =
+    documentKey === 'postIntervention' ? CREATED_EDIT_TYPES[featureType] : null
   return {
     method: 'PUT',
     path,
@@ -190,10 +194,7 @@ function createUpdateAreaHabitatRoute({
       auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
-        payload:
-          documentKey === 'postIntervention'
-            ? CREATED_EDIT_TYPES[featureType].payload
-            : areaHabitatEditPayload
+        payload: editType?.payload ?? areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -209,9 +210,10 @@ function createUpdateAreaHabitatRoute({
             broadType,
             habitatType,
             condition,
-            edits: createdAreaEdits(request.payload),
+            edits: createdFeatureEdits(request.payload),
             documentKey,
             featureType,
+            editType,
             credentials,
             logger: request.logger
           })
@@ -229,17 +231,17 @@ function createUpdateAreaHabitatRoute({
   }
 }
 
-const updateAreaHabitat = createUpdateAreaHabitatRoute({
+const updateAreaHabitat = createUpdateFeatureRoute({
   path: '/projects/{projectId}/habitats/{featureId}',
   documentKey: 'baseline'
 })
 
-const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
+const updatePostInterventionAreaHabitat = createUpdateFeatureRoute({
   path: '/projects/{projectId}/post-intervention/habitats/{featureId}',
   documentKey: 'postIntervention'
 })
 
-function createdAreaEdits(payload) {
+function createdFeatureEdits(payload) {
   if (!Object.hasOwn(payload, 'ref')) {
     return {}
   }
@@ -251,7 +253,7 @@ function createdAreaEdits(payload) {
   }
 }
 
-async function persistAreaFeatureEdit(
+async function persistFeatureEdit(
   tx,
   { projectId, previousProject, result, documentKey, actorId }
 ) {
@@ -278,13 +280,13 @@ async function persistAreaFeatureEdit(
   )
 }
 
-function assertSuccessfulAreaEdit(result, projectId, featureId) {
+function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   if (
     result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
     result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
   ) {
     throw Boom.notFound(
-      `Habitat ${featureId} not found in project ${projectId}`
+      `${label} ${featureId} not found in project ${projectId}`
     )
   }
   if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
@@ -295,7 +297,7 @@ function assertSuccessfulAreaEdit(result, projectId, featureId) {
   }
 
   if (result.status !== APPLY_RESULT.OK) {
-    throw Boom.badRequest('This habitat edit is not supported')
+    throw Boom.badRequest(`This ${label.toLowerCase()} edit is not supported`)
   }
 }
 
@@ -310,6 +312,7 @@ async function runUpdate(
     edits,
     documentKey,
     featureType,
+    editType,
     credentials,
     logger
   }
@@ -334,8 +337,7 @@ async function runUpdate(
   }
 
   let resolvedEdits = { ...edits, broadType, habitatType, condition }
-  if (documentKey === 'postIntervention') {
-    const editType = CREATED_EDIT_TYPES[featureType]
+  if (editType) {
     const feature = row.project?.postIntervention?.[editType.layer]?.find(
       (f) => f.featureId === featureId
     )
@@ -351,9 +353,14 @@ async function runUpdate(
     documentKey,
     logger
   })
-  assertSuccessfulAreaEdit(result, projectId, featureId)
+  assertSuccessfulFeatureEdit(
+    result,
+    projectId,
+    featureId,
+    editType?.label ?? 'Habitat'
+  )
 
-  await persistAreaFeatureEdit(tx, {
+  await persistFeatureEdit(tx, {
     projectId,
     previousProject: row.project,
     result,
@@ -400,7 +407,7 @@ async function runUpdate(
  *       409:
  *         description: Another edit for this project is in progress
  */
-export const updatePostInterventionHedgerow = createUpdateAreaHabitatRoute({
+export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
   path: '/projects/{projectId}/post-intervention/hedgerows/{featureId}',
   documentKey: 'postIntervention',
   featureType: 'hedgerow'

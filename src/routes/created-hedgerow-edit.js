@@ -2,33 +2,31 @@ import { MAX_YEARS } from 'bng-library/metric'
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 import {
-  postInterventionAreaEditPayload,
+  createdEditYears,
   validateReferenceAndTiming
-} from './created-area-edit.js'
+} from './created-feature-edit.js'
+import { featureEditPayload } from './shared-params.js'
 import { getHedgerowCreationReference } from '../validation/reference/hedgerow-creation.js'
 import {
   resolveRetentionCategory,
   RETENTION_CREATED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
-const fields = [
-  'ref',
-  'habitatType',
-  'condition',
-  'strategicSignificance',
-  'advanceYears',
-  'delayYears'
-]
-export const postInterventionHedgerowEditPayload = Joi.object(
-  Object.fromEntries(
-    fields.map((field) => [
-      field,
-      ['advanceYears', 'delayYears'].includes(field)
-        ? postInterventionAreaEditPayload.extract(field).optional()
-        : postInterventionAreaEditPayload.extract(field).required()
-    ])
-  )
-)
+export const postInterventionHedgerowEditPayload = Joi.object({
+  ref: featureEditPayload.extract('ref').required(),
+  habitatType: featureEditPayload.extract('habitatType').required(),
+  condition: featureEditPayload.extract('condition').required(),
+  strategicSignificance: Joi.string()
+    .valid(
+      ...getHedgerowCreationReference().strategicSignificance.map(
+        (s) => s.value
+      )
+    )
+    .allow(null, '')
+    .required(),
+  advanceYears: createdEditYears.optional(),
+  delayYears: createdEditYears.optional()
+})
 
 function resolveStoredTiming(feature, edits) {
   // Omission means keep the stored value; null is an explicit clear. Resolve

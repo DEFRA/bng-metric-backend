@@ -1,16 +1,16 @@
 import Boom from '@hapi/boom'
 import Joi from 'joi'
-import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 import { featureEditPayload } from './shared-params.js'
+import {
+  createdEditYears,
+  validateReferenceAndTiming
+} from './created-feature-edit.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import {
   resolveRetentionCategory,
   RETENTION_CREATED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
-const years = Joi.alternatives()
-  .try(Joi.number().integer().min(0).max(MAX_YEARS), Joi.valid(MAX_YEARS_PLUS))
-  .allow(null)
 export const postInterventionAreaEditPayload = featureEditPayload
   .keys({
     strategicSignificance: Joi.string()
@@ -19,8 +19,8 @@ export const postInterventionAreaEditPayload = featureEditPayload
       )
       .allow(null, '')
       .optional(),
-    advanceYears: years.optional(),
-    delayYears: years.optional()
+    advanceYears: createdEditYears.optional(),
+    delayYears: createdEditYears.optional()
   })
   .and('ref', 'strategicSignificance', 'advanceYears', 'delayYears')
   .with('ref', ['broadType', 'habitatType', 'condition'])
@@ -53,25 +53,6 @@ function validateAreaChoices(edits) {
   if (invalidBroad || invalidType || invalidCondition) {
     throw Boom.badRequest(
       'Choose valid area habitat and target condition options'
-    )
-  }
-}
-
-export function validateReferenceAndTiming(edits) {
-  const { error } = featureEditPayload
-    .extract('ref')
-    .required()
-    .label('ref')
-    .validate(edits.ref)
-  if (error) {
-    throw Boom.badRequest(error.message)
-  }
-  if (
-    Number.parseFloat(edits.advanceYears) > 0 &&
-    Number.parseFloat(edits.delayYears) > 0
-  ) {
-    throw Boom.badRequest(
-      'Enter either advance or delay greater than zero, not both'
     )
   }
 }
