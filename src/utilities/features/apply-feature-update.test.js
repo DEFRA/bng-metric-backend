@@ -1691,6 +1691,36 @@ describe('applyFeatureUpdate — vertical area habitats', () => {
     })
   })
 
+  test('turns away another broad habitat with the habitat type left blank', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: { broadType: 'Grassland', habitatType: '', condition: '' }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'verticalHabitat'
+    })
+  })
+
+  test('keeps a vertical broad habitat with the habitat type left blank, as Incomplete', () => {
+    const result = applyFeatureUpdate(projectWithWall(), {
+      featureId: WALL_ID,
+      edits: {
+        broadType: 'Intertidal hard structures',
+        habitatType: '',
+        condition: ''
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      broadType: 'Intertidal hard structures',
+      type: null,
+      status: 'Incomplete'
+    })
+  })
+
   test('turns away an edit to a habitat the Metric does not count by vertical area', () => {
     const result = applyFeatureUpdate(projectWithWall(), {
       featureId: WALL_ID,
