@@ -166,7 +166,10 @@ services:
       REDIS_HOST: redis
       USE_SINGLE_INSTANCE_CACHE: 'true'
       MOCK_VIRUS_SCAN_ENABLED: 'true'
-      MOCK_VIRUS_RESULT_DELAY: 2
+      # No mock scan delay by default, so the integration tests don't wait on
+      # every upload. Set it (e.g. MOCK_VIRUS_RESULT_DELAY=2 docker compose up -d)
+      # to see the "checking your file" stage in local dev.
+      MOCK_VIRUS_RESULT_DELAY: ${MOCK_VIRUS_RESULT_DELAY:-0}
       SQS_ENDPOINT: http://localstack:4566
       S3_ENDPOINT: http://localstack:4566
       CONSUMER_BUCKETS: baseline-files

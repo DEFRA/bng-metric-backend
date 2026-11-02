@@ -30,7 +30,7 @@ describe('the Baseline tables of a combined upload', () => {
       const result = await validateBaselineStage({
         filePath: FILE,
         loadBaselineLayers: vi.fn(),
-        projectId: 'p'
+        includeSizes: true
       })
 
       expect(result).toBeNull()
@@ -49,14 +49,37 @@ describe('the Baseline tables of a combined upload', () => {
         filePath: FILE,
         baselineReadSource: BASELINE_SOURCE,
         loadBaselineLayers: () => layers,
-        projectId: 'p'
+        includeSizes: true
       })
 
       expect(result).toEqual({ ...verdict, featureCount: 3 })
       expect(validateGeoPackageLayers).toHaveBeenCalledWith(
         expect.any(Function),
         EXTRACT_VARIANT.BASELINE,
-        { filePath: FILE, includeSizes: true, source: BASELINE_SOURCE }
+        {
+          filePath: FILE,
+          includeSizes: true,
+          source: BASELINE_SOURCE,
+          inThread: false
+        }
+      )
+    })
+
+    test('checks them on this thread when asked to', async () => {
+      validateGeoPackageLayers.mockResolvedValue({ valid: true, errors: [] })
+
+      await validateBaselineStage({
+        filePath: FILE,
+        baselineReadSource: BASELINE_SOURCE,
+        loadBaselineLayers: () => ({}),
+        includeSizes: true,
+        inThread: true
+      })
+
+      expect(validateGeoPackageLayers).toHaveBeenCalledWith(
+        expect.any(Function),
+        EXTRACT_VARIANT.BASELINE,
+        expect.objectContaining({ inThread: true })
       )
     })
   })

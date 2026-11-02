@@ -42,6 +42,8 @@ describe('refuseUnenhanceableBaselines', () => {
             habitat_type: 'Grassland - Other neutral grassland',
             condition: 'Good',
             distinctiveness: 'Medium',
+            proposed_habitat_type: 'Grassland - Other neutral grassland',
+            proposed_condition: 'Good',
             rule: UNENHANCEABLE_BASELINE.MEDIUM_AREA_GOOD,
             mvsOnly: true
           }
@@ -105,6 +107,80 @@ describe('refuseUnenhanceableBaselines', () => {
       })
     ).toBeNull()
   })
+
+  it('names the habitat and condition each one is enhanced into', () => {
+    const error = refuseUnenhanceableBaselines({
+      hedgerows: [
+        {
+          ...linear('HG1', 'Non-native and ornamental hedgerow', 'Poor'),
+          proposed: { type: 'Native hedgerow', condition: '3. Good' }
+        }
+      ]
+    })
+
+    expect(error.details.sample[0]).toMatchObject({
+      habitat_type: 'Non-native and ornamental hedgerow',
+      condition: 'Poor',
+      proposed_habitat_type: 'Native hedgerow',
+      proposed_condition: 'Good'
+    })
+  })
+
+  it('keeps a proposed habitat the metric does not know, as the file gives it', () => {
+    const error = refuseUnenhanceableBaselines({
+      habitats: [
+        {
+          ...area('H1', 'Other neutral grassland', 'Good'),
+          proposed: { broadType: 'Grassland', type: 'Not a grassland' }
+        }
+      ]
+    })
+
+    expect(error.details.sample[0]).toMatchObject({
+      proposed_habitat_type: 'Grassland - Not a grassland',
+      proposed_condition: null
+    })
+  })
+
+  it('keeps a proposed condition the metric does not know, as the file gives it', () => {
+    const error = refuseUnenhanceableBaselines({
+      habitats: [
+        {
+          ...area('H1', 'Other neutral grassland', 'Good'),
+          proposed: {
+            broadType: 'Grassland',
+            type: 'Other neutral grassland',
+            condition: '2. Fairly good'
+          }
+        }
+      ]
+    })
+
+    expect(error.details.sample[0]).toMatchObject({
+      proposed_habitat_type: 'Grassland - Other neutral grassland',
+      proposed_condition: 'Fairly good'
+    })
+  })
+
+  it.each([
+    ['habitats', area('H1', 'Other neutral grassland', 'Good')],
+    ['trees', area('T1', 'Other neutral grassland', 'Good')],
+    ['hedgerows', linear('HG1', 'Non-native and ornamental hedgerow', 'Poor')],
+    ['watercourses', linear('R1', 'Ditches', 'Good')]
+  ])(
+    'names no proposed habitat or condition for %s with no proposed side',
+    (layer, feature) => {
+      delete feature.proposed
+
+      const error = refuseUnenhanceableBaselines({ [layer]: [feature] })
+
+      expect(error.details.sample[0]).toMatchObject({
+        layer,
+        proposed_habitat_type: null,
+        proposed_condition: null
+      })
+    }
+  )
 
   it('reads a condition with its list number', () => {
     const error = refuseUnenhanceableBaselines({
