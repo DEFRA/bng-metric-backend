@@ -105,7 +105,7 @@ function renameThroughBaseline(project, found, parcel, ref, logger) {
   const { baseline, postIntervention } = project
   const layer = found.key
   const index = baseline[layer].findIndex(
-    (feature) => feature?.featureId === parcel.featureId
+    (candidate) => candidate?.featureId === parcel.featureId
   )
   const feature = { ...parcel, ref }
   const updatedBaseline = {
@@ -142,7 +142,7 @@ function renameRowOnly(project, found, ref) {
   const { postIntervention } = project
   const layer = found.key
   const index = postIntervention[layer].findIndex(
-    (feature) => feature?.featureId === found.feature.featureId
+    (row) => row?.featureId === found.feature.featureId
   )
   const feature = withRootRetentionCategory({ ...found.feature, ref })
   const updated = {

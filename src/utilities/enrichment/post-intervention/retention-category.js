@@ -180,7 +180,8 @@ export function withRootRetentionCategory(feature) {
   if (!RETENTION_CATEGORY_VALUES.includes(nested)) {
     return feature
   }
-  const { retentionCategory: _moved, ...baseline } = feature.baseline
+  const baseline = { ...feature.baseline }
+  delete baseline.retentionCategory
   return { ...feature, retentionCategory: nested, baseline }
 }
 
