@@ -1249,7 +1249,9 @@ describe('validateBaseline handler persistence — happy path side effects', () 
       payload: { projectId: PROJECT_ID }
     })
     await validateBaseline.handler(request, h)
-    expect(log.deletes).toHaveLength(10)
+    // Six feature tables (red line, habitats, hedgerows, watercourses, trees
+    // and vertical area habitats) in each of the two documents.
+    expect(log.deletes).toHaveLength(12)
   })
 
   it('inserts geometry rows for each non-empty layer', async () => {

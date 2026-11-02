@@ -80,12 +80,26 @@ describe('the BNG Service template 1.0 mapping', () => {
     expect([...columns.values()].every((name) => name === null)).toBe(true)
   })
 
-  test('reads no trees or vertical area habitats yet', () => {
+  test('reads no trees yet', () => {
     expect(Object.keys(TEMPLATE_MAPPING_1_0)).toEqual([
       'redline',
       'areas',
+      'verticalHabitats',
       'hedgerows',
       'watercourses'
     ])
+  })
+
+  test('keeps a vertical area habitat’s typed Area, which a line cannot give', () => {
+    const { verticalHabitats } = TEMPLATE_MAPPING_1_0
+    expect(verticalHabitats.table(STAGE_BASELINE)).toBe(
+      'Vertical Area Habitats Baseline'
+    )
+    expect(verticalHabitats.table(STAGE_POST_INTERVENTION)).toBe(
+      'Vertical Area Habitats Post-Intervention'
+    )
+    expect(verticalHabitats.columns.get('Area')).toBe('Area')
+    expect(verticalHabitats.columns.get('Habitat Ref')).toBe('Parcel Ref')
+    expect(TEMPLATE_MAPPING_1_0.areas.columns.get('Area')).toBeNull()
   })
 })

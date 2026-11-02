@@ -8,10 +8,14 @@ import {
 const areaHabitatPairs = getHabitatsByBroad()
 const conditionsByLayer = {
   habitats: getConditionsForHabitatType,
+  verticalHabitats: getConditionsForHabitatType,
   trees: getConditionsForHabitatType,
   hedgerows: getConditionsForHedgerowType,
   watercourses: getConditionsForWatercourseType
 }
+
+/** The layers whose habitats are keyed by broad habitat and habitat type. */
+const AREA_LAYERS = new Set(['habitats', 'verticalHabitats', 'trees'])
 
 function areaHabitatKey(attributes) {
   const pair = areaHabitatPairs.find(
@@ -51,9 +55,9 @@ export function normaliseImportedAttributeCombinations(
   if (!attributes?.type) {
     return
   }
-  const area = layer === 'habitats' || layer === 'trees'
+  const area = AREA_LAYERS.has(layer)
   const habitatKey = area ? areaHabitatKey(attributes) : attributes.type
-  if (layer === 'habitats' && attributes.broadType && !habitatKey) {
+  if (layer !== 'trees' && area && attributes.broadType && !habitatKey) {
     clearFields(attributes, [
       'type',
       'condition',

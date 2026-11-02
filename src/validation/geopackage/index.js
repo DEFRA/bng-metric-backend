@@ -3,6 +3,7 @@ import { readGeoPackage } from './geopackage.js'
 import { checkHabitatRefs } from './habitat-ref-check.js'
 import { FEATURE_READ_MODE } from './read-feature-tables.js'
 import { checkTreeCountIsWhole } from './tree-count-check.js'
+import { checkVerticalHabitatAreas } from './vertical-area-check.js'
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
 import {
@@ -45,7 +46,8 @@ export function runDataQualityChecks(layers, variant) {
   return [
     checkHabitatDistinctiveness(layers, variant),
     ...checkHabitatRefs(layers),
-    checkTreeCountIsWhole(layers)
+    checkTreeCountIsWhole(layers),
+    checkVerticalHabitatAreas(layers)
   ].filter(Boolean)
 }
 

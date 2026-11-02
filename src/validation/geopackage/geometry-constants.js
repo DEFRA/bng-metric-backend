@@ -85,5 +85,6 @@ export const LAYER_NAMES = Object.freeze([
   'hedgerows',
   'watercourses',
   'iggis',
-  'trees'
+  'trees',
+  'verticalHabitats'
 ])

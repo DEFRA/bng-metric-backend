@@ -22,10 +22,30 @@ import { BASELINE, LAYER_LABELS, POST_INTERVENTION } from './labels.js'
 
 const NOT_SUPPLIED = 'Not supplied'
 
+/**
+ * The layers a report lists only when a side holds some: only a BNG Service
+ * template file has vertical area habitats, so a legacy project's report keeps
+ * the rows it always had.
+ */
+const OPTIONAL_LAYERS = new Set(['verticalHabitats'])
+
+function holds(site, role) {
+  return (site?.layers?.[role]?.length ?? 0) > 0
+}
+
+function shownLayers(baseline, postIntervention) {
+  return Object.keys(LAYER_LABELS).filter(
+    (role) =>
+      !OPTIONAL_LAYERS.has(role) ||
+      holds(baseline, role) ||
+      holds(postIntervention, role)
+  )
+}
+
 function addKeyFiguresTable(doc, section, baseline, postIntervention) {
   const rows = [
     ['Measure', BASELINE, POST_INTERVENTION],
-    ...Object.keys(LAYER_LABELS).map((role) => [
+    ...shownLayers(baseline, postIntervention).map((role) => [
       LAYER_LABELS[role],
       describeLayer(baseline, role),
       postIntervention ? describeLayer(postIntervention, role) : NOT_SUPPLIED
@@ -97,6 +117,15 @@ function describeLayer(site, role) {
   if (role === 'trees') {
     return plural(features.length, 'tree')
   }
+  if (role === 'verticalHabitats') {
+    // The face area the surveyor typed in, in square metres, as the screens
+    // show it: it is no part of the site's hectares.
+    const sqm = sumBy(
+      features,
+      (feature) => feature.properties.sizeSquareMetres
+    )
+    return `${plural(features.length, 'feature')} (${Math.round(sqm)} m²)`
+  }
   const metres = sumBy(features, (feature) => feature.properties.sizeMetres)
   return `${plural(features.length, 'feature')} (${Math.round(metres)} m)`
 }
@@ -108,7 +137,8 @@ function sumBy(features, read) {
 /**
  * The headline number, taken verbatim from the units the service calculated.
  * Area habitats and individual trees are both "area" units and are summed the
- * same way the summary screen sums them.
+ * same way the summary screen sums them. Vertical area habitats' units are
+ * already in `habitatsTotal`.
  */
 function describeUnits(site) {
   const units = site.units

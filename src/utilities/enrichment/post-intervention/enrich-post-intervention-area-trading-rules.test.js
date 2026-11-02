@@ -31,6 +31,38 @@ function piFeature({
 }
 
 describe('enrichPostInterventionAreaTradingRules', () => {
+  test('nets vertical area habitats as the area habitats they are', () => {
+    const postIntervention = {
+      habitats: [],
+      verticalHabitats: [
+        piFeature({
+          retentionCategory: 'Enhanced',
+          baselineBroad: 'Urban',
+          baselineType: 'Facade-bound green wall',
+          proposedBroad: 'Urban',
+          proposedType: 'Facade-bound green wall',
+          units: 0.5
+        })
+      ]
+    }
+    const baseline = {
+      habitats: [],
+      verticalHabitats: [
+        { broadType: 'Urban', type: 'Facade-bound green wall', units: 0.2 }
+      ]
+    }
+
+    enrichPostInterventionAreaTradingRules(postIntervention, baseline)
+
+    expect(postIntervention.tradingRules.areaHabitats.habitatTypes).toEqual([
+      expect.objectContaining({
+        habitatType: 'Urban - Facade-bound green wall',
+        distinctiveness: 'Low',
+        netUnitChange: expect.closeTo(0.3, 10)
+      })
+    ])
+  })
+
   test('nets delivered units against the stored baseline units', () => {
     const postIntervention = {
       habitats: [

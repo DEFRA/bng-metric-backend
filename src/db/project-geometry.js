@@ -38,11 +38,13 @@ import {
   baselineHedgerows,
   baselineRedLine,
   baselineTrees,
+  baselineVerticalHabitats,
   baselineWatercourses,
   postInterventionHabitats,
   postInterventionHedgerows,
   postInterventionRedLine,
   postInterventionTrees,
+  postInterventionVerticalHabitats,
   postInterventionWatercourses
 } from './schema/index.js'
 
@@ -61,14 +63,16 @@ const FEATURE_TABLES = Object.freeze({
     habitats: baselineHabitats,
     hedgerows: baselineHedgerows,
     watercourses: baselineWatercourses,
-    trees: baselineTrees
+    trees: baselineTrees,
+    verticalHabitats: baselineVerticalHabitats
   },
   postIntervention: {
     redLine: postInterventionRedLine,
     habitats: postInterventionHabitats,
     hedgerows: postInterventionHedgerows,
     watercourses: postInterventionWatercourses,
-    trees: postInterventionTrees
+    trees: postInterventionTrees,
+    verticalHabitats: postInterventionVerticalHabitats
   }
 })
 
@@ -77,6 +81,7 @@ const GEOMETRY_LAYERS = Object.freeze([
   'habitats',
   'hedgerows',
   'watercourses',
+  'verticalHabitats',
   'trees'
 ])
 

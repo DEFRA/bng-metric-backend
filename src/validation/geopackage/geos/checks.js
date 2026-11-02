@@ -364,8 +364,9 @@ function checkSliversOutside(context, emit, allParcelsCovered) {
 }
 
 /**
- * The linear layers — hedgerows and watercourses — flagged on the LENGTH of the
- * part outside the redline. Runs on the geometry as supplied, matching the SQL.
+ * The linear layers — hedgerows, watercourses and the lines along the base of
+ * vertical area habitats — flagged on the LENGTH of the part outside the
+ * redline. Runs on the geometry as supplied, matching the SQL.
  */
 function checkLinearOutside(context, emit, layerName, code) {
   const offenders = context.layers[layerName].filter(
@@ -458,6 +459,12 @@ function runRedlineDependentChecks(context, emit) {
   )
   checkIggisOutside(context, emit)
   checkTreesOutside(context, emit)
+  checkLinearOutside(
+    context,
+    emit,
+    'verticalHabitats',
+    ERROR_CODES.VERTICAL_HABITATS_OUTSIDE_REDLINE
+  )
 }
 
 /**

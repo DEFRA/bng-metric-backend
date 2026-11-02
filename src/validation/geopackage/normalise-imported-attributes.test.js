@@ -367,3 +367,38 @@ describe('BMD-1059 imported attributes', () => {
     })
   })
 })
+
+describe('imported vertical area habitats', () => {
+  const wall = (overrides) => ({
+    broadType: 'Urban',
+    type: 'Facade-bound green wall',
+    condition: 'Poor',
+    ...overrides
+  })
+
+  it('keeps a habitat the Metric counts by vertical area, in either form', () => {
+    for (const type of [
+      'Facade-bound green wall',
+      'Urban - Facade-bound green wall'
+    ]) {
+      expect(
+        normaliseImportedAttributes(wall({ type }), 'verticalHabitats')
+      ).toMatchObject({ broadType: 'Urban', type, condition: 'Poor' })
+    }
+  })
+
+  it('clears any other habitat, which the vertical layers do not offer', () => {
+    expect(
+      normaliseImportedAttributes(
+        wall({ broadType: 'Grassland', type: 'Modified grassland' }),
+        'verticalHabitats'
+      )
+    ).toMatchObject({ broadType: null, type: null, condition: null })
+    expect(
+      normaliseImportedAttributes(
+        wall({ type: 'Allotments' }),
+        'verticalHabitats'
+      )
+    ).toMatchObject({ broadType: 'Urban', type: null, condition: null })
+  })
+})

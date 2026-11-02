@@ -166,7 +166,7 @@ SERVICE_TEMPLATE_ENABLED=true npm test
 
 ## Geometry validation
 
-Uploaded GeoPackages are checked against fifteen geometry rules, which run
+Uploaded GeoPackages are checked against sixteen geometry rules, which run
 in-process on worker threads using GEOS compiled to WebAssembly. **Validation
 takes no database connection.** The PostGIS statement that used to do this has
 been removed; the database remains the system of record for storage.

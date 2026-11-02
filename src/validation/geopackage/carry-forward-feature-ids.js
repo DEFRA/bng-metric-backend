@@ -37,7 +37,8 @@ export const REF_PROP_KEYS_BY_LAYER = Object.freeze({
   habitats: PROP_KEYS.parcelRef,
   hedgerows: PROP_KEYS.parcelRef,
   watercourses: PROP_KEYS.parcelRef,
-  trees: PROP_KEYS.treeRef
+  trees: PROP_KEYS.treeRef,
+  verticalHabitats: PROP_KEYS.parcelRef
 })
 
 /**

@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<databaseChangeLog
+    xmlns="http://www.liquibase.org/xml/ns/dbchangelog"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+    xsi:schemaLocation="http://www.liquibase.org/xml/ns/dbchangelog
+        http://www.liquibase.org/xml/ns/dbchangelog/dbchangelog-latest.xsd">
+
+    <changeSet id="40" author="bng-team">
+        <comment>
+            Create bng.baseline_vertical_habitats, the line-geometry
+            table for vertical area habitats (green walls and intertidal hard
+            structures), each drawn along the base of its structure. Mirrors the
+            other baseline feature tables.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.baseline_vertical_habitats (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_baseline_vertical_habitats_project_id
+                ON bng.baseline_vertical_habitats (project_id);
+
+            CREATE INDEX idx_baseline_vertical_habitats_geom
+                ON bng.baseline_vertical_habitats USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.baseline_vertical_habitats;
+        </rollback>
+    </changeSet>
+
+    <changeSet id="41" author="bng-team">
+        <comment>
+            Create bng.post_intervention_vertical_habitats, mirroring
+            bng.baseline_vertical_habitats for the post-intervention upload.
+        </comment>
+        <sql splitStatements="false" endDelimiter=";">
+            CREATE TABLE bng.post_intervention_vertical_habitats (
+                id uuid PRIMARY KEY DEFAULT gen_random_uuid(),
+                project_id uuid NOT NULL
+                    REFERENCES bng.projects(id) ON DELETE CASCADE,
+                ref text,
+                geom geometry(MultiLineString, 27700) NOT NULL
+            );
+
+            CREATE INDEX idx_post_intervention_vertical_habitats_project_id
+                ON bng.post_intervention_vertical_habitats (project_id);
+
+            CREATE INDEX idx_post_intervention_vertical_habitats_geom
+                ON bng.post_intervention_vertical_habitats USING GIST (geom);
+        </sql>
+        <rollback>
+            DROP TABLE IF EXISTS bng.post_intervention_vertical_habitats;
+        </rollback>
+    </changeSet>
+
+</databaseChangeLog>

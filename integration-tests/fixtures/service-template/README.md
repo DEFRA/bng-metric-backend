@@ -2,7 +2,8 @@
 
 Copies of files from bng-metric-harness's curated corpus,
 `example-files/service-template/`, as rebuilt for BMD-1083's lineage rules
-(DEFRA/bng-metric-harness#196). The harness's
+(DEFRA/bng-metric-harness#196), and again when a vertical area habitat's
+Area became square metres, the face area the surveyor estimates. The harness's
 README there says how each file was made and what the service should do with
 it; the harness rebuilds them from recipes, so take a fresh copy from there
 rather than editing these.

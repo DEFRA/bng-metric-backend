@@ -37,12 +37,28 @@ describe('reading a BNG Service template file', () => {
     expect(layers.areas).toHaveLength(1)
     expect(layers.hedgerows).toHaveLength(1)
     expect(layers.watercourses).toHaveLength(1)
+    expect(layers.verticalHabitats).toHaveLength(1)
     expect(layers.layerTables).toEqual({
       redline: 'Red Line Boundary',
       areas: 'Area Habitats Baseline',
+      verticalHabitats: 'Vertical Area Habitats Baseline',
       hedgerows: 'Hedgerows Baseline',
       watercourses: 'Watercourses Baseline'
     })
+  })
+
+  test('keeps a vertical area habitat’s typed Area, in square metres', async () => {
+    const layers = await read({ rows: populatedBaselineRows() })
+
+    expect(layers.verticalHabitats[0].properties).toMatchObject({
+      'Parcel Ref': 'V001',
+      'Baseline Broad Habitat Type': 'Urban',
+      'Baseline Habitat Type': 'Facade-bound green wall',
+      Area: 40
+    })
+    expect(layers.verticalHabitats[0].properties).not.toHaveProperty(
+      'Baseline Distinctiveness'
+    )
   })
 
   test('reads no trees or IGGIs yet', async () => {

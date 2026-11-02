@@ -52,6 +52,7 @@ export const ERROR_CODES = Object.freeze({
   WATERCOURSES_OUTSIDE_REDLINE: 'WATERCOURSES_OUTSIDE_REDLINE',
   IGGIS_OUTSIDE_REDLINE: 'IGGIS_OUTSIDE_REDLINE',
   TREES_OUTSIDE_REDLINE: 'TREES_OUTSIDE_REDLINE',
+  VERTICAL_HABITATS_OUTSIDE_REDLINE: 'VERTICAL_HABITATS_OUTSIDE_REDLINE',
   AREA_SUM_MISMATCH: 'AREA_SUM_MISMATCH',
   HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE: 'HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE',
 
@@ -80,6 +81,15 @@ export const ERROR_CODES = Object.freeze({
    * right way to price 2.5 trees; the user corrects the file instead.
    */
   TREE_COUNT_NOT_WHOLE: 'TREE_COUNT_NOT_WHOLE',
+
+  /**
+   * A BNG Service template vertical area habitat's Area is blank, zero,
+   * negative or not a number. The surveyor types it in, in square metres, as
+   * the face area they estimated on site; a line cannot give it, so there is
+   * nothing to price the habitat on. One error for them all; `details.sample`
+   * lists each row's table, Habitat Ref and Area.
+   */
+  VERTICAL_HABITAT_AREA_NOT_POSITIVE: 'VERTICAL_HABITAT_AREA_NOT_POSITIVE',
 
   /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
@@ -179,6 +189,15 @@ export const ERROR_CODES = Object.freeze({
    * sends the user to the drop-out page.
    */
   STAGED_HEDGEROW_CHILDREN_TOO_LONG: 'STAGED_HEDGEROW_CHILDREN_TOO_LONG',
+
+  /**
+   * BNG Service template baseline vertical area habitats smaller than the
+   * post-intervention vertical area habitats linked to them together, Created
+   * ones included. `details.sample` lists each parent's table,
+   * Habitat Ref and habitat type, the Habitat Ref of each linked row, and both
+   * areas in square metres. The frontend sends the user to the drop-out page.
+   */
+  STAGED_VERTICAL_CHILDREN_TOO_LARGE: 'STAGED_VERTICAL_CHILDREN_TOO_LARGE',
 
   /**
    * BNG Service template baseline watercourses with both a Retained or Enhanced

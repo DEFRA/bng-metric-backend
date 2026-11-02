@@ -66,10 +66,24 @@ const baselineTrees = bng.table('baseline_trees', {
   geom: geometry('MultiPoint', BNG_SRID)('geom').notNull()
 })
 
+// Vertical area habitats: a line along the base of each green wall or
+// intertidal hard structure (changelog/db.changelog-1.15.xml).
+const baselineVerticalHabitats = bng.table('baseline_vertical_habitats', {
+  id: uuid('id')
+    .primaryKey()
+    .default(sql`gen_random_uuid()`),
+  projectId: uuid('project_id')
+    .notNull()
+    .references(() => projects.id, { onDelete: 'cascade' }),
+  ref: text('ref'),
+  geom: geometry('MultiLineString', BNG_SRID)('geom').notNull()
+})
+
 export {
   baselineRedLine,
   baselineHabitats,
   baselineHedgerows,
   baselineWatercourses,
-  baselineTrees
+  baselineTrees,
+  baselineVerticalHabitats
 }

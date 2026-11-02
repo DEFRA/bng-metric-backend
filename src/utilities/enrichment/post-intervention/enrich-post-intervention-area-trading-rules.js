@@ -78,8 +78,8 @@ function areaTypeOf(sideOf) {
  * band's surplus and deficit, the Low band's net change, and the units left
  * available to the Low band once the Medium surplus is carried down.
  *
- * @param {{ habitats?: object[], trees?: object[], tradingRules?: object }} postInterventionDocument
- * @param {{ habitats?: object[], trees?: object[] }} [baselineDocument] the stored baseline
+ * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[], tradingRules?: object }} postInterventionDocument
+ * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[] }} [baselineDocument] the stored baseline
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {typeof postInterventionDocument}
  */
@@ -89,14 +89,22 @@ export function enrichPostInterventionAreaTradingRules(
   logger = NO_OP_LOGGER
 ) {
   const deliveredUnitsByType = sumUnitsByType(
-    [postInterventionDocument?.habitats, postInterventionDocument?.trees],
+    [
+      postInterventionDocument?.habitats,
+      postInterventionDocument?.trees,
+      postInterventionDocument?.verticalHabitats
+    ],
     areaTypeOf(deliveredSideOf),
     isKnownAreaType,
     logger,
     LOG_PREFIX
   )
   const baselineUnitsByType = sumUnitsByType(
-    [baselineDocument?.habitats, baselineDocument?.trees],
+    [
+      baselineDocument?.habitats,
+      baselineDocument?.trees,
+      baselineDocument?.verticalHabitats
+    ],
     areaTypeOf((feature) => feature ?? {}),
     isKnownAreaType,
     logger,

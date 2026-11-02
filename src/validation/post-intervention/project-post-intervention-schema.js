@@ -18,6 +18,7 @@ import {
   featureDataEnvelopeFields
 } from '../project-shared-schemas.js'
 import { tradingRulesSchema } from './trading-rules-schema.js'
+import { lostHabitatsSchema } from './lost-habitats-schema.js'
 import { enhancementRulesForLayer } from '../geopackage/post-intervention/enhancement-rules.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
@@ -303,6 +304,36 @@ const postInterventionHabitatSchema = Joi.object({
   'A post-intervention area (polygon) habitat parcel with nested baseline and proposed sub-objects.'
 )
 
+// A post-intervention vertical area habitat: an area habitat sized by the face
+// area its own row gives, so it reuses the area habitat shape.
+const postInterventionVerticalHabitatSchema = Joi.object({
+  ...postInterventionAreaFeatureFields({
+    geometryRow: 'bng.post_intervention_vertical_habitats',
+    refDescription:
+      'Habitat reference from the GeoPackage (Habitat Ref column).',
+    areaDescription:
+      'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded.',
+    sizeDescription:
+      "Face area in square metres, as the surveyor estimated it and typed it into the template's Area (m²) column. Units are priced on it, in hectares.",
+    unitsDescription:
+      'Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values.'
+  }),
+  ...invalidEnhancementField('verticalHabitats'),
+  ...parentFeatureIdField(),
+  irreplaceable: Joi.boolean().description(
+    'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell.'
+  ),
+  baseline: postInterventionHabitatBaselineSubSchema,
+  proposed: postInterventionHabitatProposedSubSchema,
+  properties: Joi.object()
+    .unknown(true)
+    .description(
+      'Raw attribute columns copied verbatim from the GeoPackage Vertical Area Habitats Post-Intervention layer.'
+    )
+}).description(
+  'A post-intervention vertical area habitat (green wall or intertidal hard structure), drawn as a line along its base, with nested baseline and proposed sub-objects.'
+)
+
 // ──────────────────────────────────────────────────────────────────────────────
 // Individual tree sub-schemas
 // ──────────────────────────────────────────────────────────────────────────────
@@ -496,56 +527,9 @@ const postInterventionWatercourseSchema = Joi.object({
     )
 }).description('A post-intervention watercourse (linear) feature.')
 
-// Set on a BNG Service template upload only (BMD-1083), from its parent links.
-const lostHabitatSchema = Joi.object({
-  layer: Joi.string()
-    .valid('habitats', 'hedgerows', 'watercourses')
-    .required()
-    .description('The baseline layer the lost habitat is in.'),
-  featureId: Joi.string()
-    .uuid()
-    .required()
-    .description('The featureId of the lost baseline feature.'),
-  ref: Joi.string()
-    .allow(null)
-    .description('The Habitat Ref of the lost baseline feature.'),
-  type: Joi.string()
-    .allow(null)
-    .description('The habitat type of the lost baseline feature.'),
-  outcome: Joi.string()
-    .valid('removed', 'lostAndRecreated', 'lost')
-    .required()
-    .description(
-      'How it is lost: `removed` when no post-intervention habitat names it; `lostAndRecreated` when a Created habitat of its own type names it (a habitat that gets worse, recorded as lost and created again); `lost` when it is lost, in full or in part, to creations of another type or to nothing.'
-    ),
-  lostSizeSquareMetres: Joi.number()
-    .min(0)
-    .description(
-      'An area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres.'
-    ),
-  lostSizeMetres: Joi.number()
-    .min(0)
-    .description(
-      'A hedgerow or watercourse: its length less that of its Retained and Enhanced post-intervention habitats, in metres.'
-    ),
-  recreatedAs: Joi.array()
-    .items(Joi.string().uuid())
-    .description(
-      'The featureIds of the Created post-intervention habitats of its own type that re-create it. Empty unless `outcome` is `lostAndRecreated`.'
-    )
-}).description(
-  'A baseline habitat a BNG Service template upload loses, in full or in part.'
-)
-
 // ──────────────────────────────────────────────────────────────────────────────
 // Top-level post-intervention data schema
 // ──────────────────────────────────────────────────────────────────────────────
-
-const lostHabitatsSchema = Joi.array()
-  .items(lostHabitatSchema)
-  .description(
-    'The baseline habitats a BNG Service template upload loses, in full or in part, worked out from its parent links when it is imported, and again when a baseline edit re-derives this document or a post-intervention edit changes a habitat (BMD-1083). Absent on a legacy upload.'
-  )
 
 const postInterventionDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
@@ -556,6 +540,11 @@ const postInterventionDataSchema = Joi.object({
   trees: Joi.array()
     .items(postInterventionTreeSchema)
     .description('Post-intervention individual tree (point) features.'),
+  verticalHabitats: Joi.array()
+    .items(postInterventionVerticalHabitatSchema)
+    .description(
+      'Post-intervention vertical area habitats (green walls and intertidal hard structures). Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
+    ),
   hedgerows: Joi.array()
     .items(postInterventionLinearHabitatSchema)
     .description('Post-intervention hedgerow (linear) features.'),
@@ -576,6 +565,7 @@ export {
   lostHabitatsSchema,
   postInterventionHabitatSchema,
   postInterventionTreeSchema,
+  postInterventionVerticalHabitatSchema,
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
 }

@@ -43,6 +43,7 @@ import { PROPOSED_PROP_KEYS } from '../../../validation/geopackage/properties.js
 /** The layers whose parents are tracked, with the size each is measured by. */
 const LAYERS = Object.freeze({
   habitats: 'sizeSquareMetres',
+  verticalHabitats: 'sizeSquareMetres',
   hedgerows: 'sizeMetres',
   watercourses: 'sizeMetres'
 })
@@ -136,8 +137,8 @@ function lostParent(layer, parent, children, sizeField) {
 /**
  * The baseline habitats a template upload loses, in full or in part, each
  * with how it is lost. Hedgerows and watercourses give their lost length in
- * metres, area habitats their lost area in square metres. Trees are not
- * linked yet (BMD-1172).
+ * metres, area and vertical area habitats their lost area in square metres.
+ * Trees are not linked yet (BMD-1172).
  *
  * @param {object} postIntervention the post-intervention document, linked
  * @param {object} baseline the baseline document saved with it
