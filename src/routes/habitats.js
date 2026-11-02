@@ -380,7 +380,7 @@ async function runUpdate(
  *   put:
  *     tags: [Habitats]
  *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
- *     description: Omitted timing fields retain the stored values; explicit null clears them. New timing selections must be integer years 0 to 30 or 30+.
+ *     description: Omitted timing fields retain the stored values; explicit null clears them. An omitted condition retains the stored condition only when the habitat type is unchanged; null clears it. New timing selections must be integer years 0 to 30 or 30+.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -390,7 +390,7 @@ async function runUpdate(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [ref, habitatType, condition, strategicSignificance]
+ *             required: [ref, habitatType, strategicSignificance]
  *             properties:
  *               ref: { type: string }
  *               habitatType: { type: string, nullable: true }

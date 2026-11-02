@@ -231,7 +231,7 @@ describe('BMD-1049 Created hedgerow edits', () => {
       const missing = { ...edits }
       delete missing[field]
       const error = postInterventionHedgerowEditPayload.validate(missing).error
-      if (['advanceYears', 'delayYears'].includes(field)) {
+      if (['advanceYears', 'delayYears', 'condition'].includes(field)) {
         expect(error).toBeUndefined()
       } else {
         expect(error).toBeDefined()
@@ -494,3 +494,45 @@ test('a missing hedgerow returns a type-specific 404 without persisting', async 
   })
   expect(setProjectFeature).not.toHaveBeenCalled()
 })
+
+test.each(['Good', 'Moderate'])(
+  'retains an unsupported imported %s condition on a reference-only save',
+  async (condition) => {
+    const stored = {
+      ...feature,
+      proposed: {
+        ...feature.proposed,
+        type: 'Non-native and ornamental hedgerow',
+        condition
+      }
+    }
+    const { condition: _condition, ...payload } = {
+      ...edits,
+      habitatType: stored.proposed.type
+    }
+    expect(
+      postInterventionHedgerowEditPayload.validate(payload).error
+    ).toBeUndefined()
+    const saved = await updatePostInterventionHedgerow.handler(
+      request(payload, stored)
+    )
+    expect(saved.ref).toBe(edits.ref)
+    expect(saved.proposed.condition).toBe(condition)
+    expect(
+      postInterventionLinearHabitatSchema.validate(saved).error
+    ).toBeUndefined()
+    expect(() =>
+      validateCreatedHedgerowEdit(stored, { ...payload, condition })
+    ).toThrow('Choose valid hedgerow')
+    expect(() =>
+      validateCreatedHedgerowEdit(stored, {
+        ...payload,
+        habitatType: 'Native hedgerow'
+      })
+    ).toThrow('Choose a target condition')
+    const cleared = await updatePostInterventionHedgerow.handler(
+      request({ ...payload, condition: null }, stored)
+    )
+    expect(cleared.proposed.condition).toBeNull()
+  }
+)

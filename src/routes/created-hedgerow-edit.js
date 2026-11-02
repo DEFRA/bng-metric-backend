@@ -15,7 +15,7 @@ import {
 export const postInterventionHedgerowEditPayload = Joi.object({
   ref: featureEditPayload.extract('ref').required(),
   habitatType: featureEditPayload.extract('habitatType').required(),
-  condition: featureEditPayload.extract('condition').required(),
+  condition: featureEditPayload.extract('condition').optional(),
   strategicSignificance: Joi.string()
     .valid(
       ...getHedgerowCreationReference().strategicSignificance.map(
@@ -35,6 +35,14 @@ export function validateCreatedHedgerowEdit(feature, edits) {
     )
   }
   const resolved = resolveStoredTiming(feature, edits)
+  if (edits.condition === undefined) {
+    if (edits.habitatType !== feature.proposed?.type) {
+      throw Boom.badRequest(
+        'Choose a target condition for the selected habitat type'
+      )
+    }
+    resolved.condition = feature.proposed?.condition ?? null
+  }
   validateReferenceAndTiming(resolved)
   const type = getHedgerowCreationReference().habitatTypes.find(
     (t) => t.name === edits.habitatType

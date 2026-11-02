@@ -745,3 +745,17 @@ test('area omitted timing keeps 30+ metadata and timing without an extended edit
     postInterventionAreaEditPayload.validate({ delayYears: 1 }).error
   ).toBeDefined()
 })
+
+test('normalises legacy Created retention before persisting an area edit', async () => {
+  const stored = structuredClone(feature)
+  delete stored.retentionCategory
+  stored.baseline.retentionCategory = 'Created'
+  setProjectFeature.mockImplementationOnce((_tx, _id, { feature: saved }) => {
+    expect(postInterventionHabitatSchema.validate(saved).error).toBeUndefined()
+  })
+  const { request } = routeRequest(edits, stored)
+  const result = await updatePostInterventionAreaHabitat.handler(request)
+  expect(result.retentionCategory).toBe('Created')
+  expect(result.baseline).not.toHaveProperty('retentionCategory')
+  expect(stored.baseline.retentionCategory).toBe('Created')
+})

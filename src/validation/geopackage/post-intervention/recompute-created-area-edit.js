@@ -1,3 +1,4 @@
+import { withRootRetentionCategory } from '../../../utilities/enrichment/post-intervention/retention-category.js'
 import { NO_OP_LOGGER } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
 import { enrichPostInterventionAreaProposedSide } from '../../../utilities/enrichment/post-intervention/enrich-post-intervention-area-habitat.js'
 import {
@@ -9,7 +10,7 @@ import { proposedAttributes } from './created-feature-edit.js'
 // Preserve edited inputs, then use the same guards, pricing and result mapping
 // as import/resync. No independent copy of the engine's reference calculations.
 export function recomputeCreatedAreaEdit(existing, edits) {
-  const feature = structuredClone(existing)
+  const feature = withRootRetentionCategory(structuredClone(existing))
   feature.ref = edits.ref.trim()
   feature.proposed = {
     ...proposedAttributes(feature.proposed, edits),
