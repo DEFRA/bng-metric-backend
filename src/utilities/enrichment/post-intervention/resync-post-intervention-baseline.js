@@ -23,7 +23,7 @@
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
 // Its trees are not linked yet (BMD-1172), so they still re-sync by ref.
 //
-// In a legacy upload, reference-edited Created areas and hedgerows retain their
+// In a legacy upload, reference-edited Created areas, hedgerows and watercourses retain their
 // explicit parent independently of their editable ref; null explicitly means no
 // parent. Other legacy rows use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
@@ -328,7 +328,7 @@ export function preserveCreatedParent(
 ) {
   const createdEdit =
     documentKey === 'postIntervention' &&
-    ['habitats', 'hedgerows'].includes(layer)
+    ['habitats', 'hedgerows', 'watercourses'].includes(layer)
   if (
     !createdEdit ||
     resolveRetentionCategory(existing) !== RETENTION_CREATED ||

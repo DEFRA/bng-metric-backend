@@ -1,3 +1,4 @@
+import { recomputeCreatedWatercourseEdit } from '../../validation/geopackage/post-intervention/recompute-created-watercourse-edit.js'
 // Single entry point for "user edited a project feature, persist the new
 // derived shape." Used by baseline and post-intervention PUT routes. Pure —
 // does no I/O. Callers wrap the result in their own transaction and write the
@@ -178,10 +179,10 @@ function recomputeHedgerowEdit(
 }
 
 function recomputeWatercourseEdit(existing, edits, { documentKey }) {
-  // Post-intervention watercourse editing is out of scope; only the baseline
-  // document recomputes a watercourse here (BMD-597).
   if (documentKey === 'postIntervention') {
-    return null
+    return Object.hasOwn(edits, 'advanceYears')
+      ? recomputeCreatedWatercourseEdit(existing, edits)
+      : null
   }
   return recomputeWatercourse({
     habitatType: edits.habitatType,
@@ -331,7 +332,7 @@ function resolveUpdatedFeature(
 ) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    (found.type === 'habitat' || found.type === 'hedgerow') &&
+    ['habitat', 'hedgerow', 'watercourse'].includes(found.type) &&
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
@@ -462,7 +463,8 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (!['habitat', 'hedgerow'].includes(found.type) ||
+    (!['habitat', 'hedgerow', 'watercourse'].includes(found.type) ||
+      (found.type !== 'habitat' && edits.broadType !== null) ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
   )

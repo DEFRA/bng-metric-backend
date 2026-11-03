@@ -17,6 +17,7 @@
   "GET /reference/hedgerow-types",
   "GET /reference/local-planning-authorities",
   "GET /reference/trading-rules",
+  "GET /reference/watercourse-creation",
   "GET /reference/watercourse-encroachments",
   "GET /reference/watercourse-types",
   "GET /upload/{uploadId}/status",
@@ -32,5 +33,6 @@
   "PUT /projects/{projectId}/habitats/{featureId}",
   "PUT /projects/{projectId}/post-intervention/features/{featureId}",
   "PUT /projects/{projectId}/post-intervention/habitats/{featureId}",
-  "PUT /projects/{projectId}/post-intervention/hedgerows/{featureId}"
+  "PUT /projects/{projectId}/post-intervention/hedgerows/{featureId}",
+  "PUT /projects/{projectId}/post-intervention/watercourses/{featureId}"
 ]

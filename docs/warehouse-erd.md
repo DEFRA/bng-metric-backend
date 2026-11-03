@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 454 schema fields.
+**25 tables**, mapping 457 schema fields.
 
 ## Diagram
 
@@ -915,7 +915,7 @@ hedgerows in the postIntervention document. 35 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 40 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 43 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -924,6 +924,7 @@ watercourses in the postIntervention document. 40 column(s) mapped from the JSON
 | `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.watercourses[].referenceEdited`                         |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.watercourses[].ref`                                     |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.watercourses[].length`                                  |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
@@ -939,6 +940,8 @@ watercourses in the postIntervention document. 40 column(s) mapped from the JSON
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.watercourses[].baseline.strategicSignificance`          |                                                                                  |
 | `baseline_water_encroachment_multiplier`     | `numeric` |     | `postIntervention.watercourses[].baseline.waterEncroachmentMultiplier`    |                                                                                  |
 | `baseline_riparian_encroachment_multiplier`  | `numeric` |     | `postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier` |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.watercourses[].proposed.advanceYearsIs30Plus`           |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.watercourses[].proposed.delayYearsIs30Plus`             |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.watercourses[].proposed.type`                           |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.watercourses[].proposed.condition`                      |                                                                                  |
 | `proposed_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].proposed.conditionScore`                 |                                                                                  |

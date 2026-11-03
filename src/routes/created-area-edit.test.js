@@ -648,13 +648,16 @@ test('only editable Created families permit an explicit unlinked null', () => {
     postInterventionHabitatSchema.extract('parentFeatureId').validate(null)
       .error
   ).toBeUndefined()
-  for (const schema of [postInterventionWatercourseSchema]) {
+  for (const schema of [
+    postInterventionHabitatSchema,
+    postInterventionWatercourseSchema
+  ]) {
     const field = schema.extract('parentFeatureId')
-    expect(field.validate(null).error).toBeDefined()
+    expect(field.validate(null).error).toBeUndefined()
     expect(field.validate(undefined).error).toBeUndefined()
     expect(field.validate(featureId).error).toBeUndefined()
     expect(field.describe().flags.description).toContain('BNG Service template')
-    expect(field.describe().flags.description).not.toContain('Created area')
+    expect(field.describe().flags.description).toContain('Created area')
   }
 })
 

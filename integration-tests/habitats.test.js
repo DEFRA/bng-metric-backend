@@ -4,6 +4,10 @@ import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
+import {
+  calculateCreatedWatercoursePostIntervention,
+  roundToSigFigs
+} from 'bng-library/metric'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
@@ -762,5 +766,196 @@ describe('Created area imported timing preservation', () => {
     })
     expect(cleared.statusCode).toBe(HTTP_OK)
     expect((await read()).proposed.advanceYears).toBeNull()
+  })
+})
+
+describe('BMD-1050 Created watercourse saves', () => {
+  function watercourse() {
+    return {
+      featureId: randomUUID(),
+      ref: 'W-original',
+      retentionCategory: 'Created',
+      sizeMetres: 500,
+      units: null,
+      status: 'Incomplete',
+      baseline: {},
+      proposed: {
+        type: 'Ditches',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0,
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment/No Encroachment'
+      }
+    }
+  }
+  const payload = {
+    ref: 'W-renamed',
+    habitatType: 'Ditches',
+    condition: 'Good',
+    strategicSignificance: 'High',
+    advanceYears: 0,
+    delayYears: 0,
+    watercourseEncroachment: 'Minor',
+    riparianEncroachment: 'Minor/Minor'
+  }
+
+  it('persists the engine result, both encroachments and totals; clearing either input remains Incomplete after reload', async () => {
+    const feature = watercourse()
+    const projectId = await seedProject({
+      name: 'Watercourse edit IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    const read = async () =>
+      (
+        await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+          projectId
+        ])
+      ).rows[0].project
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    const expected = calculateCreatedWatercoursePostIntervention(
+      0.5,
+      'Ditches',
+      'Good',
+      'Minor',
+      'Minor/Minor',
+      0,
+      0,
+      'High'
+    )
+    expect(saved.result.units).toBe(expected.units)
+    expect(saved.result.proposed).toMatchObject({
+      waterEncroachmentMultiplier: expected.waterEncroachmentMultiplier,
+      riparianEncroachmentMultiplier: expected.riparianEncroachmentMultiplier
+    })
+    expect((await read()).postIntervention.watercourses[0]).toEqual(
+      saved.result
+    )
+    expect((await read()).postIntervention.units.watercoursesTotal).toBeCloseTo(
+      roundToSigFigs(expected.units)
+    )
+    for (const field of [
+      'watercourseEncroachment',
+      'riparianEncroachment',
+      'delayYears'
+    ]) {
+      const cleared = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...payload, [field]: null }
+      })
+      expect(cleared.statusCode).toBe(HTTP_OK)
+      const document = (await read()).postIntervention
+      expect(document.watercourses[0].proposed[field]).toBeNull()
+      expect(document.watercourses[0].units).toBeNull()
+      expect(document.watercourses[0].status).toBe('Incomplete')
+      expect(document.units.watercoursesTotal).toBe(0)
+    }
+    const { delayYears: _delay, ...omitted } = payload
+    expect(
+      (await server.inject({ method: 'PUT', url, headers, payload: omitted }))
+        .statusCode
+    ).toBe(HTTP_OK)
+    expect(
+      (await read()).postIntervention.watercourses[0].proposed.delayYears
+    ).toBeNull()
+  })
+
+  it('requires the owner and refuses invalid edits without modifying the stored feature', async () => {
+    const feature = watercourse()
+    const projectId = await seedProject({
+      name: 'Watercourse validation IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    expect(
+      (await server.inject({ method: 'PUT', url, payload })).statusCode
+    ).toBe(HTTP_UNAUTHORIZED)
+    const other = authHeaders(await mintToken({ sub: `other-${randomUUID()}` }))
+    expect(
+      (await server.inject({ method: 'PUT', url, headers: other, payload }))
+        .statusCode
+    ).toBe(HTTP_NOT_FOUND)
+    for (const changes of [
+      { ref: ' ' },
+      { advanceYears: 1, delayYears: 2 },
+      { habitatType: 'Native hedgerow' },
+      { watercourseEncroachment: 'Unknown' },
+      { riparianEncroachment: 'Minor' },
+      { sizeMetres: 900 }
+    ]) {
+      expect(
+        (
+          await server.inject({
+            method: 'PUT',
+            url,
+            headers,
+            payload: { ...payload, ...changes }
+          })
+        ).statusCode
+      ).toBe(HTTP_BAD_REQUEST)
+    }
+    const document = (
+      await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+        projectId
+      ])
+    ).rows[0].project
+    expect(document.postIntervention.watercourses[0]).toEqual(feature)
+  })
+
+  it('normalises legacy retention and retains omitted imported condition and timing on a rename', async () => {
+    const feature = watercourse()
+    delete feature.retentionCategory
+    feature.baseline.retentionCategory = 'Created'
+    feature.proposed.type = 'Culvert'
+    feature.proposed.condition = 'Good'
+    feature.proposed.advanceYears = 2.5
+    const projectId = await seedProject({
+      name: 'Legacy watercourse IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    const payload = {
+      ref: 'Renamed culvert',
+      habitatType: 'Culvert',
+      strategicSignificance: 'Low'
+    }
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result.retentionCategory).toBe('Created')
+    expect(saved.result.baseline).not.toHaveProperty('retentionCategory')
+    expect(saved.result.proposed).toMatchObject({
+      condition: 'Good',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment'
+    })
+    const reloaded = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/post-intervention/features/${feature.featureId}`,
+      headers
+    })
+    expect(reloaded.statusCode).toBe(HTTP_OK)
+    expect(reloaded.result.feature.proposed.condition).toBe('Good')
+    const invalid = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, condition: 'Good' }
+    })
+    expect(invalid.statusCode).toBe(HTTP_BAD_REQUEST)
+    const cleared = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, condition: null, advanceYears: null }
+    })
+    expect(cleared.statusCode).toBe(HTTP_OK)
+    expect(cleared.result.proposed.condition).toBeNull()
+    expect(cleared.result.proposed.advanceYears).toBeNull()
   })
 })
