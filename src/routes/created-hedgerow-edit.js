@@ -28,20 +28,27 @@ export const postInterventionHedgerowEditPayload = Joi.object({
   delayYears: createdEditYears.optional()
 })
 
+function resolveCreatedHedgerowCondition(feature, edits) {
+  if (edits.condition !== undefined) {
+    return edits.condition
+  }
+  if ((edits.habitatType ?? null) !== (feature.proposed?.type ?? null)) {
+    throw Boom.badRequest(
+      'Choose a target condition for the selected habitat type'
+    )
+  }
+  return feature.proposed?.condition ?? null
+}
+
 export function validateCreatedHedgerowEdit(feature, edits) {
   if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
     throw Boom.badRequest(
       'These attributes can only be edited on Created hedgerows'
     )
   }
-  const resolved = resolveStoredTiming(feature, edits)
-  if (edits.condition === undefined) {
-    if ((edits.habitatType ?? null) !== (feature.proposed?.type ?? null)) {
-      throw Boom.badRequest(
-        'Choose a target condition for the selected habitat type'
-      )
-    }
-    resolved.condition = feature.proposed?.condition ?? null
+  const resolved = {
+    ...resolveStoredTiming(feature, edits),
+    condition: resolveCreatedHedgerowCondition(feature, edits)
   }
   validateReferenceAndTiming(resolved)
   const type = getHedgerowCreationReference().habitatTypes.find(
