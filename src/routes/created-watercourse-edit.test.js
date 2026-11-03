@@ -163,6 +163,54 @@ test.each([2, null, '30+'])(
   }
 )
 
+test.each([10, '30+'])(
+  'keeps saved advance %s across lineage nulling, a rename with omitted advance, and a baseline correction',
+  (advanceYears) => {
+    const project = templateProject()
+    const saved = applyFeatureUpdate(project, {
+      featureId,
+      documentKey: 'postIntervention',
+      expectedType: 'watercourse',
+      edits: { ...edits, condition: 'Poor', advanceYears }
+    })
+    const numericAdvance = advanceYears === '30+' ? 30 : advanceYears
+    expect(saved.feature.proposed.advanceYears).toBeNull()
+    expect(saved.feature.editedAdvanceYears).toBe(numericAdvance)
+    const { advanceYears: _advance, ...rename } = {
+      ...edits,
+      ref: 'Renamed while restricted',
+      condition: 'Poor'
+    }
+    const resolved = validateCreatedWatercourseEdit(saved.feature, rename)
+    expect(resolved.advanceYears).toBe(advanceYears)
+    expect(rename).not.toHaveProperty('advanceYears')
+    const renamed = applyFeatureUpdate(saved.project, {
+      featureId,
+      documentKey: 'postIntervention',
+      expectedType: 'watercourse',
+      edits: resolved
+    })
+    expect(renamed.feature.proposed.advanceYears).toBeNull()
+    expect(renamed.feature.editedAdvanceYears).toBe(numericAdvance)
+    const rederived = rederivePostInterventionFromBaseline(
+      renamed.project.postIntervention,
+      {
+        baseline: { watercourses: [{ ...templateParent, condition: 'Poor' }] },
+        previousBaseline: project.baseline
+      }
+    )
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(numericAdvance)
+    expect(rederived.watercourses[0].ref).toBe(rename.ref)
+    expect(rederived.watercourses[0].status).toBe('Complete')
+    expect(
+      validateCreatedWatercourseEdit(renamed.feature, {
+        ...rename,
+        advanceYears: null
+      }).advanceYears
+    ).toBeNull()
+  }
+)
+
 test.each([
   ['condition', { condition: 'Poor' }, false],
   ['type', { habitatType: 'Canals' }, true]

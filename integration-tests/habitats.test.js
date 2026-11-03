@@ -770,6 +770,87 @@ describe('Created area imported timing preservation', () => {
 })
 
 describe('BMD-1050 Created watercourse saves', () => {
+  it.each([10, '30+'])(
+    'persists saved advance %s through a restricted rename and restores it after a baseline correction',
+    async (advanceYears) => {
+      const parent = {
+        featureId: randomUUID(),
+        ref: 'Parent',
+        type: 'Ditches',
+        condition: 'Moderate',
+        sizeMetres: 500,
+        strategicSignificance: 'Low',
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment/No Encroachment'
+      }
+      const feature = {
+        ...watercourse(),
+        parentFeatureId: parent.featureId,
+        properties: { 'Habitat created in advance/years': 5 }
+      }
+      const projectId = await seedProject({
+        name: 'Restricted advance rename IT',
+        baseline: { watercourses: [parent] },
+        postIntervention: {
+          template: { name: 'bng-service', version: '1.0' },
+          watercourses: [feature]
+        }
+      })
+      const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+      const saved = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...payload, condition: 'Poor', advanceYears }
+      })
+      expect(saved.statusCode, saved.payload).toBe(HTTP_OK)
+      expect(saved.result.proposed.advanceYears).toBeNull()
+      const { advanceYears: _advance, ...rename } = {
+        ...payload,
+        condition: 'Poor',
+        ref: 'Renamed while restricted'
+      }
+      const renamed = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: rename
+      })
+      expect(renamed.statusCode, renamed.payload).toBe(HTTP_OK)
+      const read = async () =>
+        (
+          await dbClient.query(
+            'SELECT project FROM bng.projects WHERE id = $1',
+            [projectId]
+          )
+        ).rows[0].project
+      const expectedAdvance = advanceYears === '30+' ? 30 : advanceYears
+      expect(
+        (await read()).postIntervention.watercourses[0].editedAdvanceYears
+      ).toBe(expectedAdvance)
+      const corrected = await server.inject({
+        method: 'PUT',
+        url: `/projects/${projectId}/features/${parent.featureId}`,
+        headers,
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Poor',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment/No Encroachment'
+        }
+      })
+      expect(corrected.statusCode, corrected.payload).toBe(HTTP_OK)
+      expect((await read()).postIntervention.watercourses[0]).toMatchObject({
+        ref: rename.ref,
+        status: 'Complete',
+        editedAdvanceYears: expectedAdvance,
+        proposed: {
+          advanceYears: expectedAdvance,
+          advanceYearsIs30Plus: advanceYears === '30+'
+        }
+      })
+    }
+  )
   it('persists lineage changes on both the edited watercourse and its sibling atomically', async () => {
     const parent = {
       featureId: randomUUID(),

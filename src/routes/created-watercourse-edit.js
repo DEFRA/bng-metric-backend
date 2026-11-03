@@ -1,4 +1,5 @@
 import Joi from 'joi'
+import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 import {
   createdLinearEditPayload,
   validateCreatedLinearEdit
@@ -21,10 +22,27 @@ export const postInterventionWatercourseEditPayload = createdLinearEditPayload(
   )
 )
 
+function withSavedAdvance(feature, edits) {
+  if (
+    edits.advanceYears !== undefined ||
+    !Object.hasOwn(feature, 'editedAdvanceYears')
+  ) {
+    return edits
+  }
+  const saved = feature.editedAdvanceYears
+  return {
+    ...edits,
+    advanceYears:
+      saved === MAX_YEARS && feature.proposed?.advanceYearsIs30Plus
+        ? MAX_YEARS_PLUS
+        : saved
+  }
+}
+
 export function validateCreatedWatercourseEdit(feature, edits) {
   const resolved = validateCreatedLinearEdit(
     feature,
-    edits,
+    withSavedAdvance(feature, edits),
     reference,
     'watercourse'
   )

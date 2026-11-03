@@ -61,20 +61,27 @@ export function createdLinearEditPayload(reference, extra = {}) {
   })
 }
 
+function resolveCreatedLinearCondition(feature, edits) {
+  if (edits.condition !== undefined) {
+    return edits.condition
+  }
+  if ((edits.habitatType ?? null) !== (feature.proposed?.type ?? null)) {
+    throw Boom.badRequest(
+      'Choose a target condition for the selected habitat type'
+    )
+  }
+  return feature.proposed?.condition ?? null
+}
+
 export function validateCreatedLinearEdit(feature, edits, reference, label) {
   if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
     throw Boom.badRequest(
       `These attributes can only be edited on Created ${label}s`
     )
   }
-  const resolved = resolveStoredTiming(feature, edits)
-  if (edits.condition === undefined) {
-    if (edits.habitatType !== feature.proposed?.type) {
-      throw Boom.badRequest(
-        'Choose a target condition for the selected habitat type'
-      )
-    }
-    resolved.condition = feature.proposed?.condition ?? null
+  const resolved = {
+    ...resolveStoredTiming(feature, edits),
+    condition: resolveCreatedLinearCondition(feature, edits)
   }
   validateReferenceAndTiming(resolved)
   const type = reference.habitatTypes.find((t) => t.name === edits.habitatType)
