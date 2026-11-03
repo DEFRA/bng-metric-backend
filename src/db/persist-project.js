@@ -254,6 +254,24 @@ async function setProjectBaselineAndPostIntervention(
     .where(eq(projects.id, id))
 }
 
+function hasConsistentTemplateFragments({
+  postIntervention,
+  layer,
+  index,
+  feature,
+  unitsTotals,
+  tradingRules,
+  lostHabitats
+}) {
+  return (
+    postIntervention?.template &&
+    isDeepStrictEqual(postIntervention[layer]?.[index], feature) &&
+    isDeepStrictEqual(postIntervention.units, unitsTotals) &&
+    isDeepStrictEqual(postIntervention.tradingRules, tradingRules) &&
+    isDeepStrictEqual(postIntervention.lostHabitats, lostHabitats)
+  )
+}
+
 /**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
@@ -271,16 +289,18 @@ function assertFeatureEditValid({
   lostHabitats,
   postIntervention
 }) {
-  const consistentTemplateEdit =
-    postIntervention?.template &&
-    isDeepStrictEqual(postIntervention[layer]?.[index], feature) &&
-    isDeepStrictEqual(postIntervention.units, unitsTotals) &&
-    isDeepStrictEqual(postIntervention.tradingRules, tradingRules) &&
-    isDeepStrictEqual(postIntervention.lostHabitats, lostHabitats)
   if (
     postIntervention &&
     documentKey === POST_INTERVENTION_DOCUMENT_KEY &&
-    !consistentTemplateEdit
+    !hasConsistentTemplateFragments({
+      postIntervention,
+      layer,
+      index,
+      feature,
+      unitsTotals,
+      tradingRules,
+      lostHabitats
+    })
   ) {
     throw Boom.badImplementation(
       'persist: a post-intervention feature edit must not also replace the post-intervention document without consistent template fragments'
