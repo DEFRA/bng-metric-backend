@@ -116,7 +116,7 @@ function templateProject(pieces = 1) {
   return {
     baseline: { watercourses: [templateParent] },
     postIntervention: {
-      template: { name: 'bng-service' },
+      template: { name: 'bng-service', version: '1.0' },
       watercourses: Array.from({ length: pieces }, (_, index) => ({
         ...structuredClone(feature),
         featureId: index ? 'cccccccc-cccc-cccc-cccc-cccccccccccc' : featureId,

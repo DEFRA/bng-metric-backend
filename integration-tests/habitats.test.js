@@ -796,7 +796,7 @@ describe('BMD-1050 Created watercourse saves', () => {
       name: 'Template sibling persistence IT',
       baseline: { watercourses: [parent] },
       postIntervention: {
-        template: { name: 'bng-service' },
+        template: { name: 'bng-service', version: '1.0' },
         watercourses: children
       }
     })

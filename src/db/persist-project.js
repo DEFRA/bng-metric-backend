@@ -18,6 +18,7 @@
 // by a no-restricted-syntax ESLint rule, so every new route that persists
 // project data must come through here.
 import Boom from '@hapi/boom'
+import { isDeepStrictEqual } from 'node:util'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
@@ -270,9 +271,19 @@ function assertFeatureEditValid({
   lostHabitats,
   postIntervention
 }) {
-  if (postIntervention && documentKey === POST_INTERVENTION_DOCUMENT_KEY) {
+  const consistentTemplateEdit =
+    postIntervention?.template &&
+    isDeepStrictEqual(postIntervention[layer]?.[index], feature) &&
+    isDeepStrictEqual(postIntervention.units, unitsTotals) &&
+    isDeepStrictEqual(postIntervention.tradingRules, tradingRules) &&
+    isDeepStrictEqual(postIntervention.lostHabitats, lostHabitats)
+  if (
+    postIntervention &&
+    documentKey === POST_INTERVENTION_DOCUMENT_KEY &&
+    !consistentTemplateEdit
+  ) {
     throw Boom.badImplementation(
-      'persist: a post-intervention feature edit must not also replace the post-intervention document'
+      'persist: a post-intervention feature edit must not also replace the post-intervention document without consistent template fragments'
     )
   }
   assertFragmentValid(
