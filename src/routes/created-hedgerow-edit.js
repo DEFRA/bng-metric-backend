@@ -36,7 +36,7 @@ export function validateCreatedHedgerowEdit(feature, edits) {
   }
   const resolved = resolveStoredTiming(feature, edits)
   if (edits.condition === undefined) {
-    if (edits.habitatType !== feature.proposed?.type) {
+    if ((edits.habitatType ?? null) !== (feature.proposed?.type ?? null)) {
       throw Boom.badRequest(
         'Choose a target condition for the selected habitat type'
       )

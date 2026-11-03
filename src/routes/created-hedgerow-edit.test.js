@@ -84,6 +84,36 @@ function request(payload, stored = feature) {
   }
 }
 beforeEach(() => vi.clearAllMocks())
+
+test.each([{}, { type: null }])(
+  'retains an empty habitat type when condition is omitted: %j',
+  async (proposed) => {
+    const stored = { ...feature, proposed }
+    const { condition: _condition, ...payload } = {
+      ...edits,
+      habitatType: null
+    }
+    expect(
+      postInterventionHedgerowEditPayload.validate(payload).error
+    ).toBeUndefined()
+    const saved = await updatePostInterventionHedgerow.handler(
+      request(payload, stored)
+    )
+    expect(saved.ref).toBe(edits.ref)
+    expect(saved.proposed.type).toBeNull()
+    expect(saved.proposed.condition).toBeNull()
+    expect(saved.units).toBeNull()
+    expect(saved.status).toBe('Incomplete')
+    expect(
+      postInterventionLinearHabitatSchema.validate(saved).error
+    ).toBeUndefined()
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      projectId,
+      expect.objectContaining({ feature: saved })
+    )
+  }
+)
 describe('BMD-1049 Created hedgerow edits', () => {
   test('reference has only hedgerows and conditions supported by the public engine', () => {
     const reference = getHedgerowCreationReference()
