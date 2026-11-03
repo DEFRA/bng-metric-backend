@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 457 schema fields.
+**25 tables**, mapping 458 schema fields.
 
 ## Diagram
 
@@ -915,12 +915,13 @@ hedgerows in the postIntervention document. 35 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 43 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 44 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                                 | `uuid`    | PK  | —                                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                             | `text`    | FK  | —                                                                         | → feature_set.feature_set_id                                                     |
+| `edited_advance_years`                       | `numeric` |     | `postIntervention.watercourses[].editedAdvanceYears`                      |                                                                                  |
 | `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |

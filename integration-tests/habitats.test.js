@@ -770,6 +770,63 @@ describe('Created area imported timing preservation', () => {
 })
 
 describe('BMD-1050 Created watercourse saves', () => {
+  it('persists lineage changes on both the edited watercourse and its sibling atomically', async () => {
+    const parent = {
+      featureId: randomUUID(),
+      ref: 'Parent',
+      type: 'Ditches',
+      condition: 'Moderate',
+      sizeMetres: 1000,
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      strategicSignificance: 'Low'
+    }
+    const children = [watercourse(), watercourse()].map((child) => ({
+      ...child,
+      parentFeatureId: parent.featureId,
+      editedAdvanceYears: 10,
+      properties: { 'Habitat created in advance/years': 5 },
+      proposed: {
+        ...child.proposed,
+        advanceYears: 10,
+        watercourseEncroachment: 'Major'
+      }
+    }))
+    const projectId = await seedProject({
+      name: 'Template sibling persistence IT',
+      baseline: { watercourses: [parent] },
+      postIntervention: {
+        template: { name: 'bng-service' },
+        watercourses: children
+      }
+    })
+    const response = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/watercourses/${children[0].featureId}`,
+      headers,
+      payload: {
+        ...payload,
+        habitatType: 'Canals',
+        condition: 'Moderate',
+        advanceYears: 10
+      }
+    })
+    expect(response.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      'SELECT project, last_modified_by FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    const document = rows[0].project.postIntervention
+    expect(document.watercourses[0]).toEqual(response.result)
+    for (const child of document.watercourses) {
+      expect(child.proposed.advanceYears).toBeNull()
+      expect(child.units).toBeNull()
+      expect(child.status).toBe('Incomplete')
+      expect(child.editedAdvanceYears).toBe(10)
+    }
+    expect(document.units.watercoursesTotal).toBe(0)
+    expect(rows[0].last_modified_by).toBe(userId)
+  })
   function watercourse() {
     return {
       featureId: randomUUID(),

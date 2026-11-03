@@ -5446,6 +5446,17 @@
       "description": "A post-intervention watercourse (linear) feature."
     },
     {
+      "path": "postIntervention.watercourses[].editedAdvanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance years explicitly saved by a Created watercourse edit, including null when cleared. Takes precedence over the raw uploaded advance when lineage is recalculated."
+    },
+    {
       "path": "postIntervention.watercourses[].retentionCategory",
       "type": "string",
       "required": true,

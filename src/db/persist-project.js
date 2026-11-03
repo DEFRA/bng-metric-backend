@@ -332,9 +332,9 @@ function assertFeatureEditValid({
  *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
  *   Service template upload; omitted otherwise (BMD-1083)
  * @param {object} [params.postIntervention] the whole re-derived
- *   postIntervention document, written alongside a BASELINE feature edit: that
- *   document holds its own copy of the baseline and an edit can move any number
- *   of its figures, so it is the one subtree that cannot be patched surgically.
+ *   postIntervention document, written alongside a baseline feature edit or a
+ *   template post-intervention edit. Baseline changes and template lineage
+ *   rules can move sibling figures, so this subtree is saved together.
  *   Joins the same UPDATE so the two documents can never be persisted apart.
  */
 async function setProjectFeature(

@@ -518,6 +518,11 @@ const postInterventionWatercourseProposedSubSchema = Joi.object({
 )
 
 const postInterventionWatercourseSchema = Joi.object({
+  editedAdvanceYears: Joi.number()
+    .allow(null)
+    .description(
+      'Advance years explicitly saved by a Created watercourse edit, including null when cleared. Takes precedence over the raw uploaded advance when lineage is recalculated.'
+    ),
   ...postInterventionLinearFeatureFields({
     geometryRow: 'bng.post_intervention_watercourses',
     layer: 'watercourses'

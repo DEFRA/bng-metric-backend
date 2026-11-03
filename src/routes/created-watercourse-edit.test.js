@@ -13,7 +13,10 @@ import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.j
 import { setProjectFeature } from '../db/persist-project.js'
 import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { postInterventionWatercourseSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
-import { resyncPostInterventionBaselineSide } from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  resyncPostInterventionBaselineSide,
+  rederivePostInterventionFromBaseline
+} from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 
 vi.mock('../db/persist-project.js', () => ({ setProjectFeature: vi.fn() }))
 vi.mock('../db/feature-geometry-refs.js', () => ({ setGeometryRefs: vi.fn() }))
@@ -98,6 +101,104 @@ function request(payload, stored = feature) {
 }
 
 beforeEach(() => vi.resetAllMocks())
+
+const templateParent = {
+  featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+  ref: 'W-1',
+  type: 'Ditches',
+  condition: 'Moderate',
+  sizeMetres: 1250,
+  strategicSignificance: 'Low',
+  watercourseEncroachment: 'No Encroachment',
+  riparianEncroachment: 'No Encroachment/No Encroachment'
+}
+function templateProject(pieces = 1) {
+  return {
+    baseline: { watercourses: [templateParent] },
+    postIntervention: {
+      template: { name: 'bng-service' },
+      watercourses: Array.from({ length: pieces }, (_, index) => ({
+        ...structuredClone(feature),
+        featureId: index ? 'cccccccc-cccc-cccc-cccc-cccccccccccc' : featureId,
+        parentFeatureId: templateParent.featureId,
+        sizeMetres: 1250 / pieces,
+        properties: { 'Habitat created in advance/years': 5 },
+        proposed: {
+          ...feature.proposed,
+          advanceYears: 5,
+          watercourseEncroachment: 'Major'
+        }
+      }))
+    }
+  }
+}
+
+test.each([2, null, '30+'])(
+  'keeps saved advance %s through the full template baseline rederive',
+  (advanceYears) => {
+    const project = templateProject()
+    const result = applyFeatureUpdate(project, {
+      featureId,
+      documentKey: 'postIntervention',
+      expectedType: 'watercourse',
+      edits: { ...edits, condition: 'Moderate', advanceYears }
+    })
+    const expected = advanceYears === '30+' ? 30 : advanceYears
+    expect(result.status).toBe('ok')
+    expect(result.feature.editedAdvanceYears).toBe(expected)
+    const rederived = rederivePostInterventionFromBaseline(
+      result.project.postIntervention,
+      {
+        baseline: {
+          watercourses: [{ ...templateParent, ref: 'Renamed baseline' }]
+        },
+        previousBaseline: project.baseline
+      }
+    )
+    expect(rederived.watercourses[0].proposed.advanceYears).toBe(expected)
+    expect(
+      postInterventionWatercourseSchema.validate(rederived.watercourses[0])
+        .error
+    ).toBeUndefined()
+  }
+)
+
+test.each([
+  ['condition', { condition: 'Poor' }, false],
+  ['type', { habitatType: 'Canals' }, true]
+])(
+  'applies the lineage rule after a %s edit and persists affected siblings: %s',
+  (_, change, siblingAffected) => {
+    const project = templateProject(2)
+    for (const row of project.postIntervention.watercourses) {
+      row.proposed.advanceYears = 10
+      row.editedAdvanceYears = 10
+    }
+    const result = applyFeatureUpdate(project, {
+      featureId,
+      documentKey: 'postIntervention',
+      expectedType: 'watercourse',
+      edits: { ...edits, condition: 'Moderate', advanceYears: 10, ...change }
+    })
+    expect(result.status).toBe('ok')
+    expect(result.feature.proposed.advanceYears).toBeNull()
+    expect(result.feature.units).toBeNull()
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.postIntervention).toBe(result.project.postIntervention)
+    expect(result.postIntervention.watercourses[1].proposed.advanceYears).toBe(
+      siblingAffected ? null : 10
+    )
+    if (siblingAffected) {
+      expect(result.postIntervention.watercourses[1].units).toBeNull()
+      expect(result.postIntervention.watercourses[1].status).toBe('Incomplete')
+      expect(result.unitsTotals.watercoursesTotal).toBe(0)
+    }
+    expect(project.postIntervention.watercourses[1].proposed.advanceYears).toBe(
+      10
+    )
+    expect(result.unitsTotals).toEqual(result.postIntervention.units)
+  }
+)
 
 describe('BMD-1050 Created watercourse editing', () => {
   test('creation choices and derived values come from the pinned public calculator', () => {

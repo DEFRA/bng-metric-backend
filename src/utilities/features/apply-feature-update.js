@@ -37,10 +37,7 @@ import {
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
 import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
-import {
-  isTemplateUpload,
-  lostBaselineHabitats
-} from '../enrichment/post-intervention/lineage-outcomes.js'
+import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'
 import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
@@ -395,16 +392,22 @@ function refreshFiguresDownstreamOfEdit(
   updatedFeatureSet,
   { project, documentKey, previousFeatureSet, logger }
 ) {
+  if (
+    documentKey === 'postIntervention' &&
+    isTemplateUpload(updatedFeatureSet)
+  ) {
+    // A watercourse edit can change its siblings' allowable advance. Run the
+    // baseline rederive pipeline and persist the whole document together.
+    const rederived = rederivePostInterventionFromBaseline(
+      updatedFeatureSet,
+      { baseline: project?.baseline },
+      logger
+    )
+    Object.assign(updatedFeatureSet, rederived)
+    return updatedFeatureSet
+  }
   summarizeFeatureSetUnitsTotals(updatedFeatureSet)
   if (documentKey === 'postIntervention') {
-    // An edit can change a habitat's type, and with it whether its parent
-    // is lost and re-created (BMD-1083).
-    if (isTemplateUpload(updatedFeatureSet)) {
-      updatedFeatureSet.lostHabitats = lostBaselineHabitats(
-        updatedFeatureSet,
-        project?.baseline
-      )
-    }
     addPostInterventionNetUnitChanges(
       updatedFeatureSet,
       project?.baseline?.units
@@ -460,11 +463,13 @@ function brokenEnhancementRule(found, derived, documentKey) {
 }
 
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
+  const unsupportedLinearBroadType =
+    found.type !== 'habitat' && edits.broadType !== null
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
     (!['habitat', 'hedgerow', 'watercourse'].includes(found.type) ||
-      (found.type !== 'habitat' && edits.broadType !== null) ||
+      unsupportedLinearBroadType ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
   )
@@ -659,15 +664,15 @@ function applyFeatureUpdate(
   // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
   // surgically via persist-project.js (jsonb_set the one feature + the derived
   // subtrees) rather than rewriting the whole document. `postIntervention` is
-  // the one subtree that cannot be patched surgically — a baseline edit can
-  // move any number of its figures — so it is handed over whole. `project` is
+  // the one subtree that cannot be patched surgically — baseline and template
+  // post-intervention edits can move sibling figures. `project` is
   // retained for callers/tests that want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
     layer: found.key,
     index,
-    feature: updatedFeature,
+    feature: updatedFeatureSet[found.key][index],
     unitsTotals: updatedFeatureSet.units,
     tradingRules: updatedFeatureSet.tradingRules,
     // Refreshed by a post-intervention edit to a template upload; persisted

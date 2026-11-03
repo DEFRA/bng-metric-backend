@@ -14,6 +14,7 @@ export function recomputeCreatedWatercourseEdit(existing, edits) {
     waterEncroachmentMultiplier: null,
     riparianEncroachmentMultiplier: null
   }
+  feature.editedAdvanceYears = feature.proposed.advanceYears
   clearEngineDerivedProposedFields(feature)
   enrichPostInterventionWatercourseWithUnits(feature, NO_OP_LOGGER)
   return {
