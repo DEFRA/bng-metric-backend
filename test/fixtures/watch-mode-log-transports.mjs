@@ -7,6 +7,7 @@
 // thread-stream before 3.2.0 crashes on them ("this should not happen:
 // undefined"), which stopped the backend starting under `npm run dev`.
 import { createRequire } from 'node:module'
+import { pathToFileURL } from 'node:url'
 
 // The backend's own logger, hapi-pino's request logging and cdp-auditing's
 // audit events each bring their own copy of pino.
@@ -26,7 +27,7 @@ function pinoPaths() {
 
 const loggers = []
 for (const pinoPath of pinoPaths()) {
-  const { pino } = await import(pinoPath)
+  const { pino } = await import(pathToFileURL(pinoPath).href)
   loggers.push(pino({ transport: { target: 'pino-pretty' } }))
 }
 

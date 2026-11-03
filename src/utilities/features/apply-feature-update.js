@@ -18,6 +18,7 @@
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
+import { recomputeCreatedHedgerowEdit } from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
 import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
@@ -49,7 +50,7 @@ import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/pos
 import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
 import {
   rederivePostInterventionFromBaseline,
-  preserveCreatedAreaParent
+  preserveCreatedParent
 } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import {
@@ -156,6 +157,9 @@ function recomputeHedgerowEdit(
   { documentKey, logger, baseline }
 ) {
   if (documentKey === 'postIntervention') {
+    if (Object.hasOwn(edits, 'advanceYears')) {
+      return recomputeCreatedHedgerowEdit(existing, edits)
+    }
     return recomputePostInterventionHedgerow(
       existing,
       { habitatType: edits.habitatType, condition: edits.condition },
@@ -332,7 +336,7 @@ function resolveUpdatedFeature(
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
-  preserveCreatedAreaParent(found.feature, updated, {
+  preserveCreatedParent(found.feature, updated, {
     documentKey,
     layer: found.key,
     baseline,
@@ -458,7 +462,7 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (found.type !== 'habitat' ||
+    (!['habitat', 'hedgerow'].includes(found.type) ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
   )
@@ -631,7 +635,7 @@ function applyFeatureUpdate(
     derived,
     {
       documentKey,
-      baseline: project?.baseline?.habitats,
+      baseline: project?.baseline?.[found.key],
       serviceTemplate: isTemplateUpload(project?.postIntervention)
     }
   )

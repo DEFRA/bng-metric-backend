@@ -23,8 +23,8 @@
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
 // Its trees are not linked yet (BMD-1172), so they still re-sync by ref.
 //
-// In a legacy upload, reference-edited Created areas retain their explicit
-// parent independently of their editable ref; null explicitly means no
+// In a legacy upload, reference-edited Created areas and hedgerows retain their
+// explicit parent independently of their editable ref; null explicitly means no
 // parent. Other legacy rows use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
@@ -321,14 +321,16 @@ function warnUnresolved(
  * parent, so renaming it must not find one by its old ref: with
  * `serviceTemplate`, only the rename is recorded.
  */
-export function preserveCreatedAreaParent(
+export function preserveCreatedParent(
   existing,
   updated,
   { documentKey, layer, baseline, serviceTemplate = false }
 ) {
-  const areaEdit = documentKey === 'postIntervention' && layer === 'habitats'
+  const createdEdit =
+    documentKey === 'postIntervention' &&
+    ['habitats', 'hedgerows'].includes(layer)
   if (
-    !areaEdit ||
+    !createdEdit ||
     resolveRetentionCategory(existing) !== RETENTION_CREATED ||
     updated.ref === existing.ref
   ) {
@@ -343,7 +345,7 @@ export function preserveCreatedAreaParent(
   const resolved = resolveBaselineFeature(
     candidates,
     existing,
-    IDENTITY_FIELDS_BY_LAYER.habitats
+    IDENTITY_FIELDS_BY_LAYER[layer]
   )
   updated.parentFeatureId = resolved.source?.featureId ?? null
 }

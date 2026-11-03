@@ -205,3 +205,27 @@ describe('GET /reference/area-creation', () => {
     })
   })
 })
+
+describe('GET /reference/hedgerow-creation', () => {
+  it('returns hedgerow-only creation choices without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-creation'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.featureType).toBe('hedgerow')
+    expect(res.result.habitatTypes.map((t) => t.name)).toContain(
+      'Native hedgerow'
+    )
+    expect(res.result.habitatTypes.map((t) => t.name)).not.toContain(
+      'Modified grassland'
+    )
+    for (const type of res.result.habitatTypes) {
+      expect(
+        type.conditions.every(
+          (c) => typeof c.years === 'number' || c.years === '30+'
+        )
+      ).toBe(true)
+    }
+  })
+})

@@ -3632,7 +3632,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area or hedgerow reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.habitats[].referenceEdited",
@@ -3929,7 +3929,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.habitats[].proposed.strategicSignificanceScore",
@@ -4468,7 +4468,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.trees[].proposed.strategicSignificanceScore",
@@ -4926,7 +4926,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.strategicSignificanceScore",
@@ -5031,12 +5031,23 @@
       "path": "postIntervention.hedgerows[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area or hedgerow reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.hedgerows[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created hedgerow reference was edited; its stored parent remains independent of the editable reference."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -5193,6 +5204,28 @@
       "description": "Proposed hedgerow values from the Proposed * GeoPackage columns."
     },
     {
+      "path": "postIntervention.hedgerows[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30."
+    },
+    {
       "path": "postIntervention.hedgerows[].proposed.type",
       "type": "string",
       "required": false,
@@ -5333,7 +5366,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.strategicSignificanceScore",
@@ -5784,7 +5817,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.watercourses[].proposed.strategicSignificanceScore",

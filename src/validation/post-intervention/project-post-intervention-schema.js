@@ -8,6 +8,7 @@
  * validation in baseline.js.
  */
 import Joi from 'joi'
+import { parentFeatureIdField } from './project-lineage-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import {
@@ -58,22 +59,8 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Template links keep their original contract on linear features. Only area
+// Template links keep their original contract on linear features. Area and hedgerow
 // edits can explicitly record that a Created reference has no baseline parent.
-function parentFeatureIdField({ editableArea = false } = {}) {
-  const field = Joi.string().uuid()
-  return {
-    parentFeatureId: editableArea
-      ? field
-          .allow(null)
-          .description(
-            'The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows.'
-          )
-      : field.description(
-          'The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload.'
-        )
-  }
-}
 
 function baselineCommonFields() {
   return {
@@ -142,7 +129,7 @@ function proposedCommonFields() {
     rejectedStrategicSignificance: Joi.string()
       .allow(null, '')
       .description(
-        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced.'
+        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced.'
       ),
     strategicSignificanceScore: Joi.number()
       .allow(null)
@@ -170,7 +157,14 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
   return {
     ...retentionCategoryField(),
     ...invalidEnhancementField(layer),
-    ...parentFeatureIdField(),
+    ...parentFeatureIdField({ editableCreated: layer === 'hedgerows' }),
+    ...(layer === 'hedgerows'
+      ? {
+          referenceEdited: Joi.boolean().description(
+            'Whether a Created hedgerow reference was edited; its stored parent remains independent of the editable reference.'
+          )
+        }
+      : {}),
     featureId: Joi.string()
       .uuid()
       .required()
@@ -286,7 +280,7 @@ const postInterventionHabitatSchema = Joi.object({
       'Post-intervention biodiversity units for the parcel, calculated from proposed values.'
   }),
   ...invalidEnhancementField('habitats'),
-  ...parentFeatureIdField({ editableArea: true }),
+  ...parentFeatureIdField({ editableCreated: true }),
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
   ),
@@ -442,6 +436,12 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
 )
 
 const postInterventionLinearProposedSubSchema = Joi.object({
+  advanceYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30.'
+  ),
+  delayYearsIs30Plus: Joi.boolean().description(
+    'Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30.'
+  ),
   type: Joi.string()
     .allow(null, '')
     .description('Proposed hedgerow type from Proposed Hedge Type column.'),

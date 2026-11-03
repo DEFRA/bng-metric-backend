@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { summariseUnitTypes } from '../../../services/report/unit-summary.js'
 
 import {
-  preserveCreatedAreaParent,
+  preserveCreatedParent,
   rederivePostInterventionFromBaseline,
   resyncPostInterventionBaselineSide
 } from './resync-post-intervention-baseline.js'
@@ -1214,7 +1214,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
   })
 })
 
-describe('preserveCreatedAreaParent', () => {
+describe('preserveCreatedParent', () => {
   const baseline = [baselineHabitat({ featureId: 'baseline-a1', ref: 'A1' })]
   const created = (overrides = {}) => ({
     ...postInterventionHabitat({ retentionCategory: 'Created' }),
@@ -1231,7 +1231,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created()
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, context)
+    preserveCreatedParent(existing, updated, context)
 
     expect(updated).toMatchObject({
       referenceEdited: true,
@@ -1243,7 +1243,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created()
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, {
+    preserveCreatedParent(existing, updated, {
       ...context,
       serviceTemplate: true
     })
@@ -1256,7 +1256,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created({ parentFeatureId: 'baseline-a1' })
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, {
+    preserveCreatedParent(existing, updated, {
       ...context,
       serviceTemplate: true
     })
