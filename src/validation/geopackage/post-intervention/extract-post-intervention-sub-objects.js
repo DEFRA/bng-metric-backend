@@ -1,6 +1,11 @@
 import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 
-import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
+import {
+  BASELINE_STRATEGIC_SIGNIFICANCE,
+  PROP_KEYS,
+  PROPOSED_PROP_KEYS,
+  pickProp
+} from '../properties.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import { deriveRetentionCategory } from '../../../utilities/enrichment/post-intervention/retention-category.js'
 
@@ -98,7 +103,7 @@ export function buildAreaBaselineSubObject(props) {
     broadType: pickProp(props, PROP_KEYS.broadHabitat),
     condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     ...emptyHabitatScoreFields(),
-    strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance)
+    strategicSignificance: BASELINE_STRATEGIC_SIGNIFICANCE
   }
 }
 
@@ -132,7 +137,7 @@ export function buildLinearBaselineSubObject(props, typeKey) {
     type: pickProp(props, typeKey),
     condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
     ...emptyHabitatScoreFields(),
-    strategicSignificance: pickProp(props, PROP_KEYS.strategicSignificance)
+    strategicSignificance: BASELINE_STRATEGIC_SIGNIFICANCE
   }
 }
 

@@ -15,6 +15,7 @@ import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
   featureIdDescription,
+  BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION,
   redLineSchema,
   featureDataEnvelopeFields
 } from '../project-shared-schemas.js'
@@ -240,7 +241,7 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
   ...baselineCommonFields(),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description('Baseline Strategic Significance from the GeoPackage.')
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
@@ -376,7 +377,10 @@ function treeSideCommonFields() {
 }
 
 const postInterventionTreeBaselineSubSchema = Joi.object({
-  ...treeSideCommonFields()
+  ...treeSideCommonFields(),
+  strategicSignificance: Joi.string()
+    .allow(null, '')
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
 }).description(
   'Baseline individual-tree values from the Baseline * GeoPackage columns.'
 )
@@ -430,7 +434,7 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
   ...baselineCommonFields(),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description('Baseline Strategic Significance from the GeoPackage.')
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
 )
@@ -498,7 +502,10 @@ const postInterventionWatercourseBaselineSubSchema = Joi.object({
     .allow(null, '')
     .description('Baseline watercourse type from Baseline River Type column.'),
   ...baselineCommonFields(),
-  ...watercourseEncroachmentFields
+  ...watercourseEncroachmentFields,
+  strategicSignificance: Joi.string()
+    .allow(null, '')
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
 }).description(
   'Baseline watercourse values from the Baseline * GeoPackage columns.'
 )

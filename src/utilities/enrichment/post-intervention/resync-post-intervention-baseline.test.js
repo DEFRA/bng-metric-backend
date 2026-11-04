@@ -193,6 +193,43 @@ describe('resyncPostInterventionBaselineSide', () => {
     )
   })
 
+  test('leaves the Low baseline significance of a row saved since BMD-1086, though its baseline was saved before as High', () => {
+    // A baseline uploaded before BMD-1086 kept the file's High; a
+    // post-intervention file uploaded since stores its baseline side as Low.
+    // An edit cannot change significance, so the re-sync must not copy the
+    // older High across, onto the baseline side or a Retained proposed copy.
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [
+          baselineHabitat({ strategicSignificance: 'High', condition: 'Good' })
+        ]
+      }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline).toMatchObject({
+      condition: 'Good',
+      strategicSignificance: 'Low'
+    })
+    expect(postIntervention.habitats[0].proposed.strategicSignificance).toBe(
+      'Low'
+    )
+  })
+
+  test('counts no change when only the saved significance differs', () => {
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineHabitat({ strategicSignificance: 'High' })]
+      }
+    })
+
+    expect(changed).toBe(0)
+  })
+
   test('warns when a Retained row has no baseline feature to measure against', () => {
     const logger = { warn: vi.fn() }
 
@@ -475,6 +512,80 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
     expect(logger.warn.mock.calls[0][0]).toMatch(
       /more than one carries this row's imported baseline values/
     )
+  })
+
+  test('tells apart two features sharing a ref by the significance each file gave, though both are stored as Low', () => {
+    // Legacy rows can share a ref, type and condition and differ only in their
+    // Baseline Strategic Significance. Both are stored as Low (BMD-1086), so
+    // the tie-break reads the file's value from properties instead.
+    const imported = (value) => ({ 'Baseline Strategic Significance': value })
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high', condition: 'Good' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const postIntervention = {
+      habitats: [{ ...postInterventionHabitat(), properties: imported('High') }]
+    }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
+  test('compares stored significance when only one side keeps its raw properties', () => {
+    // A file value is never set against a stored one: with properties on the
+    // baseline side only, the stored values decide, as they did before.
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1', condition: 'Good' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
   })
 
   test('resolves an ambiguous ref on the layer the Met / Not-met verdict reads', () => {

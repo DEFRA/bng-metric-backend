@@ -233,6 +233,15 @@ export function pickProp(properties, candidates) {
   return null
 }
 
+/**
+ * The strategic significance every baseline habitat is stored at. The Metric
+ * guide fixes baseline at Low, and the service already prices baseline at 1
+ * and shows "Low (1)" whatever the file says, so the stored value says the
+ * same rather than repeating a High (or a blank) from the file (BMD-1086). The
+ * file's own value stays in the feature's raw `properties`.
+ */
+export const BASELINE_STRATEGIC_SIGNIFICANCE = 'Low'
+
 const BROAD_TYPE_SEPARATOR = ' - '
 
 /**

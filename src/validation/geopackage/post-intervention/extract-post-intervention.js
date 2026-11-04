@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
-import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
+import {
+  BASELINE_STRATEGIC_SIGNIFICANCE,
+  PROP_KEYS,
+  PROPOSED_PROP_KEYS,
+  pickProp
+} from '../properties.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   postInterventionAreaStatus,
@@ -158,8 +163,7 @@ function normaliseEncroachmentField(value) {
 function buildWatercourseEncroachmentFields(
   props,
   riparianKey,
-  watercourseKey,
-  strategicKey
+  watercourseKey
 ) {
   return {
     riparianEncroachment: normaliseEncroachmentField(
@@ -167,8 +171,7 @@ function buildWatercourseEncroachmentFields(
     ),
     watercourseEncroachment: normaliseEncroachmentField(
       pickProp(props, watercourseKey)
-    ),
-    strategicSignificance: pickProp(props, strategicKey)
+    )
   }
 }
 
@@ -179,14 +182,12 @@ function buildPostInterventionWatercourse(feature) {
       const baselineEncroachments = buildWatercourseEncroachmentFields(
         props,
         PROP_KEYS.riparianEncroachment,
-        PROP_KEYS.watercourseEncroachment,
-        PROP_KEYS.strategicSignificance
+        PROP_KEYS.watercourseEncroachment
       )
       const proposedEncroachments = buildWatercourseEncroachmentFields(
         props,
         PROPOSED_PROP_KEYS.riparianEncroachment,
-        PROPOSED_PROP_KEYS.watercourseEncroachment,
-        PROPOSED_PROP_KEYS.strategicSignificance
+        PROPOSED_PROP_KEYS.watercourseEncroachment
       )
 
       return {
@@ -201,7 +202,8 @@ function buildPostInterventionWatercourse(feature) {
           type: pickProp(props, PROP_KEYS.riverType),
           condition: stripConditionPrefix(pickProp(props, PROP_KEYS.condition)),
           ...emptyHabitatScoreFields(),
-          ...baselineEncroachments
+          ...baselineEncroachments,
+          strategicSignificance: BASELINE_STRATEGIC_SIGNIFICANCE
         },
         proposed: {
           type: pickProp(props, PROPOSED_PROP_KEYS.riverType),
@@ -210,7 +212,11 @@ function buildPostInterventionWatercourse(feature) {
           ),
           ...emptyHabitatScoreFields(),
           ...buildAdvanceDelayFields(props),
-          ...proposedEncroachments
+          ...proposedEncroachments,
+          strategicSignificance: pickProp(
+            props,
+            PROPOSED_PROP_KEYS.strategicSignificance
+          )
         },
         properties: props
       }

@@ -2,7 +2,13 @@ import { randomUUID } from 'node:crypto'
 
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
-import { PROP_KEYS, featureKeysForVariant, pickProp } from '../properties.js'
+import {
+  BASELINE_STRATEGIC_SIGNIFICANCE,
+  EXTRACT_VARIANT,
+  PROP_KEYS,
+  featureKeysForVariant,
+  pickProp
+} from '../properties.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   areaStatus,
@@ -58,7 +64,7 @@ function pickProps(props, entries) {
   )
 }
 
-function buildHabitat(feature, keys) {
+function buildHabitat(feature, keys, readStrategicSignificance) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, keys.habitatType)
@@ -76,7 +82,7 @@ function buildHabitat(feature, keys) {
     type: habitatType,
     broadType: pickProp(props, keys.broadHabitat),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    strategicSignificance: readStrategicSignificance(props),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     ...irreplaceableField(props),
     rawDistinctiveness: pickProp(props, keys.rawDistinctiveness),
@@ -99,13 +105,13 @@ function buildHabitat(feature, keys) {
  * as a line along its base. It is an area habitat in every respect but its
  * size, which is the Area the surveyor typed in, in square metres.
  */
-function buildVerticalHabitat(feature, keys) {
-  const built = buildHabitat(feature, keys)
+function buildVerticalHabitat(feature, keys, readStrategicSignificance) {
+  const built = buildHabitat(feature, keys, readStrategicSignificance)
   Object.assign(built.document, verticalAreaFields(feature.properties))
   return built
 }
 
-function buildTree(feature, keys) {
+function buildTree(feature, keys, readStrategicSignificance) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, keys.treeRef)
@@ -124,7 +130,7 @@ function buildTree(feature, keys) {
     ruralOrUrban,
     count: pickProp(props, PROP_KEYS.treeCount),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    strategicSignificance: readStrategicSignificance(props),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     ...pickProps(props, METADATA_PROPS),
     properties: props
@@ -147,6 +153,7 @@ function buildTree(feature, keys) {
 function buildLinearFeature(
   feature,
   keys,
+  readStrategicSignificance,
   typeKey,
   extraProperties,
   statusForDocument
@@ -161,6 +168,7 @@ function buildLinearFeature(
     ref,
     type: pickProp(props, typeKey),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
+    strategicSignificance: readStrategicSignificance(props),
     ...extraDocumentProperties,
     properties: props
   }
@@ -175,13 +183,13 @@ function buildLinearFeature(
   return { document, geometryRow }
 }
 
-function buildHedgerow(feature, keys) {
+function buildHedgerow(feature, keys, readStrategicSignificance) {
   return buildLinearFeature(
     feature,
     keys,
+    readStrategicSignificance,
     keys.hedgerowType,
     [
-      ['strategicSignificance', keys.strategicSignificance],
       ['retentionCategory', PROP_KEYS.retentionCategory],
       ['rawDistinctiveness', keys.rawDistinctiveness],
       ...METADATA_PROPS
@@ -190,15 +198,15 @@ function buildHedgerow(feature, keys) {
   )
 }
 
-function buildWatercourse(feature, keys) {
+function buildWatercourse(feature, keys, readStrategicSignificance) {
   const { document, geometryRow } = buildLinearFeature(
     feature,
     keys,
+    readStrategicSignificance,
     keys.riverType,
     [
       ['riparianEncroachment', keys.riparianEncroachment],
       ['watercourseEncroachment', keys.watercourseEncroachment],
-      ['strategicSignificance', keys.strategicSignificance],
       ['retentionCategory', PROP_KEYS.retentionCategory],
       ['enhancementType', PROP_KEYS.enhancementType],
       ['rawDistinctiveness', keys.rawDistinctiveness],
@@ -217,6 +225,23 @@ function buildWatercourse(feature, keys) {
     )
   }
   return { document, geometryRow }
+}
+
+/**
+ * How this document reads a feature's strategic significance. Baseline is
+ * stored as Low whatever the file says (BMD-1086), since the metric fixes it
+ * there; the file's value stays in `properties`. The post-intervention variant
+ * reads its Proposed column, which enrichment validates.
+ *
+ * @param {string | undefined} variant one of EXTRACT_VARIANT; defaults to baseline
+ * @param {Record<string, string[]>} keys from featureKeysForVariant
+ * @returns {(props: object) => unknown}
+ */
+function strategicSignificanceReader(variant, keys) {
+  if (variant === EXTRACT_VARIANT.POST_INTERVENTION) {
+    return (props) => pickProp(props, keys.strategicSignificance)
+  }
+  return () => BASELINE_STRATEGIC_SIGNIFICANCE
 }
 
 function buildRedLine(features) {
@@ -283,19 +308,40 @@ export function extractHabitatData(layers, meta = {}) {
   // the Proposed* columns. Shared columns (ref, retention, metadata) are read
   // the same way for both.
   const keys = featureKeysForVariant(meta.variant)
+  const readStrategicSignificance = strategicSignificanceReader(
+    meta.variant,
+    keys
+  )
   const redLine = buildRedLine(layers.redline)
-  const habitats = splitFeatures(layers.areas ?? [], buildHabitat, keys)
-  const hedgerows = splitFeatures(layers.hedgerows ?? [], buildHedgerow, keys)
+  const habitats = splitFeatures(
+    layers.areas ?? [],
+    buildHabitat,
+    keys,
+    readStrategicSignificance
+  )
+  const hedgerows = splitFeatures(
+    layers.hedgerows ?? [],
+    buildHedgerow,
+    keys,
+    readStrategicSignificance
+  )
   const watercourses = splitFeatures(
     layers.watercourses ?? [],
     buildWatercourse,
-    keys
+    keys,
+    readStrategicSignificance
   )
-  const trees = splitFeatures(layers.trees ?? [], buildTree, keys)
+  const trees = splitFeatures(
+    layers.trees ?? [],
+    buildTree,
+    keys,
+    readStrategicSignificance
+  )
   const verticalHabitats = splitFeatures(
     layers.verticalHabitats ?? [],
     buildVerticalHabitat,
-    keys
+    keys,
+    readStrategicSignificance
   )
 
   // Embed the PostGIS-calculated size directly onto each feature document so

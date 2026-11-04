@@ -35,6 +35,15 @@ export const SAFE_FILENAME_RE = /^[ ._()-]*[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i
 export const featureIdDescription = (geometryRow) =>
   `Stable UUID for the feature; join key to the ${geometryRow} geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature.`
 
+/**
+ * The baseline strategic significance field is published in the data
+ * dictionary for the downstream relational consumers, so it says plainly that
+ * the value is fixed rather than read from the file, and that older projects
+ * may differ.
+ */
+export const BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION =
+  "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
+
 export const habitatSizesSummarySchema = Joi.object({
   areaHabitats: Joi.object({
     totalSquareMetres: Joi.number()

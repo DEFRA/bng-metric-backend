@@ -503,7 +503,7 @@ describe('extractHabitatData — featureId join keys', () => {
 })
 
 describe('extractHabitatData — habitat document fields and shape', () => {
-  it('extracts habitat fields per parcel: ref, type, condition, plus retention/strategic significance', () => {
+  it('extracts habitat fields per parcel: ref, type, condition, retention, and strategic significance fixed at Low', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [
@@ -528,9 +528,12 @@ describe('extractHabitatData — habitat document fields and shape', () => {
         type: LOWLAND_MEADOWS,
         broadType: 'Grassland',
         condition: 'Good',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retain',
-        properties: expect.objectContaining({ Area: 1.23 })
+        properties: expect.objectContaining({
+          Area: 1.23,
+          'Baseline Strategic Significance': 'High'
+        })
       })
     )
     expect(out.document.habitats[0]).not.toHaveProperty('area')
@@ -1115,7 +1118,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
     )
   })
 
-  it('promotes metadata plus strategic significance and retention onto hedgerows (Comments column)', () => {
+  it('promotes metadata, Low strategic significance and retention onto hedgerows (Comments column)', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [],
@@ -1138,13 +1141,13 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
       expect.objectContaining({
         ...EXPECTED_METADATA,
         comment: 'Hedge note',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retained'
       })
     )
   })
 
-  it('promotes metadata, strategic significance, retention and enhancement type onto watercourses', () => {
+  it('promotes metadata, Low strategic significance, retention and enhancement type onto watercourses', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [],
@@ -1168,7 +1171,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
       expect.objectContaining({
         ...EXPECTED_METADATA,
         comment: 'River note',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retained',
         enhancementType: 'Re-meandering'
       })
@@ -1480,4 +1483,40 @@ describe('extractHabitatData — vertical area habitats', () => {
       totalSquareMetres: 0
     })
   })
+})
+
+describe('extractHabitatData — baseline strategic significance (BMD-1086)', () => {
+  it.each([['High'], ['Medium'], [null]])(
+    'stores Low on every layer when the file says %s, keeping the file value in properties',
+    (value) => {
+      const significance = { 'Baseline Strategic Significance': value }
+      const out = extractHabitatData({
+        redline: [],
+        areas: [feature({ [PARCEL_REF]: 'H1', ...significance })],
+        hedgerows: [
+          feature({ [PARCEL_REF]: 'HG1', ...significance }, SAMPLE_LINESTRING)
+        ],
+        watercourses: [
+          feature({ [PARCEL_REF]: 'W1', ...significance }, SAMPLE_LINESTRING)
+        ],
+        trees: [feature({ 'Tree Ref': 'T1', ...significance }, SAMPLE_POINT)],
+        verticalHabitats: [
+          feature({ [PARCEL_REF]: 'V1', ...significance }, SAMPLE_LINESTRING)
+        ]
+      })
+
+      const { habitats, hedgerows, watercourses, trees, verticalHabitats } =
+        out.document
+      for (const doc of [
+        ...habitats,
+        ...hedgerows,
+        ...watercourses,
+        ...trees,
+        ...verticalHabitats
+      ]) {
+        expect(doc.strategicSignificance).toBe('Low')
+        expect(doc.properties['Baseline Strategic Significance']).toBe(value)
+      }
+    }
+  )
 })

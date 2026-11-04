@@ -61,6 +61,10 @@
 import { enforceRequiredAttributeCompleteness } from '../shared/required-attribute-completeness.js'
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { PARENT_LINKED_LAYERS } from '../../../validation/geopackage/service-template/lineage/link-parents.js'
+import {
+  PROP_KEYS,
+  pickProp
+} from '../../../validation/geopackage/properties.js'
 import { NO_OP_LOGGER } from '../shared/enrich-units-shared.js'
 import {
   RETAINED_AREA_PROPOSED_FIELDS,
@@ -84,6 +88,8 @@ import {
 } from './retention-category.js'
 
 const LOG_PREFIX = 'resyncPostInterventionBaseline: '
+
+const STRATEGIC_SIGNIFICANCE_FIELD = 'strategicSignificance'
 
 /**
  * The fields that say *what a feature is*, as opposed to the scores enrichment
@@ -132,20 +138,50 @@ function buildBaselineCandidatesByRef(features) {
 }
 
 /**
+ * Whether two sides carry the same strategic significance. Every baseline side
+ * is stored as Low (BMD-1086), so the stored value no longer tells apart two
+ * rows that share a ref and differ only in significance; the value each file
+ * gave, kept in the raw `properties`, still does. Only when both features keep
+ * their raw properties are those compared, so a file value is never set
+ * against a stored one; otherwise the stored values are.
+ *
+ * @param {object} candidate a feature from the PRE-EDIT baseline document
+ * @param {object} feature the post-intervention row
+ * @param {object} snapshot the row's `baseline` sub-object
+ * @returns {boolean}
+ */
+function sameStrategicSignificance(candidate, feature, snapshot) {
+  if (candidate.properties && feature.properties) {
+    return (
+      pickProp(candidate.properties, PROP_KEYS.strategicSignificance) ===
+      pickProp(feature.properties, PROP_KEYS.strategicSignificance)
+    )
+  }
+  return candidate.strategicSignificance === snapshot.strategicSignificance
+}
+
+/**
  * Whether a pre-edit baseline feature is the one a post-intervention row's
  * imported `baseline` snapshot describes. Only the fields the candidate carries
  * are compared — they are the only ones that would ever be copied from it.
+ * Strategic significance is compared as imported, not as stored.
  *
  * @param {object} candidate a feature from the PRE-EDIT baseline document
- * @param {object} snapshot the post-intervention row's `baseline` sub-object
+ * @param {object} feature the post-intervention row
  * @param {readonly string[]} fields
  * @returns {boolean}
  */
-function matchesSnapshot(candidate, snapshot, fields) {
-  return fields.every(
-    (field) =>
-      !Object.hasOwn(candidate, field) || candidate[field] === snapshot[field]
-  )
+function matchesSnapshot(candidate, feature, fields) {
+  const snapshot = feature.baseline ?? {}
+  return fields.every((field) => {
+    if (!Object.hasOwn(candidate, field)) {
+      return true
+    }
+    if (field === STRATEGIC_SIGNIFICANCE_FIELD) {
+      return sameStrategicSignificance(candidate, feature, snapshot)
+    }
+    return candidate[field] === snapshot[field]
+  })
 }
 
 /**
@@ -165,9 +201,8 @@ function resolveBaselineFeature(candidates, feature, fields) {
   if (candidates.length === 1) {
     return { source: candidates[0] }
   }
-  const snapshot = feature.baseline ?? {}
   const matches = candidates.filter((candidate) =>
-    matchesSnapshot(candidate, snapshot, fields)
+    matchesSnapshot(candidate, feature, fields)
   )
   if (matches.length === 1) {
     return { source: matches[0] }
@@ -207,6 +242,11 @@ function buildFeatureById(features) {
  * copy, so it moves too; one that had already diverged came from the GeoPackage
  * and is left exactly as imported.
  *
+ * Strategic significance is never copied. A baseline edit cannot change it, so
+ * copying it could only carry a value saved before BMD-1086 (the file's, such
+ * as High) onto a row saved since, whose baseline side is Low. It still
+ * identifies the source row (see `sameStrategicSignificance`).
+ *
  * @param {object} feature post-intervention feature, mutated
  * @param {object} source matching baseline feature
  * @param {string} field
@@ -214,7 +254,7 @@ function buildFeatureById(features) {
  * @returns {boolean} whether anything changed
  */
 function syncIdentityField(feature, source, field, proposedTracksBaseline) {
-  if (!Object.hasOwn(source, field)) {
+  if (field === STRATEGIC_SIGNIFICANCE_FIELD || !Object.hasOwn(source, field)) {
     return false
   }
   const previous = feature.baseline[field]

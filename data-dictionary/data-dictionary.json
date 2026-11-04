@@ -1444,7 +1444,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.habitats[].retentionCategory",
@@ -1719,7 +1719,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.trees[].retentionCategory",
@@ -2104,7 +2104,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.verticalHabitats[].retentionCategory",
@@ -2511,7 +2511,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.hedgerows[].retentionCategory",
@@ -2841,7 +2841,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.watercourses[].retentionCategory",
@@ -3742,7 +3742,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.habitats[].proposed",
@@ -4182,7 +4182,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.trees[].baseline.treeSize",
@@ -4739,7 +4739,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed",
@@ -5190,7 +5190,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.hedgerows[].proposed",
@@ -5641,7 +5641,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.watercourses[].baseline.waterEncroachmentMultiplier",
