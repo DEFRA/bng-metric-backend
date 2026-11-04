@@ -172,5 +172,12 @@ export const DATABASE_METRIC = {
    * for it, with a `source` dimension of `startup` or `request`. Any non-zero
    * value is an incident — every upload save fails until the migration runs.
    */
-  schemaOutOfDate: 'DatabaseSchemaOutOfDate'
+  schemaOutOfDate: 'DatabaseSchemaOutOfDate',
+  /**
+   * The startup check could not read Liquibase's databasechangelog — the app
+   * role lacks SELECT on it, or it is not on the role's search_path — so it
+   * cannot say whether the schema is current. Not an incident in itself, but
+   * a non-zero value means the `startup` alarm above can never fire there.
+   */
+  schemaCheckSkipped: 'DatabaseSchemaCheckSkipped'
 }

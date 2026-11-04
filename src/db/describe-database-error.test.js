@@ -1,10 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
 import {
-  describeError,
+  describeDatabaseError,
   findPostgresError,
-  isSchemaMissingError,
-  loggableError
+  isSchemaMissingError
 } from './describe-database-error.js'
 
 // The shape node-postgres rejects with, and the one Drizzle wraps it in.
@@ -82,85 +81,42 @@ describe('#isSchemaMissingError', () => {
   })
 })
 
-describe('#describeError', () => {
-  it('quotes a thrown value that is not an Error as it is', () => {
-    expect(describeError('worker exited')).toBe('worker exited')
-  })
-
+describe('#describeDatabaseError', () => {
   it('does not send a Node system error to the database', () => {
     const system = new Error('write EPIPE')
     system.code = 'EPIPE'
-    expect(describeError(system)).toBe('Error: write EPIPE')
+    expect(describeDatabaseError(system)).toBe('Error: write EPIPE')
   })
 
   it('says the schema is out of date, and why, for a missing table', () => {
-    expect(describeError(drizzleError(MISSING_TABLE))).toBe(
+    expect(describeDatabaseError(drizzleError(MISSING_TABLE))).toBe(
       'DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: delete from "bng"."baseline_vertical_habitats" where "bng"."baseline_vertical_habitats"."project_id" = $1 params: 043b45e6-096e-4c72-925e-ca5f1efdd0d9 — caused by Postgres 42P01: relation "bng.baseline_vertical_habitats" does not exist'
     )
   })
 
   it('gives the Postgres error behind any other failed query', () => {
     expect(
-      describeError(drizzleError(postgresError('23505', 'duplicate key value')))
+      describeDatabaseError(
+        drizzleError(postgresError('23505', 'duplicate key value'))
+      )
     ).toMatch(
       /^DrizzleQueryError: .* — caused by Postgres 23505: duplicate key value$/
     )
   })
 
+  it('quotes a thrown value that is not an Error as it is', () => {
+    expect(describeDatabaseError('worker exited')).toBe('worker exited')
+  })
+
   it('gives the code of a Postgres error thrown directly', () => {
-    expect(describeError(MISSING_TABLE)).toMatch(
+    expect(describeDatabaseError(MISSING_TABLE)).toMatch(
       /^DATABASE SCHEMA OUT OF DATE .*: error: relation .* does not exist \(Postgres 42P01\)$/
     )
   })
 
-  it('gives the type and message of any other error', () => {
-    expect(describeError(new TypeError('nope'))).toBe('TypeError: nope')
-  })
-
-  it("caps a long message, such as an insert's parameters", () => {
-    const described = describeError(new Error('x'.repeat(5000)))
-    expect(described).toBe(`Error: ${'x'.repeat(500)}…`)
-  })
-
   it('leaves the alarm out when asked to, for a missing table that is no sign of a migration', () => {
-    expect(describeError(MISSING_TABLE, { flagSchemaMissing: false })).toMatch(
-      /^error: relation .* does not exist \(Postgres 42P01\)$/
-    )
-  })
-})
-
-describe('#loggableError', () => {
-  // The ECS formatter writes an Error's message and stack in full, and the
-  // stack opens with the message: a failed insert's geometry, twice.
-  it('caps the message, in the stack too, and keeps the frames', () => {
-    const huge = drizzleError(MISSING_TABLE)
-    huge.message = `Failed query: insert params: ${'x'.repeat(5000)}`
-    huge.stack = `DrizzleQueryError: ${huge.message}\n    at save (save.js:1:1)\n    at run (run.js:2:2)`
-
-    const logged = loggableError(huge)
-
-    expect(logged.message).toHaveLength(501)
-    expect(logged.stack).toBe(
-      `DrizzleQueryError: ${logged.message}\n    at save (save.js:1:1)\n    at run (run.js:2:2)`
-    )
-    expect(logged.stack.length).toBeLessThan(600)
-  })
-
-  it('keeps the error type, for ECS to name', () => {
-    const logged = loggableError(new TypeError('nope'))
-
-    expect(logged).toBeInstanceOf(TypeError)
-    expect(logged.constructor.name).toBe('TypeError')
-    expect(logged.name).toBe('TypeError')
-    expect(logged.message).toBe('nope')
-  })
-
-  // pino takes a string first argument as the message, which would drop the
-  // log line's own text.
-  it('wraps a value that is not an Error', () => {
-    const logged = loggableError('worker exited')
-
-    expect(logged).toBeInstanceOf(Error)
-    expect(logged.message).toBe('worker exited')
+    expect(
+      describeDatabaseError(MISSING_TABLE, { flagSchemaMissing: false })
+    ).toMatch(/^error: relation .* does not exist \(Postgres 42P01\)$/)
   })
 })

@@ -1,4 +1,8 @@
 import {
+  describeError,
+  shorten
+} from '../common/helpers/logging/describe-error.js'
+import {
   PG_UNDEFINED_COLUMN,
   PG_UNDEFINED_TABLE
 } from './postgres-error-codes.js'
@@ -20,13 +24,6 @@ const SQLSTATE_PATTERN = /^(?=[A-Z]*\d)[0-9A-Z]{5}$/
 
 /** How far down an error's `cause` chain to look for the Postgres error. */
 const MAX_CAUSE_DEPTH = 5
-
-/**
- * Longest stretch of an error message worth logging. Drizzle's message is the
- * whole failed query followed by its parameters, and an insert's parameters
- * carry every feature's geometry.
- */
-const MAX_MESSAGE_LENGTH = 500
 
 export const SCHEMA_OUT_OF_DATE_PREFIX = 'DATABASE SCHEMA OUT OF DATE'
 
@@ -64,29 +61,19 @@ function isSchemaMissingError(error) {
   return SCHEMA_MISSING_CODES.has(findPostgresError(error)?.code)
 }
 
-function shorten(message) {
-  const text = String(message ?? '').replaceAll(/\s+/g, ' ')
-  return text.length > MAX_MESSAGE_LENGTH
-    ? `${text.slice(0, MAX_MESSAGE_LENGTH)}…`
-    : text
-}
-
 /**
- * An error, for a log line: its type and message, the Postgres error behind
- * it when there is one, and a prefix no one can miss when that Postgres error
- * says a table or column is missing — unless `flagSchemaMissing` is false,
- * for a caller to whom a missing table is not evidence of a missing migration.
+ * An error, for a log line, as {@link describeError} gives it, with the
+ * Postgres error behind it when there is one, and a prefix no one can miss
+ * when that Postgres error says a table or column is missing — unless
+ * `flagSchemaMissing` is false, for a caller to whom a missing table is not
+ * evidence of a missing migration.
  *
  * @param {unknown} error
  * @param {{ flagSchemaMissing?: boolean }} [options]
  * @returns {string}
  */
-function describeError(error, { flagSchemaMissing = true } = {}) {
-  // A thrown string or the like has no name or message to quote.
-  if (!(error instanceof Error)) {
-    return shorten(error)
-  }
-  const own = `${error.name}: ${shorten(error.message)}`
+function describeDatabaseError(error, { flagSchemaMissing = true } = {}) {
+  const own = describeError(error)
   const postgres = findPostgresError(error)
   if (!postgres) {
     return own
@@ -101,41 +88,4 @@ function describeError(error, { flagSchemaMissing = true } = {}) {
   return `${SCHEMA_OUT_OF_DATE_PREFIX} (has a database migration not been run in this environment?): ${cause}`
 }
 
-/** A stack trace's frames, without the `Name: message` header above them. */
-function stackFrames(stack) {
-  const lines = String(stack ?? '').split('\n')
-  const firstFrame = lines.findIndex((line) => /^\s+at /.test(line))
-  return firstFrame === -1 ? [] : lines.slice(firstFrame)
-}
-
-/**
- * An error for the logger's error fields, its message capped as
- * {@link describeError} caps it. The ECS formatter writes an Error's message
- * and stack in full, and a stack opens with the message, so logging a failed
- * insert itself would write every feature's geometry into the line twice.
- * The copy keeps the error's type and its stack's frames. A value that is
- * not an Error is wrapped in one, so it cannot take the log line's message.
- *
- * @param {unknown} error
- * @returns {Error}
- */
-function loggableError(error) {
-  if (!(error instanceof Error)) {
-    return new Error(shorten(error))
-  }
-  const copy = Object.create(Object.getPrototypeOf(error))
-  const message = shorten(error.message)
-  const header = `${error.name}: ${message}`
-  Object.defineProperties(copy, {
-    name: { value: error.name, writable: true, configurable: true },
-    message: { value: message, writable: true, configurable: true },
-    stack: {
-      value: [header, ...stackFrames(error.stack)].join('\n'),
-      writable: true,
-      configurable: true
-    }
-  })
-  return copy
-}
-
-export { describeError, findPostgresError, isSchemaMissingError, loggableError }
+export { describeDatabaseError, findPostgresError, isSchemaMissingError }

@@ -2,7 +2,7 @@ import { metricsCounter } from '../common/helpers/metrics.js'
 import { DATABASE_METRIC } from '../common/helpers/metric-names.js'
 import {
   SCHEMA_OUT_OF_DATE_PREFIX,
-  describeError,
+  describeDatabaseError,
   isSchemaMissingError
 } from './describe-database-error.js'
 
@@ -47,8 +47,11 @@ async function checkSchemaIsCurrent(pool, logger) {
     // No databasechangelog on the search path (42P01) is a fresh database or
     // Liquibase writing elsewhere, not a missing migration: no alarm text.
     logger.warn(
-      `Database schema check skipped - could not read databasechangelog: ${describeError(error, { flagSchemaMissing: false })}`
+      `Database schema check skipped - could not read databasechangelog: ${describeDatabaseError(error, { flagSchemaMissing: false })}`
     )
+    // Counted apart from the alarm, so an environment where the check never
+    // runs shows on a dashboard rather than passing for one that is current.
+    await metricsCounter(DATABASE_METRIC.schemaCheckSkipped, 1)
     return 'unknown'
   }
 
@@ -101,7 +104,7 @@ function schemaErrorListener(logger) {
       return
     }
     logger.error(
-      `${request.method?.toUpperCase()} ${request.path} failed: ${describeError(event.error)}`
+      `${request.method?.toUpperCase()} ${request.path} failed: ${describeDatabaseError(event.error)}`
     )
   }
 }

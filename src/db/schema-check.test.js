@@ -127,8 +127,9 @@ describe('#checkSchemaIsCurrent', () => {
   })
 
   // An environment where the service cannot read Liquibase's table is not
-  // evidence of a missing migration, so it must not raise the alarm.
-  it('warns, and does not raise the alarm, when it cannot check', async () => {
+  // evidence of a missing migration, so it must not raise the alarm. But a
+  // check that never runs must show on a dashboard, so it is counted.
+  it('warns, and counts the check as skipped rather than raising the alarm, when it cannot check', async () => {
     const logger = makeLogger()
     const denied = new Error('permission denied for table databasechangelog')
     denied.code = '42501'
@@ -140,7 +141,10 @@ describe('#checkSchemaIsCurrent', () => {
       expect.stringContaining('Database schema check skipped')
     )
     expect(logger.error).not.toHaveBeenCalled()
-    expect(metricsCounter).not.toHaveBeenCalled()
+    expect(metricsCounter).toHaveBeenCalledExactlyOnceWith(
+      'DatabaseSchemaCheckSkipped',
+      1
+    )
   })
 
   // A fresh database, or Liquibase writing to a schema off the app user's
@@ -160,7 +164,10 @@ describe('#checkSchemaIsCurrent', () => {
       expect.stringContaining('DATABASE SCHEMA OUT OF DATE')
     )
     expect(logger.error).not.toHaveBeenCalled()
-    expect(metricsCounter).not.toHaveBeenCalled()
+    expect(metricsCounter).toHaveBeenCalledExactlyOnceWith(
+      'DatabaseSchemaCheckSkipped',
+      1
+    )
   })
 })
 

@@ -34,7 +34,8 @@ import {
   recordValidationMetrics
 } from './validate-geopackage-metrics.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
-import { describeError, loggableError } from '../db/describe-database-error.js'
+import { loggableError } from '../common/helpers/logging/describe-error.js'
+import { describeDatabaseError } from '../db/describe-database-error.js'
 import { recordSchemaError } from '../db/schema-check.js'
 import {
   ERROR_CODES,
@@ -437,7 +438,7 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     await recordSchemaError(error)
     logger.error(
       loggableError(error),
-      `${config.routeName} - error validating uploadId ${uploadId}: ${describeError(error)}`
+      `${config.routeName} - error validating uploadId ${uploadId}: ${describeDatabaseError(error)}`
     )
     return h
       .response({
