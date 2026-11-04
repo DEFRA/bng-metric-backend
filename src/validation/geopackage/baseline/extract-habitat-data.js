@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
-import { PROP_KEYS, featureKeysForVariant, pickProp } from '../properties.js'
+import {
+  PROP_KEYS,
+  featureKeysForVariant,
+  pickProp,
+  pickStrategicSignificance
+} from '../properties.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   areaStatus,
@@ -76,7 +81,10 @@ function buildHabitat(feature, keys) {
     type: habitatType,
     broadType: pickProp(props, keys.broadHabitat),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    strategicSignificance: pickStrategicSignificance(
+      props,
+      keys.strategicSignificance
+    ),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     ...irreplaceableField(props),
     rawDistinctiveness: pickProp(props, keys.rawDistinctiveness),
@@ -124,7 +132,10 @@ function buildTree(feature, keys) {
     ruralOrUrban,
     count: pickProp(props, PROP_KEYS.treeCount),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    strategicSignificance: pickStrategicSignificance(
+      props,
+      keys.strategicSignificance
+    ),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
     ...pickProps(props, METADATA_PROPS),
     properties: props
@@ -161,6 +172,10 @@ function buildLinearFeature(
     ref,
     type: pickProp(props, typeKey),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
+    strategicSignificance: pickStrategicSignificance(
+      props,
+      keys.strategicSignificance
+    ),
     ...extraDocumentProperties,
     properties: props
   }
@@ -181,7 +196,6 @@ function buildHedgerow(feature, keys) {
     keys,
     keys.hedgerowType,
     [
-      ['strategicSignificance', keys.strategicSignificance],
       ['retentionCategory', PROP_KEYS.retentionCategory],
       ['rawDistinctiveness', keys.rawDistinctiveness],
       ...METADATA_PROPS
@@ -198,7 +212,6 @@ function buildWatercourse(feature, keys) {
     [
       ['riparianEncroachment', keys.riparianEncroachment],
       ['watercourseEncroachment', keys.watercourseEncroachment],
-      ['strategicSignificance', keys.strategicSignificance],
       ['retentionCategory', PROP_KEYS.retentionCategory],
       ['enhancementType', PROP_KEYS.enhancementType],
       ['rawDistinctiveness', keys.rawDistinctiveness],

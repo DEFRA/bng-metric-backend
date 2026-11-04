@@ -2,7 +2,12 @@ import { randomUUID } from 'node:crypto'
 
 import { normaliseEncroachmentLabel } from 'bng-library/metric'
 
-import { PROP_KEYS, PROPOSED_PROP_KEYS, pickProp } from '../properties.js'
+import {
+  PROP_KEYS,
+  PROPOSED_PROP_KEYS,
+  pickProp,
+  pickStrategicSignificance
+} from '../properties.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   postInterventionAreaStatus,
@@ -168,7 +173,7 @@ function buildWatercourseEncroachmentFields(
     watercourseEncroachment: normaliseEncroachmentField(
       pickProp(props, watercourseKey)
     ),
-    strategicSignificance: pickProp(props, strategicKey)
+    strategicSignificance: pickStrategicSignificance(props, strategicKey)
   }
 }
 

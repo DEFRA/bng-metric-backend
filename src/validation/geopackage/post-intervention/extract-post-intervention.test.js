@@ -138,7 +138,7 @@ describe('extractPostIntervention — habitat nested structure', () => {
         type: 'Modified grassland',
         broadType: 'Grassland',
         condition: 'Moderate',
-        strategicSignificance: 'Low significance'
+        strategicSignificance: 'Low'
       })
     )
     expect(hab.baseline).not.toHaveProperty('retentionCategory')
@@ -281,7 +281,7 @@ describe('extractPostIntervention — Retained empty proposed copy', () => {
         type: 'Developed land; sealed surface',
         broadType: 'Urban',
         condition: 'N/A - Other',
-        strategicSignificance: 'Low significance'
+        strategicSignificance: 'Low'
       })
     )
     expect(hab.status).toBe('Complete')
@@ -606,7 +606,7 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
     return hedge
   }
 
-  it('reads Baseline and Proposed Strategic Significance', () => {
+  it('fixes Baseline Strategic Significance at Low and reads the Proposed one', () => {
     const out = extractHedgerows(
       feature(
         {
@@ -624,11 +624,12 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
     )
 
     const hedge = out.document.hedgerows[0]
-    expect(hedge.baseline.strategicSignificance).toBe(LOW)
+    // Baseline is fixed at Low whatever the file says (BMD-1086).
+    expect(hedge.baseline.strategicSignificance).toBe('Low')
     expect(hedge.proposed.strategicSignificance).toBe(HIGH)
   })
 
-  it('copies the baseline value onto an empty proposed side for a Retained hedgerow', () => {
+  it('copies the baseline Low onto an empty proposed side for a Retained hedgerow', () => {
     const out = extractHedgerows(
       feature(
         {
@@ -644,7 +645,7 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
       )
     )
 
-    expect(out.document.hedgerows[0].proposed.strategicSignificance).toBe(LOW)
+    expect(out.document.hedgerows[0].proposed.strategicSignificance).toBe('Low')
   })
 
   it('prices a created hedgerow at the Proposed Strategic Significance in the file', () => {
@@ -1200,5 +1201,45 @@ describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
     expect(out.geometries.habitats[0].ref).toBe('H001')
     expect(out.document.hedgerows[0].ref).toBe('P'.repeat(100))
     expect(out.document.watercourses[0].ref).toBe('R001')
+  })
+})
+
+describe('extractPostIntervention — baseline strategic significance (BMD-1086)', () => {
+  it('stores Low on the baseline side of every layer, keeping the Proposed value and the file value in properties', () => {
+    const significance = {
+      'Retention Category': 'Enhanced',
+      'Baseline Strategic Significance': 'High',
+      'Proposed Strategic Significance': 'High'
+    }
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: 'H1', ...significance })],
+      hedgerows: [
+        feature({ [PARCEL_REF]: 'HG1', ...significance }, SAMPLE_LINESTRING)
+      ],
+      watercourses: [
+        feature({ [PARCEL_REF]: 'W1', ...significance }, SAMPLE_LINESTRING)
+      ],
+      trees: [treeFeature({ 'Tree Ref': 'T1', ...significance })],
+      verticalHabitats: [
+        feature({ [PARCEL_REF]: 'V1', ...significance }, SAMPLE_LINESTRING)
+      ]
+    })
+
+    const { habitats, hedgerows, watercourses, trees, verticalHabitats } =
+      out.document
+    const docs = [
+      ...habitats,
+      ...hedgerows,
+      ...watercourses,
+      ...trees,
+      ...verticalHabitats
+    ]
+    expect(docs).toHaveLength(5)
+    for (const doc of docs) {
+      expect(doc.baseline.strategicSignificance).toBe('Low')
+      expect(doc.proposed.strategicSignificance).toBe('High')
+      expect(doc.properties['Baseline Strategic Significance']).toBe('High')
+    }
   })
 })

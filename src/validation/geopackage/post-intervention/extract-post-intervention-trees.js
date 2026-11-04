@@ -2,7 +2,8 @@ import {
   PROP_KEYS,
   PROPOSED_PROP_KEYS,
   TREE_ADVANCE_DELAY_KEYS,
-  pickProp
+  pickProp,
+  pickStrategicSignificance
 } from '../properties.js'
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
 import {
@@ -53,7 +54,10 @@ function buildTreeSide(props, keys, count) {
     broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
     ...emptyHabitatScoreFields(),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
+    strategicSignificance: pickStrategicSignificance(
+      props,
+      keys.strategicSignificance
+    ),
     treeSize,
     treeSpecies: pickProp(props, keys.treeType),
     ruralOrUrban,
