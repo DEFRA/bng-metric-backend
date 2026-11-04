@@ -770,9 +770,13 @@ describe('Created area imported timing preservation', () => {
 })
 
 describe('BMD-1050 Created watercourse saves', () => {
-  it.each([10, '30+'])(
-    'persists saved advance %s through a restricted rename and restores it after a baseline correction',
-    async (advanceYears) => {
+  it.each(
+    [10, '30+'].flatMap((advance) =>
+      ['saved', 'imported', 'cleared'].map((mode) => [advance, mode])
+    )
+  )(
+    'persists advance %s through a restricted %s rename and baseline correction',
+    async (advanceYears, mode) => {
       const parent = {
         featureId: randomUUID(),
         ref: 'Parent',
@@ -788,6 +792,12 @@ describe('BMD-1050 Created watercourse saves', () => {
         parentFeatureId: parent.featureId,
         properties: { 'Habitat created in advance/years': 5 }
       }
+      if (mode !== 'saved') {
+        feature.properties['Habitat created in advance/years'] = advanceYears
+        feature.proposed.condition = 'Poor'
+        feature.proposed.advanceYears = null
+        feature.proposed.advanceYearsIs30Plus = advanceYears === '30+'
+      }
       const projectId = await seedProject({
         name: 'Restricted advance rename IT',
         baseline: { watercourses: [parent] },
@@ -797,18 +807,35 @@ describe('BMD-1050 Created watercourse saves', () => {
         }
       })
       const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
-      const saved = await server.inject({
-        method: 'PUT',
-        url,
-        headers,
-        payload: { ...payload, condition: 'Poor', advanceYears }
-      })
-      expect(saved.statusCode, saved.payload).toBe(HTTP_OK)
-      expect(saved.result.proposed.advanceYears).toBeNull()
+      const read = async () =>
+        (
+          await dbClient.query(
+            'SELECT project FROM bng.projects WHERE id = $1',
+            [projectId]
+          )
+        ).rows[0].project
+      if (mode !== 'saved') {
+        const imported = (await read()).postIntervention.watercourses[0]
+        expect(imported).not.toHaveProperty('editedAdvanceYears')
+        expect(imported.proposed.advanceYears).toBeNull()
+      }
+      if (mode === 'saved') {
+        const saved = await server.inject({
+          method: 'PUT',
+          url,
+          headers,
+          payload: { ...payload, condition: 'Poor', advanceYears }
+        })
+        expect(saved.statusCode, saved.payload).toBe(HTTP_OK)
+        expect(saved.result.proposed.advanceYears).toBeNull()
+      }
       const { advanceYears: _advance, ...rename } = {
         ...payload,
         condition: 'Poor',
         ref: 'Renamed while restricted'
+      }
+      if (mode === 'cleared') {
+        rename.advanceYears = null
       }
       const renamed = await server.inject({
         method: 'PUT',
@@ -817,17 +844,17 @@ describe('BMD-1050 Created watercourse saves', () => {
         payload: rename
       })
       expect(renamed.statusCode, renamed.payload).toBe(HTTP_OK)
-      const read = async () =>
-        (
-          await dbClient.query(
-            'SELECT project FROM bng.projects WHERE id = $1',
-            [projectId]
-          )
-        ).rows[0].project
-      const expectedAdvance = advanceYears === '30+' ? 30 : advanceYears
+      expect(renamed.result.proposed.advanceYears).toBeNull()
+      expect(renamed.result.units).toBeNull()
+      expect(renamed.result.status).toBe('Incomplete')
+      const expectedAdvance =
+        mode === 'cleared' ? null : advanceYears === '30+' ? 30 : advanceYears
       expect(
         (await read()).postIntervention.watercourses[0].editedAdvanceYears
       ).toBe(expectedAdvance)
+      expect(
+        (await read()).postIntervention.watercourses[0].properties
+      ).toEqual(feature.properties)
       const corrected = await server.inject({
         method: 'PUT',
         url: `/projects/${projectId}/features/${parent.featureId}`,
@@ -842,11 +869,11 @@ describe('BMD-1050 Created watercourse saves', () => {
       expect(corrected.statusCode, corrected.payload).toBe(HTTP_OK)
       expect((await read()).postIntervention.watercourses[0]).toMatchObject({
         ref: rename.ref,
-        status: 'Complete',
+        status: mode === 'cleared' ? 'Incomplete' : 'Complete',
         editedAdvanceYears: expectedAdvance,
         proposed: {
           advanceYears: expectedAdvance,
-          advanceYearsIs30Plus: advanceYears === '30+'
+          advanceYearsIs30Plus: mode !== 'cleared' && advanceYears === '30+'
         }
       })
     }

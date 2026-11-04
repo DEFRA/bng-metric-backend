@@ -5,6 +5,7 @@ import {
   validateCreatedLinearEdit
 } from './created-feature-edit.js'
 import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
+import { restoreUploadedWatercourseAdvance } from '../utilities/enrichment/post-intervention/lineage-outcomes.js'
 
 const reference = getWatercourseCreationReference()
 const encroachmentFields = ['watercourseEncroachment', 'riparianEncroachment']
@@ -22,14 +23,28 @@ export const postInterventionWatercourseEditPayload = createdLinearEditPayload(
   )
 )
 
+function storedAdvanceInput(feature) {
+  if (Object.hasOwn(feature, 'editedAdvanceYears')) {
+    return feature.editedAdvanceYears
+  }
+  if (feature.proposed?.advanceYears != null) {
+    return undefined
+  }
+  // Reuse import restoration and its parent/type eligibility rules without
+  // changing the stored row or replacing a non-null current input.
+  const restored = { ...feature, proposed: { ...feature.proposed } }
+  restoreUploadedWatercourseAdvance({ watercourses: [restored] })
+  return restored.proposed.advanceYears
+}
+
 function withSavedAdvance(feature, edits) {
-  if (
-    edits.advanceYears !== undefined ||
-    !Object.hasOwn(feature, 'editedAdvanceYears')
-  ) {
+  if (edits.advanceYears !== undefined) {
     return edits
   }
-  const saved = feature.editedAdvanceYears
+  const saved = storedAdvanceInput(feature)
+  if (saved === undefined) {
+    return edits
+  }
   return {
     ...edits,
     advanceYears:

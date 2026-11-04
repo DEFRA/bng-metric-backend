@@ -24,14 +24,19 @@ We never re-serialise the whole document on a small change — a single habitat
 edit must not rewrite a baseline that can hold ~1000 parcels. Each helper writes
 only its subtree with `jsonb_set`, and validates only that subtree:
 
-Template post-intervention edits are an exception to the single-feature patch:
+Template post-intervention watercourse edits are an exception to the single-feature patch:
 changing a watercourse's type or condition can change its siblings' allowable
 advance. The shared rederive pipeline recalculates lineage, units and totals,
 and `setProjectFeature` saves that complete post-intervention subtree atomically.
 Its fragments must agree with the replacement document before persistence.
+Template area and hedgerow edits retain the single-feature patch, refreshing totals,
+trading rules and lost habitats without re-enriching untouched rows.
 Created watercourses store `editedAdvanceYears` separately from raw imported
 properties, including explicit null, so a later baseline edit keeps the user's
 saved timing instead of restoring the uploaded value.
+Before the first timing edit, an omitted advance preserves the imported restoration
+source even when lineage has temporarily nulled the derived advance. Explicit null
+clears that source.
 
 | Helper                                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                            |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |

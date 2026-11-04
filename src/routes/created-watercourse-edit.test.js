@@ -133,6 +133,112 @@ function templateProject(pieces = 1) {
   }
 }
 
+test.each([10, '30+'])(
+  'keeps imported advance %s through restriction, first rename and baseline correction',
+  (advanceYears) => {
+    const project = templateProject()
+    const original = project.postIntervention.watercourses[0]
+    original.properties['Habitat created in advance/years'] = advanceYears
+    original.proposed.condition = 'Poor'
+    original.proposed.advanceYears = advanceYears === '30+' ? 30 : advanceYears
+    original.proposed.advanceYearsIs30Plus = advanceYears === '30+'
+    const imported = rederivePostInterventionFromBaseline(
+      project.postIntervention,
+      { baseline: project.baseline }
+    )
+    const stored = imported.watercourses[0]
+    expect(stored.proposed.advanceYears).toBeNull()
+    expect(stored).not.toHaveProperty('editedAdvanceYears')
+    const rename = {
+      ref: 'First rename while restricted',
+      habitatType: 'Ditches',
+      condition: 'Poor',
+      strategicSignificance: 'Low'
+    }
+    const resolved = validateCreatedWatercourseEdit(stored, rename)
+    expect(resolved.advanceYears).toBe(advanceYears)
+    expect(stored.proposed.advanceYears).toBeNull()
+    expect(stored).not.toHaveProperty('editedAdvanceYears')
+    const renamed = applyFeatureUpdate(
+      { ...project, postIntervention: imported },
+      {
+        featureId,
+        documentKey: 'postIntervention',
+        expectedType: 'watercourse',
+        edits: resolved
+      }
+    )
+    expect(renamed.feature.proposed.advanceYears).toBeNull()
+    const restored = rederivePostInterventionFromBaseline(
+      renamed.project.postIntervention,
+      {
+        baseline: { watercourses: [{ ...templateParent, condition: 'Poor' }] },
+        previousBaseline: project.baseline
+      }
+    ).watercourses[0]
+    expect(restored.proposed.advanceYears).toBe(
+      advanceYears === '30+' ? 30 : advanceYears
+    )
+    expect(restored.proposed.advanceYearsIs30Plus).toBe(advanceYears === '30+')
+    expect(restored.ref).toBe(rename.ref)
+    expect(restored.status).toBe('Complete')
+    const cleared = applyFeatureUpdate(
+      { ...project, postIntervention: imported },
+      {
+        featureId,
+        documentKey: 'postIntervention',
+        expectedType: 'watercourse',
+        edits: validateCreatedWatercourseEdit(stored, {
+          ...rename,
+          advanceYears: null
+        })
+      }
+    )
+    const stillCleared = rederivePostInterventionFromBaseline(
+      cleared.project.postIntervention,
+      {
+        baseline: { watercourses: [{ ...templateParent, condition: 'Poor' }] },
+        previousBaseline: project.baseline
+      }
+    ).watercourses[0]
+    expect(stillCleared.editedAdvanceYears).toBeNull()
+    expect(stillCleared.proposed.advanceYears).toBeNull()
+  }
+)
+
+test('keeps a non-null current advance instead of replacing it from raw properties', () => {
+  const stored = templateProject().postIntervention.watercourses[0]
+  stored.proposed.advanceYears = 2
+  expect(
+    validateCreatedWatercourseEdit(stored, {
+      ref: 'Rename',
+      habitatType: 'Ditches',
+      strategicSignificance: 'Low'
+    }).advanceYears
+  ).toBe(2)
+})
+
+test.each(['no parent', 'no type'])(
+  'does not restore raw advance on a row with %s',
+  (missing) => {
+    const stored = templateProject().postIntervention.watercourses[0]
+    stored.proposed.advanceYears = null
+    if (missing === 'no parent') {
+      stored.parentFeatureId = null
+    } else {
+      stored.proposed.type = null
+    }
+    const resolved = validateCreatedWatercourseEdit(stored, {
+      ref: 'Rename',
+      habitatType: 'Ditches',
+      condition: 'Good',
+      strategicSignificance: 'Low'
+    })
+    expect(resolved.advanceYears).toBeNull()
+    expect(stored.proposed.advanceYears).toBeNull()
+  }
+)
+
 test.each([2, null, '30+'])(
   'keeps saved advance %s through the full template baseline rederive',
   (advanceYears) => {
@@ -504,6 +610,7 @@ describe('BMD-1050 Created watercourse editing', () => {
       const changed = structuredClone(baseline)
       if (hasParent) {
         changed.watercourses[0].ref = 'Baseline renamed'
+        changed.watercourses[0].condition = 'Good'
       }
       resyncPostInterventionBaselineSide(
         { watercourses: [result.feature] },
@@ -511,6 +618,9 @@ describe('BMD-1050 Created watercourse editing', () => {
       )
       expect(result.feature.ref).toBe('W-2')
       expect(result.feature.baseline.type).toBe('Ditches')
+      expect(result.feature.baseline.condition).toBe(
+        hasParent ? 'Good' : 'Poor'
+      )
       expect(
         postInterventionWatercourseSchema.validate(result.feature).error
       ).toBeUndefined()

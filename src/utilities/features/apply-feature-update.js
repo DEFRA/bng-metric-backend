@@ -43,18 +43,9 @@ import {
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
-import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
-import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-watercourse-trading-rules.js'
-import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
-import {
-  rederivePostInterventionFromBaseline,
-  preserveCreatedParent
-} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
-import {
-  addPostInterventionNetUnitChanges,
-  summarizeFeatureSetUnitsTotals
-} from './feature-set-units.js'
+import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import { renameClashes } from './ref-in-use.js'
 import {
@@ -367,76 +358,6 @@ function rebuiltProject(
 }
 
 /**
- * Refresh every figure that stood on the feature just edited: the document's own
- * unit totals, and then whatever measured against it.
- *
- * The two documents measure against each other, so which one was edited decides
- * what else has to move. A post-intervention edit refreshes that document's own
- * net unit changes and trading-rules figures — an edit moves units between
- * habitat types, so those are stale until recomputed from the updated feature
- * set. A baseline edit instead changes what the post-intervention document was
- * measured against, so that whole document is re-derived rather than left
- * quoting the old baseline.
- *
- * The re-derive needs the baseline on both sides of the edit: the edited
- * document to take values from, and `previousFeatureSet` — the pre-edit one —
- * to tell which of several features sharing a ref each post-intervention row
- * describes.
- *
- * @param {object} updatedFeatureSet the edited document, mutated
- * @param {{ project: object, documentKey: string, previousFeatureSet: object, logger: object }} context
- * @returns {object | null} the re-derived post-intervention document, or null
- *   when the edit was to that document or the project has none
- */
-function refreshFiguresDownstreamOfEdit(
-  updatedFeatureSet,
-  { project, documentKey, previousFeatureSet, logger }
-) {
-  if (
-    documentKey === 'postIntervention' &&
-    isTemplateUpload(updatedFeatureSet)
-  ) {
-    // A watercourse edit can change its siblings' allowable advance. Run the
-    // baseline rederive pipeline and persist the whole document together.
-    const rederived = rederivePostInterventionFromBaseline(
-      updatedFeatureSet,
-      { baseline: project?.baseline },
-      logger
-    )
-    Object.assign(updatedFeatureSet, rederived)
-    return updatedFeatureSet
-  }
-  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-  if (documentKey === 'postIntervention') {
-    addPostInterventionNetUnitChanges(
-      updatedFeatureSet,
-      project?.baseline?.units
-    )
-    enrichPostInterventionAreaTradingRules(
-      updatedFeatureSet,
-      project?.baseline,
-      logger
-    )
-    enrichPostInterventionWatercourseTradingRules(
-      updatedFeatureSet,
-      project?.baseline?.watercourses ?? [],
-      logger
-    )
-    enrichPostInterventionHedgerowTradingRules(
-      updatedFeatureSet,
-      project?.baseline,
-      logger
-    )
-    return null
-  }
-  return rederivePostInterventionFromBaseline(
-    project?.postIntervention,
-    { baseline: updatedFeatureSet, previousBaseline: previousFeatureSet },
-    logger
-  )
-}
-
-/**
  * The enhancement rule an edit to an enhanced post-intervention feature
  * breaks, or null. An edit must leave a valid enhancement of the feature's
  * baseline, as an import must (reject-invalid-enhancements.js); unlike an
@@ -659,13 +580,14 @@ function applyFeatureUpdate(
     project,
     documentKey,
     previousFeatureSet: featureSet,
+    editedType: found.type,
     logger
   })
   // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
   // surgically via persist-project.js (jsonb_set the one feature + the derived
   // subtrees) rather than rewriting the whole document. `postIntervention` is
   // the one subtree that cannot be patched surgically — baseline and template
-  // post-intervention edits can move sibling figures. `project` is
+  // post-intervention watercourse edits can move sibling figures. `project` is
   // retained for callers/tests that want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
