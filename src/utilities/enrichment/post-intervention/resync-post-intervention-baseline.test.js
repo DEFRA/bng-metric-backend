@@ -477,6 +477,48 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
     )
   })
 
+  test('tells apart two features sharing a ref by the significance each file gave, though both are stored as Low', () => {
+    // Legacy rows can share a ref, type and condition and differ only in their
+    // Baseline Strategic Significance. Both are stored as Low (BMD-1086), so
+    // the tie-break reads the file's value from properties instead.
+    const imported = (value) => ({ 'Baseline Strategic Significance': value })
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high', condition: 'Good' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const postIntervention = {
+      habitats: [{ ...postInterventionHabitat(), properties: imported('High') }]
+    }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
   test('resolves an ambiguous ref on the layer the Met / Not-met verdict reads', () => {
     // Upload allows repeated Parcel Refs (BMD-1058), so this reaches the area
     // layer, and the verdict must not depend on which row a ref picks.

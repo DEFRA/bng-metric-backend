@@ -242,22 +242,6 @@ export function pickProp(properties, candidates) {
  */
 export const BASELINE_STRATEGIC_SIGNIFICANCE = 'Low'
 
-/**
- * Read a strategic significance column: Low for the baseline column, whatever
- * it holds, otherwise the column's value (the Proposed column is kept as
- * imported and validated at enrichment).
- *
- * @param {object} properties
- * @param {string[]} candidates the column aliases, as in featureKeysForVariant
- * @returns {unknown}
- */
-export function pickStrategicSignificance(properties, candidates) {
-  if (candidates === PROP_KEYS.strategicSignificance) {
-    return BASELINE_STRATEGIC_SIGNIFICANCE
-  }
-  return pickProp(properties, candidates)
-}
-
 const BROAD_TYPE_SEPARATOR = ' - '
 
 /**
