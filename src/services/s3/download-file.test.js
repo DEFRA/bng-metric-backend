@@ -1,6 +1,8 @@
 import { vi, describe, it, expect } from 'vitest'
 import { readFile, stat } from 'node:fs/promises'
 
+import { createLogger } from '../../common/helpers/logging/logger.js'
+
 vi.mock('./s3-client.js')
 
 // Every directory downloadFileToTemp creates, in call order. Hoisted so the
@@ -204,6 +206,44 @@ describe('downloadFileToTemp when client.send throws a connection error', () => 
     mockSendRejecting(new Error('NoSuchKey'))
 
     await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(/NoSuchKey/)
+  })
+
+  // The message alone hides what went wrong. The SDK's error name and the
+  // status S3 answered with tell a permissions problem from a missing object.
+  it("logs the SDK error's name, code and the status S3 answered with", async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const denied = namedError('AccessDenied')
+    denied.message = 'Access Denied'
+    denied.Code = 'AccessDenied'
+    denied.$metadata = { httpStatusCode: 403 }
+    mockSendRejecting(denied)
+
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3ConnectionError
+    )
+
+    expect(logError).toHaveBeenCalledWith(
+      `S3 download failed - bucket: ${BUCKET}, key: ${KEY}, errorName: AccessDenied, errorCode: AccessDenied, httpStatusCode: 403, error: Access Denied`
+    )
+    logError.mockRestore()
+  })
+
+  it('logs a socket error by its code', async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const reset = new Error('socket hang up')
+    reset.code = 'ECONNRESET'
+    mockSendRejecting(reset)
+
+    await expect(downloadFileToTemp(BUCKET, KEY)).rejects.toThrow(
+      S3ConnectionError
+    )
+
+    expect(logError).toHaveBeenCalledWith(
+      expect.stringContaining(
+        'errorName: Error, errorCode: ECONNRESET, httpStatusCode: none, error: socket hang up'
+      )
+    )
+    logError.mockRestore()
   })
 })
 

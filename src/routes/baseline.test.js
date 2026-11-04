@@ -15,6 +15,7 @@ import {
   resetParseBudget
 } from '../validation/geopackage/parse-budget.js'
 import { config } from '../config.js'
+import { createLogger } from '../common/helpers/logging/logger.js'
 import {
   GEOPACKAGE_METRIC,
   VALIDATION_CATEGORY
@@ -1559,6 +1560,25 @@ describe('validateBaseline handler full validation error handling', () => {
     vi.mocked(downloadFileToTemp).mockResolvedValue(makeDownload())
     vi.mocked(validateGpkgFile).mockReturnValue({ valid: true, errors: [] })
     vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
+  })
+
+  // The frontend turns this 500 into the 502 the user sees, so this log line
+  // is where its cause has to be read: the error's type in the message text,
+  // and the error itself for ECS's error fields, stack trace included.
+  it("logs the error's type and the error itself when it answers 500", async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const thrown = new TypeError(
+      "Cannot read properties of undefined (reading 'area')"
+    )
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(thrown)
+
+    await validateBaseline.handler(request, h)
+
+    expect(logError).toHaveBeenCalledWith(
+      thrown,
+      `validateBaseline - error validating uploadId ${UPLOAD_ID}: TypeError: Cannot read properties of undefined (reading 'area')`
+    )
+    logError.mockRestore()
   })
 
   it('returns 500 when validateGeoPackageLayers throws', async () => {

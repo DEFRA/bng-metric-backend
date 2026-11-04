@@ -422,8 +422,14 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     if (busy) {
       return respondToBusy(uploadId, h, config, busy)
     }
+    // The frontend shows this to the user as a 502, so this line is where the
+    // cause has to be found. The error's type says which step failed — a
+    // ValidationTimeoutError, a database error, a TypeError in the save — and
+    // the error object goes to ECS's error fields, stack trace included. The
+    // type is in the message text too, which CDP's ingestion always keeps.
     logger.error(
-      `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`
+      error,
+      `${config.routeName} - error validating uploadId ${uploadId}: ${error?.name}: ${error?.message}`
     )
     return h
       .response({

@@ -11,6 +11,21 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+/**
+ * A log fragment saying what an S3 failure was. The message alone hides it:
+ * the SDK's error name (AccessDenied, NoSuchKey, a socket error's code) and
+ * the HTTP status S3 answered with tell a permissions problem from a missing
+ * object from a network fault.
+ */
+function describeS3Error(err) {
+  return [
+    `errorName: ${err?.name ?? 'none'}`,
+    `errorCode: ${err?.code ?? err?.Code ?? 'none'}`,
+    `httpStatusCode: ${err?.$metadata?.httpStatusCode ?? 'none'}`,
+    `error: ${err?.message}`
+  ].join(', ')
+}
+
 /** Default download timeout in milliseconds (30 seconds). */
 const DEFAULT_TIMEOUT_MS = 30_000
 
@@ -45,7 +60,7 @@ async function getObject(client, bucket, key, signal, timeoutMs) {
       )
     }
     logger.error(
-      `S3 download failed - bucket: ${bucket}, key: ${key}, error: ${err.message}`
+      `S3 download failed - bucket: ${bucket}, key: ${key}, ${describeS3Error(err)}`
     )
     throw new S3ConnectionError(
       `S3 download failed for bucket: ${bucket}, key: ${key}: ${err.message}`
@@ -124,7 +139,7 @@ async function streamBodyToFile(response, filePath, bucket, key, timeoutMs) {
       )
     }
     logger.error(
-      `S3 stream error - bucket: ${bucket}, key: ${key}, error: ${err.message}`
+      `S3 stream error - bucket: ${bucket}, key: ${key}, ${describeS3Error(err)}`
     )
     throw new S3ConnectionError(
       `S3 stream error for bucket: ${bucket}, key: ${key}: ${err.message}`
