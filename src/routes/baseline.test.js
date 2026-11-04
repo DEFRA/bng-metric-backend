@@ -1581,6 +1581,32 @@ describe('validateBaseline handler full validation error handling', () => {
     logError.mockRestore()
   })
 
+  // A deploy can reach an environment before its migrations do, and then the
+  // save's first query fails on the missing table. Drizzle's message names the
+  // query but not why it failed; the line must say both.
+  it('says the schema is out of date when the save hits a missing table', async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const missing = new Error(
+      'relation "bng.baseline_vertical_habitats" does not exist'
+    )
+    missing.code = '42P01'
+    const failed = new Error(
+      'Failed query: delete from "bng"."baseline_vertical_habitats"'
+    )
+    failed.name = 'DrizzleQueryError'
+    failed.cause = missing
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(failed)
+
+    await validateBaseline.handler(request, h)
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(logError).toHaveBeenCalledWith(
+      failed,
+      `validateBaseline - error validating uploadId ${UPLOAD_ID}: DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: delete from "bng"."baseline_vertical_habitats" — caused by Postgres 42P01: relation "bng.baseline_vertical_habitats" does not exist`
+    )
+    logError.mockRestore()
+  })
+
   it('returns 500 when validateGeoPackageLayers throws', async () => {
     vi.mocked(validateGeoPackageLayers).mockRejectedValue(new Error('boom'))
 

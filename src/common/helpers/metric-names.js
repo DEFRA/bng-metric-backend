@@ -163,3 +163,14 @@ export const DOCUMENT_KEY_DIMENSION = {
   baseline: 'baseline',
   postIntervention: 'postIntervention'
 }
+
+export const DATABASE_METRIC = {
+  /**
+   * The database is missing a table or column the code expects, or a
+   * changeset the code needs has not been applied: a migration has not been
+   * run in this environment. Counted at startup and on every query that fails
+   * for it, with a `source` dimension of `startup` or `request`. Any non-zero
+   * value is an incident — every upload save fails until the migration runs.
+   */
+  schemaOutOfDate: 'DatabaseSchemaOutOfDate'
+}

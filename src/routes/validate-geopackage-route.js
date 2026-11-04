@@ -34,6 +34,7 @@ import {
   recordValidationMetrics
 } from './validate-geopackage-metrics.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
+import { describeError } from '../db/describe-database-error.js'
 import {
   ERROR_CODES,
   makeError,
@@ -426,10 +427,12 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     // cause has to be found. The error's type says which step failed — a
     // ValidationTimeoutError, a database error, a TypeError in the save — and
     // the error object goes to ECS's error fields, stack trace included. The
-    // type is in the message text too, which CDP's ingestion always keeps.
+    // type is in the message text too, which CDP's ingestion always keeps, with
+    // the Postgres error behind a failed query, and a warning no one can miss
+    // when that error says a migration has not been run.
     logger.error(
       error,
-      `${config.routeName} - error validating uploadId ${uploadId}: ${error?.name}: ${error?.message}`
+      `${config.routeName} - error validating uploadId ${uploadId}: ${describeError(error)}`
     )
     return h
       .response({

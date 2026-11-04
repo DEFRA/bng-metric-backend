@@ -1,0 +1,149 @@
+import { readFileSync } from 'node:fs'
+import { resolve } from 'node:path'
+import { beforeEach, describe, expect, it, vi } from 'vitest'
+
+import { metricsCounter } from '../common/helpers/metrics.js'
+import {
+  REQUIRED_CHANGESET,
+  checkSchemaIsCurrent,
+  schemaErrorListener
+} from './schema-check.js'
+
+vi.mock('../common/helpers/metrics.js', () => ({
+  metricsCounter: vi.fn()
+}))
+
+const CHANGELOG_DIR = resolve(import.meta.dirname, '..', '..', 'changelog')
+
+function makeLogger() {
+  return { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
+}
+
+function poolAnswering(rows) {
+  return { query: vi.fn().mockResolvedValue({ rows }) }
+}
+
+/** The last changeset in the master changelog: its last include's last one. */
+function lastChangeset() {
+  const master = readFileSync(
+    resolve(CHANGELOG_DIR, 'db.changelog.xml'),
+    'utf8'
+  )
+  const file = [...master.matchAll(/<include file="([^"]+)"/g)].at(-1)[1]
+  const changelog = readFileSync(resolve(CHANGELOG_DIR, file), 'utf8')
+  const [, id, author] = [
+    ...changelog.matchAll(/<changeSet id="([^"]+)" author="([^"]+)"/g)
+  ].at(-1)
+  return { id, author, file }
+}
+
+describe('REQUIRED_CHANGESET', () => {
+  // A new changeset has to move this on, or the startup check would pass
+  // against a database that does not have it.
+  it('is the last changeset in the changelog', () => {
+    expect(REQUIRED_CHANGESET).toEqual(lastChangeset())
+  })
+})
+
+describe('#checkSchemaIsCurrent', () => {
+  beforeEach(() => {
+    vi.mocked(metricsCounter).mockClear()
+  })
+
+  it('asks Liquibase for the required changeset', async () => {
+    const pool = poolAnswering([{}])
+
+    await checkSchemaIsCurrent(pool, makeLogger())
+
+    expect(pool.query).toHaveBeenCalledWith(
+      'SELECT 1 FROM databasechangelog WHERE id = $1 AND author = $2 LIMIT 1',
+      [REQUIRED_CHANGESET.id, REQUIRED_CHANGESET.author]
+    )
+  })
+
+  it('says so when the changeset is applied', async () => {
+    const logger = makeLogger()
+
+    await expect(
+      checkSchemaIsCurrent(poolAnswering([{}]), logger)
+    ).resolves.toBe('current')
+
+    expect(logger.info).toHaveBeenCalledWith(
+      expect.stringContaining('Database schema is current')
+    )
+    expect(logger.error).not.toHaveBeenCalled()
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+
+  it('logs loudly and counts it when the changeset is missing', async () => {
+    const logger = makeLogger()
+
+    await expect(checkSchemaIsCurrent(poolAnswering([]), logger)).resolves.toBe(
+      'out-of-date'
+    )
+
+    expect(logger.error).toHaveBeenCalledWith(
+      expect.stringMatching(
+        new RegExp(
+          `^DATABASE SCHEMA OUT OF DATE - changeset ${REQUIRED_CHANGESET.id} \\(${REQUIRED_CHANGESET.file}\\) has not been applied`
+        )
+      )
+    )
+    expect(metricsCounter).toHaveBeenCalledWith('DatabaseSchemaOutOfDate', 1, {
+      source: 'startup'
+    })
+  })
+
+  // An environment where the service cannot read Liquibase's table is not
+  // evidence of a missing migration, so it must not raise the alarm.
+  it('warns, and does not raise the alarm, when it cannot check', async () => {
+    const logger = makeLogger()
+    const denied = new Error('permission denied for table databasechangelog')
+    denied.code = '42501'
+    const pool = { query: vi.fn().mockRejectedValue(denied) }
+
+    await expect(checkSchemaIsCurrent(pool, logger)).resolves.toBe('unknown')
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      expect.stringContaining('Database schema check skipped')
+    )
+    expect(logger.error).not.toHaveBeenCalled()
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+})
+
+describe('#schemaErrorListener', () => {
+  beforeEach(() => {
+    vi.mocked(metricsCounter).mockClear()
+  })
+
+  const request = { method: 'get', path: '/projects/p1' }
+
+  it('logs and counts a request that failed on a missing table', async () => {
+    const logger = makeLogger()
+    const missing = new Error('relation "bng.x" does not exist')
+    missing.code = '42P01'
+    const failed = new Error('Failed query: select 1')
+    failed.name = 'DrizzleQueryError'
+    failed.cause = missing
+
+    await schemaErrorListener(logger)(request, { error: failed })
+
+    expect(logger.error).toHaveBeenCalledWith(
+      'GET /projects/p1 failed: DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: select 1 — caused by Postgres 42P01: relation "bng.x" does not exist'
+    )
+    expect(metricsCounter).toHaveBeenCalledWith('DatabaseSchemaOutOfDate', 1, {
+      source: 'request'
+    })
+  })
+
+  it('leaves every other error to the request log', async () => {
+    const logger = makeLogger()
+
+    await schemaErrorListener(logger)(request, { error: new Error('boom') })
+    await schemaErrorListener(logger)(request, {})
+
+    expect(logger.error).not.toHaveBeenCalled()
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+})
