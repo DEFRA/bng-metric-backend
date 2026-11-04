@@ -138,20 +138,26 @@ function buildBaselineCandidatesByRef(features) {
 }
 
 /**
- * A side's strategic significance as its GeoPackage gave it. Every baseline
- * side is stored as Low (BMD-1086), so the stored value no longer tells apart
- * two rows that share a ref and differ only in significance; the file's value,
- * kept in the raw `properties`, still does. A feature with no raw properties
- * falls back to the stored value.
+ * Whether two sides carry the same strategic significance. Every baseline side
+ * is stored as Low (BMD-1086), so the stored value no longer tells apart two
+ * rows that share a ref and differ only in significance; the value each file
+ * gave, kept in the raw `properties`, still does. Only when both features keep
+ * their raw properties are those compared, so a file value is never set
+ * against a stored one; otherwise the stored values are.
  *
- * @param {object} feature
- * @param {unknown} stored the side's stored strategicSignificance
- * @returns {unknown}
+ * @param {object} candidate a feature from the PRE-EDIT baseline document
+ * @param {object} feature the post-intervention row
+ * @param {object} snapshot the row's `baseline` sub-object
+ * @returns {boolean}
  */
-function importedStrategicSignificance(feature, stored) {
-  return feature.properties
-    ? pickProp(feature.properties, PROP_KEYS.strategicSignificance)
-    : stored
+function sameStrategicSignificance(candidate, feature, snapshot) {
+  if (candidate.properties && feature.properties) {
+    return (
+      pickProp(candidate.properties, PROP_KEYS.strategicSignificance) ===
+      pickProp(feature.properties, PROP_KEYS.strategicSignificance)
+    )
+  }
+  return candidate.strategicSignificance === snapshot.strategicSignificance
 }
 
 /**
@@ -172,10 +178,7 @@ function matchesSnapshot(candidate, feature, fields) {
       return true
     }
     if (field === STRATEGIC_SIGNIFICANCE_FIELD) {
-      return (
-        importedStrategicSignificance(candidate, candidate[field]) ===
-        importedStrategicSignificance(feature, snapshot[field])
-      )
+      return sameStrategicSignificance(candidate, feature, snapshot)
     }
     return candidate[field] === snapshot[field]
   })

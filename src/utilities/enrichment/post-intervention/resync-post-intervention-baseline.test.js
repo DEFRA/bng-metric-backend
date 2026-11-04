@@ -519,6 +519,38 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
     expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
   })
 
+  test('compares stored significance when only one side keeps its raw properties', () => {
+    // A file value is never set against a stored one: with properties on the
+    // baseline side only, the stored values decide, as they did before.
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1', condition: 'Good' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
   test('resolves an ambiguous ref on the layer the Met / Not-met verdict reads', () => {
     // Upload allows repeated Parcel Refs (BMD-1058), so this reaches the area
     // layer, and the verdict must not depend on which row a ref picks.
