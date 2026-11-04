@@ -24,7 +24,6 @@ function poolAnswering(rows) {
   return { query: vi.fn().mockResolvedValue({ rows }) }
 }
 
-/** The last changeset in the master changelog: its last include's last one. */
 /** An XML tag's attribute, or undefined. */
 function attribute(tag, name) {
   return new RegExp(String.raw`\b${name}="([^"]*)"`).exec(tag)?.[1]
