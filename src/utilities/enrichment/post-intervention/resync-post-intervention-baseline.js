@@ -242,6 +242,11 @@ function buildFeatureById(features) {
  * copy, so it moves too; one that had already diverged came from the GeoPackage
  * and is left exactly as imported.
  *
+ * Strategic significance is never copied. A baseline edit cannot change it, so
+ * copying it could only carry a value saved before BMD-1086 (the file's, such
+ * as High) onto a row saved since, whose baseline side is Low. It still
+ * identifies the source row (see `sameStrategicSignificance`).
+ *
  * @param {object} feature post-intervention feature, mutated
  * @param {object} source matching baseline feature
  * @param {string} field
@@ -249,7 +254,7 @@ function buildFeatureById(features) {
  * @returns {boolean} whether anything changed
  */
 function syncIdentityField(feature, source, field, proposedTracksBaseline) {
-  if (!Object.hasOwn(source, field)) {
+  if (field === STRATEGIC_SIGNIFICANCE_FIELD || !Object.hasOwn(source, field)) {
     return false
   }
   const previous = feature.baseline[field]

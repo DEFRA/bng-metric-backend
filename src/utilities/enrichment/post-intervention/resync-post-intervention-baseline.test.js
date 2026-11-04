@@ -193,6 +193,43 @@ describe('resyncPostInterventionBaselineSide', () => {
     )
   })
 
+  test('leaves the Low baseline significance of a row saved since BMD-1086, though its baseline was saved before as High', () => {
+    // A baseline uploaded before BMD-1086 kept the file's High; a
+    // post-intervention file uploaded since stores its baseline side as Low.
+    // An edit cannot change significance, so the re-sync must not copy the
+    // older High across, onto the baseline side or a Retained proposed copy.
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [
+          baselineHabitat({ strategicSignificance: 'High', condition: 'Good' })
+        ]
+      }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline).toMatchObject({
+      condition: 'Good',
+      strategicSignificance: 'Low'
+    })
+    expect(postIntervention.habitats[0].proposed.strategicSignificance).toBe(
+      'Low'
+    )
+  })
+
+  test('counts no change when only the saved significance differs', () => {
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineHabitat({ strategicSignificance: 'High' })]
+      }
+    })
+
+    expect(changed).toBe(0)
+  })
+
   test('warns when a Retained row has no baseline feature to measure against', () => {
     const logger = { warn: vi.fn() }
 
