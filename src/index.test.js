@@ -1,10 +1,17 @@
 import { describe, test, expect, vi } from 'vitest'
 import process from 'node:process'
 
-import { FATAL_EXIT_FLUSH_MS } from './common/helpers/exit-process.js'
+import {
+  FATAL_EXIT_FLUSH_MS,
+  FATAL_STOP_TIMEOUT_MS
+} from './common/helpers/exit-process.js'
+
+const mockServer = vi.hoisted(() => ({
+  stop: vi.fn().mockResolvedValue(undefined)
+}))
 
 vi.mock('./common/helpers/start-server.js', () => ({
-  startServer: vi.fn().mockResolvedValue(undefined)
+  startServer: vi.fn().mockResolvedValue(mockServer)
 }))
 
 vi.mock('./common/helpers/logging/logger.js', () => ({
@@ -23,7 +30,7 @@ describe('#index', () => {
     expect(startServer).toHaveBeenCalled()
   })
 
-  test('Should handle unhandled rejections', async () => {
+  test('Should stop the server, then exit, on an unhandled rejection', async () => {
     const { createLogger } = await import('./common/helpers/logging/logger.js')
     const mockLogger = createLogger()
 
@@ -35,15 +42,21 @@ describe('#index', () => {
 
       const error = new Error('test error')
       process.emit('unhandledRejection', error)
+      process.emit('unhandledRejection', new Error('second error'))
 
       expect(mockLogger.info).toHaveBeenCalledWith('Unhandled rejection')
       expect(mockLogger.error).toHaveBeenCalledWith(error)
       expect(process.exitCode).toBe(1)
-      // The exit waits for the logger to flush.
+      expect(mockServer.stop).toHaveBeenCalledTimes(1)
+      expect(mockServer.stop).toHaveBeenCalledWith({
+        timeout: FATAL_STOP_TIMEOUT_MS
+      })
+
+      // The exit waits for the logger to flush after the server has stopped.
+      await vi.advanceTimersByTimeAsync(FATAL_EXIT_FLUSH_MS - 1)
       expect(exit).not.toHaveBeenCalled()
 
-      vi.advanceTimersByTime(FATAL_EXIT_FLUSH_MS)
-
+      await vi.advanceTimersByTimeAsync(1)
       expect(exit).toHaveBeenCalledWith(1)
     } finally {
       vi.useRealTimers()

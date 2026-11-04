@@ -54,6 +54,9 @@ const baseOptions = {
   region: 'eu-west-2'
 }
 
+// IAM authentication needs the TLS options secureContext provides.
+const iamServer = { ...mockServer, secureContext: {} }
+
 function resetMocks() {
   mockServer.decorate.mockReset()
   mockServer.logger.info.mockReset()
@@ -147,7 +150,7 @@ describe('#postgres plugin IAM auth', () => {
     const { Signer } = await import('@aws-sdk/rds-signer')
     const getPasswordFn = await captureLocalPasswordFn()
 
-    await postgres.plugin.register(mockServer, {
+    await postgres.plugin.register(iamServer, {
       ...baseOptions,
       iamAuthentication: true
     })
@@ -182,7 +185,7 @@ describe('#postgres plugin IAM auth', () => {
       this.connect = mockConnect
     })
 
-    await postgres.plugin.register(mockServer, {
+    await postgres.plugin.register(iamServer, {
       ...baseOptions,
       iamAuthentication: true
     })
@@ -232,5 +235,16 @@ describe('#postgres plugin TLS', () => {
     })
 
     expect(ssl).toEqual({ rejectUnauthorized: true, secureContext })
+  })
+
+  test('Should fail at boot when IAM is on but no secureContext is registered', async () => {
+    await expect(
+      postgres.plugin.register(mockServer, {
+        ...baseOptions,
+        iamAuthentication: true
+      })
+    ).rejects.toThrow(
+      'Postgres IAM authentication needs TLS, but no secureContext is registered'
+    )
   })
 })

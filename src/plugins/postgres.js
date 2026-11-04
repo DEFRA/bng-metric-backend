@@ -40,6 +40,15 @@ const postgres = {
         `Setting up Postgres pool for ${options.host}:${options.port}/${options.database}`
       )
 
+      // IAM tokens are only accepted over TLS, and the TLS options come from
+      // secureContext. Fail at boot rather than connect without them if that
+      // plugin is ever reordered or removed.
+      if (options.iamAuthentication && !server.secureContext) {
+        throw new Error(
+          'Postgres IAM authentication needs TLS, but no secureContext is registered'
+        )
+      }
+
       const passwordProvider = createPasswordProvider(options)
       const pool = new Pool({
         host: options.host,
@@ -51,13 +60,12 @@ const postgres = {
         idleTimeoutMillis: 30000,
         maxLifetimeSeconds: 60 * 10,
         max: 10,
-        ...(options.iamAuthentication &&
-          server.secureContext && {
-            ssl: {
-              rejectUnauthorized: options.tlsRejectUnauthorized === true,
-              secureContext: server.secureContext
-            }
-          })
+        ...(options.iamAuthentication && {
+          ssl: {
+            rejectUnauthorized: options.tlsRejectUnauthorized === true,
+            secureContext: server.secureContext
+          }
+        })
       })
 
       pool.on('error', (error) => {
