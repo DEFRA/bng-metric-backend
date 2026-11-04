@@ -6,6 +6,7 @@ import { setProjectFeature } from '../db/persist-project.js'
 import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
+import { findPostgresError } from '../db/describe-database-error.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
@@ -306,7 +307,8 @@ async function runInEditTransaction(request, run) {
     if (err?.isBoom) {
       throw err
     }
-    if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+    // Drizzle wraps the driver's error, so the SQLSTATE is on its `cause`.
+    if (findPostgresError(err)?.code === PG_LOCK_NOT_AVAILABLE) {
       throw Boom.conflict('Another edit for this project is in progress')
     }
     throw err

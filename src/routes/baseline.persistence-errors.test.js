@@ -1,5 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest'
 
+import { drizzleLockTimeout } from '../../test/helpers/postgres-errors.js'
+
 import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import { MAX_FILENAME_LENGTH } from '../validation/project-shared-schemas.js'
 import {
@@ -355,12 +357,7 @@ describe('validateBaseline handler persistence — lock contention and rollback'
   })
 
   it('throws a 409 Boom error when the project row lock cannot be acquired within lock_timeout', async () => {
-    const lockError = Object.assign(
-      new Error('canceling statement due to lock timeout'),
-      {
-        code: '55P03'
-      }
-    )
+    const lockError = drizzleLockTimeout()
     const { drizzle, log } = makeDrizzle({ lockError })
     const request = makeBaselineRequest({
       drizzle,
