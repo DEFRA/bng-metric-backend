@@ -1575,9 +1575,14 @@ describe('validateBaseline handler full validation error handling', () => {
     await validateBaseline.handler(request, h)
 
     expect(logError).toHaveBeenCalledWith(
-      thrown,
+      expect.objectContaining({
+        name: 'TypeError',
+        message: thrown.message,
+        stack: thrown.stack
+      }),
       `validateBaseline - error validating uploadId ${UPLOAD_ID}: TypeError: Cannot read properties of undefined (reading 'area')`
     )
+    expect(logError.mock.calls[0][0]).toBeInstanceOf(TypeError)
     logError.mockRestore()
   })
 
@@ -1601,9 +1606,25 @@ describe('validateBaseline handler full validation error handling', () => {
 
     expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
     expect(logError).toHaveBeenCalledWith(
-      failed,
+      expect.objectContaining({ name: 'DrizzleQueryError' }),
       `validateBaseline - error validating uploadId ${UPLOAD_ID}: DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: delete from "bng"."baseline_vertical_habitats" — caused by Postgres 42P01: relation "bng.baseline_vertical_habitats" does not exist`
     )
+    logError.mockRestore()
+  })
+
+  // A failed insert's message carries every feature's geometry, and the ECS
+  // formatter writes the error's message and stack in full.
+  it("caps the logged error's message, in its stack too", async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(
+      new Error(`Failed query: insert params: ${'x'.repeat(5000)}`)
+    )
+
+    await validateBaseline.handler(request, h)
+
+    const [logged] = logError.mock.calls[0]
+    expect(logged.message.length).toBeLessThanOrEqual(501)
+    expect(logged.stack).not.toContain('x'.repeat(501))
     logError.mockRestore()
   })
 
@@ -1645,6 +1666,36 @@ describe('validateBaseline handler — metrics', () => {
     expect(metricsCounter).toHaveBeenCalledWith(
       GEOPACKAGE_METRIC.validationSucceeded
     )
+  })
+
+  // The route answers a failed save's 500 itself, so hapi emits no error
+  // event and the request listener never sees it: the route has to count it.
+  it('counts a save that fails on a missing table, once', async () => {
+    const missing = new Error(
+      'relation "bng.baseline_vertical_habitats" does not exist'
+    )
+    missing.code = '42P01'
+    const failed = new Error(
+      'Failed query: insert into "bng"."baseline_vertical_habitats"'
+    )
+    failed.name = 'DrizzleQueryError'
+    failed.cause = missing
+    drizzleHarness.tx.execute.mockRejectedValue(failed)
+
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(
+      vi
+        .mocked(metricsCounter)
+        .mock.calls.filter(([name]) => name === 'DatabaseSchemaOutOfDate')
+    ).toEqual([['DatabaseSchemaOutOfDate', 1, { source: 'request' }]])
   })
 
   it('emits an internal_data failure when the gpkg gate rejects', async () => {

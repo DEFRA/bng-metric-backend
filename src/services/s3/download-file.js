@@ -60,6 +60,7 @@ async function getObject(client, bucket, key, signal, timeoutMs) {
       )
     }
     logger.error(
+      err,
       `S3 download failed - bucket: ${bucket}, key: ${key}, ${describeS3Error(err)}`
     )
     throw new S3ConnectionError(
@@ -139,6 +140,7 @@ async function streamBodyToFile(response, filePath, bucket, key, timeoutMs) {
       )
     }
     logger.error(
+      err,
       `S3 stream error - bucket: ${bucket}, key: ${key}, ${describeS3Error(err)}`
     )
     throw new S3ConnectionError(

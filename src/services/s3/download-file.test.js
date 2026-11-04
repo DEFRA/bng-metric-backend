@@ -223,6 +223,7 @@ describe('downloadFileToTemp when client.send throws a connection error', () => 
     )
 
     expect(logError).toHaveBeenCalledWith(
+      denied,
       `S3 download failed - bucket: ${BUCKET}, key: ${KEY}, errorName: AccessDenied, errorCode: AccessDenied, httpStatusCode: 403, error: Access Denied`
     )
     logError.mockRestore()
@@ -239,6 +240,7 @@ describe('downloadFileToTemp when client.send throws a connection error', () => 
     )
 
     expect(logError).toHaveBeenCalledWith(
+      reset,
       expect.stringContaining(
         'errorName: Error, errorCode: ECONNRESET, httpStatusCode: none, error: socket hang up'
       )

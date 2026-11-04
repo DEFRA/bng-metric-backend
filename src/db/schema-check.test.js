@@ -6,6 +6,7 @@ import { metricsCounter } from '../common/helpers/metrics.js'
 import {
   REQUIRED_CHANGESET,
   checkSchemaIsCurrent,
+  recordSchemaError,
   schemaErrorListener
 } from './schema-check.js'
 
@@ -108,6 +109,50 @@ describe('#checkSchemaIsCurrent', () => {
       expect.stringContaining('Database schema check skipped')
     )
     expect(logger.error).not.toHaveBeenCalled()
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+
+  // A fresh database, or Liquibase writing to a schema off the app user's
+  // search_path, has no databasechangelog to read: still nothing known.
+  it('does not raise the alarm when there is no databasechangelog to read', async () => {
+    const logger = makeLogger()
+    const absent = new Error('relation "databasechangelog" does not exist')
+    absent.code = '42P01'
+    const pool = { query: vi.fn().mockRejectedValue(absent) }
+
+    await expect(checkSchemaIsCurrent(pool, logger)).resolves.toBe('unknown')
+
+    expect(logger.warn).toHaveBeenCalledWith(
+      'Database schema check skipped - could not read databasechangelog: Error: relation "databasechangelog" does not exist (Postgres 42P01)'
+    )
+    expect(logger.warn).not.toHaveBeenCalledWith(
+      expect.stringContaining('DATABASE SCHEMA OUT OF DATE')
+    )
+    expect(logger.error).not.toHaveBeenCalled()
+    expect(metricsCounter).not.toHaveBeenCalled()
+  })
+})
+
+describe('#recordSchemaError', () => {
+  beforeEach(() => {
+    vi.mocked(metricsCounter).mockClear()
+  })
+
+  it('counts a query that failed on a missing column', async () => {
+    const missing = new Error('column "x" does not exist')
+    missing.code = '42703'
+
+    await expect(recordSchemaError(missing)).resolves.toBe(true)
+
+    expect(metricsCounter).toHaveBeenCalledWith('DatabaseSchemaOutOfDate', 1, {
+      source: 'request'
+    })
+  })
+
+  it('counts nothing for any other error', async () => {
+    await expect(recordSchemaError(new Error('boom'))).resolves.toBe(false)
+    await expect(recordSchemaError(undefined)).resolves.toBe(false)
+
     expect(metricsCounter).not.toHaveBeenCalled()
   })
 })

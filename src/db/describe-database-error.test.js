@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   describeError,
   findPostgresError,
-  isSchemaMissingError
+  isSchemaMissingError,
+  loggableError
 } from './describe-database-error.js'
 
 // The shape node-postgres rejects with, and the one Drizzle wraps it in.
@@ -94,5 +95,47 @@ describe('#describeError', () => {
   it("caps a long message, such as an insert's parameters", () => {
     const described = describeError(new Error('x'.repeat(5000)))
     expect(described).toBe(`Error: ${'x'.repeat(500)}…`)
+  })
+
+  it('leaves the alarm out when asked to, for a missing table that is no sign of a migration', () => {
+    expect(describeError(MISSING_TABLE, { flagSchemaMissing: false })).toMatch(
+      /^error: relation .* does not exist \(Postgres 42P01\)$/
+    )
+  })
+})
+
+describe('#loggableError', () => {
+  // The ECS formatter writes an Error's message and stack in full, and the
+  // stack opens with the message: a failed insert's geometry, twice.
+  it('caps the message, in the stack too, and keeps the frames', () => {
+    const huge = drizzleError(MISSING_TABLE)
+    huge.message = `Failed query: insert params: ${'x'.repeat(5000)}`
+    huge.stack = `DrizzleQueryError: ${huge.message}\n    at save (save.js:1:1)\n    at run (run.js:2:2)`
+
+    const logged = loggableError(huge)
+
+    expect(logged.message).toHaveLength(501)
+    expect(logged.stack).toBe(
+      `DrizzleQueryError: ${logged.message}\n    at save (save.js:1:1)\n    at run (run.js:2:2)`
+    )
+    expect(logged.stack.length).toBeLessThan(600)
+  })
+
+  it('keeps the error type, for ECS to name', () => {
+    const logged = loggableError(new TypeError('nope'))
+
+    expect(logged).toBeInstanceOf(TypeError)
+    expect(logged.constructor.name).toBe('TypeError')
+    expect(logged.name).toBe('TypeError')
+    expect(logged.message).toBe('nope')
+  })
+
+  // pino takes a string first argument as the message, which would drop the
+  // log line's own text.
+  it('wraps a value that is not an Error', () => {
+    const logged = loggableError('worker exited')
+
+    expect(logged).toBeInstanceOf(Error)
+    expect(logged.message).toBe('worker exited')
   })
 })

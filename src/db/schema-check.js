@@ -42,8 +42,10 @@ async function checkSchemaIsCurrent(pool, logger) {
     )
     applied = result.rows.length > 0
   } catch (error) {
+    // No databasechangelog on the search path (42P01) is a fresh database or
+    // Liquibase writing elsewhere, not a missing migration: no alarm text.
     logger.warn(
-      `Database schema check skipped - could not read databasechangelog: ${describeError(error)}`
+      `Database schema check skipped - could not read databasechangelog: ${describeError(error, { flagSchemaMissing: false })}`
     )
     return 'unknown'
   }
@@ -65,6 +67,25 @@ async function checkSchemaIsCurrent(pool, logger) {
 }
 
 /**
+ * Count a query that failed because the database is missing a table or
+ * column. Shared by the request listener and the upload routes, which catch
+ * a failed save and answer 500 themselves, so hapi never emits it as an
+ * error event.
+ *
+ * @param {unknown} error
+ * @returns {Promise<boolean>} whether it was a missing table or column
+ */
+async function recordSchemaError(error) {
+  if (!isSchemaMissingError(error)) {
+    return false
+  }
+  await metricsCounter(DATABASE_METRIC.schemaOutOfDate, 1, {
+    source: 'request'
+  })
+  return true
+}
+
+/**
  * Log a request that failed because the database is missing a table or
  * column, on any route, where hapi's own error log would show only the
  * wrapping `Failed query: …` and not the Postgres error that explains it.
@@ -74,16 +95,18 @@ async function checkSchemaIsCurrent(pool, logger) {
  */
 function schemaErrorListener(logger) {
   return async (request, event) => {
-    if (!isSchemaMissingError(event?.error)) {
+    if (!(await recordSchemaError(event?.error))) {
       return
     }
     logger.error(
       `${request.method?.toUpperCase()} ${request.path} failed: ${describeError(event.error)}`
     )
-    await metricsCounter(DATABASE_METRIC.schemaOutOfDate, 1, {
-      source: 'request'
-    })
   }
 }
 
-export { REQUIRED_CHANGESET, checkSchemaIsCurrent, schemaErrorListener }
+export {
+  REQUIRED_CHANGESET,
+  checkSchemaIsCurrent,
+  recordSchemaError,
+  schemaErrorListener
+}
