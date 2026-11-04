@@ -9,6 +9,7 @@
  */
 import Joi from 'joi'
 import { parentFeatureIdField } from './project-lineage-fields.js'
+import { createdTimingSelectionFields } from './project-timing-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import {
@@ -60,8 +61,8 @@ function invalidEnhancementField(layer) {
   }
 }
 
-// Template links keep their original contract on linear features. Area and hedgerow
-// edits can explicitly record that a Created reference has no baseline parent.
+// Editable Created features can explicitly record that a renamed reference
+// has no baseline parent; untouched template rows keep their original contract.
 
 function baselineCommonFields() {
   return {
@@ -158,11 +159,13 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
   return {
     ...retentionCategoryField(),
     ...invalidEnhancementField(layer),
-    ...parentFeatureIdField({ editableCreated: layer === 'hedgerows' }),
-    ...(layer === 'hedgerows'
+    ...parentFeatureIdField({
+      editableCreated: ['hedgerows', 'watercourses'].includes(layer)
+    }),
+    ...(['hedgerows', 'watercourses'].includes(layer)
       ? {
           referenceEdited: Joi.boolean().description(
-            'Whether a Created hedgerow reference was edited; its stored parent remains independent of the editable reference.'
+            'Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference.'
           )
         }
       : {}),
@@ -247,12 +250,7 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
 )
 
 const postInterventionHabitatProposedSubSchema = Joi.object({
-  advanceYearsIs30Plus: Joi.boolean().description(
-    'Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input.'
-  ),
-  delayYearsIs30Plus: Joi.boolean().description(
-    'Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input.'
-  ),
+  ...createdTimingSelectionFields(),
   type: Joi.string()
     .allow(null, '')
     .description(
@@ -440,12 +438,7 @@ const postInterventionLinearBaselineSubSchema = Joi.object({
 )
 
 const postInterventionLinearProposedSubSchema = Joi.object({
-  advanceYearsIs30Plus: Joi.boolean().description(
-    'Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30.'
-  ),
-  delayYearsIs30Plus: Joi.boolean().description(
-    'Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30.'
-  ),
+  ...createdTimingSelectionFields(),
   type: Joi.string()
     .allow(null, '')
     .description('Proposed hedgerow type from Proposed Hedge Type column.'),
@@ -511,6 +504,7 @@ const postInterventionWatercourseBaselineSubSchema = Joi.object({
 )
 
 const postInterventionWatercourseProposedSubSchema = Joi.object({
+  ...createdTimingSelectionFields(),
   type: Joi.string()
     .allow(null, '')
     .description('Proposed watercourse type from Proposed River Type column.'),
@@ -521,6 +515,11 @@ const postInterventionWatercourseProposedSubSchema = Joi.object({
 )
 
 const postInterventionWatercourseSchema = Joi.object({
+  editedAdvanceYears: Joi.number()
+    .allow(null)
+    .description(
+      'Advance years explicitly saved by a Created watercourse edit, including null when cleared. Takes precedence over the raw uploaded advance when lineage is recalculated.'
+    ),
   ...postInterventionLinearFeatureFields({
     geometryRow: 'bng.post_intervention_watercourses',
     layer: 'watercourses'

@@ -638,6 +638,79 @@ describe('setProjectFeature — re-derived post-intervention document', () => {
     units: validUnitsTotals
   }
 
+  function matchingTemplateEdit() {
+    const postIntervention = {
+      ...structuredClone(validPostInterventionDocument),
+      template: { name: 'bng-service', version: '1.0' },
+      habitats: [structuredClone(validPostInterventionHabitat)],
+      units: { ...validUnitsTotals, totalUnits: 1, habitatsTotal: 1 },
+      tradingRules: {},
+      lostHabitats: []
+    }
+    return {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: postIntervention.habitats[0],
+      unitsTotals: postIntervention.units,
+      tradingRules: postIntervention.tradingRules,
+      lostHabitats: postIntervention.lostHabitats,
+      postIntervention,
+      actorId: ACTOR_ID
+    }
+  }
+
+  test('accepts a template replacement with matching fragments', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, matchingTemplateEdit())
+    expect(db._update).toHaveBeenCalledTimes(1)
+  })
+
+  test.each([
+    [
+      'feature',
+      { ...validPostInterventionHabitat, ref: 'Different reference' }
+    ],
+    ['unitsTotals', { ...validUnitsTotals, totalUnits: 2, habitatsTotal: 2 }],
+    [
+      'tradingRules',
+      {
+        areaHabitats: {
+          habitatTypes: [],
+          medium: { broadHabitats: [], surplus: 1, deficit: 0 },
+          low: { netUnitChange: 0, cumulativeAvailability: 0 }
+        }
+      }
+    ],
+    [
+      'lostHabitats',
+      [
+        {
+          layer: 'habitats',
+          featureId: FEATURE_ID,
+          ref: 'H001',
+          type: 'Tall forbs',
+          outcome: 'lostAndRecreated',
+          lostSizeSquareMetres: 100,
+          recreatedAs: [FEATURE_ID]
+        }
+      ]
+    ]
+  ])(
+    'rejects an otherwise matching template with conflicting %s before any update',
+    async (field, conflict) => {
+      const db = makeDb()
+      await expect(
+        setProjectFeature(db, PROJECT_ID, {
+          ...matchingTemplateEdit(),
+          [field]: conflict
+        })
+      ).rejects.toThrow(/without consistent template fragments/)
+      expect(db._update).not.toHaveBeenCalled()
+      expect(db._set).not.toHaveBeenCalled()
+    }
+  )
+
   test('writes it in the same update as the baseline feature', async () => {
     const db = makeDb()
     await setProjectFeature(db, PROJECT_ID, {

@@ -12,6 +12,7 @@ import {
   updateProject
 } from '../routes/projects.js'
 import {
+  updatePostInterventionWatercourse,
   updatePostInterventionHedgerow,
   updateAreaHabitat,
   updatePostInterventionAreaHabitat
@@ -32,6 +33,7 @@ import {
   updateProjectDetails
 } from '../routes/project-details.js'
 import {
+  getWatercourseCreation,
   getHedgerowCreation,
   getAreaCreation,
   getBroadHabitats,
@@ -59,6 +61,7 @@ const router = {
         getHabitat,
         createProject,
         updateProject,
+        updatePostInterventionWatercourse,
         updatePostInterventionHedgerow,
         updateAreaHabitat,
         updatePostInterventionAreaHabitat,
@@ -74,6 +77,7 @@ const router = {
         getProjectReport,
         getProjectDetails,
         updateProjectDetails,
+        getWatercourseCreation,
         getHedgerowCreation,
         getAreaCreation,
         getBroadHabitats,

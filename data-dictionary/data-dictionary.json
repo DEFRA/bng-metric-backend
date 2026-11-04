@@ -3632,7 +3632,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area or hedgerow reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.habitats[].referenceEdited",
@@ -3764,7 +3764,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYearsIs30Plus",
@@ -3775,7 +3775,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.habitats[].proposed.type",
@@ -4761,7 +4761,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus",
@@ -4772,7 +4772,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.type",
@@ -5036,7 +5036,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area or hedgerow reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.hedgerows[].referenceEdited",
@@ -5047,7 +5047,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether a Created hedgerow reference was edited; its stored parent remains independent of the editable reference."
+      "description": "Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -5212,7 +5212,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-hedgerow editor selected 30+ for advance; numeric advanceYears remains 30."
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.delayYearsIs30Plus",
@@ -5223,7 +5223,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-hedgerow editor selected 30+ for delay; numeric delayYears remains 30."
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.type",
@@ -5446,6 +5446,17 @@
       "description": "A post-intervention watercourse (linear) feature."
     },
     {
+      "path": "postIntervention.watercourses[].editedAdvanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance years explicitly saved by a Created watercourse edit, including null when cleared. Takes precedence over the raw uploaded advance when lineage is recalculated."
+    },
+    {
       "path": "postIntervention.watercourses[].retentionCategory",
       "type": "string",
       "required": true,
@@ -5471,12 +5482,23 @@
       "path": "postIntervention.watercourses[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.watercourses[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference."
     },
     {
       "path": "postIntervention.watercourses[].featureId",
@@ -5675,6 +5697,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Proposed watercourse values from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.watercourses[].proposed.type",
