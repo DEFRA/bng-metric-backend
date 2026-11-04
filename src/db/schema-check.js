@@ -8,8 +8,10 @@ import {
 
 /**
  * The newest Liquibase changeset this code needs: the last one in
- * changelog/db.changelog.xml. A test fails when a changeset is added without
- * moving this on, so it cannot fall behind the changelog.
+ * changelog/db.changelog.xml that runs in every environment. A changeset with
+ * a `context`, such as test data, may never run in production, so it must not
+ * be named here. A test fails when a changeset is added without moving this
+ * on, so it cannot fall behind the changelog.
  *
  * The changelog is published and run separately from the image (Publish DB
  * Schema, then the CDP Portal), so a deploy can reach an environment before

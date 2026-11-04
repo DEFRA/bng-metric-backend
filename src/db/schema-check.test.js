@@ -25,23 +25,55 @@ function poolAnswering(rows) {
 }
 
 /** The last changeset in the master changelog: its last include's last one. */
+/** An XML tag's attribute, or undefined. */
+function attribute(tag, name) {
+  return new RegExp(String.raw`\b${name}="([^"]*)"`).exec(tag)?.[1]
+}
+
+/**
+ * Whether a Liquibase tag is limited to some environments. Production runs
+ * with no context, so a changeset or include with one may never reach it.
+ */
+function isContextual(tag) {
+  return (
+    attribute(tag, 'context') !== undefined ||
+    attribute(tag, 'contextFilter') !== undefined
+  )
+}
+
+/** The last changeset in the changelog that runs in every environment. */
 function lastChangeset() {
   const master = readFileSync(
     resolve(CHANGELOG_DIR, 'db.changelog.xml'),
     'utf8'
   )
-  const file = [...master.matchAll(/<include file="([^"]+)"/g)].at(-1)[1]
-  const changelog = readFileSync(resolve(CHANGELOG_DIR, file), 'utf8')
-  const [, id, author] = [
-    ...changelog.matchAll(/<changeSet id="([^"]+)" author="([^"]+)"/g)
-  ].at(-1)
-  return { id, author, file }
+  const files = [...master.matchAll(/<include\b[^>]*>/g)]
+    .map(([tag]) => tag)
+    .filter((tag) => !isContextual(tag))
+    .map((tag) => attribute(tag, 'file'))
+
+  for (const file of files.reverse()) {
+    const changelog = readFileSync(resolve(CHANGELOG_DIR, file), 'utf8')
+    const tag = [...changelog.matchAll(/<changeSet\b[^>]*>/g)]
+      .map(([changeSet]) => changeSet)
+      .findLast((changeSet) => !isContextual(changeSet))
+    if (tag) {
+      return {
+        id: attribute(tag, 'id'),
+        author: attribute(tag, 'author'),
+        file
+      }
+    }
+  }
+  return null
 }
 
 describe('REQUIRED_CHANGESET', () => {
   // A new changeset has to move this on, or the startup check would pass
   // against a database that does not have it.
-  it('is the last changeset in the changelog', () => {
+  // A changeset limited to some contexts, such as test data, may never run in
+  // production, so naming one would raise the alarm on every startup there.
+  it('is the last changeset in the changelog that runs in every environment', () => {
     expect(REQUIRED_CHANGESET).toEqual(lastChangeset())
   })
 })

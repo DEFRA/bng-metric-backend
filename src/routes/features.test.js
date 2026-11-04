@@ -1,6 +1,6 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
-import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
+import { drizzleLockTimeout } from '../../test/helpers/postgres-errors.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import {
   getFeature,
@@ -527,9 +527,7 @@ describe('updateFeature handler - error cases', () => {
   })
 
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
-    const lockError = Object.assign(new Error('lock_not_available'), {
-      code: PG_LOCK_NOT_AVAILABLE
-    })
+    const lockError = drizzleLockTimeout()
     const drizzle = makeTxDrizzle(makeProject(), { lockError })
     await expect(
       updateFeature.handler(
@@ -989,9 +987,7 @@ describe('#updatePostInterventionFeatureRef — renaming a retained habitat (BMD
   })
 
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
-    const lockError = Object.assign(new Error('lock_not_available'), {
-      code: PG_LOCK_NOT_AVAILABLE
-    })
+    const lockError = drizzleLockTimeout()
     const drizzle = makeTxDrizzle(projectRowWithRetainedRow(), { lockError })
 
     await expect(
