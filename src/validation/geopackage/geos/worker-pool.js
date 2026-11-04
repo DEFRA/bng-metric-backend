@@ -33,6 +33,7 @@ import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createLogger } from '../../../common/helpers/logging/logger.js'
+import { exitProcessAfterFlush } from '../../../common/helpers/exit-process.js'
 import { metricsCounter } from '../../../common/helpers/metrics.js'
 import { VALIDATION_METRIC } from '../../../common/helpers/metric-names.js'
 
@@ -185,20 +186,6 @@ export function logSizing(size, { cpuBudget, memoryBudget, auto }) {
  * spawn-crash-spawn loop that floods the log.
  */
 const MAX_CONSECUTIVE_BOOT_FAILURES = 3
-
-/**
- * Grace between deciding to die and actually exiting, so the fatal log line
- * survives: the pino-pretty transport writes from a worker thread, and an
- * immediate `process.exit` can drop exactly the message that says why the
- * service went down.
- */
-const FATAL_EXIT_FLUSH_MS = 1000
-
-/** What {@link PoolOptions}.onFatal does unless a test injects an observer. */
-function exitProcessAfterFlush() {
-  process.exitCode = 1
-  setTimeout(() => process.exit(1), FATAL_EXIT_FLUSH_MS)
-}
 
 /**
  * Is this the worker failing to even load its modules — a missing or broken
