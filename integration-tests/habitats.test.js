@@ -855,6 +855,20 @@ describe('BMD-1050 Created watercourse saves', () => {
       expect(
         (await read()).postIntervention.watercourses[0].properties
       ).toEqual(feature.properties)
+      // The companion form omits an unchanged blank advance, rather than
+      // sending null. Exercise a subsequent real form-shaped save as well.
+      const { advanceYears: _cleared, ...unchangedBlank } = rename
+      const renamedAgain = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...unchangedBlank, delayYears: '0' }
+      })
+      expect(renamedAgain.statusCode, renamedAgain.payload).toBe(HTTP_OK)
+      expect(renamedAgain.result.proposed.advanceYears).toBeNull()
+      expect(
+        (await read()).postIntervention.watercourses[0].editedAdvanceYears
+      ).toBe(expectedAdvance)
       const corrected = await server.inject({
         method: 'PUT',
         url: `/projects/${projectId}/features/${parent.featureId}`,

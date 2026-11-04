@@ -37,6 +37,10 @@ saved timing instead of restoring the uploaded value.
 Before the first timing edit, an omitted advance preserves the imported restoration
 source even when lineage has temporarily nulled the derived advance. Explicit null
 clears that source.
+The companion frontend must omit `advanceYears` when its blank selection was
+already blank in the fetched watercourse. It sends null only when the user
+clears a displayed value; otherwise an unrelated rename would erase the
+restoration source. This contract is implemented in frontend PR #444.
 
 | Helper                                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                            |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |
