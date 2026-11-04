@@ -37,7 +37,8 @@ export const SCHEMA_OUT_OF_DATE_PREFIX = 'DATABASE SCHEMA OUT OF DATE'
  * on the driver's error, in `cause`.
  *
  * @param {unknown} error
- * @returns {{ code: string, message: string } | null}
+ * @returns {(Error & { code: string }) | null} the error itself, or one in its
+ *   `cause` chain
  */
 function findPostgresError(error) {
   let current = error
@@ -85,7 +86,7 @@ function describeError(error, { flagSchemaMissing = true } = {}) {
   if (!(error instanceof Error)) {
     return shorten(error)
   }
-  const own = `${error?.name}: ${shorten(error?.message)}`
+  const own = `${error.name}: ${shorten(error.message)}`
   const postgres = findPostgresError(error)
   if (!postgres) {
     return own
