@@ -772,7 +772,9 @@ describe('Created area imported timing preservation', () => {
 describe('BMD-1050 Created watercourse saves', () => {
   it.each(
     [10, '30+'].flatMap((advance) =>
-      ['saved', 'imported', 'cleared'].map((mode) => [advance, mode])
+      ['saved', 'imported', 'cleared', 'saved-delay', 'imported-delay'].map(
+        (mode) => [advance, mode]
+      )
     )
   )(
     'persists advance %s through a restricted %s rename and baseline correction',
@@ -792,7 +794,7 @@ describe('BMD-1050 Created watercourse saves', () => {
         parentFeatureId: parent.featureId,
         properties: { 'Habitat created in advance/years': 5 }
       }
-      if (mode !== 'saved') {
+      if (!mode.startsWith('saved')) {
         feature.properties['Habitat created in advance/years'] = advanceYears
         feature.proposed.condition = 'Poor'
         feature.proposed.advanceYears = null
@@ -814,12 +816,12 @@ describe('BMD-1050 Created watercourse saves', () => {
             [projectId]
           )
         ).rows[0].project
-      if (mode !== 'saved') {
+      if (!mode.startsWith('saved')) {
         const imported = (await read()).postIntervention.watercourses[0]
         expect(imported).not.toHaveProperty('editedAdvanceYears')
         expect(imported.proposed.advanceYears).toBeNull()
       }
-      if (mode === 'saved') {
+      if (mode.startsWith('saved')) {
         const saved = await server.inject({
           method: 'PUT',
           url,
@@ -837,6 +839,10 @@ describe('BMD-1050 Created watercourse saves', () => {
       if (mode === 'cleared') {
         rename.advanceYears = null
       }
+      const selectsDelay = mode.endsWith('-delay')
+      if (selectsDelay) {
+        rename.delayYears = '2'
+      }
       const renamed = await server.inject({
         method: 'PUT',
         url,
@@ -848,7 +854,11 @@ describe('BMD-1050 Created watercourse saves', () => {
       expect(renamed.result.units).toBeNull()
       expect(renamed.result.status).toBe('Incomplete')
       const expectedAdvance =
-        mode === 'cleared' ? null : advanceYears === '30+' ? 30 : advanceYears
+        mode === 'cleared' || selectsDelay
+          ? null
+          : advanceYears === '30+'
+            ? 30
+            : advanceYears
       expect(
         (await read()).postIntervention.watercourses[0].editedAdvanceYears
       ).toBe(expectedAdvance)
@@ -862,7 +872,7 @@ describe('BMD-1050 Created watercourse saves', () => {
         method: 'PUT',
         url,
         headers,
-        payload: { ...unchangedBlank, delayYears: '0' }
+        payload: { ...unchangedBlank, delayYears: selectsDelay ? '2' : '0' }
       })
       expect(renamedAgain.statusCode, renamedAgain.payload).toBe(HTTP_OK)
       expect(renamedAgain.result.proposed.advanceYears).toBeNull()
@@ -883,11 +893,13 @@ describe('BMD-1050 Created watercourse saves', () => {
       expect(corrected.statusCode, corrected.payload).toBe(HTTP_OK)
       expect((await read()).postIntervention.watercourses[0]).toMatchObject({
         ref: rename.ref,
-        status: mode === 'cleared' ? 'Incomplete' : 'Complete',
+        status: mode === 'cleared' || selectsDelay ? 'Incomplete' : 'Complete',
         editedAdvanceYears: expectedAdvance,
         proposed: {
           advanceYears: expectedAdvance,
-          advanceYearsIs30Plus: mode !== 'cleared' && advanceYears === '30+'
+          advanceYearsIs30Plus:
+            mode !== 'cleared' && !selectsDelay && advanceYears === '30+',
+          delayYears: selectsDelay ? 2 : 0
         }
       })
     }

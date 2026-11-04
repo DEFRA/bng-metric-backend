@@ -41,6 +41,14 @@ function withSavedAdvance(feature, edits) {
   if (edits.advanceYears !== undefined) {
     return edits
   }
+  // A positive delay replaces an advance hidden by lineage. Visible or
+  // explicitly submitted advances still take part in mutual-exclusion checks.
+  if (
+    feature.proposed?.advanceYears == null &&
+    Number.parseFloat(edits.delayYears) > 0
+  ) {
+    return { ...edits, advanceYears: null }
+  }
   const saved = storedAdvanceInput(feature)
   if (saved === undefined) {
     return edits

@@ -41,6 +41,9 @@ The companion frontend must omit `advanceYears` when its blank selection was
 already blank in the fetched watercourse. It sends null only when the user
 clears a displayed value; otherwise an unrelated rename would erase the
 restoration source. This contract is implemented in frontend PR #444.
+Selecting a positive delay while the fetched advance is blank replaces any
+hidden restoration source with null. A visible advance, or an advance explicitly
+submitted with the delay, still participates in the mutual-exclusion check.
 
 | Helper                                  | Actor-aware call shape                                                                       | Writes (path)                             | Validates against                                            |
 | --------------------------------------- | -------------------------------------------------------------------------------------------- | ----------------------------------------- | ------------------------------------------------------------ |

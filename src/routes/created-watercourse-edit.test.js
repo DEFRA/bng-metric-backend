@@ -102,6 +102,42 @@ function request(payload, stored = feature) {
 
 beforeEach(() => vi.resetAllMocks())
 
+test.each(
+  ['saved', 'imported'].flatMap((source) =>
+    [2, '30+'].map((delayYears) => [source, delayYears])
+  )
+)(
+  'replaces a hidden %s advance when the user selects delay %s',
+  (source, delayYears) => {
+    const stored = {
+      ...structuredClone(feature),
+      parentFeatureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+      properties: { 'Habitat created in advance/years': 10 },
+      ...(source === 'saved' ? { editedAdvanceYears: 10 } : {})
+    }
+    stored.proposed.advanceYears = null
+    const { advanceYears: _advance, ...submitted } = edits
+    const resolved = validateCreatedWatercourseEdit(stored, {
+      ...submitted,
+      delayYears
+    })
+    expect(resolved.advanceYears).toBeNull()
+    expect(resolved.delayYears).toBe(delayYears)
+    expect(stored.proposed.advanceYears).toBeNull()
+    expect(stored.editedAdvanceYears).toBe(source === 'saved' ? 10 : undefined)
+  }
+)
+
+test('still rejects a delay that conflicts with a visible saved advance', () => {
+  const stored = structuredClone(feature)
+  stored.editedAdvanceYears = 10
+  stored.proposed.advanceYears = 10
+  const { advanceYears: _advance, ...submitted } = edits
+  expect(() =>
+    validateCreatedWatercourseEdit(stored, { ...submitted, delayYears: 2 })
+  ).toThrow('Enter either advance or delay greater than zero, not both')
+})
+
 const templateParent = {
   featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
   ref: 'W-1',
