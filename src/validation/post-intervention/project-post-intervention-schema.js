@@ -9,6 +9,7 @@
  */
 import Joi from 'joi'
 import { parentFeatureIdField } from './project-lineage-fields.js'
+import { createdTimingSelectionFields } from './project-timing-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import {
@@ -246,17 +247,6 @@ const postInterventionHabitatBaselineSubSchema = Joi.object({
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
-
-function createdTimingSelectionFields() {
-  return {
-    advanceYearsIs30Plus: Joi.boolean().description(
-      'Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30.'
-    ),
-    delayYearsIs30Plus: Joi.boolean().description(
-      'Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30.'
-    )
-  }
-}
 
 const postInterventionHabitatProposedSubSchema = Joi.object({
   ...createdTimingSelectionFields(),
