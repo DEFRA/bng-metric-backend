@@ -54,7 +54,7 @@ const postgres = {
         ...(options.iamAuthentication &&
           server.secureContext && {
             ssl: {
-              rejectUnauthorized: false,
+              rejectUnauthorized: options.tlsRejectUnauthorized === true,
               secureContext: server.secureContext
             }
           })

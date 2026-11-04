@@ -85,6 +85,7 @@ async function createServer() {
         user: config.get('postgres.user'),
         database: config.get('postgres.database'),
         iamAuthentication: config.get('postgres.iamAuthentication'),
+        tlsRejectUnauthorized: config.get('postgres.tlsRejectUnauthorized'),
         localPassword: config.get('postgres.localPassword'),
         region: process.env.AWS_REGION ?? 'eu-west-2'
       }

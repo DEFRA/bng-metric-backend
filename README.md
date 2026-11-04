@@ -105,6 +105,12 @@ To mimic the application running in `production` mode locally run:
 npm start
 ```
 
+With `DB_IAM_AUTHENTICATION` on, the Postgres connection uses TLS with the
+platform CA (`TRUSTSTORE_RDS_ROOT_CA`). `DB_TLS_REJECT_UNAUTHORIZED=true` makes
+it also verify the server certificate. It is off by default until it has been
+proved in a CDP environment, because a certificate that does not verify stops
+the service connecting to the database at all.
+
 ### Npm scripts
 
 All available Npm scripts can be seen in [package.json](./package.json).
@@ -188,6 +194,7 @@ validation failure.
 | `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts. Bigger files cannot finish in time.   |
 | `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
 | `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
+| `VALIDATION_MAX_RSS_BYTES`            | 0 (off) | RSS above which every new request gets a 503. **Set per env.**   |
 | `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                  |
 | `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                         |
 
@@ -214,6 +221,18 @@ away load it could carry, too loose and it does not refuse in time. (**RSS** is
 resident set size — the memory the process holds in physical RAM, counting
 native and WebAssembly allocations a JavaScript heap figure cannot see, and what
 the task memory limit is enforced against.)
+
+`VALIDATION_MAX_RSS_BYTES` is the backstop behind the parse budget. The budget
+counts only the files being parsed, but most of the memory growth under load is
+the workers' WebAssembly heaps and V8's retained heap, which it cannot see. When
+the process RSS goes above this value, Hapi refuses new requests with a 503
+before any handler runs, so the task sheds load instead of being killed by the
+kernel at its memory limit — which would drop every in-flight request at once.
+It defaults to off because the right value depends on the task size. **Set it in
+each environment's app config**, below the task memory limit with room for one
+in-flight request, and change it whenever the task size changes. RSS is sampled
+every `VALIDATION_LOAD_SAMPLE_INTERVAL_MS` (1 s), so a few requests can pass
+between samples.
 
 The backend's timeouts are sequential stages of one request, so they **sum**,
 and the total must fit inside the frontend's per-request validate timeout, which

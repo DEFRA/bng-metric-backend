@@ -196,3 +196,41 @@ describe('#postgres plugin IAM auth', () => {
     )
   })
 })
+
+describe('#postgres plugin TLS', () => {
+  beforeEach(resetMocks)
+
+  async function captureSsl(options) {
+    const Pool = (await import('pg-pool')).default
+    let ssl
+    Pool.mockImplementation(function (opts) {
+      ssl = opts.ssl
+      this.on = () => {}
+      this.connect = mockConnect
+    })
+    const secureContext = {}
+    await postgres.plugin.register(
+      { ...mockServer, secureContext },
+      {
+        ...baseOptions,
+        iamAuthentication: true,
+        ...options
+      }
+    )
+    return { ssl, secureContext }
+  }
+
+  test('Should not verify the certificate when the flag is off', async () => {
+    const { ssl, secureContext } = await captureSsl({})
+
+    expect(ssl).toEqual({ rejectUnauthorized: false, secureContext })
+  })
+
+  test('Should verify the certificate when the flag is on', async () => {
+    const { ssl, secureContext } = await captureSsl({
+      tlsRejectUnauthorized: true
+    })
+
+    expect(ssl).toEqual({ rejectUnauthorized: true, secureContext })
+  })
+})

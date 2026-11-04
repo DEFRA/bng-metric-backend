@@ -9,9 +9,9 @@
 import { createRequire } from 'node:module'
 import { pathToFileURL } from 'node:url'
 
-// The backend's own logger, hapi-pino's request logging and cdp-auditing's
-// audit events each bring their own copy of pino.
-const PINO_OWNERS = ['hapi-pino', '@defra/cdp-auditing']
+// The backend's own logger and hapi-pino's request logging each bring their
+// own copy of pino.
+const PINO_OWNERS = ['hapi-pino']
 
 // How long to wait after logging. A crashing worker fails within a few
 // milliseconds of its first message.

@@ -5,6 +5,12 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
+// CDP Uploader is a platform service on the internal cdp-int.defra.cloud
+// domain, so these Wreck calls go to it directly, not through the outbound
+// proxy (HTTP_PROXY). The proxy is for egress to the internet; service-to-
+// service calls inside CDP do not use it, as the frontend's calls to this
+// backend do not. Flagged by the CDP production readiness review (BMD-1174).
+
 /**
  * Get the CDP Uploader base URL
  * @returns {string}

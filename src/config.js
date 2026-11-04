@@ -109,6 +109,12 @@ const config = convict({
       default: isProduction,
       env: 'DB_IAM_AUTHENTICATION'
     },
+    tlsRejectUnauthorized: {
+      doc: 'Verify the Postgres server certificate against the platform CA (TRUSTSTORE_RDS_ROOT_CA) when IAM authentication is on. Off by default until it has been proved in a CDP environment: with it on, a certificate whose chain or hostname does not match stops the service connecting at all.',
+      format: STRICT_BOOLEAN,
+      default: false,
+      env: 'DB_TLS_REJECT_UNAUTHORIZED'
+    },
     localPassword: {
       doc: 'Password for local development. Used when iamAuthentication is not enabled',
       format: String,
