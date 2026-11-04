@@ -11,8 +11,12 @@ import {
  */
 const SCHEMA_MISSING_CODES = new Set([PG_UNDEFINED_TABLE, PG_UNDEFINED_COLUMN])
 
-/** A SQLSTATE: five digits or capital letters. */
-const SQLSTATE_PATTERN = /^[0-9A-Z]{5}$/
+/**
+ * A SQLSTATE: five digits or capital letters, at least one a digit. Every
+ * Postgres code has one (42P01, XX000, P0001, HV00A); a Node system error's
+ * code, such as EPIPE or EPERM, is all letters and would otherwise match.
+ */
+const SQLSTATE_PATTERN = /^(?=[A-Z]*\d)[0-9A-Z]{5}$/
 
 /** How far down an error's `cause` chain to look for the Postgres error. */
 const MAX_CAUSE_DEPTH = 5
@@ -77,6 +81,10 @@ function shorten(message) {
  * @returns {string}
  */
 function describeError(error, { flagSchemaMissing = true } = {}) {
+  // A thrown string or the like has no name or message to quote.
+  if (!(error instanceof Error)) {
+    return shorten(error)
+  }
   const own = `${error?.name}: ${shorten(error?.message)}`
   const postgres = findPostgresError(error)
   if (!postgres) {

@@ -46,6 +46,21 @@ describe('#findPostgresError', () => {
     expect(findPostgresError(new TypeError('nope'))).toBeNull()
     expect(findPostgresError(undefined)).toBeNull()
   })
+
+  it('takes a Node system error, whose code looks like a SQLSTATE, for what it is', () => {
+    for (const code of ['EPIPE', 'EPERM', 'EBUSY']) {
+      const system = new Error(`write ${code}`)
+      system.code = code
+      expect(findPostgresError(drizzleError(system))).toBeNull()
+    }
+  })
+
+  it('finds a SQLSTATE of any class', () => {
+    for (const code of ['XX000', 'P0001', 'HV00A', '22P02']) {
+      const error = postgresError(code, 'failed')
+      expect(findPostgresError(error)).toBe(error)
+    }
+  })
 })
 
 describe('#isSchemaMissingError', () => {
@@ -68,6 +83,16 @@ describe('#isSchemaMissingError', () => {
 })
 
 describe('#describeError', () => {
+  it('quotes a thrown value that is not an Error as it is', () => {
+    expect(describeError('worker exited')).toBe('worker exited')
+  })
+
+  it('does not send a Node system error to the database', () => {
+    const system = new Error('write EPIPE')
+    system.code = 'EPIPE'
+    expect(describeError(system)).toBe('Error: write EPIPE')
+  })
+
   it('says the schema is out of date, and why, for a missing table', () => {
     expect(describeError(drizzleError(MISSING_TABLE))).toBe(
       'DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: delete from "bng"."baseline_vertical_habitats" where "bng"."baseline_vertical_habitats"."project_id" = $1 params: 043b45e6-096e-4c72-925e-ca5f1efdd0d9 — caused by Postgres 42P01: relation "bng.baseline_vertical_habitats" does not exist'
