@@ -14,6 +14,7 @@ import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
   featureIdDescription,
+  BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION,
   redLineSchema,
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
@@ -78,9 +79,6 @@ const metadataSchemaKeys = () => ({
     )
 })
 
-const STRATEGIC_SIGNIFICANCE_DESCRIPTION =
-  'Strategic significance category from the GeoPackage.'
-
 const RETENTION_CATEGORY_DESCRIPTION = 'Retention category from the GeoPackage.'
 
 const siteSchema = Joi.object({
@@ -134,7 +132,7 @@ const habitatSchema = Joi.object({
     ),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
   retentionCategory: Joi.string()
     .allow(null, '')
     .description(RETENTION_CATEGORY_DESCRIPTION),
@@ -353,7 +351,7 @@ function linearFeatureSchema({
       ),
     strategicSignificance: Joi.string()
       .allow(null, '')
-      .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
+      .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
     retentionCategory: Joi.string()
       .allow(null, '')
       .description(RETENTION_CATEGORY_DESCRIPTION),
