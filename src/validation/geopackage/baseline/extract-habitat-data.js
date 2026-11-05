@@ -9,6 +9,7 @@ import {
   featureKeysForVariant,
   pickProp
 } from '../properties.js'
+import { commentForBaseline } from '../comment-check.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   areaStatus,
@@ -89,6 +90,7 @@ function buildHabitat(feature, keys, readStrategicSignificance) {
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
+  document.comment = commentForBaseline(props)
   document.status = areaStatus(document)
   const geometryRow = {
     featureId,
@@ -135,6 +137,7 @@ function buildTree(feature, keys, readStrategicSignificance) {
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
+  document.comment = commentForBaseline(props)
   const { sizeSquareMetres, area } = treeAreaFields(treeSize, document.count)
   document.sizeSquareMetres = sizeSquareMetres
   document.area = area
@@ -172,6 +175,7 @@ function buildLinearFeature(
     ...extraDocumentProperties,
     properties: props
   }
+  document.comment = commentForBaseline(props)
   document.status = statusForDocument(document)
   const geometryRow = {
     featureId,

@@ -8,6 +8,7 @@ import {
   PROPOSED_PROP_KEYS,
   pickProp
 } from '../properties.js'
+import { commentForPostIntervention } from '../comment-check.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   postInterventionAreaStatus,
@@ -105,6 +106,7 @@ function buildPostInterventionHabitat(feature) {
       featureId,
       ref,
       retentionCategory: retentionCategoryFromProps(props),
+      comment: commentForPostIntervention(props),
       ...irreplaceableField(props),
       area: null,
       sizeSquareMetres: null,
@@ -137,6 +139,7 @@ function buildPostInterventionHedgerow(feature) {
       featureId,
       ref,
       retentionCategory: retentionCategoryFromProps(props),
+      comment: commentForPostIntervention(props),
       length: null,
       sizeMetres: null,
       units: null,
@@ -194,6 +197,7 @@ function buildPostInterventionWatercourse(feature) {
         featureId,
         ref,
         retentionCategory: retentionCategoryFromProps(props),
+        comment: commentForPostIntervention(props),
         length: null,
         sizeMetres: null,
         units: null,

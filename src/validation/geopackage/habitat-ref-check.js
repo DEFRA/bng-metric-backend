@@ -1,6 +1,7 @@
 import { HABITAT_REF } from 'bng-library/bng-service'
 
-import { ERROR_CODES, makeError } from './errors.js'
+import { ERROR_CODES } from './errors.js'
+import { describeOffender, collated, hasInvalidUtf8Text } from './offenders.js'
 import { PROP_KEYS, pickProp } from './properties.js'
 
 /**
@@ -10,17 +11,8 @@ import { PROP_KEYS, pickProp } from './properties.js'
  */
 export const MAX_HABITAT_REF_LENGTH = 100
 
-const SAMPLE_CAP = 50
-
 /** The legacy template's name for a habitat's reference column. */
 const LEGACY_REF_COLUMN = 'Parcel Ref'
-
-/**
- * The character a UTF-8 decoder puts in place of bytes that are not valid
- * UTF-8. better-sqlite3 decodes TEXT values with V8's decoder, so a reference
- * holding invalid UTF-8 reaches us with this in it.
- */
-const REPLACEMENT_CHARACTER = '�'
 
 /**
  * The layers whose references these rules cover: every layer that uses the
@@ -71,7 +63,7 @@ function isMissing(ref) {
  * @returns {boolean}
  */
 export function hasInvalidRefCharacters(ref) {
-  return ref.includes(REPLACEMENT_CHARACTER) || !ref.isWellFormed()
+  return hasInvalidUtf8Text(ref)
 }
 
 /**
@@ -83,44 +75,6 @@ function hasInvalidCharacters(ref) {
     return hasInvalidRefCharacters(ref)
   }
   return typeof ref !== 'number'
-}
-
-/**
- * @param {string} layer
- * @param {object} feature
- * @param {number} idx
- * @param {string} [table] the BNG Service template table the layer was read
- *   from, which the message names; absent for a legacy file
- */
-function describe(layer, feature, idx, table) {
-  const fid = pickProp(feature?.properties ?? {}, PROP_KEYS.fid)
-  const where = table ? { layer, table, idx } : { layer, idx }
-  return fid == null || fid === '' ? where : { ...where, fid }
-}
-
-function labelOf({ layer, table, fid, idx }) {
-  const name = table ?? layer
-  return fid == null ? `${name} feature #${idx}` : `${name} fid ${fid}`
-}
-
-/**
- * One error for every offending habitat together, as the dropout page shows
- * one message for them all rather than one per habitat.
- */
-function collated(code, heading, offenders) {
-  if (offenders.length === 0) {
-    return null
-  }
-  const sample = offenders.slice(0, SAMPLE_CAP)
-  const more =
-    offenders.length > sample.length
-      ? ` (and ${offenders.length - sample.length} more)`
-      : ''
-  return makeError(
-    code,
-    `${heading}: ${sample.map(labelOf).join(', ')}${more}`,
-    { count: offenders.length, sample }
-  )
 }
 
 /**
@@ -154,11 +108,11 @@ export function checkHabitatRefs(layers) {
       // A missing reference has no characters to check, so it is reported
       // as missing only.
       if (isMissing(ref)) {
-        missing.push(describe(layer, feature, idx, table))
+        missing.push(describeOffender(layer, feature, idx, table))
         return
       }
       if (hasInvalidCharacters(ref)) {
-        invalid.push(describe(layer, feature, idx, table))
+        invalid.push(describeOffender(layer, feature, idx, table))
       }
     })
   }

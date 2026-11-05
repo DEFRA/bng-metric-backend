@@ -1243,3 +1243,81 @@ describe('extractPostIntervention — baseline strategic significance (BMD-1086)
     }
   })
 })
+
+describe('extractPostIntervention — comments', () => {
+  it('keeps a trimmed comment on Enhanced and Created habitats only', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'H-enhanced',
+          'Retention Category': 'Enhanced',
+          Comment: '  enhanced note  '
+        }),
+        feature({
+          [PARCEL_REF]: 'H-created',
+          'Retention Category': '1. Created',
+          Comment: 'created note'
+        }),
+        feature({
+          [PARCEL_REF]: 'H-retained',
+          'Retention Category': 'Retained',
+          Comment: 'retained note'
+        }),
+        feature({
+          [PARCEL_REF]: 'H-lost',
+          'Retention Category': 'Lost',
+          Comment: 'lost note'
+        })
+      ],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'HG1',
+            'Retention Category': 'Enhanced',
+            Comments: ' \n '
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            'Retention Category': 'Created',
+            Comments: 'river note'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Retention Category': 'Enhanced',
+          Comment: 'tree note'
+        })
+      ],
+      verticalHabitats: [
+        feature(
+          {
+            [PARCEL_REF]: 'V1',
+            'Retention Category': 'Retained',
+            Comment: 'wall note'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    const area = (ref) =>
+      out.document.habitats.find((habitat) => habitat.ref === ref)
+    expect(area('H-enhanced').comment).toBe('enhanced note')
+    expect(area('H-created').comment).toBe('created note')
+    expect(area('H-retained').comment).toBeNull()
+    expect(area('H-lost').comment).toBeNull()
+    expect(out.document.hedgerows[0].comment).toBeNull()
+    expect(out.document.watercourses[0].comment).toBe('river note')
+    expect(out.document.trees[0].comment).toBe('tree note')
+    expect(out.document.verticalHabitats[0].comment).toBeNull()
+  })
+})

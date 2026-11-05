@@ -45,7 +45,7 @@ const metadataSchemaKeys = () => ({
   comment: Joi.string()
     .allow(null, '')
     .description(
-      'Free-text comment from the GeoPackage (Comment / Comments column).'
+      'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null.'
     ),
   mappedBy: Joi.string()
     .allow(null, '')

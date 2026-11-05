@@ -28,6 +28,8 @@ const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-library/metric.'
 const RETENTION_CATEGORY_DESCRIPTION =
   'Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column.'
+const POST_INTERVENTION_COMMENT_DESCRIPTION =
+  'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null.'
 const POST_INTERVENTION_STATUS_DESCRIPTION =
   "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
 const POST_INTERVENTION_STATUS_VALUES = Object.freeze([
@@ -192,7 +194,10 @@ function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
-      .description(POST_INTERVENTION_STATUS_DESCRIPTION)
+      .description(POST_INTERVENTION_STATUS_DESCRIPTION),
+    comment: Joi.string()
+      .allow(null, '')
+      .description(POST_INTERVENTION_COMMENT_DESCRIPTION)
   }
 }
 
@@ -224,7 +229,10 @@ function postInterventionAreaFeatureFields({
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
-      .description(POST_INTERVENTION_STATUS_DESCRIPTION)
+      .description(POST_INTERVENTION_STATUS_DESCRIPTION),
+    comment: Joi.string()
+      .allow(null, '')
+      .description(POST_INTERVENTION_COMMENT_DESCRIPTION)
   }
 }
 

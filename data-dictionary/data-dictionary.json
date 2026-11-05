@@ -1554,7 +1554,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
     },
     {
       "path": "baseline.habitats[].mappedBy",
@@ -1785,7 +1785,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
     },
     {
       "path": "baseline.trees[].mappedBy",
@@ -2181,7 +2181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
     },
     {
       "path": "baseline.verticalHabitats[].mappedBy",
@@ -2566,7 +2566,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
     },
     {
       "path": "baseline.hedgerows[].mappedBy",
@@ -2896,7 +2896,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
     },
     {
       "path": "baseline.watercourses[].mappedBy",
@@ -3606,6 +3606,17 @@
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
+      "path": "postIntervention.habitats[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+    },
+    {
       "path": "postIntervention.habitats[].invalidEnhancement",
       "type": "string",
       "required": false,
@@ -4084,6 +4095,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.trees[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
     },
     {
       "path": "postIntervention.trees[].count",
@@ -4614,6 +4636,17 @@
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
+      "path": "postIntervention.verticalHabitats[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+    },
+    {
       "path": "postIntervention.verticalHabitats[].invalidEnhancement",
       "type": "string",
       "required": false,
@@ -5116,6 +5149,17 @@
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
+      "path": "postIntervention.hedgerows[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+    },
+    {
       "path": "postIntervention.hedgerows[].baseline",
       "type": "object",
       "required": false,
@@ -5565,6 +5609,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.watercourses[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
     },
     {
       "path": "postIntervention.watercourses[].baseline",
