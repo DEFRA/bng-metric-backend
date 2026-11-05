@@ -66,8 +66,9 @@ export const memoryShed = {
         logger.warn(
           `${count} request(s) refused as busy: RSS is above VALIDATION_MAX_RSS_BYTES (${maxRssBytes})`
         )
-        // withMetrics catches and logs its own errors, so no await is needed.
-        metricsCounter(GEOPACKAGE_METRIC.validationBusy, count, {
+        // withMetrics catches and logs its own errors, so the promise is
+        // deliberately not awaited.
+        void metricsCounter(GEOPACKAGE_METRIC.validationBusy, count, {
           reason: VALIDATION_BUSY_REASON.memoryRss
         })
       }
