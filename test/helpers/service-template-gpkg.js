@@ -113,8 +113,8 @@ export function populatedBaselineRows() {
         'Baseline Condition': 'Poor',
         'Baseline Strategic Significance': 'Low',
         'Irreplaceable Habitat': 'No',
-        // Square metres: the face area the surveyor estimated.
-        Area: 40,
+        // Hectares: the area the surveyor estimated (40 m²).
+        Area: 0.004,
         feature_uuid: '7a3d0c0e-2f4b-5c1d-8e9f-0a1b2c3d4e5f'
       }
     ]

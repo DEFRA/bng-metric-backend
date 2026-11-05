@@ -102,7 +102,7 @@ export function checkVerticalHabitatAreas(layers) {
   const offenders = []
   const features = layers?.[VERTICAL_LAYER] ?? []
   features.forEach((feature, idx) => {
-    const area = pickProp(feature?.properties ?? {}, PROP_KEYS.verticalArea)
+    const area = pickProp(feature?.properties, PROP_KEYS.verticalArea)
     if (verticalAreaHectares(area) === null) {
       offenders.push(describe(feature, idx, table))
     }

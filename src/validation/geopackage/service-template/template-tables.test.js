@@ -47,14 +47,14 @@ describe('reading a BNG Service template file', () => {
     })
   })
 
-  test('keeps a vertical area habitat’s typed Area, in square metres', async () => {
+  test('keeps a vertical area habitat’s typed Area, in hectares', async () => {
     const layers = await read({ rows: populatedBaselineRows() })
 
     expect(layers.verticalHabitats[0].properties).toMatchObject({
       'Parcel Ref': 'V001',
       'Baseline Broad Habitat Type': 'Urban',
       'Baseline Habitat Type': 'Facade-bound green wall',
-      Area: 40
+      Area: 0.004
     })
     expect(layers.verticalHabitats[0].properties).not.toHaveProperty(
       'Baseline Distinctiveness'

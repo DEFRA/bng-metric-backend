@@ -203,7 +203,7 @@ function checkHedgerowLength(parent, children, context) {
  */
 const typedArea = (feature) =>
   verticalAreaSquareMetres(
-    pickProp(feature.properties ?? {}, PROP_KEYS.verticalArea)
+    pickProp(feature.properties, PROP_KEYS.verticalArea)
   ) ?? 0
 
 /** A vertical area habitat parent smaller than its linked children together. */
