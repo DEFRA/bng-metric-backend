@@ -229,3 +229,29 @@ describe('GET /reference/hedgerow-creation', () => {
     }
   })
 })
+
+describe('GET /reference/watercourse-creation', () => {
+  it('returns watercourse-only creation choices and two separate encroachment lists without authentication', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-creation'
+    })
+    expect(response.statusCode).toBe(HTTP_OK)
+    expect(response.result.featureType).toBe('watercourse')
+    expect(response.result.habitatTypes.map((t) => t.name)).toEqual([
+      'Canals',
+      'Culvert',
+      'Ditches'
+    ])
+    expect(
+      response.result.habitatTypes
+        .find((t) => t.name === 'Culvert')
+        .conditions.map((c) => c.condition)
+    ).toEqual(['Poor'])
+    expect(response.result.watercourseEncroachment).toContain('Minor')
+    expect(response.result.riparianEncroachment).toContain(
+      'Minor/No Encroachment'
+    )
+    expect(response.result.riparianEncroachment).not.toContain('Minor')
+  })
+})

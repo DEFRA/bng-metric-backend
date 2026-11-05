@@ -4,6 +4,10 @@ import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
 import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createDrizzle } from '../db/index.js'
+import {
+  checkSchemaIsCurrent,
+  schemaErrorListener
+} from '../db/schema-check.js'
 
 const logger = createLogger()
 
@@ -110,6 +114,15 @@ const postgres = {
         )
         throw error
       }
+
+      // A deploy can reach an environment before its migrations do. Said once
+      // at startup, and again on every request that fails for it, so it is
+      // the first thing in the log rather than a wrapped `Failed query: …`.
+      await checkSchemaIsCurrent(pool, logger)
+      server.events.on(
+        { name: 'request', channels: 'error' },
+        schemaErrorListener(logger)
+      )
 
       const db = createDrizzle(pool)
 

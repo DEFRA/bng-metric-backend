@@ -4,6 +4,10 @@ import { startServer, stopServer } from './helpers/server.js'
 import { connect } from './helpers/db.js'
 import { truncateTestData } from './helpers/db-cleanup.js'
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
+import {
+  calculateCreatedWatercoursePostIntervention,
+  roundToSigFigs
+} from 'bng-library/metric'
 
 const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
@@ -762,5 +766,387 @@ describe('Created area imported timing preservation', () => {
     })
     expect(cleared.statusCode).toBe(HTTP_OK)
     expect((await read()).proposed.advanceYears).toBeNull()
+  })
+})
+
+describe('BMD-1050 Created watercourse saves', () => {
+  it.each(
+    [10, '30+'].flatMap((advance) =>
+      ['saved', 'imported', 'cleared', 'saved-delay', 'imported-delay'].map(
+        (mode) => [advance, mode]
+      )
+    )
+  )(
+    'persists advance %s through a restricted %s rename and baseline correction',
+    async (advanceYears, mode) => {
+      const parent = {
+        featureId: randomUUID(),
+        ref: 'Parent',
+        type: 'Ditches',
+        condition: 'Moderate',
+        sizeMetres: 500,
+        strategicSignificance: 'Low',
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment/No Encroachment'
+      }
+      const feature = {
+        ...watercourse(),
+        parentFeatureId: parent.featureId,
+        properties: { 'Habitat created in advance/years': 5 }
+      }
+      if (!mode.startsWith('saved')) {
+        feature.properties['Habitat created in advance/years'] = advanceYears
+        feature.proposed.condition = 'Poor'
+        feature.proposed.advanceYears = null
+        feature.proposed.advanceYearsIs30Plus = advanceYears === '30+'
+      }
+      const projectId = await seedProject({
+        name: 'Restricted advance rename IT',
+        baseline: { watercourses: [parent] },
+        postIntervention: {
+          template: { name: 'bng-service', version: '1.0' },
+          watercourses: [feature]
+        }
+      })
+      const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+      const read = async () =>
+        (
+          await dbClient.query(
+            'SELECT project FROM bng.projects WHERE id = $1',
+            [projectId]
+          )
+        ).rows[0].project
+      if (!mode.startsWith('saved')) {
+        const imported = (await read()).postIntervention.watercourses[0]
+        expect(imported).not.toHaveProperty('editedAdvanceYears')
+        expect(imported.proposed.advanceYears).toBeNull()
+      }
+      if (mode.startsWith('saved')) {
+        const saved = await server.inject({
+          method: 'PUT',
+          url,
+          headers,
+          payload: { ...payload, condition: 'Poor', advanceYears }
+        })
+        expect(saved.statusCode, saved.payload).toBe(HTTP_OK)
+        expect(saved.result.proposed.advanceYears).toBeNull()
+      }
+      const { advanceYears: _advance, ...rename } = {
+        ...payload,
+        condition: 'Poor',
+        ref: 'Renamed while restricted'
+      }
+      if (mode === 'cleared') {
+        rename.advanceYears = null
+      }
+      const selectsDelay = mode.endsWith('-delay')
+      if (selectsDelay) {
+        rename.delayYears = '2'
+      }
+      const renamed = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: rename
+      })
+      expect(renamed.statusCode, renamed.payload).toBe(HTTP_OK)
+      expect(renamed.result.proposed.advanceYears).toBeNull()
+      expect(renamed.result.units).toBeNull()
+      expect(renamed.result.status).toBe('Incomplete')
+      const expectedAdvance =
+        mode === 'cleared' || selectsDelay
+          ? null
+          : advanceYears === '30+'
+            ? 30
+            : advanceYears
+      expect(
+        (await read()).postIntervention.watercourses[0].editedAdvanceYears
+      ).toBe(expectedAdvance)
+      expect(
+        (await read()).postIntervention.watercourses[0].properties
+      ).toEqual(feature.properties)
+      // The companion form omits an unchanged blank advance, rather than
+      // sending null. Exercise a subsequent real form-shaped save as well.
+      const { advanceYears: _cleared, ...unchangedBlank } = rename
+      const renamedAgain = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...unchangedBlank, delayYears: selectsDelay ? '2' : '0' }
+      })
+      expect(renamedAgain.statusCode, renamedAgain.payload).toBe(HTTP_OK)
+      expect(renamedAgain.result.proposed.advanceYears).toBeNull()
+      expect(
+        (await read()).postIntervention.watercourses[0].editedAdvanceYears
+      ).toBe(expectedAdvance)
+      const corrected = await server.inject({
+        method: 'PUT',
+        url: `/projects/${projectId}/features/${parent.featureId}`,
+        headers,
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Poor',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment/No Encroachment'
+        }
+      })
+      expect(corrected.statusCode, corrected.payload).toBe(HTTP_OK)
+      expect((await read()).postIntervention.watercourses[0]).toMatchObject({
+        ref: rename.ref,
+        status: mode === 'cleared' || selectsDelay ? 'Incomplete' : 'Complete',
+        editedAdvanceYears: expectedAdvance,
+        proposed: {
+          advanceYears: expectedAdvance,
+          advanceYearsIs30Plus:
+            mode !== 'cleared' && !selectsDelay && advanceYears === '30+',
+          delayYears: selectsDelay ? 2 : 0
+        }
+      })
+    }
+  )
+  it('persists lineage changes on both the edited watercourse and its sibling atomically', async () => {
+    const parent = {
+      featureId: randomUUID(),
+      ref: 'Parent',
+      type: 'Ditches',
+      condition: 'Moderate',
+      sizeMetres: 1000,
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      strategicSignificance: 'Low'
+    }
+    const children = [watercourse(), watercourse()].map((child) => ({
+      ...child,
+      parentFeatureId: parent.featureId,
+      editedAdvanceYears: 10,
+      properties: { 'Habitat created in advance/years': 5 },
+      proposed: {
+        ...child.proposed,
+        advanceYears: 10,
+        watercourseEncroachment: 'Major'
+      }
+    }))
+    const projectId = await seedProject({
+      name: 'Template sibling persistence IT',
+      baseline: { watercourses: [parent] },
+      postIntervention: {
+        template: { name: 'bng-service', version: '1.0' },
+        watercourses: children
+      }
+    })
+    const response = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/watercourses/${children[0].featureId}`,
+      headers,
+      payload: {
+        ...payload,
+        habitatType: 'Canals',
+        condition: 'Moderate',
+        advanceYears: 10
+      }
+    })
+    expect(response.statusCode).toBe(HTTP_OK)
+    const { rows } = await dbClient.query(
+      'SELECT project, last_modified_by FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    const document = rows[0].project.postIntervention
+    expect(document.watercourses[0]).toEqual(response.result)
+    for (const child of document.watercourses) {
+      expect(child.proposed.advanceYears).toBeNull()
+      expect(child.units).toBeNull()
+      expect(child.status).toBe('Incomplete')
+      expect(child.editedAdvanceYears).toBe(10)
+    }
+    expect(document.units.watercoursesTotal).toBe(0)
+    expect(rows[0].last_modified_by).toBe(userId)
+  })
+  function watercourse() {
+    return {
+      featureId: randomUUID(),
+      ref: 'W-original',
+      retentionCategory: 'Created',
+      sizeMetres: 500,
+      units: null,
+      status: 'Incomplete',
+      baseline: {},
+      proposed: {
+        type: 'Ditches',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0,
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment/No Encroachment'
+      }
+    }
+  }
+  const payload = {
+    ref: 'W-renamed',
+    habitatType: 'Ditches',
+    condition: 'Good',
+    strategicSignificance: 'High',
+    advanceYears: 0,
+    delayYears: 0,
+    watercourseEncroachment: 'Minor',
+    riparianEncroachment: 'Minor/Minor'
+  }
+
+  it('persists the engine result, both encroachments and totals; clearing either input remains Incomplete after reload', async () => {
+    const feature = watercourse()
+    const projectId = await seedProject({
+      name: 'Watercourse edit IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    const read = async () =>
+      (
+        await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+          projectId
+        ])
+      ).rows[0].project
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    const expected = calculateCreatedWatercoursePostIntervention(
+      0.5,
+      'Ditches',
+      'Good',
+      'Minor',
+      'Minor/Minor',
+      0,
+      0,
+      'High'
+    )
+    expect(saved.result.units).toBe(expected.units)
+    expect(saved.result.proposed).toMatchObject({
+      waterEncroachmentMultiplier: expected.waterEncroachmentMultiplier,
+      riparianEncroachmentMultiplier: expected.riparianEncroachmentMultiplier
+    })
+    expect((await read()).postIntervention.watercourses[0]).toEqual(
+      saved.result
+    )
+    expect((await read()).postIntervention.units.watercoursesTotal).toBeCloseTo(
+      roundToSigFigs(expected.units)
+    )
+    for (const field of [
+      'watercourseEncroachment',
+      'riparianEncroachment',
+      'delayYears'
+    ]) {
+      const cleared = await server.inject({
+        method: 'PUT',
+        url,
+        headers,
+        payload: { ...payload, [field]: null }
+      })
+      expect(cleared.statusCode).toBe(HTTP_OK)
+      const document = (await read()).postIntervention
+      expect(document.watercourses[0].proposed[field]).toBeNull()
+      expect(document.watercourses[0].units).toBeNull()
+      expect(document.watercourses[0].status).toBe('Incomplete')
+      expect(document.units.watercoursesTotal).toBe(0)
+    }
+    const { delayYears: _delay, ...omitted } = payload
+    expect(
+      (await server.inject({ method: 'PUT', url, headers, payload: omitted }))
+        .statusCode
+    ).toBe(HTTP_OK)
+    expect(
+      (await read()).postIntervention.watercourses[0].proposed.delayYears
+    ).toBeNull()
+  })
+
+  it('requires the owner and refuses invalid edits without modifying the stored feature', async () => {
+    const feature = watercourse()
+    const projectId = await seedProject({
+      name: 'Watercourse validation IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    expect(
+      (await server.inject({ method: 'PUT', url, payload })).statusCode
+    ).toBe(HTTP_UNAUTHORIZED)
+    const other = authHeaders(await mintToken({ sub: `other-${randomUUID()}` }))
+    expect(
+      (await server.inject({ method: 'PUT', url, headers: other, payload }))
+        .statusCode
+    ).toBe(HTTP_NOT_FOUND)
+    for (const changes of [
+      { ref: ' ' },
+      { advanceYears: 1, delayYears: 2 },
+      { habitatType: 'Native hedgerow' },
+      { watercourseEncroachment: 'Unknown' },
+      { riparianEncroachment: 'Minor' },
+      { sizeMetres: 900 }
+    ]) {
+      expect(
+        (
+          await server.inject({
+            method: 'PUT',
+            url,
+            headers,
+            payload: { ...payload, ...changes }
+          })
+        ).statusCode
+      ).toBe(HTTP_BAD_REQUEST)
+    }
+    const document = (
+      await dbClient.query('SELECT project FROM bng.projects WHERE id = $1', [
+        projectId
+      ])
+    ).rows[0].project
+    expect(document.postIntervention.watercourses[0]).toEqual(feature)
+  })
+
+  it('normalises legacy retention and retains omitted imported condition and timing on a rename', async () => {
+    const feature = watercourse()
+    delete feature.retentionCategory
+    feature.baseline.retentionCategory = 'Created'
+    feature.proposed.type = 'Culvert'
+    feature.proposed.condition = 'Good'
+    feature.proposed.advanceYears = 2.5
+    const projectId = await seedProject({
+      name: 'Legacy watercourse IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    const payload = {
+      ref: 'Renamed culvert',
+      habitatType: 'Culvert',
+      strategicSignificance: 'Low'
+    }
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result.retentionCategory).toBe('Created')
+    expect(saved.result.baseline).not.toHaveProperty('retentionCategory')
+    expect(saved.result.proposed).toMatchObject({
+      condition: 'Good',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment'
+    })
+    const reloaded = await server.inject({
+      method: 'GET',
+      url: `/projects/${projectId}/post-intervention/features/${feature.featureId}`,
+      headers
+    })
+    expect(reloaded.statusCode).toBe(HTTP_OK)
+    expect(reloaded.result.feature.proposed.condition).toBe('Good')
+    const invalid = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, condition: 'Good' }
+    })
+    expect(invalid.statusCode).toBe(HTTP_BAD_REQUEST)
+    const cleared = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, condition: null, advanceYears: null }
+    })
+    expect(cleared.statusCode).toBe(HTTP_OK)
+    expect(cleared.result.proposed.condition).toBeNull()
+    expect(cleared.result.proposed.advanceYears).toBeNull()
   })
 })

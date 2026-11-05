@@ -15,6 +15,7 @@ import {
   resetParseBudget
 } from '../validation/geopackage/parse-budget.js'
 import { config } from '../config.js'
+import { createLogger } from '../common/helpers/logging/logger.js'
 import {
   GEOPACKAGE_METRIC,
   VALIDATION_CATEGORY
@@ -1561,6 +1562,72 @@ describe('validateBaseline handler full validation error handling', () => {
     vi.mocked(readGeoPackage).mockReturnValue(STUB_LAYERS)
   })
 
+  // The frontend turns this 500 into the 502 the user sees, so this log line
+  // is where its cause has to be read: the error's type in the message text,
+  // and the error itself for ECS's error fields, stack trace included.
+  it("logs the error's type and the error itself when it answers 500", async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const thrown = new TypeError(
+      "Cannot read properties of undefined (reading 'area')"
+    )
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(thrown)
+
+    await validateBaseline.handler(request, h)
+
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({
+        name: 'TypeError',
+        message: thrown.message,
+        stack: thrown.stack
+      }),
+      `validateBaseline - error validating uploadId ${UPLOAD_ID}: TypeError: Cannot read properties of undefined (reading 'area')`
+    )
+    expect(logError.mock.calls[0][0]).toBeInstanceOf(TypeError)
+    logError.mockRestore()
+  })
+
+  // A deploy can reach an environment before its migrations do, and then the
+  // save's first query fails on the missing table. Drizzle's message names the
+  // query but not why it failed; the line must say both.
+  it('says the schema is out of date when the save hits a missing table', async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    const missing = new Error(
+      'relation "bng.baseline_vertical_habitats" does not exist'
+    )
+    missing.code = '42P01'
+    const failed = new Error(
+      'Failed query: delete from "bng"."baseline_vertical_habitats"'
+    )
+    failed.name = 'DrizzleQueryError'
+    failed.cause = missing
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(failed)
+
+    await validateBaseline.handler(request, h)
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(logError).toHaveBeenCalledWith(
+      expect.objectContaining({ name: 'DrizzleQueryError' }),
+      `validateBaseline - error validating uploadId ${UPLOAD_ID}: DATABASE SCHEMA OUT OF DATE (has a database migration not been run in this environment?): DrizzleQueryError: Failed query: delete from "bng"."baseline_vertical_habitats" — caused by Postgres 42P01: relation "bng.baseline_vertical_habitats" does not exist`
+    )
+    logError.mockRestore()
+  })
+
+  // A failed insert's message carries every feature's geometry, and the ECS
+  // formatter writes the error's message and stack in full.
+  it("caps the logged error's message, in its stack too", async () => {
+    const logError = vi.spyOn(createLogger(), 'error')
+    vi.mocked(validateGeoPackageLayers).mockRejectedValue(
+      new Error(`Failed query: insert params: ${'x'.repeat(5000)}`)
+    )
+
+    await validateBaseline.handler(request, h)
+
+    const [logged] = logError.mock.calls[0]
+    expect(logged.message.length).toBeLessThanOrEqual(501)
+    expect(logged.stack).not.toContain('x'.repeat(501))
+    logError.mockRestore()
+  })
+
   it('returns 500 when validateGeoPackageLayers throws', async () => {
     vi.mocked(validateGeoPackageLayers).mockRejectedValue(new Error('boom'))
 
@@ -1599,6 +1666,36 @@ describe('validateBaseline handler — metrics', () => {
     expect(metricsCounter).toHaveBeenCalledWith(
       GEOPACKAGE_METRIC.validationSucceeded
     )
+  })
+
+  // The route answers a failed save's 500 itself, so hapi emits no error
+  // event and the request listener never sees it: the route has to count it.
+  it('counts a save that fails on a missing table, once', async () => {
+    const missing = new Error(
+      'relation "bng.baseline_vertical_habitats" does not exist'
+    )
+    missing.code = '42P01'
+    const failed = new Error(
+      'Failed query: insert into "bng"."baseline_vertical_habitats"'
+    )
+    failed.name = 'DrizzleQueryError'
+    failed.cause = missing
+    drizzleHarness.tx.execute.mockRejectedValue(failed)
+
+    await validateBaseline.handler(
+      makeBaselineRequest({
+        drizzle: drizzleHarness.drizzle,
+        payload: { projectId: PROJECT_ID }
+      }),
+      h
+    )
+
+    expect(h.code).toHaveBeenCalledWith(HTTP_STATUS.INTERNAL_SERVER_ERROR)
+    expect(
+      vi
+        .mocked(metricsCounter)
+        .mock.calls.filter(([name]) => name === 'DatabaseSchemaOutOfDate')
+    ).toEqual([['DatabaseSchemaOutOfDate', 1, { source: 'request' }]])
   })
 
   it('emits an internal_data failure when the gpkg gate rejects', async () => {

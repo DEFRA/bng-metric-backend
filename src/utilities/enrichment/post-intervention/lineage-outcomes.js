@@ -241,13 +241,16 @@ export function nullDisallowedWatercourseAdvance(postIntervention, baseline) {
  * `properties`, the record of what was imported, as the import reads it: an
  * advance with a delay above 0 as well is no advance
  * (normalise-proposed-combinations.js). Undefined when the row has no such
- * record. A post-intervention watercourse cannot be edited (BMD-597), so this
- * is the advance the user gave.
+ * record. A saved Created watercourse edit takes precedence over the upload,
+ * including an explicit null, so a baseline edit cannot undo the user's edit.
  *
  * @param {object} feature
  * @returns {number | null | undefined}
  */
 function uploadedAdvanceYears(feature) {
+  if (Object.hasOwn(feature, 'editedAdvanceYears')) {
+    return feature.editedAdvanceYears
+  }
   const properties = feature.properties ?? {}
   if (!PROPOSED_PROP_KEYS.advanceYears.some((key) => key in properties)) {
     return undefined

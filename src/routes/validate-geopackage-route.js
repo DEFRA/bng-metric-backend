@@ -34,6 +34,9 @@ import {
   recordValidationMetrics
 } from './validate-geopackage-metrics.js'
 import { saveUploadForProject } from '../services/upload/save-upload-for-project.js'
+import { loggableError } from '../common/helpers/logging/describe-error.js'
+import { describeDatabaseError } from '../db/describe-database-error.js'
+import { recordSchemaError } from '../db/schema-check.js'
 import {
   ERROR_CODES,
   makeError,
@@ -422,8 +425,20 @@ async function runFullValidation(filePath, drizzle, context, h, config) {
     if (busy) {
       return respondToBusy(uploadId, h, config, busy)
     }
+    // The frontend shows this to the user as a 502, so this line is where the
+    // cause has to be found. The error's type says which step failed — a
+    // ValidationTimeoutError, a database error, a TypeError in the save — and
+    // the error object goes to ECS's error fields, stack trace included. The
+    // type is in the message text too, which CDP's ingestion always keeps, with
+    // the Postgres error behind a failed query, and a warning no one can miss
+    // when that error says a migration has not been run. The error object is
+    // a copy with its message capped, as a failed insert's message carries
+    // every feature's geometry. A missing-table save is counted here, as this
+    // 500 is answered rather than thrown, so hapi's error event never fires.
+    await recordSchemaError(error)
     logger.error(
-      `${config.routeName} - error validating uploadId ${uploadId}: ${error.message}`
+      loggableError(error),
+      `${config.routeName} - error validating uploadId ${uploadId}: ${describeDatabaseError(error)}`
     )
     return h
       .response({

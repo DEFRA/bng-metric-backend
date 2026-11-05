@@ -25,6 +25,10 @@ const HTTP_UNAUTHORIZED = 401
 // deliberate decision.
 const PUBLIC_ROUTES = new Map([
   [
+    'get /reference/watercourse-creation',
+    'Static watercourse creation and encroachment reference data; no per-user scope'
+  ],
+  [
     'get /reference/hedgerow-creation',
     'Static hedgerow creation reference data; no per-user scope'
   ],

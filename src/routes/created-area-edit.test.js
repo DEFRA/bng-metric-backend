@@ -8,6 +8,8 @@ import {
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import {
   postInterventionHabitatSchema,
+  postInterventionLinearHabitatSchema,
+  postInterventionVerticalHabitatSchema,
   postInterventionWatercourseSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import * as featureUpdates from '../utilities/features/apply-feature-update.js'
@@ -644,18 +646,23 @@ test('callers cannot mutate the cached creation reference', () => {
 })
 
 test('only editable Created families permit an explicit unlinked null', () => {
-  expect(
-    postInterventionHabitatSchema.extract('parentFeatureId').validate(null)
-      .error
-  ).toBeUndefined()
-  for (const schema of [postInterventionWatercourseSchema]) {
+  for (const schema of [
+    postInterventionHabitatSchema,
+    postInterventionLinearHabitatSchema,
+    postInterventionWatercourseSchema
+  ]) {
     const field = schema.extract('parentFeatureId')
-    expect(field.validate(null).error).toBeDefined()
+    expect(field.validate(null).error).toBeUndefined()
     expect(field.validate(undefined).error).toBeUndefined()
     expect(field.validate(featureId).error).toBeUndefined()
     expect(field.describe().flags.description).toContain('BNG Service template')
-    expect(field.describe().flags.description).not.toContain('Created area')
+    expect(field.describe().flags.description).toContain('Created area')
   }
+  const nonEditableParent =
+    postInterventionVerticalHabitatSchema.extract('parentFeatureId')
+  expect(nonEditableParent.validate(null).error).toBeDefined()
+  expect(nonEditableParent.validate(undefined).error).toBeUndefined()
+  expect(nonEditableParent.validate(featureId).error).toBeUndefined()
 })
 
 test.each([

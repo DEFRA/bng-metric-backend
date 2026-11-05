@@ -1,6 +1,15 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { config } from '../config.js'
 import { postgres, postgresOptionsFromConfig } from './postgres.js'
+import {
+  checkSchemaIsCurrent,
+  schemaErrorListener
+} from '../db/schema-check.js'
+
+vi.mock('../db/schema-check.js', () => ({
+  checkSchemaIsCurrent: vi.fn().mockResolvedValue('current'),
+  schemaErrorListener: vi.fn().mockReturnValue(() => {})
+}))
 
 vi.mock('../common/helpers/logging/logger.js', () => ({
   createLogger: vi.fn().mockReturnValue({
@@ -43,6 +52,7 @@ const CONNECTION_REFUSED = 'connection refused'
 const mockServer = {
   logger: { info: vi.fn(), error: vi.fn() },
   decorate: vi.fn(),
+  events: { on: vi.fn() },
   secureContext: null
 }
 
@@ -113,6 +123,24 @@ describe('#postgres plugin local auth', () => {
     expect(mockConnect).toHaveBeenCalled()
     expect(mockQuery).toHaveBeenCalledWith('SELECT 1 AS ok')
     expect(mockRelease).toHaveBeenCalled()
+  })
+
+  // A deploy can reach an environment before its migrations do: said at
+  // startup, and on every request that fails for it.
+  test('Should check the schema is current and listen for schema errors', async () => {
+    await postgres.plugin.register(mockServer, {
+      ...baseOptions,
+      iamAuthentication: false
+    })
+
+    expect(checkSchemaIsCurrent).toHaveBeenCalledWith(
+      expect.objectContaining({ connect: mockConnect }),
+      expect.anything()
+    )
+    expect(mockServer.events.on).toHaveBeenCalledWith(
+      { name: 'request', channels: 'error' },
+      vi.mocked(schemaErrorListener).mock.results.at(-1).value
+    )
   })
 
   test('Should throw if startup connection fails', async () => {

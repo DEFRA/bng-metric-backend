@@ -18,6 +18,7 @@
 // by a no-restricted-syntax ESLint rule, so every new route that persists
 // project data must come through here.
 import Boom from '@hapi/boom'
+import { isDeepStrictEqual } from 'node:util'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
@@ -253,6 +254,24 @@ async function setProjectBaselineAndPostIntervention(
     .where(eq(projects.id, id))
 }
 
+function hasConsistentTemplateFragments({
+  postIntervention,
+  layer,
+  index,
+  feature,
+  unitsTotals,
+  tradingRules,
+  lostHabitats
+}) {
+  return (
+    postIntervention?.template &&
+    isDeepStrictEqual(postIntervention[layer]?.[index], feature) &&
+    isDeepStrictEqual(postIntervention.units, unitsTotals) &&
+    isDeepStrictEqual(postIntervention.tradingRules, tradingRules) &&
+    isDeepStrictEqual(postIntervention.lostHabitats, lostHabitats)
+  )
+}
+
 /**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
@@ -270,9 +289,21 @@ function assertFeatureEditValid({
   lostHabitats,
   postIntervention
 }) {
-  if (postIntervention && documentKey === POST_INTERVENTION_DOCUMENT_KEY) {
+  if (
+    postIntervention &&
+    documentKey === POST_INTERVENTION_DOCUMENT_KEY &&
+    !hasConsistentTemplateFragments({
+      postIntervention,
+      layer,
+      index,
+      feature,
+      unitsTotals,
+      tradingRules,
+      lostHabitats
+    })
+  ) {
     throw Boom.badImplementation(
-      'persist: a post-intervention feature edit must not also replace the post-intervention document'
+      'persist: a post-intervention feature edit must not also replace the post-intervention document without consistent template fragments'
     )
   }
   assertFragmentValid(
@@ -332,9 +363,9 @@ function assertFeatureEditValid({
  *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
  *   Service template upload; omitted otherwise (BMD-1083)
  * @param {object} [params.postIntervention] the whole re-derived
- *   postIntervention document, written alongside a BASELINE feature edit: that
- *   document holds its own copy of the baseline and an edit can move any number
- *   of its figures, so it is the one subtree that cannot be patched surgically.
+ *   postIntervention document, written alongside a baseline feature edit or a
+ *   template post-intervention edit. Baseline changes and template lineage
+ *   rules can move sibling figures, so this subtree is saved together.
  *   Joins the same UPDATE so the two documents can never be persisted apart.
  */
 async function setProjectFeature(

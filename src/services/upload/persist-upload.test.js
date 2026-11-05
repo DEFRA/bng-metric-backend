@@ -2,7 +2,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest'
 import Boom from '@hapi/boom'
 import { PgDialect } from 'drizzle-orm/pg-core'
 
-import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
+import { drizzleLockTimeout } from '../../../test/helpers/postgres-errors.js'
 import { EPSG_BNG } from '../../validation/geopackage/geopackage-constants.js'
 import {
   PROJECT_ID,
@@ -174,9 +174,7 @@ describe('persistUpload', () => {
   })
 
   it('throws 409 when the project row lock cannot be acquired', async () => {
-    const lockError = Object.assign(new Error('lock timeout'), {
-      code: PG_LOCK_NOT_AVAILABLE
-    })
+    const lockError = drizzleLockTimeout()
     const { drizzle } = makeDrizzle({ lockError })
 
     await expect(
@@ -369,9 +367,7 @@ describe('persistCombinedUpload', () => {
   })
 
   it('throws 409 when the project row lock cannot be acquired', async () => {
-    const lockError = Object.assign(new Error('lock timeout'), {
-      code: PG_LOCK_NOT_AVAILABLE
-    })
+    const lockError = drizzleLockTimeout()
     const { drizzle } = makeDrizzle({ lockError })
 
     await expect(

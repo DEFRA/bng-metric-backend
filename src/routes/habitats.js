@@ -1,3 +1,7 @@
+import {
+  postInterventionWatercourseEditPayload,
+  validateCreatedWatercourseEdit
+} from './created-watercourse-edit.js'
 import Boom from '@hapi/boom'
 import {
   postInterventionHedgerowEditPayload,
@@ -15,6 +19,7 @@ import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
+import { findPostgresError } from '../db/describe-database-error.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
@@ -175,6 +180,12 @@ const CREATED_EDIT_TYPES = {
     payload: postInterventionAreaEditPayload,
     validate: validateCreatedAreaEdit
   },
+  watercourse: {
+    layer: 'watercourses',
+    label: 'Watercourse',
+    payload: postInterventionWatercourseEditPayload,
+    validate: validateCreatedWatercourseEdit
+  },
   hedgerow: {
     layer: 'hedgerows',
     label: 'Hedgerow',
@@ -225,7 +236,8 @@ function createUpdateFeatureRoute({
         if (err?.isBoom) {
           throw err
         }
-        if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+        // Drizzle wraps the driver's error, so the SQLSTATE is on its `cause`.
+        if (findPostgresError(err)?.code === PG_LOCK_NOT_AVAILABLE) {
           throw Boom.conflict('Another edit for this project is in progress')
         }
         throw err
@@ -252,7 +264,12 @@ function createdFeatureEdits(payload) {
     ref: payload.ref,
     strategicSignificance: payload.strategicSignificance,
     advanceYears: payload.advanceYears,
-    delayYears: payload.delayYears
+    delayYears: payload.delayYears,
+    ...Object.fromEntries(
+      ['watercourseEncroachment', 'riparianEncroachment']
+        .filter((field) => Object.hasOwn(payload, field))
+        .map((field) => [field, payload[field]])
+    )
   }
 }
 
@@ -417,3 +434,47 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
 })
 
 export { updateAreaHabitat, updatePostInterventionAreaHabitat }
+
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/watercourses/{featureId}:
+ *   put:
+ *     tags: [Habitats]
+ *     summary: Save Created watercourse reference, habitat type, target condition, strategic significance and timing
+ *     description: Omitted timing and encroachment fields retain the stored values; explicit null clears them. An omitted condition retains the stored condition only when the habitat type is unchanged; null clears it. New timing selections must be integer years 0 to 30 or 30+.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref, habitatType, strategicSignificance]
+ *             properties:
+ *               ref: { type: string }
+ *               habitatType: { type: string, nullable: true }
+ *               condition: { type: string, nullable: true }
+ *               watercourseEncroachment: { type: string, nullable: true }
+ *               riparianEncroachment: { type: string, nullable: true }
+ *               strategicSignificance: { type: string, nullable: true }
+ *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *     responses:
+ *       200:
+ *         description: Updated watercourse, with recalculated units, status and project totals
+ *       400:
+ *         description: Invalid reference, choices, timing, or non-Created watercourse
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Project or watercourse not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+export const updatePostInterventionWatercourse = createUpdateFeatureRoute({
+  path: '/projects/{projectId}/post-intervention/watercourses/{featureId}',
+  documentKey: 'postIntervention',
+  featureType: 'watercourse'
+})
