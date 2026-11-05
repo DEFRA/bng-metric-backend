@@ -31,6 +31,9 @@ const HEALTH_PATH = '/health'
  * Hapi's own `load.maxRssBytes`, which refuses /health as well and answers
  * with a body the frontend does not recognise as busy.
  *
+ * Refusals are logged and counted once per sample interval, with the number
+ * refused since the last sample.
+ *
  * Off when `maxRssBytes` is 0, because the right ceiling depends on the task
  * memory limit, which each environment sets in its app config. A deployed
  * environment that leaves it off logs a warning at boot, so the missing
@@ -50,24 +53,41 @@ export const memoryShed = {
       }
 
       let overLimit = false
+      // Refusals are counted in memory and reported once per sample, not once
+      // per request: a burst arrives exactly when the task is short of memory,
+      // so the refuse path must not add a log line and an EMF flush each time.
+      let refused = 0
+      const reportRefused = () => {
+        if (refused === 0) {
+          return
+        }
+        const count = refused
+        refused = 0
+        logger.warn(
+          `${count} request(s) refused as busy: RSS is above VALIDATION_MAX_RSS_BYTES (${maxRssBytes})`
+        )
+        // withMetrics catches and logs its own errors, so no await is needed.
+        metricsCounter(GEOPACKAGE_METRIC.validationBusy, count, {
+          reason: VALIDATION_BUSY_REASON.memoryRss
+        })
+      }
       const sample = () => {
+        reportRefused()
         overLimit = process.memoryUsage.rss() > maxRssBytes
       }
       sample()
       const timer = setInterval(sample, sampleIntervalMs)
       timer.unref()
-      server.events.on('stop', () => clearInterval(timer))
+      server.events.on('stop', () => {
+        clearInterval(timer)
+        reportRefused()
+      })
 
-      server.ext('onRequest', async (request, h) => {
+      server.ext('onRequest', (request, h) => {
         if (!overLimit || request.path === HEALTH_PATH) {
           return h.continue
         }
-        logger.warn(
-          `Request refused as busy: RSS is above VALIDATION_MAX_RSS_BYTES (${maxRssBytes}) - ${request.method.toUpperCase()} ${request.path}`
-        )
-        await metricsCounter(GEOPACKAGE_METRIC.validationBusy, 1, {
-          reason: VALIDATION_BUSY_REASON.memoryRss
-        })
+        refused++
         return h
           .response({
             valid: false,
