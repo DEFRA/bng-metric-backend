@@ -64,6 +64,17 @@ describe('verticalAreaSquareMetres', () => {
 })
 
 describe('checkVerticalHabitatAreas', () => {
+  it('reads the Area only, never Shape_Area, which is in square metres', () => {
+    const error = checkVerticalHabitatAreas({
+      verticalHabitats: [
+        vertical(undefined, { 'Parcel Ref': 'V001', Shape_Area: 400 })
+      ]
+    })
+
+    expect(error.code).toBe(ERROR_CODES.VERTICAL_HABITAT_AREA_NOT_POSITIVE)
+    expect(error.details.count).toBe(1)
+  })
+
   it('returns null when every vertical area habitat has an area above 0', () => {
     const layers = {
       verticalHabitats: [

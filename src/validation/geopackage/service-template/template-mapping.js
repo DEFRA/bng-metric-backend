@@ -21,7 +21,7 @@ import {
  * have those names; Habitat Ref is the one renamed. A column the service does
  * not use is dropped, so it never reaches the stored document: distinctiveness
  * is derived from the habitat type, and sizes are measured from the geometry,
- * bar a vertical area habitat's: its Area is the face area the surveyor
+ * bar a vertical area habitat's: its Area is the area the surveyor
  * estimated on site, in hectares, which a line cannot give.
  * An area habitat's Irreplaceable Habitat is read as its `irreplaceable`
  * status (irreplaceable.js).
@@ -88,8 +88,8 @@ const LAYER_COLUMNS = {
       'Proposed Broad Habitat Type',
       'Proposed Habitat Type',
       'Irreplaceable Habitat',
-      // Square metres, as entered: the service converts it to hectares only
-      // to price it.
+      // Hectares, as entered: the service stores it in square metres, as
+      // every area habitat's size is stored.
       'Area'
     )
   ],

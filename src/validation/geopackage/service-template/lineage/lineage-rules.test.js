@@ -323,31 +323,23 @@ describe('checkLineageRules', () => {
       ])
     })
 
-    it('reads a row’s area from Shape_Area too, as the upload check and the extract do', () => {
-      const parent = wall(1, undefined, { Area: undefined, Shape_Area: 0.004 })
-      const piece = (ref, area) =>
+    it('reads a row’s area from Area only, never Shape_Area, as the upload check and the extract do', () => {
+      const parent = wall(1, 0.004)
+      // Shape_Area is in the CRS's square metres: read as hectares, these
+      // children would be far larger than their parent.
+      const piece = (ref, squareMetres) =>
         child(parent, 'verticalHabitats', {
           'Parcel Ref': ref,
           Area: undefined,
-          Shape_Area: area
+          Shape_Area: squareMetres
         })
 
       expect(
         check(
           { verticalHabitats: [parent] },
-          { verticalHabitats: [piece('V001a', 0.0025), piece('V001b', 0.0015)] }
+          { verticalHabitats: [piece('V001a', 25), piece('V001b', 25)] }
         )
       ).toEqual([])
-      expect(
-        codes(
-          check(
-            { verticalHabitats: [parent] },
-            {
-              verticalHabitats: [piece('V001a', 0.0025), piece('V001b', 0.0025)]
-            }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE])
     })
 
     it('holds a degraded vertical area habitat to the area habitat rule', () => {

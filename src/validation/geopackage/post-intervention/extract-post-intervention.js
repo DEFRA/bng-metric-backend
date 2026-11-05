@@ -123,7 +123,8 @@ function buildPostInterventionHabitat(feature, template) {
 
 /**
  * A post-intervention vertical area habitat: an area habitat sized by the
- * Area its row gives, in square metres, which may differ from its parent's
+ * Area its row gives, in hectares, stored in square metres, which may differ
+ * from its parent's
  * when part of a structure is kept.
  */
 function buildPostInterventionVerticalHabitat(feature, template) {

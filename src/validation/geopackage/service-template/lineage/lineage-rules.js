@@ -37,8 +37,8 @@ import {
  * - hedgerows: the post-intervention hedgerows linked to a parent, Created
  *   ones included, never total more than its length;
  * - vertical area habitats: likewise, the post-intervention vertical area
- *   habitats linked to a parent never total more than its Area, the face area
- *   the surveyor estimated, as a structure cannot gain face it never had;
+ *   habitats linked to a parent never total more than its Area, the area the
+ *   surveyor estimated, as a structure cannot gain face it never had;
  * - watercourses: a parent continues only through a Retained or Enhanced
  *   child, so one with both such a child and a Created child cannot have its
  *   length split between continuation and loss. The surveyor draws the
@@ -199,11 +199,11 @@ function checkHedgerowLength(parent, children, context) {
 
 /**
  * A row's typed Area, in hectares, as square metres; 0 when it is not a number above 0.
- * Read as the upload check and the extract read it.
+ * Read as the upload check and the extract read it: from Area only.
  */
 const typedArea = (feature) =>
   verticalAreaSquareMetres(
-    pickProp(feature.properties ?? {}, PROP_KEYS.area)
+    pickProp(feature.properties ?? {}, PROP_KEYS.verticalArea)
   ) ?? 0
 
 /** A vertical area habitat parent smaller than its linked children together. */

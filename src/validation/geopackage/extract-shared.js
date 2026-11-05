@@ -59,7 +59,7 @@ export function areaFromSizeSquareMetres(sizeSquareMetres) {
  */
 export function verticalAreaFields(properties) {
   const sizeSquareMetres = verticalAreaSquareMetres(
-    pickProp(properties ?? {}, PROP_KEYS.area)
+    pickProp(properties ?? {}, PROP_KEYS.verticalArea)
   )
   return { sizeSquareMetres, area: sizeSquareMetres }
 }

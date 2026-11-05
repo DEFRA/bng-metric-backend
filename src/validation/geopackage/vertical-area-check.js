@@ -72,7 +72,7 @@ function describe(feature, idx, table) {
     feature_ref: ref == null || ref === '' ? null : String(ref),
     fid: fid == null || fid === '' ? null : fid,
     idx,
-    area: pickProp(properties, PROP_KEYS.area) ?? null
+    area: pickProp(properties, PROP_KEYS.verticalArea) ?? null
   }
 }
 
@@ -102,7 +102,7 @@ export function checkVerticalHabitatAreas(layers) {
   const offenders = []
   const features = layers?.[VERTICAL_LAYER] ?? []
   features.forEach((feature, idx) => {
-    const area = pickProp(feature?.properties ?? {}, PROP_KEYS.area)
+    const area = pickProp(feature?.properties ?? {}, PROP_KEYS.verticalArea)
     if (verticalAreaHectares(area) === null) {
       offenders.push(describe(feature, idx, table))
     }
