@@ -67,10 +67,11 @@ export const memoryShed = {
           `${count} request(s) refused as busy: RSS is above VALIDATION_MAX_RSS_BYTES (${maxRssBytes})`
         )
         // withMetrics catches and logs its own errors, so the promise is
-        // deliberately not awaited.
-        void metricsCounter(GEOPACKAGE_METRIC.validationBusy, count, {
+        // deliberately not awaited. The catch is there so a future change to
+        // that contract cannot turn a metric into an unhandled rejection.
+        metricsCounter(GEOPACKAGE_METRIC.validationBusy, count, {
           reason: VALIDATION_BUSY_REASON.memoryRss
-        })
+        }).catch(() => {})
       }
       const sample = () => {
         reportRefused()

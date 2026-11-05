@@ -16,7 +16,7 @@ vi.mock('../common/helpers/logging/logger.js', () => ({
 }))
 
 vi.mock('../common/helpers/metrics.js', () => ({
-  metricsCounter: vi.fn()
+  metricsCounter: vi.fn(() => Promise.resolve())
 }))
 
 // Far above what any test process uses, and 1 byte, which it always exceeds.
