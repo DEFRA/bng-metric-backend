@@ -27,7 +27,10 @@ describe('memory-shed plugin', () => {
   })
 
   async function serverWith(maxRssBytes) {
-    server = Hapi.server()
+    // As the real server. Hapi applies stripTrailingSlash when it builds the
+    // request, before onRequest runs, so the extension already sees `/health/`
+    // as `/health`; the case below pins that.
+    server = Hapi.server({ router: { stripTrailingSlash: true } })
     await server.register({
       plugin: memoryShed.plugin,
       options: {
@@ -61,13 +64,16 @@ describe('memory-shed plugin', () => {
     expect(res.result.errors[0].code).toBe('VALIDATION_BUSY')
   })
 
-  it('still answers /health when RSS is over the ceiling', async () => {
-    await serverWith(ALWAYS_EXCEEDED)
+  it.each(['/health', '/health/'])(
+    'still answers %s when RSS is over the ceiling',
+    async (url) => {
+      await serverWith(ALWAYS_EXCEEDED)
 
-    const res = await server.inject({ method: 'GET', url: '/health' })
+      const res = await server.inject({ method: 'GET', url })
 
-    expect(res.statusCode).toBe(200)
-  })
+      expect(res.statusCode).toBe(200)
+    }
+  )
 
   it('serves normally when the ceiling is above actual usage', async () => {
     await serverWith(NEVER_REACHED)
