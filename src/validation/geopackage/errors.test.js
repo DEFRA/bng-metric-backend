@@ -1,6 +1,15 @@
 import { describe, it, expect } from 'vitest'
 
-import { ERROR_CODES, makeError, makeMetadataError } from './errors.js'
+import { readFileSync } from 'node:fs'
+import path from 'node:path'
+
+import {
+  ERROR_CODES,
+  ERROR_CODE_SURFACES,
+  ERROR_SURFACES,
+  makeError,
+  makeMetadataError
+} from './errors.js'
 
 describe('makeError', () => {
   it('returns a code + message pair for validation payloads', () => {
@@ -85,5 +94,49 @@ describe('makeMetadataError', () => {
         details: [{ path: ['habitats', 0, 'properties', 'filename'] }]
       }).code
     ).toBe(ERROR_CODES.INVALID_FILE_METADATA)
+  })
+})
+
+describe('ERROR_CODE_SURFACES', () => {
+  const ROUTES = path.join(import.meta.dirname, '..', '..', 'routes')
+  // The helpers the edit routes refuse a change with.
+  const EDIT_ERROR_HELPERS = [
+    'ref-in-use-error.js',
+    'invalid-enhancement-error.js',
+    'out-of-scope-error.js'
+  ]
+
+  it('gives every code at least one surface, and no other', () => {
+    expect(Object.keys(ERROR_CODE_SURFACES).sort()).toEqual(
+      Object.values(ERROR_CODES).sort()
+    )
+    const known = Object.values(ERROR_SURFACES)
+    for (const [code, surfaces] of Object.entries(ERROR_CODE_SURFACES)) {
+      expect(surfaces.length, code).toBeGreaterThan(0)
+      expect(
+        surfaces.every((s) => known.includes(s)),
+        code
+      ).toBe(true)
+    }
+  })
+
+  it.each(EDIT_ERROR_HELPERS)(
+    'counts the code %s refuses an edit with as an edit code',
+    (helper) => {
+      const source = readFileSync(path.join(ROUTES, helper), 'utf8')
+      const [, code] = /ERROR_CODES\.([A-Z0-9_]+)/.exec(source)
+      expect(ERROR_CODE_SURFACES[code]).toContain(ERROR_SURFACES.EDIT)
+    }
+  )
+
+  it('keeps edit-only codes off the drop-out page, and the rest on it', () => {
+    expect(ERROR_CODE_SURFACES.HABITAT_REF_IN_USE).toEqual([
+      ERROR_SURFACES.EDIT
+    ])
+    expect(ERROR_CODE_SURFACES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE).toEqual([
+      ERROR_SURFACES.UPLOAD,
+      ERROR_SURFACES.EDIT
+    ])
+    expect(ERROR_CODE_SURFACES.PARCEL_OVERLAPS).toEqual([ERROR_SURFACES.UPLOAD])
   })
 })
