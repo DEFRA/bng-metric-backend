@@ -1320,4 +1320,40 @@ describe('extractPostIntervention — comments', () => {
     expect(out.document.trees[0].comment).toBe('tree note')
     expect(out.document.verticalHabitats[0].comment).toBeNull()
   })
+
+  it('keeps a comment on every retention category of a BNG Service template file', () => {
+    const out = extractPostIntervention(
+      {
+        redline: [],
+        areas: [
+          feature({
+            [PARCEL_REF]: 'H-retained',
+            'Retention Category': 'Retained',
+            Comment: '  retained note  '
+          }),
+          feature({
+            [PARCEL_REF]: 'H-enhanced',
+            'Retention Category': 'Enhanced',
+            Comment: 'enhanced note'
+          }),
+          feature({
+            [PARCEL_REF]: 'H-created',
+            'Retention Category': 'Created',
+            Comment: 'created note'
+          })
+        ],
+        hedgerows: [],
+        watercourses: [],
+        trees: [],
+        verticalHabitats: []
+      },
+      { template: { name: 'bng-service', version: '1.0' } }
+    )
+
+    const area = (ref) =>
+      out.document.habitats.find((habitat) => habitat.ref === ref)
+    expect(area('H-retained').comment).toBe('retained note')
+    expect(area('H-enhanced').comment).toBe('enhanced note')
+    expect(area('H-created').comment).toBe('created note')
+  })
 })

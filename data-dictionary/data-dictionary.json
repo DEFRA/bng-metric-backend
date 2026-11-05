@@ -1554,7 +1554,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.habitats[].mappedBy",
@@ -1785,7 +1785,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.trees[].mappedBy",
@@ -2181,7 +2181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.verticalHabitats[].mappedBy",
@@ -2566,7 +2566,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.hedgerows[].mappedBy",
@@ -2896,7 +2896,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. An Enhanced or Created row leaves this null: that comment is stored on the post-intervention habitat instead. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.watercourses[].mappedBy",
@@ -3614,7 +3614,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.habitats[].invalidEnhancement",
@@ -4105,7 +4105,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.trees[].count",
@@ -4644,7 +4644,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.verticalHabitats[].invalidEnhancement",
@@ -5157,7 +5157,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.hedgerows[].baseline",
@@ -5619,7 +5619,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. Stored on an Enhanced or Created habitat only; a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A blank comment is null."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.watercourses[].baseline",

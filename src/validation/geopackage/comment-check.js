@@ -53,34 +53,52 @@ export function cleanComment(value) {
 }
 
 /**
- * The comment saved on a baseline habitat. An Enhanced or Created row's
- * comment belongs to the post-intervention habitat, so the baseline derived
- * from that row has none. Every other row — Retained, Lost, or a baseline
- * file with no retention category — keeps its comment.
+ * The comment saved on a baseline habitat.
+ *
+ * A legacy row holds both stages. When this upload also saves a
+ * post-intervention document, an Enhanced or Created comment belongs there,
+ * so the baseline derived from that row has none. A baseline-only upload
+ * saves no post-intervention document, so the comment stays here. A BNG
+ * Service template file has its own Comment on the Baseline tables, so it
+ * always stays.
  *
  * @param {object} props
+ * @param {{ sharesRowWithPostIntervention?: boolean }} [options]
+ *   `sharesRowWithPostIntervention` is a legacy combined upload: one row is
+ *   saved as both documents.
  * @returns {string | null}
  */
-export function commentForBaseline(props) {
-  if (commentBelongsToPostIntervention(props)) {
+export function commentForBaseline(
+  props,
+  { sharesRowWithPostIntervention = false } = {}
+) {
+  if (
+    sharesRowWithPostIntervention &&
+    commentBelongsToPostIntervention(props)
+  ) {
     return null
   }
   return cleanComment(commentOf(props))
 }
 
 /**
- * The comment saved on a post-intervention habitat. Only an Enhanced or
- * Created row has one. A Retained habitat shares the comment on its baseline
- * habitat, and a Lost row's comment stays on the baseline it describes.
+ * The comment saved on a post-intervention habitat.
+ *
+ * A legacy file has one comment column. Only an Enhanced or Created row's
+ * comment belongs here; a Retained habitat shares the comment on its
+ * baseline habitat, and a Lost row's comment stays on the baseline. A BNG
+ * Service template file has its own Comment on each Post-Intervention
+ * table, including a Retained row, so every retention category keeps it.
  *
  * @param {object} props
+ * @param {{ template?: boolean }} [options] `template` is a BNG Service template file
  * @returns {string | null}
  */
-export function commentForPostIntervention(props) {
-  if (!commentBelongsToPostIntervention(props)) {
-    return null
+export function commentForPostIntervention(props, { template = false } = {}) {
+  if (template || commentBelongsToPostIntervention(props)) {
+    return cleanComment(commentOf(props))
   }
-  return cleanComment(commentOf(props))
+  return null
 }
 
 /**

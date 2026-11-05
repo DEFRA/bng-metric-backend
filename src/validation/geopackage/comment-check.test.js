@@ -62,17 +62,37 @@ describe('comment placement', () => {
     expect(commentForPostIntervention(plain)).toBeNull()
   })
 
-  it('keeps an Enhanced or Created comment on the post-intervention habitat', () => {
+  it('keeps an Enhanced or Created comment on the post-intervention habitat of a legacy combined upload', () => {
     const enhanced = {
       'Retention Category': '1. Enhanced',
       Comment: ' enhanced '
     }
     const created = { 'Retention Category': 'Created', Comment: 'created' }
+    const combined = { sharesRowWithPostIntervention: true }
 
-    expect(commentForBaseline(enhanced)).toBeNull()
+    expect(commentForBaseline(enhanced, combined)).toBeNull()
     expect(commentForPostIntervention(enhanced)).toBe('enhanced')
-    expect(commentForBaseline(created)).toBeNull()
+    expect(commentForBaseline(created, combined)).toBeNull()
     expect(commentForPostIntervention(created)).toBe('created')
+  })
+
+  it('keeps an Enhanced comment on a baseline-only upload', () => {
+    const enhanced = {
+      'Retention Category': 'Enhanced',
+      Comment: ' enhanced note '
+    }
+
+    expect(commentForBaseline(enhanced)).toBe('enhanced note')
+  })
+
+  it('keeps every retention category on a BNG Service template post-intervention row', () => {
+    const template = { template: true }
+    const retained = { 'Retention Category': 'Retained', Comment: ' retained ' }
+    const lost = { 'Retention Category': 'Lost', Comment: 'lost note' }
+
+    expect(commentForPostIntervention(retained, template)).toBe('retained')
+    expect(commentForPostIntervention(lost, template)).toBe('lost note')
+    expect(commentForBaseline(retained)).toBe('retained')
   })
 })
 

@@ -4,9 +4,13 @@ import { tmpdir } from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
 
-// Every suite here uploads a legacy file, so runs with the service-template
-// flag off only.
-import { describeLegacy as describe } from '../test/helpers/template-mode.js'
+// The first suite uploads a legacy file, so it runs with the service-template
+// flag off only. The second uploads a BNG Service template file and runs with
+// the flag on.
+import {
+  describeLegacy as describe,
+  describeServiceTemplate
+} from '../test/helpers/template-mode.js'
 import { fixturePath } from './helpers/upload-fixtures.js'
 import { HTTP_OK } from './helpers/http-status.js'
 import {
@@ -142,3 +146,85 @@ describe('habitat comments on upload', () => {
     expect(await fetchProject(project.id)).toEqual(before)
   })
 })
+
+const TEMPLATE_FIXTURE = 'service-template/plain-site.gpkg'
+
+/**
+ * A copy of the template fixture with attribute-only edits.
+ *
+ * @param {(db: import('better-sqlite3').Database) => void} edit
+ * @returns {Promise<string>} the upload id
+ */
+async function editedTemplate(edit) {
+  const directory = await mkdtemp(path.join(tmpdir(), 'comment-template-'))
+  temporaryDirectories.push(directory)
+  const file = path.join(directory, 'comments.gpkg')
+  await copyFile(fixturePath(TEMPLATE_FIXTURE), file)
+  const db = new Database(file)
+  try {
+    edit(db)
+  } finally {
+    db.close()
+  }
+  return uploadFixture(TEMPLATE_FIXTURE, file)
+}
+
+function setComment(db, table, ref, comment) {
+  db.prepare(`UPDATE "${table}" SET "Comment" = ? WHERE "Habitat Ref" = ?`).run(
+    comment,
+    ref
+  )
+}
+
+describeServiceTemplate(
+  'habitat comments on a BNG Service template upload',
+  () => {
+    it('saves the Baseline and Post-Intervention comments for Retained, Enhanced and Created rows', async () => {
+      const project = await createProject('Template comment placement')
+      const uploadId = await editedTemplate((db) => {
+        setComment(
+          db,
+          'Area Habitats Baseline',
+          'H001',
+          '  baseline enhanced  '
+        )
+        setComment(db, 'Area Habitats Baseline', 'H002', 'baseline retained')
+        setComment(db, 'Area Habitats Baseline', 'H005', 'baseline created')
+        setComment(db, 'Area Habitats Post-Intervention', 'H001', 'pi enhanced')
+        setComment(
+          db,
+          'Area Habitats Post-Intervention',
+          'H002',
+          '  pi retained  '
+        )
+        setComment(db, 'Area Habitats Post-Intervention', 'H005', 'pi created')
+      })
+
+      const response = await callPostInterventionValidate(uploadId, {
+        projectId: project.id
+      })
+      expect(response.statusCode).toBe(HTTP_OK)
+      expect(response.result).toEqual({ valid: true, errors: [] })
+
+      const stored = await fetchProject(project.id)
+      expect(commentOf(stored.baseline.habitats, 'H001')).toBe(
+        'baseline enhanced'
+      )
+      expect(commentOf(stored.baseline.habitats, 'H002')).toBe(
+        'baseline retained'
+      )
+      expect(commentOf(stored.baseline.habitats, 'H005')).toBe(
+        'baseline created'
+      )
+      expect(commentOf(stored.postIntervention.habitats, 'H001')).toBe(
+        'pi enhanced'
+      )
+      expect(commentOf(stored.postIntervention.habitats, 'H002')).toBe(
+        'pi retained'
+      )
+      expect(commentOf(stored.postIntervention.habitats, 'H005')).toBe(
+        'pi created'
+      )
+    })
+  }
+)
