@@ -8,6 +8,7 @@ import {
   PROPOSED_PROP_KEYS,
   pickProp
 } from '../properties.js'
+import { commentForPostIntervention } from '../comment-check.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   postInterventionAreaStatus,
@@ -98,13 +99,14 @@ function buildPostInterventionFeature(
   }
 }
 
-function buildPostInterventionHabitat(feature) {
+function buildPostInterventionHabitat(feature, template) {
   return buildPostInterventionFeature(
     feature,
     (featureId, ref, props) => ({
       featureId,
       ref,
       retentionCategory: retentionCategoryFromProps(props),
+      comment: commentForPostIntervention(props, { template }),
       ...irreplaceableField(props),
       area: null,
       sizeSquareMetres: null,
@@ -124,19 +126,20 @@ function buildPostInterventionHabitat(feature) {
  * Area its row gives, in square metres, which may differ from its parent's
  * when part of a structure is kept.
  */
-function buildPostInterventionVerticalHabitat(feature) {
-  const built = buildPostInterventionHabitat(feature)
+function buildPostInterventionVerticalHabitat(feature, template) {
+  const built = buildPostInterventionHabitat(feature, template)
   Object.assign(built.document, verticalAreaFields(feature.properties))
   return built
 }
 
-function buildPostInterventionHedgerow(feature) {
+function buildPostInterventionHedgerow(feature, template) {
   return buildPostInterventionFeature(
     feature,
     (featureId, ref, props) => ({
       featureId,
       ref,
       retentionCategory: retentionCategoryFromProps(props),
+      comment: commentForPostIntervention(props, { template }),
       length: null,
       sizeMetres: null,
       units: null,
@@ -175,7 +178,7 @@ function buildWatercourseEncroachmentFields(
   }
 }
 
-function buildPostInterventionWatercourse(feature) {
+function buildPostInterventionWatercourse(feature, template) {
   return buildPostInterventionFeature(
     feature,
     (featureId, ref, props) => {
@@ -194,6 +197,7 @@ function buildPostInterventionWatercourse(feature) {
         featureId,
         ref,
         retentionCategory: retentionCategoryFromProps(props),
+        comment: commentForPostIntervention(props, { template }),
         length: null,
         sizeMetres: null,
         units: null,
@@ -304,24 +308,34 @@ export function filterLostPostInterventionLayers(layers) {
 export function extractPostIntervention(layers, meta = {}) {
   const filteredLayers = filterLostPostInterventionLayers(layers)
   const redLine = buildRedLine(filteredLayers.redline)
+  const template = Boolean(meta.template)
   const habitats = splitFeatures(
     filteredLayers.areas ?? [],
-    buildPostInterventionHabitat
+    buildPostInterventionHabitat,
+    template
   )
   const hedgerows = splitFeatures(
     filteredLayers.hedgerows ?? [],
-    buildPostInterventionHedgerow
+    buildPostInterventionHedgerow,
+    template
   )
   const watercourses = splitFeatures(
     filteredLayers.watercourses ?? [],
-    buildPostInterventionWatercourse
+    buildPostInterventionWatercourse,
+    template
   )
   const trees = splitFeatures(filteredLayers.trees ?? [], (feature) =>
-    buildPostInterventionTree(feature, initParsedFeature, buildGeometryRow)
+    buildPostInterventionTree(
+      feature,
+      initParsedFeature,
+      buildGeometryRow,
+      template
+    )
   )
   const verticalHabitats = splitFeatures(
     filteredLayers.verticalHabitats ?? [],
-    buildPostInterventionVerticalHabitat
+    buildPostInterventionVerticalHabitat,
+    template
   )
 
   const habitatSizesSummary = meta.habitatSizes

@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 458 schema fields.
+**25 tables**, mapping 463 schema fields.
 
 ## Diagram
 
@@ -726,7 +726,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 38 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 39 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -738,6 +738,7 @@ habitats in the postIntervention document. 38 column(s) mapped from the JSON doc
 | `size_square_metres`                         | `numeric` |     | `postIntervention.habitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.habitats[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.habitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.habitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
@@ -773,7 +774,7 @@ habitats in the postIntervention document. 38 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 43 column(s) mapped from the JSON document.
+trees in the postIntervention document. 44 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -785,6 +786,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 | `size_square_metres`                         | `numeric` |     | `postIntervention.trees[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.trees[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.trees[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.trees[].comment`                                |                                                                                  |
 | `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
@@ -825,7 +827,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 
 ### `post_intervention_vertical_habitats`
 
-verticalHabitats in the postIntervention document. 37 column(s) mapped from the JSON document.
+verticalHabitats in the postIntervention document. 38 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                    | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -837,6 +839,7 @@ verticalHabitats in the postIntervention document. 37 column(s) mapped from the 
 | `size_square_metres`                         | `numeric` |     | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
@@ -871,7 +874,7 @@ verticalHabitats in the postIntervention document. 37 column(s) mapped from the 
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 35 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 36 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -886,6 +889,7 @@ hedgerows in the postIntervention document. 35 column(s) mapped from the JSON do
 | `size_metres`                                | `numeric` |     | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.hedgerows[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.hedgerows[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.hedgerows[].comment`                                |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.hedgerows[].baseline.type`                          |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.hedgerows[].baseline.condition`                     |                                                                                  |
 | `baseline_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].baseline.conditionScore`                |                                                                                  |
@@ -915,7 +919,7 @@ hedgerows in the postIntervention document. 35 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 44 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 45 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -931,6 +935,7 @@ watercourses in the postIntervention document. 44 column(s) mapped from the JSON
 | `size_metres`                                | `numeric` |     | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.watercourses[].units`                                   |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.watercourses[].status`                                  |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.watercourses[].comment`                                 |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.watercourses[].baseline.type`                           |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.watercourses[].baseline.condition`                      |                                                                                  |
 | `baseline_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].baseline.conditionScore`                 |                                                                                  |

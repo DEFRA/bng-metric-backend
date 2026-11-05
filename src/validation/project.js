@@ -45,7 +45,7 @@ const metadataSchemaKeys = () => ({
   comment: Joi.string()
     .allow(null, '')
     .description(
-      'Free-text comment from the GeoPackage (Comment / Comments column).'
+      'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null.'
     ),
   mappedBy: Joi.string()
     .allow(null, '')

@@ -1217,6 +1217,87 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
       })
     )
   })
+
+  it('trims a comment and keeps the spaces inside it', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          Comment: '  kept  note \n'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBe('kept  note')
+  })
+
+  it('stores no comment when the cell is only whitespace', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: 'P1', Comment: ' \t\n ' })],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBeNull()
+  })
+
+  it('leaves an Enhanced or Created comment off the baseline habitat of a legacy combined upload', () => {
+    const out = extractHabitatData(
+      {
+        redline: [],
+        areas: [
+          feature({
+            [PARCEL_REF]: 'P1',
+            'Retention Category': '1. Enhanced',
+            Comment: 'enhanced note'
+          }),
+          feature({
+            [PARCEL_REF]: 'P2',
+            'Retention Category': 'Created',
+            Comment: 'created note'
+          }),
+          feature({
+            [PARCEL_REF]: 'P3',
+            'Retention Category': '4. Lost',
+            Comment: 'lost note'
+          })
+        ],
+        hedgerows: [],
+        watercourses: []
+      },
+      { commentStaysWithPostIntervention: true }
+    )
+
+    const byRef = Object.fromEntries(
+      out.document.habitats.map((habitat) => [habitat.ref, habitat.comment])
+    )
+    expect(byRef).toEqual({
+      P1: null,
+      P2: null,
+      P3: 'lost note'
+    })
+  })
+
+  it('keeps an Enhanced comment when the upload does not also save a post-intervention document', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Retention Category': 'Enhanced',
+          Comment: '  enhanced note  '
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBe('enhanced note')
+  })
 })
 
 describe('extractHabitatData — post-intervention reads Proposed columns (variant)', () => {

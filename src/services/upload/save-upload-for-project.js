@@ -307,13 +307,20 @@ export function extractAndValidateDocument({
   habitatSizes,
   baselineDocument = storedProject?.baseline
 }) {
-  const { uploadId, filename, fileSize, template } = context
+  const {
+    uploadId,
+    filename,
+    fileSize,
+    template,
+    commentStaysWithPostIntervention
+  } = context
   const meta = {
     uploadId,
     filename,
     fileSize,
     template,
-    habitatSizes
+    habitatSizes,
+    commentStaysWithPostIntervention
   }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
   normaliseImportedDocument(
@@ -414,6 +421,13 @@ function extractUploadDocuments(sized, context, logger, config) {
   }
   const baseline = extractAndValidateDocument({
     ...shared,
+    // A legacy combined file stores one comment per row. An Enhanced or
+    // Created comment is saved on the post-intervention habitat, so the
+    // derived baseline leaves it off. A template file's Baseline tables have
+    // their own Comment, and a baseline-only upload never reaches here.
+    context: context.template
+      ? context
+      : { ...context, commentStaysWithPostIntervention: true },
     handlers: SAVE_HANDLERS_BY_DOCUMENT_KEY.baseline,
     layersWithIds: baselineLayers,
     config: BASELINE_DOCUMENT_CONFIG,

@@ -92,6 +92,22 @@ export const ERROR_CODES = Object.freeze({
   TREE_COUNT_NOT_WHOLE: 'TREE_COUNT_NOT_WHOLE',
 
   /**
+   * One or more habitat comments hold characters that are not valid UTF-8.
+   * The column is Comment on area and tree habitats and Comments on hedgerows
+   * and watercourses. One error for every such comment. The file is refused
+   * and nothing from it is saved.
+   */
+  COMMENT_INVALID_CHARACTERS: 'COMMENT_INVALID_CHARACTERS',
+
+  /**
+   * One or more habitat comments are longer than 999 characters once leading
+   * and trailing whitespace is removed. Length is counted in characters, not
+   * bytes. A comment of exactly 999 characters is accepted. One error for
+   * every such comment. The file is refused and nothing from it is saved.
+   */
+  COMMENT_TOO_LONG: 'COMMENT_TOO_LONG',
+
+  /**
    * A BNG Service template vertical area habitat's Area is blank, zero,
    * negative or not a number. The surveyor types it in, in square metres, as
    * the face area they estimated on site; a line cannot give it, so there is

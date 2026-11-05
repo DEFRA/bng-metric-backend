@@ -9,6 +9,7 @@ import {
   featureKeysForVariant,
   pickProp
 } from '../properties.js'
+import { commentForBaseline } from '../comment-check.js'
 import { cleanHabitatRef } from '../habitat-ref-check.js'
 import {
   areaStatus,
@@ -64,7 +65,12 @@ function pickProps(props, entries) {
   )
 }
 
-function buildHabitat(feature, keys, readStrategicSignificance) {
+function buildHabitat(
+  feature,
+  keys,
+  readStrategicSignificance,
+  commentOptions
+) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const habitatType = pickProp(props, keys.habitatType)
@@ -89,6 +95,7 @@ function buildHabitat(feature, keys, readStrategicSignificance) {
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
+  document.comment = commentForBaseline(props, commentOptions)
   document.status = areaStatus(document)
   const geometryRow = {
     featureId,
@@ -105,13 +112,23 @@ function buildHabitat(feature, keys, readStrategicSignificance) {
  * as a line along its base. It is an area habitat in every respect but its
  * size, which is the Area the surveyor typed in, in square metres.
  */
-function buildVerticalHabitat(feature, keys, readStrategicSignificance) {
-  const built = buildHabitat(feature, keys, readStrategicSignificance)
+function buildVerticalHabitat(
+  feature,
+  keys,
+  readStrategicSignificance,
+  commentOptions
+) {
+  const built = buildHabitat(
+    feature,
+    keys,
+    readStrategicSignificance,
+    commentOptions
+  )
   Object.assign(built.document, verticalAreaFields(feature.properties))
   return built
 }
 
-function buildTree(feature, keys, readStrategicSignificance) {
+function buildTree(feature, keys, readStrategicSignificance, commentOptions) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
   const ref = pickProp(props, keys.treeRef)
@@ -135,6 +152,7 @@ function buildTree(feature, keys, readStrategicSignificance) {
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
+  document.comment = commentForBaseline(props, commentOptions)
   const { sizeSquareMetres, area } = treeAreaFields(treeSize, document.count)
   document.sizeSquareMetres = sizeSquareMetres
   document.area = area
@@ -156,7 +174,8 @@ function buildLinearFeature(
   readStrategicSignificance,
   typeKey,
   extraProperties,
-  statusForDocument
+  statusForDocument,
+  commentOptions
 ) {
   const featureId = feature.featureId ?? randomUUID()
   const props = feature.properties ?? {}
@@ -172,6 +191,7 @@ function buildLinearFeature(
     ...extraDocumentProperties,
     properties: props
   }
+  document.comment = commentForBaseline(props, commentOptions)
   document.status = statusForDocument(document)
   const geometryRow = {
     featureId,
@@ -183,7 +203,12 @@ function buildLinearFeature(
   return { document, geometryRow }
 }
 
-function buildHedgerow(feature, keys, readStrategicSignificance) {
+function buildHedgerow(
+  feature,
+  keys,
+  readStrategicSignificance,
+  commentOptions
+) {
   return buildLinearFeature(
     feature,
     keys,
@@ -194,11 +219,17 @@ function buildHedgerow(feature, keys, readStrategicSignificance) {
       ['rawDistinctiveness', keys.rawDistinctiveness],
       ...METADATA_PROPS
     ],
-    hedgerowStatus
+    hedgerowStatus,
+    commentOptions
   )
 }
 
-function buildWatercourse(feature, keys, readStrategicSignificance) {
+function buildWatercourse(
+  feature,
+  keys,
+  readStrategicSignificance,
+  commentOptions
+) {
   const { document, geometryRow } = buildLinearFeature(
     feature,
     keys,
@@ -212,7 +243,8 @@ function buildWatercourse(feature, keys, readStrategicSignificance) {
       ['rawDistinctiveness', keys.rawDistinctiveness],
       ...METADATA_PROPS
     ],
-    watercourseStatus
+    watercourseStatus,
+    commentOptions
   )
   if (typeof document.riparianEncroachment === 'string') {
     document.riparianEncroachment = normaliseEncroachmentLabel(
@@ -312,36 +344,50 @@ export function extractHabitatData(layers, meta = {}) {
     meta.variant,
     keys
   )
+  // Set only for a legacy combined upload, where one row is saved as both
+  // documents and an Enhanced or Created comment belongs on the
+  // post-intervention habitat. A baseline-only upload, and a template file
+  // whose Baseline tables have their own Comment, keep it.
+  const commentOptions = {
+    sharesRowWithPostIntervention: Boolean(
+      meta.commentStaysWithPostIntervention
+    )
+  }
   const redLine = buildRedLine(layers.redline)
   const habitats = splitFeatures(
     layers.areas ?? [],
     buildHabitat,
     keys,
-    readStrategicSignificance
+    readStrategicSignificance,
+    commentOptions
   )
   const hedgerows = splitFeatures(
     layers.hedgerows ?? [],
     buildHedgerow,
     keys,
-    readStrategicSignificance
+    readStrategicSignificance,
+    commentOptions
   )
   const watercourses = splitFeatures(
     layers.watercourses ?? [],
     buildWatercourse,
     keys,
-    readStrategicSignificance
+    readStrategicSignificance,
+    commentOptions
   )
   const trees = splitFeatures(
     layers.trees ?? [],
     buildTree,
     keys,
-    readStrategicSignificance
+    readStrategicSignificance,
+    commentOptions
   )
   const verticalHabitats = splitFeatures(
     layers.verticalHabitats ?? [],
     buildVerticalHabitat,
     keys,
-    readStrategicSignificance
+    readStrategicSignificance,
+    commentOptions
   )
 
   // Embed the PostGIS-calculated size directly onto each feature document so

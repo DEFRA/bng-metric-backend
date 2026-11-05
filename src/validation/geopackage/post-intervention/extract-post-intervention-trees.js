@@ -6,6 +6,7 @@ import {
   pickProp
 } from '../properties.js'
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
+import { commentForPostIntervention } from '../comment-check.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
@@ -87,7 +88,8 @@ function buildTreeProposedSubObject(props, count) {
 export function buildPostInterventionTree(
   feature,
   initParsedFeature,
-  buildGeometryRow
+  buildGeometryRow,
+  template = false
 ) {
   const { featureId, props } = initParsedFeature(feature)
   const ref = pickProp(props, PROP_KEYS.treeRef)
@@ -98,6 +100,7 @@ export function buildPostInterventionTree(
     featureId,
     ref,
     retentionCategory: retentionCategoryFromProps(props),
+    comment: commentForPostIntervention(props, { template }),
     area: proposed.area,
     sizeSquareMetres: proposed.sizeSquareMetres,
     units: null,
