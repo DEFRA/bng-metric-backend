@@ -4,6 +4,7 @@ import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
 import { PROP_KEYS, pickProp } from '../../properties.js'
+import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
@@ -86,6 +87,16 @@ const toMillimetre = (metres) => Math.round(metres * MILLIMETRES) / MILLIMETRES
 const HUNDREDTHS = 100
 const toHundredth = (squareMetres) =>
   Math.round(squareMetres * HUNDREDTHS) / HUNDREDTHS
+
+/**
+ * Square metres in hectares, as the surveyor typed them, without the noise the
+ * division adds: 50.1 m² is 0.00501 ha.
+ */
+const SIGNIFICANT_FIGURES = 12
+const toHectares = (squareMetres) =>
+  Number(
+    (squareMetres / SQ_METRES_PER_HECTARE).toPrecision(SIGNIFICANT_FIGURES)
+  )
 
 /** A baseline row as the comparisons read it. */
 function baselineSide(layer, properties) {
@@ -187,7 +198,7 @@ function checkHedgerowLength(parent, children, context) {
 }
 
 /**
- * A row's typed Area, in square metres; 0 when it is not a number above 0.
+ * A row's typed Area, in hectares, as square metres; 0 when it is not a number above 0.
  * Read as the upload check and the extract read it.
  */
 const typedArea = (feature) =>
@@ -386,10 +397,10 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     ),
     collated(
       ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
-      'One or more baseline vertical area habitats have a smaller Area (m²) than the post-intervention vertical area habitats linked to them together',
+      'One or more baseline vertical area habitats have a smaller Area (ha) than the post-intervention vertical area habitats linked to them together',
       found.tooLarge,
       (parent) =>
-        `${describeParent(parent)} (${parent.areaSquareMetres} m², linked ${parent.childAreaSquareMetres} m²)`
+        `${describeParent(parent)} (${toHectares(parent.areaSquareMetres)} ha, linked ${toHectares(parent.childAreaSquareMetres)} ha)`
     ),
     collated(
       ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,

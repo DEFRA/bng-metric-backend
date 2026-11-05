@@ -22,7 +22,7 @@ import {
  * not use is dropped, so it never reaches the stored document: distinctiveness
  * is derived from the habitat type, and sizes are measured from the geometry,
  * bar a vertical area habitat's: its Area is the face area the surveyor
- * estimated on site, in square metres, which a line cannot give.
+ * estimated on site, in hectares, which a line cannot give.
  * An area habitat's Irreplaceable Habitat is read as its `irreplaceable`
  * status (irreplaceable.js).
  * The Red Line Boundary is read for its geometry alone.

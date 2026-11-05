@@ -1472,6 +1472,7 @@ describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
 
 describe('extractHabitatData — vertical area habitats', () => {
   const FEAT_ID_WALL = 'featwall-0000-0000-0000-000000000000'
+  const WALL_HECTARES = 0.00375
   const WALL_SQM = 37.5
   const habitatSizes = {
     areaHabitats: {
@@ -1513,8 +1514,8 @@ describe('extractHabitatData — vertical area habitats', () => {
     )
   }
 
-  it('sizes each one by the area typed in, in square metres, not by its line', () => {
-    const out = extractWithWall(WALL_SQM)
+  it('sizes each one by the area typed in, in hectares, held in square metres, not by its line', () => {
+    const out = extractWithWall(WALL_HECTARES)
 
     expect(out.document.verticalHabitats).toEqual([
       expect.objectContaining({
@@ -1524,7 +1525,7 @@ describe('extractHabitatData — vertical area habitats', () => {
         type: 'Facade-bound green wall',
         condition: 'Poor',
         sizeSquareMetres: WALL_SQM,
-        // As typed, not rounded to the square metre.
+        // Converted from the hectares typed, not rounded to the square metre.
         area: WALL_SQM,
         status: 'Complete'
       })
@@ -1535,7 +1536,7 @@ describe('extractHabitatData — vertical area habitats', () => {
   })
 
   it('counts their area in the area habitats total but not in the site', () => {
-    const out = extractWithWall(WALL_SQM)
+    const out = extractWithWall(WALL_HECTARES)
 
     expect(out.document.habitatSizes).toMatchObject({
       areaHabitats: { totalSquareMetres: HABITAT_SQM + WALL_SQM },
@@ -1544,8 +1545,8 @@ describe('extractHabitatData — vertical area habitats', () => {
     })
   })
 
-  it('keeps a face under half a square metre as typed, so it does not show as 0', () => {
-    const out = extractWithWall(0.4)
+  it('keeps an area under half a square metre as typed, so it does not show as 0', () => {
+    const out = extractWithWall(0.00004)
 
     expect(out.document.verticalHabitats[0]).toMatchObject({
       sizeSquareMetres: 0.4,

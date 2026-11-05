@@ -44,13 +44,14 @@ export function areaFromSizeSquareMetres(sizeSquareMetres) {
 }
 
 /**
- * A vertical area habitat's size: the Area the surveyor typed in, in square
- * metres, as the face area they estimated on site. A line cannot give it, so
- * it is not measured. Null when it is not a number above 0, which the upload
- * checks refuse (vertical-area-check.js).
+ * A vertical area habitat's size: the Area the surveyor typed in, in hectares,
+ * as the area they estimated on site, stored in square metres as every area
+ * habitat's size is. A line cannot give it, so it is not measured. Null when
+ * it is not a number above 0, which the upload checks refuse
+ * (vertical-area-check.js).
  *
  * `area` is the same value, not rounded to the square metre as a measured
- * parcel's is: the surveyor typed it, and a face under half a square metre
+ * parcel's is: the surveyor typed it, and an area under half a square metre
  * that the check accepts must not show as 0.
  *
  * @param {object} properties the row's GeoPackage properties

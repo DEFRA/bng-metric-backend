@@ -2324,7 +2324,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0."
+      "description": "Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre, so an area under half a square metre does not show as 0."
     },
     {
       "path": "baseline.verticalHabitats[].sizeSquareMetres",
@@ -2335,7 +2335,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+      "description": "Area in square metres, converted from the hectares the surveyor estimated on site and typed into the template's Area (ha) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
     },
     {
       "path": "baseline.verticalHabitats[].units",
@@ -3171,7 +3171,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+      "description": "Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in."
     },
     {
       "path": "baseline.habitatSizes.site",
@@ -4600,7 +4600,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded."
+      "description": "Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre."
     },
     {
       "path": "postIntervention.verticalHabitats[].sizeSquareMetres",
@@ -4611,7 +4611,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as the surveyor estimated it and typed it into the template's Area (m²) column. Units are priced on it, in hectares."
+      "description": "Area in square metres, converted from the hectares the surveyor estimated and typed into the template's Area (ha) column. Units are priced on it, in hectares."
     },
     {
       "path": "postIntervention.verticalHabitats[].units",
@@ -6158,7 +6158,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+      "description": "Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in."
     },
     {
       "path": "postIntervention.habitatSizes.site",

@@ -70,8 +70,8 @@ function hedge(n, metres, overrides = {}) {
   }
 }
 
-/** A green wall along a line, with the face area typed in, in m². */
-function wall(n, squareMetres, overrides = {}) {
+/** A green wall along a line, with its area typed in, in hectares. */
+function wall(n, hectares, overrides = {}) {
   return {
     properties: {
       fid: n,
@@ -79,7 +79,7 @@ function wall(n, squareMetres, overrides = {}) {
       'Baseline Broad Habitat Type': 'Urban',
       'Baseline Habitat Type': 'Facade-bound green wall',
       'Baseline Condition': 'Moderate',
-      Area: squareMetres,
+      Area: hectares,
       feature_uuid: uuid(300 + n),
       ...overrides
     },
@@ -255,7 +255,7 @@ describe('checkLineageRules', () => {
 
   describe('vertical area habitats', () => {
     it('passes children whose typed areas together are no more than their parent’s', () => {
-      const parent = wall(1, 40)
+      const parent = wall(1, 0.004)
 
       expect(
         check(
@@ -264,12 +264,12 @@ describe('checkLineageRules', () => {
             verticalHabitats: [
               child(parent, 'verticalHabitats', {
                 'Parcel Ref': 'V001a',
-                Area: 25
+                Area: 0.0025
               }),
               child(parent, 'verticalHabitats', {
                 'Parcel Ref': 'V001b',
                 'Retention Category': 'Enhanced',
-                Area: 15
+                Area: 0.0015
               })
             ]
           }
@@ -278,11 +278,11 @@ describe('checkLineageRules', () => {
     })
 
     it('passes a baseline vertical area habitat with no child: it is removed', () => {
-      expect(check({ verticalHabitats: [wall(1, 40)] }, {})).toEqual([])
+      expect(check({ verticalHabitats: [wall(1, 0.004)] }, {})).toEqual([])
     })
 
     it('refuses a parent smaller than its children together, counting a Created child', () => {
-      const parent = wall(1, 40)
+      const parent = wall(1, 0.004)
 
       const errors = check(
         { verticalHabitats: [parent] },
@@ -293,7 +293,7 @@ describe('checkLineageRules', () => {
               'Parcel Ref': 'V001b',
               'Retention Category': 'Created',
               'Proposed Habitat Type': 'Ground based green wall',
-              Area: 10.1
+              Area: 0.00101
             })
           ]
         }
@@ -303,7 +303,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
           message:
-            'One or more baseline vertical area habitats have a smaller Area (m²) than the post-intervention vertical area habitats linked to them together: Vertical Area Habitats Baseline V001 (Facade-bound green wall), copied to V001a, V001b (40 m², linked 50.1 m²)',
+            'One or more baseline vertical area habitats have a smaller Area (ha) than the post-intervention vertical area habitats linked to them together: Vertical Area Habitats Baseline V001 (Facade-bound green wall), copied to V001a, V001b (0.004 ha, linked 0.00501 ha)',
           details: {
             count: 1,
             sample: [
@@ -324,7 +324,7 @@ describe('checkLineageRules', () => {
     })
 
     it('reads a row’s area from Shape_Area too, as the upload check and the extract do', () => {
-      const parent = wall(1, undefined, { Area: undefined, Shape_Area: 40 })
+      const parent = wall(1, undefined, { Area: undefined, Shape_Area: 0.004 })
       const piece = (ref, area) =>
         child(parent, 'verticalHabitats', {
           'Parcel Ref': ref,
@@ -335,14 +335,16 @@ describe('checkLineageRules', () => {
       expect(
         check(
           { verticalHabitats: [parent] },
-          { verticalHabitats: [piece('V001a', 25), piece('V001b', 15)] }
+          { verticalHabitats: [piece('V001a', 0.0025), piece('V001b', 0.0015)] }
         )
       ).toEqual([])
       expect(
         codes(
           check(
             { verticalHabitats: [parent] },
-            { verticalHabitats: [piece('V001a', 25), piece('V001b', 25)] }
+            {
+              verticalHabitats: [piece('V001a', 0.0025), piece('V001b', 0.0025)]
+            }
           )
         )
       ).toEqual([ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE])

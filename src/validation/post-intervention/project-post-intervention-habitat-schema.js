@@ -86,9 +86,9 @@ export const postInterventionVerticalHabitatSchema = Joi.object({
     refDescription:
       'Habitat reference from the GeoPackage (Habitat Ref column).',
     areaDescription:
-      'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded.',
+      'Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre.',
     sizeDescription:
-      "Face area in square metres, as the surveyor estimated it and typed it into the template's Area (m²) column. Units are priced on it, in hectares.",
+      "Area in square metres, converted from the hectares the surveyor estimated and typed into the template's Area (ha) column. Units are priced on it, in hectares.",
     unitsDescription:
       'Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values.'
   }),
