@@ -50,6 +50,31 @@ describe('#exit-process', () => {
     expect(exit).toHaveBeenCalledWith(1)
   })
 
+  test('createFatalShutdown waits for the stop to finish before the flush delay starts', async () => {
+    let finishStop
+    const server = {
+      stop: vi.fn(
+        () =>
+          new Promise((resolve) => {
+            finishStop = resolve
+          })
+      )
+    }
+
+    createFatalShutdown(server)()
+
+    // Requests are still draining: no exit, however long that takes.
+    await vi.advanceTimersByTimeAsync(FATAL_EXIT_FLUSH_MS * 5)
+    expect(exit).not.toHaveBeenCalled()
+
+    finishStop()
+    await vi.advanceTimersByTimeAsync(FATAL_EXIT_FLUSH_MS - 1)
+    expect(exit).not.toHaveBeenCalled()
+
+    await vi.advanceTimersByTimeAsync(1)
+    expect(exit).toHaveBeenCalledWith(1)
+  })
+
   test('createFatalShutdown still exits with code 1 when the stop fails', async () => {
     const server = {
       stop: vi

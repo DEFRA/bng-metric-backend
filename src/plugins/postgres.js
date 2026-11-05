@@ -1,6 +1,7 @@
 import Pool from 'pg-pool'
 import { Signer } from '@aws-sdk/rds-signer'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
+import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createDrizzle } from '../db/index.js'
 
@@ -29,6 +30,25 @@ function createPasswordProvider(options) {
   }
 
   return () => options.localPassword
+}
+
+/**
+ * The plugin's options, read from config. Kept here, beside the code that
+ * uses them, so a test can check each setting reaches the pool — the TLS
+ * verification flag above all, whose loss would turn verification off
+ * silently.
+ */
+function postgresOptionsFromConfig() {
+  return {
+    host: config.get('postgres.host'),
+    port: config.get('postgres.port'),
+    user: config.get('postgres.user'),
+    database: config.get('postgres.database'),
+    iamAuthentication: config.get('postgres.iamAuthentication'),
+    tlsRejectUnauthorized: config.get('postgres.tlsRejectUnauthorized'),
+    localPassword: config.get('postgres.localPassword'),
+    region: process.env.AWS_REGION ?? 'eu-west-2'
+  }
 }
 
 const postgres = {
@@ -101,4 +121,4 @@ const postgres = {
   }
 }
 
-export { postgres }
+export { postgres, postgresOptionsFromConfig }

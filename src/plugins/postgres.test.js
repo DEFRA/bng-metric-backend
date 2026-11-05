@@ -1,5 +1,6 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { postgres } from './postgres.js'
+import { config } from '../config.js'
+import { postgres, postgresOptionsFromConfig } from './postgres.js'
 
 vi.mock('../common/helpers/logging/logger.js', () => ({
   createLogger: vi.fn().mockReturnValue({
@@ -235,6 +236,27 @@ describe('#postgres plugin TLS', () => {
     })
 
     expect(ssl).toEqual({ rejectUnauthorized: true, secureContext })
+  })
+
+  test('Should verify the certificate when DB_TLS_REJECT_UNAUTHORIZED is set in config', async () => {
+    const original = {
+      iamAuthentication: config.get('postgres.iamAuthentication'),
+      tlsRejectUnauthorized: config.get('postgres.tlsRejectUnauthorized')
+    }
+    config.set('postgres.iamAuthentication', true)
+    config.set('postgres.tlsRejectUnauthorized', true)
+
+    try {
+      const { ssl } = await captureSsl(postgresOptionsFromConfig())
+
+      expect(ssl.rejectUnauthorized).toBe(true)
+    } finally {
+      config.set('postgres.iamAuthentication', original.iamAuthentication)
+      config.set(
+        'postgres.tlsRejectUnauthorized',
+        original.tlsRejectUnauthorized
+      )
+    }
   })
 
   test('Should fail at boot when IAM is on but no secureContext is registered', async () => {

@@ -240,6 +240,9 @@ must in turn fit inside the CDP ingress idle timeout.
 
 See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 
+For how the service behaves when Postgres, S3 or CDP Uploader fails, and the
+tests that show it, see [`docs/downstream-failures.md`](docs/downstream-failures.md).
+
 ## Development helpers
 
 ### Proxy

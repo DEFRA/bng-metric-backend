@@ -35,9 +35,15 @@ for (const logger of loggers) {
   logger.info('logged through the transport')
 }
 
+// A pending flush holds no ref'd handle, so without this timer Node can find
+// the event loop empty while the top-level await below is still unsettled, and
+// exit before the flushes complete.
+const keepAlive = setInterval(() => {}, SETTLE_MS)
+
 await Promise.all(
   loggers.map((logger) => new Promise((resolve) => logger.flush(resolve)))
 )
 setTimeout(() => {
   console.log(`TRANSPORTS_OK ${loggers.length}`)
+  clearInterval(keepAlive)
 }, SETTLE_MS)
