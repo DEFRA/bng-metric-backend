@@ -42,10 +42,6 @@ const PUBLIC_ROUTES = new Map([
   ],
   ['get /health', 'CDP liveness/readiness probe — must be unauthenticated'],
   [
-    'get /db-info',
-    'Local/dev DB-version diagnostic (never registered in prod)'
-  ],
-  [
     'get /reference/broad-habitats',
     'Static reference data — no per-user scope'
   ],
@@ -148,8 +144,8 @@ describe('auth coverage (secure by default)', () => {
     for (const [key, reason] of PUBLIC_ROUTES) {
       const route = table.get(key)
       if (!route) {
-        // Allowlisted but not registered in this environment (e.g. /db-info is
-        // omitted in prod). Nothing to assert.
+        // Allowlisted but not registered in this environment. Nothing to
+        // assert.
         continue
       }
       expect(

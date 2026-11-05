@@ -8,6 +8,7 @@ describe('#config', () => {
     expect(config.get('log.redact')).toEqual(['req', 'res', 'responseTime'])
     expect(config.get('isMetricsEnabled')).toBe(false)
     expect(config.get('postgres.iamAuthentication')).toBe(false)
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
   })
 
   test('Should default to production settings when NODE_ENV is production', async () => {
@@ -25,6 +26,8 @@ describe('#config', () => {
     ])
     expect(config.get('isMetricsEnabled')).toBe(true)
     expect(config.get('postgres.iamAuthentication')).toBe(true)
+    // Off until certificate verification is proved in a CDP environment.
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
 
     vi.unstubAllEnvs()
   })

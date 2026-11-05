@@ -1,5 +1,4 @@
 [
-  "GET /db-info",
   "GET /health",
   "GET /projects",
   "GET /projects/{id}",

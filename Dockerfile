@@ -1,5 +1,5 @@
 ARG PARENT_VERSION=3.2.4-node24.22.1
-ARG PORT=3000
+ARG PORT=3001
 ARG PORT_DEBUG=9229
 
 FROM defradigital/node-development:${PARENT_VERSION} AS development

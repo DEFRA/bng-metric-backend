@@ -1,6 +1,7 @@
 import Pool from 'pg-pool'
 import { Signer } from '@aws-sdk/rds-signer'
 import { fromNodeProviderChain } from '@aws-sdk/credential-providers'
+import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createDrizzle } from '../db/index.js'
 import {
@@ -35,6 +36,25 @@ function createPasswordProvider(options) {
   return () => options.localPassword
 }
 
+/**
+ * The plugin's options, read from config. Kept here, beside the code that
+ * uses them, so a test can check each setting reaches the pool — the TLS
+ * verification flag above all, whose loss would turn verification off
+ * silently.
+ */
+function postgresOptionsFromConfig() {
+  return {
+    host: config.get('postgres.host'),
+    port: config.get('postgres.port'),
+    user: config.get('postgres.user'),
+    database: config.get('postgres.database'),
+    iamAuthentication: config.get('postgres.iamAuthentication'),
+    tlsRejectUnauthorized: config.get('postgres.tlsRejectUnauthorized'),
+    localPassword: config.get('postgres.localPassword'),
+    region: process.env.AWS_REGION ?? 'eu-west-2'
+  }
+}
+
 const postgres = {
   plugin: {
     name: 'postgres',
@@ -43,6 +63,15 @@ const postgres = {
       server.logger.info(
         `Setting up Postgres pool for ${options.host}:${options.port}/${options.database}`
       )
+
+      // IAM tokens are only accepted over TLS, and the TLS options come from
+      // secureContext. Fail at boot rather than connect without them if that
+      // plugin is ever reordered or removed.
+      if (options.iamAuthentication && !server.secureContext) {
+        throw new Error(
+          'Postgres IAM authentication needs TLS, but no secureContext is registered'
+        )
+      }
 
       const passwordProvider = createPasswordProvider(options)
       const pool = new Pool({
@@ -55,13 +84,12 @@ const postgres = {
         idleTimeoutMillis: 30000,
         maxLifetimeSeconds: 60 * 10,
         max: 10,
-        ...(options.iamAuthentication &&
-          server.secureContext && {
-            ssl: {
-              rejectUnauthorized: false,
-              secureContext: server.secureContext
-            }
-          })
+        ...(options.iamAuthentication && {
+          ssl: {
+            rejectUnauthorized: options.tlsRejectUnauthorized === true,
+            secureContext: server.secureContext
+          }
+        })
       })
 
       pool.on('error', (error) => {
@@ -106,4 +134,4 @@ const postgres = {
   }
 }
 
-export { postgres }
+export { postgres, postgresOptionsFromConfig }

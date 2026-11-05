@@ -158,7 +158,6 @@ integration-tests/
 ├── audit-log.test.js                ← cross-route flow (POST + PATCH + audit_log trigger)
 ├── audit-log-immutability.test.js   ← append-only guard: UPDATE/DELETE/TRUNCATE rejected
 ├── baseline.test.js                 ← POST /baseline/validate/{uploadId} (real GeoPackages)
-├── db-info.test.js                  ← GET /db-info smoke
 ├── health.test.js                   ← GET /health smoke
 ├── projects.test.js                 ← all four /projects routes
 ├── upload.test.js                   ← POST /upload/initiate + GET /upload/{id}/status

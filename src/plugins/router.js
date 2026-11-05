@@ -2,7 +2,6 @@ import inert from '@hapi/inert'
 
 import { config } from '../config.js'
 import { health } from '../routes/health.js'
-import { dbInfo } from '../routes/db-info.js'
 import { postAuthSession } from '../routes/auth.js'
 import {
   getProjects,
@@ -97,13 +96,6 @@ const router = {
       // route rather than as an endpoint that always fails.
       if (osTilesEnabled()) {
         await server.register([osTiles])
-      }
-
-      // /db-info is a DB-introspection diagnostic — keep it out of the
-      // production route table entirely (it is removed, not just access-gated).
-      // See docs/auth-route-policy.md.
-      if (config.get('cdpEnvironment') !== 'prod') {
-        server.route(dbInfo)
       }
 
       // Swagger API documentation (opt-in via USE_SWAGGER env var)

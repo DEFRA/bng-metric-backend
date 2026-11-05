@@ -2,11 +2,15 @@ import Hapi from '@hapi/hapi'
 import { secureContext } from '@defra/hapi-secure-context'
 
 import { config } from './config.js'
-import { postgres } from './plugins/postgres.js'
+import { postgres, postgresOptionsFromConfig } from './plugins/postgres.js'
 import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { rateEvidence } from './plugins/rate-evidence.js'
+import {
+  memoryShed,
+  memoryShedOptionsFromConfig
+} from './plugins/memory-shed.js'
 import { reportFonts } from './plugins/report-fonts.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
@@ -17,25 +21,10 @@ import { closeGeosWorkerPool } from './validation/geopackage/geos/worker-pool.js
 
 async function createServer() {
   setupProxy()
-  // The memory backstop. Deliberately separate from the parse budget: that one
-  // counts the bytes it hands out and so can only see files being parsed, while
-  // this reads the process's actual RSS — which is what the OOM-killer reads
-  // too, and what measurement showed climbing to 1.2 GB from workers and
-  // retained heap while the parse budget sat unexhausted. Off by default (0),
-  // because the right ceiling depends on the task memory limit, which the app
-  // cannot discover for itself.
-  const maxRssBytes = config.get('validation.maxRssBytes')
-  const load = maxRssBytes
-    ? {
-        maxRssBytes,
-        sampleInterval: config.get('validation.loadSampleIntervalMs')
-      }
-    : {}
 
   const server = Hapi.server({
     host: config.get('host'),
     port: config.get('port'),
-    load,
     routes: {
       validate: {
         options: {
@@ -71,6 +60,12 @@ async function createServer() {
   // reportFonts    - resolves the report's embedded fonts once, at boot
   await server.register([
     requestLogger,
+    // memoryShed - refuses new requests, other than /health, with a busy 503
+    // while RSS is above VALIDATION_MAX_RSS_BYTES
+    {
+      plugin: memoryShed.plugin,
+      options: memoryShedOptionsFromConfig()
+    },
     // rateEvidence - observability only (spike Item W3): logs uncapped
     // service-wide request bursts. It does NOT rate-limit anything.
     rateEvidence,
@@ -79,15 +74,7 @@ async function createServer() {
     secureContext,
     {
       plugin: postgres.plugin,
-      options: {
-        host: config.get('postgres.host'),
-        port: config.get('postgres.port'),
-        user: config.get('postgres.user'),
-        database: config.get('postgres.database'),
-        iamAuthentication: config.get('postgres.iamAuthentication'),
-        localPassword: config.get('postgres.localPassword'),
-        region: process.env.AWS_REGION ?? 'eu-west-2'
-      }
+      options: postgresOptionsFromConfig()
     },
     pulse,
     {
