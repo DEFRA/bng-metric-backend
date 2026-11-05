@@ -34,7 +34,7 @@ function site(layers, units = {}) {
 const feature = (properties) => ({ properties })
 
 describe('addKeyFiguresTable', () => {
-  test('gives vertical area habitats a row of their own, sized in square metres', () => {
+  test('gives vertical area habitats a row of their own, sized in hectares and square metres', () => {
     const doc = recordingDoc()
     const baseline = site(
       {
@@ -52,7 +52,11 @@ describe('addKeyFiguresTable', () => {
     expect(doc.rows).toEqual([
       ['Measure', 'Baseline', 'Post-intervention'],
       ['Area habitats', '1 parcels, 1.00 ha', 'Not supplied'],
-      ['Vertical area habitats', '2 features (52 m²)', 'Not supplied'],
+      [
+        'Vertical area habitats',
+        '2 features (0.00524 ha, 52 m²)',
+        'Not supplied'
+      ],
       ['Hedgerows', 'None', 'Not supplied'],
       ['Watercourses', 'None', 'Not supplied'],
       ['Individual trees', 'None', 'Not supplied'],
@@ -93,7 +97,7 @@ describe('addKeyFiguresTable', () => {
     expect(doc.rows[2]).toEqual([
       'Vertical area habitats',
       'None',
-      '1 feature (40 m²)'
+      '1 feature (0.004 ha, 40 m²)'
     ])
   })
 })

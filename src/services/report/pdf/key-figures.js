@@ -29,6 +29,12 @@ const NOT_SUPPLIED = 'Not supplied'
  */
 const OPTIONAL_LAYERS = new Set(['verticalHabitats'])
 
+/**
+ * Significant figures a vertical area habitat's hectares keep: a green wall is
+ * a few hundredths of a hectare, which two decimal places would show as 0.
+ */
+const VERTICAL_HECTARE_SIGNIFICANT_FIGURES = 10
+
 function holds(site, role) {
   return (site?.layers?.[role]?.length ?? 0) > 0
 }
@@ -118,13 +124,16 @@ function describeLayer(site, role) {
     return plural(features.length, 'tree')
   }
   if (role === 'verticalHabitats') {
-    // The face area the surveyor typed in, in square metres, as the screens
-    // show it: it is no part of the site's hectares.
+    // The area the surveyor typed in, in hectares, and in square metres, as
+    // the screens show it: it is no part of the site's hectares.
     const sqm = sumBy(
       features,
       (feature) => feature.properties.sizeSquareMetres
     )
-    return `${plural(features.length, 'feature')} (${Math.round(sqm)} m²)`
+    const hectares = Number(
+      (sqm / SQ_M_PER_HECTARE).toPrecision(VERTICAL_HECTARE_SIGNIFICANT_FIGURES)
+    )
+    return `${plural(features.length, 'feature')} (${hectares} ha, ${Math.round(sqm)} m²)`
   }
   const metres = sumBy(features, (feature) => feature.properties.sizeMetres)
   return `${plural(features.length, 'feature')} (${Math.round(metres)} m)`

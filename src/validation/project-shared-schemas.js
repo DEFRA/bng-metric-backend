@@ -79,7 +79,7 @@ export const habitatSizesSummarySchema = Joi.object({
     totalSquareMetres: Joi.number()
       .required()
       .description(
-        'Total face area of all vertical area habitats, in m², as the surveyor typed it in.'
+        'Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in.'
       )
   }).description(
     'Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read.'

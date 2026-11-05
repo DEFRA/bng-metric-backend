@@ -45,6 +45,9 @@ export const PROP_KEYS = {
   // BNG Service template area habitats only: the legacy template has none.
   irreplaceable: ['Irreplaceable Habitat'],
   area: ['Area', 'Shape_Area'],
+  // A BNG Service vertical area habitat's typed Area, in hectares. Never
+  // Shape_Area, which GIS tools write in the CRS's square metres.
+  verticalArea: ['Area'],
   length: ['Length', 'Shape_Length'],
   // Survey / provenance / planning metadata columns shared (with minor
   // spelling differences) across the Habitats, Hedgerows and Rivers layers.

@@ -109,8 +109,8 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * A BNG Service template vertical area habitat's Area is blank, zero,
-   * negative or not a number. The surveyor types it in, in square metres, as
-   * the face area they estimated on site; a line cannot give it, so there is
+   * negative or not a number. The surveyor types it in, in hectares, as the
+   * area they estimated on site; a line cannot give it, so there is
    * nothing to price the habitat on. One error for them all; `details.sample`
    * lists each row's table, Habitat Ref and Area.
    */

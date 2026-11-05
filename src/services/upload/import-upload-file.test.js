@@ -217,13 +217,13 @@ describe('importUploadFile, a BNG Service template file', () => {
   )
 
   it(
-    'reads its vertical area habitats, sized by their typed area in square metres, into both documents',
+    'reads its vertical area habitats, sized by their typed area in hectares, into both documents',
     async () => {
       const result = await importUploadFile(SITE, {}, POST_INTERVENTION)
 
       expect(result.accepted).toBe(true)
       const { baseline, postIntervention } = result.project
-      // The file types each face area in square metres (V001 is 93 m²).
+      // The file types each area in hectares (V001 is 0.0093 ha, 93 m²).
       expect(baseline.verticalHabitats.map((v) => v.ref)).toEqual([
         'V001',
         'V002',

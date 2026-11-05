@@ -268,12 +268,12 @@ const verticalHabitatSchema = habitatSchema
     area: Joi.number()
       .allow(null)
       .description(
-        'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0.'
+        'Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre, so an area under half a square metre does not show as 0.'
       ),
     sizeSquareMetres: Joi.number()
       .allow(null)
       .description(
-        "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+        "Area in square metres, converted from the hectares the surveyor estimated on site and typed into the template's Area (ha) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
       ),
     units: Joi.number()
       .allow(null)

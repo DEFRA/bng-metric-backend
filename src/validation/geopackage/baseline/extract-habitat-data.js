@@ -110,7 +110,8 @@ function buildHabitat(
 /**
  * A vertical area habitat: a green wall or an intertidal hard structure, drawn
  * as a line along its base. It is an area habitat in every respect but its
- * size, which is the Area the surveyor typed in, in square metres.
+ * size, which is the Area the surveyor typed in, in hectares, stored in square
+ * metres.
  */
 function buildVerticalHabitat(
   feature,
