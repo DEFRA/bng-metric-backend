@@ -7,13 +7,16 @@ import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
 import { rateEvidence } from './plugins/rate-evidence.js'
+import {
+  memoryShed,
+  memoryShedOptionsFromConfig
+} from './plugins/memory-shed.js'
 import { reportFonts } from './plugins/report-fonts.js'
 import { failAction } from './common/helpers/fail-action.js'
 import { pulse } from './common/helpers/pulse.js'
 import { requestTracing } from './common/helpers/request-tracing.js'
 import { requestCorrelation } from './common/helpers/correlation-id.js'
 import { setupProxy } from './common/helpers/proxy/setup-proxy.js'
-import { loadOptions } from './common/helpers/load-limit.js'
 import { closeGeosWorkerPool } from './validation/geopackage/geos/worker-pool.js'
 
 async function createServer() {
@@ -22,8 +25,6 @@ async function createServer() {
   const server = Hapi.server({
     host: config.get('host'),
     port: config.get('port'),
-    // The memory backstop; see common/helpers/load-limit.js.
-    load: loadOptions(),
     routes: {
       validate: {
         options: {
@@ -59,6 +60,12 @@ async function createServer() {
   // reportFonts    - resolves the report's embedded fonts once, at boot
   await server.register([
     requestLogger,
+    // memoryShed - refuses new requests, other than /health, with a busy 503
+    // while RSS is above VALIDATION_MAX_RSS_BYTES
+    {
+      plugin: memoryShed.plugin,
+      options: memoryShedOptionsFromConfig()
+    },
     // rateEvidence - observability only (spike Item W3): logs uncapped
     // service-wide request bursts. It does NOT rate-limit anything.
     rateEvidence,

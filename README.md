@@ -184,19 +184,19 @@ user on its polling page and retries, jittered, until a worker frees up or it
 gives up after two minutes. The file was never looked at, so it is not a
 validation failure.
 
-| Setting                               | Default | Notes                                                            |
-| :------------------------------------ | ------: | :--------------------------------------------------------------- |
-| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                   |
-| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
-| `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts. Bigger files cannot finish in time.   |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
-| `VALIDATION_MAX_RSS_BYTES`            | 0 (off) | RSS above which every new request gets a 503. **Set per env.**   |
-| `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                  |
-| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                         |
+| Setting                               | Default | Notes                                                                    |
+| :------------------------------------ | ------: | :----------------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.                    |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                           |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it.         |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.                     |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.                    |
+| `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts. Bigger files cannot finish in time.           |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.**         |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.                       |
+| `VALIDATION_MAX_RSS_BYTES`            | 0 (off) | RSS above which new requests (not `/health`) get a 503. **Set per env.** |
+| `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                          |
+| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                                 |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
 returned, so the worker count is a memory budget as much as a throughput setting.
@@ -225,9 +225,13 @@ the task memory limit is enforced against.)
 `VALIDATION_MAX_RSS_BYTES` is the backstop behind the parse budget. The budget
 counts only the files being parsed, but most of the memory growth under load is
 the workers' WebAssembly heaps and V8's retained heap, which it cannot see. When
-the process RSS goes above this value, Hapi refuses new requests with a 503
-before any handler runs, so the task sheds load instead of being killed by the
-kernel at its memory limit — which would drop every in-flight request at once.
+the process RSS goes above this value, every new request except `/health` gets
+the same 503 `VALIDATION_BUSY` the validate route gives when it is busy, so the
+frontend retries, and the task sheds load instead of being killed by the kernel
+at its memory limit — which would drop every in-flight request at once.
+`/health` is never refused, so a task whose RSS stays high after a burst still
+passes its health check. A deployed environment that leaves this off logs a
+warning at boot.
 It defaults to off because the right value depends on the task size. **Set it in
 each environment's app config**, below the task memory limit with room for one
 in-flight request, and change it whenever the task size changes. RSS is sampled

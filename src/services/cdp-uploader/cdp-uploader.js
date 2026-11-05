@@ -5,11 +5,13 @@ import { createLogger } from '../../common/helpers/logging/logger.js'
 
 const logger = createLogger()
 
-// CDP Uploader is a platform service on the internal cdp-int.defra.cloud
-// domain, so these Wreck calls go to it directly, not through the outbound
-// proxy (HTTP_PROXY). The proxy is for egress to the internet; service-to-
-// service calls inside CDP do not use it, as the frontend's calls to this
-// backend do not. Flagged by the CDP production readiness review (BMD-1174).
+// These Wreck calls DO go through the outbound proxy when HTTP_PROXY is set.
+// Wreck calls Node's http/https `request` at request time, and setupProxy()
+// (common/helpers/proxy/setup-proxy.js) bootstraps global-agent, which
+// replaces those functions and forces its proxying agent over the one Wreck
+// passes. Its no-proxy list is GLOBAL_AGENT_NO_PROXY, which is not set. The
+// CDP production readiness review read these calls as bypassing the proxy
+// (BMD-1174); they do not.
 
 /**
  * Get the CDP Uploader base URL

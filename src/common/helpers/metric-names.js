@@ -64,6 +64,8 @@ export const VALIDATION_BUSY_REASON = Object.freeze({
   queueFull: 'queue_full',
   queueWait: 'queue_wait',
   memoryBudget: 'memory_budget',
+  // The process RSS was above VALIDATION_MAX_RSS_BYTES (plugins/memory-shed.js).
+  memoryRss: 'memory_rss',
   workerTimeout: 'worker_timeout'
 })
 
