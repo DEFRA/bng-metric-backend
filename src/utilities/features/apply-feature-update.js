@@ -104,7 +104,10 @@ function normalizeEdits(edits = {}) {
     ref: normalizeRef(edits.ref),
     ...(Object.hasOwn(edits, 'advanceYears')
       ? {
-          strategicSignificance: blankToNull(edits.strategicSignificance),
+          strategicSignificance:
+            edits.strategicSignificance === undefined
+              ? undefined
+              : blankToNull(edits.strategicSignificance),
           advanceYears: edits.advanceYears,
           delayYears: edits.delayYears
         }

@@ -49,12 +49,12 @@ export function resolveStoredTiming(feature, edits) {
 export function createdLinearEditPayload(reference, extra = {}) {
   return Joi.object({
     ref: featureEditPayload.extract('ref').required(),
-    habitatType: featureEditPayload.extract('habitatType').required(),
+    habitatType: featureEditPayload.extract('habitatType').optional(),
     condition: featureEditPayload.extract('condition').optional(),
     strategicSignificance: Joi.string()
       .valid(...reference.strategicSignificance.map((s) => s.value))
       .allow(null, '')
-      .required(),
+      .optional(),
     advanceYears: createdEditYears.optional(),
     delayYears: createdEditYears.optional(),
     ...extra
@@ -79,12 +79,21 @@ export function validateCreatedLinearEdit(feature, edits, reference, label) {
       `These attributes can only be edited on Created ${label}s`
     )
   }
+  const withType = {
+    ...edits,
+    habitatType:
+      edits.habitatType === undefined
+        ? (feature.proposed?.type ?? null)
+        : edits.habitatType
+  }
   const resolved = {
-    ...resolveStoredTiming(feature, edits),
-    condition: resolveCreatedLinearCondition(feature, edits)
+    ...resolveStoredTiming(feature, withType),
+    condition: resolveCreatedLinearCondition(feature, withType)
   }
   validateReferenceAndTiming(resolved)
-  const type = reference.habitatTypes.find((t) => t.name === edits.habitatType)
+  const type = reference.habitatTypes.find(
+    (t) => t.name === resolved.habitatType
+  )
   if (
     (edits.habitatType && !type) ||
     (edits.condition &&

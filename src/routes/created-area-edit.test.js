@@ -428,20 +428,20 @@ describe('BMD-1048 Created area edits', () => {
   })
 
   test.each([null, ''])(
-    'an unrelated area save keeps rejected significance when blank remains %j, until corrected',
+    'an unrelated area save keeps omitted rejected significance when stored blank is %j, until corrected',
     async (strategicSignificance) => {
       const stored = {
         ...feature,
         proposed: {
           ...feature.proposed,
-          strategicSignificance: null,
+          strategicSignificance,
           rejectedStrategicSignificance: 'Medium',
           advanceYears: 0,
           delayYears: 0
         }
       }
       const { request } = routeRequest(
-        { ...edits, condition: 'Poor', strategicSignificance },
+        { ...edits, condition: 'Poor', strategicSignificance: undefined },
         stored
       )
       const saved = await updatePostInterventionAreaHabitat.handler(request, {})
