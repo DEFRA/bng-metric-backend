@@ -51,6 +51,10 @@ convict.addFormat({
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
+// Running in a CDP environment rather than on a developer's machine or in CI.
+// ENVIRONMENT is injected by the platform; unset means local, as cdpEnvironment
+// below assumes.
+const isDeployed = (process.env.ENVIRONMENT || 'local') !== 'local'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
 const localStack = 'http://localhost:4566'
 
@@ -110,9 +114,9 @@ const config = convict({
       env: 'DB_IAM_AUTHENTICATION'
     },
     tlsRejectUnauthorized: {
-      doc: 'Verify the Postgres server certificate against the platform CA (TRUSTSTORE_RDS_ROOT_CA) when IAM authentication is on. Off by default until it has been proved in a CDP environment: with it on, a certificate whose chain or hostname does not match stops the service connecting at all.',
+      doc: 'Verify the Postgres server certificate against the platform CA (TRUSTSTORE_RDS_ROOT_CA) when IAM authentication is on. On by default in every CDP environment (ENVIRONMENT set and not local), where it was proved in perf-test; off locally, where the database is a plain container. With it on, a certificate whose chain or hostname does not match stops the service connecting at all.',
       format: STRICT_BOOLEAN,
-      default: false,
+      default: isDeployed,
       env: 'DB_TLS_REJECT_UNAUTHORIZED'
     },
     localPassword: {
@@ -284,9 +288,10 @@ const config = convict({
       env: 'VALIDATION_PARSE_BUDGET_BYTES'
     },
     maxRssBytes: {
-      doc: "Process RSS above which new requests, other than /health, are refused with a 503 VALIDATION_BUSY before routing (plugins/memory-shed.js). This is the backstop the parse budget cannot be: that budget rations bytes it knows about — the files being parsed — and measurement showed RSS reaching 1.2 GB while the budget was never exceeded, because most of the growth is the GEOS workers' WebAssembly heaps, V8's retained heap and native allocator arenas. None of those are visible to a JS-level count; all of them are visible in RSS, which is also the number the kernel OOM-killer reads. Sampled rather than exact (see loadSampleIntervalMs), so several requests can slip through between samples. Zero disables it. Set it BELOW the task memory limit with room for one in-flight request, not at it.",
+      doc: "Process RSS above which new requests, other than /health, are refused with a 503 VALIDATION_BUSY before routing (plugins/memory-shed.js). This is the backstop the parse budget cannot be: that budget rations bytes it knows about — the files being parsed — and measurement showed RSS reaching 1.2 GB while the budget was never exceeded, because most of the growth is the GEOS workers' WebAssembly heaps, V8's retained heap and native allocator arenas. None of those are visible to a JS-level count; all of them are visible in RSS, which is also the number the kernel OOM-killer reads. Sampled rather than exact (see loadSampleIntervalMs), so several requests can slip through between samples. Unset, it defaults in a CDP environment to the task memory less VALIDATION_PARSE_BUDGET_BYTES, so the ceiling follows the task size, and is off locally. Set it to override that; 0 turns it off. An explicit value goes BELOW the task memory limit with room for one in-flight request, not at it.",
       format: 'int',
-      default: 0,
+      default: null,
+      nullable: true,
       env: 'VALIDATION_MAX_RSS_BYTES'
     },
     loadSampleIntervalMs: {
