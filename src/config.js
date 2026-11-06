@@ -116,7 +116,7 @@ const config = convict({
       env: 'DB_IAM_AUTHENTICATION'
     },
     tlsRejectUnauthorized: {
-      doc: 'Verify the Postgres server certificate against the platform CA (TRUSTSTORE_RDS_ROOT_CA) when IAM authentication is on. On by default in every CDP environment (ENVIRONMENT set and not local), where it was proved in perf-test; off locally, where the database is a plain container. With it on, a certificate whose chain or hostname does not match stops the service connecting at all.',
+      doc: 'Verify the Postgres server certificate against the platform CA (TRUSTSTORE_RDS_ROOT_CA) when IAM authentication is on. On by default in every CDP environment (ENVIRONMENT set and not local), where it was proved in perf-test, dev and test; off locally, where the database is a plain container. With it on, a certificate whose chain or hostname does not match stops the service connecting at all.',
       format: STRICT_BOOLEAN,
       default: isDeployed,
       env: 'DB_TLS_REJECT_UNAUTHORIZED'

@@ -107,11 +107,12 @@ npm start
 
 With `DB_IAM_AUTHENTICATION` on, the Postgres connection uses TLS with the
 platform CA (`TRUSTSTORE_RDS_ROOT_CA`), and verifies the server certificate in
-every CDP environment (`ENVIRONMENT` set and not `local`). It was proved in
-perf-test first, because a certificate that does not verify stops the service
-connecting to the database at all. `DB_TLS_REJECT_UNAUTHORIZED` overrides the
-default either way; locally it is off, where the database is a plain
-container.
+every CDP environment (`ENVIRONMENT` set and not `local`). Verification was
+proved in perf-test, dev and test before it became the default. A certificate
+that does not verify stops the service connecting to the database at all, so
+check a new environment's `DB_HOST` is the RDS endpoint the certificate covers.
+`DB_TLS_REJECT_UNAUTHORIZED` overrides the default either way; locally it is
+off, where the database is a plain container.
 
 ### Npm scripts
 
