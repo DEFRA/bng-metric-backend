@@ -115,7 +115,7 @@ export const memoryShed = {
         const count = refused
         refused = 0
         logger.warn(
-          `${count} request(s) refused as busy: RSS is above VALIDATION_MAX_RSS_BYTES (${maxRssBytes})`
+          `${count} request(s) refused as busy: RSS is above the memory ceiling (${maxRssBytes} bytes, ${source})`
         )
         // withMetrics catches and logs its own errors, so the promise is
         // deliberately not awaited. The catch is there so a future change to

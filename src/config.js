@@ -51,16 +51,18 @@ convict.addFormat({
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
-// Running in a CDP environment rather than on a developer's machine or in CI.
-// ENVIRONMENT is injected by the platform; unset means local, as cdpEnvironment
-// below assumes.
-const isDeployed = (process.env.ENVIRONMENT || 'local') !== 'local'
 const postgresHost = process.env.POSTGRES_HOST ?? 'localhost'
 const localStack = 'http://localhost:4566'
 
 if (isDevelopment) {
   configDotenv()
 }
+
+// Running in a CDP environment rather than on a developer's machine or in CI.
+// ENVIRONMENT is injected by the platform; unset means local, as cdpEnvironment
+// below assumes. Read after configDotenv, so a .env ENVIRONMENT moves this and
+// cdpEnvironment together.
+const isDeployed = (process.env.ENVIRONMENT || 'local') !== 'local'
 
 const config = convict({
   serviceVersion: {

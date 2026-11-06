@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Hapi from '@hapi/hapi'
+import { totalmem } from 'node:os'
 
 import { config } from '../config.js'
 import { metricsCounter } from '../common/helpers/metrics.js'
@@ -169,6 +170,45 @@ describe('memory-shed plugin', () => {
     } finally {
       config.set('validation.maxRssBytes', configured)
     }
+  })
+})
+
+describe('memoryShedOptionsFromConfig — the default ceiling', () => {
+  const GIB = 1024 * 1024 * 1024
+  const original = {
+    maxRssBytes: config.get('validation.maxRssBytes'),
+    cdpEnvironment: config.get('cdpEnvironment')
+  }
+
+  afterEach(() => {
+    config.set('validation.maxRssBytes', original.maxRssBytes)
+    config.set('cdpEnvironment', original.cdpEnvironment)
+    vi.restoreAllMocks()
+  })
+
+  it('is the task memory less the parse budget in a CDP environment', () => {
+    // A real limit must be below the machine's memory to count as one.
+    const taskMemory = Math.min(4 * GIB, totalmem() - 1)
+    vi.spyOn(process, 'constrainedMemory').mockReturnValue(taskMemory)
+    config.set('cdpEnvironment', 'prod')
+    config.set('validation.maxRssBytes', null)
+
+    const { maxRssBytes, source } = memoryShedOptionsFromConfig()
+
+    expect(maxRssBytes).toBe(
+      taskMemory - config.get('validation.parseBudgetBytes')
+    )
+    expect(source).toMatch(/^task memory /)
+  })
+
+  it('is off locally', () => {
+    config.set('cdpEnvironment', 'local')
+    config.set('validation.maxRssBytes', null)
+
+    expect(memoryShedOptionsFromConfig()).toMatchObject({
+      maxRssBytes: 0,
+      source: 'local'
+    })
   })
 })
 

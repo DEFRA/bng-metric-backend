@@ -7,8 +7,11 @@ import { totalmem } from 'node:os'
  * `constrainedMemory()` reads the cgroup limit, which is the number that
  * matters in a container and the one the OOM killer enforces — `totalmem()`
  * reports the HOST's RAM and would happily size a pool for 64 GB the task
- * cannot touch. It answers 0 when there is no limit or it cannot tell, which is
- * the one case where the host figure is the honest answer.
+ * cannot touch. With no limit it answers 0, or on some hosts a huge sentinel
+ * instead (UINT64_MAX, 2^64; or 0x7FFFFFFFFFFFF000 on cgroup v1), so anything
+ * that is not below the machine's memory is "no limit", and the machine's
+ * figure is the honest answer. Seen in perf-test: the sentinel, read as a
+ * limit, sized the worker pool's memory budget for 2^64 bytes.
  *
  * On Fargate the fallback is not a downgrade: each task is a microVM sized to
  * the task definition, so the host IS the task. It matters on anything sharing
@@ -19,5 +22,7 @@ import { totalmem } from 'node:os'
  * @returns {number}
  */
 export function taskMemoryBytes() {
-  return process.constrainedMemory() || totalmem()
+  const machine = totalmem()
+  const limit = process.constrainedMemory()
+  return limit > 0 && limit < machine ? limit : machine
 }

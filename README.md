@@ -238,10 +238,13 @@ Unset, it is worked out from the task: in a CDP environment the ceiling is the
 task memory less `VALIDATION_PARSE_BUDGET_BYTES`, because the files already
 admitted can still be unpacking when the ceiling is crossed, and the parse
 budget is the most they can take. It therefore follows the task size, and there
-is nothing to set per environment: a 4 GiB task gets 3,718,250,496 bytes, the
-value proved by hand in perf-test. The task memory is the same figure the
-worker pool sizes itself from (`process.constrainedMemory()`, falling back to
-the machine's memory, which on Fargate is the task). Locally it is off. Set it
+is nothing to set per environment. A 4 GiB task gets about 3.7 GB, close to
+the 3,718,250,496 bytes set by hand in perf-test; the exact figure is in the
+boot log, because on Fargate the machine reports slightly less than the task
+size. The task memory is the same figure the worker pool sizes itself from:
+`process.constrainedMemory()` when it is a real limit, otherwise the machine's
+memory, which on Fargate is the task. A "no limit" answer, which can be 0 or a
+huge sentinel such as 2^64, counts as no limit. Locally it is off. Set it
 to override the default, or to `0` to turn it off. A task too small for a
 useful default (under 1 GiB of ceiling) leaves it off. The ceiling and where it
 came from are logged at boot, and a CDP environment where it is off logs a
