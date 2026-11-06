@@ -663,3 +663,114 @@ describe('BMD-1050 Created watercourse editing', () => {
     }
   )
 })
+
+describe('imported choices and explicit clearing', () => {
+  test('a reference-only save preserves omitted imported inputs and retained rejection metadata', async () => {
+    const stored = structuredClone(feature)
+    Object.assign(stored.proposed, {
+      type: 'Imported watercourse',
+      condition: 'Imported condition',
+      strategicSignificance: null,
+      rejectedStrategicSignificance: 'Medium',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'Imported encroachment'
+    })
+    const snapshot = structuredClone(stored)
+    const payload = { ref: 'Renamed' }
+    expect(
+      postInterventionWatercourseEditPayload.validate(payload).error
+    ).toBeUndefined()
+    const saved = await updatePostInterventionWatercourse.handler(
+      request(payload, stored),
+      {}
+    )
+    expect(saved.ref).toBe('Renamed')
+    expect(saved.proposed).toMatchObject({
+      type: 'Imported watercourse',
+      condition: 'Imported condition',
+      strategicSignificance: null,
+      rejectedStrategicSignificance: 'Medium',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'Imported encroachment'
+    })
+    expect(saved.status).toBe('Incomplete')
+    expect(saved.units).toBeNull()
+    expect(stored).toEqual(snapshot)
+  })
+
+  test('explicitly clearing significance removes historical rejection metadata', async () => {
+    const stored = structuredClone(feature)
+    stored.proposed.strategicSignificance = null
+    stored.proposed.rejectedStrategicSignificance = 'Medium'
+    const saved = await updatePostInterventionWatercourse.handler(
+      request(
+        {
+          ...edits,
+          strategicSignificance: null,
+          habitatType: null,
+          condition: null,
+          watercourseEncroachment: null,
+          riparianEncroachment: null,
+          advanceYears: null,
+          delayYears: null
+        },
+        stored
+      ),
+      {}
+    )
+    expect(saved.proposed).toMatchObject({
+      type: null,
+      condition: null,
+      strategicSignificance: null,
+      rejectedStrategicSignificance: null,
+      watercourseEncroachment: null,
+      riparianEncroachment: null,
+      advanceYears: null,
+      delayYears: null
+    })
+  })
+
+  test('saving a supported significance clears stale rejection metadata even when the value is unchanged', async () => {
+    const stored = structuredClone(feature)
+    stored.proposed.rejectedStrategicSignificance = 'Medium'
+    const saved = await updatePostInterventionWatercourse.handler(
+      request(
+        {
+          ...edits,
+          strategicSignificance: 'Low'
+        },
+        stored
+      ),
+      {}
+    )
+    expect(saved.proposed.strategicSignificance).toBe('Low')
+    expect(saved.proposed.rejectedStrategicSignificance).toBeNull()
+    const renamed = await updatePostInterventionWatercourse.handler(
+      request({ ref: 'Renamed again' }, saved),
+      {}
+    )
+    expect(renamed.proposed.strategicSignificance).toBe('Low')
+    expect(renamed.proposed.rejectedStrategicSignificance).toBeNull()
+  })
+
+  test('does not accept unsupported choices as new input or retain a condition after changing type', () => {
+    expect(
+      postInterventionWatercourseEditPayload.validate({
+        ref: 'Renamed',
+        strategicSignificance: 'Medium'
+      }).error
+    ).toBeDefined()
+    expect(() =>
+      validateCreatedWatercourseEdit(feature, {
+        ref: 'Renamed',
+        habitatType: 'Unknown'
+      })
+    ).toThrow()
+    expect(() =>
+      validateCreatedWatercourseEdit(feature, {
+        ref: 'Renamed',
+        habitatType: null
+      })
+    ).toThrow('Choose a target condition')
+  })
+})

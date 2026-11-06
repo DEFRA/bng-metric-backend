@@ -12,12 +12,14 @@ export function proposedAttributes(existing, edits) {
     ...existing,
     type: edits.habitatType,
     condition: edits.condition,
-    strategicSignificance: edits.strategicSignificance,
+    strategicSignificance:
+      edits.strategicSignificance === undefined
+        ? (existing?.strategicSignificance ?? null)
+        : edits.strategicSignificance,
     strategicSignificanceCategory: null,
     strategicSignificanceScore: null,
     rejectedStrategicSignificance:
-      (existing?.strategicSignificance ?? '') ===
-      (edits.strategicSignificance ?? '')
+      edits.strategicSignificance === undefined
         ? (existing?.rejectedStrategicSignificance ?? null)
         : null,
     advanceYears,

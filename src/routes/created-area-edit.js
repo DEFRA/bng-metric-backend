@@ -23,7 +23,7 @@ export const postInterventionAreaEditPayload = featureEditPayload
     advanceYears: createdEditYears.optional(),
     delayYears: createdEditYears.optional()
   })
-  .and('ref', 'strategicSignificance')
+  .with('strategicSignificance', 'ref')
   .with('advanceYears', 'ref')
   .with('delayYears', 'ref')
   .with('ref', ['broadType', 'habitatType', 'condition'])

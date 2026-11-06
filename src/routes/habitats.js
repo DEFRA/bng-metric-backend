@@ -101,7 +101,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       for a single post-intervention area habitat, then recomputes the
  *       derived distinctiveness, condition score, habitat-unit total and
  *       Complete/Incomplete status before saving. Returns the updated habitat
- *       document. Supplying ref requires strategicSignificance, broadType, habitatType
+ *       document. Supplying ref requires broadType, habitatType
  *       and condition. Timing is optional: omit it to retain the stored value,
  *       or supply null to clear it.
  *       These extended edits are supported only for Created area habitats.
@@ -407,7 +407,7 @@ async function runUpdate(
  *         application/json:
  *           schema:
  *             type: object
- *             required: [ref, habitatType, strategicSignificance]
+ *             required: [ref]
  *             properties:
  *               ref: { type: string }
  *               habitatType: { type: string, nullable: true }
@@ -451,7 +451,7 @@ export { updateAreaHabitat, updatePostInterventionAreaHabitat }
  *         application/json:
  *           schema:
  *             type: object
- *             required: [ref, habitatType, strategicSignificance]
+ *             required: [ref]
  *             properties:
  *               ref: { type: string }
  *               habitatType: { type: string, nullable: true }

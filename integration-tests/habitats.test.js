@@ -770,6 +770,91 @@ describe('Created area imported timing preservation', () => {
 })
 
 describe('BMD-1050 Created watercourse saves', () => {
+  it('preserves unsupported imports on rename, then persists deliberate clears and replacements', async () => {
+    const feature = watercourse()
+    Object.assign(feature.proposed, {
+      type: 'Imported watercourse',
+      condition: 'Imported condition',
+      strategicSignificance: null,
+      rejectedStrategicSignificance: 'Medium',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'Imported encroachment'
+    })
+    const projectId = await seedProject({
+      name: 'Imported values IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`
+    const get = async () => {
+      const response = await server.inject({
+        method: 'GET',
+        url: `/projects/${projectId}/post-intervention/features/${feature.featureId}`,
+        headers
+      })
+      expect(response.statusCode).toBe(HTTP_OK)
+      return response.result.feature
+    }
+    const renamed = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ref: 'Renamed' }
+    })
+    expect(renamed.statusCode, renamed.payload).toBe(HTTP_OK)
+    const stored = await get()
+    expect(stored.ref).toBe('Renamed')
+    expect(stored.proposed).toMatchObject({
+      type: 'Imported watercourse',
+      condition: 'Imported condition',
+      strategicSignificance: null,
+      rejectedStrategicSignificance: 'Medium',
+      advanceYears: 2.5,
+      watercourseEncroachment: 'Imported encroachment'
+    })
+    expect(stored.status).toBe('Incomplete')
+    expect(stored.units).toBeNull()
+    const cleared = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: {
+        ref: 'Renamed',
+        habitatType: null,
+        condition: null,
+        strategicSignificance: null,
+        advanceYears: null,
+        delayYears: null,
+        watercourseEncroachment: null,
+        riparianEncroachment: null
+      }
+    })
+    expect(cleared.statusCode, cleared.payload).toBe(HTTP_OK)
+    expect((await get()).proposed).toMatchObject({
+      type: null,
+      condition: null,
+      strategicSignificance: null,
+      rejectedStrategicSignificance: null,
+      advanceYears: null,
+      delayYears: null,
+      watercourseEncroachment: null,
+      riparianEncroachment: null
+    })
+    const replaced = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload
+    })
+    expect(replaced.statusCode, replaced.payload).toBe(HTTP_OK)
+    const corrected = await get()
+    expect(corrected.proposed.strategicSignificance).toBe(
+      payload.strategicSignificance
+    )
+    expect(corrected.proposed.rejectedStrategicSignificance).toBeNull()
+    expect(corrected.status).toBe('Complete')
+    expect(corrected.units).toBeGreaterThan(0)
+  })
+
   it.each(
     [10, '30+'].flatMap((advance) =>
       ['saved', 'imported', 'cleared', 'saved-delay', 'imported-delay'].map(

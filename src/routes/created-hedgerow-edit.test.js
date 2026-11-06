@@ -241,7 +241,7 @@ describe('BMD-1049 Created hedgerow edits', () => {
       ).toThrow()
     }
   )
-  test('schema requires editable attributes and allows timing omission, but rejects invalid new years', () => {
+  test('schema allows unchanged editable attributes to be omitted, but rejects invalid new years', () => {
     expect(
       postInterventionHedgerowEditPayload.validate(edits).error
     ).toBeUndefined()
@@ -261,7 +261,15 @@ describe('BMD-1049 Created hedgerow edits', () => {
       const missing = { ...edits }
       delete missing[field]
       const error = postInterventionHedgerowEditPayload.validate(missing).error
-      if (['advanceYears', 'delayYears', 'condition'].includes(field)) {
+      if (
+        [
+          'advanceYears',
+          'delayYears',
+          'condition',
+          'habitatType',
+          'strategicSignificance'
+        ].includes(field)
+      ) {
         expect(error).toBeUndefined()
       } else {
         expect(error).toBeDefined()
@@ -468,7 +476,7 @@ test.each([true, false])(
 )
 
 test.each([null, ''])(
-  'reference-only edit preserves rejected significance when blank remains %j',
+  'reference-only edit preserves omitted rejected significance when stored blank is %j',
   async (strategicSignificance) => {
     const stored = {
       ...feature,
@@ -481,7 +489,10 @@ test.each([null, ''])(
       }
     }
     const saved = await updatePostInterventionHedgerow.handler(
-      request({ ...edits, condition: 'Poor', strategicSignificance }, stored)
+      request(
+        { ...edits, condition: 'Poor', strategicSignificance: undefined },
+        stored
+      )
     )
     expect(saved).toMatchObject({
       ref: edits.ref,

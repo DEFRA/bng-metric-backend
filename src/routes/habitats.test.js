@@ -669,12 +669,14 @@ describe('updateAreaHabitat validation', () => {
     expect(error?.message).toBe('"ref" is not allowed')
   })
 
-  test('PI reference edits require significance alongside the reference', () => {
+  test('PI reference edits allow omitted significance with the other required area fields', () => {
     const { error } =
       updatePostInterventionAreaHabitat.options.validate.payload.validate({
         ref: 'B-A1',
-        condition: 'Good'
+        condition: 'Good',
+        broadType: 'Grassland',
+        habitatType: null
       })
-    expect(error?.message).toContain('required peers [strategicSignificance]')
+    expect(error).toBeUndefined()
   })
 })
