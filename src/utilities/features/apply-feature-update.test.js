@@ -1464,11 +1464,35 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.postIntervention.habitats[0].ref).toBe('B-A1')
   })
 
-  test('refuses to rename onto a reference another area habitat carries', () => {
-    const project = projectFixture()
+  test('renames onto a reference another area habitat carries, keeping each parcel’s post-intervention row on its own parcel (BMD-1180 AC7)', () => {
+    const SECOND_HABITAT_ID = 'ff0e8400-e29b-41d4-a716-446655440006'
+    const SECOND_PI_HABITAT_ID = 'ff0e8400-e29b-41d4-a716-446655440007'
+    const project = projectWithPostIntervention()
     project.baseline.habitats.push({
-      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
-      ref: 'A2'
+      featureId: SECOND_HABITAT_ID,
+      ref: 'A2',
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good',
+      sizeSquareMetres: 10_000,
+      units: 8
+    })
+    project.postIntervention.habitats.push({
+      ...structuredClone(project.postIntervention.habitats[0]),
+      featureId: SECOND_PI_HABITAT_ID,
+      ref: 'A2',
+      baseline: {
+        type: 'Other neutral grassland',
+        broadType: 'Grassland',
+        condition: 'Good'
+      },
+      proposed: {
+        type: 'Other neutral grassland',
+        broadType: 'Grassland',
+        condition: 'Good',
+        advanceYears: 0,
+        delayYears: 0
+      }
     })
 
     const result = applyFeatureUpdate(project, {
@@ -1476,14 +1500,25 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
       edits: { ...KEEP_HABITAT, ref: 'A2' }
     })
 
-    expect(result).toEqual({
-      status: APPLY_RESULT.REF_IN_USE,
-      type: 'habitat',
-      ref: 'A2'
-    })
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.ref).toBe('A2')
+    expect(
+      result.postIntervention.habitats.map(({ featureId, ref, baseline }) => ({
+        featureId,
+        ref,
+        type: baseline.type
+      }))
+    ).toEqual([
+      { featureId: PI_HABITAT_ID, ref: 'A2', type: 'Modified grassland' },
+      {
+        featureId: SECOND_PI_HABITAT_ID,
+        ref: 'A2',
+        type: 'Other neutral grassland'
+      }
+    ])
   })
 
-  test('refuses to rename a hedgerow onto a watercourse’s reference', () => {
+  test('renames a hedgerow onto a watercourse’s reference', () => {
     const project = projectFixture()
     project.baseline.watercourses.push({
       featureId: WATERCOURSE_ID,
@@ -1495,7 +1530,8 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
       edits: { habitatType: null, condition: null, ref: 'W1' }
     })
 
-    expect(result.status).toBe(APPLY_RESULT.REF_IN_USE)
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.ref).toBe('W1')
   })
 
   test('saves a reference an import already shared when the edit keeps it', () => {

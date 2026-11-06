@@ -458,33 +458,37 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
     return project
   }
 
-  test('refuses to rename an area habitat onto another area habitat’s reference', () => {
+  test('renames an area habitat’s parcel onto another area habitat’s reference (AC7: no uniqueness check)', () => {
     const project = withSecondArea(projectFixture())
-    const before = structuredClone(project)
 
     const result = applyRetainedRefEdit(project, {
       featureId: PI_HABITAT_ID,
       ref: ' A2 '
     })
 
-    expect(result).toEqual({
-      status: RETAINED_REF_RESULT.REF_IN_USE,
-      type: 'habitat',
-      ref: 'A2'
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      documentKey: 'baseline',
+      feature: { featureId: BASELINE_HABITAT_ID, ref: 'A2' },
+      postInterventionFeature: { featureId: PI_HABITAT_ID, ref: 'A2' }
     })
-    expect(project).toEqual(before)
+    expect(
+      project.baseline.habitats.find(
+        (feature) => feature.featureId === SECOND_BASELINE_HABITAT_ID
+      ).ref
+    ).toBe('A2')
   })
 
-  test('refuses to rename a hedgerow onto a watercourse’s reference: their lengths share one map', () => {
+  test('renames a hedgerow onto a watercourse’s reference', () => {
     const result = applyRetainedRefEdit(projectFixture(), {
       featureId: PI_HEDGEROW_ID,
       ref: 'W1'
     })
 
-    expect(result).toEqual({
-      status: RETAINED_REF_RESULT.REF_IN_USE,
-      type: 'hedgerow',
-      ref: 'W1'
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      feature: { ref: 'W1' },
+      postInterventionFeature: { featureId: PI_HEDGEROW_ID, ref: 'W1' }
     })
   })
 

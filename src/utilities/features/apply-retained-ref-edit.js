@@ -28,10 +28,12 @@
 //     logged. Renaming it onto a parcel's ref joins it to that parcel, which
 //     is how a row imported with a mistyped ref is repaired.
 //
-// Only a rename through the baseline changes a baseline ref, so only that one
-// is refused when another baseline habitat already carries the new ref, as a
-// baseline rename is (ref-in-use.js). A row renamed alone creates no clash
-// between baseline habitats.
+// A rename may give the parcel a ref another baseline habitat already carries:
+// references need not be unique, on import (BMD-1058) or on edit (BMD-1180
+// AC7). The re-derive below still carries the rename onto the right rows,
+// because it matches each row against the baseline as it stood before the
+// edit; later edits tell the parcels apart by each row's imported values
+// (resync-post-intervention-baseline.js).
 
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'
@@ -51,15 +53,13 @@ import {
   summarizeFeatureSetUnitsTotals
 } from './feature-set-units.js'
 import { findFeature } from './find-feature.js'
-import { renameClashes } from './ref-in-use.js'
 
 const LOG_PREFIX = 'applyRetainedRefEdit: '
 
 const RETAINED_REF_RESULT = Object.freeze({
   OK: 'ok',
   FEATURE_NOT_FOUND: 'featureNotFound',
-  NOT_RETAINED: 'notRetained',
-  REF_IN_USE: 'refInUse'
+  NOT_RETAINED: 'notRetained'
 })
 
 /** The layers whose Retained rows have an editable reference (BMD-1180). */
@@ -182,8 +182,7 @@ function renameRowOnly(project, found, ref) {
  * @returns {
  *   { status: 'ok', type: string, documentKey: 'baseline' | 'postIntervention', layer: string, index: number, feature: object, unitsTotals: object, postIntervention: object | null, postInterventionFeature: object } |
  *   { status: 'featureNotFound' } |
- *   { status: 'notRetained', type: string } |
- *   { status: 'refInUse', type: string, ref: string }
+ *   { status: 'notRetained', type: string }
  * }
  */
 function applyRetainedRefEdit(
@@ -204,22 +203,6 @@ function applyRetainedRefEdit(
   const parcel = baselineParcelToRename(found, project, logger)
   if (!parcel) {
     return renameRowOnly(project, found, cleaned)
-  }
-  // The parcel may carry the reference itself; any other baseline habitat
-  // carrying it would be merged with it.
-  if (
-    renameClashes(project.baseline, {
-      layer: found.key,
-      current: parcel.ref,
-      next: cleaned,
-      exceptFeatureId: parcel.featureId
-    })
-  ) {
-    return {
-      status: RETAINED_REF_RESULT.REF_IN_USE,
-      type: found.type,
-      ref: cleaned
-    }
   }
   return renameThroughBaseline(project, found, parcel, cleaned, logger)
 }
