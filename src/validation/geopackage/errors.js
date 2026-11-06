@@ -310,6 +310,51 @@ export const ERROR_CODES = Object.freeze({
   VALIDATION_UNAVAILABLE: 'VALIDATION_UNAVAILABLE'
 })
 
+/**
+ * Where a customer can meet an error code: an upload code is shown on the
+ * drop-out page after a file is refused; an edit code on the page where a
+ * habitat is changed, after the file was accepted.
+ *
+ * Nothing in the service reads this at run time. It says which section of the
+ * frontend's error text (src/server/common/error-text/error-text.yaml) must
+ * word each code, and bng-metric-harness's check (npm run check:dropout-copy)
+ * loads this file to hold the frontend to it. So this file must keep
+ * importing nothing: the check loads it with no install.
+ */
+export const ERROR_SURFACES = Object.freeze({
+  UPLOAD: 'upload',
+  EDIT: 'edit'
+})
+
+// Every code is an upload code unless it is listed here. A new code raised
+// when a habitat is edited on screen must be added, or the frontend is asked
+// for drop-out page wording for an error that page never shows.
+const EDIT_ONLY_CODES = new Set([
+  ERROR_CODES.HABITAT_REF_IN_USE,
+  ERROR_CODES.ENHANCEMENT_NOT_VALID
+])
+const UPLOAD_AND_EDIT_CODES = new Set([
+  // The upload check refuses one in a file; an edit refuses one chosen on screen.
+  ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE
+])
+
+function surfacesOf(code) {
+  if (EDIT_ONLY_CODES.has(code)) {
+    return Object.freeze([ERROR_SURFACES.EDIT])
+  }
+  if (UPLOAD_AND_EDIT_CODES.has(code)) {
+    return Object.freeze([ERROR_SURFACES.UPLOAD, ERROR_SURFACES.EDIT])
+  }
+  return Object.freeze([ERROR_SURFACES.UPLOAD])
+}
+
+/** Each code's surfaces: where a customer can meet it. */
+export const ERROR_CODE_SURFACES = Object.freeze(
+  Object.fromEntries(
+    Object.values(ERROR_CODES).map((code) => [code, surfacesOf(code)])
+  )
+)
+
 export function makeError(code, message, details) {
   return details === undefined ? { code, message } : { code, message, details }
 }
