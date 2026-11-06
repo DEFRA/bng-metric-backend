@@ -131,6 +131,17 @@ describe('resolveWorkerCount — which memory figure it believes', () => {
     given({ cores: AMPLE_CORES, hostMemoryBytes: 2 * GB, taskMemoryBytes: 0 })
     expect(resolveWorkerCount(AUTO).size).toBe(2)
   })
+
+  it("falls back to the host when the 'limit' is a no-limit sentinel", () => {
+    // perf-test reported 2^64, which sized the memory budget for 21 billion
+    // workers and so left only the CPU budget holding the pool.
+    given({
+      cores: AMPLE_CORES,
+      hostMemoryBytes: 2 * GB,
+      taskMemoryBytes: 2 ** 64
+    })
+    expect(resolveWorkerCount(AUTO).size).toBe(2)
+  })
 })
 
 describe('logSizing — which budget it reports as binding', () => {

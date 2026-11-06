@@ -28,12 +28,13 @@
  * was.
  */
 import { Worker } from 'node:worker_threads'
-import { availableParallelism, totalmem } from 'node:os'
+import { availableParallelism } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createLogger } from '../../../common/helpers/logging/logger.js'
 import { exitProcessAfterFlush } from '../../../common/helpers/exit-process.js'
+import { taskMemoryBytes } from '../../../common/helpers/task-memory.js'
 import { metricsCounter } from '../../../common/helpers/metrics.js'
 import { VALIDATION_METRIC } from '../../../common/helpers/metric-names.js'
 
@@ -91,23 +92,6 @@ const WORKER_MEMORY_SHARE = 0.3
 
 /** `size` at or below this means "work it out from the instance". */
 const AUTO_SIZE = 0
-
-/**
- * How much memory this process is actually allowed.
- *
- * `constrainedMemory()` reads the cgroup limit, which is the number that
- * matters in a container and the one the OOM killer enforces — `totalmem()`
- * reports the HOST's RAM and would happily size a pool for 64 GB the task
- * cannot touch. It answers 0 when there is no limit or it cannot tell, which is
- * the one case where the host figure is the honest answer.
- *
- * On Fargate the fallback is not a downgrade: each task is a microVM sized to
- * the task definition, so the host IS the task. It matters on anything sharing
- * a kernel — a dev box, a CI runner, ECS on EC2.
- */
-function taskMemoryBytes() {
-  return process.constrainedMemory() || totalmem()
-}
 
 /**
  * Decide how many workers to run, from what was asked for and what the instance

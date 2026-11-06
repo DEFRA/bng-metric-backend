@@ -1,5 +1,6 @@
 import { afterEach, describe, expect, it, vi } from 'vitest'
 import Hapi from '@hapi/hapi'
+import { totalmem } from 'node:os'
 
 import { config } from '../config.js'
 import { metricsCounter } from '../common/helpers/metrics.js'
@@ -7,7 +8,11 @@ import {
   GEOPACKAGE_METRIC,
   VALIDATION_BUSY_REASON
 } from '../common/helpers/metric-names.js'
-import { memoryShed, memoryShedOptionsFromConfig } from './memory-shed.js'
+import {
+  memoryShed,
+  memoryShedOptionsFromConfig,
+  resolveMaxRssBytes
+} from './memory-shed.js'
 
 const mockWarn = vi.hoisted(() => vi.fn())
 
@@ -41,6 +46,7 @@ describe('memory-shed plugin', () => {
       plugin: memoryShed.plugin,
       options: {
         maxRssBytes,
+        source: 'test',
         sampleIntervalMs: SAMPLE_INTERVAL_MS,
         retryAfterSeconds: RETRY_AFTER_SECONDS
       }
@@ -123,7 +129,7 @@ describe('memory-shed plugin', () => {
     expect(res.statusCode).toBe(200)
   })
 
-  describe('when no ceiling is configured', () => {
+  describe('when the ceiling is off', () => {
     const cdpEnvironment = config.get('cdpEnvironment')
 
     afterEach(() => {
@@ -138,7 +144,7 @@ describe('memory-shed plugin', () => {
 
       expect(res.statusCode).toBe(200)
       expect(mockWarn).toHaveBeenCalledWith(
-        expect.stringContaining('VALIDATION_MAX_RSS_BYTES is not set')
+        expect.stringContaining('Memory ceiling is off (test)')
       )
     })
 
@@ -151,10 +157,119 @@ describe('memory-shed plugin', () => {
   })
 
   it('reads its options from config', () => {
-    expect(memoryShedOptionsFromConfig()).toEqual({
-      maxRssBytes: config.get('validation.maxRssBytes'),
-      sampleIntervalMs: config.get('validation.loadSampleIntervalMs'),
-      retryAfterSeconds: config.get('validation.busyRetryAfterSeconds')
+    const configured = config.get('validation.maxRssBytes')
+    config.set('validation.maxRssBytes', 1234)
+
+    try {
+      expect(memoryShedOptionsFromConfig()).toEqual({
+        maxRssBytes: 1234,
+        source: 'VALIDATION_MAX_RSS_BYTES',
+        sampleIntervalMs: config.get('validation.loadSampleIntervalMs'),
+        retryAfterSeconds: config.get('validation.busyRetryAfterSeconds')
+      })
+    } finally {
+      config.set('validation.maxRssBytes', configured)
+    }
+  })
+})
+
+describe('memoryShedOptionsFromConfig — the default ceiling', () => {
+  const GIB = 1024 * 1024 * 1024
+  const original = {
+    maxRssBytes: config.get('validation.maxRssBytes'),
+    cdpEnvironment: config.get('cdpEnvironment')
+  }
+
+  afterEach(() => {
+    config.set('validation.maxRssBytes', original.maxRssBytes)
+    config.set('cdpEnvironment', original.cdpEnvironment)
+    vi.restoreAllMocks()
+  })
+
+  it('is the task memory less the parse budget in a CDP environment', () => {
+    // A real limit must be below the machine's memory to count as one.
+    const taskMemory = Math.min(4 * GIB, totalmem() - 1)
+    vi.spyOn(process, 'constrainedMemory').mockReturnValue(taskMemory)
+    config.set('cdpEnvironment', 'prod')
+    config.set('validation.maxRssBytes', null)
+
+    const { maxRssBytes, source } = memoryShedOptionsFromConfig()
+
+    expect(maxRssBytes).toBe(
+      taskMemory - config.get('validation.parseBudgetBytes')
+    )
+    expect(source).toMatch(/^task memory /)
+  })
+
+  it('is off locally', () => {
+    config.set('cdpEnvironment', 'local')
+    config.set('validation.maxRssBytes', null)
+
+    expect(memoryShedOptionsFromConfig()).toMatchObject({
+      maxRssBytes: 0,
+      source: 'local'
     })
+  })
+})
+
+describe('resolveMaxRssBytes', () => {
+  const GIB = 1024 * 1024 * 1024
+  const PARSE_BUDGET = 576716800
+
+  it('uses an explicit value in any environment', () => {
+    expect(
+      resolveMaxRssBytes({
+        configured: 2 * GIB,
+        deployed: true,
+        taskMemory: 4 * GIB,
+        parseBudget: PARSE_BUDGET
+      }).maxRssBytes
+    ).toBe(2 * GIB)
+  })
+
+  it('is off when explicitly set to 0, even when deployed', () => {
+    expect(
+      resolveMaxRssBytes({
+        configured: 0,
+        deployed: true,
+        taskMemory: 4 * GIB,
+        parseBudget: PARSE_BUDGET
+      }).maxRssBytes
+    ).toBe(0)
+  })
+
+  it('defaults to task memory less the parse budget when deployed', () => {
+    // perf-test's 4 GiB task: the value proved there by hand.
+    expect(
+      resolveMaxRssBytes({
+        configured: null,
+        deployed: true,
+        taskMemory: 4 * GIB,
+        parseBudget: PARSE_BUDGET
+      }).maxRssBytes
+    ).toBe(3718250496)
+  })
+
+  it('is off locally when unset', () => {
+    expect(
+      resolveMaxRssBytes({
+        configured: null,
+        deployed: false,
+        taskMemory: 32 * GIB,
+        parseBudget: PARSE_BUDGET
+      })
+    ).toEqual({ maxRssBytes: 0, source: 'local' })
+  })
+
+  it('stays off, and says why, when the task is too small for a useful default', () => {
+    const { maxRssBytes, source } = resolveMaxRssBytes({
+      configured: null,
+      deployed: true,
+      taskMemory: GIB,
+      parseBudget: PARSE_BUDGET
+    })
+
+    expect(maxRssBytes).toBe(0)
+    expect(source).toContain('too small')
   })
 })
