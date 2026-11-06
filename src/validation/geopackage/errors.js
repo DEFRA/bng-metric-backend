@@ -311,11 +311,15 @@ export const ERROR_CODES = Object.freeze({
 })
 
 /**
- * Where a customer can meet an error code, so the frontend knows which part of
- * its error text (error-text.yaml) must word it, and a check can tell when it
- * does not. An upload code is shown on the drop-out page after a file is
- * refused; an edit code on the page where a habitat is changed, after the file
- * was accepted.
+ * Where a customer can meet an error code: an upload code is shown on the
+ * drop-out page after a file is refused; an edit code on the page where a
+ * habitat is changed, after the file was accepted.
+ *
+ * Nothing in the service reads this at run time. It says which section of the
+ * frontend's error text (src/server/common/error-text/error-text.yaml) must
+ * word each code, and bng-metric-harness's check (npm run check:dropout-copy)
+ * loads this file to hold the frontend to it. So this file must keep
+ * importing nothing: the check loads it with no install.
  */
 export const ERROR_SURFACES = Object.freeze({
   UPLOAD: 'upload',

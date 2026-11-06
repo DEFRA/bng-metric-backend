@@ -120,12 +120,29 @@ describe('ERROR_CODE_SURFACES', () => {
     }
   })
 
+  // The map is keyed by each code's value, so the test names one by its key
+  // only because the two are the same.
+  it("keeps every code's value the same as its key", () => {
+    for (const [name, value] of Object.entries(ERROR_CODES)) {
+      expect(value, name).toBe(name)
+    }
+  })
+
   it.each(EDIT_ERROR_HELPERS)(
-    'counts the code %s refuses an edit with as an edit code',
+    'counts every code %s refuses an edit with as an edit code',
     (helper) => {
       const source = readFileSync(path.join(ROUTES, helper), 'utf8')
-      const [, code] = /ERROR_CODES\.([A-Z0-9_]+)/.exec(source)
-      expect(ERROR_CODE_SURFACES[code]).toContain(ERROR_SURFACES.EDIT)
+      const names = [...source.matchAll(/ERROR_CODES\.([A-Z0-9_]+)/g)].map(
+        ([, name]) => name
+      )
+      // A helper that stops naming its code this way fails here, by name,
+      // rather than with a TypeError.
+      expect(names.length, `${helper} names no ERROR_CODES`).toBeGreaterThan(0)
+      for (const name of names) {
+        expect(ERROR_CODE_SURFACES[ERROR_CODES[name]], name).toContain(
+          ERROR_SURFACES.EDIT
+        )
+      }
     }
   )
 
