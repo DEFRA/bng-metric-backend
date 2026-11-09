@@ -511,6 +511,7 @@ describe('setProjectFeature — a value saved before BMD-1175', () => {
     expect(refused.output.statusCode).toBe(422)
     expect(refused.output.payload.code).toBe('STORED_VALUE_NOT_ALLOWED')
     expect(refused.message).toMatch(/\(ref\)/)
+    expect(refused.output.payload.fields).toEqual(['ref'])
     expect(db._update).not.toHaveBeenCalled()
   })
 
@@ -761,6 +762,23 @@ describe('setProjectFeature — re-derived post-intervention document', () => {
     // One UPDATE: the two documents can never be persisted apart.
     expect(db._update).toHaveBeenCalledTimes(1)
     expectActorStamped(db)
+  })
+
+  test('accepts a baseline edit when another post-intervention feature holds a value saved before BMD-1175', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'baseline',
+      layer: 'habitats',
+      index: 0,
+      feature: validHabitat,
+      unitsTotals: validUnitsTotals,
+      postIntervention: {
+        ...validPostInterventionDocument,
+        habitats: [{ ...validPostInterventionHabitat, ref: 'R'.repeat(100) }]
+      },
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
   })
 
   test('rejects a document that fails its schema, before writing', async () => {

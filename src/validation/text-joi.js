@@ -12,7 +12,6 @@ import {
 import {
   LONG_TEXT_LIMIT,
   SHORT_TEXT_LIMIT,
-  SPATIAL_RISK_LIMIT,
   allowedValuesOf,
   characterCount,
   isNullWord,
@@ -94,7 +93,6 @@ export function fileText(limit) {
 
 export const shortFileText = () => fileText(SHORT_TEXT_LIMIT)
 export const longFileText = () => fileText(LONG_TEXT_LIMIT)
-export const spatialRiskFileText = () => fileText(SPATIAL_RISK_LIMIT)
 
 const conditionsOf = (table) =>
   Object.values(table).flatMap((row) => Object.keys(row))
@@ -201,5 +199,10 @@ export function listedFileText(field) {
     ...columns.flatMap((column) => [...(allowedValuesOf(column) ?? [])]),
     ...stored().map(normaliseListValue)
   ])
-  return fileText(textLimitOf(columns[0])).inList(shownWords(columns), allowed)
+  // The dictionary shows the stored words too, so a word the service writes
+  // itself, such as "Individual trees", is not shown as refused.
+  const shown = [...new Set([...shownWords(columns), ...stored()])].sort(
+    (a, b) => a.localeCompare(b)
+  )
+  return fileText(textLimitOf(columns[0])).inList(shown, allowed)
 }

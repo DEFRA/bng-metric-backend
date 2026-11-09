@@ -110,7 +110,7 @@ export function textLimitOf(column) {
  * compared the same way, so "4. Fairly Poor", "Fairly Poor" and
  * "fairly poor" are all the same word.
  *
- * @param {unknown} value
+ * @param {string | number | null | undefined} value
  * @returns {string}
  */
 export function normaliseListValue(value) {
@@ -129,7 +129,7 @@ export function normaliseListValue(value) {
  * Whether a value is the word GIS tools write for a missing value, which
  * the checks treat as blank, as the later checks already do.
  *
- * @param {unknown} value
+ * @param {string | number | null | undefined} value
  * @returns {boolean}
  */
 export function isNullWord(value) {
@@ -159,7 +159,7 @@ export const TRUNCATION_MARKER = '… (truncated)'
  * however long, reaches either whole (BMD-1175 AC7). Characters are counted
  * as code points, so a cut never splits one.
  *
- * @param {unknown} value
+ * @param {string | number | null | undefined} value
  * @returns {string}
  */
 export function shownValue(value) {
