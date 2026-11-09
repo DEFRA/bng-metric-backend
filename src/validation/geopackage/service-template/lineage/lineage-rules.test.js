@@ -500,7 +500,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
           message:
-            'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b (3 trees, linked 4)',
+            'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in a worse condition: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b (3 trees, linked 4)',
           details: {
             count: 1,
             sample: [
@@ -603,6 +603,26 @@ describe('checkLineageRules', () => {
           )
         )
       ).toEqual([ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS])
+    })
+
+    it.each([
+      [
+        'one degraded tree standing for more trees than it',
+        (parent) => [degradedTree(parent, { Count: 10 })]
+      ],
+      [
+        'the tree both kept and recorded as lost and created again',
+        (parent) => [
+          treeChild(parent, { 'Tree Ref': 'T001a' }),
+          degradedTree(parent, { 'Tree Ref': 'T001b' })
+        ]
+      ]
+    ])('counts a degraded tree as its parent: refuses %s', (_, children) => {
+      const parent = tree(1, 1)
+
+      expect(
+        codes(check({ trees: [parent] }, { trees: children(parent) }))
+      ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
     })
 
     it('passes an Existing tree put back after a delay, in any condition', () => {

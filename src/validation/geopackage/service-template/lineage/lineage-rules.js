@@ -64,7 +64,8 @@ import {
  *   never count more trees than it has, as a tree that is kept cannot
  *   multiply. Created trees are not counted against it. A tree is an area
  *   habitat, so an Existing tree Created in its parent's Urban or Rural
- *   setting is a degraded row like any other: it must be in a lower
+ *   setting is the parent itself, counted with the kept trees, and a degraded
+ *   row like any other: it must be in a lower
  *   condition and created 30+ years in advance. A Newly Planted tree linked
  *   to a parent is planting in its place, and no degraded row.
  */
@@ -258,9 +259,17 @@ function checkVerticalArea(parent, children, context) {
 const treeCount = (feature) =>
   treeCountOrDefault(pickProp(feature.properties, PROP_KEYS.treeCount))
 
-/** A tree parent with fewer trees than its kept children together. */
+/**
+ * A tree parent with fewer trees than the children that are still it
+ * together: its Retained and Enhanced trees, and an Existing tree Created in
+ * its setting, which is the parent recorded as lost and created again.
+ */
 function checkTreeCount(parent, children, context) {
-  const kept = children.filter((child) => continues(child.properties))
+  const kept = children.filter(
+    (child) =>
+      continues(child.properties) ||
+      isCreatedInOwnType(context.layer, parent, child)
+  )
   if (kept.length === 0) {
     return
   }
@@ -430,7 +439,7 @@ const RULE_ERRORS = [
   {
     code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
     heading:
-      'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together',
+      'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in a worse condition',
     found: 'tooManyTrees',
     describe: (parent) =>
       `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`

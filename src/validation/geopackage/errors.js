@@ -235,9 +235,10 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * BNG Service template baseline trees with fewer trees, by Count, than the
-   * Retained and Enhanced post-intervention trees linked to them together: a
-   * tree that is kept cannot multiply. A blank Count is one tree. Created
-   * trees, new planting, are not counted. `details.sample` lists each parent's
+   * post-intervention trees that are still them, linked to them together: the
+   * Retained and Enhanced trees, and an Existing tree Created in the parent's
+   * setting (the parent recorded as lost and created again). A tree cannot
+   * multiply. A blank Count is one tree. Newly Planted trees are not counted. `details.sample` lists each parent's
    * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
    * both counts. The frontend sends the user to the drop-out page.
    */

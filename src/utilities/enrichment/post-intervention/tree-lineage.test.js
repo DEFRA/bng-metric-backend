@@ -123,11 +123,11 @@ describe('alignTreesWithParents', () => {
     const tree = piTree('Created', {
       properties: { Category: 'Existing' },
       proposed: {
-        type: 'Urban tree',
+        type: 'Rural tree',
         broadType: 'Individual trees',
         treeSize: 'Very large',
         treeSpecies: 'Non-native',
-        ruralOrUrban: 'Urban tree',
+        ruralOrUrban: 'Rural tree',
         condition: 'Poor',
         strategicSignificance: 'Low',
         advanceYears: 30
@@ -145,6 +145,14 @@ describe('alignTreesWithParents', () => {
       sizeSquareMetres: 326
     })
     expect(tree.baseline.condition).toBe('Moderate')
+  })
+
+  it('leaves an Existing tree Created in the other setting: it is a creation in that setting', () => {
+    const tree = piTree('Created', { properties: { Category: 'Existing' } })
+    const before = structuredClone(tree)
+
+    expect(align(tree)).toEqual([])
+    expect(tree).toEqual(before)
   })
 
   it('leaves a tree whose parent is not in the baseline', () => {
