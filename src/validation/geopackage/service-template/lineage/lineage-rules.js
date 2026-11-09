@@ -3,7 +3,12 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
-import { PROP_KEYS, pickProp } from '../../properties.js'
+import {
+  PROPOSED_PROP_KEYS,
+  PROP_KEYS,
+  TREE_ADVANCE_DELAY_KEYS,
+  pickProp
+} from '../../properties.js'
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
 import { SQ_METRES_PER_HECTARE, treeCountOrDefault } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
@@ -70,21 +75,13 @@ import {
  *   to a parent is planting in its place, and no degraded row.
  */
 
-/** Each layer's years created in advance and years of delay; trees name theirs differently. */
-const TIMING = {
-  trees: [
-    'Habitat Created/Enhanced in advance/years',
-    'Delay in starting habitat creation/enhancement in years'
-  ]
-}
-const DEFAULT_TIMING = [
-  'Habitat created in advance/years',
-  'Delay in starting habitat creation/years'
-]
+/** A layer's years created in advance and years of delay columns; trees name theirs differently. */
+const timingKeys = (layer) =>
+  layer === 'trees' ? TREE_ADVANCE_DELAY_KEYS : PROPOSED_PROP_KEYS
 const advanceOf = (layer, properties) =>
-  properties[(TIMING[layer] ?? DEFAULT_TIMING)[0]]
+  pickProp(properties, timingKeys(layer).advanceYears)
 const delayOf = (layer, properties) =>
-  properties[(TIMING[layer] ?? DEFAULT_TIMING)[1]]
+  pickProp(properties, timingKeys(layer).delayYears)
 
 /** The watercourse types the Metric lets be permanently lost. */
 const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
