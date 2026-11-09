@@ -2,6 +2,7 @@ import { expect, it } from 'vitest'
 
 import { describeServiceTemplate } from '../test/helpers/template-mode.js'
 import { ERROR_CODES } from '../src/validation/geopackage/errors.js'
+import { supportedTemplateVersions } from '../src/validation/geopackage/service-template/supported-versions.js'
 import { HTTP_OK } from './helpers/http-status.js'
 import {
   FIXTURE as LEGACY_FIXTURE,
@@ -38,7 +39,10 @@ const REFUSALS = [
     {
       code: ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED,
       message: expect.stringContaining('version 2.0'),
-      details: { version: '2.0' }
+      details: {
+        version: '2.0',
+        supportedVersions: supportedTemplateVersions()
+      }
     }
   ],
   [
