@@ -187,10 +187,14 @@ function lengthErrors(db, tables) {
   return tables.flatMap((table) => overLimitErrors(db, table))
 }
 
+// The whitespace SQL trims from a value before calling it blank: SQLite's
+// trim() alone removes only spaces.
+const BLANK_CHARACTERS = `' ' || char(9, 10, 11, 12, 13)`
+
 /** SQL that is true where `column` holds a value that is not blank. */
 function notBlankSql(column) {
   const value = quoteSqliteIdent(column)
-  return `${value} IS NOT NULL AND trim(CAST(${value} AS TEXT)) <> ''`
+  return `${value} IS NOT NULL AND trim(CAST(${value} AS TEXT), ${BLANK_CHARACTERS}) <> ''`
 }
 
 /**
@@ -249,7 +253,7 @@ function uuidErrors(db, table, column, code) {
   const value = quoteSqliteIdent(column)
   return db
     .prepare(
-      `${rowSelect(table)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(column)} AND NOT (typeof(${value}) = 'text' AND trim(${value}) GLOB '${UUID_GLOB}')`
+      `${rowSelect(table)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(column)} AND NOT (typeof(${value}) = 'text' AND trim(${value}, ${BLANK_CHARACTERS}) GLOB '${UUID_GLOB}')`
     )
     .all()
     .map((row) =>

@@ -71,12 +71,17 @@ const SPACED_SLASH = /\s*\/\s*/g
  * Every drop-down and filled-in column in either template, with the values
  * any of its lists offers (see allowedValuesOf).
  */
-const ALLOWED_VALUES = new Map(
-  Object.entries(TEMPLATE_ALLOWED_VALUES).map(([column, values]) => [
-    columnKey(column),
-    new Set(values.map(normaliseListValue))
-  ])
-)
+const ALLOWED_VALUES = new Map()
+// Two names can be one column once compared: the legacy template spells one
+// timing column with a trailing space. Their lists are joined, not replaced.
+for (const [column, values] of Object.entries(TEMPLATE_ALLOWED_VALUES)) {
+  const key = columnKey(column)
+  const allowed = ALLOWED_VALUES.get(key) ?? new Set()
+  for (const value of values) {
+    allowed.add(normaliseListValue(value))
+  }
+  ALLOWED_VALUES.set(key, allowed)
+}
 
 const TEXT_LIMITS = new Map([
   ...[...ALLOWED_VALUES.keys()].map((key) => [key, SHORT_TEXT_LIMIT]),

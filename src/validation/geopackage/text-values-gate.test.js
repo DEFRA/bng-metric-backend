@@ -216,6 +216,7 @@ describe('text-values-gate', () => {
       const result = await templateGate({
         [AREA_BASELINE]: [
           { 'Baseline Condition': null, 'Baseline Habitat Type': '  ' },
+          { 'Baseline Condition': ' \t\n ', feature_uuid: '\t' },
           { 'Baseline Condition': '4. Fairly Poor' },
           { 'Baseline Condition': 'fairly  poor' }
         ]
@@ -228,7 +229,13 @@ describe('text-values-gate', () => {
         [AREA_PI]: [
           { 'Habitat created in advance/years': 5 },
           { 'Habitat created in advance/years': '5.0' },
-          { 'Delay in starting habitat creation/years': '30+' }
+          { 'Delay in starting habitat creation/years': '30+' },
+          // In a list under a column name with a trailing space, as the
+          // legacy template spells one timing column.
+          {
+            'Habitat created in advance/years':
+              'Habitat already in target condition'
+          }
         ]
       })
       expect(result.valid).toBe(true)
