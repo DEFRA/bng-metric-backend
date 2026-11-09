@@ -252,6 +252,22 @@ describe('text-values-gate', () => {
       }
     })
 
+    test('refuses more distinct unlisted values than SQLite allows variables', async () => {
+      // SQLite allows 32,766 bound variables by default, and 999 in older
+      // builds: the refused values must not be bound into the SQL.
+      const distinct = 33_000
+      const rows = Array.from({ length: distinct }, (_, index) => ({
+        'Habitat Ref': `H-${index}`,
+        'Baseline Condition': `Not a template value ${index}`
+      }))
+      const result = await templateGate({ [AREA_BASELINE]: rows })
+      expect(result.valid).toBe(false)
+      expect(new Set(codes(result))).toEqual(
+        new Set([ERROR_CODES.VALUE_NOT_ALLOWED])
+      )
+      expect(result.errors.at(-1).message).toMatch(/32,950 more/)
+    })
+
     test('shows a refused value cut to 99 characters, marked as truncated', async () => {
       const value = 'r'.repeat(200)
       const result = await oneValue(AREA_PI, 'Spatial risk category', value)

@@ -224,8 +224,9 @@ function notBlankSql(column) {
 
 /**
  * The values of a drop-down or filled-in column that its lists do not
- * offer. Each distinct value is checked once, and only the rows that hold a
- * refused one are read. Every value fits its limit by now.
+ * offer. Each distinct value is checked against the lists once; the rows
+ * are then read one at a time, and those that hold a refused value become
+ * errors. Every value fits its limit by now.
  */
 function notAllowedErrors(db, table, column, allowed) {
   const value = quoteSqliteIdent(column)
@@ -243,29 +244,32 @@ function notAllowedErrors(db, table, column, allowed) {
   if (refused.length === 0) {
     return []
   }
-  const texts = refused.filter((row) => !row.isBlob).map((row) => row.value)
-  const anyBlob = refused.some((row) => row.isBlob)
-  const matches = [
-    ...(texts.length > 0
-      ? [`CAST(${value} AS TEXT) IN (${texts.map(() => '?').join(', ')})`]
-      : []),
-    ...(anyBlob ? [`typeof(${value}) = 'blob'`] : [])
-  ].join(' OR ')
+  // The refused values are matched in JavaScript, not bound into the SQL: a
+  // column can hold more distinct values than SQLite allows variables.
+  const refusedTexts = new Set(
+    refused.filter((row) => !row.isBlob).map((row) => row.value)
+  )
   const textValueSql = `CASE WHEN typeof(${value}) = 'blob' THEN NULL ELSE CAST(${value} AS TEXT) END AS value`
-  return db
-    .prepare(`${rowSelect(table, textValueSql)} ${from} AND (${matches})`)
-    .all(...texts)
-    .map((row) => {
-      const shown =
-        row.value === null
-          ? 'a value that is not text'
-          : `"${shownValue(row.value.trim())}"`
-      return makeError(
+  const errors = []
+  for (const row of db
+    .prepare(`${rowSelect(table, textValueSql)} ${from}`)
+    .iterate()) {
+    if (row.value !== null && !refusedTexts.has(row.value)) {
+      continue
+    }
+    const shown =
+      row.value === null
+        ? 'a value that is not text'
+        : `"${shownValue(row.value.trim())}"`
+    errors.push(
+      makeError(
         ERROR_CODES.VALUE_NOT_ALLOWED,
         `${featureLabel(table, row)}: ${column.trim()} has ${shown}, which is not in its list.`,
         { table: table.name, fid: row.fid, column }
       )
-    })
+    )
+  }
+  return errors
 }
 
 // A UUID as SQLite's GLOB matches it: groups of 8, 4, 4, 4 and 12
