@@ -49,9 +49,9 @@ export const RED_LINE_KEY = 'redLine'
 
 /**
  * Clean a ref to a comparable string, collapsing blank, missing and non-scalar
- * values to null. It is cleaned exactly as a habitat ref is stored (trimmed and
- * truncated, cleanHabitatRef), so an incoming ref and the stored one it came
- * from compare equal however long it was. Refs reach us as whatever the
+ * values to null. It is cleaned exactly as a habitat ref is stored (trimmed,
+ * cleanHabitatRef), so an incoming ref and the stored one it came from
+ * compare equal. Refs reach us as whatever the
  * GeoPackage column held, so a
  * numeric ref must stringify the same way on both sides of the comparison —
  * but anything that is not a string or number has no meaningful ref value, and

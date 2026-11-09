@@ -100,12 +100,34 @@ export const ERROR_CODES = Object.freeze({
   COMMENT_INVALID_CHARACTERS: 'COMMENT_INVALID_CHARACTERS',
 
   /**
-   * One or more habitat comments are longer than 999 characters once leading
-   * and trailing whitespace is removed. Length is counted in characters, not
-   * bytes. A comment of exactly 999 characters is accepted. One error for
-   * every such comment. The file is refused and nothing from it is saved.
+   * A text value is longer than its column's limit, counted in characters
+   * once leading and trailing whitespace is removed (BMD-1175): 99 for a
+   * reference, Location and every drop-down or filled-in column, 255 for
+   * Spatial risk category, and 999 for a comment and the other Red Line
+   * Boundary details. One error for each value, naming the table, the
+   * feature, the column, the limit and the length. Checked before any other
+   * check reads a value.
    */
-  COMMENT_TOO_LONG: 'COMMENT_TOO_LONG',
+  TEXT_TOO_LONG: 'TEXT_TOO_LONG',
+
+  /**
+   * A drop-down or filled-in column holds a value that none of its lists
+   * offers, in either template (BMD-1175). A blank value is not this error.
+   * One error for each value; the value is shown cut to 99 characters.
+   */
+  VALUE_NOT_ALLOWED: 'VALUE_NOT_ALLOWED',
+
+  /** A BNG Service template baseline feature's feature_uuid is not blank and not a UUID (BMD-1175). */
+  FEATURE_UUID_INVALID: 'FEATURE_UUID_INVALID',
+
+  /** A post-intervention feature's parent_uuid is not blank and not a UUID (BMD-1175). */
+  PARENT_UUID_INVALID: 'PARENT_UUID_INVALID',
+
+  /**
+   * A post-intervention feature's parent_geom is not blank and is not WKT of
+   * its table's shape, or its multi form (BMD-1175).
+   */
+  PARENT_GEOM_INVALID: 'PARENT_GEOM_INVALID',
 
   /**
    * A BNG Service template vertical area habitat's Area is blank, zero,

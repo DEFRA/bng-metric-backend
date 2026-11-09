@@ -1,6 +1,14 @@
 import Joi from 'joi'
 
-import { hasInvalidRefCharacters } from '../validation/geopackage/habitat-ref-check.js'
+import {
+  MAX_HABITAT_REF_LENGTH,
+  hasInvalidRefCharacters,
+  isHabitatRefTooLong
+} from '../validation/geopackage/habitat-ref-check.js'
+import {
+  SHORT_TEXT_LIMIT,
+  characterCount
+} from '../validation/geopackage/text-limits.js'
 
 /**
  * Joi validator for routes whose path takes both a project UUID and a
@@ -10,6 +18,27 @@ export const projectFeatureIdParams = Joi.object({
   projectId: Joi.string().uuid().required(),
   featureId: Joi.string().uuid().required()
 })
+
+/**
+ * A drop-down choice sent from an edit page: optional, blankable, and no
+ * longer than a drop-down column of an upload (BMD-1175), counted in
+ * characters. Whether it is a choice the page offers is checked later,
+ * against the reference data.
+ */
+function dropDownChoice() {
+  return Joi.string()
+    .trim()
+    .allow(null, '')
+    .custom((value, helpers) =>
+      characterCount(value) > SHORT_TEXT_LIMIT
+        ? helpers.error('string.tooManyCharacters')
+        : value
+    )
+    .messages({
+      'string.tooManyCharacters': `{{#label}} must be ${SHORT_TEXT_LIMIT} characters or fewer`
+    })
+    .optional()
+}
 
 /**
  * Joi validator for the editable baseline-feature attributes accepted by the
@@ -26,27 +55,30 @@ export const projectFeatureIdParams = Joi.object({
  */
 export const featureEditPayload = Joi.object({
   // The habitat's Parcel Ref (BMD-1061). Optional: a save that leaves it out
-  // keeps the stored ref. When sent it follows the import rules (BMD-1058):
-  // blank or whitespace-only is refused, so is text that is not valid UTF-8,
-  // and a ref over the length limit is truncated on save, not refused
-  // (cleanHabitatRef in apply-feature-update.js).
+  // keeps the stored ref. When sent it follows the import rules (BMD-1058,
+  // BMD-1175): blank or whitespace-only is refused, so is text that is not
+  // valid UTF-8, and so is a ref over 99 characters.
   ref: Joi.string()
     .trim()
-    .custom((value, helpers) =>
-      hasInvalidRefCharacters(value)
-        ? helpers.error('string.invalidRef')
+    .custom((value, helpers) => {
+      if (hasInvalidRefCharacters(value)) {
+        return helpers.error('string.invalidRef')
+      }
+      return isHabitatRefTooLong(value)
+        ? helpers.error('string.refTooLong')
         : value
-    )
+    })
     .messages({
       'string.invalidRef':
-        '{{#label}} contains characters that are not valid UTF-8'
+        '{{#label}} contains characters that are not valid UTF-8',
+      'string.refTooLong': `{{#label}} must be ${MAX_HABITAT_REF_LENGTH} characters or fewer`
     })
     .optional(),
-  broadType: Joi.string().trim().allow(null, '').optional(),
-  habitatType: Joi.string().trim().allow(null, '').optional(),
-  condition: Joi.string().trim().allow(null, '').optional(),
-  watercourseEncroachment: Joi.string().trim().allow(null, '').optional(),
-  riparianEncroachment: Joi.string().trim().allow(null, '').optional()
+  broadType: dropDownChoice(),
+  habitatType: dropDownChoice(),
+  condition: dropDownChoice(),
+  watercourseEncroachment: dropDownChoice(),
+  riparianEncroachment: dropDownChoice()
 })
 
 /**

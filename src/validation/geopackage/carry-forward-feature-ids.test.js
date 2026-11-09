@@ -18,10 +18,10 @@ describe('#normaliseRef', () => {
     expect(normaliseRef('  PR-1 ')).toBe('PR-1')
   })
 
-  it('cuts a long ref as it is stored, so the stored ref matches the incoming one', () => {
-    const incoming = `  ${'A'.repeat(120)}`
+  it('trims a ref as it is stored, so the stored ref matches the incoming one', () => {
+    const incoming = `  ${'A'.repeat(99)}`
     const stored = normaliseRef(incoming)
-    expect(stored).toBe('A'.repeat(100))
+    expect(stored).toBe('A'.repeat(99))
     expect(normaliseRef(stored)).toBe(stored)
   })
 

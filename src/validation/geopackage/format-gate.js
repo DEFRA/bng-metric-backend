@@ -1,4 +1,6 @@
 import {
+  BASELINE,
+  RED_LINE_BOUNDARY,
   STAGE_BASELINE,
   STAGE_POST_INTERVENTION
 } from 'bng-library/bng-service'
@@ -35,6 +37,13 @@ function postInterventionEmpty(template) {
   }
 }
 
+// At the baseline endpoint a BNG Service template file is read only for its
+// Red Line Boundary and Baseline tables, so only their text values are
+// checked. The baseline + post-intervention endpoint reads every table.
+const baselineTables = (table) =>
+  table === RED_LINE_BOUNDARY || table.endsWith(` ${BASELINE}`)
+const everyTable = () => true
+
 /**
  * The format gate the service-template flag selects. With the flag on, only a
  * BNG Service template file in a supported version passes; with it off, only
@@ -49,6 +58,10 @@ function postInterventionEmpty(template) {
  *   tables, with `baselineReadSource` naming the Baseline tables, which hold
  *   the baseline the same upload saves. That endpoint refuses a file whose
  *   Post-Intervention tables are all empty.
+ *
+ * Either gate checks the text values of the tables the upload reads
+ * (text-values-gate.js) once the structure passes, before anything else
+ * reads a value.
  *
  * @param {string} filePath
  * @param {string} documentKey the route's project document key, one of
@@ -65,7 +78,10 @@ export function runFormatGate(filePath, documentKey) {
   if (!config.get('serviceTemplate.enabled')) {
     return validateGpkgFile(filePath)
   }
-  const result = validateServiceTemplateGpkgFile(filePath)
+  const result = validateServiceTemplateGpkgFile(
+    filePath,
+    documentKey === EXTRACT_VARIANT.BASELINE ? baselineTables : everyTable
+  )
   if (!result.valid || !result.template) {
     return result
   }

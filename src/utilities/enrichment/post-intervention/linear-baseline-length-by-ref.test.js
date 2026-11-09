@@ -27,11 +27,11 @@ describe('buildBaselineLinearLengthByRef', () => {
 
 describe('a baseline saved before references were cleaned (BMD-1058)', () => {
   // The post-intervention ref is the cleaned one; the stored baseline ref is
-  // raw, as it was saved before references were trimmed and truncated.
+  // raw, as it was saved before references were trimmed. A ref is no longer
+  // cut: one over 99 characters is refused at upload (BMD-1175).
   it.each([
     ['surrounded by spaces', ' H001 ', 'H001'],
-    ['a number', 12, '12'],
-    ['over 100 characters', `${'L'.repeat(120)}`, 'L'.repeat(100)]
+    ['a number', 12, '12']
   ])(
     'finds the length of a stored ref %s from the cleaned ref',
     (_, storedRef, cleanedRef) => {

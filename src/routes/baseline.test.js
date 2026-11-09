@@ -385,7 +385,8 @@ describe('validateBaseline handler — pipeline calls', () => {
       )
 
       expect(validateServiceTemplateGpkgFile).toHaveBeenCalledWith(
-        MOCK_DOWNLOAD_PATH
+        MOCK_DOWNLOAD_PATH,
+        expect.any(Function)
       )
     })
 

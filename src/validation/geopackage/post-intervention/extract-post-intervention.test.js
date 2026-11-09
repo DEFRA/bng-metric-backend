@@ -1188,8 +1188,9 @@ describe('extractPostIntervention — individual tree nested structure', () => {
 })
 
 describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
-  it('trims and truncates the Parcel Ref on habitats, hedgerows and watercourses', () => {
-    const long = `${'P'.repeat(105)}  `
+  it('trims the Parcel Ref on habitats, hedgerows and watercourses', () => {
+    // A ref over 99 characters is refused by the format gate (BMD-1175).
+    const long = `${'P'.repeat(99)}  `
     const out = extractPostIntervention({
       redline: [],
       areas: [feature({ [PARCEL_REF]: ' H001 ' }, SAMPLE_POLYGON)],
@@ -1199,7 +1200,7 @@ describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
 
     expect(out.document.habitats[0].ref).toBe('H001')
     expect(out.geometries.habitats[0].ref).toBe('H001')
-    expect(out.document.hedgerows[0].ref).toBe('P'.repeat(100))
+    expect(out.document.hedgerows[0].ref).toBe('P'.repeat(99))
     expect(out.document.watercourses[0].ref).toBe('R001')
   })
 })

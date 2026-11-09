@@ -9,6 +9,7 @@ import { parentFeatureIdField } from './project-lineage-fields.js'
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import { featureIdDescription } from '../project-shared-schemas.js'
 import { enhancementRulesForLayer } from '../geopackage/post-intervention/enhancement-rules.js'
+import { longFileText, shortFileText } from '../text-joi.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-library/metric.'
@@ -48,11 +49,9 @@ export function invalidEnhancementField(layer) {
 
 export function baselineCommonFields() {
   return {
-    condition: Joi.string()
-      .allow(null, '')
-      .description(
-        'Baseline condition assessment stripped of list-index prefix.'
-      ),
+    condition: shortFileText().description(
+      'Baseline condition assessment stripped of list-index prefix.'
+    ),
     conditionScore: Joi.number()
       .allow(null)
       .description(
@@ -70,11 +69,9 @@ export function baselineCommonFields() {
 export function proposedCommonFields() {
   return {
     ...baselineCommonFields(),
-    condition: Joi.string()
-      .allow(null, '')
-      .description(
-        'Proposed condition assessment stripped of list-index prefix.'
-      ),
+    condition: shortFileText().description(
+      'Proposed condition assessment stripped of list-index prefix.'
+    ),
     advanceYears: Joi.number()
       .allow(null)
       .description(
@@ -110,11 +107,9 @@ export function proposedCommonFields() {
       .description(
         'Strategic significance category (High or Low) the Proposed Strategic Significance resolved to in bng-library/metric; set for Created and Enhanced features, and null where the imported value was not Low or High (BMD-1051).'
       ),
-    rejectedStrategicSignificance: Joi.string()
-      .allow(null, '')
-      .description(
-        'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced.'
-      ),
+    rejectedStrategicSignificance: shortFileText().description(
+      'The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced.'
+    ),
     strategicSignificanceScore: Joi.number()
       .allow(null)
       .description(
@@ -156,9 +151,7 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
       .uuid()
       .required()
       .description(featureIdDescription(geometryRow)),
-    ref: Joi.string()
-      .allow(null, '')
-      .description('Feature reference from the GeoPackage.'),
+    ref: shortFileText().description('Feature reference from the GeoPackage.'),
     length: Joi.number()
       .allow(null)
       .description('Length in metres (measured size, rounded), for display.'),
@@ -176,9 +169,7 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
       .description(POST_INTERVENTION_STATUS_DESCRIPTION),
-    comment: Joi.string()
-      .allow(null, '')
-      .description(POST_INTERVENTION_COMMENT_DESCRIPTION)
+    comment: longFileText().description(POST_INTERVENTION_COMMENT_DESCRIPTION)
   }
 }
 
@@ -199,7 +190,7 @@ export function postInterventionAreaFeatureFields({
       .uuid()
       .required()
       .description(featureIdDescription(geometryRow)),
-    ref: Joi.string().allow(null, '').description(refDescription),
+    ref: shortFileText().description(refDescription),
     area: Joi.number().allow(null).description(areaDescription),
     sizeSquareMetres: Joi.number().allow(null).description(sizeDescription),
     units: Joi.number()
@@ -211,8 +202,6 @@ export function postInterventionAreaFeatureFields({
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
       .description(POST_INTERVENTION_STATUS_DESCRIPTION),
-    comment: Joi.string()
-      .allow(null, '')
-      .description(POST_INTERVENTION_COMMENT_DESCRIPTION)
+    comment: longFileText().description(POST_INTERVENTION_COMMENT_DESCRIPTION)
   }
 }

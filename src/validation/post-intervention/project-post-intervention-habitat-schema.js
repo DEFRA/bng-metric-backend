@@ -14,38 +14,31 @@ import {
 } from './project-post-intervention-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
+import { shortFileText } from '../text-joi.js'
 
 const postInterventionHabitatBaselineSubSchema = Joi.object({
-  type: Joi.string()
-    .allow(null, '')
-    .description(
-      'Baseline habitat type from the GeoPackage Baseline Habitat Type column.'
-    ),
-  broadType: Joi.string()
-    .allow(null, '')
-    .description('Baseline broad habitat type.'),
+  type: shortFileText().description(
+    'Baseline habitat type from the GeoPackage Baseline Habitat Type column.'
+  ),
+  broadType: shortFileText().description('Baseline broad habitat type.'),
   ...baselineCommonFields(),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
+  strategicSignificance: shortFileText().description(
+    BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+  )
 }).description(
   'Baseline habitat values extracted from the Baseline * GeoPackage columns.'
 )
 
 const postInterventionHabitatProposedSubSchema = Joi.object({
   ...createdTimingSelectionFields(),
-  type: Joi.string()
-    .allow(null, '')
-    .description(
-      'Proposed habitat type from the GeoPackage Proposed Habitat Type column.'
-    ),
-  broadType: Joi.string()
-    .allow(null, '')
-    .description('Proposed broad habitat type.'),
+  type: shortFileText().description(
+    'Proposed habitat type from the GeoPackage Proposed Habitat Type column.'
+  ),
+  broadType: shortFileText().description('Proposed broad habitat type.'),
   ...proposedCommonFields(),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description('Proposed Strategic Significance from the GeoPackage.')
+  strategicSignificance: shortFileText().description(
+    'Proposed Strategic Significance from the GeoPackage.'
+  )
 }).description(
   'Proposed habitat values extracted from the Proposed * GeoPackage columns.'
 )

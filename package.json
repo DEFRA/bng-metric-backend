@@ -63,7 +63,7 @@
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
     "better-sqlite3": "13.0.3",
-    "bng-library": "github:DEFRA/bng-library#b332ab2bb1e659d68f7236e3666fab55c7c32794",
+    "bng-library": "github:DEFRA/bng-library#9e59bc484760ca28e2bc621ea6fe1fef80a3f17f",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
     "dotenv": "18.0.9",

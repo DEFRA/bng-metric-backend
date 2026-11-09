@@ -9,6 +9,7 @@ import {
   RETENTION_RETAINED,
   resolveRetentionCategory
 } from './retention-category.js'
+import { shownValue } from '../../../validation/geopackage/text-limits.js'
 
 /**
  * The side of a post-intervention feature whose habitat its units are
@@ -40,7 +41,7 @@ export function deliveredSideOf(feature) {
  */
 function describeType(rawType) {
   if (typeof rawType === 'string') {
-    return rawType
+    return shownValue(rawType)
   }
   if (rawType == null) {
     return ''

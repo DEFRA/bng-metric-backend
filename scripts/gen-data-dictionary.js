@@ -203,6 +203,8 @@ function formatRule(rule) {
       return `min ${rule.args.limit}`
     case 'max':
       return `max ${rule.args.limit}`
+    case 'maxCharacters':
+      return `max ${rule.args.limit} characters`
     case 'length':
       return `length ${rule.args.limit}`
     case 'guid':

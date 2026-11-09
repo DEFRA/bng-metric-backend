@@ -1,5 +1,6 @@
 import { ERROR_CODES, makeError } from './errors.js'
 import { PROP_KEYS, pickProp } from './properties.js'
+import { shownValue } from './text-limits.js'
 
 const SAMPLE_CAP = 50
 
@@ -60,7 +61,7 @@ function describeTree(feature, idx) {
 
 function labelOf(sample) {
   if (sample.feature_ref != null) {
-    return `${PROP_KEYS.treeRef[0]} ${sample.feature_ref}`
+    return `${PROP_KEYS.treeRef[0]} ${shownValue(sample.feature_ref)}`
   }
   if (sample.fid != null) {
     return `fid ${sample.fid}`

@@ -1299,7 +1299,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage Red Line Boundary layer."
     },
@@ -1365,7 +1365,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Parcel reference from the GeoPackage (Parcel Ref column)."
     },
@@ -1376,7 +1376,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline habitat type, e.g. 'Lowland meadows'."
     },
@@ -1387,7 +1387,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline broad habitat type, e.g. 'Grassland'."
     },
@@ -1420,7 +1420,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -1442,7 +1442,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -1453,7 +1453,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -1519,7 +1519,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage (Site Name column)."
     },
@@ -1541,7 +1541,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text survey details from the GeoPackage."
     },
@@ -1552,7 +1552,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
@@ -1563,7 +1563,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Name of the surveyor who mapped the feature (Mapped by)."
     },
@@ -1574,7 +1574,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Company responsible for the survey (Company column)."
     },
@@ -1585,7 +1585,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Base map used during mapping (Base Map column)."
     },
@@ -1596,7 +1596,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -1607,7 +1607,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255 characters"],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -1618,7 +1618,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -1629,7 +1629,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -1640,7 +1640,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -1695,7 +1695,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -1717,7 +1717,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -1728,7 +1728,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -1750,7 +1750,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage (Site Name column)."
     },
@@ -1772,7 +1772,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text survey details from the GeoPackage."
     },
@@ -1783,7 +1783,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
@@ -1794,7 +1794,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Name of the surveyor who mapped the feature (Mapped by)."
     },
@@ -1805,7 +1805,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Company responsible for the survey (Company column)."
     },
@@ -1816,7 +1816,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Base map used during mapping (Base Map column)."
     },
@@ -1827,7 +1827,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -1838,7 +1838,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255 characters"],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -1849,7 +1849,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -1860,7 +1860,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -1871,7 +1871,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -1893,7 +1893,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree reference from the GeoPackage (Tree Ref column)."
     },
@@ -1904,7 +1904,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
     },
@@ -1915,7 +1915,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -1992,7 +1992,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
     },
@@ -2003,7 +2003,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column)."
     },
@@ -2014,7 +2014,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage (e.g. \"Urban\")."
     },
@@ -2080,7 +2080,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -2102,7 +2102,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -2113,7 +2113,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -2146,7 +2146,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage (Site Name column)."
     },
@@ -2168,7 +2168,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text survey details from the GeoPackage."
     },
@@ -2179,7 +2179,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
@@ -2190,7 +2190,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Name of the surveyor who mapped the feature (Mapped by)."
     },
@@ -2201,7 +2201,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Company responsible for the survey (Company column)."
     },
@@ -2212,7 +2212,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Base map used during mapping (Base Map column)."
     },
@@ -2223,7 +2223,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -2234,7 +2234,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255 characters"],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -2245,7 +2245,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -2256,7 +2256,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -2267,7 +2267,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -2289,7 +2289,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Habitat reference from the GeoPackage (Habitat Ref column)."
     },
@@ -2300,7 +2300,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
     },
@@ -2311,7 +2311,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
     },
@@ -2399,7 +2399,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Feature reference from the GeoPackage (Parcel Ref column)."
     },
@@ -2410,7 +2410,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Hedgerow type (Baseline Hedge Type column)."
     },
@@ -2421,7 +2421,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Hedgerow condition assessment."
     },
@@ -2509,7 +2509,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -2520,7 +2520,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -2531,7 +2531,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage (Site Name column)."
     },
@@ -2553,7 +2553,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text survey details from the GeoPackage."
     },
@@ -2564,7 +2564,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
@@ -2575,7 +2575,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Name of the surveyor who mapped the feature (Mapped by)."
     },
@@ -2586,7 +2586,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Company responsible for the survey (Company column)."
     },
@@ -2597,7 +2597,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Base map used during mapping (Base Map column)."
     },
@@ -2608,7 +2608,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -2619,7 +2619,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255 characters"],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -2630,7 +2630,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -2641,7 +2641,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -2652,7 +2652,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -2707,7 +2707,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Feature reference from the GeoPackage (Parcel Ref column)."
     },
@@ -2718,7 +2718,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Watercourse type (Baseline River Type column)."
     },
@@ -2729,7 +2729,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Watercourse condition assessment."
     },
@@ -2740,7 +2740,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Riparian-zone encroachment category from the GeoPackage."
     },
@@ -2751,7 +2751,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Watercourse encroachment category from the GeoPackage."
     },
@@ -2839,7 +2839,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -2850,7 +2850,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -2861,7 +2861,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage (Site Name column)."
     },
@@ -2883,7 +2883,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text survey details from the GeoPackage."
     },
@@ -2894,7 +2894,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
@@ -2905,7 +2905,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Name of the surveyor who mapped the feature (Mapped by)."
     },
@@ -2916,7 +2916,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Company responsible for the survey (Company column)."
     },
@@ -2927,7 +2927,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Base map used during mapping (Base Map column)."
     },
@@ -2938,7 +2938,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -2949,7 +2949,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255 characters"],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -2960,7 +2960,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -2971,7 +2971,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -2982,7 +2982,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -2993,7 +2993,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Enhancement type from the GeoPackage Rivers layer."
     },
@@ -3480,7 +3480,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Site name from the GeoPackage Red Line Boundary layer."
     },
@@ -3557,7 +3557,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Parcel reference from the GeoPackage (Parcel Ref column)."
     },
@@ -3612,7 +3612,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
@@ -3685,7 +3685,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline habitat type from the GeoPackage Baseline Habitat Type column."
     },
@@ -3696,7 +3696,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline broad habitat type."
     },
@@ -3707,7 +3707,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -3751,7 +3751,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -3795,7 +3795,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed habitat type from the GeoPackage Proposed Habitat Type column."
     },
@@ -3806,7 +3806,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed broad habitat type."
     },
@@ -3817,7 +3817,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -3938,7 +3938,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
@@ -3982,7 +3982,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -4048,7 +4048,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree reference from the GeoPackage (Tree Ref column)."
     },
@@ -4103,7 +4103,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
@@ -4136,7 +4136,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
     },
@@ -4147,7 +4147,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -4158,7 +4158,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -4202,7 +4202,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -4213,7 +4213,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
     },
@@ -4224,7 +4224,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree species/type free text (Tree Type column)."
     },
@@ -4235,7 +4235,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage."
     },
@@ -4279,7 +4279,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
     },
@@ -4290,7 +4290,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -4301,7 +4301,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -4345,7 +4345,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Strategic Significance from the GeoPackage."
     },
@@ -4356,7 +4356,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
     },
@@ -4367,7 +4367,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Tree species/type free text (Tree Type column)."
     },
@@ -4378,7 +4378,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage."
     },
@@ -4488,7 +4488,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
@@ -4587,7 +4587,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Habitat reference from the GeoPackage (Habitat Ref column)."
     },
@@ -4642,7 +4642,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
@@ -4704,7 +4704,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline habitat type from the GeoPackage Baseline Habitat Type column."
     },
@@ -4715,7 +4715,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline broad habitat type."
     },
@@ -4726,7 +4726,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -4770,7 +4770,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -4814,7 +4814,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed habitat type from the GeoPackage Proposed Habitat Type column."
     },
@@ -4825,7 +4825,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed broad habitat type."
     },
@@ -4836,7 +4836,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -4957,7 +4957,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
@@ -5001,7 +5001,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -5100,7 +5100,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Feature reference from the GeoPackage."
     },
@@ -5155,7 +5155,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
@@ -5177,7 +5177,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline hedgerow type from Baseline Hedge Type column."
     },
@@ -5188,7 +5188,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -5232,7 +5232,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -5276,7 +5276,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed hedgerow type from Proposed Hedge Type column."
     },
@@ -5287,7 +5287,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -5408,7 +5408,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
@@ -5452,7 +5452,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -5562,7 +5562,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Feature reference from the GeoPackage."
     },
@@ -5617,7 +5617,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 999 characters"],
       "openMap": false,
       "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
@@ -5639,7 +5639,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline watercourse type from Baseline River Type column."
     },
@@ -5650,7 +5650,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -5694,7 +5694,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Riparian-zone encroachment category."
     },
@@ -5705,7 +5705,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Watercourse encroachment category."
     },
@@ -5716,7 +5716,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -5782,7 +5782,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed watercourse type from Proposed River Type column."
     },
@@ -5793,7 +5793,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -5914,7 +5914,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
@@ -5958,7 +5958,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Riparian-zone encroachment category."
     },
@@ -5969,7 +5969,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Watercourse encroachment category."
     },
@@ -5980,7 +5980,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Strategic Significance from the GeoPackage."
     },

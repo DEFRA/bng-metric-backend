@@ -9,14 +9,6 @@ import { PROP_KEYS, pickProp } from './properties.js'
 const RETENTION_CREATED = 'Created'
 const RETENTION_ENHANCED = 'Enhanced'
 
-/**
- * The longest comment the service accepts, in characters, once leading and
- * trailing whitespace has been removed. The QGIS template declares the column
- * TEXT(999), but SQLite does not enforce it, so a longer comment is refused
- * rather than cut.
- */
-export const MAX_COMMENT_LENGTH = 999
-
 const INVALID_CHARACTERS_HEADING =
   'One or more comments contain characters that are not valid UTF-8'
 
@@ -38,7 +30,7 @@ const COMMENT_LAYERS = Object.freeze([
  * A comment as the service stores it: leading and trailing whitespace
  * removed, and a blank one stored as null. Characters within the text are
  * kept, including spaces. A value that is not text is null. An over-long
- * comment is not cut here: the upload is refused before anything is saved.
+ * comment never reaches here: the upload is refused before anything is read.
  *
  * @param {unknown} value
  * @returns {string | null}
@@ -102,37 +94,25 @@ export function commentForPostIntervention(props, { template = false } = {}) {
 }
 
 /**
- * Refuse a file whose comments are not valid UTF-8, or are longer than
- * {@link MAX_COMMENT_LENGTH} characters once trimmed. Each problem is one
- * error for every habitat it applies to, and a comment can be both. A null,
- * empty or whitespace-only comment is allowed.
+ * Refuse a file whose comments are not valid UTF-8: one error for every
+ * habitat it applies to. A null, empty or whitespace-only comment is allowed.
+ * A comment's length is checked earlier, with every other text value, by
+ * text-values-gate.js.
  *
  * @param {object} layers Output of readGeoPackage
  * @returns {Array<{ code: string, message: string, details: object }>}
  */
 export function checkHabitatComments(layers) {
   const invalid = []
-  const tooLong = []
   const tables = layers?.layerTables
   for (const layer of COMMENT_LAYERS) {
-    collectCommentOffenders(
-      layers?.[layer],
-      layer,
-      tables?.[layer],
-      invalid,
-      tooLong
-    )
+    collectCommentOffenders(layers?.[layer], layer, tables?.[layer], invalid)
   }
   return [
     collated(
       ERROR_CODES.COMMENT_INVALID_CHARACTERS,
       INVALID_CHARACTERS_HEADING,
       invalid
-    ),
-    collated(
-      ERROR_CODES.COMMENT_TOO_LONG,
-      `One or more comments are longer than ${MAX_COMMENT_LENGTH} characters`,
-      tooLong
     )
   ].filter(Boolean)
 }
@@ -142,15 +122,13 @@ export function checkHabitatComments(layers) {
  * @param {string} layer
  * @param {string | undefined} table
  * @param {object[]} invalid
- * @param {object[]} tooLong
  */
-function collectCommentOffenders(features, layer, table, invalid, tooLong) {
+function collectCommentOffenders(features, layer, table, invalid) {
   ;(features ?? []).forEach((feature, idx) => {
     recordComment(
       feature,
       describeOffender(layer, feature, idx, table),
-      invalid,
-      tooLong
+      invalid
     )
   })
 }
@@ -159,9 +137,8 @@ function collectCommentOffenders(features, layer, table, invalid, tooLong) {
  * @param {object} feature
  * @param {object} offender
  * @param {object[]} invalid
- * @param {object[]} tooLong
  */
-function recordComment(feature, offender, invalid, tooLong) {
+function recordComment(feature, offender, invalid) {
   const raw = commentOf(feature?.properties)
   if (isBlankComment(raw)) {
     return
@@ -169,9 +146,6 @@ function recordComment(feature, offender, invalid, tooLong) {
   const text = commentText(raw)
   if (text == null || hasInvalidUtf8Text(text)) {
     invalid.push(offender)
-  }
-  if (text != null && commentLength(text) > MAX_COMMENT_LENGTH) {
-    tooLong.push(offender)
   }
 }
 
@@ -206,16 +180,6 @@ function commentText(value) {
     return String(value)
   }
   return null
-}
-
-/**
- * Characters after leading and trailing whitespace is removed.
- *
- * @param {string} text
- * @returns {number}
- */
-function commentLength(text) {
-  return Array.from(text.trim()).length
 }
 
 /**

@@ -19,6 +19,7 @@ import {
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
+import { longFileText, shortFileText, spatialRiskFileText } from './text-joi.js'
 
 const BASELINE_STATUS_DESCRIPTION =
   "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
@@ -31,52 +32,44 @@ const DISTINCTIVENESS_SCORE_DESCRIPTION =
 // a fresh object each call because Joi schema objects are stateful and must not
 // be shared between parent schemas.
 const metadataSchemaKeys = () => ({
-  siteName: Joi.string()
-    .allow(null, '')
-    .description('Site name from the GeoPackage (Site Name column).'),
+  siteName: longFileText().description(
+    'Site name from the GeoPackage (Site Name column).'
+  ),
   surveyDate: Joi.string()
     .allow(null, '')
     .description(
       'Survey date from the GeoPackage (Survey Date column), as stored in the source file.'
     ),
-  surveyDetails: Joi.string()
-    .allow(null, '')
-    .description('Free-text survey details from the GeoPackage.'),
-  comment: Joi.string()
-    .allow(null, '')
-    .description(
-      'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null.'
-    ),
-  mappedBy: Joi.string()
-    .allow(null, '')
-    .description('Name of the surveyor who mapped the feature (Mapped by).'),
-  company: Joi.string()
-    .allow(null, '')
-    .description('Company responsible for the survey (Company column).'),
-  baseMap: Joi.string()
-    .allow(null, '')
-    .description('Base map used during mapping (Base Map column).'),
-  location: Joi.string()
-    .allow(null, '')
-    .description('Free-text location description from the GeoPackage.'),
-  spatialRiskCategory: Joi.string()
-    .allow(null, '')
-    .description('Spatial risk category from the GeoPackage.'),
-  habitatCreatedInAdvanceYears: Joi.string()
-    .allow(null, '')
-    .description(
-      'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
-    ),
-  delayInStartingHabitatCreationYears: Joi.string()
-    .allow(null, '')
-    .description(
-      'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
-    ),
-  rawDistinctiveness: Joi.string()
-    .allow(null, '')
-    .description(
-      'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
-    )
+  surveyDetails: longFileText().description(
+    'Free-text survey details from the GeoPackage.'
+  ),
+  comment: longFileText().description(
+    'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null.'
+  ),
+  mappedBy: longFileText().description(
+    'Name of the surveyor who mapped the feature (Mapped by).'
+  ),
+  company: longFileText().description(
+    'Company responsible for the survey (Company column).'
+  ),
+  baseMap: longFileText().description(
+    'Base map used during mapping (Base Map column).'
+  ),
+  location: shortFileText().description(
+    'Free-text location description from the GeoPackage.'
+  ),
+  spatialRiskCategory: spatialRiskFileText().description(
+    'Spatial risk category from the GeoPackage.'
+  ),
+  habitatCreatedInAdvanceYears: shortFileText().description(
+    'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
+  ),
+  delayInStartingHabitatCreationYears: shortFileText().description(
+    'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
+  ),
+  rawDistinctiveness: shortFileText().description(
+    'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
+  )
 })
 
 const RETENTION_CATEGORY_DESCRIPTION = 'Retention category from the GeoPackage.'
@@ -105,15 +98,15 @@ const habitatSchema = Joi.object({
     .uuid()
     .required()
     .description(featureIdDescription('bng.baseline_habitats')),
-  ref: Joi.string()
-    .allow(null, '')
-    .description('Parcel reference from the GeoPackage (Parcel Ref column).'),
-  type: Joi.string()
-    .allow(null, '')
-    .description("Baseline habitat type, e.g. 'Lowland meadows'."),
-  broadType: Joi.string()
-    .allow(null, '')
-    .description("Baseline broad habitat type, e.g. 'Grassland'."),
+  ref: shortFileText().description(
+    'Parcel reference from the GeoPackage (Parcel Ref column).'
+  ),
+  type: shortFileText().description(
+    "Baseline habitat type, e.g. 'Lowland meadows'."
+  ),
+  broadType: shortFileText().description(
+    "Baseline broad habitat type, e.g. 'Grassland'."
+  ),
   distinctiveness: Joi.string()
     .allow(null, '')
     .description(
@@ -122,20 +115,20 @@ const habitatSchema = Joi.object({
   distinctivenessScore: Joi.number()
     .allow(null)
     .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
-  condition: Joi.string()
-    .allow(null, '')
-    .description("Baseline condition assessment, e.g. 'Good'."),
+  condition: shortFileText().description(
+    "Baseline condition assessment, e.g. 'Good'."
+  ),
   conditionScore: Joi.number()
     .allow(null)
     .description(
       'Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits.'
     ),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
-  retentionCategory: Joi.string()
-    .allow(null, '')
-    .description(RETENTION_CATEGORY_DESCRIPTION),
+  strategicSignificance: shortFileText().description(
+    BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+  ),
+  retentionCategory: shortFileText().description(
+    RETENTION_CATEGORY_DESCRIPTION
+  ),
   irreplaceable: Joi.boolean().description(
     'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column.'
   ),
@@ -177,17 +170,15 @@ const treeSchema = habitatSchema
       .uuid()
       .required()
       .description(featureIdDescription('bng.baseline_trees')),
-    ref: Joi.string()
-      .allow(null, '')
-      .description('Tree reference from the GeoPackage (Tree Ref column).'),
-    type: Joi.string()
-      .allow(null, '')
-      .description(
-        "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
-      ),
-    broadType: Joi.string()
-      .allow(null, '')
-      .description("Always 'Individual trees' for tree features."),
+    ref: shortFileText().description(
+      'Tree reference from the GeoPackage (Tree Ref column).'
+    ),
+    type: shortFileText().description(
+      "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
+    ),
+    broadType: shortFileText().description(
+      "Always 'Individual trees' for tree features."
+    ),
     distinctiveness: Joi.string()
       .allow(null, '')
       .description(
@@ -217,21 +208,15 @@ const treeSchema = habitatSchema
         'Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer.'
       ),
     // Tree-specific source columns not present on parcels.
-    treeSize: Joi.string()
-      .allow(null, '')
-      .description(
-        "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
-      ),
-    treeSpecies: Joi.string()
-      .allow(null, '')
-      .description(
-        'Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column).'
-      ),
-    ruralOrUrban: Joi.string()
-      .allow(null, '')
-      .description(
-        'Raw Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban").'
-      ),
+    treeSize: shortFileText().description(
+      "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
+    ),
+    treeSpecies: shortFileText().description(
+      'Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column).'
+    ),
+    ruralOrUrban: shortFileText().description(
+      'Raw Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban").'
+    ),
     count: Joi.number()
       .allow(null)
       .description(
@@ -250,21 +235,15 @@ const verticalHabitatSchema = habitatSchema
       .uuid()
       .required()
       .description(featureIdDescription('bng.baseline_vertical_habitats')),
-    ref: Joi.string()
-      .allow(null, '')
-      .description(
-        'Habitat reference from the GeoPackage (Habitat Ref column).'
-      ),
-    type: Joi.string()
-      .allow(null, '')
-      .description(
-        "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
-      ),
-    broadType: Joi.string()
-      .allow(null, '')
-      .description(
-        "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
-      ),
+    ref: shortFileText().description(
+      'Habitat reference from the GeoPackage (Habitat Ref column).'
+    ),
+    type: shortFileText().description(
+      "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
+    ),
+    broadType: shortFileText().description(
+      "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
+    ),
     area: Joi.number()
       .allow(null)
       .description(
@@ -313,13 +292,11 @@ function linearFeatureSchema({
       .uuid()
       .required()
       .description(featureIdDescription(geometryRow)),
-    ref: Joi.string()
-      .allow(null, '')
-      .description(
-        'Feature reference from the GeoPackage (Parcel Ref column).'
-      ),
-    type: Joi.string().allow(null, '').description(typeDescription),
-    condition: Joi.string().allow(null, '').description(conditionDescription),
+    ref: shortFileText().description(
+      'Feature reference from the GeoPackage (Parcel Ref column).'
+    ),
+    type: shortFileText().description(typeDescription),
+    condition: shortFileText().description(conditionDescription),
     ...afterCondition,
     distinctiveness: Joi.string()
       .allow(null, '')
@@ -349,12 +326,12 @@ function linearFeatureSchema({
       .description(
         `${unitsDescription} Null when required calculation inputs are missing.`
       ),
-    strategicSignificance: Joi.string()
-      .allow(null, '')
-      .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
-    retentionCategory: Joi.string()
-      .allow(null, '')
-      .description(RETENTION_CATEGORY_DESCRIPTION),
+    strategicSignificance: shortFileText().description(
+      BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+    ),
+    retentionCategory: shortFileText().description(
+      RETENTION_CATEGORY_DESCRIPTION
+    ),
     ...metadataSchemaKeys(),
     ...beforeProperties,
     properties: Joi.object().unknown(true).description(propertiesDescription)
@@ -380,12 +357,12 @@ const watercourseHabitatSchema = linearFeatureSchema({
   typeDescription: 'Watercourse type (Baseline River Type column).',
   conditionDescription: 'Watercourse condition assessment.',
   afterCondition: {
-    riparianEncroachment: Joi.string()
-      .allow(null, '')
-      .description('Riparian-zone encroachment category from the GeoPackage.'),
-    watercourseEncroachment: Joi.string()
-      .allow(null, '')
-      .description('Watercourse encroachment category from the GeoPackage.')
+    riparianEncroachment: shortFileText().description(
+      'Riparian-zone encroachment category from the GeoPackage.'
+    ),
+    watercourseEncroachment: shortFileText().description(
+      'Watercourse encroachment category from the GeoPackage.'
+    )
   },
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the watercourse type.',
@@ -393,9 +370,9 @@ const watercourseHabitatSchema = linearFeatureSchema({
   unitsDescription:
     'Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428).',
   beforeProperties: {
-    enhancementType: Joi.string()
-      .allow(null, '')
-      .description('Enhancement type from the GeoPackage Rivers layer.'),
+    enhancementType: shortFileText().description(
+      'Enhancement type from the GeoPackage Rivers layer.'
+    ),
     waterEncroachmentMultiplier: Joi.number()
       .allow(null)
       .description(

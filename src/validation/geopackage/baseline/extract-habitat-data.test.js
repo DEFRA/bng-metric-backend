@@ -1445,8 +1445,10 @@ describe('extractHabitatData — post-intervention reads Proposed columns (varia
 })
 
 describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
-  it('trims and truncates the Parcel Ref on area, hedgerow and watercourse habitats, but not on trees', () => {
-    const long = 'L'.repeat(120)
+  it('trims the Parcel Ref on area, hedgerow and watercourse habitats, but not on trees', () => {
+    // A ref over 99 characters is refused by the format gate (BMD-1175), so
+    // the longest one that reaches here is kept whole.
+    const long = 'L'.repeat(99)
     const layers = {
       redline: [],
       areas: [feature({ [PARCEL_REF]: '  H001  ' })],
@@ -1464,7 +1466,7 @@ describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
 
     expect(document.habitats[0].ref).toBe('H001')
     expect(geometries.habitats[0].ref).toBe('H001')
-    expect(document.hedgerows[0].ref).toBe('L'.repeat(100))
+    expect(document.hedgerows[0].ref).toBe(long)
     expect(document.watercourses[0].ref).toBe('R001')
     expect(document.trees[0].ref).toBe('  T001  ')
   })

@@ -3,13 +3,25 @@ import { HABITAT_REF } from 'bng-library/bng-service'
 import { ERROR_CODES } from './errors.js'
 import { describeOffender, collated, hasInvalidUtf8Text } from './offenders.js'
 import { PROP_KEYS, pickProp } from './properties.js'
+import { SHORT_TEXT_LIMIT, characterCount } from './text-limits.js'
 
 /**
- * The longest habitat reference the service keeps. A longer one is truncated
- * on save rather than rejected (BMD-1058). The QGIS template declares the
- * column TEXT(99), but SQLite does not enforce it, so a file can carry more.
+ * The longest habitat reference the service accepts, in characters, once
+ * trimmed. A longer one is refused, not cut (BMD-1175): an upload by the
+ * format gate (text-values-gate.js), and an edit by its route.
  */
-export const MAX_HABITAT_REF_LENGTH = 100
+export const MAX_HABITAT_REF_LENGTH = SHORT_TEXT_LIMIT
+
+/**
+ * Whether a reference is longer than MAX_HABITAT_REF_LENGTH characters once
+ * trimmed.
+ *
+ * @param {string} ref
+ * @returns {boolean}
+ */
+export function isHabitatRefTooLong(ref) {
+  return characterCount(ref) > MAX_HABITAT_REF_LENGTH
+}
 
 /** The legacy template's name for a habitat's reference column. */
 const LEGACY_REF_COLUMN = 'Parcel Ref'
@@ -26,11 +38,9 @@ export const HABITAT_REF_LAYERS = Object.freeze([
 ])
 
 /**
- * A reference as the service stores it: trimmed, then cut to
- * MAX_HABITAT_REF_LENGTH characters, then trimmed again so a cut that lands
- * on a space leaves none behind and cleaning a cleaned reference changes
- * nothing. Characters are counted as code points, so a cut never splits one.
- * A value that is not text is returned as it is.
+ * A reference as the service stores it: trimmed. A value that is not text is
+ * returned as it is. A reference longer than MAX_HABITAT_REF_LENGTH never
+ * reaches here: it is refused first.
  *
  * @param {unknown} ref
  * @returns {unknown}
@@ -39,12 +49,7 @@ export function cleanHabitatRef(ref) {
   if (typeof ref !== 'string' && typeof ref !== 'number') {
     return ref
   }
-  const trimmed = String(ref).trim()
-  const characters = Array.from(trimmed)
-  if (characters.length <= MAX_HABITAT_REF_LENGTH) {
-    return trimmed
-  }
-  return characters.slice(0, MAX_HABITAT_REF_LENGTH).join('').trimEnd()
+  return String(ref).trim()
 }
 
 function isMissing(ref) {
@@ -87,8 +92,8 @@ function hasInvalidCharacters(ref) {
  *   HABITAT_REF_INVALID_CHARACTERS.
  *
  * Each is one error for all the habitats it applies to. Habitats may share a
- * reference, and a long one is truncated on save (cleanHabitatRef), so
- * neither is an error.
+ * reference, which is not an error. A reference's length is checked by the
+ * format gate, before this check (text-values-gate.js).
  *
  * @param {object} layers Output of readGeoPackage
  * @returns {Array<{ code: string, message: string, details: { count: number, sample: object[] } }>}
