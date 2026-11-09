@@ -644,6 +644,29 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
+    it('reads a degraded tree with a blank proposed setting as in its baseline setting', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        codes(
+          check(
+            { trees: [parent] },
+            {
+              trees: [
+                degradedTree(parent, {
+                  // A copied row keeps its parent's Baseline columns.
+                  'Baseline Rural or Urban Tree':
+                    parent.properties['Baseline Rural or Urban Tree'],
+                  'Proposed Rural or Urban Tree': null,
+                  'Proposed Condition': 'Good'
+                })
+              ]
+            }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+    })
+
     it('does not count an Existing tree Created in the other setting as degraded', () => {
       const parent = tree(1, 1)
 

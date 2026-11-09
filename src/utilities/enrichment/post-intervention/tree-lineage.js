@@ -55,14 +55,21 @@ const CONTINUING = new Set([RETENTION_RETAINED, RETENTION_ENHANCED])
  * Whether a tree is its parent, kept or recorded as lost and created again.
  * A Created tree is its parent only when it is Existing and keeps its Urban or
  * Rural setting, as the file's check reads a degraded tree (lineage-rules.js),
- * before its proposed side is overwritten here. An Existing tree recorded in
- * the other setting is a creation in that setting.
+ * before its proposed side is overwritten here. As there, a blank proposed
+ * setting is the row's own baseline one. An Existing tree recorded in the
+ * other setting is a creation in that setting.
  */
 const isParentTree = (tree, parent, retention) =>
   CONTINUING.has(retention) ||
   (retention === RETENTION_CREATED &&
     canDegrade('trees', tree.properties) &&
-    isSameHabitatType(parent, tree.proposed ?? {}))
+    isSameHabitatType(parent, proposedSetting(tree)))
+
+/** A tree's proposed setting, or its baseline one when it proposes none. */
+const proposedSetting = (tree) => ({
+  ...tree.proposed,
+  type: tree.proposed?.type ?? tree.baseline?.type ?? null
+})
 
 /**
  * @param {object} side a tree's baseline or proposed side, mutated

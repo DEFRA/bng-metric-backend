@@ -147,6 +147,28 @@ describe('alignTreesWithParents', () => {
     expect(tree.baseline.condition).toBe('Moderate')
   })
 
+  it('reads a degraded tree with a blank proposed setting as in its baseline setting, as the file check does', () => {
+    const tree = piTree('Created', {
+      properties: { Category: 'Existing' },
+      baseline: { type: 'Rural tree', broadType: 'Individual trees' },
+      proposed: {
+        type: null,
+        broadType: 'Individual trees',
+        treeSize: null,
+        ruralOrUrban: null,
+        condition: 'Poor'
+      }
+    })
+
+    expect(align(tree)).toEqual([tree])
+    expect(tree.proposed).toMatchObject({
+      type: 'Rural tree',
+      treeSize: 'Medium',
+      condition: 'Poor',
+      sizeSquareMetres: 326
+    })
+  })
+
   it('leaves an Existing tree Created in the other setting: it is a creation in that setting', () => {
     const tree = piTree('Created', { properties: { Category: 'Existing' } })
     const before = structuredClone(tree)
