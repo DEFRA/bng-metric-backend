@@ -395,10 +395,16 @@ export const TEMPLATE_VARIANT = 'bng-service'
  * and a value the file does not have as null. A code not listed sends
  * nothing the wording needs beyond its `count` and `sample`. A comment beside
  * an entry says how its message writes a value, where that is not plain.
- * The check is DEFRA/bng-metric-harness#225. Like ERROR_CODE_SURFACES, nothing reads this at run time:
- * bng-metric-harness's check (npm run check:dropout-copy) loads it to hold
- * the error text to it, so the error text names only values a code sends and
- * words every variant it can name.
+ * bng-metric-harness's check (npm run check:dropout-copy, added by
+ * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the
+ * error text names only values a code sends and words every variant it can
+ * name.
+ *
+ * Unlike ERROR_CODE_SURFACES, this is also read at run time: the BNG Service
+ * template's gate (service-template/service-template-gate.js) tags an error
+ * with the bng-service variant when its entry here declares it. So removing
+ * TEMPLATE_VARIANT from an entry also stops the gate sending it, and the
+ * frontend words that error in the legacy template's terms.
  */
 export const ERROR_CODE_DETAILS = Object.freeze({
   // applicationId is the number; the message writes it in upper-case hex.
