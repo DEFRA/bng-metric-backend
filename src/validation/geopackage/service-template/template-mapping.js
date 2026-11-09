@@ -37,6 +37,9 @@ import {
 /** The legacy pipeline's name for a habitat's reference. */
 const PARCEL_REF = 'Parcel Ref'
 
+/** A habitat's or tree's irreplaceable status, read as `irreplaceable`. */
+const IRREPLACEABLE_HABITAT = 'Irreplaceable Habitat'
+
 /** The legacy pipeline's name for a tree's reference. */
 const TREE_REF = 'Tree Ref'
 
@@ -83,7 +86,7 @@ const LAYER_COLUMNS = {
       'Proposed Habitat Type',
       // Read as `irreplaceable`; refusing a file with one that is waits for
       // BMD-1176.
-      'Irreplaceable Habitat'
+      IRREPLACEABLE_HABITAT
     ),
     ...dropped('Area')
   ],
@@ -94,7 +97,7 @@ const LAYER_COLUMNS = {
       'Baseline Habitat Type',
       'Proposed Broad Habitat Type',
       'Proposed Habitat Type',
-      'Irreplaceable Habitat',
+      IRREPLACEABLE_HABITAT,
       // Hectares, as entered: the service stores it in square metres, as
       // every area habitat's size is stored.
       'Area'
@@ -129,7 +132,7 @@ const LAYER_COLUMNS = {
       'Baseline Strategic Significance',
       // Read as `irreplaceable`: the service refuses an irreplaceable tree
       // (irreplaceable-tree-check.js).
-      'Irreplaceable Habitat',
+      IRREPLACEABLE_HABITAT,
       'Retention Category',
       'Category',
       'Proposed Tree Size',

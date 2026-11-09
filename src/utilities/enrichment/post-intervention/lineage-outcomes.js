@@ -14,7 +14,10 @@ import { MIN_PARCEL_AREA_SQ_M } from '../../../validation/geopackage/geometry-co
 import { treeCountOrDefault } from '../../../validation/geopackage/tree-sizes.js'
 import { buildAdvanceDelayFields } from '../../../validation/geopackage/post-intervention/extract-post-intervention-sub-objects.js'
 import { PROPOSED_PROP_KEYS } from '../../../validation/geopackage/properties.js'
-import { alignTreesWithParents } from './tree-lineage.js'
+import {
+  alignTreesWithParents,
+  refreshTreeHabitatSizes
+} from './tree-lineage.js'
 
 /**
  * What a BNG Service template upload's post-intervention habitats do to their
@@ -333,7 +336,8 @@ export const isTemplateUpload = (postIntervention) =>
 
 /**
  * Apply them to a template upload's post-intervention document: give each
- * kept tree its parent's identity, null the advance the guide does not allow,
+ * kept tree its parent's identity, and work its tree sizes out again, null
+ * the advance the guide does not allow,
  * and record what each baseline parent loses as `lostHabitats`.
  *
  * @param {object} postIntervention
@@ -343,6 +347,7 @@ export const isTemplateUpload = (postIntervention) =>
  */
 export function applyLineageOutcomes(postIntervention, baseline, logger) {
   alignTreesWithParents(postIntervention, baseline)
+  refreshTreeHabitatSizes(postIntervention)
   for (const feature of nullDisallowedWatercourseAdvance(
     postIntervention,
     baseline

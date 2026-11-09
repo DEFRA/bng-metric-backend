@@ -522,6 +522,23 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
         }
       })
       expect(t006.units).toBeGreaterThan(0)
+      // The document's tree sizes count it as it is kept, not as proposed.
+      const sizes = postIntervention.habitatSizes
+      const sum = (trees) =>
+        trees.reduce((total, tree) => total + tree.sizeSquareMetres, 0)
+      const ofType = (type) =>
+        postIntervention.trees.filter((tree) => tree.proposed.type === type)
+      expect(sizes.trees).toEqual({
+        totalSquareMetres: sum(postIntervention.trees),
+        urbanSquareMetres: sum(ofType('Urban tree')),
+        ruralSquareMetres: sum(ofType('Rural tree'))
+      })
+      expect(sizes.areaHabitats.totalSquareMetres).toBeCloseTo(
+        sizes.site.totalSquareMetres +
+          sizes.trees.totalSquareMetres +
+          sizes.verticalHabitats.totalSquareMetres,
+        6
+      )
     },
     IMPORT_TIMEOUT_MS
   )

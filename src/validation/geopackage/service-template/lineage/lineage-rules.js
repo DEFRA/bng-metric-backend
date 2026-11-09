@@ -391,6 +391,73 @@ const describeParent = (parent) =>
     : label(parent)
 
 /**
+ * Each rule's error: its code, the heading the message opens with, the
+ * offenders it lists (a key of checkLineageRules' `found`) and how each is
+ * named.
+ */
+const RULE_ERRORS = [
+  {
+    code: ERROR_CODES.STAGED_HEDGEROW_CHILDREN_TOO_LONG,
+    heading:
+      'One or more baseline hedgerows are shorter than the post-intervention hedgerows linked to them together',
+    found: 'tooLong',
+    describe: (parent) =>
+      `${describeParent(parent)} (${parent.lengthMetres} m, linked ${parent.childLengthMetres} m)`
+  },
+  {
+    code: ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
+    heading:
+      'One or more baseline vertical area habitats have a smaller Area (ha) than the post-intervention vertical area habitats linked to them together',
+    found: 'tooLarge',
+    describe: (parent) =>
+      `${describeParent(parent)} (${toHectares(parent.areaSquareMetres)} ha, linked ${toHectares(parent.childAreaSquareMetres)} ha)`
+  },
+  {
+    code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
+    heading:
+      'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together',
+    found: 'tooManyTrees',
+    describe: (parent) =>
+      `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`
+  },
+  {
+    code: ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,
+    heading:
+      'One or more baseline watercourses have both a Retained or Enhanced part and a Created part, so their length cannot be split between what continues and what is lost. Draw each as two baseline watercourses, one for each part',
+    found: 'partCreated',
+    describe: describeParent
+  },
+  {
+    code: ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST,
+    heading:
+      'One or more baseline watercourses have no post-intervention habitat, but only a canal or a ditch can be permanently lost. Record each as Retained, Enhanced or Created',
+    found: 'naturalLost',
+    describe: describeParent
+  },
+  {
+    code: ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
+    heading:
+      'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation',
+    found: 'notWorse',
+    describe: describeRow
+  },
+  {
+    code: ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS,
+    heading:
+      'One or more habitats recorded as lost and created again in a lower condition are not created 30+ years in advance, as the Metric guide asks',
+    found: 'advanceNot30Plus',
+    describe: describeRow
+  },
+  {
+    code: ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
+    heading:
+      'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation',
+    found: 'noIntervention',
+    describe: describeRow
+  }
+]
+
+/**
  * Check the Metric's lineage rules over every linked post-intervention row.
  *
  * @param {object} baselineLayers readGeoPackage's Baseline tables, read with
@@ -425,57 +492,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
       found
     )
   }
-  return [
-    collated(
-      ERROR_CODES.STAGED_HEDGEROW_CHILDREN_TOO_LONG,
-      'One or more baseline hedgerows are shorter than the post-intervention hedgerows linked to them together',
-      found.tooLong,
-      (parent) =>
-        `${describeParent(parent)} (${parent.lengthMetres} m, linked ${parent.childLengthMetres} m)`
-    ),
-    collated(
-      ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
-      'One or more baseline vertical area habitats have a smaller Area (ha) than the post-intervention vertical area habitats linked to them together',
-      found.tooLarge,
-      (parent) =>
-        `${describeParent(parent)} (${toHectares(parent.areaSquareMetres)} ha, linked ${toHectares(parent.childAreaSquareMetres)} ha)`
-    ),
-    collated(
-      ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
-      'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together',
-      found.tooManyTrees,
-      (parent) =>
-        `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`
-    ),
-    collated(
-      ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,
-      'One or more baseline watercourses have both a Retained or Enhanced part and a Created part, so their length cannot be split between what continues and what is lost. Draw each as two baseline watercourses, one for each part',
-      found.partCreated,
-      describeParent
-    ),
-    collated(
-      ERROR_CODES.STAGED_NATURAL_WATERCOURSE_LOST,
-      'One or more baseline watercourses have no post-intervention habitat, but only a canal or a ditch can be permanently lost. Record each as Retained, Enhanced or Created',
-      found.naturalLost,
-      describeParent
-    ),
-    collated(
-      ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-      'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation',
-      found.notWorse,
-      describeRow
-    ),
-    collated(
-      ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS,
-      'One or more habitats recorded as lost and created again in a lower condition are not created 30+ years in advance, as the Metric guide asks',
-      found.advanceNot30Plus,
-      describeRow
-    ),
-    collated(
-      ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
-      'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation',
-      found.noIntervention,
-      describeRow
-    )
-  ].filter(Boolean)
+  return RULE_ERRORS.map(({ code, heading, found: key, describe }) =>
+    collated(code, heading, found[key], describe)
+  ).filter(Boolean)
 }
