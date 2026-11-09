@@ -116,7 +116,8 @@ export function readTemplateVersion(db) {
     return {
       error: makeError(
         ERROR_CODES.TEMPLATE_VERSION_DUPLICATED,
-        `The file has ${records.length} template version records, so its template version is unclear. It should have one.`
+        `The file has ${records.length} template version records, so its template version is unclear. It should have one.`,
+        { recordCount: records.length }
       )
     }
   }

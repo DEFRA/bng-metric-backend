@@ -374,8 +374,140 @@ export const ERROR_CODE_SURFACES = Object.freeze(
   )
 )
 
+/**
+ * The variant of a message the BNG Service template's gate puts in its own
+ * terms (service-template/service-template-gate.js).
+ */
+export const TEMPLATE_VARIANT = 'bng-service'
+
+/**
+ * The values, and the variants, that each code's `details` carry so the
+ * frontend can word the error itself.
+ *
+ * The frontend's error text (src/server/common/error-text/error-text.yaml)
+ * holds every sentence a customer sees; `message` is for logs. A message that
+ * names a value from the file, such as a layer name or an area, sends that
+ * value in `details` under the name given here, and the error text fills it
+ * into a {placeholder}. A code that words the same problem more than one way
+ * names the way in `details.variants`, and the error text words each one.
+ *
+ * Values are sent raw: a number as a number, so the frontend formats it,
+ * and a value the file does not have as null. A code not listed sends
+ * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * an entry says how its message writes a value, where that is not plain.
+ * bng-metric-harness's check (npm run check:dropout-copy, added by
+ * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the
+ * error text names only values a code sends and words every variant it can
+ * name.
+ *
+ * Unlike ERROR_CODE_SURFACES, this is also read at run time: the BNG Service
+ * template's gate (service-template/service-template-gate.js) tags an error
+ * with the bng-service variant when its entry here declares it. So removing
+ * TEMPLATE_VARIANT from an entry also stops the gate sending it, and the
+ * frontend words that error in the legacy template's terms.
+ */
+export const ERROR_CODE_DETAILS = Object.freeze({
+  // applicationId is the number; the message writes it in upper-case hex.
+  [ERROR_CODES.GPKG_NOT_A_GEOPACKAGE]: { values: ['applicationId'] },
+  [ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE]: { values: ['table'] },
+  [ERROR_CODES.GPKG_MISSING_LAYER]: { values: ['layer'] },
+  [ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN]: { variants: [TEMPLATE_VARIANT] },
+  [ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER]: {
+    values: ['layer'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_CONTENTS_DATA_TYPE]: {
+    values: ['layer', 'expected', 'found'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  // Each srs_id is a number or text as the file holds it, null when unset
+  // (the message says "unset"), or a blob as text.
+  [ERROR_CODES.GPKG_BASELINE_SRS_ID]: {
+    values: [
+      'layer',
+      'expectedSrsId',
+      'foundSrsId',
+      'contentsSrsId',
+      'geometryColumnsSrsId'
+    ],
+    variants: [TEMPLATE_VARIANT, 'contents', 'unreadable']
+  },
+  [ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT]: {
+    values: ['layer', 'contentsSrsId', 'geometryColumnsSrsId']
+  },
+  [ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME]: {
+    values: ['layer', 'column', 'expected'],
+    variants: ['named']
+  },
+  [ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS]: {
+    values: ['layer', 'found'],
+    variants: [TEMPLATE_VARIANT, 'registered']
+  },
+  [ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME]: {
+    values: ['layer', 'expected', 'found'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT, 'geometry']
+  },
+  // The message writes actualType with its article: "a Text", "an Integer".
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE]: {
+    values: ['layer', 'column', 'expectedType', 'actualType'],
+    variants: [TEMPLATE_VARIANT, 'undeclared', 'not-scalar']
+  },
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT, 'optional']
+  },
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING]: {
+    values: ['layer'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  // The message writes the counts with en-GB thousands separators.
+  [ERROR_CODES.GPKG_TOO_MANY_FEATURES]: {
+    values: ['featureCount', 'maxFeatureCount']
+  },
+  [ERROR_CODES.TEMPLATE_VERSION_DUPLICATED]: { values: ['recordCount'] },
+  // allowedBands is the list of distinctiveness bands the service takes, in
+  // the order the note names them. Only the upload check sends it; an edit's
+  // error sends no details.
+  [ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE]: {
+    values: ['allowedBands']
+  },
+  [ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED]: {
+    values: ['version', 'supportedVersions']
+  },
+  // The message writes each area to the units its sentence uses: this one
+  // to the whole square metre, AREA_SUM_MISMATCH's to two places.
+  [ERROR_CODES.REDLINE_AREA_TOO_LARGE]: { values: ['areaSqM'] },
+  [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: { values: ['reason', 'location'] },
+  [ERROR_CODES.NO_HABITAT_AREAS]: { variants: ['structure'] },
+  [ERROR_CODES.AREA_SUM_MISMATCH]: {
+    values: ['habitatsAreaSqM', 'redlineAreaSqM']
+  },
+  [ERROR_CODES.NO_DERIVED_BASELINE_HABITATS]: { variants: ['read'] },
+  [ERROR_CODES.BASELINE_TYPE_MISSING]: { values: ['rowCount'] }
+})
+
 export function makeError(code, message, details) {
   return details === undefined ? { code, message } : { code, message, details }
+}
+
+/**
+ * `error` with `variant` added to its `details.variants` (ERROR_CODE_DETAILS):
+ * the way its message words the problem, when its code has more than one.
+ */
+export function withVariant(error, variant) {
+  const details = error.details ?? {}
+  return {
+    ...error,
+    details: { ...details, variants: [...(details.variants ?? []), variant] }
+  }
 }
 
 /** Top-level key holding the uploaded file's own name, on both the metadata probe and the extracted document. */

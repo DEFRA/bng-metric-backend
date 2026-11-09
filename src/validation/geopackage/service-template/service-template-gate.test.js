@@ -4,7 +4,9 @@ import { TEMPLATE_SCHEMA, versionRecordText } from 'bng-library/bng-service'
 import { ERROR_CODES } from '../errors.js'
 import { validateServiceTemplateGpkgFile } from './service-template-gate.js'
 import { readTemplateVersion } from './version-record.js'
+import { supportedTemplateVersions } from './supported-versions.js'
 import { buildServiceTemplateBuffer } from '../../../../test/helpers/service-template-gpkg.js'
+import { expectDeclaredDetails } from '../../../../test/helpers/declared-details.js'
 import {
   fullReadBuffer,
   mutateSerializedBuffer,
@@ -13,6 +15,8 @@ import {
 
 const AREA_BASELINE = 'Area Habitats Baseline'
 const RED_LINE_BOUNDARY = 'Red Line Boundary'
+/** How the type the template gives Area Habitats Baseline's Area is worded. */
+const AREA_EXPECTED_TYPE = 'Float'
 
 /** Run the gate over a file built from `options`. */
 function gate(options) {
@@ -56,6 +60,8 @@ describe('validateServiceTemplateGpkgFile', () => {
 
       expect(codes(result)).toEqual([ERROR_CODES.TEMPLATE_VERSION_DUPLICATED])
       expect(result.errors[0].message).toContain('2 template version records')
+      expect(result.errors[0].details).toEqual({ recordCount: 2 })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a version the service does not read, naming it', async () => {
@@ -65,7 +71,10 @@ describe('validateServiceTemplateGpkgFile', () => {
         {
           code: ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED,
           message: expect.stringContaining('version 2.0'),
-          details: { version: '2.0' }
+          details: {
+            version: '2.0',
+            supportedVersions: supportedTemplateVersions()
+          }
         }
       ])
     })
@@ -200,7 +209,8 @@ describe('validateServiceTemplateGpkgFile', () => {
         expect(result.errors).toEqual([
           {
             code: ERROR_CODES.GPKG_MISSING_LAYER,
-            message: `Missing required feature layer in GeoPackage: ${table}`
+            message: `Missing required feature layer in GeoPackage: ${table}`,
+            details: { layer: table }
           }
         ])
       }
@@ -214,7 +224,12 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(result.errors).toEqual([
         {
           code: ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
-          message: `Layer "${AREA_BASELINE}" does not match the BNG Service template: missing column "Baseline Condition"`
+          message: `Layer "${AREA_BASELINE}" does not match the BNG Service template: missing column "Baseline Condition"`,
+          details: {
+            layer: AREA_BASELINE,
+            column: 'Baseline Condition',
+            variants: ['bng-service']
+          }
         }
       ])
     })
@@ -227,15 +242,40 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN])
     })
 
-    test('refuses a column of the wrong type', async () => {
-      const result = await gate({
-        columnTypes: { [AREA_BASELINE]: { Area: 'TEXT' } }
-      })
+    test.each([
+      ['TEXT', { actualType: 'Text' }],
+      ['', { variants: ['undeclared', 'bng-service'] }],
+      [
+        'POINT',
+        {
+          actualType: 'Point geometry',
+          variants: ['not-scalar', 'bng-service']
+        }
+      ]
+    ])(
+      'refuses a column of the wrong type (%j), in the template’s terms',
+      async (type, wording) => {
+        const result = await gate({
+          columnTypes: { [AREA_BASELINE]: { Area: type } }
+        })
 
-      expect(codes(result)).toEqual([
-        ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
-      ])
-    })
+        // A geometry type also makes Area a second geometry column.
+        const typeError = result.errors.find(
+          (error) => error.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
+        )
+        expect(typeError.message).toContain(
+          'does not match the BNG Service template'
+        )
+        expect(typeError.details).toEqual({
+          layer: AREA_BASELINE,
+          column: 'Area',
+          expectedType: AREA_EXPECTED_TYPE,
+          variants: ['bng-service'],
+          ...wording
+        })
+        result.errors.forEach(expectDeclaredDetails)
+      }
+    )
 
     test.each([
       [AREA_BASELINE, 'MULTIPOLYGON'],
@@ -252,6 +292,13 @@ describe('validateServiceTemplateGpkgFile', () => {
           ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME
         )
         expect(result.errors[0].message).toContain(`"${table}"`)
+        expect(result.errors[0].details).toEqual({
+          layer: table,
+          expected: expect.any(String),
+          found: geometryType,
+          variants: ['bng-service']
+        })
+        result.errors.forEach(expectDeclaredDetails)
       }
     )
 
@@ -259,6 +306,11 @@ describe('validateServiceTemplateGpkgFile', () => {
       const result = await gate({ srsIds: { [RED_LINE_BOUNDARY]: 4326 } })
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_BASELINE_SRS_ID])
+      expect(result.errors[0].details).toMatchObject({
+        layer: RED_LINE_BOUNDARY,
+        variants: expect.arrayContaining(['bng-service'])
+      })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a geometry column the template names differently', async () => {
@@ -269,7 +321,13 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(result.errors).toEqual([
         {
           code: ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
-          message: `Layer "${RED_LINE_BOUNDARY}" does not match the BNG Service template: its geometry column is named "geometry" but should be "geom"`
+          message: `Layer "${RED_LINE_BOUNDARY}" does not match the BNG Service template: its geometry column is named "geometry" but should be "geom"`,
+          details: {
+            layer: RED_LINE_BOUNDARY,
+            column: 'geometry',
+            expected: 'geom',
+            variants: ['named']
+          }
         }
       ])
     })
@@ -278,6 +336,8 @@ describe('validateServiceTemplateGpkgFile', () => {
       const result = await gate({ unregisteredGeometry: [RED_LINE_BOUNDARY] })
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN])
+      expect(result.errors[0].details).toEqual({ variants: ['bng-service'] })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses another habitat table with no geometry column', async () => {
@@ -286,6 +346,11 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(codes(result)).toEqual([
         ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING
       ])
+      expect(result.errors[0].details).toEqual({
+        layer: AREA_BASELINE,
+        variants: ['bng-service']
+      })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a feature table the template does not have', async () => {
@@ -295,7 +360,8 @@ describe('validateServiceTemplateGpkgFile', () => {
         {
           code: ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER,
           message:
-            'Unexpected feature layer "Ponds" — not a table of the BNG Service template'
+            'Unexpected feature layer "Ponds" — not a table of the BNG Service template',
+          details: { layer: 'Ponds', variants: ['bng-service'] }
         }
       ])
     })
@@ -382,6 +448,10 @@ describe('validateServiceTemplateGpkgFile', () => {
       )
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_NOT_A_GEOPACKAGE])
+      expect(result.errors[0].details).toEqual({
+        applicationId: expect.any(Number)
+      })
+      expectDeclaredDetails(result.errors[0])
     })
   })
 })

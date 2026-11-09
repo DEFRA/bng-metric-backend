@@ -383,7 +383,8 @@ function missingBaselineTypeError(layers) {
   }
   return makeError(
     ERROR_CODES.BASELINE_TYPE_MISSING,
-    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`
+    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`,
+    { rowCount: count }
   )
 }
 
@@ -441,12 +442,16 @@ function extractUploadDocuments(sized, context, logger, config) {
   // would delete the stored baseline and every feature edit on it.
   if (!derivedBaselineHasAreaHabitats(baseline.document)) {
     return {
-      validationError: makeError(
-        ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
-        baselineRead
-          ? NO_READ_BASELINE_HABITATS_MESSAGE
-          : NO_DERIVED_BASELINE_HABITATS_MESSAGE
-      )
+      validationError: baselineRead
+        ? makeError(
+            ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            NO_READ_BASELINE_HABITATS_MESSAGE,
+            { variants: ['read'] }
+          )
+        : makeError(
+            ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            NO_DERIVED_BASELINE_HABITATS_MESSAGE
+          )
     }
   }
   const postIntervention = extractAndValidateDocument({

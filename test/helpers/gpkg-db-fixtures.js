@@ -47,7 +47,8 @@ export const baselineSchema = JSON.parse(
 export const missingLayerError = (name) =>
   makeError(
     ERROR_CODES.GPKG_MISSING_LAYER,
-    `Missing required feature layer in GeoPackage: ${name}`
+    `Missing required feature layer in GeoPackage: ${name}`,
+    { layer: name }
   )
 
 export const ERR_ZERO_RLB = makeError(
@@ -62,7 +63,8 @@ export const ERR_UNREADABLE_RLB = makeError(
 
 export const ERR_ZERO_HABITATS = makeError(
   ERROR_CODES.NO_HABITAT_AREAS,
-  'Zero area habitat parcels in GeoPackage (expecting at least one)'
+  'Zero area habitat parcels in GeoPackage (expecting at least one)',
+  { variants: ['structure'] }
 )
 
 export const ERR_UNREADABLE_HABITATS = makeError(
