@@ -583,6 +583,121 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   )
 })
 
+describe('importUploadFile, a BNG Service template file’s tree whose condition gets worse', () => {
+  withServiceTemplate(true)
+  const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
+  const PI_TREES = 'Individual Trees Post-Intervention'
+  const scratch = mkdtempSync(path.join(tmpdir(), 'import-degraded-tree-'))
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }))
+
+  // The Metric's figures for T004, a Very large Rural tree in Fairly Poor
+  // condition at baseline (User Guide, Table 15; the Metric's scores): a
+  // Medium habitat, score 4. Created again in Poor condition, its time to
+  // target is 10 years, which 30+ years in advance covers, so its time
+  // multiplier is 1; tree creation is Low difficulty, 1; Low significance, 1.
+  const VERY_LARGE_HECTARES = 0.0765
+  const MEDIUM_DISTINCTIVENESS = 4
+  const FAIRLY_POOR = 1.5
+  const POOR = 1
+  const BASELINE_UNITS =
+    VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * FAIRLY_POOR
+  const CREATED_UNITS = VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * POOR
+
+  /** The default site with T004 recorded as lost and created again, worse. */
+  function degradedSite(name, values) {
+    const copy = path.join(scratch, `${name}.gpkg`)
+    copyFileSync(SITE, copy)
+    const db = new Database(copy)
+    try {
+      const columns = Object.keys(values)
+      db.prepare(
+        `UPDATE "${PI_TREES}" SET ${columns.map((c) => `"${c}" = ?`).join(', ')} WHERE "Habitat Ref" = 'T004'`
+      ).run(...Object.values(values))
+    } finally {
+      db.close()
+    }
+    return copy
+  }
+
+  const DEGRADED = {
+    'Retention Category': 'Created',
+    Category: 'Existing',
+    'Proposed Condition': 'Poor',
+    'Proposed Strategic Significance': 'Low',
+    'Habitat Created/Enhanced in advance/years': '30+',
+    'Delay in starting habitat creation/enhancement in years': '0'
+  }
+
+  it(
+    'records the baseline tree as lost and the same tree as created, worse, and prices both as the Metric does',
+    async () => {
+      const result = await importUploadFile(
+        degradedSite('degraded', DEGRADED),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.errors ?? []).toEqual([])
+      const { baseline, postIntervention } = result.project
+      const parent = baseline.trees.find((tree) => tree.ref === 'T004')
+      const created = postIntervention.trees.find((tree) => tree.ref === 'T004')
+      expect(parent.units).toBeCloseTo(BASELINE_UNITS, 10)
+      expect(created).toMatchObject({
+        retentionCategory: 'Created',
+        parentFeatureId: parent.featureId,
+        status: 'Complete',
+        sizeSquareMetres: 765,
+        proposed: {
+          treeSize: 'Very large',
+          type: 'Rural tree',
+          condition: 'Poor',
+          advanceYears: 30
+        }
+      })
+      expect(created.units).toBeCloseTo(CREATED_UNITS, 10)
+      expect(
+        postIntervention.lostHabitats.find((lost) => lost.ref === 'T004')
+      ).toEqual({
+        layer: 'trees',
+        featureId: parent.featureId,
+        ref: 'T004',
+        type: 'Rural tree',
+        outcome: 'lostAndRecreated',
+        lostSizeSquareMetres: 765,
+        lostTreeCount: 1,
+        recreatedAs: [created.featureId]
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it.each([
+    [
+      'in the same condition',
+      { 'Proposed Condition': 'Fairly Poor' },
+      ERROR_CODES.STAGED_DEGRADE_NOT_WORSE
+    ],
+    [
+      'not 30+ years in advance',
+      { 'Habitat Created/Enhanced in advance/years': '5' },
+      ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
+    ]
+  ])(
+    'refuses an Existing tree Created %s',
+    async (name, overrides, code) => {
+      const result = await importUploadFile(
+        degradedSite(name.replaceAll(' ', '-'), { ...DEGRADED, ...overrides }),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(false)
+      expect(result.errors.map((e) => e.code)).toContain(code)
+    },
+    IMPORT_TIMEOUT_MS
+  )
+})
+
 describe('projectAfterUpload', () => {
   withServiceTemplate(false)
   let baselineUpload

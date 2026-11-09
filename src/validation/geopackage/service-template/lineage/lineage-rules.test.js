@@ -520,7 +520,7 @@ describe('checkLineageRules', () => {
       ])
     })
 
-    it('does not hold a tree to the degraded rows’ rules: a linked Created tree is planting', () => {
+    it('does not hold a Newly Planted tree linked to a parent to the degraded rows’ rules: it is planting', () => {
       const parent = tree(1, 1)
 
       expect(
@@ -530,7 +530,112 @@ describe('checkLineageRules', () => {
             trees: [
               treeChild(parent, {
                 'Retention Category': 'Created',
+                Category: 'Newly Planted',
                 'Proposed Condition': 'Moderate'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
+
+    /** The parent tree itself, Created in a worse condition: a degraded row. */
+    const degradedTree = (parent, overrides = {}) =>
+      treeChild(parent, {
+        'Retention Category': 'Created',
+        Category: 'Existing',
+        'Proposed Condition': 'Poor',
+        'Habitat Created/Enhanced in advance/years': '30+',
+        ...overrides
+      })
+
+    it('passes an Existing tree Created in a worse condition, 30+ years in advance', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        check({ trees: [parent] }, { trees: [degradedTree(parent)] })
+      ).toEqual([])
+    })
+
+    it('refuses an Existing tree Created in the same or a better condition, with no delay', () => {
+      const parent = tree(1, 1)
+
+      for (const condition of ['Moderate', 'Good']) {
+        const errors = check(
+          { trees: [parent] },
+          {
+            trees: [
+              degradedTree(parent, {
+                'Tree Ref': 'T001a',
+                'Proposed Condition': condition
+              })
+            ]
+          }
+        )
+
+        expect(codes(errors), condition).toEqual([
+          ERROR_CODES.STAGED_DEGRADE_NOT_WORSE
+        ])
+        expect(errors[0].details.sample[0]).toMatchObject({
+          layer: 'trees',
+          table: 'Individual Trees Post-Intervention',
+          ref: 'T001a',
+          habitatType: 'Urban tree',
+          parentRef: 'T001'
+        })
+      }
+    })
+
+    it('refuses a worse Existing tree that is not created 30+ years in advance', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        codes(
+          check(
+            { trees: [parent] },
+            {
+              trees: [
+                degradedTree(parent, {
+                  'Habitat Created/Enhanced in advance/years': '5'
+                })
+              ]
+            }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS])
+    })
+
+    it('passes an Existing tree put back after a delay, in any condition', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              degradedTree(parent, {
+                'Proposed Condition': 'Moderate',
+                'Habitat Created/Enhanced in advance/years': '0',
+                'Delay in starting habitat creation/enhancement in years': '3'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
+
+    it('does not count an Existing tree Created in the other setting as degraded', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              degradedTree(parent, {
+                'Proposed Rural or Urban Tree': 'Rural tree',
+                'Proposed Condition': 'Good',
+                'Habitat Created/Enhanced in advance/years': '0'
               })
             ]
           }

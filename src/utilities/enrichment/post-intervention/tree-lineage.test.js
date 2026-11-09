@@ -98,9 +98,13 @@ describe('alignTreesWithParents', () => {
     expect(tree.sizeSquareMetres).toBe(163)
   })
 
-  it('leaves a Created tree, linked or not, at its planted size', () => {
-    const linked = piTree('Created')
-    const unlinked = piTree('Created', { parentFeatureId: undefined })
+  it('leaves a Newly Planted tree, linked or not, at its planted size', () => {
+    const planted = { properties: { Category: 'Newly Planted' } }
+    const linked = piTree('Created', planted)
+    const unlinked = piTree('Created', {
+      ...planted,
+      parentFeatureId: undefined
+    })
     const before = structuredClone([linked, unlinked])
 
     expect(
@@ -110,6 +114,34 @@ describe('alignTreesWithParents', () => {
       )
     ).toEqual([])
     expect([linked, unlinked]).toEqual(before)
+  })
+
+  it('keeps a degraded tree’s size, type and setting, but the condition and timing it proposes', () => {
+    const tree = piTree('Created', {
+      properties: { Category: 'Existing' },
+      proposed: {
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Very large',
+        treeSpecies: 'Non-native',
+        ruralOrUrban: 'Urban tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: 30
+      }
+    })
+
+    expect(align(tree)).toEqual([tree])
+    expect(tree.proposed).toMatchObject({
+      type: 'Rural tree',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: 'Rural tree',
+      condition: 'Poor',
+      advanceYears: 30,
+      sizeSquareMetres: 326
+    })
+    expect(tree.baseline.condition).toBe('Moderate')
   })
 
   it('leaves a tree whose parent is not in the baseline', () => {
