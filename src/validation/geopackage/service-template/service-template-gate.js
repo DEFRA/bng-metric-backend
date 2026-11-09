@@ -1,6 +1,11 @@
 import { FORMAT_BNG_SERVICE, RED_LINE_BOUNDARY } from 'bng-library/bng-service'
 
-import { ERROR_CODES, makeError, withVariant } from '../errors.js'
+import {
+  ERROR_CODES,
+  TEMPLATE_VARIANT,
+  makeError,
+  withVariant
+} from '../errors.js'
 import {
   checkGeoPackageIdentity,
   checkRequiredLayersFromSchema,
@@ -53,9 +58,6 @@ const TEMPLATE_WORDING = [
     ' — not a table of the BNG Service template'
   ]
 ]
-
-/** The variant (ERROR_CODE_DETAILS) of a message put in this template's terms. */
-const TEMPLATE_VARIANT = 'bng-service'
 
 function inTemplateTerms(error) {
   let message = error.message

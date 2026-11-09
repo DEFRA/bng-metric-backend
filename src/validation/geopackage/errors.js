@@ -375,6 +375,12 @@ export const ERROR_CODE_SURFACES = Object.freeze(
 )
 
 /**
+ * The variant of a message the BNG Service template's gate puts in its own
+ * terms (service-template/service-template-gate.js).
+ */
+export const TEMPLATE_VARIANT = 'bng-service'
+
+/**
  * The values, and the variants, that each code's `details` carry so the
  * frontend can word the error itself.
  *
@@ -396,14 +402,14 @@ export const ERROR_CODE_DETAILS = Object.freeze({
   [ERROR_CODES.GPKG_NOT_A_GEOPACKAGE]: { values: ['applicationId'] },
   [ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE]: { values: ['table'] },
   [ERROR_CODES.GPKG_MISSING_LAYER]: { values: ['layer'] },
-  [ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN]: { variants: ['bng-service'] },
+  [ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN]: { variants: [TEMPLATE_VARIANT] },
   [ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER]: {
     values: ['layer'],
-    variants: ['bng-service']
+    variants: [TEMPLATE_VARIANT]
   },
   [ERROR_CODES.GPKG_BASELINE_CONTENTS_DATA_TYPE]: {
     values: ['layer', 'expected', 'found'],
-    variants: ['bng-service']
+    variants: [TEMPLATE_VARIANT]
   },
   [ERROR_CODES.GPKG_BASELINE_SRS_ID]: {
     values: [
@@ -413,7 +419,7 @@ export const ERROR_CODE_DETAILS = Object.freeze({
       'contentsSrsId',
       'geometryColumnsSrsId'
     ],
-    variants: ['bng-service', 'contents', 'unreadable']
+    variants: [TEMPLATE_VARIANT, 'contents', 'unreadable']
   },
   [ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT]: {
     values: ['layer', 'contentsSrsId', 'geometryColumnsSrsId']
@@ -424,31 +430,31 @@ export const ERROR_CODE_DETAILS = Object.freeze({
   },
   [ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS]: {
     values: ['layer', 'found'],
-    variants: ['bng-service', 'registered']
+    variants: [TEMPLATE_VARIANT, 'registered']
   },
   [ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME]: {
     values: ['layer', 'expected', 'found'],
-    variants: ['bng-service']
+    variants: [TEMPLATE_VARIANT]
   },
   [ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN]: {
     values: ['layer', 'column'],
-    variants: ['bng-service', 'geometry']
+    variants: [TEMPLATE_VARIANT, 'geometry']
   },
   [ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE]: {
     values: ['layer', 'column', 'expectedType', 'actualType'],
-    variants: ['bng-service', 'undeclared', 'not-scalar']
+    variants: [TEMPLATE_VARIANT, 'undeclared', 'not-scalar']
   },
   [ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL]: {
     values: ['layer', 'column'],
-    variants: ['bng-service', 'optional']
+    variants: [TEMPLATE_VARIANT, 'optional']
   },
   [ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY]: {
     values: ['layer', 'column'],
-    variants: ['bng-service']
+    variants: [TEMPLATE_VARIANT]
   },
   [ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING]: {
     values: ['layer'],
-    variants: ['bng-service']
+    variants: [TEMPLATE_VARIANT]
   },
   [ERROR_CODES.GPKG_TOO_MANY_FEATURES]: {
     values: ['featureCount', 'maxFeatureCount']
