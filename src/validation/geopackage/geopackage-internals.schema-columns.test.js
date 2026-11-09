@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { EPSG_BNG, baselineSchema } from '../../../test/helpers/gpkg.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 const { ERROR_CODES } = await import('./errors.js')
 const {
@@ -87,6 +88,11 @@ describe('compareGeometryRegistrationRow', () => {
     expect(errors[0].code).toBe(
       ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME
     )
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      column: 'geom-bad'
+    })
+    errors.forEach(expectDeclaredDetails)
   })
 
   it('reports a GPKG_BASELINE_GEOMETRY_TYPE_NAME error when geometry type does not match', () => {
@@ -96,6 +102,12 @@ describe('compareGeometryRegistrationRow', () => {
       geom_srs_raw: EPSG_BNG
     })
     expect(errors[0].message).toMatch(/geometry type/)
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expected: habitatsLayer.geometryColumn.geometryType,
+      found: 'POINT'
+    })
+    errors.forEach(expectDeclaredDetails)
   })
 })
 
@@ -181,6 +193,11 @@ describe('compareDefinedColumnsToSchema (minimal — NOT NULL / primary key)', (
       labelOkButPk
     )
     expect(errors.some((e) => e.message.includes('primary key'))).toBe(true)
+    const primaryKey = errors.find(
+      (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY
+    )
+    expect(primaryKey.details).toEqual({ layer: 'T', column: 'fid' })
+    errors.forEach(expectDeclaredDetails)
   })
 })
 

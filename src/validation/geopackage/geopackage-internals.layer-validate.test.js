@@ -1,4 +1,5 @@
 import { describe, it, expect, vi } from 'vitest'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 import {
   EPSG_BNG,
@@ -183,11 +184,15 @@ describe('compareOneLayerToBaselineSchema — multiple rows in gpkg_geometry_col
       EPSG_BNG
     )
 
-    expect(
-      errors.some(
-        (e) => e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS
-      )
-    ).toBe(true)
+    const multiple = errors.find(
+      (e) => e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS
+    )
+    expect(multiple.details).toEqual({
+      layer: 'Habitats',
+      found: 2,
+      variants: ['registered']
+    })
+    errors.forEach(expectDeclaredDetails)
     db.close()
   })
 })
@@ -321,13 +326,13 @@ describe('compareOneLayerToBaselineSchema — multiple geometry columns in featu
       EPSG_BNG
     )
 
-    expect(
-      errors.some(
-        (e) =>
-          e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS &&
-          e.message.includes('feature table')
-      )
-    ).toBe(true)
+    const multiple = errors.find(
+      (e) =>
+        e.code === ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS &&
+        e.message.includes('feature table')
+    )
+    expect(multiple.details).toEqual({ layer: 'Habitats', found: 2 })
+    errors.forEach(expectDeclaredDetails)
     db.close()
   })
 })

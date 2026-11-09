@@ -2,6 +2,7 @@ import { describe, it, expect } from 'vitest'
 
 import { EPSG_BNG, baselineSchema } from '../../../test/helpers/gpkg.js'
 import { GEOPACKAGE_GEOMETRY_TYPE_NAMES } from './geopackage-constants.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 const { ERROR_CODES } = await import('./errors.js')
 const {
@@ -168,6 +169,12 @@ describe('compareGpkgContentsToLayerSchema', () => {
     )
     expect(errors.some((e) => e.message.includes('data_type'))).toBe(true)
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_CONTENTS_DATA_TYPE)
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expected: habitatsLayer.dataType,
+      found: 'tiles'
+    })
+    errors.forEach(expectDeclaredDetails)
   })
 })
 
@@ -187,7 +194,7 @@ describe('compareBaselineLayerSrs — no geometry registration row', () => {
     expect(errors[0].details).toEqual({
       layer: 'Habitats',
       expectedSrsId: SRS_BARE_LAYER.srsId,
-      contentsSrsId: '4326',
+      contentsSrsId: 4326,
       variants: ['contents']
     })
   })
@@ -199,6 +206,9 @@ describe('compareBaselineLayerSrs — no geometry registration row', () => {
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_SRS_ID)
     expect(errors[0].message).toContain('unset')
     expect(errors[0].message).toContain('gpkg_contents')
+    // Unset is null in the details: "unset" is the message's word for it.
+    expect(errors[0].details.contentsSrsId).toBeNull()
+    expectDeclaredDetails(errors[0])
   })
 })
 
@@ -245,8 +255,8 @@ describe('compareBaselineLayerSrs — geometry row: cross-table inconsistency', 
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT)
     expect(errors[0].details).toEqual({
       layer: 'Habitats',
-      contentsSrsId: String(EPSG_BNG),
-      geometryColumnsSrsId: '4326'
+      contentsSrsId: EPSG_BNG,
+      geometryColumnsSrsId: 4326
     })
   })
 })

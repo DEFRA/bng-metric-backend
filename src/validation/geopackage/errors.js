@@ -391,14 +391,17 @@ export const TEMPLATE_VARIANT = 'bng-service'
  * into a {placeholder}. A code that words the same problem more than one way
  * names the way in `details.variants`, and the error text words each one.
  *
- * Values are sent raw: a number as a number, so the frontend formats it. A
- * code not listed sends nothing the wording needs beyond its `count` and
- * `sample`. Like ERROR_CODE_SURFACES, nothing reads this at run time:
+ * Values are sent raw: a number as a number, so the frontend formats it,
+ * and a value the file does not have as null. A code not listed sends
+ * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * an entry says how its message writes a value, where that is not plain.
+ * The check is DEFRA/bng-metric-harness#225. Like ERROR_CODE_SURFACES, nothing reads this at run time:
  * bng-metric-harness's check (npm run check:dropout-copy) loads it to hold
  * the error text to it, so the error text names only values a code sends and
  * words every variant it can name.
  */
 export const ERROR_CODE_DETAILS = Object.freeze({
+  // applicationId is the number; the message writes it in upper-case hex.
   [ERROR_CODES.GPKG_NOT_A_GEOPACKAGE]: { values: ['applicationId'] },
   [ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE]: { values: ['table'] },
   [ERROR_CODES.GPKG_MISSING_LAYER]: { values: ['layer'] },
@@ -411,6 +414,8 @@ export const ERROR_CODE_DETAILS = Object.freeze({
     values: ['layer', 'expected', 'found'],
     variants: [TEMPLATE_VARIANT]
   },
+  // Each srs_id is a number or text as the file holds it, null when unset
+  // (the message says "unset"), or a blob as text.
   [ERROR_CODES.GPKG_BASELINE_SRS_ID]: {
     values: [
       'layer',
@@ -440,6 +445,7 @@ export const ERROR_CODE_DETAILS = Object.freeze({
     values: ['layer', 'column'],
     variants: [TEMPLATE_VARIANT, 'geometry']
   },
+  // The message writes actualType with its article: "a Text", "an Integer".
   [ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE]: {
     values: ['layer', 'column', 'expectedType', 'actualType'],
     variants: [TEMPLATE_VARIANT, 'undeclared', 'not-scalar']
@@ -456,6 +462,7 @@ export const ERROR_CODE_DETAILS = Object.freeze({
     values: ['layer'],
     variants: [TEMPLATE_VARIANT]
   },
+  // The message writes the counts with en-GB thousands separators.
   [ERROR_CODES.GPKG_TOO_MANY_FEATURES]: {
     values: ['featureCount', 'maxFeatureCount']
   },
@@ -463,6 +470,8 @@ export const ERROR_CODE_DETAILS = Object.freeze({
   [ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED]: {
     values: ['version', 'supportedVersions']
   },
+  // The message writes each area to the units its sentence uses: this one
+  // to the whole square metre, AREA_SUM_MISMATCH's to two places.
   [ERROR_CODES.REDLINE_AREA_TOO_LARGE]: { values: ['areaSqM'] },
   [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: { values: ['reason', 'location'] },
   [ERROR_CODES.NO_HABITAT_AREAS]: { variants: ['structure'] },

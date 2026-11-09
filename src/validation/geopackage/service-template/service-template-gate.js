@@ -2,6 +2,7 @@ import { FORMAT_BNG_SERVICE, RED_LINE_BOUNDARY } from 'bng-library/bng-service'
 
 import {
   ERROR_CODES,
+  ERROR_CODE_DETAILS,
   TEMPLATE_VARIANT,
   makeError,
   withVariant
@@ -59,15 +60,28 @@ const TEMPLATE_WORDING = [
   ]
 ]
 
+/**
+ * Whether the code's shared check is worded in this template's terms
+ * (ERROR_CODE_DETAILS), so its error names the bng-service variant. Decided
+ * by the code, not by whether the message changed: the message holds names
+ * from the file.
+ */
+function hasTemplateWording(error) {
+  return (
+    ERROR_CODE_DETAILS[error.code]?.variants?.includes(TEMPLATE_VARIANT) &&
+    !error.details?.variants?.includes(TEMPLATE_VARIANT)
+  )
+}
+
 function inTemplateTerms(error) {
   let message = error.message
   for (const [legacy, template] of TEMPLATE_WORDING) {
     message = message.replaceAll(legacy, template)
   }
-  // The frontend words the same change: the bng-service variant.
-  return message === error.message
-    ? error
-    : withVariant({ ...error, message }, TEMPLATE_VARIANT)
+  const reworded = { ...error, message }
+  return hasTemplateWording(error)
+    ? withVariant(reworded, TEMPLATE_VARIANT)
+    : reworded
 }
 
 function isLegacyTemplate(db) {

@@ -6,6 +6,7 @@ import { validateServiceTemplateGpkgFile } from './service-template-gate.js'
 import { readTemplateVersion } from './version-record.js'
 import { supportedTemplateVersions } from './supported-versions.js'
 import { buildServiceTemplateBuffer } from '../../../../test/helpers/service-template-gpkg.js'
+import { expectDeclaredDetails } from '../../../../test/helpers/declared-details.js'
 import {
   fullReadBuffer,
   mutateSerializedBuffer,
@@ -57,6 +58,8 @@ describe('validateServiceTemplateGpkgFile', () => {
 
       expect(codes(result)).toEqual([ERROR_CODES.TEMPLATE_VERSION_DUPLICATED])
       expect(result.errors[0].message).toContain('2 template version records')
+      expect(result.errors[0].details).toEqual({ recordCount: 2 })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a version the service does not read, naming it', async () => {
@@ -262,6 +265,13 @@ describe('validateServiceTemplateGpkgFile', () => {
           ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME
         )
         expect(result.errors[0].message).toContain(`"${table}"`)
+        expect(result.errors[0].details).toEqual({
+          layer: table,
+          expected: expect.any(String),
+          found: geometryType,
+          variants: ['bng-service']
+        })
+        result.errors.forEach(expectDeclaredDetails)
       }
     )
 
@@ -269,6 +279,11 @@ describe('validateServiceTemplateGpkgFile', () => {
       const result = await gate({ srsIds: { [RED_LINE_BOUNDARY]: 4326 } })
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_BASELINE_SRS_ID])
+      expect(result.errors[0].details).toMatchObject({
+        layer: RED_LINE_BOUNDARY,
+        variants: expect.arrayContaining(['bng-service'])
+      })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a geometry column the template names differently', async () => {
@@ -294,6 +309,8 @@ describe('validateServiceTemplateGpkgFile', () => {
       const result = await gate({ unregisteredGeometry: [RED_LINE_BOUNDARY] })
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN])
+      expect(result.errors[0].details).toEqual({ variants: ['bng-service'] })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses another habitat table with no geometry column', async () => {
@@ -302,6 +319,11 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(codes(result)).toEqual([
         ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING
       ])
+      expect(result.errors[0].details).toEqual({
+        layer: AREA_BASELINE,
+        variants: ['bng-service']
+      })
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('refuses a feature table the template does not have', async () => {
@@ -399,6 +421,10 @@ describe('validateServiceTemplateGpkgFile', () => {
       )
 
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_NOT_A_GEOPACKAGE])
+      expect(result.errors[0].details).toEqual({
+        applicationId: expect.any(Number)
+      })
+      expectDeclaredDetails(result.errors[0])
     })
   })
 })
