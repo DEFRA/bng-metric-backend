@@ -534,7 +534,7 @@ describe('BMD-1048 Created area editing', () => {
     })
     expect(partial.statusCode).toBe(HTTP_OK)
     expect(partial.result).toMatchObject({
-      units: null,
+      units: 0,
       status: 'Incomplete',
       proposed: {
         delayYears: null,
