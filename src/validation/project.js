@@ -204,7 +204,7 @@ const treeSchema = habitatSchema
         'Notional tree area in square metres: the per-size reference area times the Count column.'
       ),
     irreplaceable: Joi.boolean().description(
-      'Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable.'
+      "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     ),
     units: Joi.number()
       .allow(null)

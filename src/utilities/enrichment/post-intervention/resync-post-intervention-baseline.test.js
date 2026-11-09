@@ -852,6 +852,68 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.watercourses[0].ref).toBe('R1a')
   })
 
+  test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
+    const baselineTree = (condition) => ({
+      featureId: 'baseline-t1',
+      ref: 'T1',
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: 'Urban tree',
+      condition,
+      strategicSignificance: 'Low',
+      count: 3,
+      sizeSquareMetres: 489,
+      area: 489
+    })
+    const side = (condition) => ({
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: 'Urban tree',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 326,
+      area: 326
+    })
+    const kept = {
+      featureId: 'pi-t1',
+      ref: 'T1',
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Retained',
+      count: 2,
+      sizeSquareMetres: 326,
+      area: 326,
+      status: 'Complete',
+      units: null,
+      baseline: side('Moderate'),
+      proposed: side('Moderate'),
+      properties: {}
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { trees: [kept], template: TEMPLATE, lostHabitats: [] },
+      {
+        baseline: { trees: [baselineTree('Good')] },
+        previousBaseline: { trees: [baselineTree('Moderate')] }
+      }
+    )
+
+    const [tree] = rederived.trees
+    expect(tree).toMatchObject({
+      sizeSquareMetres: 326,
+      baseline: { condition: 'Good', sizeSquareMetres: 326 },
+      proposed: { condition: 'Good', sizeSquareMetres: 326 }
+    })
+    // Two Medium Urban trees in Good condition: 0.0326 ha × 4 × 3.
+    expect(tree.units).toBeCloseTo(0.3912, 10)
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({ layer: 'trees', ref: 'T1', lostTreeCount: 1 })
+    ])
+  })
+
   test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
     const rederived = rederivePostInterventionFromBaseline(
       { watercourses: [encroached()], template: TEMPLATE, lostHabitats: [] },
@@ -1272,7 +1334,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
-  test('still re-syncs its trees by ref, which it does not link until BMD-1172', () => {
+  test('re-syncs its trees from their parents, not by ref', () => {
     const tree = (overrides) => ({
       featureId: 'tree-t1',
       ref: 'T1',
@@ -1286,8 +1348,16 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
       trees: [
         {
           featureId: 'pi-t1',
-          ref: 'T1',
+          ref: 'T1a',
+          parentFeatureId: 'tree-t1',
           retentionCategory: 'Retained',
+          baseline: tree({ featureId: undefined }),
+          proposed: tree({ featureId: undefined })
+        },
+        {
+          featureId: 'pi-t2',
+          ref: 'T1',
+          retentionCategory: 'Created',
           baseline: tree({ featureId: undefined }),
           proposed: tree({ featureId: undefined })
         }
@@ -1306,7 +1376,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
 
     expect(changed).toBe(1)
     expect(postIntervention.trees[0].baseline.condition).toBe('Good')
-    expect(logger.warn).not.toHaveBeenCalled()
+    expect(postIntervention.trees[1].baseline.condition).toBe('Moderate')
   })
 
   test('says so when a Retained row’s parent is not in the baseline', () => {

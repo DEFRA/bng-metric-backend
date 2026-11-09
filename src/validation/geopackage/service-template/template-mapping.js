@@ -27,11 +27,18 @@ import {
  * status (irreplaceable.js).
  * The Red Line Boundary is read for its geometry alone.
  *
- * Individual trees (BMD-1172) are not read yet, so they have no entry.
+ * Individual trees are read under the legacy Urban Trees layer's names, which
+ * the template keeps for every tree column but Habitat Ref. A tree's size is
+ * the tree helper's area for its size class times its Count, so its Count is
+ * read when the file has one; a file without one prices each point as a
+ * single tree, as the Metric reads a blank Count.
  */
 
 /** The legacy pipeline's name for a habitat's reference. */
 const PARCEL_REF = 'Parcel Ref'
+
+/** The legacy pipeline's name for a tree's reference. */
+const TREE_REF = 'Tree Ref'
 
 /** A column the service does not read. */
 const DROPPED = null
@@ -42,14 +49,14 @@ const kept = (...names) => names.map((name) => [name, name])
 /** Not read. */
 const dropped = (...names) => names.map((name) => [name, DROPPED])
 
+/** Every layer's lineage columns. */
+const LINEAGE_COLUMNS = kept(PARENT_REF, FEATURE_UUID, PARENT_UUID, PARENT_GEOM)
+
 /** Every habitat layer: identity, lineage and the columns the story ignores. */
 const COMMON_COLUMNS = [
   [HABITAT_REF, PARCEL_REF],
+  ...LINEAGE_COLUMNS,
   ...kept(
-    PARENT_REF,
-    FEATURE_UUID,
-    PARENT_UUID,
-    PARENT_GEOM,
     'Baseline Condition',
     'Baseline Strategic Significance',
     'Retention Category',
@@ -110,6 +117,32 @@ const LAYER_COLUMNS = {
       'Enhancement Type'
     ),
     ...dropped('Length', 'Baseline Length')
+  ],
+  trees: [
+    [HABITAT_REF, TREE_REF],
+    ...LINEAGE_COLUMNS,
+    ...kept(
+      'Baseline Tree Size',
+      'Baseline Tree Type',
+      'Baseline Rural or Urban Tree',
+      'Baseline Condition',
+      'Baseline Strategic Significance',
+      // Read as `irreplaceable`: the service refuses an irreplaceable tree
+      // (irreplaceable-tree-check.js).
+      'Irreplaceable Habitat',
+      'Retention Category',
+      'Category',
+      'Proposed Tree Size',
+      'Proposed Tree Type',
+      'Proposed Rural or Urban Tree',
+      'Proposed Condition',
+      'Proposed Strategic Significance',
+      'Habitat Created/Enhanced in advance/years',
+      'Delay in starting habitat creation/enhancement in years',
+      'Count',
+      'Comment'
+    ),
+    ...dropped('Spatial risk category')
   ]
 }
 
@@ -118,7 +151,8 @@ const TEMPLATE_LAYERS = {
   areas: 'habitats',
   verticalHabitats: 'verticalHabitats',
   hedgerows: 'hedgerows',
-  watercourses: 'rivers'
+  watercourses: 'rivers',
+  trees: 'trees'
 }
 
 /** The suffix of each stage's tables, e.g. "Area Habitats Baseline". */
@@ -166,6 +200,6 @@ const LAYER_MAPPINGS = Object.freeze({
 /**
  * Version 1.0's mapping: each logical layer the service reads, by the key the
  * pipeline knows it by (`redline`, `areas`, `verticalHabitats`, `hedgerows`,
- * `watercourses`).
+ * `watercourses`, `trees`).
  */
 export const TEMPLATE_MAPPING_1_0 = LAYER_MAPPINGS

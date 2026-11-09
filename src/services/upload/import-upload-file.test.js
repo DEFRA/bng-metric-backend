@@ -337,6 +337,252 @@ describe('importUploadFile, a BNG Service template file', () => {
   })
 })
 
+describe('importUploadFile, a BNG Service template file’s individual trees', () => {
+  withServiceTemplate(true)
+  const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
+  const BASELINE_TREES = 'Individual Trees Baseline'
+  const PI_TREES = 'Individual Trees Post-Intervention'
+  const scratch = mkdtempSync(path.join(tmpdir(), 'import-trees-'))
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }))
+
+  // The Metric's figures for a tree (User Guide, Table 15; the Metric's
+  // distinctiveness and condition scores): an individual tree is a Medium
+  // habitat, score 4.
+  const HECTARES = { Small: 0.0041, Medium: 0.0163, 'Very large': 0.0765 }
+  const MEDIUM_DISTINCTIVENESS = 4
+  const CONDITION = { 'Fairly Poor': 1.5, Moderate: 2, Good: 3, Poor: 1 }
+
+  /**
+   * A copy of the default site with a Count column on both tree tables, as
+   * the template will have, and `sql` run on it.
+   */
+  function editedSite(name, sql) {
+    const copy = path.join(scratch, `${name}.gpkg`)
+    copyFileSync(SITE, copy)
+    const db = new Database(copy)
+    try {
+      for (const table of [BASELINE_TREES, PI_TREES]) {
+        db.exec(`ALTER TABLE "${table}" ADD COLUMN "Count" INTEGER`)
+      }
+      db.exec(sql)
+    } finally {
+      db.close()
+    }
+    return copy
+  }
+
+  const byRef = (trees, ref) => trees.find((tree) => tree.ref === ref)
+
+  async function importSite(name, sql) {
+    const result = await importUploadFile(
+      editedSite(name, sql),
+      {},
+      POST_INTERVENTION
+    )
+    expect(result.errors ?? []).toEqual([])
+    return result.project
+  }
+
+  it(
+    'prices each tree at its size class’s area times its Count, as an Urban or Rural tree',
+    async () => {
+      const { baseline } = await importSite(
+        'counts',
+        `UPDATE "${BASELINE_TREES}" SET Count = 3 WHERE "Habitat Ref" = 'T002';`
+      )
+
+      // T002 is a Medium Rural tree in Poor condition, three times over.
+      const t002 = byRef(baseline.trees, 'T002')
+      expect(t002).toMatchObject({
+        type: 'Rural tree',
+        treeSize: 'Medium',
+        count: 3,
+        sizeSquareMetres: 489
+      })
+      expect(t002.units).toBeCloseTo(
+        HECTARES.Medium * 3 * MEDIUM_DISTINCTIVENESS * CONDITION.Poor,
+        10
+      )
+      // T003 has no Count: one tree.
+      expect(byRef(baseline.trees, 'T003')).toMatchObject({
+        type: 'Urban tree',
+        sizeSquareMetres: 366
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it.each([
+    ['baseline', BASELINE_TREES],
+    ['post-intervention', PI_TREES]
+  ])(
+    'refuses a tree marked irreplaceable at %s, naming it',
+    async (stage, table) => {
+      const result = await importUploadFile(
+        editedSite(
+          `irreplaceable-${stage}`,
+          `UPDATE "${table}" SET "Irreplaceable Habitat" = 'Yes' WHERE "Habitat Ref" = 'T004';`
+        ),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(false)
+      const error = result.errors.find(
+        (e) => e.code === ERROR_CODES.IRREPLACEABLE_TREE
+      )
+      expect(error.message).toContain(`${table} Habitat Ref T004`)
+      expect(error.message).toContain(
+        'The service does not accept irreplaceable trees'
+      )
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'loses a felled tree in full, and the difference when fewer trees are kept',
+    async () => {
+      const { postIntervention } = await importSite(
+        'felled',
+        `UPDATE "${BASELINE_TREES}" SET Count = 3 WHERE "Habitat Ref" = 'T004';
+         UPDATE "${PI_TREES}" SET Count = 2 WHERE "Habitat Ref" = 'T004';`
+      )
+
+      const lost = (ref) =>
+        postIntervention.lostHabitats.find(
+          (entry) => entry.layer === 'trees' && entry.ref === ref
+        )
+      // T002 has no post-intervention point.
+      expect(lost('T002')).toMatchObject({
+        outcome: 'removed',
+        lostTreeCount: 1,
+        lostSizeSquareMetres: 163
+      })
+      // T004, three Very large trees, keeps two.
+      expect(lost('T004')).toMatchObject({
+        outcome: 'lost',
+        lostTreeCount: 1,
+        lostSizeSquareMetres: 765
+      })
+      const t004 = byRef(postIntervention.trees, 'T004')
+      expect(t004.sizeSquareMetres).toBe(1530)
+      expect(t004.units).toBeCloseTo(
+        HECTARES['Very large'] *
+          2 *
+          MEDIUM_DISTINCTIVENESS *
+          CONDITION['Fairly Poor'],
+        10
+      )
+      // A tree kept in full loses nothing.
+      expect(lost('T010')).toBeUndefined()
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'refuses a tree whose kept children count more trees than it has, naming it',
+    async () => {
+      const result = await importUploadFile(
+        editedSite(
+          'too-many',
+          `UPDATE "${PI_TREES}" SET Count = 2 WHERE "Habitat Ref" = 'T004';`
+        ),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(false)
+      const error = result.errors.find(
+        (e) => e.code === ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY
+      )
+      expect(error.message).toContain('Individual Trees Baseline T004')
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'prices an Enhanced tree as a condition enhancement at its baseline size, type and setting',
+    async () => {
+      // The file proposes T006, a Small Rural tree, as a Very large Urban
+      // tree: a kept tree's growth is not recorded.
+      const { postIntervention } = await importSite(
+        'enhanced',
+        `UPDATE "${PI_TREES}" SET "Proposed Tree Size" = 'Very large', "Proposed Rural or Urban Tree" = 'Urban tree' WHERE "Habitat Ref" = 'T006';`
+      )
+
+      const t006 = byRef(postIntervention.trees, 'T006')
+      expect(t006).toMatchObject({
+        status: 'Complete',
+        sizeSquareMetres: 41,
+        proposed: {
+          treeSize: 'Small',
+          type: 'Rural tree',
+          ruralOrUrban: 'Rural tree',
+          condition: 'Good'
+        }
+      })
+      expect(t006.units).toBeGreaterThan(0)
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'saves an Enhanced tree whose condition is not better Incomplete, with its Proposed Condition null',
+    async () => {
+      // T006 is in Moderate condition at baseline.
+      const { postIntervention } = await importSite(
+        'enhanced-not-better',
+        `UPDATE "${PI_TREES}" SET "Proposed Condition" = 'Moderate' WHERE "Habitat Ref" = 'T006';`
+      )
+
+      const t006 = byRef(postIntervention.trees, 'T006')
+      expect(t006).toMatchObject({
+        status: 'Incomplete',
+        invalidEnhancement: 'tree-better-condition',
+        units: null,
+        proposed: { condition: null, treeSize: 'Small' }
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'prices a Created tree as a creation at its planted size and Count, linked to a parent or not',
+    async () => {
+      // T005 is planted with no parent; T010, felled, is replaced by two
+      // newly planted Small Urban trees linked to it.
+      const { postIntervention } = await importSite(
+        'created',
+        `UPDATE "${PI_TREES}" SET Count = 4 WHERE "Habitat Ref" = 'T005';
+         UPDATE "${PI_TREES}" SET "Habitat Ref" = 'T010R', "Retention Category" = 'Created',
+           Category = 'Newly Planted', "Proposed Tree Size" = 'Small',
+           "Proposed Rural or Urban Tree" = 'Urban tree', "Proposed Condition" = 'Moderate', Count = 2
+         WHERE "Habitat Ref" = 'T010';`
+      )
+
+      const t005 = byRef(postIntervention.trees, 'T005')
+      expect(t005).toMatchObject({
+        status: 'Complete',
+        sizeSquareMetres: 366 * 4
+      })
+      expect(t005.units).toBeGreaterThan(0)
+      const replacement = byRef(postIntervention.trees, 'T010R')
+      expect(replacement).toMatchObject({
+        retentionCategory: 'Created',
+        parentFeatureId: expect.any(String),
+        status: 'Complete',
+        sizeSquareMetres: 82,
+        proposed: { treeSize: 'Small', type: 'Urban tree' }
+      })
+      // The felled tree is still lost in full: planting is not keeping it.
+      expect(
+        postIntervention.lostHabitats.find((entry) => entry.ref === 'T010')
+      ).toMatchObject({ layer: 'trees', outcome: 'lost', lostTreeCount: 1 })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+})
+
 describe('projectAfterUpload', () => {
   withServiceTemplate(false)
   let baselineUpload

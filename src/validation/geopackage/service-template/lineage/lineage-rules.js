@@ -4,7 +4,7 @@ import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
 import { PROP_KEYS, pickProp } from '../../properties.js'
-import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
+import { SQ_METRES_PER_HECTARE, treeCountOrDefault } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
@@ -15,7 +15,6 @@ import {
   watercourseChange
 } from './habitat-change.js'
 import {
-  REF,
   baselineHabitatTypeOf,
   collated,
   continues,
@@ -23,6 +22,7 @@ import {
   isCreated,
   label,
   parentsByUuid,
+  refOf,
   text
 } from './lineage-rows.js'
 
@@ -58,8 +58,11 @@ import {
  *   habitat lost for a time and put back (guide, "Accounting for temporary
  *   losses"), which the delay already discounts, so it may be in any
  *   condition and needs no years in advance.
- *
- * Individual trees (BMD-1172) are not read yet, so they are not checked.
+ * - individual trees: the Retained and Enhanced trees linked to a parent
+ *   never count more trees than it has, as a tree that is kept cannot
+ *   multiply. Created trees, new planting, are not counted against it. Trees
+ *   are outside the degraded rows' rules: a tree is a creation whether or not
+ *   it names a parent.
  */
 
 const ADVANCE = 'Habitat created in advance/years'
@@ -71,7 +74,14 @@ const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
 const LINEAR_LAYERS = new Set(['hedgerows', 'watercourses'])
 
 /** The layers checked, area habitats first, as the messages list them. */
-const CHECKED_LAYERS = ['areas', 'verticalHabitats', ...LINEAR_LAYERS]
+const CHECKED_LAYERS = ['areas', 'verticalHabitats', ...LINEAR_LAYERS, 'trees']
+
+/** The layers a degraded row can be on: every one but individual trees. */
+const DEGRADABLE_LAYERS = new Set([
+  'areas',
+  'verticalHabitats',
+  ...LINEAR_LAYERS
+])
 
 /**
  * The difference in area, in square metres, below which two typed areas are
@@ -140,9 +150,9 @@ function offendingRow(layer, table, feature, parent) {
     layer,
     table,
     fid: properties.fid,
-    ref: text(properties[REF]),
+    ref: refOf(properties),
     habitatType: habitatTypeOf(layer, properties),
-    parentRef: text(parent.properties[REF])
+    parentRef: refOf(parent.properties)
   }
 }
 
@@ -153,9 +163,9 @@ function offendingParent(layer, table, parent, children) {
     layer,
     table,
     fid: properties.fid,
-    ref: text(properties[REF]),
+    ref: refOf(properties),
     habitatType: baselineHabitatTypeOf(layer, properties),
-    childRefs: children.map((child) => text(child.properties[REF]))
+    childRefs: children.map((child) => refOf(child.properties))
   }
 }
 
@@ -223,6 +233,27 @@ function checkVerticalArea(parent, children, context) {
       ),
       areaSquareMetres: toHundredth(parentArea),
       childAreaSquareMetres: toHundredth(childArea)
+    })
+  }
+}
+
+/** The number of trees a tree row stands for: its Count, or 1 when blank. */
+const treeCount = (feature) =>
+  treeCountOrDefault(pickProp(feature.properties, PROP_KEYS.treeCount))
+
+/** A tree parent with fewer trees than its kept children together. */
+function checkTreeCount(parent, children, context) {
+  const kept = children.filter((child) => continues(child.properties))
+  if (kept.length === 0) {
+    return
+  }
+  const parentCount = treeCount(parent)
+  const keptCount = kept.reduce((sum, child) => sum + treeCount(child), 0)
+  if (keptCount > parentCount) {
+    context.found.tooManyTrees.push({
+      ...offendingParent(context.layer, context.tables.baseline, parent, kept),
+      count: parentCount,
+      childCount: keptCount
     })
   }
 }
@@ -340,6 +371,12 @@ function checkLayer(layer, baseline, postIntervention, found) {
     if (layer === 'watercourses') {
       checkWatercourseFamily(parent, children, context)
     }
+    if (layer === 'trees') {
+      checkTreeCount(parent, children, context)
+    }
+    if (!DEGRADABLE_LAYERS.has(layer)) {
+      continue
+    }
     const createdMetres = createdMetresOnce(layer, parent, children)
     for (const child of children) {
       checkDegradedRow(parent, child, createdMetres, context)
@@ -367,6 +404,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
   const found = {
     tooLong: [],
     tooLarge: [],
+    tooManyTrees: [],
     partCreated: [],
     naturalLost: [],
     notWorse: [],
@@ -401,6 +439,13 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
       found.tooLarge,
       (parent) =>
         `${describeParent(parent)} (${toHectares(parent.areaSquareMetres)} ha, linked ${toHectares(parent.childAreaSquareMetres)} ha)`
+    ),
+    collated(
+      ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
+      'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together',
+      found.tooManyTrees,
+      (parent) =>
+        `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`
     ),
     collated(
       ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,

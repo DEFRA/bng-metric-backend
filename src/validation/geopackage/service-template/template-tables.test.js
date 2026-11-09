@@ -38,12 +38,14 @@ describe('reading a BNG Service template file', () => {
     expect(layers.hedgerows).toHaveLength(1)
     expect(layers.watercourses).toHaveLength(1)
     expect(layers.verticalHabitats).toHaveLength(1)
+    expect(layers.trees).toHaveLength(1)
     expect(layers.layerTables).toEqual({
       redline: 'Red Line Boundary',
       areas: 'Area Habitats Baseline',
       verticalHabitats: 'Vertical Area Habitats Baseline',
       hedgerows: 'Hedgerows Baseline',
-      watercourses: 'Watercourses Baseline'
+      watercourses: 'Watercourses Baseline',
+      trees: 'Individual Trees Baseline'
     })
   })
 
@@ -61,10 +63,21 @@ describe('reading a BNG Service template file', () => {
     )
   })
 
-  test('reads no trees or IGGIs yet', async () => {
+  test('reads a tree under the names the pipeline reads, and no IGGIs', async () => {
     const layers = await read({ rows: populatedBaselineRows() })
 
-    expect(layers.trees).toEqual([])
+    expect(layers.trees[0].properties).toEqual({
+      fid: 1,
+      'Tree Ref': 'T001',
+      'Baseline Tree Size': 'Medium',
+      'Baseline Tree Type': 'Native',
+      'Baseline Rural or Urban Tree': 'Urban tree',
+      'Baseline Condition': 'Moderate',
+      'Baseline Strategic Significance': 'Low',
+      'Irreplaceable Habitat': 'No',
+      Comment: null,
+      feature_uuid: '3b1f6c2a-8d4e-5f70-9a1b-2c3d4e5f6a7b'
+    })
     expect(layers.iggis).toEqual([])
   })
 
@@ -191,6 +204,28 @@ describe('reading a BNG Service template file', () => {
       })
     }
   )
+
+  test('reads a tree’s blank timing column as 0 years beside years in its other one', async () => {
+    const rows = {
+      ...populatedBaselineRows(),
+      ...populatedPostInterventionRows()
+    }
+    Object.assign(rows['Individual Trees Post-Intervention'][0], {
+      'Habitat Created/Enhanced in advance/years': '4',
+      'Delay in starting habitat creation/enhancement in years': null
+    })
+
+    const layers = await read(
+      { rows },
+      FEATURE_READ_MODE.properties,
+      templateReadSource('1.0', STAGE_POST_INTERVENTION)
+    )
+
+    expect(layers.trees[0].properties).toMatchObject({
+      'Habitat Created/Enhanced in advance/years': '4',
+      'Delay in starting habitat creation/enhancement in years': '0'
+    })
+  })
 
   test('reports a layer whose table is missing', async () => {
     const layers = await read({ omitTables: ['Hedgerows Baseline'] })

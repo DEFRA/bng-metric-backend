@@ -36,7 +36,8 @@ const CONDITION_SCORES_BY_LAYER = Object.freeze({
   areas: CONDITION_SCORES,
   verticalHabitats: CONDITION_SCORES,
   hedgerows: HEDGEROW_CONDITION_SCORES,
-  watercourses: WATERCOURSE_CONDITION_SCORES
+  watercourses: WATERCOURSE_CONDITION_SCORES,
+  trees: CONDITION_SCORES
 })
 
 const ENCROACHMENTS = Object.freeze([
@@ -47,8 +48,12 @@ const ENCROACHMENTS = Object.freeze([
 const trimmed = (value) =>
   typeof value === 'string' && value.trim() !== '' ? value.trim() : null
 
-/** The layers whose habitats the Metric scores on its area habitat sheets. */
-const AREA_LAYERS = new Set(['areas', 'verticalHabitats'])
+/**
+ * The layers whose habitats the Metric scores on its area habitat sheets: an
+ * individual tree is the area habitat "Individual trees - Urban tree" or
+ * "Individual trees - Rural tree".
+ */
+const AREA_LAYERS = new Set(['areas', 'verticalHabitats', 'trees'])
 
 /** The reference keys a side's habitat may be scored under, area or linear. */
 function scoreKeys(layer, side) {
@@ -64,7 +69,7 @@ function scoreKeys(layer, side) {
  * null where the table has none: an unknown type or condition, or one the
  * Metric marks Not Possible.
  *
- * @param {'areas' | 'verticalHabitats' | 'hedgerows' | 'watercourses'} layer
+ * @param {'areas' | 'verticalHabitats' | 'hedgerows' | 'watercourses' | 'trees'} layer
  * @param {object} side
  * @returns {number | null}
  */

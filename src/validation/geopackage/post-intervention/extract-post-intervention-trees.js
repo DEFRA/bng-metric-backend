@@ -7,6 +7,7 @@ import {
 } from '../properties.js'
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
 import { commentForPostIntervention } from '../comment-check.js'
+import { irreplaceableField } from '../irreplaceable.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
@@ -106,6 +107,7 @@ export function buildPostInterventionTree(
     units: null,
     status: null,
     count,
+    ...irreplaceableField(props),
     baseline,
     proposed,
     properties: props

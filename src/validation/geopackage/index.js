@@ -2,6 +2,7 @@ import { checkHabitatComments } from './comment-check.js'
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { readGeoPackage } from './geopackage.js'
 import { checkHabitatRefs } from './habitat-ref-check.js'
+import { checkIrreplaceableTrees } from './irreplaceable-tree-check.js'
 import { FEATURE_READ_MODE } from './read-feature-tables.js'
 import { checkTreeCountIsWhole } from './tree-count-check.js'
 import { checkVerticalHabitatAreas } from './vertical-area-check.js'
@@ -49,6 +50,7 @@ export function runDataQualityChecks(layers, variant) {
     ...checkHabitatRefs(layers),
     ...checkHabitatComments(layers),
     checkTreeCountIsWhole(layers),
+    checkIrreplaceableTrees(layers),
     checkVerticalHabitatAreas(layers)
   ].filter(Boolean)
 }

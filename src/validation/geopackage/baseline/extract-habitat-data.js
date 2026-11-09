@@ -150,6 +150,7 @@ function buildTree(feature, keys, readStrategicSignificance, commentOptions) {
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
     strategicSignificance: readStrategicSignificance(props),
     retentionCategory: pickProp(props, PROP_KEYS.retentionCategory),
+    ...irreplaceableField(props),
     ...pickProps(props, METADATA_PROPS),
     properties: props
   }
