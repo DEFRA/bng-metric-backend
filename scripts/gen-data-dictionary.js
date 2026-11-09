@@ -205,6 +205,8 @@ function formatRule(rule) {
       return `max ${rule.args.limit}`
     case 'maxCharacters':
       return `max ${rule.args.limit} characters`
+    case 'inList':
+      return 'one of its lists (case, spacing and list numbers aside)'
     case 'length':
       return `length ${rule.args.limit}`
     case 'guid':
@@ -238,7 +240,10 @@ function nodeMeta(node) {
     required: node.flags?.presence === 'required',
     nullable: allow.includes(null),
     emptyStringAllowed: allow.includes(''),
-    enumValues: isEnum ? allow.filter((v) => v !== null && v !== '') : [],
+    enumValues: isEnum
+      ? allow.filter((v) => v !== null && v !== '')
+      : ((node.rules ?? []).find((rule) => rule.name === 'inList')?.args
+          .values ?? []),
     constraints: (node.rules ?? []).map(formatRule),
     openMap:
       node.type === 'object' && node.flags?.unknown === true && !node.keys,

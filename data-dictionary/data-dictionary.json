@@ -1392,12 +1392,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -1405,7 +1403,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline broad habitat type, e.g. 'Grassland'."
     },
@@ -1439,15 +1440,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -1455,10 +1447,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -1482,16 +1476,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -1503,17 +1498,15 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Created",
-        "2. Retained",
-        "3. Enhanced",
-        "4. Lost",
         "Created",
         "Enhanced",
         "Lost",
-        "Null",
         "Retained"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -1655,8 +1648,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["Null", "Off site", "Off-site", "On site", "On-site"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["Off site", "Off-site", "On site", "On-site"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -1678,14 +1674,16 @@
         "Intertidal habitats - Compensation outside Marine Plan Area of impact site and beyond neighbouring Marine Plan Area",
         "Intertidal habitats - Compensation outside same Marine Plan Area but in neighbouring Marine Plan Area",
         "N/A",
-        "Null",
         "Outside operational catchment",
         "Outside waterbody catchment but within operational catchment",
         "Outside waterbody catchment, but within operational catchment",
         "This metric is being used by an off-site provider",
         "Within waterbody catchment"
       ],
-      "constraints": ["max 255 characters"],
+      "constraints": [
+        "max 255 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -1728,9 +1726,13 @@
         "7",
         "8",
         "9",
-        "Null"
+        "Habitat already in target condition",
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -1773,10 +1775,12 @@
         "7",
         "8",
         "9",
-        "N/A",
-        "Null"
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -1786,8 +1790,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["High", "Low", "Medium", "N/A", "Null", "V.High", "V.Low"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["High", "Low", "Medium", "N/A", "V.High", "V.Low"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -1843,15 +1850,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -1859,10 +1857,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -1886,16 +1886,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -1907,17 +1908,15 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Created",
-        "2. Retained",
-        "3. Enhanced",
-        "4. Lost",
         "Created",
         "Enhanced",
         "Lost",
-        "Null",
         "Retained"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -2015,8 +2014,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["Null", "Off site", "Off-site", "On site", "On-site"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["Off site", "Off-site", "On site", "On-site"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -2038,14 +2040,16 @@
         "Intertidal habitats - Compensation outside Marine Plan Area of impact site and beyond neighbouring Marine Plan Area",
         "Intertidal habitats - Compensation outside same Marine Plan Area but in neighbouring Marine Plan Area",
         "N/A",
-        "Null",
         "Outside operational catchment",
         "Outside waterbody catchment but within operational catchment",
         "Outside waterbody catchment, but within operational catchment",
         "This metric is being used by an off-site provider",
         "Within waterbody catchment"
       ],
-      "constraints": ["max 255 characters"],
+      "constraints": [
+        "max 255 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -2088,9 +2092,13 @@
         "7",
         "8",
         "9",
-        "Null"
+        "Habitat already in target condition",
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -2133,10 +2141,12 @@
         "7",
         "8",
         "9",
-        "N/A",
-        "Null"
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -2146,8 +2156,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["High", "Low", "Medium", "N/A", "Null", "V.High", "V.Low"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["High", "Low", "Medium", "N/A", "V.High", "V.Low"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -2196,12 +2209,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -2209,7 +2220,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -2290,11 +2304,13 @@
         "Large",
         "Medium",
         "N/A",
-        "Null",
         "Small",
         "Very large"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
     },
@@ -2304,8 +2320,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["(no selection)", "N/A", "Native", "Non-native", "Null"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["(no selection)", "N/A", "Native", "Non-native"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column)."
     },
@@ -2315,14 +2334,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": [
-        "(no selection)",
-        "N/A",
-        "Null",
-        "Rural tree",
-        "Urban tree"
+      "enumValues": ["(no selection)", "N/A", "Rural tree", "Urban tree"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
       ],
-      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage (e.g. \"Urban\")."
     },
@@ -2389,15 +2405,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -2405,10 +2412,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment, e.g. 'Good'."
     },
@@ -2432,16 +2441,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -2453,17 +2463,15 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Created",
-        "2. Retained",
-        "3. Enhanced",
-        "4. Lost",
         "Created",
         "Enhanced",
         "Lost",
-        "Null",
         "Retained"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -2572,8 +2580,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["Null", "Off site", "Off-site", "On site", "On-site"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["Off site", "Off-site", "On site", "On-site"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -2595,14 +2606,16 @@
         "Intertidal habitats - Compensation outside Marine Plan Area of impact site and beyond neighbouring Marine Plan Area",
         "Intertidal habitats - Compensation outside same Marine Plan Area but in neighbouring Marine Plan Area",
         "N/A",
-        "Null",
         "Outside operational catchment",
         "Outside waterbody catchment but within operational catchment",
         "Outside waterbody catchment, but within operational catchment",
         "This metric is being used by an off-site provider",
         "Within waterbody catchment"
       ],
-      "constraints": ["max 255 characters"],
+      "constraints": [
+        "max 255 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -2645,9 +2658,13 @@
         "7",
         "8",
         "9",
-        "Null"
+        "Habitat already in target condition",
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -2690,10 +2707,12 @@
         "7",
         "8",
         "9",
-        "N/A",
-        "Null"
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -2703,8 +2722,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["High", "Low", "Medium", "N/A", "Null", "V.High", "V.Low"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["High", "Low", "Medium", "N/A", "V.High", "V.Low"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -2753,12 +2775,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -2766,7 +2786,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
     },
@@ -2877,15 +2900,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -2893,10 +2907,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Hedgerow condition assessment."
     },
@@ -2986,16 +3002,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -3007,17 +3024,15 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Created",
-        "2. Retained",
-        "3. Enhanced",
-        "4. Lost",
         "Created",
         "Enhanced",
         "Lost",
-        "Null",
         "Retained"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -3104,8 +3119,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["Null", "Off site", "Off-site", "On site", "On-site"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["Off site", "Off-site", "On site", "On-site"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -3127,14 +3145,16 @@
         "Intertidal habitats - Compensation outside Marine Plan Area of impact site and beyond neighbouring Marine Plan Area",
         "Intertidal habitats - Compensation outside same Marine Plan Area but in neighbouring Marine Plan Area",
         "N/A",
-        "Null",
         "Outside operational catchment",
         "Outside waterbody catchment but within operational catchment",
         "Outside waterbody catchment, but within operational catchment",
         "This metric is being used by an off-site provider",
         "Within waterbody catchment"
       ],
-      "constraints": ["max 255 characters"],
+      "constraints": [
+        "max 255 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -3177,9 +3197,13 @@
         "7",
         "8",
         "9",
-        "Null"
+        "Habitat already in target condition",
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -3222,10 +3246,12 @@
         "7",
         "8",
         "9",
-        "N/A",
-        "Null"
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -3235,8 +3261,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["High", "Low", "Medium", "N/A", "Null", "V.High", "V.Low"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["High", "Low", "Medium", "N/A", "V.High", "V.Low"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -3314,15 +3343,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -3330,10 +3350,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Watercourse condition assessment."
     },
@@ -3344,39 +3366,23 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [
-        "1. Major/Major",
-        "1. Major/Minor",
-        "1. Major/Moderate",
-        "1. Major/No Encroachment",
-        "1. N/A - Culvert",
-        "2. Moderate/ Minor",
-        "2. Moderate/ Moderate",
-        "2. Moderate/ No Encroachment",
-        "3. Minor/ Minor",
-        "3. Minor/ No Encroachment",
-        "4. No Encroachment/ No Encroachment",
-        "5. N/A",
         "Major/Major",
         "Major/Minor",
         "Major/Moderate",
         "Major/No Encroachment",
         "Minor/ Minor",
         "Minor/ No Encroachment",
-        "Minor/Minor",
-        "Minor/No Encroachment",
         "Moderate/ Minor",
         "Moderate/ Moderate",
         "Moderate/ No Encroachment",
-        "Moderate/Minor",
-        "Moderate/Moderate",
-        "Moderate/No Encroachment",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment/ No Encroachment",
-        "No Encroachment/No Encroachment",
-        "Null"
+        "No Encroachment/ No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Riparian-zone encroachment category from the GeoPackage."
     },
@@ -3391,10 +3397,12 @@
         "Minor",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment",
-        "Null"
+        "No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Watercourse encroachment category from the GeoPackage."
     },
@@ -3484,16 +3492,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -3505,17 +3514,15 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Created",
-        "2. Retained",
-        "3. Enhanced",
-        "4. Lost",
         "Created",
         "Enhanced",
         "Lost",
-        "Null",
         "Retained"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Retention category from the GeoPackage."
     },
@@ -3602,8 +3609,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["Null", "Off site", "Off-site", "On site", "On-site"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["Off site", "Off-site", "On site", "On-site"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Free-text location description from the GeoPackage."
     },
@@ -3625,14 +3635,16 @@
         "Intertidal habitats - Compensation outside Marine Plan Area of impact site and beyond neighbouring Marine Plan Area",
         "Intertidal habitats - Compensation outside same Marine Plan Area but in neighbouring Marine Plan Area",
         "N/A",
-        "Null",
         "Outside operational catchment",
         "Outside waterbody catchment but within operational catchment",
         "Outside waterbody catchment, but within operational catchment",
         "This metric is being used by an off-site provider",
         "Within waterbody catchment"
       ],
-      "constraints": ["max 255 characters"],
+      "constraints": [
+        "max 255 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Spatial risk category from the GeoPackage."
     },
@@ -3675,9 +3687,13 @@
         "7",
         "8",
         "9",
-        "Null"
+        "Habitat already in target condition",
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years)."
     },
@@ -3720,10 +3736,12 @@
         "7",
         "8",
         "9",
-        "N/A",
-        "Null"
+        "N/A"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years)."
     },
@@ -3733,8 +3751,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["High", "Low", "Medium", "N/A", "Null", "V.High", "V.Low"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["High", "Low", "Medium", "N/A", "V.High", "V.Low"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric."
     },
@@ -3744,13 +3765,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": [
-        "Enhanced by Realignment",
-        "N/A",
-        "Null",
-        "Standard Enhancement"
+      "enumValues": ["Enhanced by Realignment", "N/A", "Standard Enhancement"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
       ],
-      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Enhancement type from the GeoPackage Rivers layer."
     },
@@ -4458,12 +4477,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -4471,7 +4488,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline broad habitat type."
     },
@@ -4483,15 +4503,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -4499,10 +4510,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -4548,16 +4561,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -4617,12 +4631,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -4630,7 +4642,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed broad habitat type."
     },
@@ -4642,15 +4657,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -4658,10 +4664,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -4828,16 +4836,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -5040,12 +5049,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -5053,7 +5060,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -5065,15 +5075,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -5081,10 +5082,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -5130,16 +5133,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -5154,11 +5158,13 @@
         "Large",
         "Medium",
         "N/A",
-        "Null",
         "Small",
         "Very large"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
     },
@@ -5168,8 +5174,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["(no selection)", "N/A", "Native", "Non-native", "Null"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["(no selection)", "N/A", "Native", "Non-native"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree species/type free text (Tree Type column)."
     },
@@ -5179,14 +5188,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": [
-        "(no selection)",
-        "N/A",
-        "Null",
-        "Rural tree",
-        "Urban tree"
+      "enumValues": ["(no selection)", "N/A", "Rural tree", "Urban tree"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
       ],
-      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage."
     },
@@ -5246,12 +5252,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -5259,7 +5263,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Always 'Individual trees' for tree features."
     },
@@ -5271,15 +5278,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -5287,10 +5285,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -5336,16 +5336,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Strategic Significance from the GeoPackage."
     },
@@ -5360,11 +5361,13 @@
         "Large",
         "Medium",
         "N/A",
-        "Null",
         "Small",
         "Very large"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
     },
@@ -5374,8 +5377,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": ["(no selection)", "N/A", "Native", "Non-native", "Null"],
-      "constraints": ["max 99 characters"],
+      "enumValues": ["(no selection)", "N/A", "Native", "Non-native"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Tree species/type free text (Tree Type column)."
     },
@@ -5385,14 +5391,11 @@
       "required": false,
       "nullable": true,
       "emptyStringAllowed": true,
-      "enumValues": [
-        "(no selection)",
-        "N/A",
-        "Null",
-        "Rural tree",
-        "Urban tree"
+      "enumValues": ["(no selection)", "N/A", "Rural tree", "Urban tree"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
       ],
-      "constraints": ["max 99 characters"],
       "openMap": false,
       "description": "Raw Rural or Urban Tree value as written in the GeoPackage."
     },
@@ -5734,12 +5737,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -5747,7 +5748,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline broad habitat type."
     },
@@ -5759,15 +5763,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -5775,10 +5770,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -5824,16 +5821,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -5893,12 +5891,10 @@
         "Cropland",
         "Grassland",
         "Heathland and shrub",
-        "Individual trees",
         "Intertidal",
         "Intertidal hard structures",
         "Intertidal sediment",
         "Lakes",
-        "Null",
         "Rocky shore",
         "Sparsely vegetated land",
         "Urban",
@@ -5906,7 +5902,10 @@
         "Wetland",
         "Woodland and forest"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed broad habitat type."
     },
@@ -5918,15 +5917,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -5934,10 +5924,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -6104,16 +6096,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -6301,15 +6294,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -6317,10 +6301,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -6366,16 +6352,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -6431,15 +6418,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -6447,10 +6425,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -6617,16 +6597,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed Strategic Significance from the GeoPackage."
     },
@@ -6825,15 +6806,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -6841,10 +6813,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline condition assessment stripped of list-index prefix."
     },
@@ -6888,39 +6862,23 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [
-        "1. Major/Major",
-        "1. Major/Minor",
-        "1. Major/Moderate",
-        "1. Major/No Encroachment",
-        "1. N/A - Culvert",
-        "2. Moderate/ Minor",
-        "2. Moderate/ Moderate",
-        "2. Moderate/ No Encroachment",
-        "3. Minor/ Minor",
-        "3. Minor/ No Encroachment",
-        "4. No Encroachment/ No Encroachment",
-        "5. N/A",
         "Major/Major",
         "Major/Minor",
         "Major/Moderate",
         "Major/No Encroachment",
         "Minor/ Minor",
         "Minor/ No Encroachment",
-        "Minor/Minor",
-        "Minor/No Encroachment",
         "Moderate/ Minor",
         "Moderate/ Moderate",
         "Moderate/ No Encroachment",
-        "Moderate/Minor",
-        "Moderate/Moderate",
-        "Moderate/No Encroachment",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment/ No Encroachment",
-        "No Encroachment/No Encroachment",
-        "Null"
+        "No Encroachment/ No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Riparian-zone encroachment category."
     },
@@ -6935,10 +6893,12 @@
         "Minor",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment",
-        "Null"
+        "No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Watercourse encroachment category."
     },
@@ -6951,16 +6911,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
@@ -7038,15 +6999,6 @@
       "emptyStringAllowed": true,
       "enumValues": [
         "(no selection)",
-        "1. Good",
-        "2. Fairly Good",
-        "3. Moderate",
-        "4. Fairly Poor",
-        "5. Poor",
-        "6. N/A",
-        "6. N/A - Other",
-        "7. Condition Assessment N/A",
-        "7. N/A - Other",
         "Condition Assessment N/A",
         "Fairly Good",
         "Fairly Poor",
@@ -7054,10 +7006,12 @@
         "Moderate",
         "N/A",
         "N/A - Other",
-        "Null",
         "Poor"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Proposed condition assessment stripped of list-index prefix."
     },
@@ -7222,39 +7176,23 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [
-        "1. Major/Major",
-        "1. Major/Minor",
-        "1. Major/Moderate",
-        "1. Major/No Encroachment",
-        "1. N/A - Culvert",
-        "2. Moderate/ Minor",
-        "2. Moderate/ Moderate",
-        "2. Moderate/ No Encroachment",
-        "3. Minor/ Minor",
-        "3. Minor/ No Encroachment",
-        "4. No Encroachment/ No Encroachment",
-        "5. N/A",
         "Major/Major",
         "Major/Minor",
         "Major/Moderate",
         "Major/No Encroachment",
         "Minor/ Minor",
         "Minor/ No Encroachment",
-        "Minor/Minor",
-        "Minor/No Encroachment",
         "Moderate/ Minor",
         "Moderate/ Moderate",
         "Moderate/ No Encroachment",
-        "Moderate/Minor",
-        "Moderate/Moderate",
-        "Moderate/No Encroachment",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment/ No Encroachment",
-        "No Encroachment/No Encroachment",
-        "Null"
+        "No Encroachment/ No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Riparian-zone encroachment category."
     },
@@ -7269,10 +7207,12 @@
         "Minor",
         "N/A",
         "N/A - Culvert",
-        "No Encroachment",
-        "Null"
+        "No Encroachment"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Watercourse encroachment category."
     },
@@ -7285,16 +7225,17 @@
       "enumValues": [
         "(no selection)",
         "Area/compensation not in local strategy/ no local strategy",
-        "Area/compensation not in local strategy/no local strategy",
         "Formally identified in local strategy",
         "High",
         "Location ecologically desirable but not in local strategy",
         "Low",
         "N/A",
-        "Null",
         "Within area formally identified in local strategy"
       ],
-      "constraints": ["max 99 characters"],
+      "constraints": [
+        "max 99 characters",
+        "one of its lists (case, spacing and list numbers aside)"
+      ],
       "openMap": false,
       "description": "Strategic Significance from the GeoPackage."
     },

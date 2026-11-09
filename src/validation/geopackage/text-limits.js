@@ -59,8 +59,9 @@ export function columnKey(column) {
   return String(column).trim().toLowerCase()
 }
 
-// A legacy list number, as in "4. Fairly Poor".
-const LIST_NUMBER = /^\d+\.\s*/
+// A legacy list number, as in "4. Fairly Poor": digits and a full stop not
+// followed by another digit, so a decimal such as "5.0" keeps its digits.
+const LIST_NUMBER = /^\d+\.(?!\d)\s*/
 // A whole number of years written as a decimal, as in "5.0".
 const WHOLE_DECIMAL = /^(\d+)\.0+$/
 const WHITESPACE_RUN = /\s+/g

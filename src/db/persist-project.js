@@ -23,7 +23,6 @@ import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
-import { LISTED_FIELD_NAMES } from '../validation/text-joi.js'
 import { projectDetailsReturning } from './project-details-columns.js'
 import {
   postInterventionDataSchema,
@@ -274,14 +273,14 @@ function hasConsistentTemplateFragments({
   )
 }
 
+const STORED_VALUE_RULES = new Set(['string.maxCharacters', 'string.inList'])
+
 /**
  * Whether a Joi failure is one a stored value can have only because it was
  * saved before the service checked text limits and lists (BMD-1175): a text
  * over its limit, or a listed field's value outside its list.
  */
-const isStoredValueFailure = (detail) =>
-  detail.type === 'string.maxCharacters' ||
-  (detail.type === 'any.only' && LISTED_FIELD_NAMES.has(detail.context?.key))
+const isStoredValueFailure = (detail) => STORED_VALUE_RULES.has(detail.type)
 
 /**
  * As assertFragmentValid, for a fragment an edit writes. A fragment that

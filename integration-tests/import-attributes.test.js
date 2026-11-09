@@ -92,6 +92,17 @@ async function changedFixture(proposed = false, mode = 'nulls') {
         `UPDATE Rivers SET "Retention Category" = 'Retained', "Baseline River Type" = 'Ditches', "Baseline Condition" = 'Good', "Baseline Encroachment into Watercourse" = 'No Encroachment', "Baseline Encroachment into riparian zone" = 'No Encroachment/No Encroachment', "Proposed River Type" = NULL, "Proposed Condition" = NULL, "Proposed Encroachment into Watercourse" = NULL, "Proposed Encroachment into riparian zone" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'R1'`
       ).run()
     }
+    if (mode === 'as-the-gate-reads') {
+      db.prepare(
+        `UPDATE Habitats SET "Site Name" = ?, "Retention Category" = 'Retained ', "Habitat created in advance/years" = '5.0' WHERE "Parcel Ref" = 'H1'`
+      ).run(`${'s'.repeat(999)}   `)
+      db.prepare(
+        `UPDATE Hedgerows SET "Habitat created in advance/years" = 'N/A' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Rivers SET "Habitat created in advance/years" = 'Habitat already in target condition' WHERE "Parcel Ref" = 'R1'`
+      ).run()
+    }
     if (mode === 'not-in-list') {
       db.prepare(
         `UPDATE Habitats SET "Baseline Condition" = 'Splendid' WHERE "Parcel Ref" = 'H1'`
@@ -220,6 +231,23 @@ describe('BMD-1059 real GeoPackage imports', () => {
       })
     ])
     expect(await fetchProject(project.id)).toEqual(before)
+  })
+
+  // The upload checks a value once trimmed, and as a list word once a list
+  // number, case, spacing and a whole-number decimal are set aside; the saved
+  // document is checked the same way, so such a file saves (BMD-1175).
+  it('saves values padded with spaces, "5.0", "N/A" and "Habitat already in target condition"', async () => {
+    const project = await createProject(
+      'BMD-1175 values as the gate reads them'
+    )
+    const uploadId = await changedFixture(false, 'as-the-gate-reads')
+    const response = await callValidate(uploadId, { projectId: project.id })
+    expect(response.result).toEqual({ valid: true, errors: [] })
+    const { baseline } = await fetchProject(project.id)
+    const area = baseline.habitats.find((feature) => feature.ref === 'H1')
+    expect(area.properties['Habitat created in advance/years']).toBe('5.0')
+    expect(area.retentionCategory).toBe('Retained ')
+    expect(area.siteName).toBe(`${'s'.repeat(999)}   `)
   })
 
   it('saves retained baseline fallback with Complete status', async () => {

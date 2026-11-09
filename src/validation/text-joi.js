@@ -13,6 +13,10 @@ import {
   LONG_TEXT_LIMIT,
   SHORT_TEXT_LIMIT,
   SPATIAL_RISK_LIMIT,
+  allowedValuesOf,
+  characterCount,
+  isNullWord,
+  normaliseListValue,
   textLimitOf
 } from './geopackage/text-limits.js'
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from './geopackage/tree-constants.js'
@@ -20,17 +24,23 @@ import { getHabitatsByBroad } from './reference/habitat-reference.js'
 import { VERTICAL_BROAD_HABITATS } from './reference/vertical-habitats.js'
 
 /**
- * Joi with a string rule, `.maxCharacters()`, that counts characters (Unicode
- * code points), as the upload's limits do (BMD-1175). Joi's own `.max()`
- * counts UTF-16 code units, so it would refuse a reference of 99 emoji that
- * the upload accepts. The data dictionary shows the rule as
- * `max 99 characters`.
+ * Joi with two string rules that check a stored value exactly as the upload
+ * checks it (text-values-gate.js), so that a file the upload accepts is never
+ * refused when its document is saved (BMD-1175):
+ *
+ * - `.maxCharacters(limit)` counts characters (Unicode code points) once
+ *   leading and trailing whitespace is removed. Joi's own `.max()` counts
+ *   UTF-16 code units and does not trim.
+ * - `.inList(values, allowed)` accepts a value whose normalised form
+ *   (normaliseListValue) is in `allowed`, a blank one, or "Null". `values`
+ *   are the words shown in the data dictionary.
  */
 const textJoi = Joi.extend((joi) => ({
   type: 'string',
   base: joi.string(),
   messages: {
-    'string.maxCharacters': '{{#label}} must be {{#limit}} characters or fewer'
+    'string.maxCharacters': '{{#label}} must be {{#limit}} characters or fewer',
+    'string.inList': '{{#label}} must be a value its lists offer'
   },
   rules: {
     maxCharacters: {
@@ -45,9 +55,28 @@ const textJoi = Joi.extend((joi) => ({
         }
       ],
       validate(value, helpers, { limit }) {
-        return Array.from(value).length > limit
+        return characterCount(value) > limit
           ? helpers.error('string.maxCharacters', { limit })
           : value
+      }
+    },
+    inList: {
+      method(values, allowed) {
+        return this.$_addRule({ name: 'inList', args: { values, allowed } })
+      },
+      args: [
+        { name: 'values', assert: Array.isArray, message: 'must be an array' },
+        {
+          name: 'allowed',
+          assert: (value) => value instanceof Set,
+          message: 'must be a Set'
+        }
+      ],
+      validate(value, helpers, { allowed }) {
+        const blank = value.trim() === '' || isNullWord(value)
+        return blank || allowed.has(normaliseListValue(value))
+          ? value
+          : helpers.error('string.inList')
       }
     }
   }
@@ -139,54 +168,38 @@ const LISTED_FIELDS = Object.freeze({
   }
 })
 
-/** The stored fields LISTED_FIELDS limits to a list, by name. */
-export const LISTED_FIELD_NAMES = Object.freeze(
-  new Set(Object.keys(LISTED_FIELDS))
-)
+// A legacy list number, as in "4. Fairly Poor".
+const LIST_NUMBER = /^\d+\.(?!\d)\s*/
 
-const NULL_WORD = 'Null'
-
-// A legacy list number, as in "4. Fairly Poor": the import stores the words.
-const LIST_NUMBER = /^\d+\.\s*/
-
-function listValues(columns) {
-  const byKey = new Map(
-    Object.entries(TEMPLATE_ALLOWED_VALUES).map(([column, values]) => [
-      column.trim(),
-      values
-    ])
+/** The words a field's lists offer, without list numbers, for the data dictionary. */
+function shownWords(columns) {
+  const words = columns.flatMap((column) =>
+    Object.entries(TEMPLATE_ALLOWED_VALUES)
+      .filter(([name]) => name.trim() === column)
+      .flatMap(([, values]) => values.map((v) => v.replace(LIST_NUMBER, '')))
   )
-  return columns.flatMap((column) =>
-    (byKey.get(column) ?? []).flatMap((value) => {
-      const words = value.replace(LIST_NUMBER, '')
-      // Riparian encroachment pairs are spelt "Minor/ Minor" and "Minor/Minor".
-      const unspaced = words
-        .split('/')
-        .map((part) => part.trim())
-        .join('/')
-      return [value, words, unspaced]
-    })
-  )
+  return [...new Set(words)].sort((a, b) => a.localeCompare(b))
 }
 
 /**
  * A stored value from a drop-down or filled-in column (BMD-1175 AC9): no
  * longer than its column's limit, and one of the words its lists offer in
- * either template, or one the service stores there itself, in any case.
- * Null or empty is allowed. The upload refuses a value outside the lists
- * first, with VALUE_NOT_ALLOWED; this keeps the stored document, and the
- * API documentation generated from it, to the same words.
+ * either template, or one the service stores there itself, compared as the
+ * upload compares it. Blank, null or "Null" is allowed. The upload refuses a
+ * value outside the lists first, with VALUE_NOT_ALLOWED; this keeps the
+ * stored document, and the API documentation generated from it, to the same
+ * words.
  *
  * @param {keyof typeof LISTED_FIELDS} field
  */
 export function listedFileText(field) {
   const { columns, stored = () => [] } = LISTED_FIELDS[field]
-  // "Null" is the word GIS tools write for a missing value; the upload reads
-  // it as blank, and the import can keep it.
-  const values = [
-    ...new Set([...listValues(columns), ...stored(), NULL_WORD])
-  ].sort((a, b) => a.localeCompare(b))
-  return fileText(textLimitOf(columns[0]))
-    .valid(...values)
-    .insensitive()
+  // The same lists the upload checks against, joined per column, plus the
+  // words the service stores there itself, all normalised as the upload
+  // normalises a value.
+  const allowed = new Set([
+    ...columns.flatMap((column) => [...(allowedValuesOf(column) ?? [])]),
+    ...stored().map(normaliseListValue)
+  ])
+  return fileText(textLimitOf(columns[0])).inList(shownWords(columns), allowed)
 }

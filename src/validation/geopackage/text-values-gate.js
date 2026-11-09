@@ -13,6 +13,7 @@ import { MAX_PARENT_GEOM_CHARS } from './service-template/lineage/parent-links.j
 import { parseWkt } from './service-template/lineage/parse-wkt.js'
 import {
   REF_COLUMNS,
+  SHORT_TEXT_LIMIT,
   allowedValuesOf,
   characterCount,
   columnKey,
@@ -113,12 +114,19 @@ function featureTables(db, includeTable) {
  * aliases whatever the tool that wrote it named the column.
  */
 function rowSelect(table, extraSql = '') {
-  const ref = table.refColumn
-    ? `CAST(${quoteSqliteIdent(table.refColumn)} AS BLOB)`
+  // A reference too long to name a feature by is not read at all.
+  const refColumn = table.refColumn && quoteSqliteIdent(table.refColumn)
+  const ref = refColumn
+    ? `CASE WHEN octet_length(${refColumn}) <= ${MAX_REF_BYTES} THEN CAST(${refColumn} AS BLOB) END`
     : 'NULL'
   const extra = extraSql ? `, ${extraSql}` : ''
   return `SELECT rowid AS fid, ${ref} AS ref${extra}`
 }
+
+// UTF-8 needs at most four bytes for one character, so a reference longer
+// than this cannot be within its limit.
+const MAX_UTF8_BYTES = 4
+const MAX_REF_BYTES = SHORT_TEXT_LIMIT * MAX_UTF8_BYTES
 
 /**
  * How a message names a feature: by its reference, or by its row where the
@@ -136,10 +144,22 @@ function featureLabel(table, row) {
   return `${table.name}, ${name}`
 }
 
-/** A limited column's value as the length check reads it: a BLOB as its byte count. */
+/**
+ * A limited column's length as SQLite measures it, so that no long value is
+ * read into memory: null where its bytes fit the limit (its characters then
+ * fit too); otherwise its characters once trimmed. A BLOB, and text holding a
+ * NUL, which SQLite's length() stops at, are measured in bytes.
+ */
 function measuredSql(column, limit) {
   const value = quoteSqliteIdent(column)
-  return `CASE WHEN octet_length(${value}) <= ${limit} THEN NULL WHEN typeof(${value}) = 'blob' THEN length(${value}) ELSE CAST(${value} AS TEXT) END`
+  return [
+    'CASE',
+    `WHEN octet_length(${value}) <= ${limit} THEN NULL`,
+    `WHEN typeof(${value}) = 'blob' THEN length(${value})`,
+    `WHEN instr(CAST(${value} AS BLOB), x'00') > 0 THEN octet_length(${value})`,
+    `ELSE length(trim(CAST(${value} AS TEXT), ${BLANK_CHARACTERS}))`,
+    'END'
+  ].join(' ')
 }
 
 /**
@@ -170,11 +190,10 @@ function overLimitErrors(db, table) {
     .prepare(
       `${rowSelect(table, measured)} FROM ${quoteSqliteIdent(table.name)} WHERE ${anyOver}`
     )
-    .all()
-  return rows.flatMap((row) =>
+    .iterate()
+  return Array.from(rows).flatMap((row) =>
     limited.flatMap(({ column, limit }, i) => {
-      const value = row[`c${i}`]
-      const length = typeof value === 'string' ? characterCount(value) : value
+      const length = row[`c${i}`]
       if (length === null || length <= limit) {
         return []
       }

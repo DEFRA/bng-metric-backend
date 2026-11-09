@@ -241,6 +241,17 @@ describe('text-values-gate', () => {
       expect(result.valid).toBe(true)
     })
 
+    test('refuses a decimal number of years that is not whole', async () => {
+      for (const value of ['1.5', '99.3']) {
+        const result = await oneValue(
+          AREA_PI,
+          'Habitat created in advance/years',
+          value
+        )
+        expect(codes(result)).toEqual([ERROR_CODES.VALUE_NOT_ALLOWED])
+      }
+    })
+
     test('shows a refused value cut to 99 characters, marked as truncated', async () => {
       const value = 'r'.repeat(200)
       const result = await oneValue(AREA_PI, 'Spatial risk category', value)
