@@ -5,10 +5,12 @@ import path from 'node:path'
 
 import {
   ERROR_CODES,
+  ERROR_CODE_DETAILS,
   ERROR_CODE_SURFACES,
   ERROR_SURFACES,
   makeError,
-  makeMetadataError
+  makeMetadataError,
+  withVariant
 } from './errors.js'
 
 describe('makeError', () => {
@@ -94,6 +96,49 @@ describe('makeMetadataError', () => {
         details: [{ path: ['habitats', 0, 'properties', 'filename'] }]
       }).code
     ).toBe(ERROR_CODES.INVALID_FILE_METADATA)
+  })
+})
+
+describe('withVariant', () => {
+  it('adds a variant to an error with no details', () => {
+    expect(withVariant(makeError('CODE', 'msg'), 'named')).toEqual({
+      code: 'CODE',
+      message: 'msg',
+      details: { variants: ['named'] }
+    })
+  })
+
+  it('keeps the details and the variants already there', () => {
+    const error = makeError('CODE', 'msg', { layer: 'L', variants: ['a'] })
+    expect(withVariant(error, 'b').details).toEqual({
+      layer: 'L',
+      variants: ['a', 'b']
+    })
+  })
+})
+
+describe('ERROR_CODE_DETAILS', () => {
+  // The harness's check reads these names, so a typo here would hold the
+  // frontend's error text to the wrong ones.
+  it('names only codes the backend defines, each with values or variants', () => {
+    const codes = new Set(Object.values(ERROR_CODES))
+    for (const [code, entry] of Object.entries(ERROR_CODE_DETAILS)) {
+      expect(codes.has(code), code).toBe(true)
+      for (const key of Object.keys(entry)) {
+        expect(['values', 'variants'], `${code}.${key}`).toContain(key)
+      }
+      const names = [...(entry.values ?? []), ...(entry.variants ?? [])]
+      expect(names.length, code).toBeGreaterThan(0)
+      expect(new Set(names).size, code).toBe(names.length)
+    }
+  })
+
+  it('names none of the keys a list error carries for its habitats', () => {
+    for (const [code, { values = [] }] of Object.entries(ERROR_CODE_DETAILS)) {
+      for (const reserved of ['count', 'sample', 'variants']) {
+        expect(values, `${code}: ${reserved}`).not.toContain(reserved)
+      }
+    }
   })
 })
 

@@ -26,7 +26,7 @@ describe('ERROR_BUILDERS — non-list errors', () => {
     })
     expect(err.code).toBe(ERROR_CODES.REDLINE_AREA_TOO_LARGE)
     expect(err.message).toMatch(/121000000 sq m/)
-    expect(err.details).toBeUndefined()
+    expect(err.details).toEqual({ areaSqM: 121_000_000 })
   })
 
   it('REDLINE_INVALID_GEOMETRY weaves reason and location into the message', () => {

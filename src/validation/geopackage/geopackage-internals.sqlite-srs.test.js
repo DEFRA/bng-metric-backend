@@ -13,6 +13,7 @@ const {
 const {
   sqliteTypeFriendlyCategoryLabel,
   formatColumnSQLiteTypeMismatchMessage,
+  columnSQLiteTypeMismatchDetails,
   caughtValueMessage,
   isGeometrySqliteColumnType
 } = await import('./geopackage-internals-sqlite.js')
@@ -115,6 +116,47 @@ describe('formatColumnSQLiteTypeMismatchMessage', () => {
   })
 })
 
+describe('columnSQLiteTypeMismatchDetails', () => {
+  it('names a scalar actual type with no variant', () => {
+    expect(
+      columnSQLiteTypeMismatchDetails('Habitats', 'fid', 'TEXT', 'INTEGER')
+    ).toEqual({
+      layer: 'Habitats',
+      column: 'fid',
+      expectedType: 'Integer',
+      actualType: 'Text'
+    })
+  })
+
+  it('names a geometry actual type as not-scalar', () => {
+    expect(
+      columnSQLiteTypeMismatchDetails(
+        'Habitats',
+        'fid',
+        'MULTIPOLYGON',
+        'INTEGER'
+      )
+    ).toEqual({
+      layer: 'Habitats',
+      column: 'fid',
+      expectedType: 'Integer',
+      actualType: 'MultiPolygon geometry',
+      variants: ['not-scalar']
+    })
+  })
+
+  it('names no actual type when none is declared', () => {
+    expect(
+      columnSQLiteTypeMismatchDetails('Habitats', 'fid', '  ', 'INTEGER')
+    ).toEqual({
+      layer: 'Habitats',
+      column: 'fid',
+      expectedType: 'Integer',
+      variants: ['undeclared']
+    })
+  })
+})
+
 describe('compareGpkgContentsToLayerSchema', () => {
   it('reports a GPKG_BASELINE_CONTENTS_DATA_TYPE error when data_type does not match', () => {
     const errors = []
@@ -142,6 +184,12 @@ describe('compareBaselineLayerSrs — no geometry registration row', () => {
     expect(errors).toHaveLength(1)
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_SRS_ID)
     expect(errors[0].message).toContain('gpkg_contents')
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expectedSrsId: SRS_BARE_LAYER.srsId,
+      contentsSrsId: '4326',
+      variants: ['contents']
+    })
   })
 
   it('reports GPKG_BASELINE_SRS_ID when contentMeta is undefined', () => {
@@ -171,6 +219,11 @@ describe('compareBaselineLayerSrs — geometry row: wrong baseline integer', () 
     expect(errors).toHaveLength(1)
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_SRS_ID)
     expect(errors[0].message).toContain('4326')
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expectedSrsId: SRS_BARE_LAYER.srsId,
+      foundSrsId: 4326
+    })
   })
 })
 
@@ -190,6 +243,11 @@ describe('compareBaselineLayerSrs — geometry row: cross-table inconsistency', 
     )
     expect(errors).toHaveLength(1)
     expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT)
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      contentsSrsId: String(EPSG_BNG),
+      geometryColumnsSrsId: '4326'
+    })
   })
 })
 
@@ -212,6 +270,13 @@ describe('compareBaselineLayerSrs — geometry row: non-integer srs payloads', (
     expect(errors[0].message).toMatch(
       /could not read a valid integer srs_id from gpkg_contents/
     )
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expectedSrsId: SRS_BARE_LAYER.srsId,
+      contentsSrsId: 'not-an-int',
+      geometryColumnsSrsId: 'also-not-an-int',
+      variants: ['unreadable']
+    })
   })
 })
 

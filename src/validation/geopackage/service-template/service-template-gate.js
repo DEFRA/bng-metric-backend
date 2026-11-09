@@ -1,6 +1,6 @@
 import { FORMAT_BNG_SERVICE, RED_LINE_BOUNDARY } from 'bng-library/bng-service'
 
-import { ERROR_CODES, makeError } from '../errors.js'
+import { ERROR_CODES, makeError, withVariant } from '../errors.js'
 import {
   checkGeoPackageIdentity,
   checkRequiredLayersFromSchema,
@@ -54,12 +54,18 @@ const TEMPLATE_WORDING = [
   ]
 ]
 
+/** The variant (ERROR_CODE_DETAILS) of a message put in this template's terms. */
+const TEMPLATE_VARIANT = 'bng-service'
+
 function inTemplateTerms(error) {
   let message = error.message
   for (const [legacy, template] of TEMPLATE_WORDING) {
     message = message.replaceAll(legacy, template)
   }
-  return { ...error, message }
+  // The frontend words the same change: the bng-service variant.
+  return message === error.message
+    ? error
+    : withVariant({ ...error, message }, TEMPLATE_VARIANT)
 }
 
 function isLegacyTemplate(db) {
@@ -88,7 +94,7 @@ function unsupportedVersionError(version) {
   return makeError(
     ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED,
     `The file is in version ${version} of the BNG Service template, which the service does not read. It reads version ${supportedTemplateVersions().join(', ')}.`,
-    { version }
+    { version, supportedVersions: supportedTemplateVersions() }
   )
 }
 
@@ -105,7 +111,8 @@ function checkRedLineBoundaryGeometry(db, errors) {
     errors.push(
       makeError(
         ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
-        `The ${RED_LINE_BOUNDARY} table has no geometry column`
+        `The ${RED_LINE_BOUNDARY} table has no geometry column`,
+        { variants: [TEMPLATE_VARIANT] }
       )
     )
   }
@@ -129,7 +136,13 @@ function checkGeometryColumnNames(db, schema, tables, errors) {
       errors.push(
         makeError(
           ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
-          `Layer "${layerDef.tableName}" does not match the BNG Service template: its geometry column is named "${rows[0].column_name}" but should be "${expected}"`
+          `Layer "${layerDef.tableName}" does not match the BNG Service template: its geometry column is named "${rows[0].column_name}" but should be "${expected}"`,
+          {
+            layer: layerDef.tableName,
+            column: rows[0].column_name,
+            expected,
+            variants: ['named']
+          }
         )
       )
     }

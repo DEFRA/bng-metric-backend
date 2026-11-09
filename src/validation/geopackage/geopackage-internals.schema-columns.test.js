@@ -129,6 +129,7 @@ describe('compareDefinedColumnsToSchema (minimal — presence and sqlite type)',
     expect(errors.some((e) => e.message.includes('missing column "fid"'))).toBe(
       true
     )
+    expect(errors[0].details).toEqual({ layer: 'T', column: 'fid' })
   })
 
   it('reports GPKG_BASELINE_COLUMN_SQLITE_TYPE when the column type does not match', () => {
@@ -159,6 +160,14 @@ describe('compareDefinedColumnsToSchema (minimal — NOT NULL / primary key)', (
     ])
     const errors = runCompareColumns(MINIMAL_TWO_COLUMN_LAYER, 'T', fidInteger)
     expect(errors.some((e) => e.message.includes('NOT NULL'))).toBe(true)
+    const notNull = errors.filter(
+      (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL
+    )
+    // fid is required and the file has it optional; label the other way.
+    expect(notNull.map((e) => e.details)).toEqual([
+      { layer: 'T', column: 'fid' },
+      { layer: 'T', column: 'label', variants: ['optional'] }
+    ])
   })
 
   it('reports GPKG_BASELINE_COLUMN_PRIMARY_KEY when pk expectation mismatches', () => {

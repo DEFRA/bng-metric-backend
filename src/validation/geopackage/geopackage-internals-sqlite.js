@@ -263,6 +263,39 @@ export function formatColumnSQLiteTypeMismatchMessage(
 }
 
 /**
+ * The details of the same mismatch, for the frontend to word
+ * (ERROR_CODE_DETAILS): the type labels the message names, and the variant
+ * of its wording. An undeclared type names no actual type; a type that is not
+ * a scalar one is not called a data type.
+ *
+ * @param {string} actualTable
+ * @param {string} columnName
+ * @param {unknown} actualTypeRaw pragma `type`
+ * @param {string} expectedSchemaSqlite sqliteType from baseline template
+ */
+export function columnSQLiteTypeMismatchDetails(
+  actualTable,
+  columnName,
+  actualTypeRaw,
+  expectedSchemaSqlite
+) {
+  const details = {
+    layer: actualTable,
+    column: columnName,
+    expectedType: sqliteTypeFriendlyCategoryLabel(expectedSchemaSqlite)
+  }
+  const trimmedActual =
+    typeof actualTypeRaw === 'string' ? actualTypeRaw.trim() : ''
+  if (!trimmedActual) {
+    return { ...details, variants: ['undeclared'] }
+  }
+  const actualType = sqliteTypeFriendlyCategoryLabel(actualTypeRaw)
+  return SQLITE_SCALAR_TYPE_LABELS.has(actualType)
+    ? { ...details, actualType }
+    : { ...details, actualType, variants: ['not-scalar'] }
+}
+
+/**
  * Quotes a SQLite double-quoted identifier (names read from an existing GeoPackage).
  * @param {string} name
  */

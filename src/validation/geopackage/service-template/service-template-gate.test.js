@@ -4,6 +4,7 @@ import { TEMPLATE_SCHEMA, versionRecordText } from 'bng-library/bng-service'
 import { ERROR_CODES } from '../errors.js'
 import { validateServiceTemplateGpkgFile } from './service-template-gate.js'
 import { readTemplateVersion } from './version-record.js'
+import { supportedTemplateVersions } from './supported-versions.js'
 import { buildServiceTemplateBuffer } from '../../../../test/helpers/service-template-gpkg.js'
 import {
   fullReadBuffer,
@@ -65,7 +66,10 @@ describe('validateServiceTemplateGpkgFile', () => {
         {
           code: ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED,
           message: expect.stringContaining('version 2.0'),
-          details: { version: '2.0' }
+          details: {
+            version: '2.0',
+            supportedVersions: supportedTemplateVersions()
+          }
         }
       ])
     })
@@ -200,7 +204,8 @@ describe('validateServiceTemplateGpkgFile', () => {
         expect(result.errors).toEqual([
           {
             code: ERROR_CODES.GPKG_MISSING_LAYER,
-            message: `Missing required feature layer in GeoPackage: ${table}`
+            message: `Missing required feature layer in GeoPackage: ${table}`,
+            details: { layer: table }
           }
         ])
       }
@@ -214,7 +219,12 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(result.errors).toEqual([
         {
           code: ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
-          message: `Layer "${AREA_BASELINE}" does not match the BNG Service template: missing column "Baseline Condition"`
+          message: `Layer "${AREA_BASELINE}" does not match the BNG Service template: missing column "Baseline Condition"`,
+          details: {
+            layer: AREA_BASELINE,
+            column: 'Baseline Condition',
+            variants: ['bng-service']
+          }
         }
       ])
     })
@@ -269,7 +279,13 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(result.errors).toEqual([
         {
           code: ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
-          message: `Layer "${RED_LINE_BOUNDARY}" does not match the BNG Service template: its geometry column is named "geometry" but should be "geom"`
+          message: `Layer "${RED_LINE_BOUNDARY}" does not match the BNG Service template: its geometry column is named "geometry" but should be "geom"`,
+          details: {
+            layer: RED_LINE_BOUNDARY,
+            column: 'geometry',
+            expected: 'geom',
+            variants: ['named']
+          }
         }
       ])
     })
@@ -295,7 +311,8 @@ describe('validateServiceTemplateGpkgFile', () => {
         {
           code: ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER,
           message:
-            'Unexpected feature layer "Ponds" — not a table of the BNG Service template'
+            'Unexpected feature layer "Ponds" — not a table of the BNG Service template',
+          details: { layer: 'Ponds', variants: ['bng-service'] }
         }
       ])
     })
