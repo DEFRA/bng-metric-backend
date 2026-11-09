@@ -47,6 +47,12 @@ const hedgerowsLayer = baselineSchema.layers.find(
   (l) => l.tableName === 'Hedgerows'
 )
 
+function sqliteTypeError(errors) {
+  return errors.find(
+    (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
+  )
+}
+
 function compareLayerAgainstBaseline(db, layerDef, lowerTable, contentsSrs) {
   const errors = []
   compareOneLayerToBaselineSchema(
@@ -228,6 +234,49 @@ describe('compareOneLayerToBaselineSchema — registered geometry column has wro
           e.message.includes('"geom"')
       )
     ).toBe(true)
+    const typeError = sqliteTypeError(errors)
+    expect(typeError.details).toEqual({
+      layer: 'Habitats',
+      column: 'geom',
+      expectedType: 'MultiPolygon geometry',
+      actualType: 'Text'
+    })
+    expectDeclaredDetails(typeError)
+    db.close()
+  })
+
+  it('reports GPKG_BASELINE_COLUMN_SQLITE_TYPE as undeclared when the column has no type', () => {
+    const db = openMemoryGp10WithSystemTables()
+    insertGpkgFeatureContentsRow(
+      db,
+      habitatsLayer.tableName,
+      habitatsLayer.srsId
+    )
+    db.exec(`CREATE TABLE "Habitats" (fid INTEGER PRIMARY KEY, geom)`)
+    insertGpkgGeometryColumnsRow(
+      db,
+      habitatsLayer.tableName,
+      'geom',
+      habitatsLayer.geometryColumn.geometryType,
+      habitatsLayer.srsId
+    )
+
+    const errors = compareLayerAgainstBaseline(
+      db,
+      habitatsLayer,
+      'habitats',
+      EPSG_BNG
+    )
+
+    const typeError = sqliteTypeError(errors)
+    expect(typeError.message).toContain('no SQLite column type declared')
+    expect(typeError.details).toEqual({
+      layer: 'Habitats',
+      column: 'geom',
+      expectedType: 'MultiPolygon geometry',
+      variants: ['undeclared']
+    })
+    expectDeclaredDetails(typeError)
     db.close()
   })
 
@@ -259,6 +308,15 @@ describe('compareOneLayerToBaselineSchema — registered geometry column has wro
         (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
       )
     ).toBe(true)
+    const typeError = sqliteTypeError(errors)
+    expect(typeError.details).toEqual({
+      layer: 'Habitats',
+      column: 'geom',
+      expectedType: 'MultiPolygon geometry',
+      actualType: 'Polygon geometry',
+      variants: ['not-scalar']
+    })
+    expectDeclaredDetails(typeError)
     db.close()
   })
 

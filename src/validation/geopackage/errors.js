@@ -467,6 +467,12 @@ export const ERROR_CODE_DETAILS = Object.freeze({
     values: ['featureCount', 'maxFeatureCount']
   },
   [ERROR_CODES.TEMPLATE_VERSION_DUPLICATED]: { values: ['recordCount'] },
+  // allowedBands is the list of distinctiveness bands the service takes, in
+  // the order the note names them. Only the upload check sends it; an edit's
+  // error sends no details.
+  [ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE]: {
+    values: ['allowedBands']
+  },
   [ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED]: {
     values: ['version', 'supportedVersions']
   },

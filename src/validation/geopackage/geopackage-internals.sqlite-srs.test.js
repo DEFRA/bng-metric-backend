@@ -309,3 +309,73 @@ describe('compareBaselineLayerSrs — geometry row: agrees with baseline', () =>
     ).toHaveLength(0)
   })
 })
+
+describe('compareBaselineLayerSrs — geometry row: blobs and unset srs_ids', () => {
+  // SQLite can hand back a blob for a column it does not type; the details
+  // send it as the text its message gives it.
+  const SRS_BLOB = Buffer.from([0x01, 0x02])
+  const SRS_BLOB_TEXT = formatSrsIdForError(SRS_BLOB)
+
+  function srsErrors(contentsSrsId, geometryColumnsSrsId) {
+    const errors = []
+    compareBaselineLayerSrs(
+      SRS_BARE_LAYER,
+      'Habitats',
+      { srs_id: contentsSrsId },
+      { ...SRS_GEOM_ROW_BNG, geom_srs_raw: geometryColumnsSrsId },
+      errors
+    )
+    return errors
+  }
+
+  it.each([
+    ['a blob and an unset', SRS_BLOB, null, SRS_BLOB_TEXT, null],
+    ['an unset and a blob', null, SRS_BLOB, null, SRS_BLOB_TEXT],
+    ['two unset', null, null, null, null]
+  ])(
+    'reports GPKG_BASELINE_SRS_ID as unreadable for %s srs_id',
+    (_, contents, geometryColumns, contentsDetail, geometryColumnsDetail) => {
+      const errors = srsErrors(contents, geometryColumns)
+
+      expect(errors).toHaveLength(1)
+      expect(errors[0].code).toBe(ERROR_CODES.GPKG_BASELINE_SRS_ID)
+      expect(errors[0].details).toEqual({
+        layer: 'Habitats',
+        expectedSrsId: SRS_BARE_LAYER.srsId,
+        contentsSrsId: contentsDetail,
+        geometryColumnsSrsId: geometryColumnsDetail,
+        variants: ['unreadable']
+      })
+      expectDeclaredDetails(errors[0])
+    }
+  )
+
+  it.each([
+    ['gpkg_contents unset', null, EPSG_BNG, null, EPSG_BNG],
+    ['gpkg_geometry_columns unset', EPSG_BNG, null, EPSG_BNG, null],
+    ['gpkg_contents a blob', SRS_BLOB, EPSG_BNG, SRS_BLOB_TEXT, EPSG_BNG],
+    [
+      'gpkg_geometry_columns a blob',
+      EPSG_BNG,
+      SRS_BLOB,
+      EPSG_BNG,
+      SRS_BLOB_TEXT
+    ]
+  ])(
+    'reports GPKG_BASELINE_GPKG_SRS_INCONSISTENT with %s',
+    (_, contents, geometryColumns, contentsDetail, geometryColumnsDetail) => {
+      const errors = srsErrors(contents, geometryColumns)
+
+      expect(errors).toHaveLength(1)
+      expect(errors[0].code).toBe(
+        ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT
+      )
+      expect(errors[0].details).toEqual({
+        layer: 'Habitats',
+        contentsSrsId: contentsDetail,
+        geometryColumnsSrsId: geometryColumnsDetail
+      })
+      expectDeclaredDetails(errors[0])
+    }
+  )
+})

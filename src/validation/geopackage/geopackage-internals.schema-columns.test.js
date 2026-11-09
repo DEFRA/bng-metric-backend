@@ -161,6 +161,29 @@ describe('compareDefinedColumnsToSchema (minimal — presence and sqlite type)',
       true
     )
     expect(typeErrors.some((e) => e.message.includes('Integer was'))).toBe(true)
+    expect(typeErrors.map((e) => e.details)).toEqual([
+      { layer: 'T', column: 'fid', expectedType: 'Integer', actualType: 'Text' }
+    ])
+    typeErrors.forEach(expectDeclaredDetails)
+  })
+
+  it('names a geometry type in an attribute column as not-scalar', () => {
+    const geometryTypedMap = new Map([
+      ['fid', pragma('fid', 'INTEGER', 1, 1)],
+      ['label', pragma('label', 'MULTIPOLYGON')]
+    ])
+    const [typeError] = sqliteTypeErrors(
+      runCompareColumns(MINIMAL_TWO_COLUMN_LAYER, 'T', geometryTypedMap)
+    )
+    expect(typeError.message).toContain('has a MultiPolygon geometry but')
+    expect(typeError.details).toEqual({
+      layer: 'T',
+      column: 'label',
+      expectedType: 'Text',
+      actualType: 'MultiPolygon geometry',
+      variants: ['not-scalar']
+    })
+    expectDeclaredDetails(typeError)
   })
 })
 
@@ -348,5 +371,13 @@ describe('compareDefinedColumnsToSchema (null pragma type)', () => {
           e.message.includes('no SQLite column type declared')
       )
     ).toBe(true)
+    const typeError = firstSqliteTypeMismatch(errors)
+    expect(typeError.details).toEqual({
+      layer: 'T',
+      column: 'col',
+      expectedType: 'Text',
+      variants: ['undeclared']
+    })
+    expectDeclaredDetails(typeError)
   })
 })

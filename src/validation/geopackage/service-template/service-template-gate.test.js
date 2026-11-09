@@ -15,6 +15,8 @@ import {
 
 const AREA_BASELINE = 'Area Habitats Baseline'
 const RED_LINE_BOUNDARY = 'Red Line Boundary'
+/** How the type the template gives Area Habitats Baseline's Area is worded. */
+const AREA_EXPECTED_TYPE = 'Float'
 
 /** Run the gate over a file built from `options`. */
 function gate(options) {
@@ -240,15 +242,40 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(codes(result)).toEqual([ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN])
     })
 
-    test('refuses a column of the wrong type', async () => {
-      const result = await gate({
-        columnTypes: { [AREA_BASELINE]: { Area: 'TEXT' } }
-      })
+    test.each([
+      ['TEXT', { actualType: 'Text' }],
+      ['', { variants: ['undeclared', 'bng-service'] }],
+      [
+        'POINT',
+        {
+          actualType: 'Point geometry',
+          variants: ['not-scalar', 'bng-service']
+        }
+      ]
+    ])(
+      'refuses a column of the wrong type (%j), in the template’s terms',
+      async (type, wording) => {
+        const result = await gate({
+          columnTypes: { [AREA_BASELINE]: { Area: type } }
+        })
 
-      expect(codes(result)).toEqual([
-        ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
-      ])
-    })
+        // A geometry type also makes Area a second geometry column.
+        const typeError = result.errors.find(
+          (error) => error.code === ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE
+        )
+        expect(typeError.message).toContain(
+          'does not match the BNG Service template'
+        )
+        expect(typeError.details).toEqual({
+          layer: AREA_BASELINE,
+          column: 'Area',
+          expectedType: AREA_EXPECTED_TYPE,
+          variants: ['bng-service'],
+          ...wording
+        })
+        result.errors.forEach(expectDeclaredDetails)
+      }
+    )
 
     test.each([
       [AREA_BASELINE, 'MULTIPOLYGON'],

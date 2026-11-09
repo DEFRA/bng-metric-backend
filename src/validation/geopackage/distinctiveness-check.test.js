@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest'
 
 import { checkHabitatDistinctiveness } from './distinctiveness-check.js'
 import { ERROR_CODES } from './errors.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 const HABITAT_HIGH = 'Woodland and forest - Wet woodland'
 const HABITAT_VHIGH = 'Grassland - Lowland meadows'
@@ -66,6 +67,7 @@ describe('checkHabitatDistinctiveness — out-of-scope habitats', () => {
         distinctiveness: 'High'
       }
     ])
+    expectDeclaredDetails(err)
   })
 
   it('rejects a Very High distinctiveness habitat', () => {

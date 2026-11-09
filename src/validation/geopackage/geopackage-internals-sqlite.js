@@ -234,6 +234,28 @@ const SQLITE_SCALAR_TYPE_LABELS = new Set(
 )
 
 /**
+ * How a mismatch words the column's actual type, decided once for its message
+ * and its details: `undeclared` when it has none, `scalar` for a data type
+ * ("a Text data type"), and `not-scalar` for anything else, such as a
+ * geometry ("a MultiPolygon geometry").
+ *
+ * @param {unknown} actualTypeRaw pragma `type`
+ * @returns {{ kind: 'undeclared' } | { kind: 'scalar' | 'not-scalar', label: string }}
+ */
+export function classifyActualSqliteType(actualTypeRaw) {
+  const trimmedActual =
+    typeof actualTypeRaw === 'string' ? actualTypeRaw.trim() : ''
+  if (!trimmedActual) {
+    return { kind: 'undeclared' }
+  }
+  const label = sqliteTypeFriendlyCategoryLabel(actualTypeRaw)
+  return {
+    kind: SQLITE_SCALAR_TYPE_LABELS.has(label) ? 'scalar' : 'not-scalar',
+    label
+  }
+}
+
+/**
  * @param {string} actualTable
  * @param {string} columnName
  * @param {unknown} actualTypeRaw pragma `type`
@@ -245,19 +267,17 @@ export function formatColumnSQLiteTypeMismatchMessage(
   actualTypeRaw,
   expectedSchemaSqlite
 ) {
-  const trimmedActual =
-    typeof actualTypeRaw === 'string' ? actualTypeRaw.trim() : ''
   const expectedLabel = sqliteTypeFriendlyCategoryLabel(expectedSchemaSqlite)
-  if (!trimmedActual) {
+  const actual = classifyActualSqliteType(actualTypeRaw)
+  if (actual.kind === 'undeclared') {
     return `Layer "${actualTable}" baseline mismatch: column "${columnName}" has no SQLite column type declared but ${expectedLabel} was expected`
   }
 
-  const actualLabel = sqliteTypeFriendlyCategoryLabel(actualTypeRaw)
-
-  const scalarStyle = SQLITE_SCALAR_TYPE_LABELS.has(actualLabel)
-  const actualFragment = scalarStyle
-    ? `${indefiniteArticleDeterminer(actualLabel)} ${actualLabel} data type`
-    : `${indefiniteArticleDeterminer(actualLabel)} ${actualLabel}`
+  const article = indefiniteArticleDeterminer(actual.label)
+  const actualFragment =
+    actual.kind === 'scalar'
+      ? `${article} ${actual.label} data type`
+      : `${article} ${actual.label}`
 
   return `Layer "${actualTable}" baseline mismatch: column "${columnName}" has ${actualFragment} but ${expectedLabel} was expected`
 }
@@ -265,8 +285,7 @@ export function formatColumnSQLiteTypeMismatchMessage(
 /**
  * The details of the same mismatch, for the frontend to word
  * (ERROR_CODE_DETAILS): the type labels the message names, and the variant
- * of its wording. An undeclared type names no actual type; a type that is not
- * a scalar one is not called a data type.
+ * of its wording, from the same classification as the message.
  *
  * @param {string} actualTable
  * @param {string} columnName
@@ -284,15 +303,13 @@ export function columnSQLiteTypeMismatchDetails(
     column: columnName,
     expectedType: sqliteTypeFriendlyCategoryLabel(expectedSchemaSqlite)
   }
-  const trimmedActual =
-    typeof actualTypeRaw === 'string' ? actualTypeRaw.trim() : ''
-  if (!trimmedActual) {
+  const actual = classifyActualSqliteType(actualTypeRaw)
+  if (actual.kind === 'undeclared') {
     return { ...details, variants: ['undeclared'] }
   }
-  const actualType = sqliteTypeFriendlyCategoryLabel(actualTypeRaw)
-  return SQLITE_SCALAR_TYPE_LABELS.has(actualType)
-    ? { ...details, actualType }
-    : { ...details, actualType, variants: ['not-scalar'] }
+  return actual.kind === 'scalar'
+    ? { ...details, actualType: actual.label }
+    : { ...details, actualType: actual.label, variants: ['not-scalar'] }
 }
 
 /**
