@@ -328,6 +328,22 @@ describe('lostBaselineHabitats — individual trees', () => {
     ).toEqual([])
   })
 
+  it('records felled trees by their Count when the tree has no recognised size class', () => {
+    const parent = { ...tree(1, 3), treeSize: null, sizeSquareMetres: null }
+    const child = { ...kept(1, parent, 'Retained', 1), sizeSquareMetres: null }
+
+    expect(
+      lostBaselineHabitats({ trees: [child] }, { trees: [parent] })
+    ).toEqual([
+      expect.objectContaining({
+        layer: 'trees',
+        outcome: LOST_OUTCOME.lost,
+        lostSizeSquareMetres: 0,
+        lostTreeCount: 2
+      })
+    ])
+  })
+
   it('never records a tree as lost and re-created: a Created tree is planting', () => {
     const parent = tree(1, 1)
 

@@ -123,7 +123,18 @@ const treeCount = (feature) => treeCountOrDefault(feature?.count)
 /** A tree parent's trees less those its Retained and Enhanced children keep. */
 function lostTreeCount(parent, continuing) {
   const kept = continuing.reduce((sum, child) => sum + treeCount(child), 0)
-  return { lostTreeCount: Math.max(0, treeCount(parent) - kept) }
+  return Math.max(0, treeCount(parent) - kept)
+}
+
+/**
+ * Whether a parent with children keeps all of itself. A tree is kept by its
+ * Count, not its area: a tree with no recognised size class has none, and
+ * its felled trees are lost all the same.
+ */
+function keptWhole(layer, lost) {
+  return layer === 'trees'
+    ? lost.treeCount === 0
+    : lost.size <= TOLERANCE[lost.sizeField]
 }
 
 /** A parent's loss, or null when its Retained and Enhanced children keep it. */
@@ -136,8 +147,12 @@ function lostParent(layer, parent, children, sizeField) {
     0
   )
   const lostSize = Math.max(0, sizeOf(parent, sizeField) - kept)
+  const lostTrees = layer === 'trees' ? lostTreeCount(parent, continuing) : 0
   const recreated = children.filter((child) => isDegraded(layer, parent, child))
-  if (children.length > 0 && lostSize <= TOLERANCE[sizeField]) {
+  if (
+    children.length > 0 &&
+    keptWhole(layer, { size: lostSize, sizeField, treeCount: lostTrees })
+  ) {
     return null
   }
   return {
@@ -148,7 +163,7 @@ function lostParent(layer, parent, children, sizeField) {
     outcome: lostOutcome(children, recreated),
     [sizeField === 'sizeMetres' ? 'lostSizeMetres' : 'lostSizeSquareMetres']:
       lostSize,
-    ...(layer === 'trees' && lostTreeCount(parent, continuing)),
+    ...(layer === 'trees' && { lostTreeCount: lostTrees }),
     recreatedAs: recreated.map((child) => child.featureId)
   }
 }
