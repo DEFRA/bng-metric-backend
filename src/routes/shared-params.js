@@ -1,6 +1,33 @@
 import Joi from 'joi'
 
+import {
+  MAX_COMMENT_LENGTH,
+  commentLength
+} from '../validation/geopackage/comment-check.js'
 import { hasInvalidRefCharacters } from '../validation/geopackage/habitat-ref-check.js'
+import { hasInvalidUtf8Text } from '../validation/geopackage/offenders.js'
+
+/**
+ * A comment typed into the baseline habitat details page (BMD-1112). Blank
+ * is allowed and stored as null later. Length is code points, measured after
+ * trim, so this does not use Joi's `.max()`.
+ *
+ * @param {string | null} value
+ * @param {{ error: (code: string) => unknown }} helpers
+ * @returns {unknown}
+ */
+function validateEditedComment(value, helpers) {
+  if (typeof value !== 'string' || value === '') {
+    return value
+  }
+  if (hasInvalidUtf8Text(value)) {
+    return helpers.error('string.invalidComment')
+  }
+  if (commentLength(value) > MAX_COMMENT_LENGTH) {
+    return helpers.error('string.commentTooLong')
+  }
+  return value
+}
 
 /**
  * Joi validator for routes whose path takes both a project UUID and a
@@ -46,7 +73,20 @@ export const featureEditPayload = Joi.object({
   habitatType: Joi.string().trim().allow(null, '').optional(),
   condition: Joi.string().trim().allow(null, '').optional(),
   watercourseEncroachment: Joi.string().trim().allow(null, '').optional(),
-  riparianEncroachment: Joi.string().trim().allow(null, '').optional()
+  riparianEncroachment: Joi.string().trim().allow(null, '').optional(),
+  // Free-text supporting information (BMD-1112). Optional: a save that leaves
+  // it out keeps the stored comment. The page validates first; this only
+  // catches a direct API call.
+  comment: Joi.string()
+    .trim()
+    .allow(null, '')
+    .custom(validateEditedComment)
+    .messages({
+      'string.invalidComment':
+        '{{#label}} contains characters that are not valid UTF-8',
+      'string.commentTooLong': `{{#label}} is longer than ${MAX_COMMENT_LENGTH} characters`
+    })
+    .optional()
 })
 
 /**

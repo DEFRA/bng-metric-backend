@@ -1,6 +1,7 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
 import { drizzleLockTimeout } from '../../test/helpers/postgres-errors.js'
+import { MAX_COMMENT_LENGTH } from '../validation/geopackage/comment-check.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import {
   getFeature,
@@ -342,6 +343,68 @@ describe('updateFeature handler - area habitat dispatch', () => {
       })
     )
   })
+
+  test('persists a trimmed comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: '  kept  note  '
+        }
+      },
+      {}
+    )
+    expect(trimmed.feature.comment).toBe('kept  note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        feature: expect.objectContaining({ comment: 'kept  note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: ' \n\t '
+        }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('leaves a stored comment alone when the edit does not send one', async () => {
+    const drizzle = makeTxDrizzle(
+      makeProject([{ ...sampleHabitat, comment: 'kept' }])
+    )
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('kept')
+  })
 })
 
 describe('updateFeature handler - hedgerow dispatch', () => {
@@ -401,6 +464,47 @@ describe('updateFeature handler - hedgerow dispatch', () => {
         })
       })
     )
+  })
+
+  test('persists a trimmed hedgerow comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
+        payload: {
+          habitatType: 'Native hedgerow',
+          condition: 'Good',
+          comment: '  hedge note  '
+        }
+      },
+      {}
+    )
+    expect(trimmed.feature.comment).toBe('hedge note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'hedgerows',
+        feature: expect.objectContaining({ comment: 'hedge note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
+        payload: {
+          habitatType: 'Native hedgerow',
+          condition: 'Good',
+          comment: '   '
+        }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
   })
 })
 
@@ -631,6 +735,40 @@ describe('updateFeature validation', () => {
   test('rejects a habitat reference holding a lone surrogate, which has no UTF-8 form', () => {
     const { error } = payloadSchema.validate({ ref: 'B-A\uD800' })
     expect(error.message).toMatch(/not valid UTF-8/)
+  })
+
+  test('accepts a comment, including null and blank', () => {
+    expect(payloadSchema.validate({ comment: 'A note' }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: null }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: '' }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: '  kept  ' }).value.comment).toBe(
+      'kept'
+    )
+  })
+
+  test('accepts a comment of exactly 999 characters, counting an emoji as one', () => {
+    expect(
+      payloadSchema.validate({ comment: 'a'.repeat(MAX_COMMENT_LENGTH) }).error
+    ).toBeUndefined()
+    expect(
+      payloadSchema.validate({ comment: '🌳'.repeat(MAX_COMMENT_LENGTH) }).error
+    ).toBeUndefined()
+  })
+
+  test('rejects a comment of 1000 characters', () => {
+    const { error } = payloadSchema.validate({
+      comment: 'a'.repeat(MAX_COMMENT_LENGTH + 1)
+    })
+    expect(error.message).toMatch(/longer than 999/)
+  })
+
+  test('rejects a comment that is not valid UTF-8', () => {
+    expect(
+      payloadSchema.validate({ comment: 'note \uFFFD' }).error.message
+    ).toMatch(/not valid UTF-8/)
+    expect(
+      payloadSchema.validate({ comment: 'note \uD800' }).error.message
+    ).toMatch(/not valid UTF-8/)
   })
 
   test('rejects unknown keys to stop the frontend silently leaking new fields', () => {

@@ -10,6 +10,12 @@ const RETENTION_CREATED = 'Created'
 const RETENTION_ENHANCED = 'Enhanced'
 
 /**
+ * Comment rules shared with the feature edit route (BMD-1112), which takes a
+ * comment typed into the baseline habitat details page. Length is counted in
+ * Unicode code points (`commentLength`), not UTF-16 code units: Joi's
+ * `.max()` would count an emoji as two and refuse a comment the upload path
+ * accepts.
+ *
  * The longest comment the service accepts, in characters, once leading and
  * trailing whitespace has been removed. The QGIS template declares the column
  * TEXT(999), but SQLite does not enforce it, so a longer comment is refused
@@ -209,12 +215,13 @@ function commentText(value) {
 }
 
 /**
- * Characters after leading and trailing whitespace is removed.
+ * Characters after leading and trailing whitespace is removed. Shared with
+ * the feature edit route, which must not use Joi's UTF-16 `.max()`.
  *
  * @param {string} text
  * @returns {number}
  */
-function commentLength(text) {
+export function commentLength(text) {
   return Array.from(text.trim()).length
 }
 

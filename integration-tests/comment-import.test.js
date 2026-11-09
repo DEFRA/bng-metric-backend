@@ -19,6 +19,7 @@ import {
   callValidate,
   createProject,
   fetchProject,
+  getPersistenceTestContext,
   registerPersistenceTestHooks,
   uploadFixture
 } from './helpers/persistence-test-setup.js'
@@ -144,6 +145,45 @@ describe('habitat comments on upload', () => {
       'COMMENT_TOO_LONG'
     ])
     expect(await fetchProject(project.id)).toEqual(before)
+  })
+
+  it('saves an edited comment and returns it on the feature', async () => {
+    const project = await createProject('Comment edit')
+    const uploadId = await editedFixture((db) => {
+      db.prepare(
+        `UPDATE Habitats SET "Comment" = ? WHERE "Parcel Ref" = 'H1'`
+      ).run('imported note')
+    })
+    const saved = await callValidate(uploadId, { projectId: project.id })
+    expect(saved.statusCode).toBe(HTTP_OK)
+
+    const stored = await fetchProject(project.id)
+    const habitat = stored.baseline.habitats.find(
+      (feature) => feature.ref === 'H1'
+    )
+    const { server, headers } = getPersistenceTestContext()
+    const updated = await server.inject({
+      method: 'PUT',
+      url: `/projects/${project.id}/features/${habitat.featureId}`,
+      headers,
+      payload: {
+        broadType: habitat.broadType,
+        habitatType: habitat.type,
+        condition: habitat.condition,
+        comment: '  edited  note  '
+      }
+    })
+    expect(updated.statusCode).toBe(HTTP_OK)
+    expect(updated.result.feature.comment).toBe('edited  note')
+    expect(updated.result.feature.units).toBe(habitat.units)
+
+    const fetched = await server.inject({
+      method: 'GET',
+      url: `/projects/${project.id}/features/${habitat.featureId}`,
+      headers
+    })
+    expect(fetched.statusCode).toBe(HTTP_OK)
+    expect(fetched.result.feature.comment).toBe('edited  note')
   })
 })
 

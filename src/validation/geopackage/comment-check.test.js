@@ -10,7 +10,8 @@ import {
   checkHabitatComments,
   cleanComment,
   commentForBaseline,
-  commentForPostIntervention
+  commentForPostIntervention,
+  commentLength
 } from './comment-check.js'
 import { ERROR_CODES } from './errors.js'
 import { readGeoPackage } from './geopackage.js'
@@ -26,6 +27,17 @@ function feature(comment, extra = {}, column = 'Comment') {
 function codesOf(errors) {
   return errors.map((error) => error.code)
 }
+
+describe('commentLength', () => {
+  it('counts code points after trimming, so an emoji is one character', () => {
+    expect(commentLength(`  ${'🌳'.repeat(MAX_COMMENT_LENGTH)}  `)).toBe(
+      MAX_COMMENT_LENGTH
+    )
+    expect(commentLength('a'.repeat(MAX_COMMENT_LENGTH))).toBe(
+      MAX_COMMENT_LENGTH
+    )
+  })
+})
 
 describe('cleanComment', () => {
   it('trims the ends and keeps spaces inside the text', () => {
