@@ -1,6 +1,9 @@
 import { describe, expect, it } from 'vitest'
 
-import { alignTreesWithParents } from './tree-lineage.js'
+import {
+  alignTreesWithParents,
+  refreshTreeHabitatSizes
+} from './tree-lineage.js'
 
 const PARENT_ID = '00000000-0000-4000-8000-000000000001'
 
@@ -149,5 +152,50 @@ describe('alignTreesWithParents', () => {
 
     expect(alignTreesWithParents({ trees: [tree] }, { trees: [] })).toEqual([])
     expect(tree.proposed.treeSize).toBe('Very large')
+  })
+})
+
+describe('refreshTreeHabitatSizes', () => {
+  it('sums the trees as they are kept, and the area habitats with them', () => {
+    const document = {
+      trees: [
+        { sizeSquareMetres: 326, proposed: { type: 'Rural tree' } },
+        { sizeSquareMetres: 41, proposed: { type: 'Urban tree' } },
+        { sizeSquareMetres: null, proposed: { type: 'Urban tree' } }
+      ],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 99999 },
+        site: { totalSquareMetres: 10000 },
+        trees: {
+          totalSquareMetres: 1530,
+          urbanSquareMetres: 1530,
+          ruralSquareMetres: 0
+        },
+        verticalHabitats: { totalSquareMetres: 40 },
+        hedgerows: { totalMetres: 5 }
+      }
+    }
+
+    refreshTreeHabitatSizes(document)
+
+    expect(document.habitatSizes).toEqual({
+      areaHabitats: { totalSquareMetres: 10407 },
+      site: { totalSquareMetres: 10000 },
+      trees: {
+        totalSquareMetres: 367,
+        urbanSquareMetres: 41,
+        ruralSquareMetres: 326
+      },
+      verticalHabitats: { totalSquareMetres: 40 },
+      hedgerows: { totalMetres: 5 }
+    })
+  })
+
+  it('leaves a document with no habitat sizes without them', () => {
+    const document = { trees: [] }
+
+    refreshTreeHabitatSizes(document)
+
+    expect(document).toEqual({ trees: [] })
   })
 })
