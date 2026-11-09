@@ -6,9 +6,11 @@
 import Joi from 'joi'
 import {
   baselineCommonFields,
+  invalidEnhancementField,
   postInterventionAreaFeatureFields,
   proposedCommonFields
 } from './project-post-intervention-fields.js'
+import { parentFeatureIdField } from './project-lineage-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
 
@@ -86,8 +88,16 @@ export const postInterventionTreeSchema = Joi.object({
   count: Joi.number()
     .allow(null)
     .description(
-      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE).'
+      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template Retained or Enhanced tree with a lower count than its parent loses the difference.'
     ),
+  ...invalidEnhancementField(
+    'trees',
+    "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
+  ),
+  ...parentFeatureIdField(),
+  irreplaceable: Joi.boolean().description(
+    "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
+  ),
   baseline: postInterventionTreeBaselineSubSchema,
   proposed: postInterventionTreeProposedSubSchema,
   properties: Joi.object()

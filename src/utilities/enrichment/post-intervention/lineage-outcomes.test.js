@@ -260,6 +260,105 @@ describe('lostBaselineHabitats — vertical area habitats', () => {
   })
 })
 
+describe('lostBaselineHabitats — individual trees', () => {
+  /** A baseline tree point standing for `count` Medium trees (163 m² each). */
+  const tree = (n, count) => ({
+    featureId: id(n),
+    ref: `T00${n}`,
+    type: 'Urban tree',
+    broadType: 'Individual trees',
+    treeSize: 'Medium',
+    condition: 'Moderate',
+    count,
+    sizeSquareMetres: 163 * (count ?? 1)
+  })
+  const kept = (n, parent, retentionCategory, count) => ({
+    ...child(n, parent, retentionCategory, 163 * (count ?? 1)),
+    count
+  })
+
+  it('records a felled tree, which no post-intervention point names, as removed in full', () => {
+    expect(
+      lostBaselineHabitats({ trees: [] }, { trees: [tree(1, 3)] })
+    ).toEqual([
+      {
+        layer: 'trees',
+        featureId: id(1),
+        ref: 'T001',
+        type: 'Urban tree',
+        outcome: LOST_OUTCOME.removed,
+        lostSizeSquareMetres: 489,
+        lostTreeCount: 3,
+        recreatedAs: []
+      }
+    ])
+  })
+
+  it('records the trees its Retained and Enhanced points do not keep as lost', () => {
+    const parent = tree(1, 5)
+
+    const [lost] = lostBaselineHabitats(
+      {
+        trees: [
+          kept(1, parent, 'Retained', 2),
+          kept(2, parent, 'Enhanced', 1),
+          // New planting is not the parent kept.
+          kept(3, parent, 'Created', 4)
+        ]
+      },
+      { trees: [parent] }
+    )
+
+    expect(lost).toMatchObject({
+      outcome: LOST_OUTCOME.lost,
+      lostSizeSquareMetres: 326,
+      lostTreeCount: 2,
+      recreatedAs: []
+    })
+  })
+
+  it('records nothing for a tree kept whole, a blank Count being one tree', () => {
+    const parent = tree(1, null)
+
+    expect(
+      lostBaselineHabitats(
+        { trees: [kept(1, parent, 'Retained', null)] },
+        { trees: [parent] }
+      )
+    ).toEqual([])
+  })
+
+  it('records felled trees by their Count when the tree has no recognised size class', () => {
+    const parent = { ...tree(1, 3), treeSize: null, sizeSquareMetres: null }
+    const child = { ...kept(1, parent, 'Retained', 1), sizeSquareMetres: null }
+
+    expect(
+      lostBaselineHabitats({ trees: [child] }, { trees: [parent] })
+    ).toEqual([
+      expect.objectContaining({
+        layer: 'trees',
+        outcome: LOST_OUTCOME.lost,
+        lostSizeSquareMetres: 0,
+        lostTreeCount: 2
+      })
+    ])
+  })
+
+  it('never records a tree as lost and re-created: a Created tree is planting', () => {
+    const parent = tree(1, 1)
+
+    const [lost] = lostBaselineHabitats(
+      { trees: [kept(1, parent, 'Created', 1)] },
+      { trees: [parent] }
+    )
+
+    expect(lost).toMatchObject({
+      outcome: LOST_OUTCOME.lost,
+      recreatedAs: []
+    })
+  })
+})
+
 describe('nullDisallowedWatercourseAdvance', () => {
   const ditch = line(1, 100, DITCH)
 

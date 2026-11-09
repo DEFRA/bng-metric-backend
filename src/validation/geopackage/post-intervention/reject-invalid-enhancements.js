@@ -7,9 +7,11 @@ import {
   resolveRetentionCategory
 } from '../../../utilities/enrichment/post-intervention/retention-category.js'
 import { NO_OP_LOGGER } from '../../../utilities/enrichment/shared/enrich-units-shared.js'
+import { isTemplateUpload } from '../../../utilities/enrichment/post-intervention/lineage-outcomes.js'
 import {
   ENHANCEMENT_RULE_LAYERS,
-  checkFeatureEnhancement
+  checkFeatureEnhancement,
+  checkTreeEnhancement
 } from './enhancement-rules.js'
 
 const LOG_PREFIX = 'rejectInvalidEnhancements: '
@@ -36,16 +38,56 @@ function applyInvalidEnhancement(feature, rule) {
 }
 
 /**
+ * An Enhanced tree enhances its condition alone, so only its Proposed
+ * Condition is nulled: its size, type and setting are its baseline tree's.
+ *
+ * @param {object} tree
+ * @param {string} rule
+ */
+function applyInvalidTreeEnhancement(tree, rule) {
+  tree.proposed.condition = null
+  tree.invalidEnhancement = rule
+  tree.status = HABITAT_STATUS.INCOMPLETE
+}
+
+/** How each layer's enhancements are checked, and what an invalid one loses. */
+const ENHANCEMENT_CHECKS = Object.freeze(
+  ENHANCEMENT_RULE_LAYERS.map((layer) => ({
+    layer,
+    check: (feature) => checkFeatureEnhancement(layer, feature),
+    reject: applyInvalidEnhancement
+  }))
+)
+
+/**
+ * A BNG Service template upload's trees are checked too: their size, type and
+ * setting are their parent's (tree-lineage.js), so a tree enhances its
+ * condition alone. A legacy upload's trees are not.
+ */
+const TEMPLATE_ENHANCEMENT_CHECKS = Object.freeze([
+  ...ENHANCEMENT_CHECKS,
+  {
+    layer: 'trees',
+    check: checkTreeEnhancement,
+    reject: applyInvalidTreeEnhancement
+  }
+])
+
+/**
  * @param {object} feature
- * @param {string} layer
+ * @param {{ layer: string, check: (feature: object) => object | null, reject: (feature: object, rule: string) => void }} layerCheck
  * @param {{ warn: (fields: object, msg: string) => void }} logger
  * @returns {boolean} whether the enhancement was rejected
  */
-function rejectIfInvalid(feature, layer, logger) {
+function rejectIfInvalid(
+  feature,
+  { layer, check: checkLayer, reject },
+  logger
+) {
   if (resolveRetentionCategory(feature) !== RETENTION_ENHANCED) {
     return false
   }
-  const check = checkFeatureEnhancement(layer, feature)
+  const check = checkLayer(feature)
   if (!check || check.valid) {
     return false
   }
@@ -61,16 +103,17 @@ function rejectIfInvalid(feature, layer, logger) {
     },
     `${LOG_PREFIX}${layer} featureId ${feature.featureId ?? 'unknown'}: enhancement from ${check.baseline.habitat} (${check.baseline.condition}) to ${check.proposed.habitat} (${check.proposed.condition}) breaks rule ${check.rule} — proposed attributes nulled`
   )
-  applyInvalidEnhancement(feature, check.rule)
+  reject(feature, check.rule)
   return true
 }
 
 /**
  * Check every enhanced area habitat, hedgerow and watercourse of an imported
  * post-intervention document against the enhancement rules, and null the
- * proposed attributes of each one that breaks them. Runs on import only,
- * before enrichment, so a rejected enhancement is never priced. Mutates
- * `document`.
+ * proposed attributes of each one that breaks them; and, for a BNG Service
+ * template upload, every enhanced individual tree, nulling its Proposed
+ * Condition only. Runs on import only, before enrichment, so a rejected
+ * enhancement is never priced. Mutates `document`.
  *
  * @param {object} document the post-intervention document
  * @param {{ warn: (fields: object, msg: string) => void }} [logger]
@@ -78,9 +121,12 @@ function rejectIfInvalid(feature, layer, logger) {
  */
 export function rejectInvalidEnhancements(document, logger = NO_OP_LOGGER) {
   let rejected = 0
-  for (const layer of ENHANCEMENT_RULE_LAYERS) {
-    for (const feature of document?.[layer] ?? []) {
-      if (rejectIfInvalid(feature, layer, logger)) {
+  const checks = isTemplateUpload(document)
+    ? TEMPLATE_ENHANCEMENT_CHECKS
+    : ENHANCEMENT_CHECKS
+  for (const layerCheck of checks) {
+    for (const feature of document?.[layerCheck.layer] ?? []) {
+      if (rejectIfInvalid(feature, layerCheck, logger)) {
         rejected += 1
       }
     }

@@ -116,6 +116,15 @@ export const ERROR_CODES = Object.freeze({
    */
   VERTICAL_HABITAT_AREA_NOT_POSITIVE: 'VERTICAL_HABITAT_AREA_NOT_POSITIVE',
 
+  /**
+   * One or more BNG Service template individual trees, at baseline or
+   * post-intervention, have Irreplaceable Habitat "Yes": the service does not
+   * accept irreplaceable trees. A blank Irreplaceable Habitat is "No". One
+   * error for them all, per stage; `details.sample` lists each tree's table,
+   * Habitat Ref and fid. The frontend sends the user to the drop-out page.
+   */
+  IRREPLACEABLE_TREE: 'IRREPLACEABLE_TREE',
+
   /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
 
@@ -223,6 +232,16 @@ export const ERROR_CODES = Object.freeze({
    * areas in square metres. The frontend sends the user to the drop-out page.
    */
   STAGED_VERTICAL_CHILDREN_TOO_LARGE: 'STAGED_VERTICAL_CHILDREN_TOO_LARGE',
+
+  /**
+   * BNG Service template baseline trees with fewer trees, by Count, than the
+   * Retained and Enhanced post-intervention trees linked to them together: a
+   * tree that is kept cannot multiply. A blank Count is one tree. Created
+   * trees, new planting, are not counted. `details.sample` lists each parent's
+   * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
+   * both counts. The frontend sends the user to the drop-out page.
+   */
+  STAGED_TREE_CHILDREN_TOO_MANY: 'STAGED_TREE_CHILDREN_TOO_MANY',
 
   /**
    * BNG Service template baseline watercourses with both a Retained or Enhanced

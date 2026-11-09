@@ -17,11 +17,13 @@ export const LINKED_LAYERS = Object.freeze([
   'areas',
   'verticalHabitats',
   'hedgerows',
-  'watercourses'
+  'watercourses',
+  'trees'
 ])
 
-/** The pipeline's name for a habitat's Habitat Ref. */
-export const REF = 'Parcel Ref'
+/** The pipeline's name for a habitat's Habitat Ref, and for a tree's. */
+const REF = 'Parcel Ref'
+const TREE_REF = 'Tree Ref'
 
 /** The Retention Categories that carry a baseline habitat forward. */
 const CONTINUING = new Set(['Retained', 'Enhanced'])
@@ -32,7 +34,9 @@ export const HABITAT_TYPE = Object.freeze({
   areas: ['Baseline Habitat Type', 'Proposed Habitat Type'],
   verticalHabitats: ['Baseline Habitat Type', 'Proposed Habitat Type'],
   hedgerows: ['Baseline Hedge Type', 'Proposed Hedge Type'],
-  watercourses: ['Baseline River Type', 'Proposed River Type']
+  watercourses: ['Baseline River Type', 'Proposed River Type'],
+  // A tree's habitat type, Urban tree or Rural tree, is its setting.
+  trees: ['Baseline Rural or Urban Tree', 'Proposed Rural or Urban Tree']
 })
 
 const SAMPLE_CAP = 50
@@ -44,6 +48,10 @@ const isBlank = (value) =>
 
 /** A cell as trimmed text, or null when it is blank. */
 export const text = (value) => (isBlank(value) ? null : String(value).trim())
+
+/** A row's Habitat Ref, or null when it has none. */
+export const refOf = (properties) =>
+  text(properties?.[REF]) ?? text(properties?.[TREE_REF])
 
 /**
  * A row's Retention Category as the saved document records it: a "3. " list

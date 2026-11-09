@@ -8,13 +8,15 @@ const TABLES = {
     areas: 'Area Habitats Baseline',
     verticalHabitats: 'Vertical Area Habitats Baseline',
     hedgerows: 'Hedgerows Baseline',
-    watercourses: 'Watercourses Baseline'
+    watercourses: 'Watercourses Baseline',
+    trees: 'Individual Trees Baseline'
   },
   postIntervention: {
     areas: 'Area Habitats Post-Intervention',
     verticalHabitats: 'Vertical Area Habitats Post-Intervention',
     hedgerows: 'Hedgerows Post-Intervention',
-    watercourses: 'Watercourses Post-Intervention'
+    watercourses: 'Watercourses Post-Intervention',
+    trees: 'Individual Trees Post-Intervention'
   }
 }
 
@@ -101,6 +103,44 @@ function river(n, metres, overrides = {}) {
       ...overrides
     },
     nativeGeometry: line(metres)
+  }
+}
+
+const POINT = { type: 'Point', coordinates: [50, 50] }
+
+/** A baseline tree point standing for `count` trees (a blank Count is one). */
+function tree(n, count, overrides = {}) {
+  return {
+    properties: {
+      fid: n,
+      'Tree Ref': `T00${n}`,
+      'Baseline Tree Size': 'Medium',
+      'Baseline Rural or Urban Tree': 'Urban tree',
+      'Baseline Condition': 'Moderate',
+      Count: count,
+      feature_uuid: uuid(400 + n),
+      ...overrides
+    },
+    nativeGeometry: POINT
+  }
+}
+
+/** A post-intervention tree copied from `parent`, Retained unless overridden. */
+function treeChild(parent, overrides = {}) {
+  return {
+    properties: {
+      fid: parent.properties.fid,
+      'Tree Ref': parent.properties['Tree Ref'],
+      'Retention Category': 'Retained',
+      'Proposed Tree Size': parent.properties['Baseline Tree Size'],
+      'Proposed Rural or Urban Tree':
+        parent.properties['Baseline Rural or Urban Tree'],
+      'Proposed Condition': parent.properties['Baseline Condition'],
+      Count: parent.properties.Count,
+      parent_uuid: parent.properties.feature_uuid,
+      ...overrides
+    },
+    nativeGeometry: POINT
   }
 }
 
@@ -374,6 +414,128 @@ describe('checkLineageRules', () => {
           )
         )
       ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+    })
+  })
+
+  describe('individual trees', () => {
+    it('passes kept trees that together count no more than their parent, whatever is planted', () => {
+      const parent = tree(1, 5)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              treeChild(parent, { 'Tree Ref': 'T001a', Count: 3 }),
+              treeChild(parent, {
+                'Tree Ref': 'T001b',
+                'Retention Category': 'Enhanced',
+                'Proposed Condition': 'Good',
+                Count: 2
+              }),
+              // Replacement planting is new trees, not the parent's.
+              treeChild(parent, {
+                'Tree Ref': 'T001c',
+                'Retention Category': 'Created',
+                Count: 10
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
+
+    it('passes a baseline tree with no child, or fewer kept trees: they are felled', () => {
+      const felled = tree(1, 4)
+      const thinned = tree(2, 4)
+
+      expect(
+        check(
+          { trees: [felled, thinned] },
+          { trees: [treeChild(thinned, { Count: 1 })] }
+        )
+      ).toEqual([])
+    })
+
+    it('reads a blank Count as one tree', () => {
+      const parent = tree(1, null)
+
+      expect(
+        check({ trees: [parent] }, { trees: [treeChild(parent)] })
+      ).toEqual([])
+      expect(
+        codes(
+          check(
+            { trees: [parent] },
+            { trees: [treeChild(parent, { Count: 2 })] }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
+    })
+
+    it('refuses a parent with fewer trees than its kept children together', () => {
+      const parent = tree(1, 3)
+
+      const errors = check(
+        { trees: [parent] },
+        {
+          trees: [
+            treeChild(parent, { 'Tree Ref': 'T001a', Count: 2 }),
+            treeChild(parent, {
+              'Tree Ref': 'T001b',
+              'Retention Category': 'Enhanced',
+              'Proposed Condition': 'Good',
+              Count: 2
+            }),
+            treeChild(parent, {
+              'Tree Ref': 'T001c',
+              'Retention Category': 'Created',
+              Count: 1
+            })
+          ]
+        }
+      )
+
+      expect(errors).toEqual([
+        {
+          code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
+          message:
+            'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b (3 trees, linked 4)',
+          details: {
+            count: 1,
+            sample: [
+              {
+                layer: 'trees',
+                table: 'Individual Trees Baseline',
+                fid: 1,
+                ref: 'T001',
+                habitatType: 'Urban tree',
+                childRefs: ['T001a', 'T001b'],
+                count: 3,
+                childCount: 4
+              }
+            ]
+          }
+        }
+      ])
+    })
+
+    it('does not hold a tree to the degraded rows’ rules: a linked Created tree is planting', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              treeChild(parent, {
+                'Retention Category': 'Created',
+                'Proposed Condition': 'Moderate'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
     })
   })
 

@@ -1961,7 +1961,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable."
+      "description": "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "baseline.trees[].units",
@@ -4116,7 +4116,40 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template Retained or Enhanced tree with a lower count than its parent loses the difference."
+    },
+    {
+      "path": "postIntervention.trees[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["tree-better-condition"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
+    },
+    {
+      "path": "postIntervention.trees[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+    },
+    {
+      "path": "postIntervention.trees[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.trees[].baseline",
@@ -6874,7 +6907,8 @@
         "habitats",
         "verticalHabitats",
         "hedgerows",
-        "watercourses"
+        "watercourses",
+        "trees"
       ],
       "constraints": [],
       "openMap": false,
@@ -6933,7 +6967,18 @@
       "enumValues": [],
       "constraints": ["min 0"],
       "openMap": false,
-      "description": "An area or vertical area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres."
+      "description": "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class times its Count."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].lostTreeCount",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["integer", "min 0"],
+      "openMap": false,
+      "description": "A tree: its Count less that of its Retained and Enhanced post-intervention trees, the number of trees lost. A blank Count is one tree."
     },
     {
       "path": "postIntervention.lostHabitats[].lostSizeMetres",
