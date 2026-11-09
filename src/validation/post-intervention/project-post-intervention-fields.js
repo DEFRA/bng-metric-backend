@@ -35,14 +35,18 @@ function retentionCategoryField() {
 
 // Set on import only and removed by an edit, so an Enhanced feature imported
 // before the check, or one whose enhancement is valid, has no such field.
-export function invalidEnhancementField(layer) {
+const INVALID_ENHANCEMENT_DESCRIPTION =
+  'The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked.'
+
+export function invalidEnhancementField(
+  layer,
+  description = INVALID_ENHANCEMENT_DESCRIPTION
+) {
   return {
     invalidEnhancement: Joi.string()
       .valid(...enhancementRulesForLayer(layer))
       .allow(null)
-      .description(
-        'The enhancement rule an Enhanced feature broke on import, when its proposed habitat was not a valid enhancement of its baseline: a record of why every proposed attribute was nulled and the feature saved Incomplete, not a check kept current. An edit to the feature removes it (an edit that would break a rule is refused); a later baseline edit leaves it as it was. Absent when the imported enhancement was valid or could not be checked.'
-      )
+      .description(description)
   }
 }
 
