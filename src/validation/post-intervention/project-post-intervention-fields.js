@@ -209,7 +209,7 @@ export function postInterventionAreaFeatureFields({
     units: Joi.number()
       .allow(null)
       .description(
-        `${unitsDescription} Null when required calculation inputs are missing.`
+        `${unitsDescription} Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.`
       ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
