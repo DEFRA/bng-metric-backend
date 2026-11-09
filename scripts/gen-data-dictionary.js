@@ -195,29 +195,22 @@ function assertAllTablesDescribed(tables) {
 
 // ─── Joi schema walk ─────────────────────────────────────────────────────────
 
+// How the data dictionary shows each Joi rule; a rule not listed shows its name.
+const RULE_FORMATS = Object.freeze({
+  integer: () => 'integer',
+  min: (args) => `min ${args.limit}`,
+  max: (args) => `max ${args.limit}`,
+  maxCharacters: (args) => `max ${args.limit} characters`,
+  inList: () => 'one of its lists (case, spacing and list numbers aside)',
+  length: (args) => `length ${args.limit}`,
+  guid: () => 'uuid',
+  isoDate: () => 'ISO 8601 date',
+  pattern: (args) => `pattern ${args?.regex ?? ''}`
+})
+
 function formatRule(rule) {
-  switch (rule.name) {
-    case 'integer':
-      return 'integer'
-    case 'min':
-      return `min ${rule.args.limit}`
-    case 'max':
-      return `max ${rule.args.limit}`
-    case 'maxCharacters':
-      return `max ${rule.args.limit} characters`
-    case 'inList':
-      return 'one of its lists (case, spacing and list numbers aside)'
-    case 'length':
-      return `length ${rule.args.limit}`
-    case 'guid':
-      return 'uuid'
-    case 'isoDate':
-      return 'ISO 8601 date'
-    case 'pattern':
-      return `pattern ${rule.args?.regex ?? ''}`
-    default:
-      return rule.name
-  }
+  const format = RULE_FORMATS[rule.name]
+  return format ? format(rule.args) : rule.name
 }
 
 function itemTypeLabel(node) {
