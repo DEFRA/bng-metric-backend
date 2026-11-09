@@ -252,8 +252,8 @@ function notAllowedErrors(db, table, column, allowed) {
 // A UUID as SQLite's GLOB matches it: groups of 8, 4, 4, 4 and 12
 // hexadecimal digits.
 const HEX = '[0-9a-fA-F]'
-const UUID_GROUP_LENGTHS = Object.freeze([8, 4, 4, 4, 12])
-const UUID_GLOB = UUID_GROUP_LENGTHS.map((n) => HEX.repeat(n)).join('-')
+const UUID_SHAPE = 'xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx'
+const UUID_GLOB = UUID_SHAPE.replaceAll('x', HEX)
 
 /** The rows whose `column` is not blank and is not a UUID, found in SQL. */
 function uuidErrors(db, table, column, code) {

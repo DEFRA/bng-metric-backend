@@ -185,7 +185,7 @@ export function listedFileText(field) {
   // it as blank, and the import can keep it.
   const values = [
     ...new Set([...listValues(columns), ...stored(), NULL_WORD])
-  ].sort()
+  ].sort((a, b) => a.localeCompare(b))
   return fileText(textLimitOf(columns[0]))
     .valid(...values)
     .insensitive()
