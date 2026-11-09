@@ -252,7 +252,7 @@ export function checkParentLinks(baselineLayers, postInterventionLayers) {
     ),
     collated(
       ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
-      'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has',
+      'One or more post-intervention habitats have a parent that matches more than one baseline habitat',
       ambiguous,
       (parent) =>
         `${parent.table} ${parent.refs.join(', ')}, named by ${parent.childRefs.join(', ')}`
