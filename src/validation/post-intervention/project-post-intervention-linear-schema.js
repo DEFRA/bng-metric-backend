@@ -12,14 +12,14 @@ import {
 } from './project-post-intervention-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
-import { shortFileText } from '../text-joi.js'
+import { listedFileText, shortFileText } from '../text-joi.js'
 
 const postInterventionLinearBaselineSubSchema = Joi.object({
   type: shortFileText().description(
     'Baseline hedgerow type from Baseline Hedge Type column.'
   ),
   ...baselineCommonFields(),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
   )
 }).description(
@@ -32,7 +32,7 @@ const postInterventionLinearProposedSubSchema = Joi.object({
     'Proposed hedgerow type from Proposed Hedge Type column.'
   ),
   ...proposedCommonFields(),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     'Proposed Strategic Significance from the GeoPackage.'
   )
 }).description(
@@ -54,13 +54,13 @@ export const postInterventionLinearHabitatSchema = Joi.object({
 }).description('A post-intervention hedgerow (linear) feature.')
 
 const watercourseEncroachmentFields = {
-  riparianEncroachment: shortFileText().description(
+  riparianEncroachment: listedFileText('riparianEncroachment').description(
     'Riparian-zone encroachment category.'
   ),
-  watercourseEncroachment: shortFileText().description(
-    'Watercourse encroachment category.'
-  ),
-  strategicSignificance: shortFileText().description(
+  watercourseEncroachment: listedFileText(
+    'watercourseEncroachment'
+  ).description('Watercourse encroachment category.'),
+  strategicSignificance: listedFileText('strategicSignificance').description(
     'Strategic Significance from the GeoPackage.'
   ),
   waterEncroachmentMultiplier: Joi.number()
@@ -91,7 +91,7 @@ export const postInterventionWatercourseSchema = Joi.object({
     ),
     ...baselineCommonFields(),
     ...watercourseEncroachmentFields,
-    strategicSignificance: shortFileText().description(
+    strategicSignificance: listedFileText('strategicSignificance').description(
       BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
     )
   }).description(

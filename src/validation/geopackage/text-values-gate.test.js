@@ -398,6 +398,25 @@ describe('text-values-gate', () => {
       }
     )
 
+    test('ignores a layer the legacy import does not read, whatever its primary key is called', async () => {
+      const result = await legacyGate((db) => {
+        db.exec(
+          'CREATE TABLE "Notes" ("id" INTEGER PRIMARY KEY, "geometry" POLYGON, "Comment" TEXT, "Baseline Condition" TEXT)'
+        )
+        db.prepare(
+          "INSERT INTO gpkg_contents (table_name, data_type, identifier, srs_id) VALUES ('Notes', 'features', 'Notes', 27700)"
+        ).run()
+        db.prepare(
+          "INSERT INTO gpkg_geometry_columns (table_name, column_name, geometry_type_name, srs_id, z, m) VALUES ('Notes', 'geometry', 'POLYGON', 27700, 0, 0)"
+        ).run()
+        db.prepare(
+          'INSERT INTO "Notes" ("Comment", "Baseline Condition") VALUES (?, ?)'
+        ).run('n'.repeat(LONG_TEXT_LIMIT + 1), 'Splendid')
+      })
+      expect(codes(result)).not.toContain(ERROR_CODES.TEXT_TOO_LONG)
+      expect(codes(result)).not.toContain(ERROR_CODES.VALUE_NOT_ALLOWED)
+    })
+
     test('refuses a value that no list offers, and accepts a numbered legacy label', async () => {
       const refused = await legacyGate((db) =>
         db

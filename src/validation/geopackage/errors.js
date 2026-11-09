@@ -75,6 +75,15 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * An edit to a habitat saved before the service checked text limits and
+   * lists (BMD-1175): the habitat, or its post-intervention document, holds a
+   * value longer than its limit or outside its list. The edit is refused, not
+   * saved with the old value cut or cleared; uploading the file again, with
+   * the value corrected, updates it.
+   */
+  STORED_VALUE_NOT_ALLOWED: 'STORED_VALUE_NOT_ALLOWED',
+
+  /**
    * One or more Enhanced rows enhance a baseline habitat the service cannot
    * enhance at all, such as a Medium habitat in Good condition (BMD-1182). The
    * file is refused rather than the enhancement nulled. One error for them
@@ -353,7 +362,8 @@ export const ERROR_SURFACES = Object.freeze({
 // for drop-out page wording for an error that page never shows.
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.HABITAT_REF_IN_USE,
-  ERROR_CODES.ENHANCEMENT_NOT_VALID
+  ERROR_CODES.ENHANCEMENT_NOT_VALID,
+  ERROR_CODES.STORED_VALUE_NOT_ALLOWED
 ])
 const UPLOAD_AND_EDIT_CODES = new Set([
   // The upload check refuses one in a file; an edit refuses one chosen on screen.

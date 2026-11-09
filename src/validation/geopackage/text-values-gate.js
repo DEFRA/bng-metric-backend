@@ -107,12 +107,17 @@ function featureTables(db, includeTable) {
     })
 }
 
-/** The start of a SELECT that reads a row's fid and reference, and `extraSql`. */
+/**
+ * The start of a SELECT that reads a row's id and reference, and `extraSql`.
+ * The id is the rowid, which a GeoPackage feature table's integer primary key
+ * aliases whatever the tool that wrote it named the column.
+ */
 function rowSelect(table, extraSql = '') {
   const ref = table.refColumn
     ? `CAST(${quoteSqliteIdent(table.refColumn)} AS BLOB)`
     : 'NULL'
-  return `SELECT fid, ${ref} AS ref${extraSql ? `, ${extraSql}` : ''}`
+  const extra = extraSql ? `, ${extraSql}` : ''
+  return `SELECT rowid AS fid, ${ref} AS ref${extra}`
 }
 
 /**
@@ -127,7 +132,8 @@ function featureLabel(table, row) {
   const refLimit = table.refColumn ? textLimitOf(table.refColumn) : null
   const usable =
     ref !== '' && refLimit !== null && characterCount(ref) <= refLimit
-  return `${table.name}, ${usable ? ref : `row ${row.fid}`}`
+  const name = usable ? ref : `row ${Number(row.fid)}`
+  return `${table.name}, ${name}`
 }
 
 /** A limited column's value as the length check reads it: a BLOB as its byte count. */
@@ -226,10 +232,9 @@ function notAllowedErrors(db, table, column, allowed) {
       : []),
     ...(anyBlob ? [`typeof(${value}) = 'blob'`] : [])
   ].join(' OR ')
+  const textValueSql = `CASE WHEN typeof(${value}) = 'blob' THEN NULL ELSE CAST(${value} AS TEXT) END AS value`
   return db
-    .prepare(
-      `${rowSelect(table, `CASE WHEN typeof(${value}) = 'blob' THEN NULL ELSE CAST(${value} AS TEXT) END AS value`)} ${from} AND (${matches})`
-    )
+    .prepare(`${rowSelect(table, textValueSql)} ${from} AND (${matches})`)
     .all(...texts)
     .map((row) => {
       const shown =
@@ -244,9 +249,11 @@ function notAllowedErrors(db, table, column, allowed) {
     })
 }
 
-// A UUID as SQLite's GLOB matches it: 8, 4, 4, 4 and 12 hexadecimal digits.
+// A UUID as SQLite's GLOB matches it: groups of 8, 4, 4, 4 and 12
+// hexadecimal digits.
 const HEX = '[0-9a-fA-F]'
-const UUID_GLOB = [8, 4, 4, 4, 12].map((n) => HEX.repeat(n)).join('-')
+const UUID_GROUP_LENGTHS = Object.freeze([8, 4, 4, 4, 12])
+const UUID_GLOB = UUID_GROUP_LENGTHS.map((n) => HEX.repeat(n)).join('-')
 
 /** The rows whose `column` is not blank and is not a UUID, found in SQL. */
 function uuidErrors(db, table, column, code) {
@@ -278,10 +285,10 @@ function parentGeomErrors(db, table) {
   const shapes = PARENT_SHAPES[table.geometryType] ?? []
   const value = quoteSqliteIdent(PARENT_GEOM)
   // Read only up to one character past the cap: a longer text is refused unread.
-  const valueSql = `substr(CAST(${value} AS TEXT), 1, ${MAX_PARENT_GEOM_CHARS + 1})`
+  const valueSql = `substr(CAST(${value} AS TEXT), 1, ${MAX_PARENT_GEOM_CHARS + 1}) AS value`
   return db
     .prepare(
-      `${rowSelect(table, `${valueSql} AS value`)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(PARENT_GEOM)}`
+      `${rowSelect(table, valueSql)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(PARENT_GEOM)}`
     )
     .all()
     .filter((row) => !isParentShape(row.value, shapes))

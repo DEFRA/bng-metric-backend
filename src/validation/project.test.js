@@ -106,8 +106,8 @@ describe('#projectSchema', () => {
           type: 'Urban tree',
           broadType: 'Individual trees',
           treeSize: 'Medium',
-          treeSpecies: 'Street tree',
-          ruralOrUrban: 'Urban',
+          treeSpecies: 'Native',
+          ruralOrUrban: 'Urban tree',
           count: 1,
           condition: 'Good',
           distinctiveness: 'Medium',
@@ -358,8 +358,8 @@ describe('#habitatDataSchema', () => {
         featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
         type: 'Watercourse footprint - Watercourse footprint',
         condition: 'Moderate',
-        riparianEncroachment: 'None',
-        watercourseEncroachment: 'None',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        watercourseEncroachment: 'No Encroachment',
         sizeMetres: 30,
         status: 'Complete',
         properties: {}
@@ -527,8 +527,8 @@ describe('#postInterventionDataSchema', () => {
             conditionScore: 3,
             distinctiveness: 'High',
             distinctivenessScore: 6,
-            riparianEncroachment: 'None',
-            watercourseEncroachment: 'None',
+            riparianEncroachment: 'No Encroachment/No Encroachment',
+            watercourseEncroachment: 'No Encroachment',
             strategicSignificance: 'Low'
           },
           proposed: {
@@ -539,9 +539,9 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             advanceYears: 0,
             delayYears: 0,
-            riparianEncroachment: 'Minor',
+            riparianEncroachment: 'Minor/Minor',
             watercourseEncroachment: 'Minor',
-            strategicSignificance: 'Medium'
+            strategicSignificance: 'High'
           },
           properties: {}
         }
@@ -615,8 +615,8 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             strategicSignificance: 'Low',
             treeSize: 'Small',
-            treeSpecies: 'Street tree',
-            ruralOrUrban: 'Urban',
+            treeSpecies: 'Native',
+            ruralOrUrban: 'Urban tree',
             sizeSquareMetres: 41,
             area: 41
           },
@@ -629,8 +629,8 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             strategicSignificance: 'Low',
             treeSize: 'Small',
-            treeSpecies: 'Street tree',
-            ruralOrUrban: 'Urban',
+            treeSpecies: 'Native',
+            ruralOrUrban: 'Urban tree',
             sizeSquareMetres: 41,
             area: 41,
             advanceYears: 0,

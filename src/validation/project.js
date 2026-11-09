@@ -19,7 +19,7 @@ import {
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
-import { longFileText, shortFileText, spatialRiskFileText } from './text-joi.js'
+import { listedFileText, longFileText, shortFileText } from './text-joi.js'
 
 const BASELINE_STATUS_DESCRIPTION =
   "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
@@ -55,19 +55,23 @@ const metadataSchemaKeys = () => ({
   baseMap: longFileText().description(
     'Base map used during mapping (Base Map column).'
   ),
-  location: shortFileText().description(
+  location: listedFileText('location').description(
     'Free-text location description from the GeoPackage.'
   ),
-  spatialRiskCategory: spatialRiskFileText().description(
+  spatialRiskCategory: listedFileText('spatialRiskCategory').description(
     'Spatial risk category from the GeoPackage.'
   ),
-  habitatCreatedInAdvanceYears: shortFileText().description(
+  habitatCreatedInAdvanceYears: listedFileText(
+    'habitatCreatedInAdvanceYears'
+  ).description(
     'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
   ),
-  delayInStartingHabitatCreationYears: shortFileText().description(
+  delayInStartingHabitatCreationYears: listedFileText(
+    'delayInStartingHabitatCreationYears'
+  ).description(
     'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
   ),
-  rawDistinctiveness: shortFileText().description(
+  rawDistinctiveness: listedFileText('rawDistinctiveness').description(
     'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
   )
 })
@@ -104,7 +108,7 @@ const habitatSchema = Joi.object({
   type: shortFileText().description(
     "Baseline habitat type, e.g. 'Lowland meadows'."
   ),
-  broadType: shortFileText().description(
+  broadType: listedFileText('broadType').description(
     "Baseline broad habitat type, e.g. 'Grassland'."
   ),
   distinctiveness: Joi.string()
@@ -115,7 +119,7 @@ const habitatSchema = Joi.object({
   distinctivenessScore: Joi.number()
     .allow(null)
     .description(DISTINCTIVENESS_SCORE_DESCRIPTION),
-  condition: shortFileText().description(
+  condition: listedFileText('condition').description(
     "Baseline condition assessment, e.g. 'Good'."
   ),
   conditionScore: Joi.number()
@@ -123,10 +127,10 @@ const habitatSchema = Joi.object({
     .description(
       'Numeric condition score from bng-library/metric. Set during import enrichment and on habitat edits.'
     ),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
   ),
-  retentionCategory: shortFileText().description(
+  retentionCategory: listedFileText('retentionCategory').description(
     RETENTION_CATEGORY_DESCRIPTION
   ),
   irreplaceable: Joi.boolean().description(
@@ -176,7 +180,7 @@ const treeSchema = habitatSchema
     type: shortFileText().description(
       "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
     ),
-    broadType: shortFileText().description(
+    broadType: listedFileText('broadType').description(
       "Always 'Individual trees' for tree features."
     ),
     distinctiveness: Joi.string()
@@ -208,13 +212,13 @@ const treeSchema = habitatSchema
         'Raw attribute columns copied verbatim from the GeoPackage Urban Trees layer.'
       ),
     // Tree-specific source columns not present on parcels.
-    treeSize: shortFileText().description(
+    treeSize: listedFileText('treeSize').description(
       "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
     ),
-    treeSpecies: shortFileText().description(
+    treeSpecies: listedFileText('treeSpecies').description(
       'Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column).'
     ),
-    ruralOrUrban: shortFileText().description(
+    ruralOrUrban: listedFileText('ruralOrUrban').description(
       'Raw Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban").'
     ),
     count: Joi.number()
@@ -241,7 +245,7 @@ const verticalHabitatSchema = habitatSchema
     type: shortFileText().description(
       "Baseline habitat type: one of the five the Metric counts by vertical area, e.g. 'Facade-bound green wall'."
     ),
-    broadType: shortFileText().description(
+    broadType: listedFileText('broadType').description(
       "Baseline broad habitat type: 'Urban' or 'Intertidal hard structures'."
     ),
     area: Joi.number()
@@ -296,7 +300,7 @@ function linearFeatureSchema({
       'Feature reference from the GeoPackage (Parcel Ref column).'
     ),
     type: shortFileText().description(typeDescription),
-    condition: shortFileText().description(conditionDescription),
+    condition: listedFileText('condition').description(conditionDescription),
     ...afterCondition,
     distinctiveness: Joi.string()
       .allow(null, '')
@@ -326,10 +330,10 @@ function linearFeatureSchema({
       .description(
         `${unitsDescription} Null when required calculation inputs are missing.`
       ),
-    strategicSignificance: shortFileText().description(
+    strategicSignificance: listedFileText('strategicSignificance').description(
       BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
     ),
-    retentionCategory: shortFileText().description(
+    retentionCategory: listedFileText('retentionCategory').description(
       RETENTION_CATEGORY_DESCRIPTION
     ),
     ...metadataSchemaKeys(),
@@ -357,12 +361,12 @@ const watercourseHabitatSchema = linearFeatureSchema({
   typeDescription: 'Watercourse type (Baseline River Type column).',
   conditionDescription: 'Watercourse condition assessment.',
   afterCondition: {
-    riparianEncroachment: shortFileText().description(
+    riparianEncroachment: listedFileText('riparianEncroachment').description(
       'Riparian-zone encroachment category from the GeoPackage.'
     ),
-    watercourseEncroachment: shortFileText().description(
-      'Watercourse encroachment category from the GeoPackage.'
-    )
+    watercourseEncroachment: listedFileText(
+      'watercourseEncroachment'
+    ).description('Watercourse encroachment category from the GeoPackage.')
   },
   distinctivenessDescription:
     'Distinctiveness band resolved by bng-library/metric from the watercourse type.',
@@ -370,7 +374,7 @@ const watercourseHabitatSchema = linearFeatureSchema({
   unitsDescription:
     'Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428).',
   beforeProperties: {
-    enhancementType: shortFileText().description(
+    enhancementType: listedFileText('enhancementType').description(
       'Enhancement type from the GeoPackage Rivers layer.'
     ),
     waterEncroachmentMultiplier: Joi.number()

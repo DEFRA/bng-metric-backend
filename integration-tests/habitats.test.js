@@ -770,15 +770,36 @@ describe('Created area imported timing preservation', () => {
 })
 
 describe('BMD-1050 Created watercourse saves', () => {
+  // BMD-1175: a value saved before the service checked lists.
+  it('refuses an edit with STORED_VALUE_NOT_ALLOWED, naming the field, and changes nothing', async () => {
+    const feature = watercourse()
+    Object.assign(feature.proposed, { condition: 'Imported condition' })
+    const projectId = await seedProject({
+      name: 'Stored value IT',
+      postIntervention: { watercourses: [feature] }
+    })
+    const response = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/watercourses/${feature.featureId}`,
+      headers,
+      payload: { ref: 'Renamed' }
+    })
+    expect(response.statusCode).toBe(422)
+    expect(response.result.code).toBe('STORED_VALUE_NOT_ALLOWED')
+    expect(response.result.message).toMatch(/proposed\.condition/)
+  })
+
   it('preserves unsupported imports on rename, then persists deliberate clears and replacements', async () => {
     const feature = watercourse()
     Object.assign(feature.proposed, {
       type: 'Imported watercourse',
-      condition: 'Imported condition',
+      // In a list, but not one the watercourse type offers: an import keeps
+      // such a value. A value in no list is refused at upload (BMD-1175).
+      condition: 'N/A - Other',
       strategicSignificance: null,
       rejectedStrategicSignificance: 'Medium',
       advanceYears: 2.5,
-      watercourseEncroachment: 'Imported encroachment'
+      watercourseEncroachment: 'N/A - Culvert'
     })
     const projectId = await seedProject({
       name: 'Imported values IT',
@@ -805,11 +826,11 @@ describe('BMD-1050 Created watercourse saves', () => {
     expect(stored.ref).toBe('Renamed')
     expect(stored.proposed).toMatchObject({
       type: 'Imported watercourse',
-      condition: 'Imported condition',
+      condition: 'N/A - Other',
       strategicSignificance: null,
       rejectedStrategicSignificance: 'Medium',
       advanceYears: 2.5,
-      watercourseEncroachment: 'Imported encroachment'
+      watercourseEncroachment: 'N/A - Culvert'
     })
     expect(stored.status).toBe('Incomplete')
     expect(stored.units).toBeNull()

@@ -9,7 +9,7 @@ import { parentFeatureIdField } from './project-lineage-fields.js'
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import { featureIdDescription } from '../project-shared-schemas.js'
 import { enhancementRulesForLayer } from '../geopackage/post-intervention/enhancement-rules.js'
-import { longFileText, shortFileText } from '../text-joi.js'
+import { listedFileText, longFileText, shortFileText } from '../text-joi.js'
 
 const DISTINCTIVENESS_SCORE_DESCRIPTION =
   'Numeric distinctiveness score for the band, from bng-library/metric.'
@@ -49,7 +49,7 @@ export function invalidEnhancementField(layer) {
 
 export function baselineCommonFields() {
   return {
-    condition: shortFileText().description(
+    condition: listedFileText('condition').description(
       'Baseline condition assessment stripped of list-index prefix.'
     ),
     conditionScore: Joi.number()
@@ -69,7 +69,7 @@ export function baselineCommonFields() {
 export function proposedCommonFields() {
   return {
     ...baselineCommonFields(),
-    condition: shortFileText().description(
+    condition: listedFileText('condition').description(
       'Proposed condition assessment stripped of list-index prefix.'
     ),
     advanceYears: Joi.number()

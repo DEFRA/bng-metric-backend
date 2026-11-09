@@ -21,15 +21,13 @@ import {
 } from './geopackage-internals.js'
 import {
   FEATURE_READ_MODE,
+  isLegacyReadTable,
   readFeatureTables,
   toLayers
 } from './read-feature-tables.js'
 import { checkTextValues } from './text-values-gate.js'
 
 const logger = createLogger()
-
-// A legacy file is read whole, so every table's text values are checked.
-const EVERY_TABLE = () => true
 
 const baselineTemplateSchema = JSON.parse(
   readFileSync(
@@ -339,7 +337,9 @@ function validateGpkgFile(
     const gate = runGpkgGate(db, FEATURE_READ_MODE.classify, maxFeatureCount)
     // A file that passes then has every table's text values checked, before
     // anything else reads one (BMD-1175).
-    const errors = gate.valid ? checkTextValues(db, EVERY_TABLE) : gate.errors
+    const errors = gate.valid
+      ? checkTextValues(db, isLegacyReadTable)
+      : gate.errors
     const valid = errors.length === 0
     // Deliberately returns the verdict ONLY. Handing back the tables would
     // defeat the purpose: the caller would keep them alive across the queue
@@ -361,7 +361,9 @@ function validateAndReadGpkgFile(
 /** The gate, plus the layers from the same read when the file passes it. */
 function gateAndReadLayers(db, maxFeatureCount) {
   const gate = runGpkgGate(db, FEATURE_READ_MODE.full, maxFeatureCount)
-  const errors = gate.valid ? checkTextValues(db, EVERY_TABLE) : gate.errors
+  const errors = gate.valid
+    ? checkTextValues(db, isLegacyReadTable)
+    : gate.errors
   if (errors.length > 0) {
     return logGateResult({ valid: false, errors })
   }
@@ -391,7 +393,9 @@ function logGateResult(result) {
 function validateGpkg(buffer, maxFeatureCount = configuredMaxFeatureCount()) {
   return withGpkgDatabase(buffer, (db) => {
     const gate = runGpkgGate(db, FEATURE_READ_MODE.classify, maxFeatureCount)
-    const errors = gate.valid ? checkTextValues(db, EVERY_TABLE) : gate.errors
+    const errors = gate.valid
+      ? checkTextValues(db, isLegacyReadTable)
+      : gate.errors
     return logGateResult({ valid: errors.length === 0, errors })
   })
 }

@@ -11,27 +11,27 @@ import {
 } from './project-post-intervention-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
-import { shortFileText } from '../text-joi.js'
+import { listedFileText, shortFileText } from '../text-joi.js'
 
 function treeSideCommonFields() {
   return {
     type: shortFileText().description(
       "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
     ),
-    broadType: shortFileText().description(
+    broadType: listedFileText('broadType').description(
       "Always 'Individual trees' for tree features."
     ),
     ...baselineCommonFields(),
-    strategicSignificance: shortFileText().description(
+    strategicSignificance: listedFileText('strategicSignificance').description(
       'Strategic Significance from the GeoPackage.'
     ),
-    treeSize: shortFileText().description(
+    treeSize: listedFileText('treeSize').description(
       "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
     ),
-    treeSpecies: shortFileText().description(
+    treeSpecies: listedFileText('treeSpecies').description(
       'Tree species/type free text (Tree Type column).'
     ),
-    ruralOrUrban: shortFileText().description(
+    ruralOrUrban: listedFileText('ruralOrUrban').description(
       'Raw Rural or Urban Tree value as written in the GeoPackage.'
     ),
     sizeSquareMetres: Joi.number()
@@ -49,7 +49,7 @@ function treeSideCommonFields() {
 
 const postInterventionTreeBaselineSubSchema = Joi.object({
   ...treeSideCommonFields(),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
   )
 }).description(

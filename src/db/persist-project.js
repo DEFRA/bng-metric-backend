@@ -22,6 +22,8 @@ import { isDeepStrictEqual } from 'node:util'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
+import { ERROR_CODES } from '../validation/geopackage/errors.js'
+import { LISTED_FIELD_NAMES } from '../validation/text-joi.js'
 import { projectDetailsReturning } from './project-details-columns.js'
 import {
   postInterventionDataSchema,
@@ -273,6 +275,45 @@ function hasConsistentTemplateFragments({
 }
 
 /**
+ * Whether a Joi failure is one a stored value can have only because it was
+ * saved before the service checked text limits and lists (BMD-1175): a text
+ * over its limit, or a listed field's value outside its list.
+ */
+const isStoredValueFailure = (detail) =>
+  detail.type === 'string.maxCharacters' ||
+  (detail.type === 'any.only' && LISTED_FIELD_NAMES.has(detail.context?.key))
+
+/**
+ * As assertFragmentValid, for a fragment an edit writes. A fragment that
+ * fails only because a value saved before BMD-1175 is longer than its limit
+ * or outside its list is refused with a 422 naming the fields, not a 500:
+ * the user can put it right by uploading the file again.
+ *
+ * @param {import('joi').Schema} schema
+ * @param {unknown} value
+ * @param {string} label
+ */
+function assertEditFragmentValid(schema, value, label) {
+  const { error } = schema.validate(value, { abortEarly: false })
+  if (!error) {
+    return
+  }
+  if (!error.details.every(isStoredValueFailure)) {
+    throw Boom.badImplementation(
+      `${label} failed schema validation before persist: ${error.message}`
+    )
+  }
+  const fields = [
+    ...new Set(error.details.map((detail) => detail.path.join('.')))
+  ].join(', ')
+  const refused = Boom.badData(
+    `This habitat holds a value saved before the service checked text lengths and lists (${fields}). Upload the file again, with the value corrected, to update it.`
+  )
+  refused.output.payload.code = ERROR_CODES.STORED_VALUE_NOT_ALLOWED
+  throw refused
+}
+
+/**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
  * carry.
@@ -306,7 +347,7 @@ function assertFeatureEditValid({
       'persist: a post-intervention feature edit must not also replace the post-intervention document without consistent template fragments'
     )
   }
-  assertFragmentValid(
+  assertEditFragmentValid(
     featureSchemaFor(documentKey, layer),
     feature,
     `${documentKey}.${layer}[${index}]`
@@ -336,7 +377,7 @@ function assertFeatureEditValid({
     )
   }
   if (postIntervention) {
-    assertFragmentValid(
+    assertEditFragmentValid(
       habitatDataSchemaFor(POST_INTERVENTION_DOCUMENT_KEY),
       postIntervention,
       'project.postIntervention'

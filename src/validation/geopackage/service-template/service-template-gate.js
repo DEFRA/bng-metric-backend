@@ -177,13 +177,13 @@ function runServiceTemplateGate(db, includeTable) {
   const structureErrors = checkStructure(db, template.schema)
   // Only a file whose structure passes has its text values checked, before
   // anything else reads one (BMD-1175).
-  const errors =
+  const gateErrors =
     structureErrors.length > 0
       ? structureErrors
       : checkTextValues(db, includeTable)
   return {
-    valid: errors.length === 0,
-    errors,
+    valid: gateErrors.length === 0,
+    errors: gateErrors,
     template: { name: FORMAT_BNG_SERVICE, version: record.version }
   }
 }

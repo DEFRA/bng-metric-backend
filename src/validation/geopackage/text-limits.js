@@ -65,7 +65,7 @@ const LIST_NUMBER = /^\d+\.\s*/
 const WHOLE_DECIMAL = /^(\d+)\.0+$/
 const WHITESPACE_RUN = /\s+/g
 // Riparian encroachment pairs are spelt "Minor/ Minor" and "Minor/Minor".
-const SPACED_SLASH = /\s*\/\s*/g
+const SLASH = '/'
 
 /**
  * Every drop-down and filled-in column in either template, with the values
@@ -117,7 +117,9 @@ export function normaliseListValue(value) {
     .trim()
     .replace(LIST_NUMBER, '')
     .replaceAll(WHITESPACE_RUN, ' ')
-    .replaceAll(SPACED_SLASH, '/')
+    .split(SLASH)
+    .map((part) => part.trim())
+    .join(SLASH)
     .replace(WHOLE_DECIMAL, '$1')
     .toLowerCase()
 }

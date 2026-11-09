@@ -14,15 +14,17 @@ import {
 } from './project-post-intervention-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
-import { shortFileText } from '../text-joi.js'
+import { listedFileText, shortFileText } from '../text-joi.js'
 
 const postInterventionHabitatBaselineSubSchema = Joi.object({
   type: shortFileText().description(
     'Baseline habitat type from the GeoPackage Baseline Habitat Type column.'
   ),
-  broadType: shortFileText().description('Baseline broad habitat type.'),
+  broadType: listedFileText('broadType').description(
+    'Baseline broad habitat type.'
+  ),
   ...baselineCommonFields(),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
   )
 }).description(
@@ -34,9 +36,11 @@ const postInterventionHabitatProposedSubSchema = Joi.object({
   type: shortFileText().description(
     'Proposed habitat type from the GeoPackage Proposed Habitat Type column.'
   ),
-  broadType: shortFileText().description('Proposed broad habitat type.'),
+  broadType: listedFileText('broadType').description(
+    'Proposed broad habitat type.'
+  ),
   ...proposedCommonFields(),
-  strategicSignificance: shortFileText().description(
+  strategicSignificance: listedFileText('strategicSignificance').description(
     'Proposed Strategic Significance from the GeoPackage.'
   )
 }).description(
