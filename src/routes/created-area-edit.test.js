@@ -167,7 +167,7 @@ describe('BMD-1048 Created area edits', () => {
     'strategicSignificance',
     'advanceYears',
     'delayYears'
-  ])('null %s saves null units and Incomplete', (field) => {
+  ])('null %s saves zero units and Incomplete (AC11 Scenario B)', (field) => {
     const cleared = { [field]: null }
     if (field === 'broadType') {
       cleared.habitatType = null
@@ -177,7 +177,10 @@ describe('BMD-1048 Created area edits', () => {
       cleared.condition = null
     }
     const result = update(cleared)
-    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(
+      postInterventionHabitatSchema.validate(result.feature).error
+    ).toBeUndefined()
     expect(result.unitsTotals.habitatsTotal).toBe(4)
   })
 
@@ -187,15 +190,17 @@ describe('BMD-1048 Created area edits', () => {
     'advanceYears',
     'delayYears'
   ])(
-    'incomplete %s pricing stays identical after a baseline resync',
+    'incomplete %s pricing stays identical after a baseline resync, which recalculates null units (BMD-1070)',
     (field) => {
       const edited = update({ [field]: null }).feature
       const rederived = rederivePostInterventionFromBaseline(
         { habitats: [edited] },
         { baseline: {} }
       ).habitats[0]
+      expect(edited.units).toBe(0)
+      expect(rederived.units).toBeNull()
       for (const row of [edited, rederived]) {
-        expect(row).toMatchObject({ units: null, status: 'Incomplete' })
+        expect(row.status).toBe('Incomplete')
         expect(row.proposed).toMatchObject({
           distinctiveness: null,
           distinctivenessScore: null,
@@ -448,7 +453,7 @@ describe('BMD-1048 Created area edits', () => {
       expect(saved).toMatchObject({
         ref: edits.ref,
         status: 'Incomplete',
-        units: null,
+        units: 0,
         proposed: {
           strategicSignificance: null,
           rejectedStrategicSignificance: 'Medium'
