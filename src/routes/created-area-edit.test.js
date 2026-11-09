@@ -26,6 +26,7 @@ import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { featureEditPayload } from './shared-params.js'
+import { enrichPostInterventionAreaTradingRules } from '../utilities/enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
@@ -183,6 +184,42 @@ describe('BMD-1048 Created area edits', () => {
     ).toBeUndefined()
     expect(result.unitsTotals.habitatsTotal).toBe(4)
   })
+
+  test.each([
+    { broadType: null, habitatType: null, condition: null },
+    { habitatType: null, condition: null },
+    { condition: null },
+    { strategicSignificance: null }
+  ])(
+    'an Incomplete edit (%o) stores zero units without entering trading rules or logging',
+    (cleared) => {
+      const other = {
+        ...feature,
+        featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        units: 4,
+        proposed: { ...feature.proposed, type: 'Other neutral grassland' }
+      }
+      const logger = { warn: vi.fn() }
+      const result = applyFeatureUpdate(
+        { postIntervention: { habitats: [feature, other] } },
+        {
+          featureId,
+          edits: { ...edits, ...cleared },
+          documentKey: 'postIntervention',
+          expectedType: 'habitat',
+          logger
+        }
+      )
+      expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+      const withoutEdited = enrichPostInterventionAreaTradingRules({
+        habitats: [other]
+      })
+      expect(result.tradingRules.areaHabitats).toEqual(
+        withoutEdited.tradingRules.areaHabitats
+      )
+      expect(logger.warn).not.toHaveBeenCalled()
+    }
+  )
 
   test.each([
     'condition',

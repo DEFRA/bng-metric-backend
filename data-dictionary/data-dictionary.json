@@ -3592,7 +3592,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.habitats[].status",
@@ -4083,7 +4083,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.trees[].status",
@@ -4622,7 +4622,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.verticalHabitats[].status",
