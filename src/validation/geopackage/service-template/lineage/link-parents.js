@@ -14,16 +14,16 @@ import { FEATURE_UUID, PARENT_UUID } from 'bng-library/bng-service'
  */
 
 /**
- * The document layers a template upload links: those the service reads.
- * Trees join them with BMD-1172. A baseline edit re-syncs these layers' rows
- * from their parents (resync-post-intervention-baseline.js), so this is the
- * one list of them.
+ * The document layers a template upload links: those the service reads. A
+ * baseline edit re-syncs these layers' rows from their parents
+ * (resync-post-intervention-baseline.js), so this is the one list of them.
  */
 export const PARENT_LINKED_LAYERS = Object.freeze([
   'habitats',
   'verticalHabitats',
   'hedgerows',
-  'watercourses'
+  'watercourses',
+  'trees'
 ])
 
 const text = (value) =>

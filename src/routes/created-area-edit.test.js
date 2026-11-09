@@ -26,6 +26,7 @@ import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { featureEditPayload } from './shared-params.js'
+import { enrichPostInterventionAreaTradingRules } from '../utilities/enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
@@ -167,7 +168,7 @@ describe('BMD-1048 Created area edits', () => {
     'strategicSignificance',
     'advanceYears',
     'delayYears'
-  ])('null %s saves null units and Incomplete', (field) => {
+  ])('null %s saves zero units and Incomplete (AC11 Scenario B)', (field) => {
     const cleared = { [field]: null }
     if (field === 'broadType') {
       cleared.habitatType = null
@@ -177,9 +178,48 @@ describe('BMD-1048 Created area edits', () => {
       cleared.condition = null
     }
     const result = update(cleared)
-    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(
+      postInterventionHabitatSchema.validate(result.feature).error
+    ).toBeUndefined()
     expect(result.unitsTotals.habitatsTotal).toBe(4)
   })
+
+  test.each([
+    { broadType: null, habitatType: null, condition: null },
+    { habitatType: null, condition: null },
+    { condition: null },
+    { strategicSignificance: null }
+  ])(
+    'an Incomplete edit (%o) stores zero units without entering trading rules or logging',
+    (cleared) => {
+      const other = {
+        ...feature,
+        featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        units: 4,
+        proposed: { ...feature.proposed, type: 'Other neutral grassland' }
+      }
+      const logger = { warn: vi.fn() }
+      const result = applyFeatureUpdate(
+        { postIntervention: { habitats: [feature, other] } },
+        {
+          featureId,
+          edits: { ...edits, ...cleared },
+          documentKey: 'postIntervention',
+          expectedType: 'habitat',
+          logger
+        }
+      )
+      expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+      const withoutEdited = enrichPostInterventionAreaTradingRules({
+        habitats: [other]
+      })
+      expect(result.tradingRules.areaHabitats).toEqual(
+        withoutEdited.tradingRules.areaHabitats
+      )
+      expect(logger.warn).not.toHaveBeenCalled()
+    }
+  )
 
   test.each([
     'condition',
@@ -187,15 +227,17 @@ describe('BMD-1048 Created area edits', () => {
     'advanceYears',
     'delayYears'
   ])(
-    'incomplete %s pricing stays identical after a baseline resync',
+    'incomplete %s pricing stays identical after a baseline resync, which recalculates null units (BMD-1070)',
     (field) => {
       const edited = update({ [field]: null }).feature
       const rederived = rederivePostInterventionFromBaseline(
         { habitats: [edited] },
         { baseline: {} }
       ).habitats[0]
+      expect(edited.units).toBe(0)
+      expect(rederived.units).toBeNull()
       for (const row of [edited, rederived]) {
-        expect(row).toMatchObject({ units: null, status: 'Incomplete' })
+        expect(row.status).toBe('Incomplete')
         expect(row.proposed).toMatchObject({
           distinctiveness: null,
           distinctivenessScore: null,
@@ -448,7 +490,7 @@ describe('BMD-1048 Created area edits', () => {
       expect(saved).toMatchObject({
         ref: edits.ref,
         status: 'Incomplete',
-        units: null,
+        units: 0,
         proposed: {
           strategicSignificance: null,
           rejectedStrategicSignificance: 'Medium'

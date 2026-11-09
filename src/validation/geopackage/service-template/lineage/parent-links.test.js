@@ -364,6 +364,59 @@ describe('checkParentLinks', () => {
     ).toEqual([ERROR_CODES.STAGED_BASELINE_DRIFTED])
   })
 
+  it('checks individual trees, naming each by its Habitat Ref', () => {
+    const TREE_UUID = '3b1f6c2a-8d4e-5f70-9a1b-2c3d4e5f6a7b'
+    const baselineTree = {
+      properties: {
+        fid: 1,
+        'Tree Ref': 'T001',
+        'Baseline Rural or Urban Tree': 'Urban tree',
+        feature_uuid: TREE_UUID
+      },
+      nativeGeometry: { type: 'Point', coordinates: [529600.1234, 179900.5678] }
+    }
+    const tree = (overrides) => ({
+      properties: {
+        fid: 1,
+        'Tree Ref': 'T001',
+        'Retention Category': 'Retained',
+        'Proposed Rural or Urban Tree': 'Urban tree',
+        parent_uuid: TREE_UUID,
+        parent_geom: 'Point (529600.123 179900.568)',
+        ...overrides
+      }
+    })
+    const run = (rows) =>
+      checkParentLinks(
+        layers(
+          { trees: [baselineTree] },
+          { trees: 'Individual Trees Baseline' }
+        ),
+        layers({ trees: rows }, { trees: 'Individual Trees Post-Intervention' })
+      )
+
+    expect(run([tree()])).toEqual([])
+    expect(
+      run([
+        tree({
+          fid: 2,
+          'Tree Ref': 'T009',
+          parent_uuid: null,
+          parent_geom: null
+        })
+      ])[0]
+    ).toMatchObject({
+      code: ERROR_CODES.STAGED_PARENT_LINK_MISSING,
+      message:
+        'One or more Retained or Enhanced post-intervention habitats do not name the baseline habitat they continue: Individual Trees Post-Intervention T009 (Urban tree)'
+    })
+    expect(
+      run([tree({ parent_geom: 'Point (529610 179900.568)' })]).map(
+        (e) => e.code
+      )
+    ).toEqual([ERROR_CODES.STAGED_BASELINE_DRIFTED])
+  })
+
   it('reports every problem in one file, one error each', () => {
     const errors = check({
       pi: [

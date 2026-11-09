@@ -80,14 +80,39 @@ describe('the BNG Service template 1.0 mapping', () => {
     expect([...columns.values()].every((name) => name === null)).toBe(true)
   })
 
-  test('reads no trees yet', () => {
+  test('reads every layer the service prices, trees included', () => {
     expect(Object.keys(TEMPLATE_MAPPING_1_0)).toEqual([
       'redline',
       'areas',
       'verticalHabitats',
       'hedgerows',
-      'watercourses'
+      'watercourses',
+      'trees'
     ])
+  })
+
+  test('reads a tree under the legacy Urban Trees names, its Count included', () => {
+    const { trees } = TEMPLATE_MAPPING_1_0
+    expect(trees.table(STAGE_BASELINE)).toBe('Individual Trees Baseline')
+    expect(trees.table(STAGE_POST_INTERVENTION)).toBe(
+      'Individual Trees Post-Intervention'
+    )
+    expect(trees.columns.get('Habitat Ref')).toBe('Tree Ref')
+    for (const column of [
+      'Baseline Tree Size',
+      'Baseline Tree Type',
+      'Baseline Rural or Urban Tree',
+      'Irreplaceable Habitat',
+      'Category',
+      'Proposed Tree Size',
+      'Habitat Created/Enhanced in advance/years',
+      'Delay in starting habitat creation/enhancement in years',
+      'Count',
+      'parent_uuid'
+    ]) {
+      expect(trees.columns.get(column)).toBe(column)
+    }
+    expect(trees.columns.get('Spatial risk category')).toBeNull()
   })
 
   test('keeps a vertical area habitat’s typed Area, which a line cannot give', () => {

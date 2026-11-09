@@ -9,6 +9,7 @@ import {
   RETENTION_RETAINED,
   resolveRetentionCategory
 } from './retention-category.js'
+import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
 import { shownValue } from '../../../validation/geopackage/text-limits.js'
 
 /**
@@ -61,9 +62,11 @@ function describeType(rawType) {
 }
 
 /**
- * Add a feature's units to the running total for its type. Non-finite units
- * are skipped with no warning. A type the reference data rejects is warned
- * and skipped, so an Incomplete or unrecognised row never enters the totals.
+ * Add a feature's units to the running total for its type. Incomplete rows and
+ * non-finite units are skipped with no warning: an Incomplete Created area
+ * edit stores zero units (BMD-1048 AC11), but it delivers no habitat. A type
+ * the reference data rejects is warned and skipped, so an Incomplete or
+ * unrecognised row never enters the totals.
  *
  * @param {Record<string, number>} unitsByType mutated
  * @param {object} feature
@@ -81,7 +84,11 @@ function addFeatureUnits(
   logPrefix
 ) {
   const units = feature?.units
-  if (typeof units !== 'number' || !Number.isFinite(units)) {
+  if (
+    feature?.status === HABITAT_STATUS.INCOMPLETE ||
+    typeof units !== 'number' ||
+    !Number.isFinite(units)
+  ) {
     return
   }
   const type = resolved?.type

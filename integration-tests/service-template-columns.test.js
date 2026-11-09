@@ -32,7 +32,8 @@ const LAYERS = [
   ['areas', 'habitats'],
   ['verticalHabitats', 'verticalHabitats'],
   ['hedgerows', 'hedgerows'],
-  ['watercourses', 'watercourses']
+  ['watercourses', 'watercourses'],
+  ['trees', 'trees']
 ]
 const STAGES = [
   [STAGE_BASELINE, 'baseline'],
@@ -65,7 +66,15 @@ const byFid = (features) =>
 
 const ADVANCE = 'Habitat created in advance/years'
 const DELAY = 'Delay in starting habitat creation/years'
-const TIMING = { [ADVANCE]: DELAY, [DELAY]: ADVANCE }
+// A tree's timing columns are named differently.
+const TREE_ADVANCE = 'Habitat Created/Enhanced in advance/years'
+const TREE_DELAY = 'Delay in starting habitat creation/enhancement in years'
+const TIMING = {
+  [ADVANCE]: DELAY,
+  [DELAY]: ADVANCE,
+  [TREE_ADVANCE]: TREE_DELAY,
+  [TREE_DELAY]: TREE_ADVANCE
+}
 const NO_YEARS = '0'
 const isBlank = (value) => value === null || String(value).trim() === ''
 // Years above 0, parsed as the calculation parses them.
@@ -231,7 +240,11 @@ describeServiceTemplate(
     it('prices every post-intervention habitat whose timing is known', () => {
       for (const [, documentKey] of LAYERS) {
         for (const feature of stored.postIntervention[documentKey]) {
-          const timing = [ADVANCE, DELAY].map((c) => feature.properties[c])
+          const columns =
+            documentKey === 'trees'
+              ? [TREE_ADVANCE, TREE_DELAY]
+              : [ADVANCE, DELAY]
+          const timing = columns.map((c) => feature.properties[c])
           const known =
             !USES_TIMING.has(feature.retentionCategory) ||
             (timing.every(isYears) && !timing.every(isBlank))
@@ -260,16 +273,40 @@ describeServiceTemplate(
       }
     })
 
-    it('reads the Red Line Boundary for its geometry alone, and no tree yet', () => {
+    it('reads the Red Line Boundary for its geometry alone', () => {
       for (const [, documentName] of STAGES) {
         const document = stored[documentName]
         expect(document.redLine.properties).toEqual({ fid: 1 })
         expect(JSON.stringify(document.redLine)).not.toContain(
           'Oakwood Regional Development'
         )
-        // Individual trees (BMD-1172) are not read yet.
-        expect(document.trees).toEqual([])
       }
+    })
+
+    it('reads every tree, at both stages, sized by the tree helper’s area for its size class and priced', () => {
+      // The Metric User Guide's Table 15, in square metres; the file has no
+      // Count column, so each point is one tree.
+      const squareMetres = {
+        Small: 41,
+        Medium: 163,
+        Large: 366,
+        'Very large': 765
+      }
+      for (const [, documentName] of STAGES) {
+        const trees = stored[documentName].trees
+        expect(trees.length, documentName).toBeGreaterThan(0)
+        for (const tree of trees) {
+          const size = tree.proposed?.treeSize ?? tree.treeSize
+          expect(tree.sizeSquareMetres, tree.ref).toBe(squareMetres[size])
+          expect(tree.irreplaceable, tree.ref).toBe(false)
+          expect(tree.status, tree.ref).toBe('Complete')
+          expect(tree.units, tree.ref).toBeGreaterThan(0)
+        }
+      }
+      const linked = stored.postIntervention.trees.filter(
+        (tree) => tree.retentionCategory !== 'Created'
+      )
+      expect(linked.every((tree) => tree.parentFeatureId)).toBe(true)
     })
 
     it('reads each area habitat’s Irreplaceable Habitat, at both stages', () => {

@@ -15,12 +15,26 @@ import { templateForVersion } from './supported-versions.js'
 /** The primary key, kept on every feature: messages name a row by it. */
 const FID = 'fid'
 
-// The template's years created in advance and years of delay. Its form greys
-// out one while the other is above 0, so a surveyor cannot fill it in: it is
-// left blank, and means 0 years.
-const ADVANCE = 'Habitat created in advance/years'
-const DELAY = 'Delay in starting habitat creation/years'
+// The template's years created in advance and years of delay, which trees
+// name differently. Its form greys out one while the other is above 0, so a
+// surveyor cannot fill it in: it is left blank, and means 0 years.
+const TIMING_COLUMNS = [
+  [
+    'Habitat created in advance/years',
+    'Delay in starting habitat creation/years'
+  ],
+  [
+    'Habitat Created/Enhanced in advance/years',
+    'Delay in starting habitat creation/enhancement in years'
+  ]
+]
 const NO_YEARS = '0'
+
+/** Each timing column, with the one whose years grey it out. */
+const GREYED_OUT_BY = TIMING_COLUMNS.flatMap(([advance, delay]) => [
+  [advance, delay],
+  [delay, advance]
+])
 
 const isBlank = (value) =>
   value === null ||
@@ -37,10 +51,7 @@ const aboveZero = (value) => (parseProposedAdvanceDelayYears(value) ?? 0) > 0
  * values the calculation needs.
  */
 function withGreyedOutTimingAsZero(properties) {
-  for (const [column, other] of [
-    [ADVANCE, DELAY],
-    [DELAY, ADVANCE]
-  ]) {
+  for (const [column, other] of GREYED_OUT_BY) {
     if (
       column in properties &&
       isBlank(properties[column]) &&

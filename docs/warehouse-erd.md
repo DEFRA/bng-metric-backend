@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 463 schema fields.
+**25 tables**, mapping 467 schema fields.
 
 ## Diagram
 
@@ -500,7 +500,7 @@ Hedgerow net unit change per habitat type. One row per unique Medium, Low or Ver
 
 ### `feature_set_lost_habitats`
 
-The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 8 column(s) mapped from the JSON document.
+The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 9 column(s) mapped from the JSON document.
 
 | Column                    | Type      | Key | JSON path                                              | Notes                                                   |
 | ------------------------- | --------- | --- | ------------------------------------------------------ | ------------------------------------------------------- |
@@ -512,6 +512,7 @@ The baseline habitats a BNG Service template upload loses, in full or in part (B
 | `type`                    | `text`    |     | `postIntervention.lostHabitats[].type`                 |                                                         |
 | `outcome`                 | `text`    |     | `postIntervention.lostHabitats[].outcome`              |                                                         |
 | `lost_size_square_metres` | `numeric` |     | `postIntervention.lostHabitats[].lostSizeSquareMetres` |                                                         |
+| `lost_tree_count`         | `integer` |     | `postIntervention.lostHabitats[].lostTreeCount`        |                                                         |
 | `lost_size_metres`        | `numeric` |     | `postIntervention.lostHabitats[].lostSizeMetres`       |                                                         |
 | `recreated_as`            | `uuid[]`  |     | `postIntervention.lostHabitats[].recreatedAs[]`        |                                                         |
 
@@ -774,7 +775,7 @@ habitats in the postIntervention document. 39 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 44 column(s) mapped from the JSON document.
+trees in the postIntervention document. 47 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -788,6 +789,9 @@ trees in the postIntervention document. 44 column(s) mapped from the JSON docume
 | `status`                                     | `text`    |     | `postIntervention.trees[].status`                                 |                                                                                  |
 | `comment`                                    | `text`    |     | `postIntervention.trees[].comment`                                |                                                                                  |
 | `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.trees[].baseline.condition`                     |                                                                                  |
