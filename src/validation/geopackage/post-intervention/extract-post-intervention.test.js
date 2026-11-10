@@ -1187,6 +1187,59 @@ describe('extractPostIntervention — individual tree nested structure', () => {
   })
 })
 
+describe('extractPostIntervention — a degraded tree’s blank proposed setting (BMD-1184)', () => {
+  const SERVICE_TEMPLATE = { template: { name: 'bng-service', version: '1.0' } }
+  const DEGRADED_TREE = {
+    'Tree Ref': 'T1',
+    'Retention Category': 'Created',
+    Category: 'Existing',
+    'Baseline Tree Size': 'Large',
+    'Baseline Rural or Urban Tree': 'Rural',
+    'Baseline Condition': 'Moderate',
+    'Proposed Rural or Urban Tree': '',
+    'Proposed Condition': 'Poor'
+  }
+
+  const proposedOf = (properties, meta) =>
+    extractPostIntervention(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        trees: [treeFeature(properties)]
+      },
+      meta
+    ).document.trees[0].proposed
+
+  it('gives an Existing Created tree with a blank setting its baseline setting', () => {
+    expect(proposedOf(DEGRADED_TREE, SERVICE_TEMPLATE)).toMatchObject({
+      type: 'Rural tree',
+      ruralOrUrban: 'Rural',
+      condition: 'Poor'
+    })
+  })
+
+  it('keeps the setting an Existing Created tree proposes', () => {
+    expect(
+      proposedOf(
+        { ...DEGRADED_TREE, 'Proposed Rural or Urban Tree': 'Urban' },
+        SERVICE_TEMPLATE
+      )
+    ).toMatchObject({ type: 'Urban tree', ruralOrUrban: 'Urban' })
+  })
+
+  it.each([
+    ['a Newly Planted tree', { Category: 'Newly Planted' }, SERVICE_TEMPLATE],
+    ['a legacy upload’s tree', {}, {}]
+  ])('leaves the blank setting of %s blank', (_name, overrides, meta) => {
+    expect(proposedOf({ ...DEGRADED_TREE, ...overrides }, meta)).toMatchObject({
+      type: null,
+      ruralOrUrban: ''
+    })
+  })
+})
+
 describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
   it('trims and truncates the Parcel Ref on habitats, hedgerows and watercourses', () => {
     const long = `${'P'.repeat(105)}  `

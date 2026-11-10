@@ -688,6 +688,45 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
     IMPORT_TIMEOUT_MS
   )
 
+  it(
+    'reads a blank proposed setting as the baseline one, keeping the condition, timing and units',
+    async () => {
+      const result = await importUploadFile(
+        degradedSite('degraded-blank-setting', {
+          ...DEGRADED,
+          'Proposed Rural or Urban Tree': null
+        }),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.errors ?? []).toEqual([])
+      const { baseline, postIntervention } = result.project
+      const parent = baseline.trees.find((tree) => tree.ref === 'T004')
+      const created = postIntervention.trees.find((tree) => tree.ref === 'T004')
+      expect(created).toMatchObject({
+        status: 'Complete',
+        sizeSquareMetres: 765,
+        proposed: {
+          type: 'Rural tree',
+          condition: 'Poor',
+          strategicSignificance: 'Low',
+          advanceYears: 30,
+          delayYears: 0
+        }
+      })
+      expect(created.units).toBeCloseTo(CREATED_UNITS, 10)
+      expect(
+        postIntervention.lostHabitats.find((lost) => lost.ref === 'T004')
+      ).toMatchObject({
+        outcome: 'lostAndRecreated',
+        recreatedAs: [created.featureId],
+        featureId: parent.featureId
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
   it.each([
     [
       'in the same condition',
