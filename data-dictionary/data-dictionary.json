@@ -1655,7 +1655,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.habitats[].spatialRiskCategory",
@@ -2021,7 +2021,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.trees[].spatialRiskCategory",
@@ -2328,7 +2328,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column)."
+      "description": "Tree type from the GeoPackage (Baseline/Proposed Tree Type column). One of the values the template's Tree Type list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.trees[].ruralOrUrban",
@@ -2342,7 +2342,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Raw Rural or Urban Tree value as written in the GeoPackage (e.g. \"Urban\")."
+      "description": "Rural or Urban Tree value as written in the GeoPackage (e.g. \"Urban tree\"). One of the values the template's list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.trees[].count",
@@ -2588,7 +2588,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.verticalHabitats[].spatialRiskCategory",
@@ -3128,7 +3128,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.hedgerows[].spatialRiskCategory",
@@ -3624,7 +3624,7 @@
         "one of its lists (case, spacing and list numbers aside)"
       ],
       "openMap": false,
-      "description": "Free-text location description from the GeoPackage."
+      "description": "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
     },
     {
       "path": "baseline.watercourses[].spatialRiskCategory",

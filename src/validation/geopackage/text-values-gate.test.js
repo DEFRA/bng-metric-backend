@@ -1,3 +1,4 @@
+import Database from 'better-sqlite3'
 import {
   TEMPLATE_ALLOWED_VALUES,
   TEMPLATE_SCHEMA
@@ -158,6 +159,44 @@ describe('text-values-gate', () => {
         expect(result.valid).toBe(true)
       }
     )
+
+    // SQLite's length() stops at a NUL in text, and a BLOB is not text, so
+    // both are measured in bytes: neither can slip past the limit.
+    test('measures a BLOB, and text holding a NUL, in bytes', async () => {
+      const refused = await withTempGpkgFile(
+        buildServiceTemplateBuffer({
+          rows: {
+            [AREA_PI]: [{ 'Habitat Ref': 'P1' }],
+            [AREA_BASELINE]: [{ 'Habitat Ref': 'B1' }, { 'Habitat Ref': 'N1' }]
+          }
+        }),
+        (file) => {
+          const db = new Database(file)
+          try {
+            db.prepare(
+              `UPDATE "${AREA_BASELINE}" SET "Comment" = ? WHERE "Habitat Ref" = 'B1'`
+            ).run(Buffer.alloc(LONG_TEXT_LIMIT + 1, 0x61))
+            db.prepare(
+              `UPDATE "${AREA_BASELINE}" SET "Comment" = CAST(? AS TEXT) || char(0) || ? WHERE "Habitat Ref" = 'N1'`
+            ).run('a', 'b'.repeat(LONG_TEXT_LIMIT))
+          } finally {
+            db.close()
+          }
+          return runFormatGate(file, EXTRACT_VARIANT.POST_INTERVENTION)
+        }
+      )
+      expect(codes(refused)).toEqual([ERROR_CODES.TEXT_TOO_LONG])
+      expect(
+        sampleOf(refused).map(({ ref, column, length }) => [
+          ref,
+          column,
+          length
+        ])
+      ).toEqual([
+        ['B1', 'Comment', LONG_TEXT_LIMIT + 1],
+        ['N1', 'Comment', LONG_TEXT_LIMIT + 2]
+      ])
+    })
 
     test('measures a value once the whitespace at its ends is removed', async () => {
       const result = await oneValue(

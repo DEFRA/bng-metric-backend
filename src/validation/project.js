@@ -56,7 +56,7 @@ const metadataSchemaKeys = () => ({
     'Base map used during mapping (Base Map column).'
   ),
   location: listedFileText('location').description(
-    'Free-text location description from the GeoPackage.'
+    "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
   ),
   spatialRiskCategory: listedFileText('spatialRiskCategory').description(
     'Spatial risk category from the GeoPackage.'
@@ -216,10 +216,10 @@ const treeSchema = habitatSchema
       "Tree size band from the GeoPackage (Baseline/Proposed Tree Size), e.g. 'Medium'. Determines the per-tree area."
     ),
     treeSpecies: listedFileText('treeSpecies').description(
-      'Tree species/type free text from the GeoPackage (Baseline/Proposed Tree Type column).'
+      "Tree type from the GeoPackage (Baseline/Proposed Tree Type column). One of the values the template's Tree Type list offers, as the upload checks it, or blank."
     ),
     ruralOrUrban: listedFileText('ruralOrUrban').description(
-      'Raw Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban").'
+      'Rural or Urban Tree value as written in the GeoPackage (e.g. "Urban tree"). One of the values the template\'s list offers, as the upload checks it, or blank.'
     ),
     count: Joi.number()
       .allow(null)

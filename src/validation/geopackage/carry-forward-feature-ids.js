@@ -24,7 +24,6 @@
 // every project, and the file, and so the uuid, is the user's.
 import { FEATURE_UUID } from 'bng-library/bng-service'
 
-import { cleanHabitatRef } from './habitat-ref-check.js'
 import { PROP_KEYS } from './properties.js'
 
 /**
@@ -76,7 +75,7 @@ export function normaliseRef(ref) {
   if (typeof ref !== 'string' && typeof ref !== 'number') {
     return null
   }
-  const cleaned = String(cleanHabitatRef(ref))
+  const cleaned = typeof ref === 'number' ? ref.toString() : ref.trim()
   const characters = Array.from(cleaned)
   const compared =
     characters.length > REF_COMPARE_LENGTH

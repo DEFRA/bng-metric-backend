@@ -232,18 +232,15 @@ function lengthErrors(db, tables) {
   return tables.flatMap((table) => overLimitErrors(db, table))
 }
 
-// The whitespace SQL trims from a value before calling it blank: SQLite's
-// trim() alone removes only spaces.
-// The characters String.prototype.trim() removes, so a value is measured
-// here as characterCount measures it: the ASCII whitespace, the no-break
-// space, the Unicode space separators, the line and paragraph separators and
-// the byte order mark.
-const TRIMMED_CODE_POINTS = [
-  9, 10, 11, 12, 13, 32, 0xa0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
-  0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f,
-  0x205f, 0x3000, 0xfeff
-]
-const BLANK_CHARACTERS = `char(${TRIMMED_CODE_POINTS.join(', ')})`
+// The whitespace SQL trims from a value: the characters String.prototype.trim()
+// removes, so a value is measured here as characterCount measures it. SQLite's
+// trim() alone removes only spaces. They are the ASCII whitespace, the
+// no-break space, the Unicode space separators, the line and paragraph
+// separators and the byte order mark.
+const TRIMMED_CHARACTERS =
+  '\t\n\v\f\r \u00a0\u1680\u2000\u2001\u2002\u2003\u2004\u2005\u2006' +
+  '\u2007\u2008\u2009\u200a\u2028\u2029\u202f\u205f\u3000\ufeff'
+const BLANK_CHARACTERS = `char(${Array.from(TRIMMED_CHARACTERS, (character) => character.codePointAt(0)).join(', ')})`
 
 /** SQL that is true where `column` holds a value that is not blank. */
 function notBlankSql(column) {

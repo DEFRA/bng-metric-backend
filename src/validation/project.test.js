@@ -395,6 +395,20 @@ describe('#habitatDataSchema', () => {
     expect(error.message).toMatch(/"watercourses\[0\]\.status" must be one of/)
   })
 
+  // The stored limit, apart from the upload's (BMD-1175): 999 characters,
+  // counted as code points.
+  test('Should accept a comment of 999 characters and refuse one of 1,000', () => {
+    const baseline = structuredClone(validBaseline)
+    baseline.habitats[0].comment = '🌳'.repeat(999)
+    expect(habitatDataSchema.validate(baseline).error).toBeUndefined()
+
+    baseline.habitats[0].comment = '🌳'.repeat(1000)
+    const { error } = habitatDataSchema.validate(baseline)
+    expect(error.details.map((detail) => detail.type)).toEqual([
+      'string.maxCharacters'
+    ])
+  })
+
   test('Should reject the legacy misspelled watercoursEncroachment field', () => {
     const baseline = structuredClone(validBaseline)
     baseline.watercourses[0].watercoursEncroachment = 'None'
@@ -452,6 +466,18 @@ describe('#postInterventionDataSchema', () => {
   test('Should validate a valid post-intervention document', () => {
     const { error } = postInterventionDataSchema.validate(validPostIntervention)
     expect(error).toBeUndefined()
+  })
+
+  test('Should accept a comment of 999 characters and refuse one of 1,000', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].comment = '🌳'.repeat(999)
+    expect(postInterventionDataSchema.validate(doc).error).toBeUndefined()
+
+    doc.habitats[0].comment = '🌳'.repeat(1000)
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error.details.map((detail) => detail.type)).toEqual([
+      'string.maxCharacters'
+    ])
   })
 
   test('Should require status on habitat records', () => {
