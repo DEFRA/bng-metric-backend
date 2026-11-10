@@ -339,10 +339,7 @@ export const ERROR_SURFACES = Object.freeze({
 // Every code is an upload code unless it is listed here. A new code raised
 // when a habitat is edited on screen must be added, or the frontend is asked
 // for drop-out page wording for an error that page never shows.
-const EDIT_ONLY_CODES = new Set([
-  ERROR_CODES.HABITAT_REF_IN_USE,
-  ERROR_CODES.ENHANCEMENT_NOT_VALID
-])
+const EDIT_ONLY_CODES = new Set([ERROR_CODES.ENHANCEMENT_NOT_VALID])
 const UPLOAD_AND_EDIT_CODES = new Set([
   // The upload check refuses one in a file; an edit refuses one chosen on screen.
   ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE

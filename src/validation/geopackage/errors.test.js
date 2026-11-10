@@ -146,7 +146,6 @@ describe('ERROR_CODE_SURFACES', () => {
   const ROUTES = path.join(import.meta.dirname, '..', '..', 'routes')
   // The helpers the edit routes refuse a change with.
   const EDIT_ERROR_HELPERS = [
-    'ref-in-use-error.js',
     'invalid-enhancement-error.js',
     'out-of-scope-error.js'
   ]
@@ -192,7 +191,7 @@ describe('ERROR_CODE_SURFACES', () => {
   )
 
   it('keeps edit-only codes off the drop-out page, and the rest on it', () => {
-    expect(ERROR_CODE_SURFACES.HABITAT_REF_IN_USE).toEqual([
+    expect(ERROR_CODE_SURFACES.ENHANCEMENT_NOT_VALID).toEqual([
       ERROR_SURFACES.EDIT
     ])
     expect(ERROR_CODE_SURFACES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE).toEqual([
