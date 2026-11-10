@@ -1,6 +1,7 @@
 import { describe, it, expect } from 'vitest'
 
 import { EPSG_BNG, baselineSchema } from '../../../test/helpers/gpkg.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 const { ERROR_CODES } = await import('./errors.js')
 const {
@@ -87,6 +88,11 @@ describe('compareGeometryRegistrationRow', () => {
     expect(errors[0].code).toBe(
       ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME
     )
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      column: 'geom-bad'
+    })
+    errors.forEach(expectDeclaredDetails)
   })
 
   it('reports a GPKG_BASELINE_GEOMETRY_TYPE_NAME error when geometry type does not match', () => {
@@ -96,6 +102,12 @@ describe('compareGeometryRegistrationRow', () => {
       geom_srs_raw: EPSG_BNG
     })
     expect(errors[0].message).toMatch(/geometry type/)
+    expect(errors[0].details).toEqual({
+      layer: 'Habitats',
+      expected: habitatsLayer.geometryColumn.geometryType,
+      found: 'POINT'
+    })
+    errors.forEach(expectDeclaredDetails)
   })
 })
 
@@ -129,6 +141,7 @@ describe('compareDefinedColumnsToSchema (minimal — presence and sqlite type)',
     expect(errors.some((e) => e.message.includes('missing column "fid"'))).toBe(
       true
     )
+    expect(errors[0].details).toEqual({ layer: 'T', column: 'fid' })
   })
 
   it('reports GPKG_BASELINE_COLUMN_SQLITE_TYPE when the column type does not match', () => {
@@ -148,6 +161,29 @@ describe('compareDefinedColumnsToSchema (minimal — presence and sqlite type)',
       true
     )
     expect(typeErrors.some((e) => e.message.includes('Integer was'))).toBe(true)
+    expect(typeErrors.map((e) => e.details)).toEqual([
+      { layer: 'T', column: 'fid', expectedType: 'Integer', actualType: 'Text' }
+    ])
+    typeErrors.forEach(expectDeclaredDetails)
+  })
+
+  it('names a geometry type in an attribute column as not-scalar', () => {
+    const geometryTypedMap = new Map([
+      ['fid', pragma('fid', 'INTEGER', 1, 1)],
+      ['label', pragma('label', 'MULTIPOLYGON')]
+    ])
+    const [typeError] = sqliteTypeErrors(
+      runCompareColumns(MINIMAL_TWO_COLUMN_LAYER, 'T', geometryTypedMap)
+    )
+    expect(typeError.message).toContain('has a MultiPolygon geometry but')
+    expect(typeError.details).toEqual({
+      layer: 'T',
+      column: 'label',
+      expectedType: 'Text',
+      actualType: 'MultiPolygon geometry',
+      variants: ['not-scalar']
+    })
+    expectDeclaredDetails(typeError)
   })
 })
 
@@ -159,6 +195,14 @@ describe('compareDefinedColumnsToSchema (minimal — NOT NULL / primary key)', (
     ])
     const errors = runCompareColumns(MINIMAL_TWO_COLUMN_LAYER, 'T', fidInteger)
     expect(errors.some((e) => e.message.includes('NOT NULL'))).toBe(true)
+    const notNull = errors.filter(
+      (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL
+    )
+    // fid is required and the file has it optional; label the other way.
+    expect(notNull.map((e) => e.details)).toEqual([
+      { layer: 'T', column: 'fid' },
+      { layer: 'T', column: 'label', variants: ['optional'] }
+    ])
   })
 
   it('reports GPKG_BASELINE_COLUMN_PRIMARY_KEY when pk expectation mismatches', () => {
@@ -172,6 +216,11 @@ describe('compareDefinedColumnsToSchema (minimal — NOT NULL / primary key)', (
       labelOkButPk
     )
     expect(errors.some((e) => e.message.includes('primary key'))).toBe(true)
+    const primaryKey = errors.find(
+      (e) => e.code === ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY
+    )
+    expect(primaryKey.details).toEqual({ layer: 'T', column: 'fid' })
+    errors.forEach(expectDeclaredDetails)
   })
 })
 
@@ -322,5 +371,13 @@ describe('compareDefinedColumnsToSchema (null pragma type)', () => {
           e.message.includes('no SQLite column type declared')
       )
     ).toBe(true)
+    const typeError = firstSqliteTypeMismatch(errors)
+    expect(typeError.details).toEqual({
+      layer: 'T',
+      column: 'col',
+      expectedType: 'Text',
+      variants: ['undeclared']
+    })
+    expectDeclaredDetails(typeError)
   })
 })

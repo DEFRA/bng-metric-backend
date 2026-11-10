@@ -514,3 +514,87 @@ describe('importing a post-intervention file', () => {
     })
   })
 })
+
+describe('rejectInvalidEnhancements — a BNG Service template upload’s individual trees', () => {
+  const TEMPLATE = { name: 'bng-service', version: '1.0' }
+
+  function enhancedTree(baselineCondition, proposedCondition) {
+    const side = {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      ruralOrUrban: 'Urban tree',
+      sizeSquareMetres: 163
+    }
+    return {
+      featureId: 'feature-T1',
+      ref: 'T1',
+      retentionCategory: 'Enhanced',
+      status: 'Complete',
+      baseline: { ...side, condition: baselineCondition },
+      proposed: {
+        ...side,
+        condition: proposedCondition,
+        strategicSignificance: 'High',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    }
+  }
+
+  it.each([
+    ['Poor', 'Fairly Poor'],
+    ['Moderate', 'Good'],
+    ['Fairly Good', 'Good']
+  ])('keeps a tree enhanced from %s to %s', (from, to) => {
+    const document = { template: TEMPLATE, trees: [enhancedTree(from, to)] }
+
+    expect(rejectInvalidEnhancements(document)).toBe(0)
+    expect(document.trees[0].proposed.condition).toBe(to)
+    expect(document.trees[0]).not.toHaveProperty('invalidEnhancement')
+  })
+
+  it.each([
+    ['Moderate', 'Moderate'],
+    ['Moderate', 'Poor'],
+    ['Good', 'Good']
+  ])(
+    'nulls the Proposed Condition alone of a tree "enhanced" from %s to %s, and saves it Incomplete',
+    (from, to) => {
+      const document = { template: TEMPLATE, trees: [enhancedTree(from, to)] }
+
+      expect(rejectInvalidEnhancements(document)).toBe(1)
+      expect(document.trees[0]).toMatchObject({
+        status: 'Incomplete',
+        invalidEnhancement: 'tree-better-condition',
+        proposed: {
+          condition: null,
+          treeSize: 'Medium',
+          type: 'Urban tree',
+          strategicSignificance: 'High'
+        }
+      })
+    }
+  )
+
+  it('leaves a Retained tree, and one whose condition the Metric does not score, alone', () => {
+    const retained = {
+      ...enhancedTree('Moderate', 'Poor'),
+      retentionCategory: 'Retained'
+    }
+    const unscored = enhancedTree('Moderate', 'N/A')
+    const document = { template: TEMPLATE, trees: [retained, unscored] }
+
+    expect(rejectInvalidEnhancements(document)).toBe(0)
+    expect(retained.proposed.condition).toBe('Poor')
+    expect(unscored.proposed.condition).toBe('N/A')
+  })
+
+  it('leaves a legacy upload’s trees as they were', () => {
+    const tree = enhancedTree('Moderate', 'Moderate')
+
+    expect(rejectInvalidEnhancements({ trees: [tree] })).toBe(0)
+    expect(tree.proposed.condition).toBe('Moderate')
+    expect(tree).not.toHaveProperty('invalidEnhancement')
+  })
+})

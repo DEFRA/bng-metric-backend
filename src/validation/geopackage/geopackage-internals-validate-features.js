@@ -161,6 +161,7 @@ export function validateRedLineBoundary(
  * @param {number} params.minExpectedCount
  * @param {string} params.insufficientErrorCode
  * @param {string} params.insufficientMessage
+ * @param {object} [params.insufficientDetails]
  * @param {string} params.wrongTypeErrorCode
  * @param {string} params.wrongTypeMessage
  * @param {string[]} params.errors
@@ -171,12 +172,15 @@ function pushExpectedGeometryTypeErrors({
   minExpectedCount,
   insufficientErrorCode,
   insufficientMessage,
+  insufficientDetails,
   wrongTypeErrorCode,
   wrongTypeMessage,
   errors
 }) {
   if (matchingCount < minExpectedCount) {
-    errors.push(makeError(insufficientErrorCode, insufficientMessage))
+    errors.push(
+      makeError(insufficientErrorCode, insufficientMessage, insufficientDetails)
+    )
     return
   }
   if (matchingCount < geometryCount) {
@@ -222,6 +226,8 @@ export function validateHabitats(featureTables, errors, logger = NO_OP_LOGGER) {
     insufficientErrorCode: ERROR_CODES.NO_HABITAT_AREAS,
     insufficientMessage:
       'Zero area habitat parcels in GeoPackage (expecting at least one)',
+    // The spatial checks word the same code another way (ERROR_CODE_DETAILS).
+    insufficientDetails: { variants: ['structure'] },
     wrongTypeErrorCode: ERROR_CODES.GPKG_HABITATS_WRONG_GEOMETRY_TYPE,
     wrongTypeMessage: 'Habitats contains feature(s) with non-polygon geometry',
     errors

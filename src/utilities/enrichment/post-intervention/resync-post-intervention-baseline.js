@@ -21,7 +21,8 @@
 // `parentFeatureId` (BMD-1083), so its rows re-sync from that parent and
 // nothing else: refs are labels there, not the join, so a row with no parent
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
-// Its trees are not linked yet (BMD-1172), so they still re-sync by ref.
+// Its kept trees then take their parent's identity again, priced for their
+// own Count (tree-lineage.js).
 //
 // In a legacy upload, reference-edited Created areas, hedgerows and watercourses retain their
 // explicit parent independently of their editable ref; null explicitly means no
@@ -554,7 +555,6 @@ export function resyncPostInterventionBaselineSide(
         ),
         updatedById: buildFeatureById(baseline?.[layer]),
         fields,
-        // Trees are not linked until BMD-1172, so they re-sync by ref.
         byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
       },
       { layer, logger }

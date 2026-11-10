@@ -1,6 +1,12 @@
 import { FORMAT_BNG_SERVICE, RED_LINE_BOUNDARY } from 'bng-library/bng-service'
 
-import { ERROR_CODES, makeError } from '../errors.js'
+import {
+  ERROR_CODES,
+  ERROR_CODE_DETAILS,
+  TEMPLATE_VARIANT,
+  makeError,
+  withVariant
+} from '../errors.js'
 import {
   checkGeoPackageIdentity,
   checkRequiredLayersFromSchema,
@@ -54,12 +60,28 @@ const TEMPLATE_WORDING = [
   ]
 ]
 
+/**
+ * Whether the code's shared check is worded in this template's terms
+ * (ERROR_CODE_DETAILS), so its error names the bng-service variant. Decided
+ * by the code, not by whether the message changed: the message holds names
+ * from the file.
+ */
+function hasTemplateWording(error) {
+  return (
+    ERROR_CODE_DETAILS[error.code]?.variants?.includes(TEMPLATE_VARIANT) &&
+    !error.details?.variants?.includes(TEMPLATE_VARIANT)
+  )
+}
+
 function inTemplateTerms(error) {
   let message = error.message
   for (const [legacy, template] of TEMPLATE_WORDING) {
     message = message.replaceAll(legacy, template)
   }
-  return { ...error, message }
+  const reworded = { ...error, message }
+  return hasTemplateWording(error)
+    ? withVariant(reworded, TEMPLATE_VARIANT)
+    : reworded
 }
 
 function isLegacyTemplate(db) {
@@ -88,7 +110,7 @@ function unsupportedVersionError(version) {
   return makeError(
     ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED,
     `The file is in version ${version} of the BNG Service template, which the service does not read. It reads version ${supportedTemplateVersions().join(', ')}.`,
-    { version }
+    { version, supportedVersions: supportedTemplateVersions() }
   )
 }
 
@@ -105,7 +127,8 @@ function checkRedLineBoundaryGeometry(db, errors) {
     errors.push(
       makeError(
         ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN,
-        `The ${RED_LINE_BOUNDARY} table has no geometry column`
+        `The ${RED_LINE_BOUNDARY} table has no geometry column`,
+        { variants: [TEMPLATE_VARIANT] }
       )
     )
   }
@@ -129,7 +152,13 @@ function checkGeometryColumnNames(db, schema, tables, errors) {
       errors.push(
         makeError(
           ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
-          `Layer "${layerDef.tableName}" does not match the BNG Service template: its geometry column is named "${rows[0].column_name}" but should be "${expected}"`
+          `Layer "${layerDef.tableName}" does not match the BNG Service template: its geometry column is named "${rows[0].column_name}" but should be "${expected}"`,
+          {
+            layer: layerDef.tableName,
+            column: rows[0].column_name,
+            expected,
+            variants: ['named']
+          }
         )
       )
     }

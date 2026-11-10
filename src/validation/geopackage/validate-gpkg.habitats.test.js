@@ -54,7 +54,11 @@ describe('validateGpkg when the Habitats geometry column is missing or invalid',
     expect(result.errors[0]).toEqual({
       code: ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
       message:
-        'Layer "Habitats" geometry column "geom"; DROP TABLE "Habitats"; --" has an invalid name in gpkg_geometry_columns'
+        'Layer "Habitats" geometry column "geom"; DROP TABLE "Habitats"; --" has an invalid name in gpkg_geometry_columns',
+      details: {
+        layer: 'Habitats',
+        column: 'geom"; DROP TABLE "Habitats"; --'
+      }
     })
   })
 })

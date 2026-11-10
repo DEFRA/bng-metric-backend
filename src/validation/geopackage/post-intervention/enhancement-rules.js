@@ -15,6 +15,7 @@ import {
 } from 'bng-library/metric'
 
 import { engineHabitatTypeCandidates } from '../../../utilities/enrichment/shared/engine-helpers.js'
+import { conditionScore } from '../service-template/lineage/habitat-change.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import {
   canonicalHabitatType,
@@ -67,13 +68,52 @@ const KIND_BY_LAYER = Object.freeze({
 export const ENHANCEMENT_RULE_LAYERS = Object.freeze(Object.keys(KIND_BY_LAYER))
 
 /**
+ * The one rule an Enhanced individual tree can break: its proposed condition
+ * must be better than its baseline one. Its size, type and setting are its
+ * baseline tree's (tree-lineage.js), so its condition is all it enhances.
+ */
+export const TREE_ENHANCEMENT_RULE = 'tree-better-condition'
+
+/**
  * @param {string} layer a post-intervention document key
  * @returns {string[]} the ENHANCEMENT_RULE values an enhancement on that layer
  *   can break
  */
 export function enhancementRulesForLayer(layer) {
+  if (layer === 'trees') {
+    return [TREE_ENHANCEMENT_RULE]
+  }
   const kind = KIND_BY_LAYER[layer]?.kind
   return kind ? enhancementRulesFor(kind) : []
+}
+
+/**
+ * Check an Enhanced individual tree's condition against its baseline one, by
+ * the Metric's condition scores for its habitat (Good, Fairly Good, Moderate,
+ * Fairly Poor, Poor). A tree in Good condition at baseline cannot be
+ * enhanced, as no condition is better.
+ *
+ * @param {{ baseline?: object, proposed?: object }} tree
+ * @returns {{ rule: string, valid: boolean, baseline: object, proposed: object } | null}
+ *   null when either condition is not one the Metric scores for the tree
+ *   (left to the checks that own it)
+ */
+export function checkTreeEnhancement(tree) {
+  const baselineScore = conditionScore('trees', tree?.baseline ?? {})
+  const proposedScore = conditionScore('trees', tree?.proposed ?? {})
+  if (baselineScore === null || proposedScore === null) {
+    return null
+  }
+  const side = (value) => ({
+    habitat: areaHabitat(value) ?? '',
+    condition: stripConditionPrefix(value?.condition)
+  })
+  return {
+    rule: TREE_ENHANCEMENT_RULE,
+    valid: proposedScore > baselineScore,
+    baseline: side(tree.baseline),
+    proposed: side(tree.proposed)
+  }
 }
 
 /**
