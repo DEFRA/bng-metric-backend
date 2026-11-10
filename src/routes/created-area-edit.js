@@ -12,7 +12,11 @@ import {
   RETENTION_CREATED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
+// A comment belongs to a baseline habitat (BMD-1112) and is editable only on
+// the baseline details page, so a post-intervention edit that sends one is
+// refused rather than silently answered 200 having saved nothing.
 export const postInterventionAreaEditPayload = featureEditPayload
+  .fork(['comment'], (schema) => schema.forbidden())
   .keys({
     strategicSignificance: Joi.string()
       .valid(

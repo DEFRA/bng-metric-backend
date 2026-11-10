@@ -10,7 +10,8 @@ import {
   checkHabitatComments,
   cleanComment,
   commentForBaseline,
-  commentForPostIntervention
+  commentForPostIntervention,
+  commentLength
 } from './comment-check.js'
 import { ERROR_CODES } from './errors.js'
 import { readGeoPackage } from './geopackage.js'
@@ -27,9 +28,35 @@ function codesOf(errors) {
   return errors.map((error) => error.code)
 }
 
+describe('commentLength', () => {
+  it('counts code points after trimming, so an emoji is one character', () => {
+    expect(commentLength(`  ${'🌳'.repeat(MAX_COMMENT_LENGTH)}  `)).toBe(
+      MAX_COMMENT_LENGTH
+    )
+    expect(commentLength('a'.repeat(MAX_COMMENT_LENGTH))).toBe(
+      MAX_COMMENT_LENGTH
+    )
+  })
+
+  it('counts a CRLF line break as the one character it is stored as', () => {
+    const withBreak = `${'a'.repeat(MAX_COMMENT_LENGTH - 2)}\r\na`
+    expect(commentLength(withBreak)).toBe(MAX_COMMENT_LENGTH)
+    expect(cleanComment(withBreak)).toHaveLength(MAX_COMMENT_LENGTH)
+  })
+})
+
 describe('cleanComment', () => {
   it('trims the ends and keeps spaces inside the text', () => {
     expect(cleanComment('  kept  note \n')).toBe('kept  note')
+  })
+
+  // A browser newline-normalises a textarea's value to CRLF when it submits
+  // the form, so the feature edit route would otherwise store the same text
+  // an upload stores with LF line breaks.
+  it('stores a CRLF or CR line break as LF', () => {
+    expect(cleanComment(' one\r\ntwo\rthree\nfour ')).toBe(
+      'one\ntwo\nthree\nfour'
+    )
   })
 
   it('turns a blank comment into null', () => {

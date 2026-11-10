@@ -27,6 +27,7 @@ import {
   recomputeWatercourse
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
+import { cleanComment } from '../../validation/geopackage/comment-check.js'
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
@@ -99,6 +100,21 @@ function normalizeRef(ref) {
   return cleaned === '' ? undefined : cleaned
 }
 
+/**
+ * The edited comment as it is stored, or undefined when the edit leaves it
+ * alone. An absent comment is not a request to clear it. Blank and
+ * whitespace-only become null.
+ *
+ * @param {object} edits
+ * @returns {string | null | undefined}
+ */
+function normalizeComment(edits) {
+  if (!Object.hasOwn(edits, 'comment')) {
+    return undefined
+  }
+  return cleanComment(edits.comment)
+}
+
 function normalizeEdits(edits = {}) {
   return {
     ref: normalizeRef(edits.ref),
@@ -116,7 +132,8 @@ function normalizeEdits(edits = {}) {
     habitatType: blankToNull(edits.habitatType),
     condition: blankToNull(edits.condition),
     watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
-    riparianEncroachment: blankToNull(edits.riparianEncroachment)
+    riparianEncroachment: blankToNull(edits.riparianEncroachment),
+    comment: normalizeComment(edits)
   }
 }
 
@@ -223,6 +240,8 @@ function mergeBaselineFeature(type, existing, edits, derived) {
   const base = {
     ...existing,
     ...(edits.ref === undefined ? {} : { ref: edits.ref }),
+    // Omitted when the edit did not send a comment, so the stored one stays.
+    ...(edits.comment === undefined ? {} : { comment: edits.comment }),
     condition: edits.condition,
     distinctiveness: derived.distinctiveness,
     distinctivenessScore: derived.distinctivenessScore,
@@ -518,7 +537,7 @@ function resolveEditTarget(
  * @param {object} project — full row.project JSONB
  * @param {object} params
  * @param {string} params.featureId
- * @param {object} params.edits  { ref?, broadType?, habitatType?, condition? }
+ * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment? }
  *   `ref` renames a baseline feature (BMD-1061), or a Created area when
  *   the complete timing/strategic edit payload is supplied (BMD-1048). The re-derive then carries the new ref onto the
  *   post-intervention rows measured against the feature, so the two documents
