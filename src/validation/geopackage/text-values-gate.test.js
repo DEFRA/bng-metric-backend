@@ -477,6 +477,34 @@ describe('text-values-gate', () => {
       expect(codes(result)).not.toContain(ERROR_CODES.VALUE_NOT_ALLOWED)
     })
 
+    // The legacy import reads an alias column when the template column is
+    // blank (pickProp), so an alias is checked as its template column is.
+    test('checks an alias column, such as Baseline_Condition or Comment_s, as its template column', async () => {
+      const result = await legacyGate((db) => {
+        db.exec(
+          'ALTER TABLE "Habitats" ADD COLUMN "Baseline_Condition" TEXT; ALTER TABLE "Habitats" ADD COLUMN "Comment_s" TEXT'
+        )
+        db.prepare(
+          'UPDATE "Habitats" SET "Baseline Condition" = NULL, "Comment" = NULL, "Baseline_Condition" = ?, "Comment_s" = ?'
+        ).run('Splendid', 'c'.repeat(LONG_TEXT_LIMIT + 1))
+      })
+      expect(codes(result)).toEqual([ERROR_CODES.TEXT_TOO_LONG])
+      expect(new Set(sampleOf(result).map((entry) => entry.column))).toEqual(
+        new Set(['Comment_s'])
+      )
+
+      const unlisted = await legacyGate((db) => {
+        db.exec('ALTER TABLE "Habitats" ADD COLUMN "Baseline_Condition" TEXT')
+        db.prepare(
+          'UPDATE "Habitats" SET "Baseline Condition" = NULL, "Baseline_Condition" = ?'
+        ).run('Splendid')
+      })
+      expect(codes(unlisted)).toEqual([ERROR_CODES.VALUE_NOT_ALLOWED])
+      expect(new Set(sampleOf(unlisted).map((entry) => entry.column))).toEqual(
+        new Set(['Baseline_Condition'])
+      )
+    })
+
     test('refuses a value that no list offers, and accepts a numbered legacy label', async () => {
       const refused = await legacyGate((db) =>
         db

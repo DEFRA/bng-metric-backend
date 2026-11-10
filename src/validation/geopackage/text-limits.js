@@ -1,5 +1,7 @@
 import { TEMPLATE_ALLOWED_VALUES } from 'bng-library/bng-service'
 
+import { PROP_KEYS, PROPOSED_PROP_KEYS } from './properties.js'
+
 /**
  * The longest text each column of an uploaded GeoPackage may hold, in
  * characters (Unicode code points, not bytes), once leading and trailing
@@ -90,6 +92,27 @@ const TEXT_LIMITS = new Map([
   ...LONG_TEXT_COLUMNS.map((column) => [columnKey(column), LONG_TEXT_LIMIT]),
   [columnKey(SPATIAL_RISK), SPATIAL_RISK_LIMIT]
 ])
+
+// The legacy import reads a value from an alias when its template column is
+// blank (pickProp, PROP_KEYS), such as Baseline_Condition or Comment_s. An
+// alias is checked as its template column is, so no value reaches the import
+// unchecked. An alias that names a column of its own is left as it is.
+for (const aliases of [
+  ...Object.values(PROP_KEYS),
+  ...Object.values(PROPOSED_PROP_KEYS)
+]) {
+  const keys = aliases.map(columnKey)
+  const known = keys.find((key) => TEXT_LIMITS.has(key))
+  if (known === undefined) {
+    continue
+  }
+  for (const key of keys.filter((key) => !TEXT_LIMITS.has(key))) {
+    TEXT_LIMITS.set(key, TEXT_LIMITS.get(known))
+    if (ALLOWED_VALUES.has(known)) {
+      ALLOWED_VALUES.set(key, ALLOWED_VALUES.get(known))
+    }
+  }
+}
 
 /**
  * The longest text a column may hold, or null for a column with no limit:
