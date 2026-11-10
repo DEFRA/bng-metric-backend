@@ -1,4 +1,7 @@
-import { TEMPLATE_SCHEMA } from 'bng-library/bng-service'
+import {
+  TEMPLATE_ALLOWED_VALUES,
+  TEMPLATE_SCHEMA
+} from 'bng-library/bng-service'
 
 import { config } from '../../config.js'
 import { ERROR_CODES } from './errors.js'
@@ -57,12 +60,18 @@ const LIMITED_COLUMNS = TEMPLATE_SCHEMA.tables.flatMap((table) =>
     .filter(([, , limit]) => limit !== null)
 )
 
+// The template's list names, worked out here rather than by the code under
+// test, so a column the code leaves out still has its refusal tested.
+const LIST_NAMES = new Set(
+  Object.keys(TEMPLATE_ALLOWED_VALUES).map((name) => name.trim().toLowerCase())
+)
+
 /** Every habitat table's drop-down and filled-in column, as [table, column]. */
 const LISTED_COLUMNS = TEMPLATE_SCHEMA.tables
   .filter((table) => table.name !== RED_LINE)
   .flatMap((table) =>
     table.columns
-      .filter((column) => allowedValuesOf(column.name) !== null)
+      .filter((column) => LIST_NAMES.has(column.name.trim().toLowerCase()))
       .map((column) => [table.name, column.name])
   )
 
@@ -132,6 +141,23 @@ describe('text-values-gate', () => {
       })
       expect(codes(over)).toEqual([ERROR_CODES.TEXT_TOO_LONG])
     })
+
+    test.each([
+      ['a no-break space', '\u00a0'],
+      ['an em space', '\u2003'],
+      ['an ideographic space', '\u3000'],
+      ['a byte order mark', '\ufeff']
+    ])(
+      'does not count %s at either end, as the stored check does not',
+      async (_label, space) => {
+        const result = await oneValue(
+          AREA_BASELINE,
+          'Comment',
+          `${space}${'a'.repeat(LONG_TEXT_LIMIT)}${space}`
+        )
+        expect(result.valid).toBe(true)
+      }
+    )
 
     test('measures a value once the whitespace at its ends is removed', async () => {
       const result = await oneValue(
@@ -221,6 +247,13 @@ describe('text-values-gate', () => {
       const result = await oneValue(AREA_PI, 'Spatial risk category', longest)
       expect(result.valid).toBe(true)
       expect(textLimitOf('Spatial risk category')).toBe(SPATIAL_RISK_LIMIT)
+    })
+
+    test('checks every column the template gives a list against that list', () => {
+      expect(LISTED_COLUMNS.length).toBeGreaterThan(50)
+      for (const [table, column] of LISTED_COLUMNS) {
+        expect(allowedValuesOf(column), `${table}: ${column}`).not.toBeNull()
+      }
     })
 
     test.each(LISTED_COLUMNS)(
@@ -350,8 +383,11 @@ describe('text-values-gate', () => {
             parent_geom: 'MultiPolygon (((0 0, 1 0, 1 1, 0 0)))'
           },
           { 'Habitat Ref': 'P3', parent_geom: 'LineString (0 0, 1 1)' },
-          { 'Habitat Ref': 'P4', parent_geom: 'Polygon ((0 0, 1 0' },
-          { 'Habitat Ref': 'P5', parent_geom: '' }
+          { 'Habitat Ref': 'P4', parent_geom: 'not WKT at all' },
+          { 'Habitat Ref': 'P5', parent_geom: '' },
+          // Its type is right, so the gate passes it; the lineage check,
+          // which parses the whole WKT in the worker, refuses it.
+          { 'Habitat Ref': 'P6', parent_geom: ' polygon ((0 0, 1 0' }
         ]
       })
       expect(codes(result)).toEqual([ERROR_CODES.PARENT_GEOM_INVALID])

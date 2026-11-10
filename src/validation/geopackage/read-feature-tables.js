@@ -193,12 +193,6 @@ function featureTableNames(db) {
     .map((row) => row.table_name)
 }
 
-/**
- * Match each logical layer (e.g. 'redline') to a real table name, using the
- * alias list. Case-insensitive, first alias wins.
- * @param {string[]} tableNames
- * @returns {{ logicalTables: Map<string, string>, missingLayers: string[] }}
- */
 const LEGACY_READ_TABLES = new Set(
   Object.values(LAYER_ALIASES)
     .flat()
@@ -217,6 +211,12 @@ export function isLegacyReadTable(table) {
   return LEGACY_READ_TABLES.has(String(table).toLowerCase())
 }
 
+/**
+ * Match each logical layer (e.g. 'redline') to a real table name, using the
+ * alias list. Case-insensitive, first alias wins.
+ * @param {string[]} tableNames
+ * @returns {{ logicalTables: Map<string, string>, missingLayers: string[] }}
+ */
 function resolveLogicalTables(tableNames) {
   const byLowerName = new Map(tableNames.map((t) => [t.toLowerCase(), t]))
   const logicalTables = new Map()

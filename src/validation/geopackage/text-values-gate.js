@@ -10,7 +10,6 @@ import { GPKG_CONTENTS_FEATURES_DATA_TYPE } from './geopackage-constants.js'
 import { quoteSqliteIdent } from './geopackage-internals-sqlite.js'
 import { SAMPLE_CAP } from './offenders.js'
 import { MAX_PARENT_GEOM_CHARS } from './service-template/lineage/parent-links.js'
-import { parseWkt } from './service-template/lineage/parse-wkt.js'
 import {
   REF_COLUMNS,
   SHORT_TEXT_LIMIT,
@@ -235,7 +234,16 @@ function lengthErrors(db, tables) {
 
 // The whitespace SQL trims from a value before calling it blank: SQLite's
 // trim() alone removes only spaces.
-const BLANK_CHARACTERS = `' ' || char(9, 10, 11, 12, 13)`
+// The characters String.prototype.trim() removes, so a value is measured
+// here as characterCount measures it: the ASCII whitespace, the no-break
+// space, the Unicode space separators, the line and paragraph separators and
+// the byte order mark.
+const TRIMMED_CODE_POINTS = [
+  9, 10, 11, 12, 13, 32, 0xa0, 0x1680, 0x2000, 0x2001, 0x2002, 0x2003, 0x2004,
+  0x2005, 0x2006, 0x2007, 0x2008, 0x2009, 0x200a, 0x2028, 0x2029, 0x202f,
+  0x205f, 0x3000, 0xfeff
+]
+const BLANK_CHARACTERS = `char(${TRIMMED_CODE_POINTS.join(', ')})`
 
 /** SQL that is true where `column` holds a value that is not blank. */
 function notBlankSql(column) {
@@ -305,31 +313,57 @@ function uuidErrors(db, table, column, code) {
     .map((row) => offender(code, table, row, column))
 }
 
-/** Whether a parent_geom is WKT of one of the shapes the table holds. */
-function isParentShape(text, shapes) {
-  if (text.length > MAX_PARENT_GEOM_CHARS) {
-    return false
-  }
-  const geometry = parseWkt(text.trim())
-  return geometry !== null && shapes.includes(geometry.type)
+// The start of a parent_geom as SQL reads it: enough for its type name.
+const PARENT_GEOM_HEAD_CHARS = 32
+// A WKT type name, in any case, and what may follow it.
+const WKT_TYPE =
+  /^(MULTIPOINT|MULTILINESTRING|MULTIPOLYGON|POINT|LINESTRING|POLYGON)(?=[\s(]|EMPTY|$)/i
+const GEOJSON_TYPES = Object.freeze({
+  POINT: 'Point',
+  MULTIPOINT: 'MultiPoint',
+  LINESTRING: 'LineString',
+  MULTILINESTRING: 'MultiLineString',
+  POLYGON: 'Polygon',
+  MULTIPOLYGON: 'MultiPolygon'
+})
+
+/** Whether the start of a parent_geom names one of the shapes the table holds. */
+function namesParentShape(head, shapes) {
+  const name = WKT_TYPE.exec(head.trim())?.[1]?.toUpperCase()
+  return name !== undefined && shapes.includes(GEOJSON_TYPES[name])
 }
 
+/**
+ * The parent_geom values that do not name the table's shape, or are longer
+ * than the lineage check reads. Only the start of each is read, and nothing
+ * is parsed: this runs before the upload's worker and memory reservation,
+ * and the lineage check (parent-links.js), which runs in the worker, parses
+ * the whole WKT and refuses one it cannot read.
+ */
 function parentGeomErrors(db, table) {
   const shapes = PARENT_SHAPES[table.geometryType] ?? []
   const value = quoteSqliteIdent(PARENT_GEOM)
-  // Read only up to one character past the cap: a longer text is refused unread.
-  const valueSql = `substr(CAST(${value} AS TEXT), 1, ${MAX_PARENT_GEOM_CHARS + 1}) AS value`
-  return db
+  const extra = [
+    `substr(trim(CAST(${value} AS TEXT), ${BLANK_CHARACTERS}), 1, ${PARENT_GEOM_HEAD_CHARS}) AS head`,
+    `typeof(${value}) = 'blob' AS isBlob`,
+    `length(CAST(${value} AS TEXT)) > ${MAX_PARENT_GEOM_CHARS} AS overCap`
+  ].join(', ')
+  const errors = []
+  for (const row of db
     .prepare(
-      `${rowSelect(table, valueSql)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(PARENT_GEOM)}`
+      `${rowSelect(table, extra)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(PARENT_GEOM)}`
     )
-    .all()
-    .filter((row) => !isParentShape(row.value, shapes))
-    .map((row) =>
+    .iterate()) {
+    if (!row.isBlob && !row.overCap && namesParentShape(row.head, shapes)) {
+      continue
+    }
+    errors.push(
       offender(ERROR_CODES.PARENT_GEOM_INVALID, table, row, PARENT_GEOM, {
         shape: table.geometryType.toLowerCase()
       })
     )
+  }
+  return errors
 }
 
 function hasColumn(table, name) {
@@ -371,8 +405,10 @@ const LOG_HEADINGS = Object.freeze({
     "parent_geom values that are not WKT of their table's shape"
 })
 
+const rowLabel = (fid) => `row ${fid}`
+
 function logLabel({ table, ref, fid, column }) {
-  return `${table} ${ref ?? `row ${fid}`} ${column}`
+  return `${table} ${ref ?? rowLabel(fid)} ${column}`
 }
 
 /**

@@ -101,15 +101,17 @@ for (const aliases of [
   ...Object.values(PROP_KEYS),
   ...Object.values(PROPOSED_PROP_KEYS)
 ]) {
-  const keys = aliases.map(columnKey)
-  const known = keys.find((key) => TEXT_LIMITS.has(key))
+  const aliasKeys = aliases.map(columnKey)
+  const known = aliasKeys.find((aliasKey) => TEXT_LIMITS.has(aliasKey))
   if (known === undefined) {
     continue
   }
-  for (const key of keys.filter((key) => !TEXT_LIMITS.has(key))) {
-    TEXT_LIMITS.set(key, TEXT_LIMITS.get(known))
+  for (const alias of aliasKeys.filter(
+    (aliasKey) => !TEXT_LIMITS.has(aliasKey)
+  )) {
+    TEXT_LIMITS.set(alias, TEXT_LIMITS.get(known))
     if (ALLOWED_VALUES.has(known)) {
-      ALLOWED_VALUES.set(key, ALLOWED_VALUES.get(known))
+      ALLOWED_VALUES.set(alias, ALLOWED_VALUES.get(known))
     }
   }
 }
