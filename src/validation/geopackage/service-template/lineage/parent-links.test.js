@@ -201,7 +201,7 @@ describe('checkParentLinks', () => {
     })
   })
 
-  it('refuses a row whose parent_uuid more than one baseline habitat has, listing them and the rows that name it', () => {
+  it('refuses a row whose parent matches more than one baseline habitat, listing them and the rows that name it', () => {
     const errors = check({
       baseline: [
         baselineParcel(),
@@ -214,7 +214,7 @@ describe('checkParentLinks', () => {
       {
         code: ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
         message:
-          'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has: Area Habitats Baseline H001, H001 copy, named by H001, H001b',
+          'One or more post-intervention habitats have a parent that matches more than one baseline habitat: Area Habitats Baseline H001, H001 copy, named by H001, H001b',
         details: {
           count: 1,
           sample: [

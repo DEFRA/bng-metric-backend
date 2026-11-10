@@ -1,4 +1,4 @@
-import { ERROR_CODES, makeError } from './errors.js'
+import { ERROR_CODES, makeError, withVariant } from './errors.js'
 import {
   RLB_LYR,
   HABITATS_LYR,
@@ -86,7 +86,8 @@ function reportUnexpectedFeatureLayers(
       errors.push(
         makeError(
           ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER,
-          `Unexpected feature layer "${shown}" — not listed in baseline template schema`
+          `Unexpected feature layer "${shown}" — not listed in baseline template schema`,
+          { layer: shown }
         )
       )
     }
@@ -114,7 +115,12 @@ export function compareGpkgContentsToLayerSchema(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_CONTENTS_DATA_TYPE,
-        `Layer "${actualTable}" baseline mismatch: expected data_type "${layerDef.dataType}" in gpkg_contents but found "${contentMeta.data_type}"`
+        `Layer "${actualTable}" baseline mismatch: expected data_type "${layerDef.dataType}" in gpkg_contents but found "${contentMeta.data_type}"`,
+        {
+          layer: actualTable,
+          expected: layerDef.dataType,
+          found: contentMeta.data_type
+        }
       )
     )
   }
@@ -156,7 +162,8 @@ export function compareGeometryRegistrationRow(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME,
-        `Layer "${actualTable}" geometry column "${geomRow.column_name}" has an invalid name in gpkg_geometry_columns`
+        `Layer "${actualTable}" geometry column "${geomRow.column_name}" has an invalid name in gpkg_geometry_columns`,
+        { layer: actualTable, column: geomRow.column_name }
       )
     )
     // Intentionally fall through: the geometry-type check below is independent and
@@ -171,7 +178,12 @@ export function compareGeometryRegistrationRow(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME,
-        `Layer "${actualTable}" baseline mismatch: expected geometry type "${expectedGeomType}" in gpkg_geometry_columns but found "${geomRow.geometry_type_name}"`
+        `Layer "${actualTable}" baseline mismatch: expected geometry type "${expectedGeomType}" in gpkg_geometry_columns but found "${geomRow.geometry_type_name}"`,
+        {
+          layer: actualTable,
+          expected: expectedGeomType,
+          found: geomRow.geometry_type_name
+        }
       )
     )
   }
@@ -200,7 +212,8 @@ function reportMissingGeometryRegistrationError(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING,
-        `Layer "${actualTable}" baseline mismatch: no geometry column registered in gpkg_geometry_columns`
+        `Layer "${actualTable}" baseline mismatch: no geometry column registered in gpkg_geometry_columns`,
+        { layer: actualTable }
       )
     )
   }
@@ -231,9 +244,13 @@ export function compareOneLayerToBaselineSchema(
     reportMissingGeometryRegistrationError(lowerTable, actualTable, errors)
   } else if (geomRows.length > EXPECTED_GEOMETRY_COLUMN_COUNT) {
     errors.push(
-      makeError(
-        ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS,
-        `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in gpkg_geometry_columns but found ${geomRows.length}`
+      withVariant(
+        makeError(
+          ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS,
+          `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in gpkg_geometry_columns but found ${geomRows.length}`,
+          { layer: actualTable, found: geomRows.length }
+        ),
+        'registered'
       )
     )
   } else {

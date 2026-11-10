@@ -1,9 +1,10 @@
-import { ERROR_CODES, makeError } from './errors.js'
+import { ERROR_CODES, makeError, withVariant } from './errors.js'
 import { EXPECTED_GEOMETRY_COLUMN_COUNT } from './geopackage-constants.js'
 import {
   quoteSqliteIdent,
   baselineSqliteTypeComparable,
   formatColumnSQLiteTypeMismatchMessage,
+  columnSQLiteTypeMismatchDetails,
   isGeometrySqliteColumnType
 } from './geopackage-internals-sqlite.js'
 
@@ -29,7 +30,8 @@ function compareRegisteredGeometryColumnInTable(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS,
-        `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in the feature table but found ${geometryColumnsInTable.length}`
+        `Layer "${actualTable}" baseline mismatch: expected exactly one geometry column in the feature table but found ${geometryColumnsInTable.length}`,
+        { layer: actualTable, found: geometryColumnsInTable.length }
       )
     )
     return
@@ -40,9 +42,13 @@ function compareRegisteredGeometryColumnInTable(
   )
   if (!registered) {
     errors.push(
-      makeError(
-        ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
-        `Layer "${actualTable}" baseline mismatch: missing geometry column "${geomRow.column_name}"`
+      withVariant(
+        makeError(
+          ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
+          `Layer "${actualTable}" baseline mismatch: missing geometry column "${geomRow.column_name}"`,
+          { layer: actualTable, column: geomRow.column_name }
+        ),
+        'geometry'
       )
     )
     return
@@ -57,6 +63,12 @@ function compareRegisteredGeometryColumnInTable(
       makeError(
         ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE,
         formatColumnSQLiteTypeMismatchMessage(
+          actualTable,
+          geomRow.column_name,
+          registered.type,
+          expectedGeomSqliteType
+        ),
+        columnSQLiteTypeMismatchDetails(
           actualTable,
           geomRow.column_name,
           registered.type,
@@ -116,25 +128,32 @@ function reportDefinedColumnShapeMismatches(actual, col, actualTable, errors) {
           col.name,
           actual.type,
           col.sqliteType
+        ),
+        columnSQLiteTypeMismatchDetails(
+          actualTable,
+          col.name,
+          actual.type,
+          col.sqliteType
         )
       )
     )
   }
 
   if (!!actual.notnull !== !!col.notNull) {
-    errors.push(
-      makeError(
-        ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL,
-        `Layer "${actualTable}" baseline mismatch: column "${col.name}" NOT NULL (${col.notNull ? 'required' : 'optional'}) does not match file`
-      )
+    const error = makeError(
+      ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL,
+      `Layer "${actualTable}" baseline mismatch: column "${col.name}" NOT NULL (${col.notNull ? 'required' : 'optional'}) does not match file`,
+      { layer: actualTable, column: col.name }
     )
+    errors.push(col.notNull ? error : withVariant(error, 'optional'))
   }
 
   if (!!actual.pk !== !!col.primaryKey) {
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY,
-        `Layer "${actualTable}" baseline mismatch: primary key expectation for "${col.name}" does not match file`
+        `Layer "${actualTable}" baseline mismatch: primary key expectation for "${col.name}" does not match file`,
+        { layer: actualTable, column: col.name }
       )
     )
   }
@@ -157,7 +176,8 @@ function compareOneDefinedColumnToSchema(
     errors.push(
       makeError(
         ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN,
-        `Layer "${actualTable}" baseline mismatch: missing column "${col.name}"`
+        `Layer "${actualTable}" baseline mismatch: missing column "${col.name}"`,
+        { layer: actualTable, column: col.name }
       )
     )
     return

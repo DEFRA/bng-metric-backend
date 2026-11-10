@@ -136,7 +136,8 @@ function checkGeoPackageIdentity(db) {
     return [
       makeError(
         ERROR_CODES.GPKG_NOT_A_GEOPACKAGE,
-        `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`
+        `File is not a GeoPackage (application_id 0x${appId.toString(16).toUpperCase()} is not a recognised GeoPackage identifier)`,
+        { applicationId: appId }
       )
     ]
   }
@@ -413,7 +414,8 @@ function checkSystemTables(db, errors) {
       errors.push(
         makeError(
           ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE,
-          `Missing required GeoPackage system table: ${table}`
+          `Missing required GeoPackage system table: ${table}`,
+          { table }
         )
       )
     }
@@ -452,7 +454,8 @@ function checkRequiredLayersFromSchema(schema, contentTables, errors) {
       errors.push(
         makeError(
           ERROR_CODES.GPKG_MISSING_LAYER,
-          `Missing required feature layer in GeoPackage: ${layerDef.tableName}`
+          `Missing required feature layer in GeoPackage: ${layerDef.tableName}`,
+          { layer: layerDef.tableName }
         )
       )
     }
