@@ -9,8 +9,8 @@
 // Incomplete, for the user to complete in the service (BMD-482).
 
 import { HABITAT_STATUS } from '../../../services/upload/habitat-status.js'
-import { ERROR_CODES, makeError } from '../errors.js'
-import { SAMPLE_CAP, describeOffender, labelOffender } from '../offenders.js'
+import { ERROR_CODES } from '../errors.js'
+import { collated, describeOffender, labelOffender } from '../offenders.js'
 
 /** The baseline layers this check covers: the ones the story names. */
 const BASELINE_LAYERS = Object.freeze(['habitats', 'hedgerows', 'watercourses'])
@@ -51,17 +51,10 @@ export function refuseIncompleteBaselines(baselineDocument) {
         : []
     )
   )
-  if (offenders.length === 0) {
-    return null
-  }
-  const sample = offenders.slice(0, SAMPLE_CAP)
-  const more =
-    offenders.length > sample.length
-      ? ` (and ${offenders.length - sample.length} more)`
-      : ''
-  return makeError(
+  return collated(
     ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
-    `${MESSAGE}: ${sample.map(label).join(', ')}${more}`,
-    { count: offenders.length, sample }
+    MESSAGE,
+    offenders,
+    label
   )
 }
