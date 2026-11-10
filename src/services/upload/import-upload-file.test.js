@@ -10,6 +10,7 @@ import { ERROR_CODES } from '../../validation/geopackage/errors.js'
 import { importUploadFile } from './import-upload-file.js'
 import { uploadRefusal } from './save-upload-for-project.js'
 import { projectAfterUpload } from './persist-upload.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 // importUploadFile is what the metric comparison in bng-metric-harness calls
 // to import a file as an upload does (BMD-1036), so these run real files
@@ -31,6 +32,29 @@ const IMPORT_TIMEOUT_MS = 30_000
 const TEMPLATE_FIXTURES = path.join(FIXTURES, 'service-template')
 
 const refsOf = (document) => document.habitats.map((h) => h.ref)
+
+const BASELINE_LAYERS = ['habitats', 'hedgerows', 'watercourses']
+
+/** The baseline area habitats, hedgerows and watercourses that are not Complete. */
+const incompleteBaselineRefs = (baseline) =>
+  BASELINE_LAYERS.flatMap((layer) =>
+    baseline[layer].filter((f) => f.status !== 'Complete').map((f) => f.ref)
+  )
+
+/** Expect `result` to be the one BMD-1195 refusal, naming `layer` `ref`. */
+function expectIncompleteBaselineRefusal(result, layer, ref) {
+  expect(result.accepted).toBe(false)
+  expect(result.errors).toEqual([
+    expect.objectContaining({
+      code: ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
+      details: {
+        count: 1,
+        sample: [expect.objectContaining({ layer, feature_ref: ref })]
+      }
+    })
+  ])
+  expectDeclaredDetails(result.errors[0])
+}
 
 /**
  * Run a describe block's tests with the service-template flag set, as the
@@ -181,6 +205,134 @@ describe('importUploadFile, a legacy file', () => {
     },
     IMPORT_TIMEOUT_MS
   )
+
+  describe('BMD-1195 a baseline habitat the file leaves incomplete', () => {
+    it.each([
+      [
+        'AC1 an area habitat with no Baseline Condition',
+        'habitats',
+        'H002',
+        `UPDATE Habitats SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'H002'`
+      ],
+      [
+        'AC1 an area habitat with no Baseline Broad Habitat Type',
+        'habitats',
+        'H002',
+        `UPDATE Habitats SET "Baseline Broad Habitat Type" = NULL WHERE "Parcel Ref" = 'H002'`
+      ],
+      [
+        'AC1 a Lost area habitat with no Baseline Condition',
+        'habitats',
+        'H003',
+        `UPDATE Habitats SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'H003'`
+      ],
+      [
+        'AC2 a hedgerow with no Baseline Condition',
+        'hedgerows',
+        'HG004',
+        `UPDATE Hedgerows SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'HG004'`
+      ],
+      [
+        'AC3 a watercourse with no Baseline Condition',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'R002'`
+      ],
+      [
+        'AC3 a watercourse with no baseline Encroachment into Watercourse',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Encroachment into Watercourse" = NULL WHERE "Parcel Ref" = 'R002'`
+      ],
+      [
+        'AC3 a watercourse with no baseline Encroachment into riparian zone',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Encroachment into riparian zone" = NULL WHERE "Parcel Ref" = 'R002'`
+      ]
+    ])(
+      '%s refuses the post-intervention file, and saves nothing',
+      async (name, layer, ref, sql) => {
+        const stored = await importBaseline()
+        const before = structuredClone(stored)
+
+        const result = await importUploadFile(
+          editedPostIntervention(name.replaceAll(/\W+/g, '-'), sql),
+          stored,
+          POST_INTERVENTION
+        )
+
+        expectIncompleteBaselineRefusal(result, layer, ref)
+        expect(result.project).toBeUndefined()
+        expect(stored).toEqual(before)
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC6 saves the same file uploaded as a baseline, with the habitat Incomplete',
+      async () => {
+        const result = await importUploadFile(
+          editedPostIntervention(
+            'baseline-only-incomplete',
+            `UPDATE Hedgerows SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'HG004'`
+          ),
+          {},
+          BASELINE
+        )
+
+        expect(result.accepted).toBe(true)
+        expect(incompleteBaselineRefs(result.project.baseline)).toEqual([
+          'HG004'
+        ])
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC4 accepts a file whose baseline habitats are all complete, and saves them Complete',
+      async () => {
+        const result = await importUploadFile(
+          POST_INTERVENTION_FILE,
+          await importBaseline(),
+          POST_INTERVENTION
+        )
+
+        expect(result.accepted).toBe(true)
+        expect(incompleteBaselineRefs(result.project.baseline)).toEqual([])
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC5 does not count Created rows, which have no baseline, even with blank Baseline columns',
+      async () => {
+        const result = await importUploadFile(
+          editedPostIntervention(
+            'created-blank-baseline',
+            [
+              `UPDATE Hedgerows SET "Baseline Hedge Type" = NULL, "Baseline Condition" = NULL WHERE "Retention Category" = 'Created';`,
+              `UPDATE Rivers SET "Baseline River Type" = NULL, "Baseline Condition" = NULL, "Baseline Encroachment into Watercourse" = NULL, "Baseline Encroachment into riparian zone" = NULL WHERE "Retention Category" = 'Created';`
+            ].join('\n')
+          ),
+          await importBaseline(),
+          POST_INTERVENTION
+        )
+
+        expect(result.accepted).toBe(true)
+        const { baseline, postIntervention } = result.project
+        expect(incompleteBaselineRefs(baseline)).toEqual([])
+        const created = [
+          ...postIntervention.hedgerows,
+          ...postIntervention.watercourses
+        ].filter((f) => f.retentionCategory === 'Created')
+        expect(created.map((f) => f.ref)).toEqual(
+          expect.arrayContaining(['HG005', 'R003'])
+        )
+      },
+      IMPORT_TIMEOUT_MS
+    )
+  })
 })
 
 describe('importUploadFile, a BNG Service template file', () => {
@@ -270,6 +422,38 @@ describe('importUploadFile, a BNG Service template file', () => {
           outcome: 'removed'
         })
       )
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'BMD-1195 refuses a file whose Area Habitats Baseline table has an incomplete habitat',
+    async () => {
+      const scratch = mkdtempSync(path.join(tmpdir(), 'incomplete-baseline-'))
+      try {
+        const copy = path.join(scratch, 'incomplete-baseline.gpkg')
+        copyFileSync(SITE, copy)
+        const db = new Database(copy)
+        try {
+          db.exec(
+            `UPDATE "Area Habitats Baseline" SET "Baseline Condition" = NULL WHERE "Habitat Ref" = 'H001'`
+          )
+        } finally {
+          db.close()
+        }
+
+        const refused = await importUploadFile(copy, {}, POST_INTERVENTION)
+        expectIncompleteBaselineRefusal(refused, 'habitats', 'H001')
+
+        // AC6: the baseline endpoint still takes it.
+        const baselineOnly = await importUploadFile(copy, {}, BASELINE)
+        expect(baselineOnly.accepted).toBe(true)
+        expect(incompleteBaselineRefs(baselineOnly.project.baseline)).toEqual([
+          'H001'
+        ])
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
     },
     IMPORT_TIMEOUT_MS
   )

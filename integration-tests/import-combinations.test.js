@@ -55,45 +55,41 @@ async function changedFixture(statements) {
 }
 
 describe('BMD-1060 persisted GeoPackage combinations', () => {
-  it('AC1 cleans the derived baseline and PI baseline independently of valid proposed habitat', async () => {
-    const project = await createProject('BMD-1060 combined baseline cascade')
+  // BMD-1060 AC1 cleaned an inconsistent baseline combination in a
+  // post-intervention file and saved the habitat Incomplete. That baseline is
+  // incomplete, so BMD-1195 refuses the file instead; a baseline upload still
+  // cleans it (AC1/AC2 below).
+  it('BMD-1195 refuses a post-intervention file whose baseline combination is inconsistent, leaving the saved project unchanged', async () => {
+    const project = await createProject('BMD-1195 combined baseline cascade')
+    const complete = await changedFixture([])
+    expect(
+      (await callPostInterventionValidate(complete, { projectId: project.id }))
+        .result
+    ).toEqual({ valid: true, errors: [] })
+    const saved = await fetchProject(project.id)
+
     const upload = await changedFixture([
       `UPDATE Habitats SET "Retention Category" = 'Lost', "Baseline Broad Habitat Type" = 'Urban', "Baseline Habitat Type" = 'Modified grassland', "Baseline Condition" = 'Good', "Proposed Broad Habitat Type" = 'Grassland', "Proposed Habitat Type" = 'Modified grassland', "Proposed Condition" = 'Good', "Proposed Strategic Significance" = 'Low', "Habitat created in advance/years" = '2', "Delay in starting habitat creation/years" = '3' WHERE "Parcel Ref" = 'H1'`
     ])
     const response = await callPostInterventionValidate(upload, {
       projectId: project.id
     })
-    expect(response.result).toEqual({ valid: true, errors: [] })
-    const { baseline, postIntervention } = await fetchProject(project.id)
-    const baselineFeature = baseline.habitats.find(({ ref }) => ref === 'H1')
-    const proposedFeature = postIntervention.habitats.find(
-      ({ ref }) => ref === 'H1'
-    )
-    expect(baselineFeature).toMatchObject({
-      broadType: 'Urban',
-      type: null,
-      condition: null,
-      habitatCreatedInAdvanceYears: null,
-      delayInStartingHabitatCreationYears: null,
-      status: 'Incomplete'
+
+    expect(response.result).toEqual({
+      valid: false,
+      errors: [
+        expect.objectContaining({
+          code: 'BASELINE_HABITATS_INCOMPLETE',
+          details: {
+            count: 1,
+            sample: [
+              expect.objectContaining({ layer: 'habitats', feature_ref: 'H1' })
+            ]
+          }
+        })
+      ]
     })
-    expect(proposedFeature.baseline).toMatchObject({
-      broadType: 'Urban',
-      type: null,
-      condition: null
-    })
-    expect(proposedFeature.proposed).toMatchObject({
-      broadType: 'Grassland',
-      type: 'Modified grassland',
-      condition: 'Good',
-      advanceYears: null,
-      delayYears: null
-    })
-    expect(proposedFeature).toMatchObject({ status: 'Incomplete', units: null })
-    expect(proposedFeature.properties['Habitat created in advance/years']).toBe(
-      '2'
-    )
-    expect(baselineFeature.properties).toEqual(proposedFeature.properties)
+    expect(await fetchProject(project.id)).toEqual(saved)
   })
 
   it.each(['Created', 'Enhanced', 'Retained'])(

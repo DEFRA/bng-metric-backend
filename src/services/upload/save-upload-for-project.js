@@ -14,6 +14,7 @@ import {
 } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
 import { rejectInvalidEnhancements } from '../../validation/geopackage/post-intervention/reject-invalid-enhancements.js'
 import { refuseUnenhanceableBaselines } from '../../validation/geopackage/post-intervention/refuse-unenhanceable-baselines.js'
+import { refuseIncompleteBaselines } from '../../validation/geopackage/post-intervention/refuse-incomplete-baselines.js'
 import {
   ERROR_CODES,
   makeError,
@@ -453,6 +454,13 @@ function extractUploadDocuments(sized, context, logger, config) {
             NO_DERIVED_BASELINE_HABITATS_MESSAGE
           )
     }
+  }
+  // The baseline cannot be edited once a post-intervention file is saved
+  // with it (BMD-1194), so an incomplete one could never be completed
+  // (BMD-1195). A baseline-only upload never reaches here.
+  const incompleteBaseline = refuseIncompleteBaselines(baseline.document)
+  if (incompleteBaseline) {
+    return { validationError: incompleteBaseline }
   }
   const postIntervention = extractAndValidateDocument({
     ...shared,
