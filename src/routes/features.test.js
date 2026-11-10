@@ -386,6 +386,25 @@ describe('updateFeature handler - area habitat dispatch', () => {
     expect(blank.feature.comment).toBeNull()
   })
 
+  test('stores a submitted CRLF line break as LF', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: 'one\r\ntwo\r\n\r\nthree'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('one\ntwo\n\nthree')
+  })
+
   test('leaves a stored comment alone when the edit does not send one', async () => {
     const drizzle = makeTxDrizzle(
       makeProject([{ ...sampleHabitat, comment: 'kept' }])
@@ -752,6 +771,17 @@ describe('updateFeature validation', () => {
     ).toBeUndefined()
     expect(
       payloadSchema.validate({ comment: '🌳'.repeat(MAX_COMMENT_LENGTH) }).error
+    ).toBeUndefined()
+  })
+
+  // A browser sends a textarea's line break as CRLF, which is stored as the
+  // one LF character it is, so the limit is not quietly two characters short
+  // of itself for every line break in the comment.
+  test('accepts 999 characters whose line break was submitted as CRLF', () => {
+    expect(
+      payloadSchema.validate({
+        comment: `${'a'.repeat(MAX_COMMENT_LENGTH - 2)}\r\na`
+      }).error
     ).toBeUndefined()
   })
 

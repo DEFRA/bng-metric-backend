@@ -40,11 +40,17 @@ const COMMENT_LAYERS = Object.freeze([
   'trees'
 ])
 
+// A CR, or a CRLF pair. A browser newline-normalises a textarea's value to
+// CRLF when it submits the form, so the feature edit route would otherwise
+// store a line break as two characters where an upload stores it as one.
+const CARRIAGE_RETURN = /\r\n?/g
+
 /**
- * A comment as the service stores it: leading and trailing whitespace
- * removed, and a blank one stored as null. Characters within the text are
- * kept, including spaces. A value that is not text is null. An over-long
- * comment is not cut here: the upload is refused before anything is saved.
+ * A comment as the service stores it: line breaks as LF, leading and trailing
+ * whitespace removed, and a blank one stored as null. Characters within the
+ * text are kept, including spaces. A value that is not text is null. An
+ * over-long comment is not cut here: the upload is refused before anything is
+ * saved.
  *
  * @param {unknown} value
  * @returns {string | null}
@@ -54,7 +60,7 @@ export function cleanComment(value) {
   if (text == null) {
     return null
   }
-  const trimmed = text.trim()
+  const trimmed = text.replaceAll(CARRIAGE_RETURN, '\n').trim()
   return trimmed === '' ? null : trimmed
 }
 
@@ -95,6 +101,13 @@ export function commentForBaseline(
  * baseline habitat, and a Lost row's comment stays on the baseline. A BNG
  * Service template file has its own Comment on each Post-Intervention
  * table, including a Retained row, so every retention category keeps it.
+ *
+ * Editing a baseline habitat's comment (BMD-1112) writes to the baseline
+ * feature alone: a Retained row's own stored copy, which only a template
+ * upload ever sets, is deliberately left as imported rather than overwritten
+ * by an edit the user made elsewhere. A retained habitat therefore shares its
+ * baseline habitat's comment only if it is displayed from the baseline
+ * feature it is joined to, which is how the retained summary must read it.
  *
  * @param {object} props
  * @param {{ template?: boolean }} [options] `template` is a BNG Service template file
@@ -215,14 +228,16 @@ function commentText(value) {
 }
 
 /**
- * Characters after leading and trailing whitespace is removed. Shared with
- * the feature edit route, which must not use Joi's UTF-16 `.max()`.
+ * Characters after line breaks are put back to LF and leading and trailing
+ * whitespace is removed — the text as {@link cleanComment} would store it, so
+ * a comment the length check passes is a comment that fits. Shared with the
+ * feature edit route, which must not use Joi's UTF-16 `.max()`.
  *
  * @param {string} text
  * @returns {number}
  */
 export function commentLength(text) {
-  return Array.from(text.trim()).length
+  return Array.from(text.replaceAll(CARRIAGE_RETURN, '\n').trim()).length
 }
 
 /**
