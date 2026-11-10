@@ -611,6 +611,43 @@ describe('saveUploadForProject', () => {
       expect(persistUpload).not.toHaveBeenCalled()
     })
 
+    it('BMD-1195 refuses a file whose baseline habitat has every attribute but its units cannot be calculated', async () => {
+      extractHabitatData.mockReturnValue({
+        document: {
+          habitats: [completeArea({ ref: 'H1' }), completeArea({ ref: 'H2' })]
+        },
+        geometries: { habitats: [] }
+      })
+      enrichBaselineDocumentWithUnits.mockImplementationOnce((document) => {
+        Object.assign(document.habitats[1], {
+          status: 'Incomplete',
+          units: null
+        })
+      })
+
+      const result = await saveCombined(
+        COMBINED_LAYERS,
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(result).toBe(h)
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
+            details: {
+              count: 1,
+              sample: [expect.objectContaining({ feature_ref: 'H2' })]
+            }
+          })
+        ]
+      })
+      expect(extractPostIntervention).not.toHaveBeenCalled()
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(persistUpload).not.toHaveBeenCalled()
+    })
+
     it('rejects the upload without persisting when the derived baseline fails its schema', async () => {
       habitatDataSchema.validate.mockReturnValue({
         error: { message: '"habitats[0].status" is required' }
