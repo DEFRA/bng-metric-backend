@@ -436,7 +436,7 @@ const RULE_ERRORS = [
   {
     code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
     heading:
-      'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in a worse condition',
+      'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in its setting',
     found: 'tooManyTrees',
     describe: (parent) =>
       `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`
