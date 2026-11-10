@@ -43,8 +43,6 @@ import {
  * for the checks that follow, as before.
  */
 
-const NUMBER_FORMAT = new Intl.NumberFormat('en-GB')
-
 const RED_LINE_KEY = columnKey(RED_LINE_BOUNDARY)
 
 // The GeoJSON types a table's shape may take in parent_geom: its own, or the
@@ -129,19 +127,41 @@ const MAX_UTF8_BYTES = 4
 const MAX_REF_BYTES = SHORT_TEXT_LIMIT * MAX_UTF8_BYTES
 
 /**
- * How a message names a feature: by its reference, or by its row where the
- * reference is blank, too long or not text.
+ * A feature's reference, as its error's sample names it: null where it is
+ * blank, too long or not text, and the frontend names the feature by its row.
  *
  * @param {TextTable} table
- * @param {{ fid: unknown, ref: unknown }} row
+ * @param {{ ref: unknown }} row
+ * @returns {string | null}
  */
-function featureLabel(table, row) {
+function usableRef(table, row) {
   const ref = Buffer.isBuffer(row.ref) ? row.ref.toString('utf8').trim() : ''
   const refLimit = table.refColumn ? textLimitOf(table.refColumn) : null
   const usable =
     ref !== '' && refLimit !== null && characterCount(ref) <= refLimit
-  const name = usable ? ref : `row ${Number(row.fid)}`
-  return `${table.name}, ${name}`
+  return usable ? ref : null
+}
+
+/**
+ * One value that fails, as its error's sample names it: the table, the
+ * feature's row and reference, the column, and `extra`, the values the
+ * frontend's wording of the code fills in.
+ *
+ * @param {string} code
+ * @param {TextTable} table
+ * @param {{ fid: unknown, ref: unknown }} row
+ * @param {string} column
+ * @param {object} [extra]
+ */
+function offender(code, table, row, column, extra = {}) {
+  return {
+    code,
+    table: table.name,
+    fid: Number(row.fid),
+    ref: usableRef(table, row),
+    column: column.trim(),
+    ...extra
+  }
 }
 
 /**
@@ -198,11 +218,10 @@ function overLimitErrors(db, table) {
         return []
       }
       return [
-        makeError(
-          ERROR_CODES.TEXT_TOO_LONG,
-          `${featureLabel(table, row)}: ${column.trim()} has ${NUMBER_FORMAT.format(length)} characters. The maximum is ${NUMBER_FORMAT.format(limit)}.`,
-          { table: table.name, fid: row.fid, column, limit, length }
-        )
+        offender(ERROR_CODES.TEXT_TOO_LONG, table, row, column, {
+          length,
+          limit
+        })
       ]
     })
   )
@@ -257,16 +276,11 @@ function notAllowedErrors(db, table, column, allowed) {
     if (row.value !== null && !refusedTexts.has(row.value)) {
       continue
     }
-    const shown =
-      row.value === null
-        ? 'a value that is not text'
-        : `"${shownValue(row.value.trim())}"`
+    // A value that is not text has nothing to show: null.
     errors.push(
-      makeError(
-        ERROR_CODES.VALUE_NOT_ALLOWED,
-        `${featureLabel(table, row)}: ${column.trim()} has ${shown}, which is not in its list.`,
-        { table: table.name, fid: row.fid, column }
-      )
+      offender(ERROR_CODES.VALUE_NOT_ALLOWED, table, row, column, {
+        value: row.value === null ? null : shownValue(row.value.trim())
+      })
     )
   }
   return errors
@@ -286,13 +300,7 @@ function uuidErrors(db, table, column, code) {
       `${rowSelect(table)} FROM ${quoteSqliteIdent(table.name)} WHERE ${notBlankSql(column)} AND NOT (typeof(${value}) = 'text' AND trim(${value}, ${BLANK_CHARACTERS}) GLOB '${UUID_GLOB}')`
     )
     .all()
-    .map((row) =>
-      makeError(
-        code,
-        `${featureLabel(table, row)}: ${column} is not a valid UUID.`,
-        { table: table.name, fid: row.fid, column }
-      )
-    )
+    .map((row) => offender(code, table, row, column))
 }
 
 /** Whether a parent_geom is WKT of one of the shapes the table holds. */
@@ -316,11 +324,9 @@ function parentGeomErrors(db, table) {
     .all()
     .filter((row) => !isParentShape(row.value, shapes))
     .map((row) =>
-      makeError(
-        ERROR_CODES.PARENT_GEOM_INVALID,
-        `${featureLabel(table, row)}: ${PARENT_GEOM} is not the shape of a ${table.geometryType.toLowerCase()} written as WKT.`,
-        { table: table.name, fid: row.fid, column: PARENT_GEOM }
-      )
+      offender(ERROR_CODES.PARENT_GEOM_INVALID, table, row, PARENT_GEOM, {
+        shape: table.geometryType.toLowerCase()
+      })
     )
 }
 
@@ -352,24 +358,44 @@ function contentErrors(db, tables) {
   })
 }
 
+// What each code's error says in the service's log. The frontend words it
+// for the user, from its details.
+const LOG_HEADINGS = Object.freeze({
+  [ERROR_CODES.TEXT_TOO_LONG]: 'Text values longer than their column allows',
+  [ERROR_CODES.VALUE_NOT_ALLOWED]: "Values not in their column's lists",
+  [ERROR_CODES.FEATURE_UUID_INVALID]: 'feature_uuid values that are not UUIDs',
+  [ERROR_CODES.PARENT_UUID_INVALID]: 'parent_uuid values that are not UUIDs',
+  [ERROR_CODES.PARENT_GEOM_INVALID]:
+    "parent_geom values that are not WKT of their table's shape"
+})
+
+function logLabel({ table, ref, fid, column }) {
+  return `${table} ${ref ?? `row ${fid}`} ${column}`
+}
+
 /**
- * At most SAMPLE_CAP errors, then one that counts the rest, so a file with
- * thousands of problems gives a page that can be read.
+ * One error for each code, as the drop-out page shows one heading for each
+ * problem: `details.count` values fail, and `details.sample` names the first
+ * SAMPLE_CAP of them.
  *
- * @param {Array<{ code: string, message: string }>} errors
+ * @param {Array<{ code: string }>} offenders
  */
-function capped(errors) {
-  if (errors.length <= SAMPLE_CAP) {
-    return errors
-  }
-  const rest = errors.length - SAMPLE_CAP
-  return [
-    ...errors.slice(0, SAMPLE_CAP),
-    makeError(
-      errors[SAMPLE_CAP].code,
-      `${NUMBER_FORMAT.format(rest)} more ${rest === 1 ? 'value has' : 'values have'} a problem of this kind.`
+function collatedByCode(offenders) {
+  const byCode = Map.groupBy(offenders, (entry) => entry.code)
+  return [...byCode].map(([code, entries]) => {
+    const sample = entries
+      .slice(0, SAMPLE_CAP)
+      .map(({ code: _code, ...entry }) => entry)
+    const more =
+      entries.length > sample.length
+        ? ` (and ${entries.length - sample.length} more)`
+        : ''
+    return makeError(
+      code,
+      `${LOG_HEADINGS[code]}: ${sample.map(logLabel).join(', ')}${more}`,
+      { count: entries.length, sample }
     )
-  ]
+  })
 }
 
 /**
@@ -385,7 +411,7 @@ export function checkTextValues(db, includeTable) {
   const tables = featureTables(db, includeTable)
   const tooLong = lengthErrors(db, tables)
   if (tooLong.length > 0) {
-    return capped(tooLong)
+    return collatedByCode(tooLong)
   }
-  return capped(contentErrors(db, tables))
+  return collatedByCode(contentErrors(db, tables))
 }

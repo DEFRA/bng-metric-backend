@@ -22,6 +22,7 @@ import {
   mutateSerializedBuffer,
   withTempGpkgFile
 } from '../../../test/helpers/gpkg.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 const AREA_BASELINE = 'Area Habitats Baseline'
 const AREA_PI = 'Area Habitats Post-Intervention'
@@ -29,6 +30,8 @@ const RED_LINE = 'Red Line Boundary'
 const UUID = 'de9d1450-90f7-584a-9710-edf7ec189de4'
 
 const codes = (result) => result.errors.map((error) => error.code)
+const sampleOf = (result) =>
+  result.errors.flatMap((error) => error.details.sample)
 
 /**
  * The gate at the baseline + post-intervention endpoint, over a template file
@@ -145,25 +148,32 @@ describe('text-values-gate', () => {
         {
           code: ERROR_CODES.TEXT_TOO_LONG,
           message:
-            'Area Habitats Baseline, H-12: Comment has 1,240 characters. The maximum is 999.',
+            'Text values longer than their column allows: Area Habitats Baseline H-12 Comment',
           details: {
-            table: AREA_BASELINE,
-            fid: 1,
-            column: 'Comment',
-            limit: LONG_TEXT_LIMIT,
-            length: 1240
+            count: 1,
+            sample: [
+              {
+                table: AREA_BASELINE,
+                fid: 1,
+                ref: 'H-12',
+                column: 'Comment',
+                limit: LONG_TEXT_LIMIT,
+                length: 1240
+              }
+            ]
           }
         }
       ])
+      expectDeclaredDetails(result.errors[0])
     })
 
     test('names the row where the reference itself is too long', async () => {
       const result = await templateGate({
         [AREA_BASELINE]: [{ 'Habitat Ref': 'R'.repeat(SHORT_TEXT_LIMIT + 1) }]
       })
-      expect(result.errors[0].message).toBe(
-        'Area Habitats Baseline, row 1: Habitat Ref has 100 characters. The maximum is 99.'
-      )
+      expect(sampleOf(result)).toEqual([
+        expect.objectContaining({ fid: 1, ref: null, column: 'Habitat Ref' })
+      ])
     })
 
     test('refuses a long drop-down value by its length, before it is looked up', async () => {
@@ -173,7 +183,7 @@ describe('text-values-gate', () => {
         'x'.repeat(100_000)
       )
       expect(codes(result)).toEqual([ERROR_CODES.TEXT_TOO_LONG])
-      expect(result.errors[0].message).not.toContain('x'.repeat(100))
+      expect(JSON.stringify(result.errors)).not.toContain('x'.repeat(100))
     })
 
     test('checks the Red Line Boundary details', async () => {
@@ -185,9 +195,23 @@ describe('text-values-gate', () => {
           }
         ]
       })
-      expect(result.errors.map((error) => error.message)).toEqual([
-        'Red Line Boundary, row 1: Site Name has 1,000 characters. The maximum is 999.',
-        'Red Line Boundary, row 1: Location has 100 characters. The maximum is 99.'
+      expect(sampleOf(result)).toEqual([
+        {
+          table: RED_LINE,
+          fid: 1,
+          ref: null,
+          column: 'Site Name',
+          length: 1000,
+          limit: LONG_TEXT_LIMIT
+        },
+        {
+          table: RED_LINE,
+          fid: 1,
+          ref: null,
+          column: 'Location',
+          length: 100,
+          limit: SHORT_TEXT_LIMIT
+        }
       ])
     })
 
@@ -203,11 +227,15 @@ describe('text-values-gate', () => {
       '%s: %s refuses a value that is not in its list',
       async (table, column) => {
         const result = await oneValue(table, column, 'Not a template value')
-        expect(result.errors).toEqual([
-          expect.objectContaining({
-            code: ERROR_CODES.VALUE_NOT_ALLOWED,
-            message: `${table}, H-12: ${column} has "Not a template value", which is not in its list.`
-          })
+        expect(codes(result)).toEqual([ERROR_CODES.VALUE_NOT_ALLOWED])
+        expect(sampleOf(result)).toEqual([
+          {
+            table,
+            fid: 1,
+            ref: 'H-12',
+            column,
+            value: 'Not a template value'
+          }
         ])
       }
     )
@@ -262,21 +290,21 @@ describe('text-values-gate', () => {
       }))
       const result = await templateGate({ [AREA_BASELINE]: rows })
       expect(result.valid).toBe(false)
-      expect(new Set(codes(result))).toEqual(
-        new Set([ERROR_CODES.VALUE_NOT_ALLOWED])
-      )
-      expect(result.errors.at(-1).message).toMatch(/32,950 more/)
+      expect(codes(result)).toEqual([ERROR_CODES.VALUE_NOT_ALLOWED])
+      expect(result.errors[0].details.count).toBe(distinct)
+      expect(result.errors[0].details.sample).toHaveLength(50)
     })
 
     test('shows a refused value cut to 99 characters, marked as truncated', async () => {
       const value = 'r'.repeat(200)
       const result = await oneValue(AREA_PI, 'Spatial risk category', value)
-      const [error] = result.errors
-      expect(error.code).toBe(ERROR_CODES.VALUE_NOT_ALLOWED)
-      expect(error.message).toContain(
-        `"${'r'.repeat(SHORT_TEXT_LIMIT)}${TRUNCATION_MARKER}"`
+      expect(codes(result)).toEqual([ERROR_CODES.VALUE_NOT_ALLOWED])
+      expect(sampleOf(result)[0].value).toBe(
+        `${'r'.repeat(SHORT_TEXT_LIMIT)}${TRUNCATION_MARKER}`
       )
-      expect(error.message).not.toContain('r'.repeat(SHORT_TEXT_LIMIT + 1))
+      expect(JSON.stringify(result.errors)).not.toContain(
+        'r'.repeat(SHORT_TEXT_LIMIT + 1)
+      )
     })
 
     test('leaves the free-text Location of the Red Line Boundary unchecked against a list', async () => {
@@ -297,15 +325,16 @@ describe('text-values-gate', () => {
           { 'Habitat Ref': 'P2', parent_uuid: 'u'.repeat(100_000) }
         ]
       })
-      expect(result.errors.map((error) => error.message)).toEqual([
-        'Area Habitats Baseline, H2: feature_uuid is not a valid UUID.',
-        'Area Habitats Post-Intervention, P1: parent_uuid is not a valid UUID.',
-        'Area Habitats Post-Intervention, P2: parent_uuid is not a valid UUID.'
-      ])
       expect(codes(result)).toEqual([
         ERROR_CODES.FEATURE_UUID_INVALID,
-        ERROR_CODES.PARENT_UUID_INVALID,
         ERROR_CODES.PARENT_UUID_INVALID
+      ])
+      expect(
+        sampleOf(result).map(({ table, ref, column }) => [table, ref, column])
+      ).toEqual([
+        [AREA_BASELINE, 'H2', 'feature_uuid'],
+        [AREA_PI, 'P1', 'parent_uuid'],
+        [AREA_PI, 'P2', 'parent_uuid']
       ])
     })
 
@@ -325,11 +354,14 @@ describe('text-values-gate', () => {
           { 'Habitat Ref': 'P5', parent_geom: '' }
         ]
       })
-      expect(codes(result)).toEqual([
-        ERROR_CODES.PARENT_GEOM_INVALID,
-        ERROR_CODES.PARENT_GEOM_INVALID
-      ])
-      expect(result.errors.map((error) => error.details.fid)).toEqual([3, 4])
+      expect(codes(result)).toEqual([ERROR_CODES.PARENT_GEOM_INVALID])
+      expect(result.errors[0].details.count).toBe(2)
+      expect(sampleOf(result).map((entry) => [entry.fid, entry.shape])).toEqual(
+        [
+          [3, 'polygon'],
+          [4, 'polygon']
+        ]
+      )
     })
 
     test('at the baseline endpoint, checks only the tables that endpoint reads', async () => {
@@ -368,16 +400,17 @@ describe('text-values-gate', () => {
       expect(result.valid).toBe(true)
     })
 
-    test('reports at most 50 values, then counts the rest', async () => {
+    test('names at most 50 values in its sample, and counts them all', async () => {
       const rows = Array.from({ length: 60 }, (_, i) => ({
         'Habitat Ref': `H${i}`,
         Comment: 'a'.repeat(LONG_TEXT_LIMIT + 1)
       }))
       const result = await templateGate({ [AREA_BASELINE]: rows })
-      expect(result.errors).toHaveLength(51)
-      expect(result.errors[50].message).toBe(
-        '10 more values have a problem of this kind.'
-      )
+      expect(result.errors).toHaveLength(1)
+      expect(result.errors[0].details.count).toBe(60)
+      expect(result.errors[0].details.sample).toHaveLength(50)
+      expect(result.errors[0].message).toMatch(/\(and 10 more\)$/)
+      expectDeclaredDetails(result.errors[0])
     })
   })
 

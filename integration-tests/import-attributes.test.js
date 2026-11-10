@@ -226,8 +226,17 @@ describe('BMD-1059 real GeoPackage imports', () => {
     expect(refused.result.errors).toEqual([
       expect.objectContaining({
         code: 'VALUE_NOT_ALLOWED',
-        message:
-          'Habitats, H1: Baseline Condition has "Splendid", which is not in its list.'
+        details: {
+          count: 1,
+          sample: [
+            expect.objectContaining({
+              table: 'Habitats',
+              ref: 'H1',
+              column: 'Baseline Condition',
+              value: 'Splendid'
+            })
+          ]
+        }
       })
     ])
     expect(await fetchProject(project.id)).toEqual(before)
