@@ -3,7 +3,13 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
-import { PROP_KEYS, pickProp } from '../../properties.js'
+import {
+  PROPOSED_PROP_KEYS,
+  PROP_KEYS,
+  TREE_ADVANCE_DELAY_KEYS,
+  pickProp
+} from '../../properties.js'
+import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
 import { SQ_METRES_PER_HECTARE, treeCountOrDefault } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
@@ -16,6 +22,7 @@ import {
 } from './habitat-change.js'
 import {
   baselineHabitatTypeOf,
+  canDegrade,
   collated,
   continues,
   habitatTypeOf,
@@ -60,13 +67,21 @@ import {
  *   condition and needs no years in advance.
  * - individual trees: the Retained and Enhanced trees linked to a parent
  *   never count more trees than it has, as a tree that is kept cannot
- *   multiply. Created trees, new planting, are not counted against it. Trees
- *   are outside the degraded rows' rules: a tree is a creation whether or not
- *   it names a parent.
+ *   multiply. Created trees are not counted against it. A tree is an area
+ *   habitat, so an Existing tree Created in its parent's Urban or Rural
+ *   setting is the parent itself, counted with the kept trees, and a degraded
+ *   row like any other: it must be in a lower
+ *   condition and created 30+ years in advance. A Newly Planted tree linked
+ *   to a parent is planting in its place, and no degraded row.
  */
 
-const ADVANCE = 'Habitat created in advance/years'
-const DELAY = 'Delay in starting habitat creation/years'
+/** A layer's years created in advance and years of delay columns; trees name theirs differently. */
+const timingKeys = (layer) =>
+  layer === 'trees' ? TREE_ADVANCE_DELAY_KEYS : PROPOSED_PROP_KEYS
+const advanceOf = (layer, properties) =>
+  pickProp(properties, timingKeys(layer).advanceYears)
+const delayOf = (layer, properties) =>
+  pickProp(properties, timingKeys(layer).delayYears)
 
 /** The watercourse types the Metric lets be permanently lost. */
 const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
@@ -76,12 +91,12 @@ const LINEAR_LAYERS = new Set(['hedgerows', 'watercourses'])
 /** The layers checked, area habitats first, as the messages list them. */
 const CHECKED_LAYERS = ['areas', 'verticalHabitats', ...LINEAR_LAYERS, 'trees']
 
-/** The layers a degraded row can be on: every one but individual trees. */
-const DEGRADABLE_LAYERS = new Set([
-  'areas',
-  'verticalHabitats',
-  ...LINEAR_LAYERS
-])
+/**
+ * A row's broad habitat, as the Metric's condition scores are keyed: a tree's
+ * is always Individual trees, which its table has no column for.
+ */
+const broadTypeOf = (layer, properties, column) =>
+  layer === 'trees' ? INDIVIDUAL_TREES_BROAD_HABITAT : text(properties[column])
 
 /**
  * The difference in area, in square metres, below which two typed areas are
@@ -112,7 +127,7 @@ const toHectares = (squareMetres) =>
 function baselineSide(layer, properties) {
   return {
     type: baselineHabitatTypeOf(layer, properties),
-    broadType: text(properties['Baseline Broad Habitat Type']),
+    broadType: broadTypeOf(layer, properties, 'Baseline Broad Habitat Type'),
     condition: text(properties['Baseline Condition']),
     watercourseEncroachment: text(
       properties['Baseline Encroachment into Watercourse']
@@ -128,8 +143,8 @@ function proposedSide(layer, properties) {
   return {
     type: habitatTypeOf(layer, properties),
     broadType:
-      text(properties['Proposed Broad Habitat Type']) ??
-      text(properties['Baseline Broad Habitat Type']),
+      broadTypeOf(layer, properties, 'Proposed Broad Habitat Type') ??
+      broadTypeOf(layer, properties, 'Baseline Broad Habitat Type'),
     condition: text(properties['Proposed Condition']),
     watercourseEncroachment: text(
       properties['Proposed Encroachment into Watercourse']
@@ -241,9 +256,17 @@ function checkVerticalArea(parent, children, context) {
 const treeCount = (feature) =>
   treeCountOrDefault(pickProp(feature.properties, PROP_KEYS.treeCount))
 
-/** A tree parent with fewer trees than its kept children together. */
+/**
+ * A tree parent with fewer trees than the children that are still it
+ * together: its Retained and Enhanced trees, and an Existing tree Created in
+ * its setting, which is the parent recorded as lost and created again.
+ */
 function checkTreeCount(parent, children, context) {
-  const kept = children.filter((child) => continues(child.properties))
+  const kept = children.filter(
+    (child) =>
+      continues(child.properties) ||
+      isCreatedInOwnType(context.layer, parent, child)
+  )
   if (kept.length === 0) {
     return
   }
@@ -280,12 +303,13 @@ function checkWatercourseFamily(parent, children, context) {
 }
 
 /** Whether a row is put back after a temporary loss: it has a delay. */
-const isPutBack = (properties) =>
-  (parseProposedAdvanceDelayYears(properties[DELAY]) ?? 0) > 0
+const isPutBack = (layer, properties) =>
+  (parseProposedAdvanceDelayYears(delayOf(layer, properties)) ?? 0) > 0
 
 /** Whether a row is Created in its parent's habitat type. */
 const isCreatedInOwnType = (layer, parent, child) =>
   isCreated(child.properties) &&
+  canDegrade(layer, child.properties) &&
   isSameHabitatType(
     baselineSide(layer, parent.properties),
     proposedSide(layer, child.properties)
@@ -322,7 +346,7 @@ function checkDegradedRow(parent, child, createdMetres, context) {
   const childSide = proposedSide(layer, child.properties)
   if (
     !isCreatedInOwnType(layer, parent, child) ||
-    isPutBack(child.properties)
+    isPutBack(layer, child.properties)
   ) {
     return
   }
@@ -346,7 +370,7 @@ function checkDegradedRow(parent, child, createdMetres, context) {
     found.notWorse.push(row())
     return
   }
-  if (text(child.properties[ADVANCE]) !== MAX_YEARS_PLUS) {
+  if (text(advanceOf(layer, child.properties)) !== MAX_YEARS_PLUS) {
     found.advanceNot30Plus.push(row())
   }
 }
@@ -373,9 +397,6 @@ function checkLayer(layer, baseline, postIntervention, found) {
     }
     if (layer === 'trees') {
       checkTreeCount(parent, children, context)
-    }
-    if (!DEGRADABLE_LAYERS.has(layer)) {
-      continue
     }
     const createdMetres = createdMetresOnce(layer, parent, children)
     for (const child of children) {
@@ -415,7 +436,7 @@ const RULE_ERRORS = [
   {
     code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
     heading:
-      'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together',
+      'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in its setting',
     found: 'tooManyTrees',
     describe: (parent) =>
       `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`

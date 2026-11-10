@@ -235,9 +235,10 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * BNG Service template baseline trees with fewer trees, by Count, than the
-   * Retained and Enhanced post-intervention trees linked to them together: a
-   * tree that is kept cannot multiply. A blank Count is one tree. Created
-   * trees, new planting, are not counted. `details.sample` lists each parent's
+   * post-intervention trees that are still them, linked to them together: the
+   * Retained and Enhanced trees, and an Existing tree Created in the parent's
+   * setting (the parent recorded as lost and created again). A tree cannot
+   * multiply. A blank Count is one tree. Newly Planted trees are not counted. `details.sample` lists each parent's
    * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
    * both counts. The frontend sends the user to the drop-out page.
    */
@@ -264,8 +265,9 @@ export const ERROR_CODES = Object.freeze({
   STAGED_NATURAL_WATERCOURSE_LOST: 'STAGED_NATURAL_WATERCOURSE_LOST',
 
   /**
-   * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, but not in a lower condition and with no delay
+   * BNG Service template area habitats, hedgerows or Existing individual
+   * trees Created in their parent's habitat type (a tree's Urban or Rural
+   * setting), linked to it, but not in a lower condition and with no delay
    * (BMD-1083): the habitat was kept. A row with a delay is a habitat lost for
    * a time and put back, which no degrade rule refuses. `details.sample` lists
    * each row's table, Habitat Ref and habitat type, and its parent's Habitat
@@ -275,9 +277,9 @@ export const ERROR_CODES = Object.freeze({
   STAGED_DEGRADE_NOT_WORSE: 'STAGED_DEGRADE_NOT_WORSE',
 
   /**
-   * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, with no delay, whose "Habitat created in
-   * advance/years" is not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
+   * BNG Service template area habitats, hedgerows or Existing individual
+   * trees Created in their parent's habitat type, linked to it, with no
+   * delay, whose years created in advance are not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
    * as lost and created again in a lower condition. `details.sample` lists each
    * row as STAGED_DEGRADE_NOT_WORSE does.
    */
