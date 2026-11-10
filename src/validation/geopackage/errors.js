@@ -425,7 +425,12 @@ export const TEMPLATE_VARIANT = 'bng-service'
  *
  * Values are sent raw: a number as a number, so the frontend formats it,
  * and a value the file does not have as null. A code not listed sends
- * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * nothing the wording needs beyond its `count` and `sample`. The keys of a
+ * `sample` entry, one for each feature an error lists, are out of this
+ * table's scope: the frontend reads them for each bullet (error-file
+ * controller, SAMPLE_VALUES), and its own test holds each bullet's wording
+ * to the keys it reads. The text-value checks' entries, for example, are
+ * built by `offender` in text-values-gate.js. A comment beside
  * an entry says how its message writes a value, where that is not plain.
  * bng-metric-harness's check (npm run check:dropout-copy, added by
  * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the

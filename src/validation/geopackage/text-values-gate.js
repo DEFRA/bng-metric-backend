@@ -145,7 +145,9 @@ function usableRef(table, row) {
 /**
  * One value that fails, as its error's sample names it: the table, the
  * feature's row and reference, the column, and `extra`, the values the
- * frontend's wording of the code fills in.
+ * frontend's wording of the code fills in. The frontend reads these keys for
+ * each bullet (error-file controller, textValueValues), so a key renamed here
+ * must be renamed there.
  *
  * @param {string} code
  * @param {TextTable} table
