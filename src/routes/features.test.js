@@ -58,7 +58,10 @@ const sampleWatercourse = {
   sizeMetres: 1000
 }
 
-function makeProject(habitats = [sampleHabitat]) {
+function makeProject(
+  habitats = [sampleHabitat],
+  watercourse = sampleWatercourse
+) {
   return {
     id: PROJECT_ID,
     project: {
@@ -66,7 +69,7 @@ function makeProject(habitats = [sampleHabitat]) {
       baseline: {
         habitats,
         hedgerows: [sampleHedgerow],
-        watercourses: [sampleWatercourse],
+        watercourses: [watercourse],
         units: {
           totalUnits: 4,
           habitatsTotal: 4,
@@ -524,6 +527,92 @@ describe('updateFeature handler - hedgerow dispatch', () => {
       {}
     )
     expect(blank.feature.comment).toBeNull()
+  })
+})
+
+describe('updateFeature handler - watercourse dispatch', () => {
+  // The comment is merged by type-agnostic code (mergeBaselineFeature), but
+  // only the area and hedgerow paths proved it; a watercourse carries the
+  // encroachment selections too, so it is saved through its own recompute.
+  test('persists a trimmed watercourse comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const payload = {
+      habitatType: 'Ditches',
+      condition: 'Moderate',
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment'
+    }
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: { ...payload, comment: '  river  note  ' }
+      },
+      {}
+    )
+    expect(trimmed.type).toBe('watercourse')
+    expect(trimmed.feature.comment).toBe('river  note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'watercourses',
+        feature: expect.objectContaining({ comment: 'river  note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: { ...payload, comment: ' \n\t ' }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('stores a submitted CRLF line break as LF on a watercourse', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Moderate',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment',
+          comment: 'one\r\ntwo'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('one\ntwo')
+  })
+
+  test('leaves a stored watercourse comment alone when the edit does not send one', async () => {
+    const drizzle = makeTxDrizzle(
+      makeProject(undefined, { ...sampleWatercourse, comment: 'kept' })
+    )
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Moderate',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('kept')
   })
 })
 

@@ -105,9 +105,21 @@ export function commentForBaseline(
  * Editing a baseline habitat's comment (BMD-1112) writes to the baseline
  * feature alone: a Retained row's own stored copy, which only a template
  * upload ever sets, is deliberately left as imported rather than overwritten
- * by an edit the user made elsewhere. A retained habitat therefore shares its
- * baseline habitat's comment only if it is displayed from the baseline
- * feature it is joined to, which is how the retained summary must read it.
+ * by an edit the user made elsewhere.
+ *
+ * Nothing resolves the two today, so a retained habitat's displayed comment
+ * is whichever document the reader looked at. In a legacy upload only the
+ * baseline carries one, so an edit is the only comment there is. In a
+ * template upload both sides carry their own, and after a baseline edit they
+ * differ — which is what the template's per-table Comment column is for. The
+ * PDF report prints each side's own recorded comment by design
+ * (`services/report/site-data.js` `recorded()`), so it shows the imported
+ * text on a retained post-intervention card. Any screen or report that should
+ * instead echo the edited baseline comment on a retained row has to resolve
+ * the post-intervention row's baseline parent, and that join is neither a
+ * featureId nor a unique ref — see the header of
+ * `utilities/enrichment/post-intervention/resync-post-intervention-baseline.js`
+ * for what resolving it actually takes.
  *
  * @param {object} props
  * @param {{ template?: boolean }} [options] `template` is a BNG Service template file
