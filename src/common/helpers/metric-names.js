@@ -64,6 +64,8 @@ export const VALIDATION_BUSY_REASON = Object.freeze({
   queueFull: 'queue_full',
   queueWait: 'queue_wait',
   memoryBudget: 'memory_budget',
+  // The process RSS was above VALIDATION_MAX_RSS_BYTES (plugins/memory-shed.js).
+  memoryRss: 'memory_rss',
   workerTimeout: 'worker_timeout'
 })
 
@@ -162,4 +164,22 @@ export const PERFORMANCE_METRIC = {
 export const DOCUMENT_KEY_DIMENSION = {
   baseline: 'baseline',
   postIntervention: 'postIntervention'
+}
+
+export const DATABASE_METRIC = {
+  /**
+   * The database is missing a table or column the code expects, or a
+   * changeset the code needs has not been applied: a migration has not been
+   * run in this environment. Counted at startup and on every query that fails
+   * for it, with a `source` dimension of `startup` or `request`. Any non-zero
+   * value is an incident — every upload save fails until the migration runs.
+   */
+  schemaOutOfDate: 'DatabaseSchemaOutOfDate',
+  /**
+   * The startup check could not read Liquibase's databasechangelog — the app
+   * role lacks SELECT on it, or it is not on the role's search_path — so it
+   * cannot say whether the schema is current. Not an incident in itself, but
+   * a non-zero value means the `startup` alarm above can never fire there.
+   */
+  schemaCheckSkipped: 'DatabaseSchemaCheckSkipped'
 }

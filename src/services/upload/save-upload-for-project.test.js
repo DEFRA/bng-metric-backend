@@ -458,9 +458,11 @@ describe('saveUploadForProject', () => {
       expect(h.response).toHaveBeenCalledWith({
         valid: false,
         errors: [
-          expect.objectContaining({
-            code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS
-          })
+          // The derived wording: no variant, so no details.
+          {
+            code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            message: expect.not.stringContaining('Area Habitats Baseline')
+          }
         ]
       })
       expect(extractPostIntervention).not.toHaveBeenCalled()
@@ -486,7 +488,8 @@ describe('saveUploadForProject', () => {
         errors: [
           expect.objectContaining({
             code: ERROR_CODES.BASELINE_TYPE_MISSING,
-            message: expect.stringContaining('1 retained or enhanced')
+            message: expect.stringContaining('1 retained or enhanced'),
+            details: { rowCount: 1 }
           })
         ]
       })
@@ -729,7 +732,8 @@ describe('saveUploadForProject', () => {
             code: ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
             message: expect.stringContaining(
               'Area Habitats Baseline table in this file has no habitats'
-            )
+            ),
+            details: { variants: ['read'] }
           })
         ]
       })

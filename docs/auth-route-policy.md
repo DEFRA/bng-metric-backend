@@ -53,23 +53,21 @@ reviewed.
 
 ### Current public routes
 
-| Route                         | Why it is public                                                                                                                              |
-| ----------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------- |
-| `GET /health`                 | CDP liveness/readiness probe — must be unauthenticated                                                                                        |
-| `GET /reference/*` (9 routes) | Static lookup data (habitats, conditions, trading rules and Planning Data LPAs) stored locally; no per-user scope, nothing sensitive          |
-| `GET /db-info`                | Local/dev DB-version diagnostic — **never registered in production** (see below); `auth: false` so it works without a token where it does run |
+| Route                         | Why it is public                                                                                                                     |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------ |
+| `GET /health`                 | CDP liveness/readiness probe — must be unauthenticated                                                                               |
+| `GET /reference/*` (9 routes) | Static lookup data (habitats, conditions, trading rules and Planning Data LPAs) stored locally; no per-user scope, nothing sensitive |
 
 Swagger docs routes (`/docs*`, `/swagger.json`) also set `auth: false`, but they
 are only registered when `USE_SWAGGER=true` (off in production), so they are not
 on the runtime allowlist.
 
-## Routes removed from production
+## Removed routes
 
-`/db-info` is a database-introspection endpoint. Rather than ship it to
-production behind auth, it is **removed from the prod route table entirely** —
-`src/plugins/router.js` registers it only when `cdpEnvironment !== 'prod'`. In
-production the path simply does not exist (404), so it is not an attack surface
-at all.
+`/db-info` was a database-introspection diagnostic that returned the Postgres
+version without a token. It was removed in every environment (BMD-1174, after
+the CDP production readiness review), together with the frontend page that
+showed it, rather than kept behind an environment check.
 
 ## The guard test
 

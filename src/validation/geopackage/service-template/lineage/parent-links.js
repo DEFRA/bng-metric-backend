@@ -9,13 +9,13 @@ import {
 } from './canonical-geometry.js'
 import {
   LINKED_LAYERS,
-  REF,
   baselineHabitatTypeOf,
   collated,
   continues,
   habitatTypeOf,
   label,
   parentsByUuid,
+  refOf,
   text
 } from './lineage-rows.js'
 
@@ -99,7 +99,7 @@ function offendingRow(layer, table, feature) {
     layer,
     table,
     fid: properties.fid,
-    ref: text(properties[REF]),
+    ref: refOf(properties),
     habitatType: habitatTypeOf(layer, properties),
     parentUuid: text(properties[PARENT_UUID])
   }
@@ -112,7 +112,7 @@ function changedParent(layer, table, parent) {
     layer,
     table,
     fid: properties.fid,
-    ref: text(properties[REF]),
+    ref: refOf(properties),
     habitatType: baselineHabitatTypeOf(layer, properties),
     childRefs: []
   }
@@ -124,7 +124,7 @@ function ambiguousParent(layer, table, uuid, parents) {
     layer,
     table,
     parentUuid: uuid,
-    refs: parents.map(({ properties }) => text(properties[REF])),
+    refs: parents.map(({ properties }) => refOf(properties)),
     habitatType: baselineHabitatTypeOf(layer, parents[0].properties),
     childRefs: []
   }
@@ -133,7 +133,7 @@ function ambiguousParent(layer, table, uuid, parents) {
 /** Add a row's Habitat Ref to the entry for `key`, made by `make` if new. */
 function addChild(entries, key, make, feature) {
   const entry = entries.get(key) ?? make()
-  entry.childRefs.push(text(feature.properties[REF]))
+  entry.childRefs.push(refOf(feature.properties))
   entries.set(key, entry)
 }
 
@@ -252,7 +252,7 @@ export function checkParentLinks(baselineLayers, postInterventionLayers) {
     ),
     collated(
       ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
-      'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has',
+      'One or more post-intervention habitats have a parent that matches more than one baseline habitat',
       ambiguous,
       (parent) =>
         `${parent.table} ${parent.refs.join(', ')}, named by ${parent.childRefs.join(', ')}`

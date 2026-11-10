@@ -45,6 +45,9 @@ export const PROP_KEYS = {
   // BNG Service template area habitats only: the legacy template has none.
   irreplaceable: ['Irreplaceable Habitat'],
   area: ['Area', 'Shape_Area'],
+  // A BNG Service vertical area habitat's typed Area, in hectares. Never
+  // Shape_Area, which GIS tools write in the CRS's square metres.
+  verticalArea: ['Area'],
   length: ['Length', 'Shape_Length'],
   // Survey / provenance / planning metadata columns shared (with minor
   // spelling differences) across the Habitats, Hedgerows and Rivers layers.
@@ -232,6 +235,15 @@ export function pickProp(properties, candidates) {
   }
   return null
 }
+
+/**
+ * The strategic significance every baseline habitat is stored at. The Metric
+ * guide fixes baseline at Low, and the service already prices baseline at 1
+ * and shows "Low (1)" whatever the file says, so the stored value says the
+ * same rather than repeating a High (or a blank) from the file (BMD-1086). The
+ * file's own value stays in the feature's raw `properties`.
+ */
+export const BASELINE_STRATEGIC_SIGNIFICANCE = 'Low'
 
 const BROAD_TYPE_SEPARATOR = ' - '
 

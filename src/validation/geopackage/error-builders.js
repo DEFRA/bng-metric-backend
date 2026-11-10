@@ -103,6 +103,17 @@ function redlineInvalidGeometryMessage(payload) {
   return `Redline boundary geometry is invalid: ${payload.reason} at ${payload.location_wkt}`
 }
 
+// The values the message names (ERROR_CODE_DETAILS): a location only with
+// the reason it is shown beside.
+function redlineInvalidGeometryDetails(payload) {
+  if (!payload?.reason) {
+    return undefined
+  }
+  return payload.location_wkt
+    ? { reason: payload.reason, location: payload.location_wkt }
+    : { reason: payload.reason }
+}
+
 // ---------------------------------------------------------------------------
 // Builders
 // ---------------------------------------------------------------------------
@@ -121,7 +132,8 @@ export const ERROR_BUILDERS = {
   [ERROR_CODES.REDLINE_AREA_TOO_LARGE]: (p) =>
     makeError(
       ERROR_CODES.REDLINE_AREA_TOO_LARGE,
-      `Redline boundary area (${Number(p.total).toFixed(0)} sq m) exceeds the 100 sq km limit`
+      `Redline boundary area (${Number(p.total).toFixed(0)} sq m) exceeds the 100 sq km limit`,
+      { areaSqM: Number(p.total) }
     ),
   [ERROR_CODES.NO_HABITAT_AREAS]: () =>
     makeError(
@@ -131,7 +143,8 @@ export const ERROR_BUILDERS = {
   [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: (p) =>
     makeError(
       ERROR_CODES.REDLINE_INVALID_GEOMETRY,
-      redlineInvalidGeometryMessage(p)
+      redlineInvalidGeometryMessage(p),
+      redlineInvalidGeometryDetails(p)
     ),
   [ERROR_CODES.AREA_PARCELS_INVALID_GEOMETRY]: (p) =>
     makeError(
@@ -237,6 +250,10 @@ export const ERROR_BUILDERS = {
   [ERROR_CODES.AREA_SUM_MISMATCH]: (p) =>
     makeError(
       ERROR_CODES.AREA_SUM_MISMATCH,
-      `Sum of area habitat polygons (${Number(p.habitats_total).toFixed(2)} sq m) does not equal redline boundary area (${Number(p.redline_total).toFixed(2)} sq m)`
+      `Sum of area habitat polygons (${Number(p.habitats_total).toFixed(2)} sq m) does not equal redline boundary area (${Number(p.redline_total).toFixed(2)} sq m)`,
+      {
+        habitatsAreaSqM: Number(p.habitats_total),
+        redlineAreaSqM: Number(p.redline_total)
+      }
     )
 }

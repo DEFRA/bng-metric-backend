@@ -1,8 +1,22 @@
-import { ERROR_CODES, makeError } from './errors.js'
+import { ERROR_CODES, makeError, withVariant } from './errors.js'
 import {
   formatSrsIdForError,
   integerSrsCodeOrNull
 } from './geopackage-internals-sqlite.js'
+
+/**
+ * An srs_id as the error's details send it (ERROR_CODE_DETAILS): a number or
+ * text as the file holds it, null when it is unset, and anything else, such
+ * as a blob, as the text its message gives it.
+ */
+function srsIdDetail(raw) {
+  if (raw === null || raw === undefined) {
+    return null
+  }
+  return typeof raw === 'number' || typeof raw === 'string'
+    ? raw
+    : formatSrsIdForError(raw)
+}
 
 function pushNeitherTableParsesIntegerSrs(
   layerDef,
@@ -12,9 +26,18 @@ function pushNeitherTableParsesIntegerSrs(
   errors
 ) {
   errors.push(
-    makeError(
-      ERROR_CODES.GPKG_BASELINE_SRS_ID,
-      `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but could not read a valid integer srs_id from gpkg_contents (${formatSrsIdForError(contentMeta?.srs_id)}) nor gpkg_geometry_columns (${formatSrsIdForError(geomRow.geom_srs_raw)})`
+    withVariant(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_SRS_ID,
+        `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but could not read a valid integer srs_id from gpkg_contents (${formatSrsIdForError(contentMeta?.srs_id)}) nor gpkg_geometry_columns (${formatSrsIdForError(geomRow.geom_srs_raw)})`,
+        {
+          layer: actualTable,
+          expectedSrsId: layerDef.srsId,
+          contentsSrsId: srsIdDetail(contentMeta?.srs_id),
+          geometryColumnsSrsId: srsIdDetail(geomRow.geom_srs_raw)
+        }
+      ),
+      'unreadable'
     )
   )
 }
@@ -28,7 +51,12 @@ function pushGpkgInternalSrsMismatch(
   errors.push(
     makeError(
       ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT,
-      `Layer "${actualTable}" GeoPackage srs_id inconsistent: gpkg_contents has ${formatSrsIdForError(contentMeta?.srs_id)} but gpkg_geometry_columns has ${formatSrsIdForError(geomRow.geom_srs_raw)}`
+      `Layer "${actualTable}" GeoPackage srs_id inconsistent: gpkg_contents has ${formatSrsIdForError(contentMeta?.srs_id)} but gpkg_geometry_columns has ${formatSrsIdForError(geomRow.geom_srs_raw)}`,
+      {
+        layer: actualTable,
+        contentsSrsId: srsIdDetail(contentMeta?.srs_id),
+        geometryColumnsSrsId: srsIdDetail(geomRow.geom_srs_raw)
+      }
     )
   )
 }
@@ -37,7 +65,8 @@ function pushExpectedSrsIdMismatch(layerDef, actualTable, unified, errors) {
   errors.push(
     makeError(
       ERROR_CODES.GPKG_BASELINE_SRS_ID,
-      `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but GeoPackage srs_id is ${unified}`
+      `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but GeoPackage srs_id is ${unified}`,
+      { layer: actualTable, expectedSrsId: layerDef.srsId, foundSrsId: unified }
     )
   )
 }
@@ -58,9 +87,17 @@ function compareBaselineLayerSrsWhenGeomMissing(
     return
   }
   errors.push(
-    makeError(
-      ERROR_CODES.GPKG_BASELINE_SRS_ID,
-      `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but gpkg_contents has ${formatSrsIdForError(contentMeta?.srs_id)}`
+    withVariant(
+      makeError(
+        ERROR_CODES.GPKG_BASELINE_SRS_ID,
+        `Layer "${actualTable}" baseline mismatch: expected srs_id ${layerDef.srsId} but gpkg_contents has ${formatSrsIdForError(contentMeta?.srs_id)}`,
+        {
+          layer: actualTable,
+          expectedSrsId: layerDef.srsId,
+          contentsSrsId: srsIdDetail(contentMeta?.srs_id)
+        }
+      ),
+      'contents'
     )
   )
 }

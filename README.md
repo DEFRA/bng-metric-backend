@@ -105,6 +105,15 @@ To mimic the application running in `production` mode locally run:
 npm start
 ```
 
+With `DB_IAM_AUTHENTICATION` on, the Postgres connection uses TLS with the
+platform CA (`TRUSTSTORE_RDS_ROOT_CA`), and verifies the server certificate in
+every CDP environment (`ENVIRONMENT` set and not `local`). Verification was
+proved in perf-test, dev and test before it became the default. A certificate
+that does not verify stops the service connecting to the database at all, so
+check a new environment's `DB_HOST` is the RDS endpoint the certificate covers.
+`DB_TLS_REJECT_UNAUTHORIZED` overrides the default either way; locally it is
+off, where the database is a plain container.
+
 ### Npm scripts
 
 All available Npm scripts can be seen in [package.json](./package.json).
@@ -178,18 +187,19 @@ user on its polling page and retries, jittered, until a worker frees up or it
 gives up after two minutes. The file was never looked at, so it is not a
 validation failure.
 
-| Setting                               | Default | Notes                                                            |
-| :------------------------------------ | ------: | :--------------------------------------------------------------- |
-| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.            |
-| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                   |
-| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it. |
-| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.             |
-| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.            |
-| `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts. Bigger files cannot finish in time.   |
-| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.** |
-| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.               |
-| `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                  |
-| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                         |
+| Setting                               | Default | Notes                                                              |
+| :------------------------------------ | ------: | :----------------------------------------------------------------- |
+| `VALIDATION_WORKER_COUNT`             |       2 | Capped at `availableParallelism() - 1`. ~250 MB each.              |
+| `VALIDATION_WORKER_QUEUE_LIMIT`       |      20 | Waiting validations before new ones get a 503.                     |
+| `VALIDATION_ADMISSION_LIMIT`          |      64 | Requests in flight at once. Reserved, so a burst cannot race it.   |
+| `VALIDATION_WORKER_TIMEOUT_MS`        |    5000 | Per-job budget; the worker is terminated on overrun.               |
+| `VALIDATION_QUEUE_WAIT_LIMIT_MS`      |    5000 | Longest a job may wait to start before it is refused.              |
+| `VALIDATION_MAX_FEATURE_COUNT`        |   25000 | Features the gate accepts. Bigger files cannot finish in time.     |
+| `VALIDATION_PARSE_BUDGET_BYTES`       |  550 MB | Heap rationed across files parsed at once. **The primary shed.**   |
+| `VALIDATION_BUSY_RETRY_AFTER_SECONDS` |       5 | `Retry-After` on the 503; the frontend honours it.                 |
+| `VALIDATION_MAX_RSS_BYTES`            | Derived | RSS above which new requests (not `/health`) get a 503. See below. |
+| `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                    |
+| `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                           |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
 returned, so the worker count is a memory budget as much as a throughput setting.
@@ -215,11 +225,42 @@ resident set size — the memory the process holds in physical RAM, counting
 native and WebAssembly allocations a JavaScript heap figure cannot see, and what
 the task memory limit is enforced against.)
 
+`VALIDATION_MAX_RSS_BYTES` is the backstop behind the parse budget. The budget
+counts only the files being parsed, but most of the memory growth under load is
+the workers' WebAssembly heaps and V8's retained heap, which it cannot see. When
+the process RSS goes above this value, every new request except `/health` gets
+the same 503 `VALIDATION_BUSY` the validate route gives when it is busy, so the
+frontend retries, and the task sheds load instead of being killed by the kernel
+at its memory limit — which would drop every in-flight request at once.
+`/health` is never refused, so a task whose RSS stays high after a burst still
+passes its health check.
+
+Unset, it is worked out from the task: in a CDP environment the ceiling is the
+task memory less `VALIDATION_PARSE_BUDGET_BYTES`, because the files already
+admitted can still be unpacking when the ceiling is crossed, and the parse
+budget is the most they can take. It therefore follows the task size, and there
+is nothing to set per environment. A 4 GiB task gets about 3.7 GB, close to
+the 3,718,250,496 bytes set by hand in perf-test; the exact figure is in the
+boot log, because on Fargate the machine reports slightly less than the task
+size. The task memory is the same figure the worker pool sizes itself from:
+`process.constrainedMemory()` when it is a real limit, otherwise the machine's
+memory, which on Fargate is the task. A "no limit" answer, which can be 0 or a
+huge sentinel such as 2^64, counts as no limit. Locally it is off. Set it
+to override the default, or to `0` to turn it off. A task too small for a
+useful default (under 1 GiB of ceiling) leaves it off. The ceiling and where it
+came from are logged at boot, and a CDP environment where it is off logs a
+warning instead. RSS is sampled
+every `VALIDATION_LOAD_SAMPLE_INTERVAL_MS` (1 s), so a few requests can pass
+between samples.
+
 The backend's timeouts are sequential stages of one request, so they **sum**,
 and the total must fit inside the frontend's per-request validate timeout, which
 must in turn fit inside the CDP ingress idle timeout.
 
 See [`docs/geometry-validation.md`](docs/geometry-validation.md).
+
+For how the service behaves when Postgres, S3 or CDP Uploader fails, and the
+tests that show it, see [`docs/downstream-failures.md`](docs/downstream-failures.md).
 
 ## Development helpers
 

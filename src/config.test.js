@@ -8,6 +8,10 @@ describe('#config', () => {
     expect(config.get('log.redact')).toEqual(['req', 'res', 'responseTime'])
     expect(config.get('isMetricsEnabled')).toBe(false)
     expect(config.get('postgres.iamAuthentication')).toBe(false)
+    // Off locally: the database is a plain container.
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
+    // Unset: off locally, derived from the task memory when deployed.
+    expect(config.get('validation.maxRssBytes')).toBeNull()
   })
 
   test('Should default to production settings when NODE_ENV is production', async () => {
@@ -25,6 +29,45 @@ describe('#config', () => {
     ])
     expect(config.get('isMetricsEnabled')).toBe(true)
     expect(config.get('postgres.iamAuthentication')).toBe(true)
+    // NODE_ENV alone does not make it a CDP environment: ENVIRONMENT does.
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
+
+    vi.unstubAllEnvs()
+  })
+
+  test.each(['dev', 'test', 'perf-test', 'prod'])(
+    'Should verify the Postgres certificate by default in %s',
+    async (environment) => {
+      vi.stubEnv('ENVIRONMENT', environment)
+      vi.resetModules()
+
+      const { config } = await import('./config.js')
+
+      expect(config.get('postgres.tlsRejectUnauthorized')).toBe(true)
+
+      vi.unstubAllEnvs()
+    }
+  )
+
+  test('Should not verify the Postgres certificate by default when ENVIRONMENT is local', async () => {
+    vi.stubEnv('ENVIRONMENT', 'local')
+    vi.resetModules()
+
+    const { config } = await import('./config.js')
+
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
+
+    vi.unstubAllEnvs()
+  })
+
+  test('Should let DB_TLS_REJECT_UNAUTHORIZED turn verification off in a CDP environment', async () => {
+    vi.stubEnv('ENVIRONMENT', 'dev')
+    vi.stubEnv('DB_TLS_REJECT_UNAUTHORIZED', 'false')
+    vi.resetModules()
+
+    const { config } = await import('./config.js')
+
+    expect(config.get('postgres.tlsRejectUnauthorized')).toBe(false)
 
     vi.unstubAllEnvs()
   })

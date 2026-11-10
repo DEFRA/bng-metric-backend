@@ -8,13 +8,15 @@ const TABLES = {
     areas: 'Area Habitats Baseline',
     verticalHabitats: 'Vertical Area Habitats Baseline',
     hedgerows: 'Hedgerows Baseline',
-    watercourses: 'Watercourses Baseline'
+    watercourses: 'Watercourses Baseline',
+    trees: 'Individual Trees Baseline'
   },
   postIntervention: {
     areas: 'Area Habitats Post-Intervention',
     verticalHabitats: 'Vertical Area Habitats Post-Intervention',
     hedgerows: 'Hedgerows Post-Intervention',
-    watercourses: 'Watercourses Post-Intervention'
+    watercourses: 'Watercourses Post-Intervention',
+    trees: 'Individual Trees Post-Intervention'
   }
 }
 
@@ -70,8 +72,8 @@ function hedge(n, metres, overrides = {}) {
   }
 }
 
-/** A green wall along a line, with the face area typed in, in m². */
-function wall(n, squareMetres, overrides = {}) {
+/** A green wall along a line, with its area typed in, in hectares. */
+function wall(n, hectares, overrides = {}) {
   return {
     properties: {
       fid: n,
@@ -79,7 +81,7 @@ function wall(n, squareMetres, overrides = {}) {
       'Baseline Broad Habitat Type': 'Urban',
       'Baseline Habitat Type': 'Facade-bound green wall',
       'Baseline Condition': 'Moderate',
-      Area: squareMetres,
+      Area: hectares,
       feature_uuid: uuid(300 + n),
       ...overrides
     },
@@ -101,6 +103,44 @@ function river(n, metres, overrides = {}) {
       ...overrides
     },
     nativeGeometry: line(metres)
+  }
+}
+
+const POINT = { type: 'Point', coordinates: [50, 50] }
+
+/** A baseline tree point standing for `count` trees (a blank Count is one). */
+function tree(n, count, overrides = {}) {
+  return {
+    properties: {
+      fid: n,
+      'Tree Ref': `T00${n}`,
+      'Baseline Tree Size': 'Medium',
+      'Baseline Rural or Urban Tree': 'Urban tree',
+      'Baseline Condition': 'Moderate',
+      Count: count,
+      feature_uuid: uuid(400 + n),
+      ...overrides
+    },
+    nativeGeometry: POINT
+  }
+}
+
+/** A post-intervention tree copied from `parent`, Retained unless overridden. */
+function treeChild(parent, overrides = {}) {
+  return {
+    properties: {
+      fid: parent.properties.fid,
+      'Tree Ref': parent.properties['Tree Ref'],
+      'Retention Category': 'Retained',
+      'Proposed Tree Size': parent.properties['Baseline Tree Size'],
+      'Proposed Rural or Urban Tree':
+        parent.properties['Baseline Rural or Urban Tree'],
+      'Proposed Condition': parent.properties['Baseline Condition'],
+      Count: parent.properties.Count,
+      parent_uuid: parent.properties.feature_uuid,
+      ...overrides
+    },
+    nativeGeometry: POINT
   }
 }
 
@@ -255,7 +295,7 @@ describe('checkLineageRules', () => {
 
   describe('vertical area habitats', () => {
     it('passes children whose typed areas together are no more than their parent’s', () => {
-      const parent = wall(1, 40)
+      const parent = wall(1, 0.004)
 
       expect(
         check(
@@ -264,12 +304,12 @@ describe('checkLineageRules', () => {
             verticalHabitats: [
               child(parent, 'verticalHabitats', {
                 'Parcel Ref': 'V001a',
-                Area: 25
+                Area: 0.0025
               }),
               child(parent, 'verticalHabitats', {
                 'Parcel Ref': 'V001b',
                 'Retention Category': 'Enhanced',
-                Area: 15
+                Area: 0.0015
               })
             ]
           }
@@ -278,11 +318,11 @@ describe('checkLineageRules', () => {
     })
 
     it('passes a baseline vertical area habitat with no child: it is removed', () => {
-      expect(check({ verticalHabitats: [wall(1, 40)] }, {})).toEqual([])
+      expect(check({ verticalHabitats: [wall(1, 0.004)] }, {})).toEqual([])
     })
 
     it('refuses a parent smaller than its children together, counting a Created child', () => {
-      const parent = wall(1, 40)
+      const parent = wall(1, 0.004)
 
       const errors = check(
         { verticalHabitats: [parent] },
@@ -293,7 +333,7 @@ describe('checkLineageRules', () => {
               'Parcel Ref': 'V001b',
               'Retention Category': 'Created',
               'Proposed Habitat Type': 'Ground based green wall',
-              Area: 10.1
+              Area: 0.00101
             })
           ]
         }
@@ -303,7 +343,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE,
           message:
-            'One or more baseline vertical area habitats have a smaller Area (m²) than the post-intervention vertical area habitats linked to them together: Vertical Area Habitats Baseline V001 (Facade-bound green wall), copied to V001a, V001b (40 m², linked 50.1 m²)',
+            'One or more baseline vertical area habitats have a smaller Area (ha) than the post-intervention vertical area habitats linked to them together: Vertical Area Habitats Baseline V001 (Facade-bound green wall), copied to V001a, V001b (0.004 ha, linked 0.00501 ha)',
           details: {
             count: 1,
             sample: [
@@ -323,29 +363,23 @@ describe('checkLineageRules', () => {
       ])
     })
 
-    it('reads a row’s area from Shape_Area too, as the upload check and the extract do', () => {
-      const parent = wall(1, undefined, { Area: undefined, Shape_Area: 40 })
-      const piece = (ref, area) =>
+    it('reads a row’s area from Area only, never Shape_Area, as the upload check and the extract do', () => {
+      const parent = wall(1, 0.004)
+      // Shape_Area is in the CRS's square metres: read as hectares, these
+      // children would be far larger than their parent.
+      const piece = (ref, squareMetres) =>
         child(parent, 'verticalHabitats', {
           'Parcel Ref': ref,
           Area: undefined,
-          Shape_Area: area
+          Shape_Area: squareMetres
         })
 
       expect(
         check(
           { verticalHabitats: [parent] },
-          { verticalHabitats: [piece('V001a', 25), piece('V001b', 15)] }
+          { verticalHabitats: [piece('V001a', 25), piece('V001b', 25)] }
         )
       ).toEqual([])
-      expect(
-        codes(
-          check(
-            { verticalHabitats: [parent] },
-            { verticalHabitats: [piece('V001a', 25), piece('V001b', 25)] }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_VERTICAL_CHILDREN_TOO_LARGE])
     })
 
     it('holds a degraded vertical area habitat to the area habitat rule', () => {
@@ -380,6 +414,128 @@ describe('checkLineageRules', () => {
           )
         )
       ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+    })
+  })
+
+  describe('individual trees', () => {
+    it('passes kept trees that together count no more than their parent, whatever is planted', () => {
+      const parent = tree(1, 5)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              treeChild(parent, { 'Tree Ref': 'T001a', Count: 3 }),
+              treeChild(parent, {
+                'Tree Ref': 'T001b',
+                'Retention Category': 'Enhanced',
+                'Proposed Condition': 'Good',
+                Count: 2
+              }),
+              // Replacement planting is new trees, not the parent's.
+              treeChild(parent, {
+                'Tree Ref': 'T001c',
+                'Retention Category': 'Created',
+                Count: 10
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
+
+    it('passes a baseline tree with no child, or fewer kept trees: they are felled', () => {
+      const felled = tree(1, 4)
+      const thinned = tree(2, 4)
+
+      expect(
+        check(
+          { trees: [felled, thinned] },
+          { trees: [treeChild(thinned, { Count: 1 })] }
+        )
+      ).toEqual([])
+    })
+
+    it('reads a blank Count as one tree', () => {
+      const parent = tree(1, null)
+
+      expect(
+        check({ trees: [parent] }, { trees: [treeChild(parent)] })
+      ).toEqual([])
+      expect(
+        codes(
+          check(
+            { trees: [parent] },
+            { trees: [treeChild(parent, { Count: 2 })] }
+          )
+        )
+      ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
+    })
+
+    it('refuses a parent with fewer trees than its kept children together', () => {
+      const parent = tree(1, 3)
+
+      const errors = check(
+        { trees: [parent] },
+        {
+          trees: [
+            treeChild(parent, { 'Tree Ref': 'T001a', Count: 2 }),
+            treeChild(parent, {
+              'Tree Ref': 'T001b',
+              'Retention Category': 'Enhanced',
+              'Proposed Condition': 'Good',
+              Count: 2
+            }),
+            treeChild(parent, {
+              'Tree Ref': 'T001c',
+              'Retention Category': 'Created',
+              Count: 1
+            })
+          ]
+        }
+      )
+
+      expect(errors).toEqual([
+        {
+          code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
+          message:
+            'One or more baseline trees have fewer trees than the Retained and Enhanced post-intervention trees linked to them together: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b (3 trees, linked 4)',
+          details: {
+            count: 1,
+            sample: [
+              {
+                layer: 'trees',
+                table: 'Individual Trees Baseline',
+                fid: 1,
+                ref: 'T001',
+                habitatType: 'Urban tree',
+                childRefs: ['T001a', 'T001b'],
+                count: 3,
+                childCount: 4
+              }
+            ]
+          }
+        }
+      ])
+    })
+
+    it('does not hold a tree to the degraded rows’ rules: a linked Created tree is planting', () => {
+      const parent = tree(1, 1)
+
+      expect(
+        check(
+          { trees: [parent] },
+          {
+            trees: [
+              treeChild(parent, {
+                'Retention Category': 'Created',
+                'Proposed Condition': 'Moderate'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
     })
   })
 

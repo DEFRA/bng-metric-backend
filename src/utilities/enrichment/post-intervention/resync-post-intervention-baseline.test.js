@@ -2,7 +2,7 @@ import { describe, expect, test, vi } from 'vitest'
 import { summariseUnitTypes } from '../../../services/report/unit-summary.js'
 
 import {
-  preserveCreatedAreaParent,
+  preserveCreatedParent,
   rederivePostInterventionFromBaseline,
   resyncPostInterventionBaselineSide
 } from './resync-post-intervention-baseline.js'
@@ -191,6 +191,43 @@ describe('resyncPostInterventionBaselineSide', () => {
     expect(postIntervention.habitats[0].baseline.strategicSignificance).toBe(
       'Low'
     )
+  })
+
+  test('leaves the Low baseline significance of a row saved since BMD-1086, though its baseline was saved before as High', () => {
+    // A baseline uploaded before BMD-1086 kept the file's High; a
+    // post-intervention file uploaded since stores its baseline side as Low.
+    // An edit cannot change significance, so the re-sync must not copy the
+    // older High across, onto the baseline side or a Retained proposed copy.
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [
+          baselineHabitat({ strategicSignificance: 'High', condition: 'Good' })
+        ]
+      }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline).toMatchObject({
+      condition: 'Good',
+      strategicSignificance: 'Low'
+    })
+    expect(postIntervention.habitats[0].proposed.strategicSignificance).toBe(
+      'Low'
+    )
+  })
+
+  test('counts no change when only the saved significance differs', () => {
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineHabitat({ strategicSignificance: 'High' })]
+      }
+    })
+
+    expect(changed).toBe(0)
   })
 
   test('warns when a Retained row has no baseline feature to measure against', () => {
@@ -477,6 +514,80 @@ describe('resyncPostInterventionBaselineSide — refs shared by several features
     )
   })
 
+  test('tells apart two features sharing a ref by the significance each file gave, though both are stored as Low', () => {
+    // Legacy rows can share a ref, type and condition and differ only in their
+    // Baseline Strategic Significance. Both are stored as Low (BMD-1086), so
+    // the tie-break reads the file's value from properties instead.
+    const imported = (value) => ({ 'Baseline Strategic Significance': value })
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-high', condition: 'Good' }),
+          properties: imported('High')
+        },
+        {
+          ...baselineHabitat({ featureId: 'b-low' }),
+          properties: imported('Low')
+        }
+      ]
+    }
+    const postIntervention = {
+      habitats: [{ ...postInterventionHabitat(), properties: imported('High') }]
+    }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
+  test('compares stored significance when only one side keeps its raw properties', () => {
+    // A file value is never set against a stored one: with properties on the
+    // baseline side only, the stored values decide, as they did before.
+    const previousBaseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const baseline = {
+      habitats: [
+        {
+          ...baselineHabitat({ featureId: 'b-1', condition: 'Good' }),
+          properties: { 'Baseline Strategic Significance': 'High' }
+        },
+        baselineHabitat({ featureId: 'b-2', strategicSignificance: 'High' })
+      ]
+    }
+    const postIntervention = { habitats: [postInterventionHabitat()] }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline,
+      previousBaseline
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
   test('resolves an ambiguous ref on the layer the Met / Not-met verdict reads', () => {
     // Upload allows repeated Parcel Refs (BMD-1058), so this reaches the area
     // layer, and the verdict must not depend on which row a ref picks.
@@ -739,6 +850,68 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
     expect(rederived.watercourses[0].baseline.condition).toBe('Good')
     expect(rederived.watercourses[0].ref).toBe('R1a')
+  })
+
+  test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
+    const baselineTree = (condition) => ({
+      featureId: 'baseline-t1',
+      ref: 'T1',
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: 'Urban tree',
+      condition,
+      strategicSignificance: 'Low',
+      count: 3,
+      sizeSquareMetres: 489,
+      area: 489
+    })
+    const side = (condition) => ({
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: 'Urban tree',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 326,
+      area: 326
+    })
+    const kept = {
+      featureId: 'pi-t1',
+      ref: 'T1',
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Retained',
+      count: 2,
+      sizeSquareMetres: 326,
+      area: 326,
+      status: 'Complete',
+      units: null,
+      baseline: side('Moderate'),
+      proposed: side('Moderate'),
+      properties: {}
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { trees: [kept], template: TEMPLATE, lostHabitats: [] },
+      {
+        baseline: { trees: [baselineTree('Good')] },
+        previousBaseline: { trees: [baselineTree('Moderate')] }
+      }
+    )
+
+    const [tree] = rederived.trees
+    expect(tree).toMatchObject({
+      sizeSquareMetres: 326,
+      baseline: { condition: 'Good', sizeSquareMetres: 326 },
+      proposed: { condition: 'Good', sizeSquareMetres: 326 }
+    })
+    // Two Medium Urban trees in Good condition: 0.0326 ha × 4 × 3.
+    expect(tree.units).toBeCloseTo(0.3912, 10)
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({ layer: 'trees', ref: 'T1', lostTreeCount: 1 })
+    ])
   })
 
   test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {
@@ -1161,7 +1334,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
     expect(logger.warn).not.toHaveBeenCalled()
   })
 
-  test('still re-syncs its trees by ref, which it does not link until BMD-1172', () => {
+  test('re-syncs its trees from their parents, not by ref', () => {
     const tree = (overrides) => ({
       featureId: 'tree-t1',
       ref: 'T1',
@@ -1175,8 +1348,16 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
       trees: [
         {
           featureId: 'pi-t1',
-          ref: 'T1',
+          ref: 'T1a',
+          parentFeatureId: 'tree-t1',
           retentionCategory: 'Retained',
+          baseline: tree({ featureId: undefined }),
+          proposed: tree({ featureId: undefined })
+        },
+        {
+          featureId: 'pi-t2',
+          ref: 'T1',
+          retentionCategory: 'Created',
           baseline: tree({ featureId: undefined }),
           proposed: tree({ featureId: undefined })
         }
@@ -1195,7 +1376,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
 
     expect(changed).toBe(1)
     expect(postIntervention.trees[0].baseline.condition).toBe('Good')
-    expect(logger.warn).not.toHaveBeenCalled()
+    expect(postIntervention.trees[1].baseline.condition).toBe('Moderate')
   })
 
   test('says so when a Retained row’s parent is not in the baseline', () => {
@@ -1214,7 +1395,7 @@ describe('resyncPostInterventionBaselineSide — a BNG Service template upload, 
   })
 })
 
-describe('preserveCreatedAreaParent', () => {
+describe('preserveCreatedParent', () => {
   const baseline = [baselineHabitat({ featureId: 'baseline-a1', ref: 'A1' })]
   const created = (overrides = {}) => ({
     ...postInterventionHabitat({ retentionCategory: 'Created' }),
@@ -1231,7 +1412,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created()
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, context)
+    preserveCreatedParent(existing, updated, context)
 
     expect(updated).toMatchObject({
       referenceEdited: true,
@@ -1243,7 +1424,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created()
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, {
+    preserveCreatedParent(existing, updated, {
       ...context,
       serviceTemplate: true
     })
@@ -1256,7 +1437,7 @@ describe('preserveCreatedAreaParent', () => {
     const existing = created({ parentFeatureId: 'baseline-a1' })
     const updated = renamed(existing)
 
-    preserveCreatedAreaParent(existing, updated, {
+    preserveCreatedParent(existing, updated, {
       ...context,
       serviceTemplate: true
     })

@@ -1,10 +1,13 @@
 import {
+  BASELINE_STRATEGIC_SIGNIFICANCE,
   PROP_KEYS,
   PROPOSED_PROP_KEYS,
   TREE_ADVANCE_DELAY_KEYS,
   pickProp
 } from '../properties.js'
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
+import { commentForPostIntervention } from '../comment-check.js'
+import { irreplaceableField } from '../irreplaceable.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
@@ -26,21 +29,19 @@ const BASELINE_TREE_KEYS = {
   treeSize: PROP_KEYS.treeSize,
   treeType: PROP_KEYS.treeType,
   ruralOrUrbanTree: PROP_KEYS.ruralOrUrbanTree,
-  condition: PROP_KEYS.condition,
-  strategicSignificance: PROP_KEYS.strategicSignificance
+  condition: PROP_KEYS.condition
 }
 
 const PROPOSED_TREE_KEYS = {
   treeSize: PROP_KEYS.proposedTreeSize,
   treeType: PROP_KEYS.proposedTreeType,
   ruralOrUrbanTree: PROP_KEYS.proposedRuralOrUrbanTree,
-  condition: PROPOSED_PROP_KEYS.condition,
-  strategicSignificance: PROPOSED_PROP_KEYS.strategicSignificance
+  condition: PROPOSED_PROP_KEYS.condition
 }
 
 /**
  * @param {object} props
- * @param {{ treeSize: string[], treeType: string[], ruralOrUrbanTree: string[], condition: string[], strategicSignificance: string[] }} keys
+ * @param {{ treeSize: string[], treeType: string[], ruralOrUrbanTree: string[], condition: string[] }} keys
  * @param {unknown} count the point's "Count" column: the number of trees it stands for
  * @returns {object}
  */
@@ -53,7 +54,6 @@ function buildTreeSide(props, keys, count) {
     broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
     condition: stripConditionPrefix(pickProp(props, keys.condition)),
     ...emptyHabitatScoreFields(),
-    strategicSignificance: pickProp(props, keys.strategicSignificance),
     treeSize,
     treeSpecies: pickProp(props, keys.treeType),
     ruralOrUrban,
@@ -63,12 +63,19 @@ function buildTreeSide(props, keys, count) {
 }
 
 function buildTreeBaselineSubObject(props, count) {
-  return buildTreeSide(props, BASELINE_TREE_KEYS, count)
+  return {
+    ...buildTreeSide(props, BASELINE_TREE_KEYS, count),
+    strategicSignificance: BASELINE_STRATEGIC_SIGNIFICANCE
+  }
 }
 
 function buildTreeProposedSubObject(props, count) {
   return {
     ...buildTreeSide(props, PROPOSED_TREE_KEYS, count),
+    strategicSignificance: pickProp(
+      props,
+      PROPOSED_PROP_KEYS.strategicSignificance
+    ),
     ...buildAdvanceDelayFields(props, TREE_ADVANCE_DELAY_KEYS)
   }
 }
@@ -82,7 +89,8 @@ function buildTreeProposedSubObject(props, count) {
 export function buildPostInterventionTree(
   feature,
   initParsedFeature,
-  buildGeometryRow
+  buildGeometryRow,
+  template = false
 ) {
   const { featureId, props } = initParsedFeature(feature)
   const ref = pickProp(props, PROP_KEYS.treeRef)
@@ -93,11 +101,13 @@ export function buildPostInterventionTree(
     featureId,
     ref,
     retentionCategory: retentionCategoryFromProps(props),
+    comment: commentForPostIntervention(props, { template }),
     area: proposed.area,
     sizeSquareMetres: proposed.sizeSquareMetres,
     units: null,
     status: null,
     count,
+    ...irreplaceableField(props),
     baseline,
     proposed,
     properties: props

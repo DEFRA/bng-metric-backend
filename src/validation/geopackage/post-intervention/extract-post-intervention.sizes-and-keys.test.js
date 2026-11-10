@@ -397,7 +397,7 @@ describe('extractPostIntervention — habitatSizes missing featureId fallback', 
 })
 
 describe('extractPostIntervention — vertical area habitats', () => {
-  it('reads each one as an area habitat sized by its own row’s typed area', () => {
+  it('reads each one as an area habitat sized by its own row’s typed area, in hectares', () => {
     const habitatSizes = {
       areaHabitats: { individualSquareMetres: [], totalSquareMetres: 0 },
       hedgerows: { individualMetres: [], totalMetres: 0 },
@@ -421,7 +421,7 @@ describe('extractPostIntervention — vertical area habitats', () => {
                 'Proposed Broad Habitat Type': 'Urban',
                 'Proposed Habitat Type': 'Facade-bound green wall',
                 'Proposed Condition': 'Moderate',
-                Area: 25
+                Area: 0.0025
               },
               SAMPLE_LINESTRING
             ),

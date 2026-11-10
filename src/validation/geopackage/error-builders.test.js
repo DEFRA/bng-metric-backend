@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 import { ERROR_CODES } from './errors.js'
 import { ERROR_BUILDERS } from './error-builders.js'
@@ -26,7 +27,7 @@ describe('ERROR_BUILDERS — non-list errors', () => {
     })
     expect(err.code).toBe(ERROR_CODES.REDLINE_AREA_TOO_LARGE)
     expect(err.message).toMatch(/121000000 sq m/)
-    expect(err.details).toBeUndefined()
+    expect(err.details).toEqual({ areaSqM: 121_000_000 })
   })
 
   it('REDLINE_INVALID_GEOMETRY weaves reason and location into the message', () => {
@@ -37,6 +38,34 @@ describe('ERROR_BUILDERS — non-list errors', () => {
     expect(err.message).toBe(
       'Redline boundary geometry is invalid: Self-intersection at POINT(123 456)'
     )
+    expect(err.details).toEqual({
+      reason: 'Self-intersection',
+      location: 'POINT(123 456)'
+    })
+    expectDeclaredDetails(err)
+  })
+
+  it('REDLINE_INVALID_GEOMETRY sends a location only with the reason it follows', () => {
+    const build = ERROR_BUILDERS[ERROR_CODES.REDLINE_INVALID_GEOMETRY]
+    expect(build({ reason: 'Self-intersection' }).details).toEqual({
+      reason: 'Self-intersection'
+    })
+    expect(build({ location_wkt: 'POINT(1 2)' }).details).toBeUndefined()
+  })
+
+  it('AREA_SUM_MISMATCH sends both areas as numbers', () => {
+    const err = ERROR_BUILDERS[ERROR_CODES.AREA_SUM_MISMATCH]({
+      habitats_total: 100.123,
+      redline_total: '99'
+    })
+    expect(err.message).toBe(
+      'Sum of area habitat polygons (100.12 sq m) does not equal redline boundary area (99.00 sq m)'
+    )
+    expect(err.details).toEqual({
+      habitatsAreaSqM: 100.123,
+      redlineAreaSqM: 99
+    })
+    expectDeclaredDetails(err)
   })
 })
 

@@ -2,6 +2,7 @@ import Boom from '@hapi/boom'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { PG_LOCK_NOT_AVAILABLE } from '../../db/postgres-error-codes.js'
+import { findPostgresError } from '../../db/describe-database-error.js'
 import { visibleToUser } from '../../db/project-visibility.js'
 import { projects } from '../../db/schema/index.js'
 import {
@@ -210,7 +211,8 @@ async function runPersistTransaction(
 function rethrowPersistError(err, uploadLabel) {
   if (err?.isBoom) {
     throw err
-  } else if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+  } else if (findPostgresError(err)?.code === PG_LOCK_NOT_AVAILABLE) {
+    // Drizzle wraps the driver's error, so the SQLSTATE is on its `cause`.
     throw Boom.conflict(
       `Another ${uploadLabel} upload for this project is in progress`
     )

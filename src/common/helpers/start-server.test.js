@@ -9,7 +9,8 @@ vi.mock('../../plugins/postgres.js', () => ({
       version: '1.0.0',
       register: vi.fn()
     }
-  }
+  },
+  postgresOptionsFromConfig: vi.fn(() => ({}))
 }))
 
 vi.mock('better-sqlite3', () => ({

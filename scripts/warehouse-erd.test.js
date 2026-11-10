@@ -84,18 +84,24 @@ describe('#schemaLeaves', () => {
   })
 })
 
-it('advertises persisted Created-area metadata as boolean columns', () => {
+it('advertises persisted editable Created-feature metadata as boolean columns', () => {
   const columns = model.tables.flatMap((table) => table.columns)
   for (const path of [
     'postIntervention.habitats[].referenceEdited',
     'postIntervention.habitats[].proposed.advanceYearsIs30Plus',
-    'postIntervention.habitats[].proposed.delayYearsIs30Plus'
+    'postIntervention.habitats[].proposed.delayYearsIs30Plus',
+    'postIntervention.hedgerows[].proposed.advanceYearsIs30Plus',
+    'postIntervention.hedgerows[].proposed.delayYearsIs30Plus',
+    'postIntervention.hedgerows[].referenceEdited',
+    'postIntervention.watercourses[].referenceEdited',
+    'postIntervention.watercourses[].proposed.advanceYearsIs30Plus',
+    'postIntervention.watercourses[].proposed.delayYearsIs30Plus'
   ]) {
     expect(
       columns.find((column) => column.jsonPaths.includes(path))
     ).toMatchObject({ type: 'boolean' })
   }
-  for (const layer of ['trees', 'hedgerows', 'watercourses']) {
+  for (const layer of ['trees']) {
     for (const field of ['advanceYearsIs30Plus', 'delayYearsIs30Plus']) {
       expect(
         columns.some((column) =>

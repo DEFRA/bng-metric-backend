@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 451 schema fields.
+**25 tables**, mapping 467 schema fields.
 
 ## Diagram
 
@@ -500,7 +500,7 @@ Hedgerow net unit change per habitat type. One row per unique Medium, Low or Ver
 
 ### `feature_set_lost_habitats`
 
-The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 8 column(s) mapped from the JSON document.
+The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 9 column(s) mapped from the JSON document.
 
 | Column                    | Type      | Key | JSON path                                              | Notes                                                   |
 | ------------------------- | --------- | --- | ------------------------------------------------------ | ------------------------------------------------------- |
@@ -512,6 +512,7 @@ The baseline habitats a BNG Service template upload loses, in full or in part (B
 | `type`                    | `text`    |     | `postIntervention.lostHabitats[].type`                 |                                                         |
 | `outcome`                 | `text`    |     | `postIntervention.lostHabitats[].outcome`              |                                                         |
 | `lost_size_square_metres` | `numeric` |     | `postIntervention.lostHabitats[].lostSizeSquareMetres` |                                                         |
+| `lost_tree_count`         | `integer` |     | `postIntervention.lostHabitats[].lostTreeCount`        |                                                         |
 | `lost_size_metres`        | `numeric` |     | `postIntervention.lostHabitats[].lostSizeMetres`       |                                                         |
 | `recreated_as`            | `uuid[]`  |     | `postIntervention.lostHabitats[].recreatedAs[]`        |                                                         |
 
@@ -726,7 +727,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 38 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 39 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -738,6 +739,7 @@ habitats in the postIntervention document. 38 column(s) mapped from the JSON doc
 | `size_square_metres`                         | `numeric` |     | `postIntervention.habitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.habitats[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.habitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.habitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
@@ -773,7 +775,7 @@ habitats in the postIntervention document. 38 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 43 column(s) mapped from the JSON document.
+trees in the postIntervention document. 47 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -785,7 +787,11 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 | `size_square_metres`                         | `numeric` |     | `postIntervention.trees[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.trees[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.trees[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.trees[].comment`                                |                                                                                  |
 | `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.trees[].baseline.condition`                     |                                                                                  |
@@ -825,7 +831,7 @@ trees in the postIntervention document. 43 column(s) mapped from the JSON docume
 
 ### `post_intervention_vertical_habitats`
 
-verticalHabitats in the postIntervention document. 37 column(s) mapped from the JSON document.
+verticalHabitats in the postIntervention document. 38 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                    | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -837,6 +843,7 @@ verticalHabitats in the postIntervention document. 37 column(s) mapped from the 
 | `size_square_metres`                         | `numeric` |     | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
@@ -871,7 +878,7 @@ verticalHabitats in the postIntervention document. 37 column(s) mapped from the 
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 32 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 36 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -880,17 +887,21 @@ hedgerows in the postIntervention document. 32 column(s) mapped from the JSON do
 | `retention_category`                         | `text`    |     | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.hedgerows[].referenceEdited`                        |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.hedgerows[].length`                                 |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.hedgerows[].units`                                  |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.hedgerows[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.hedgerows[].comment`                                |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.hedgerows[].baseline.type`                          |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.hedgerows[].baseline.condition`                     |                                                                                  |
 | `baseline_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].baseline.conditionScore`                |                                                                                  |
 | `baseline_distinctiveness`                   | `text`    |     | `postIntervention.hedgerows[].baseline.distinctiveness`               |                                                                                  |
 | `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].baseline.distinctivenessScore`          |                                                                                  |
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.hedgerows[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.hedgerows[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.hedgerows[].proposed.type`                          |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.hedgerows[].proposed.condition`                     |                                                                                  |
 | `proposed_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.conditionScore`                |                                                                                  |
@@ -912,20 +923,23 @@ hedgerows in the postIntervention document. 32 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 40 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 45 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                                 | `uuid`    | PK  | —                                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                             | `text`    | FK  | —                                                                         | → feature_set.feature_set_id                                                     |
+| `edited_advance_years`                       | `numeric` |     | `postIntervention.watercourses[].editedAdvanceYears`                      |                                                                                  |
 | `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.watercourses[].referenceEdited`                         |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.watercourses[].ref`                                     |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.watercourses[].length`                                  |                                                                                  |
 | `size_metres`                                | `numeric` |     | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
 | `units`                                      | `numeric` |     | `postIntervention.watercourses[].units`                                   |                                                                                  |
 | `status`                                     | `text`    |     | `postIntervention.watercourses[].status`                                  |                                                                                  |
+| `comment`                                    | `text`    |     | `postIntervention.watercourses[].comment`                                 |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.watercourses[].baseline.type`                           |                                                                                  |
 | `baseline_condition`                         | `text`    |     | `postIntervention.watercourses[].baseline.condition`                      |                                                                                  |
 | `baseline_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].baseline.conditionScore`                 |                                                                                  |
@@ -936,6 +950,8 @@ watercourses in the postIntervention document. 40 column(s) mapped from the JSON
 | `baseline_strategic_significance`            | `text`    |     | `postIntervention.watercourses[].baseline.strategicSignificance`          |                                                                                  |
 | `baseline_water_encroachment_multiplier`     | `numeric` |     | `postIntervention.watercourses[].baseline.waterEncroachmentMultiplier`    |                                                                                  |
 | `baseline_riparian_encroachment_multiplier`  | `numeric` |     | `postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier` |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.watercourses[].proposed.advanceYearsIs30Plus`           |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.watercourses[].proposed.delayYearsIs30Plus`             |                                                                                  |
 | `proposed_type`                              | `text`    |     | `postIntervention.watercourses[].proposed.type`                           |                                                                                  |
 | `proposed_condition`                         | `text`    |     | `postIntervention.watercourses[].proposed.condition`                      |                                                                                  |
 | `proposed_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].proposed.conditionScore`                 |                                                                                  |

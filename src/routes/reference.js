@@ -1,3 +1,5 @@
+import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
+import { getHedgerowCreationReference } from '../validation/reference/hedgerow-creation.js'
 import Joi from 'joi'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 
@@ -371,4 +373,38 @@ export const getLocalPlanningAuthorities = {
       })
       .from(localPlanningAuthorities)
       .orderBy(asc(localPlanningAuthorities.name))
+}
+
+/**
+ * @openapi
+ * /reference/hedgerow-creation:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Hedgerow creation types, valid target conditions, difficulty and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: Hedgerow-only creation reference data
+ */
+export const getHedgerowCreation = {
+  method: 'GET',
+  path: '/reference/hedgerow-creation',
+  options: { auth: false },
+  handler: () => getHedgerowCreationReference()
+}
+
+/**
+ * @openapi
+ * /reference/watercourse-creation:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Watercourse creation types, valid target conditions, difficulty, encroachments and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: Watercourse-only creation reference data
+ */
+export const getWatercourseCreation = {
+  method: 'GET',
+  path: '/reference/watercourse-creation',
+  options: { auth: false },
+  handler: () => getWatercourseCreationReference()
 }

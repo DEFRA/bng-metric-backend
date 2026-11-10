@@ -1444,7 +1444,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.habitats[].retentionCategory",
@@ -1554,7 +1554,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.habitats[].mappedBy",
@@ -1719,7 +1719,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.trees[].retentionCategory",
@@ -1785,7 +1785,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.trees[].mappedBy",
@@ -1961,7 +1961,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable."
+      "description": "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "baseline.trees[].units",
@@ -2104,7 +2104,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.verticalHabitats[].retentionCategory",
@@ -2181,7 +2181,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.verticalHabitats[].mappedBy",
@@ -2324,7 +2324,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0."
+      "description": "Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre, so an area under half a square metre does not show as 0."
     },
     {
       "path": "baseline.verticalHabitats[].sizeSquareMetres",
@@ -2335,7 +2335,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+      "description": "Area in square metres, converted from the hectares the surveyor estimated on site and typed into the template's Area (ha) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
     },
     {
       "path": "baseline.verticalHabitats[].units",
@@ -2511,7 +2511,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.hedgerows[].retentionCategory",
@@ -2566,7 +2566,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.hedgerows[].mappedBy",
@@ -2841,7 +2841,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic significance category from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "baseline.watercourses[].retentionCategory",
@@ -2896,7 +2896,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Free-text comment from the GeoPackage (Comment / Comments column)."
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null."
     },
     {
       "path": "baseline.watercourses[].mappedBy",
@@ -3171,7 +3171,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+      "description": "Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in."
     },
     {
       "path": "baseline.habitatSizes.site",
@@ -3592,7 +3592,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the parcel, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.habitats[].status",
@@ -3604,6 +3604,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.habitats[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.habitats[].invalidEnhancement",
@@ -3632,7 +3643,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area reference is edited. An explicit null records that an edited Created area has no identifiable baseline parent; absent on untouched legacy rows."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.habitats[].referenceEdited",
@@ -3742,7 +3753,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.habitats[].proposed",
@@ -3764,7 +3775,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
     },
     {
       "path": "postIntervention.habitats[].proposed.delayYearsIs30Plus",
@@ -3775,7 +3786,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.habitats[].proposed.type",
@@ -3929,7 +3940,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.habitats[].proposed.strategicSignificanceScore",
@@ -4072,7 +4083,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.trees[].status",
@@ -4086,6 +4097,17 @@
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
     },
     {
+      "path": "postIntervention.trees[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
+    },
+    {
       "path": "postIntervention.trees[].count",
       "type": "number",
       "required": false,
@@ -4094,7 +4116,40 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template Retained or Enhanced tree with a lower count than its parent loses the difference."
+    },
+    {
+      "path": "postIntervention.trees[].invalidEnhancement",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": ["tree-better-condition"],
+      "constraints": [],
+      "openMap": false,
+      "description": "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
+    },
+    {
+      "path": "postIntervention.trees[].parentFeatureId",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+    },
+    {
+      "path": "postIntervention.trees[].irreplaceable",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.trees[].baseline",
@@ -4182,7 +4237,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.trees[].baseline.treeSize",
@@ -4468,7 +4523,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.trees[].proposed.strategicSignificanceScore",
@@ -4578,7 +4633,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded."
+      "description": "Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre."
     },
     {
       "path": "postIntervention.verticalHabitats[].sizeSquareMetres",
@@ -4589,7 +4644,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Face area in square metres, as the surveyor estimated it and typed it into the template's Area (m²) column. Units are priced on it, in hectares."
+      "description": "Area in square metres, converted from the hectares the surveyor estimated and typed into the template's Area (ha) column. Units are priced on it, in hectares."
     },
     {
       "path": "postIntervention.verticalHabitats[].units",
@@ -4600,7 +4655,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing."
+      "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals."
     },
     {
       "path": "postIntervention.verticalHabitats[].status",
@@ -4612,6 +4667,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.verticalHabitats[].invalidEnhancement",
@@ -4739,7 +4805,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed",
@@ -4761,7 +4827,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for advance; the numeric advanceYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus",
@@ -4772,7 +4838,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the Created-area editor selected 30+ for delay; the numeric delayYears remains 30. Optional UI metadata, not a calculation input."
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.type",
@@ -4926,7 +4992,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.verticalHabitats[].proposed.strategicSignificanceScore",
@@ -5031,12 +5097,23 @@
       "path": "postIntervention.hedgerows[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.hedgerows[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference."
     },
     {
       "path": "postIntervention.hedgerows[].featureId",
@@ -5103,6 +5180,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.hedgerows[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.hedgerows[].baseline",
@@ -5179,7 +5267,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Baseline Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.hedgerows[].proposed",
@@ -5191,6 +5279,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Proposed hedgerow values from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
+    },
+    {
+      "path": "postIntervention.hedgerows[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.type",
@@ -5333,7 +5443,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.hedgerows[].proposed.strategicSignificanceScore",
@@ -5413,6 +5523,17 @@
       "description": "A post-intervention watercourse (linear) feature."
     },
     {
+      "path": "postIntervention.watercourses[].editedAdvanceYears",
+      "type": "number",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Advance years explicitly saved by a Created watercourse edit, including null when cleared. Takes precedence over the raw uploaded advance when lineage is recalculated."
+    },
+    {
       "path": "postIntervention.watercourses[].retentionCategory",
       "type": "string",
       "required": true,
@@ -5438,12 +5559,23 @@
       "path": "postIntervention.watercourses[].parentFeatureId",
       "type": "string",
       "required": false,
-      "nullable": false,
+      "nullable": true,
       "emptyStringAllowed": false,
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.watercourses[].referenceEdited",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference."
     },
     {
       "path": "postIntervention.watercourses[].featureId",
@@ -5510,6 +5642,17 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
+    },
+    {
+      "path": "postIntervention.watercourses[].comment",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null."
     },
     {
       "path": "postIntervention.watercourses[].baseline",
@@ -5608,7 +5751,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Strategic Significance from the GeoPackage."
+      "description": "Baseline strategic significance: always 'Low', as the metric fixes baseline at Low whatever the GeoPackage says (BMD-1086). The file's value is kept in properties. A project uploaded before BMD-1086 holds the file's value until it is uploaded again."
     },
     {
       "path": "postIntervention.watercourses[].baseline.waterEncroachmentMultiplier",
@@ -5642,6 +5785,28 @@
       "constraints": [],
       "openMap": false,
       "description": "Proposed watercourse values from the Proposed * GeoPackage columns."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.advanceYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for advance; numeric advanceYears remains 30."
+    },
+    {
+      "path": "postIntervention.watercourses[].proposed.delayYearsIs30Plus",
+      "type": "boolean",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": [],
+      "openMap": false,
+      "description": "Whether a Created feature editor selected 30+ for delay; numeric delayYears remains 30."
     },
     {
       "path": "postIntervention.watercourses[].proposed.type",
@@ -5784,7 +5949,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; cleared once a valid value is priced."
+      "description": "The Proposed Strategic Significance that was rejected because it was not Low or High (Medium, blank or unrecognised), kept so nulling strategicSignificance loses nothing (BMD-1051). Null when nothing was rejected, or the rejected value was blank; retained on unrelated edits while significance remains unchanged, and cleared when significance changes or a valid value is priced."
     },
     {
       "path": "postIntervention.watercourses[].proposed.strategicSignificanceScore",
@@ -6026,7 +6191,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Total face area of all vertical area habitats, in m², as the surveyor typed it in."
+      "description": "Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in."
     },
     {
       "path": "postIntervention.habitatSizes.site",
@@ -6742,7 +6907,8 @@
         "habitats",
         "verticalHabitats",
         "hedgerows",
-        "watercourses"
+        "watercourses",
+        "trees"
       ],
       "constraints": [],
       "openMap": false,
@@ -6801,7 +6967,18 @@
       "enumValues": [],
       "constraints": ["min 0"],
       "openMap": false,
-      "description": "An area or vertical area habitat: its area less that of its Retained and Enhanced post-intervention habitats, in square metres."
+      "description": "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class times its Count."
+    },
+    {
+      "path": "postIntervention.lostHabitats[].lostTreeCount",
+      "type": "number",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["integer", "min 0"],
+      "openMap": false,
+      "description": "A tree: its Count less that of its Retained and Enhanced post-intervention trees, the number of trees lost. A blank Count is one tree."
     },
     {
       "path": "postIntervention.lostHabitats[].lostSizeMetres",

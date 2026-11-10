@@ -215,7 +215,7 @@ export function enrichBaselineDocumentWithUnits(
     logger
   )
   // A vertical area habitat is an area habitat the Metric sizes by its face:
-  // the area the surveyor typed in, in square metres, priced in hectares.
+  // the area the surveyor typed in, in hectares, stored in square metres.
   enrichCollectionIfNonEmpty(
     baselineDocument?.verticalHabitats,
     enrichHabitatParcelWithUnits,

@@ -1,4 +1,12 @@
+import {
+  postInterventionWatercourseEditPayload,
+  validateCreatedWatercourseEdit
+} from './created-watercourse-edit.js'
 import Boom from '@hapi/boom'
+import {
+  postInterventionHedgerowEditPayload,
+  validateCreatedHedgerowEdit
+} from './created-hedgerow-edit.js'
 import {
   postInterventionAreaEditPayload,
   validateCreatedAreaEdit
@@ -11,6 +19,7 @@ import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import { PG_LOCK_NOT_AVAILABLE } from '../db/postgres-error-codes.js'
+import { findPostgresError } from '../db/describe-database-error.js'
 import {
   APPLY_RESULT,
   applyFeatureUpdate
@@ -92,8 +101,9 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       for a single post-intervention area habitat, then recomputes the
  *       derived distinctiveness, condition score, habitat-unit total and
  *       Complete/Incomplete status before saving. Returns the updated habitat
- *       document. Supplying any of ref, strategicSignificance, advanceYears or
- *       delayYears requires all four, plus broadType, habitatType and condition.
+ *       document. Supplying ref requires broadType, habitatType
+ *       and condition. Timing is optional: omit it to retain the stored value,
+ *       or supply null to clear it.
  *       These extended edits are supported only for Created area habitats.
  *       The 30+ timing input is stored as numeric 30 with an optional selection
  *       flag; response timing fields remain numeric or null.
@@ -125,6 +135,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *                 nullable: true
  *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
  *               advanceYears:
+ *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
  *                 oneOf:
  *                   - type: integer
@@ -133,6 +144,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *                   - type: string
  *                     enum: ['30+']
  *               delayYears:
+ *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
  *                 oneOf:
  *                   - type: integer
@@ -153,7 +165,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, an incomplete extended payload, or extended edits to a non-Created area.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to a non-Created area.
  *       404:
  *         description: Project or habitat not found
  *       422:
@@ -161,7 +173,34 @@ const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
  *       409:
  *         description: Another edit for this project is in progress
  */
-function createUpdateAreaHabitatRoute({ path, documentKey }) {
+const CREATED_EDIT_TYPES = {
+  habitat: {
+    layer: 'habitats',
+    label: 'Habitat',
+    payload: postInterventionAreaEditPayload,
+    validate: validateCreatedAreaEdit
+  },
+  watercourse: {
+    layer: 'watercourses',
+    label: 'Watercourse',
+    payload: postInterventionWatercourseEditPayload,
+    validate: validateCreatedWatercourseEdit
+  },
+  hedgerow: {
+    layer: 'hedgerows',
+    label: 'Hedgerow',
+    payload: postInterventionHedgerowEditPayload,
+    validate: validateCreatedHedgerowEdit
+  }
+}
+
+function createUpdateFeatureRoute({
+  path,
+  documentKey,
+  featureType = 'habitat'
+}) {
+  const editType =
+    documentKey === 'postIntervention' ? CREATED_EDIT_TYPES[featureType] : null
   return {
     method: 'PUT',
     path,
@@ -169,10 +208,7 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
       auth: 'defra-jwt',
       validate: {
         params: projectFeatureIdParams,
-        payload:
-          documentKey === 'postIntervention'
-            ? postInterventionAreaEditPayload
-            : areaHabitatEditPayload
+        payload: editType?.payload ?? areaHabitatEditPayload
       }
     },
     handler: async (request, _h) => {
@@ -188,8 +224,10 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
             broadType,
             habitatType,
             condition,
-            edits: createdAreaEdits(request.payload),
+            edits: createdFeatureEdits(request.payload),
             documentKey,
+            featureType,
+            editType,
             credentials,
             logger: request.logger
           })
@@ -198,7 +236,8 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
         if (err?.isBoom) {
           throw err
         }
-        if (err?.code === PG_LOCK_NOT_AVAILABLE) {
+        // Drizzle wraps the driver's error, so the SQLSTATE is on its `cause`.
+        if (findPostgresError(err)?.code === PG_LOCK_NOT_AVAILABLE) {
           throw Boom.conflict('Another edit for this project is in progress')
         }
         throw err
@@ -207,17 +246,17 @@ function createUpdateAreaHabitatRoute({ path, documentKey }) {
   }
 }
 
-const updateAreaHabitat = createUpdateAreaHabitatRoute({
+const updateAreaHabitat = createUpdateFeatureRoute({
   path: '/projects/{projectId}/habitats/{featureId}',
   documentKey: 'baseline'
 })
 
-const updatePostInterventionAreaHabitat = createUpdateAreaHabitatRoute({
+const updatePostInterventionAreaHabitat = createUpdateFeatureRoute({
   path: '/projects/{projectId}/post-intervention/habitats/{featureId}',
   documentKey: 'postIntervention'
 })
 
-function createdAreaEdits(payload) {
+function createdFeatureEdits(payload) {
   if (!Object.hasOwn(payload, 'ref')) {
     return {}
   }
@@ -225,11 +264,16 @@ function createdAreaEdits(payload) {
     ref: payload.ref,
     strategicSignificance: payload.strategicSignificance,
     advanceYears: payload.advanceYears,
-    delayYears: payload.delayYears
+    delayYears: payload.delayYears,
+    ...Object.fromEntries(
+      ['watercourseEncroachment', 'riparianEncroachment']
+        .filter((field) => Object.hasOwn(payload, field))
+        .map((field) => [field, payload[field]])
+    )
   }
 }
 
-async function persistAreaFeatureEdit(
+async function persistFeatureEdit(
   tx,
   { projectId, previousProject, result, documentKey, actorId }
 ) {
@@ -256,13 +300,13 @@ async function persistAreaFeatureEdit(
   )
 }
 
-function assertSuccessfulAreaEdit(result, projectId, featureId) {
+function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   if (
     result.status === APPLY_RESULT.FEATURE_NOT_FOUND ||
     result.status === APPLY_RESULT.FEATURE_WRONG_TYPE
   ) {
     throw Boom.notFound(
-      `Habitat ${featureId} not found in project ${projectId}`
+      `${label} ${featureId} not found in project ${projectId}`
     )
   }
   if (result.status === APPLY_RESULT.OUT_OF_SCOPE) {
@@ -273,7 +317,7 @@ function assertSuccessfulAreaEdit(result, projectId, featureId) {
   }
 
   if (result.status !== APPLY_RESULT.OK) {
-    throw Boom.badRequest('This habitat edit is not supported')
+    throw Boom.badRequest(`This ${label.toLowerCase()} edit is not supported`)
   }
 }
 
@@ -287,6 +331,8 @@ async function runUpdate(
     condition,
     edits,
     documentKey,
+    featureType,
+    editType,
     credentials,
     logger
   }
@@ -310,30 +356,31 @@ async function runUpdate(
     throw Boom.notFound(`Project ${projectId} not found`)
   }
 
-  if (documentKey === 'postIntervention') {
-    const feature = row.project?.postIntervention?.habitats?.find(
+  let resolvedEdits = { ...edits, broadType, habitatType, condition }
+  if (editType) {
+    const feature = row.project?.postIntervention?.[editType.layer]?.find(
       (f) => f.featureId === featureId
     )
     if (feature) {
-      validateCreatedAreaEdit(feature, {
-        ...edits,
-        broadType,
-        habitatType,
-        condition
-      })
+      resolvedEdits = editType.validate(feature, resolvedEdits) ?? resolvedEdits
     }
   }
 
   const result = applyFeatureUpdate(row.project ?? {}, {
     featureId,
-    edits: { ...edits, broadType, habitatType, condition },
-    expectedType: 'habitat',
+    edits: resolvedEdits,
+    expectedType: featureType,
     documentKey,
     logger
   })
-  assertSuccessfulAreaEdit(result, projectId, featureId)
+  assertSuccessfulFeatureEdit(
+    result,
+    projectId,
+    featureId,
+    editType?.label ?? 'Habitat'
+  )
 
-  await persistAreaFeatureEdit(tx, {
+  await persistFeatureEdit(tx, {
     projectId,
     previousProject: row.project,
     result,
@@ -344,4 +391,90 @@ async function runUpdate(
   return result.feature
 }
 
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/hedgerows/{featureId}:
+ *   put:
+ *     tags: [Habitats]
+ *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
+ *     description: Omitted timing fields retain the stored values; explicit null clears them. An omitted condition retains the stored condition only when the habitat type is unchanged; null clears it. New timing selections must be integer years 0 to 30 or 30+.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref]
+ *             properties:
+ *               ref: { type: string }
+ *               habitatType: { type: string, nullable: true }
+ *               condition: { type: string, nullable: true }
+ *               strategicSignificance: { type: string, nullable: true }
+ *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *     responses:
+ *       200:
+ *         description: Updated hedgerow, with recalculated units, status and project totals
+ *       400:
+ *         description: Invalid reference, choices, timing, or non-Created hedgerow
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Project or hedgerow not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
+  path: '/projects/{projectId}/post-intervention/hedgerows/{featureId}',
+  documentKey: 'postIntervention',
+  featureType: 'hedgerow'
+})
+
 export { updateAreaHabitat, updatePostInterventionAreaHabitat }
+
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/watercourses/{featureId}:
+ *   put:
+ *     tags: [Habitats]
+ *     summary: Save Created watercourse reference, habitat type, target condition, strategic significance and timing
+ *     description: Omitted timing and encroachment fields retain the stored values; explicit null clears them. An omitted condition retains the stored condition only when the habitat type is unchanged; null clears it. New timing selections must be integer years 0 to 30 or 30+.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref]
+ *             properties:
+ *               ref: { type: string }
+ *               habitatType: { type: string, nullable: true }
+ *               condition: { type: string, nullable: true }
+ *               watercourseEncroachment: { type: string, nullable: true }
+ *               riparianEncroachment: { type: string, nullable: true }
+ *               strategicSignificance: { type: string, nullable: true }
+ *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *     responses:
+ *       200:
+ *         description: Updated watercourse, with recalculated units, status and project totals
+ *       400:
+ *         description: Invalid reference, choices, timing, or non-Created watercourse
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Project or watercourse not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+export const updatePostInterventionWatercourse = createUpdateFeatureRoute({
+  path: '/projects/{projectId}/post-intervention/watercourses/{featureId}',
+  documentKey: 'postIntervention',
+  featureType: 'watercourse'
+})

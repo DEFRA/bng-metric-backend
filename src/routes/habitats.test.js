@@ -1,5 +1,7 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
+import { drizzleLockTimeout } from '../../test/helpers/postgres-errors.js'
+
 import { setProjectFeature } from '../db/persist-project.js'
 import {
   updateAreaHabitat,
@@ -562,9 +564,7 @@ describe('updateAreaHabitat handler error cases', () => {
   })
 
   test('throws 409 when SELECT ... FOR UPDATE times out on a concurrent edit', async () => {
-    const lockError = Object.assign(new Error('lock_not_available'), {
-      code: '55P03'
-    })
+    const lockError = drizzleLockTimeout()
     const drizzle = makeDrizzle(makeProjectRow(defaultHabitats()), {
       lockError
     })
@@ -669,14 +669,14 @@ describe('updateAreaHabitat validation', () => {
     expect(error?.message).toBe('"ref" is not allowed')
   })
 
-  test('PI reference edits require the complete Created-area edit payload', () => {
+  test('PI reference edits allow omitted significance with the other required area fields', () => {
     const { error } =
       updatePostInterventionAreaHabitat.options.validate.payload.validate({
         ref: 'B-A1',
-        condition: 'Good'
+        condition: 'Good',
+        broadType: 'Grassland',
+        habitatType: null
       })
-    expect(error?.message).toContain(
-      'required peers [strategicSignificance, advanceYears, delayYears]'
-    )
+    expect(error).toBeUndefined()
   })
 })

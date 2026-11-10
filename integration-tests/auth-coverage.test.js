@@ -25,6 +25,14 @@ const HTTP_UNAUTHORIZED = 401
 // deliberate decision.
 const PUBLIC_ROUTES = new Map([
   [
+    'get /reference/watercourse-creation',
+    'Static watercourse creation and encroachment reference data; no per-user scope'
+  ],
+  [
+    'get /reference/hedgerow-creation',
+    'Static hedgerow creation reference data; no per-user scope'
+  ],
+  [
     'get /reference/area-creation',
     'Static area creation reference data; no per-user scope'
   ],
@@ -33,10 +41,6 @@ const PUBLIC_ROUTES = new Map([
     'Static Planning Data lookup; no per-user scope'
   ],
   ['get /health', 'CDP liveness/readiness probe — must be unauthenticated'],
-  [
-    'get /db-info',
-    'Local/dev DB-version diagnostic (never registered in prod)'
-  ],
   [
     'get /reference/broad-habitats',
     'Static reference data — no per-user scope'
@@ -140,8 +144,8 @@ describe('auth coverage (secure by default)', () => {
     for (const [key, reason] of PUBLIC_ROUTES) {
       const route = table.get(key)
       if (!route) {
-        // Allowlisted but not registered in this environment (e.g. /db-info is
-        // omitted in prod). Nothing to assert.
+        // Allowlisted but not registered in this environment. Nothing to
+        // assert.
         continue
       }
       expect(

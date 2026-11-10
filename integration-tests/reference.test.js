@@ -205,3 +205,53 @@ describe('GET /reference/area-creation', () => {
     })
   })
 })
+
+describe('GET /reference/hedgerow-creation', () => {
+  it('returns hedgerow-only creation choices without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-creation'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.featureType).toBe('hedgerow')
+    expect(res.result.habitatTypes.map((t) => t.name)).toContain(
+      'Native hedgerow'
+    )
+    expect(res.result.habitatTypes.map((t) => t.name)).not.toContain(
+      'Modified grassland'
+    )
+    for (const type of res.result.habitatTypes) {
+      expect(
+        type.conditions.every(
+          (c) => typeof c.years === 'number' || c.years === '30+'
+        )
+      ).toBe(true)
+    }
+  })
+})
+
+describe('GET /reference/watercourse-creation', () => {
+  it('returns watercourse-only creation choices and two separate encroachment lists without authentication', async () => {
+    const response = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-creation'
+    })
+    expect(response.statusCode).toBe(HTTP_OK)
+    expect(response.result.featureType).toBe('watercourse')
+    expect(response.result.habitatTypes.map((t) => t.name)).toEqual([
+      'Canals',
+      'Culvert',
+      'Ditches'
+    ])
+    expect(
+      response.result.habitatTypes
+        .find((t) => t.name === 'Culvert')
+        .conditions.map((c) => c.condition)
+    ).toEqual(['Poor'])
+    expect(response.result.watercourseEncroachment).toContain('Minor')
+    expect(response.result.riparianEncroachment).toContain(
+      'Minor/No Encroachment'
+    )
+    expect(response.result.riparianEncroachment).not.toContain('Minor')
+  })
+})

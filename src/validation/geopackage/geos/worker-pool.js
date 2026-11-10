@@ -28,11 +28,13 @@
  * was.
  */
 import { Worker } from 'node:worker_threads'
-import { availableParallelism, totalmem } from 'node:os'
+import { availableParallelism } from 'node:os'
 import { dirname, join } from 'node:path'
 import { fileURLToPath } from 'node:url'
 
 import { createLogger } from '../../../common/helpers/logging/logger.js'
+import { exitProcessAfterFlush } from '../../../common/helpers/exit-process.js'
+import { taskMemoryBytes } from '../../../common/helpers/task-memory.js'
 import { metricsCounter } from '../../../common/helpers/metrics.js'
 import { VALIDATION_METRIC } from '../../../common/helpers/metric-names.js'
 
@@ -90,23 +92,6 @@ const WORKER_MEMORY_SHARE = 0.3
 
 /** `size` at or below this means "work it out from the instance". */
 const AUTO_SIZE = 0
-
-/**
- * How much memory this process is actually allowed.
- *
- * `constrainedMemory()` reads the cgroup limit, which is the number that
- * matters in a container and the one the OOM killer enforces — `totalmem()`
- * reports the HOST's RAM and would happily size a pool for 64 GB the task
- * cannot touch. It answers 0 when there is no limit or it cannot tell, which is
- * the one case where the host figure is the honest answer.
- *
- * On Fargate the fallback is not a downgrade: each task is a microVM sized to
- * the task definition, so the host IS the task. It matters on anything sharing
- * a kernel — a dev box, a CI runner, ECS on EC2.
- */
-function taskMemoryBytes() {
-  return process.constrainedMemory() || totalmem()
-}
 
 /**
  * Decide how many workers to run, from what was asked for and what the instance
@@ -185,20 +170,6 @@ export function logSizing(size, { cpuBudget, memoryBudget, auto }) {
  * spawn-crash-spawn loop that floods the log.
  */
 const MAX_CONSECUTIVE_BOOT_FAILURES = 3
-
-/**
- * Grace between deciding to die and actually exiting, so the fatal log line
- * survives: the pino-pretty transport writes from a worker thread, and an
- * immediate `process.exit` can drop exactly the message that says why the
- * service went down.
- */
-const FATAL_EXIT_FLUSH_MS = 1000
-
-/** What {@link PoolOptions}.onFatal does unless a test injects an observer. */
-function exitProcessAfterFlush() {
-  process.exitCode = 1
-  setTimeout(() => process.exit(1), FATAL_EXIT_FLUSH_MS)
-}
 
 /**
  * Is this the worker failing to even load its modules — a missing or broken

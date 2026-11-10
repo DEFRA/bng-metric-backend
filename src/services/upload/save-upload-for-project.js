@@ -307,13 +307,20 @@ export function extractAndValidateDocument({
   habitatSizes,
   baselineDocument = storedProject?.baseline
 }) {
-  const { uploadId, filename, fileSize, template } = context
+  const {
+    uploadId,
+    filename,
+    fileSize,
+    template,
+    commentStaysWithPostIntervention
+  } = context
   const meta = {
     uploadId,
     filename,
     fileSize,
     template,
-    habitatSizes
+    habitatSizes,
+    commentStaysWithPostIntervention
   }
   const { document, geometries } = handlers.extractDocument(layersWithIds, meta)
   normaliseImportedDocument(
@@ -376,7 +383,8 @@ function missingBaselineTypeError(layers) {
   }
   return makeError(
     ERROR_CODES.BASELINE_TYPE_MISSING,
-    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`
+    `${count} retained or enhanced rows have no baseline habitat type, so the baseline cannot be derived from this file`,
+    { rowCount: count }
   )
 }
 
@@ -414,6 +422,13 @@ function extractUploadDocuments(sized, context, logger, config) {
   }
   const baseline = extractAndValidateDocument({
     ...shared,
+    // A legacy combined file stores one comment per row. An Enhanced or
+    // Created comment is saved on the post-intervention habitat, so the
+    // derived baseline leaves it off. A template file's Baseline tables have
+    // their own Comment, and a baseline-only upload never reaches here.
+    context: context.template
+      ? context
+      : { ...context, commentStaysWithPostIntervention: true },
     handlers: SAVE_HANDLERS_BY_DOCUMENT_KEY.baseline,
     layersWithIds: baselineLayers,
     config: BASELINE_DOCUMENT_CONFIG,
@@ -427,12 +442,16 @@ function extractUploadDocuments(sized, context, logger, config) {
   // would delete the stored baseline and every feature edit on it.
   if (!derivedBaselineHasAreaHabitats(baseline.document)) {
     return {
-      validationError: makeError(
-        ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
-        baselineRead
-          ? NO_READ_BASELINE_HABITATS_MESSAGE
-          : NO_DERIVED_BASELINE_HABITATS_MESSAGE
-      )
+      validationError: baselineRead
+        ? makeError(
+            ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            NO_READ_BASELINE_HABITATS_MESSAGE,
+            { variants: ['read'] }
+          )
+        : makeError(
+            ERROR_CODES.NO_DERIVED_BASELINE_HABITATS,
+            NO_DERIVED_BASELINE_HABITATS_MESSAGE
+          )
     }
   }
   const postIntervention = extractAndValidateDocument({

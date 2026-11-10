@@ -55,6 +55,7 @@ const AREA_HABITATS_BASELINE = 'Area Habitats Baseline'
 const HEDGEROWS_BASELINE = 'Hedgerows Baseline'
 const WATERCOURSES_BASELINE = 'Watercourses Baseline'
 const VERTICAL_BASELINE = 'Vertical Area Habitats Baseline'
+const TREES_BASELINE = 'Individual Trees Baseline'
 const RED_LINE_BOUNDARY = 'Red Line Boundary'
 
 /**
@@ -113,9 +114,21 @@ export function populatedBaselineRows() {
         'Baseline Condition': 'Poor',
         'Baseline Strategic Significance': 'Low',
         'Irreplaceable Habitat': 'No',
-        // Square metres: the face area the surveyor estimated.
-        Area: 40,
+        // Hectares: the area the surveyor estimated (40 m²).
+        Area: 0.004,
         feature_uuid: '7a3d0c0e-2f4b-5c1d-8e9f-0a1b2c3d4e5f'
+      }
+    ],
+    [TREES_BASELINE]: [
+      {
+        'Habitat Ref': 'T001',
+        'Baseline Tree Size': 'Medium',
+        'Baseline Tree Type': 'Native',
+        'Baseline Rural or Urban Tree': 'Urban tree',
+        'Baseline Condition': 'Moderate',
+        'Baseline Strategic Significance': 'Low',
+        'Irreplaceable Habitat': 'No',
+        feature_uuid: '3b1f6c2a-8d4e-5f70-9a1b-2c3d4e5f6a7b'
       }
     ]
   }
@@ -125,6 +138,7 @@ const AREA_HABITATS_PI = 'Area Habitats Post-Intervention'
 const HEDGEROWS_PI = 'Hedgerows Post-Intervention'
 const WATERCOURSES_PI = 'Watercourses Post-Intervention'
 const VERTICAL_PI = 'Vertical Area Habitats Post-Intervention'
+const TREES_PI = 'Individual Trees Post-Intervention'
 
 const NO_ADVANCE_OR_DELAY = {
   'Habitat created in advance/years': '0',
@@ -132,17 +146,24 @@ const NO_ADVANCE_OR_DELAY = {
   'Spatial risk category': 'N/A'
 }
 
+/** The same for a tree, whose timing columns are named differently. */
+const TREE_NO_ADVANCE_OR_DELAY = {
+  'Habitat Created/Enhanced in advance/years': '0',
+  'Delay in starting habitat creation/enhancement in years': '0',
+  'Spatial risk category': 'N/A'
+}
+
 /**
  * The baseline row a post-intervention row continues: its Baseline columns,
  * its ref as Parent Ref, and its uuid as parent_uuid.
  */
-function continuing(baselineRow, proposed) {
+function continuing(baselineRow, proposed, timing = NO_ADVANCE_OR_DELAY) {
   const { 'Habitat Ref': ref, feature_uuid: uuid, ...baseline } = baselineRow
   return {
     'Habitat Ref': ref,
     'Parent Ref': ref,
     ...baseline,
-    ...NO_ADVANCE_OR_DELAY,
+    ...timing,
     ...proposed,
     parent_uuid: uuid
   }
@@ -152,8 +173,8 @@ function continuing(baselineRow, proposed) {
  * One valid row in each Post-Intervention table the service reads, each
  * continuing the row {@link populatedBaselineRows} gives (from the harness
  * corpus's valid/plain-site.gpkg): the area habitat Enhanced to a better
- * condition, at High strategic significance; the hedgerow, the watercourse
- * and the vertical area habitat Retained.
+ * condition, at High strategic significance; the hedgerow, the watercourse,
+ * the vertical area habitat and the tree Retained.
  *
  * @returns {Record<string, object[]>} rows by table, as `rows` takes them
  */
@@ -163,6 +184,7 @@ export function populatedPostInterventionRows() {
   const [hedge] = baseline[HEDGEROWS_BASELINE]
   const [river] = baseline[WATERCOURSES_BASELINE]
   const [vertical] = baseline[VERTICAL_BASELINE]
+  const [tree] = baseline[TREES_BASELINE]
   return {
     [AREA_HABITATS_PI]: [
       continuing(area, {
@@ -208,6 +230,21 @@ export function populatedPostInterventionRows() {
         'Proposed Condition': vertical['Baseline Condition'],
         'Proposed Strategic Significance': 'Low'
       })
+    ],
+    [TREES_PI]: [
+      continuing(
+        tree,
+        {
+          'Retention Category': 'Retained',
+          Category: 'Existing',
+          'Proposed Tree Size': tree['Baseline Tree Size'],
+          'Proposed Tree Type': tree['Baseline Tree Type'],
+          'Proposed Rural or Urban Tree': tree['Baseline Rural or Urban Tree'],
+          'Proposed Condition': tree['Baseline Condition'],
+          'Proposed Strategic Significance': 'Low'
+        },
+        TREE_NO_ADVANCE_OR_DELAY
+      )
     ]
   }
 }

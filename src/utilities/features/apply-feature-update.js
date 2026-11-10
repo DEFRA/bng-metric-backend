@@ -1,3 +1,4 @@
+import { recomputeCreatedWatercourseEdit } from '../../validation/geopackage/post-intervention/recompute-created-watercourse-edit.js'
 // Single entry point for "user edited a project feature, persist the new
 // derived shape." Used by baseline and post-intervention PUT routes. Pure —
 // does no I/O. Callers wrap the result in their own transaction and write the
@@ -18,6 +19,7 @@
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
+import { recomputeCreatedHedgerowEdit } from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
 import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
@@ -35,27 +37,15 @@ import {
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
 import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
-import {
-  isTemplateUpload,
-  lostBaselineHabitats
-} from '../enrichment/post-intervention/lineage-outcomes.js'
+import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'
 import {
   copyProposedDisplayFields,
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
-import { enrichPostInterventionAreaTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
-import { enrichPostInterventionWatercourseTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-watercourse-trading-rules.js'
-import { enrichPostInterventionHedgerowTradingRules } from '../enrichment/post-intervention/enrich-post-intervention-hedgerow-trading-rules.js'
-import {
-  rederivePostInterventionFromBaseline,
-  preserveCreatedAreaParent
-} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
-import {
-  addPostInterventionNetUnitChanges,
-  summarizeFeatureSetUnitsTotals
-} from './feature-set-units.js'
+import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import {
   VERTICAL_BROAD_HABITATS,
@@ -112,7 +102,10 @@ function normalizeEdits(edits = {}) {
     ref: normalizeRef(edits.ref),
     ...(Object.hasOwn(edits, 'advanceYears')
       ? {
-          strategicSignificance: blankToNull(edits.strategicSignificance),
+          strategicSignificance:
+            edits.strategicSignificance === undefined
+              ? undefined
+              : blankToNull(edits.strategicSignificance),
           advanceYears: edits.advanceYears,
           delayYears: edits.delayYears
         }
@@ -154,6 +147,9 @@ function recomputeHedgerowEdit(
   { documentKey, logger, baseline }
 ) {
   if (documentKey === 'postIntervention') {
+    if (Object.hasOwn(edits, 'advanceYears')) {
+      return recomputeCreatedHedgerowEdit(existing, edits)
+    }
     return recomputePostInterventionHedgerow(
       existing,
       { habitatType: edits.habitatType, condition: edits.condition },
@@ -172,10 +168,10 @@ function recomputeHedgerowEdit(
 }
 
 function recomputeWatercourseEdit(existing, edits, { documentKey }) {
-  // Post-intervention watercourse editing is out of scope; only the baseline
-  // document recomputes a watercourse here (BMD-597).
   if (documentKey === 'postIntervention') {
-    return null
+    return Object.hasOwn(edits, 'advanceYears')
+      ? recomputeCreatedWatercourseEdit(existing, edits)
+      : null
   }
   return recomputeWatercourse({
     habitatType: edits.habitatType,
@@ -325,12 +321,12 @@ function resolveUpdatedFeature(
 ) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    (found.type === 'habitat' || found.type === 'hedgerow') &&
+    ['habitat', 'hedgerow', 'watercourse'].includes(found.type) &&
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
-  preserveCreatedAreaParent(found.feature, updated, {
+  preserveCreatedParent(found.feature, updated, {
     documentKey,
     layer: found.key,
     baseline,
@@ -363,70 +359,6 @@ function rebuiltProject(
 }
 
 /**
- * Refresh every figure that stood on the feature just edited: the document's own
- * unit totals, and then whatever measured against it.
- *
- * The two documents measure against each other, so which one was edited decides
- * what else has to move. A post-intervention edit refreshes that document's own
- * net unit changes and trading-rules figures — an edit moves units between
- * habitat types, so those are stale until recomputed from the updated feature
- * set. A baseline edit instead changes what the post-intervention document was
- * measured against, so that whole document is re-derived rather than left
- * quoting the old baseline.
- *
- * The re-derive needs the baseline on both sides of the edit: the edited
- * document to take values from, and `previousFeatureSet` — the pre-edit one —
- * to tell which of several features sharing a ref each post-intervention row
- * describes.
- *
- * @param {object} updatedFeatureSet the edited document, mutated
- * @param {{ project: object, documentKey: string, previousFeatureSet: object, logger: object }} context
- * @returns {object | null} the re-derived post-intervention document, or null
- *   when the edit was to that document or the project has none
- */
-function refreshFiguresDownstreamOfEdit(
-  updatedFeatureSet,
-  { project, documentKey, previousFeatureSet, logger }
-) {
-  summarizeFeatureSetUnitsTotals(updatedFeatureSet)
-  if (documentKey === 'postIntervention') {
-    // An edit can change a habitat's type, and with it whether its parent
-    // is lost and re-created (BMD-1083).
-    if (isTemplateUpload(updatedFeatureSet)) {
-      updatedFeatureSet.lostHabitats = lostBaselineHabitats(
-        updatedFeatureSet,
-        project?.baseline
-      )
-    }
-    addPostInterventionNetUnitChanges(
-      updatedFeatureSet,
-      project?.baseline?.units
-    )
-    enrichPostInterventionAreaTradingRules(
-      updatedFeatureSet,
-      project?.baseline,
-      logger
-    )
-    enrichPostInterventionWatercourseTradingRules(
-      updatedFeatureSet,
-      project?.baseline?.watercourses ?? [],
-      logger
-    )
-    enrichPostInterventionHedgerowTradingRules(
-      updatedFeatureSet,
-      project?.baseline,
-      logger
-    )
-    return null
-  }
-  return rederivePostInterventionFromBaseline(
-    project?.postIntervention,
-    { baseline: updatedFeatureSet, previousBaseline: previousFeatureSet },
-    logger
-  )
-}
-
-/**
  * The enhancement rule an edit to an enhanced post-intervention feature
  * breaks, or null. An edit must leave a valid enhancement of the feature's
  * baseline, as an import must (reject-invalid-enhancements.js); unlike an
@@ -453,10 +385,13 @@ function brokenEnhancementRule(found, derived, documentKey) {
 }
 
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
+  const unsupportedLinearBroadType =
+    found.type !== 'habitat' && edits.broadType !== null
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (found.type !== 'habitat' ||
+    (!['habitat', 'hedgerow', 'watercourse'].includes(found.type) ||
+      unsupportedLinearBroadType ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
   )
@@ -596,7 +531,7 @@ function applyFeatureUpdate(
     derived,
     {
       documentKey,
-      baseline: project?.baseline?.habitats,
+      baseline: project?.baseline?.[found.key],
       serviceTemplate: isTemplateUpload(project?.postIntervention)
     }
   )
@@ -613,20 +548,21 @@ function applyFeatureUpdate(
     project,
     documentKey,
     previousFeatureSet: featureSet,
+    editedType: found.type,
     logger
   })
   // `layer` / `index` / `unitsTotals` / `tradingRules` let callers persist
   // surgically via persist-project.js (jsonb_set the one feature + the derived
   // subtrees) rather than rewriting the whole document. `postIntervention` is
-  // the one subtree that cannot be patched surgically — a baseline edit can
-  // move any number of its figures — so it is handed over whole. `project` is
+  // the one subtree that cannot be patched surgically — baseline and template
+  // post-intervention watercourse edits can move sibling figures. `project` is
   // retained for callers/tests that want the fully-rebuilt document.
   return {
     status: APPLY_RESULT.OK,
     type: found.type,
     layer: found.key,
     index,
-    feature: updatedFeature,
+    feature: updatedFeatureSet[found.key][index],
     unitsTotals: updatedFeatureSet.units,
     tradingRules: updatedFeatureSet.tradingRules,
     // Refreshed by a post-intervention edit to a template upload; persisted

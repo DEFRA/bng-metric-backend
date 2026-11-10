@@ -2,6 +2,7 @@ import { afterAll, describe, expect, it } from 'vitest'
 import fs from 'node:fs'
 import path from 'node:path'
 
+import { ERROR_CODE_DETAILS } from '../src/validation/geopackage/errors.js'
 import { readGeoPackage } from '../src/validation/geopackage/geopackage.js'
 import {
   closeGeosWorkerPool,
@@ -145,13 +146,27 @@ function canonicalise(value, key) {
   return value
 }
 
+/**
+ * An error's details without the values and variants it sends for the
+ * frontend's wording (ERROR_CODE_DETAILS). They repeat what its message says,
+ * which the oracle records and this still compares; the oracle predates them.
+ */
+function oracleDetails({ code, details }) {
+  const { values = [], variants } = ERROR_CODE_DETAILS[code] ?? {}
+  const repeated = new Set([...values, ...(variants ? ['variants'] : [])])
+  const kept = Object.entries(details ?? {}).filter(
+    ([key]) => !repeated.has(key)
+  )
+  return kept.length > 0 ? Object.fromEntries(kept) : null
+}
+
 const comparable = (result) =>
   canonicalise({
     valid: result.valid,
     errors: result.errors.map((error) => ({
       code: error.code,
       message: error.message,
-      details: error.details ?? null
+      details: oracleDetails(error)
     }))
   })
 

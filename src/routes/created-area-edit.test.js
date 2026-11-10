@@ -9,6 +9,7 @@ import { getAreaCreationReference } from '../validation/reference/area-creation.
 import {
   postInterventionHabitatSchema,
   postInterventionLinearHabitatSchema,
+  postInterventionVerticalHabitatSchema,
   postInterventionWatercourseSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import * as featureUpdates from '../utilities/features/apply-feature-update.js'
@@ -25,6 +26,7 @@ import { updatePostInterventionAreaHabitat } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import { setGeometryRefs } from '../db/feature-geometry-refs.js'
 import { featureEditPayload } from './shared-params.js'
+import { enrichPostInterventionAreaTradingRules } from '../utilities/enrichment/post-intervention/enrich-post-intervention-area-trading-rules.js'
 
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
@@ -85,8 +87,8 @@ function update(overrides = {}) {
   )
 }
 
-function routeRequest(payload) {
-  const row = { project: { postIntervention: { habitats: [feature] } } }
+function routeRequest(payload, stored = feature) {
+  const row = { project: { postIntervention: { habitats: [stored] } } }
   const tx = {
     execute: vi.fn(),
     select: () => ({
@@ -166,7 +168,7 @@ describe('BMD-1048 Created area edits', () => {
     'strategicSignificance',
     'advanceYears',
     'delayYears'
-  ])('null %s saves null units and Incomplete', (field) => {
+  ])('null %s saves zero units and Incomplete (AC11 Scenario B)', (field) => {
     const cleared = { [field]: null }
     if (field === 'broadType') {
       cleared.habitatType = null
@@ -176,9 +178,48 @@ describe('BMD-1048 Created area edits', () => {
       cleared.condition = null
     }
     const result = update(cleared)
-    expect(result.feature).toMatchObject({ units: null, status: 'Incomplete' })
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect(
+      postInterventionHabitatSchema.validate(result.feature).error
+    ).toBeUndefined()
     expect(result.unitsTotals.habitatsTotal).toBe(4)
   })
+
+  test.each([
+    { broadType: null, habitatType: null, condition: null },
+    { habitatType: null, condition: null },
+    { condition: null },
+    { strategicSignificance: null }
+  ])(
+    'an Incomplete edit (%o) stores zero units without entering trading rules or logging',
+    (cleared) => {
+      const other = {
+        ...feature,
+        featureId: 'cccccccc-cccc-cccc-cccc-cccccccccccc',
+        units: 4,
+        proposed: { ...feature.proposed, type: 'Other neutral grassland' }
+      }
+      const logger = { warn: vi.fn() }
+      const result = applyFeatureUpdate(
+        { postIntervention: { habitats: [feature, other] } },
+        {
+          featureId,
+          edits: { ...edits, ...cleared },
+          documentKey: 'postIntervention',
+          expectedType: 'habitat',
+          logger
+        }
+      )
+      expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+      const withoutEdited = enrichPostInterventionAreaTradingRules({
+        habitats: [other]
+      })
+      expect(result.tradingRules.areaHabitats).toEqual(
+        withoutEdited.tradingRules.areaHabitats
+      )
+      expect(logger.warn).not.toHaveBeenCalled()
+    }
+  )
 
   test.each([
     'condition',
@@ -186,15 +227,17 @@ describe('BMD-1048 Created area edits', () => {
     'advanceYears',
     'delayYears'
   ])(
-    'incomplete %s pricing stays identical after a baseline resync',
+    'incomplete %s pricing stays identical after a baseline resync, which recalculates null units (BMD-1070)',
     (field) => {
       const edited = update({ [field]: null }).feature
       const rederived = rederivePostInterventionFromBaseline(
         { habitats: [edited] },
         { baseline: {} }
       ).habitats[0]
+      expect(edited.units).toBe(0)
+      expect(rederived.units).toBeNull()
       for (const row of [edited, rederived]) {
-        expect(row).toMatchObject({ units: null, status: 'Incomplete' })
+        expect(row.status).toBe('Incomplete')
         expect(row.proposed).toMatchObject({
           distinctiveness: null,
           distinctivenessScore: null,
@@ -426,6 +469,61 @@ describe('BMD-1048 Created area edits', () => {
     }
   })
 
+  test.each([null, ''])(
+    'an unrelated area save keeps omitted rejected significance when stored blank is %j, until corrected',
+    async (strategicSignificance) => {
+      const stored = {
+        ...feature,
+        proposed: {
+          ...feature.proposed,
+          strategicSignificance,
+          rejectedStrategicSignificance: 'Medium',
+          advanceYears: 0,
+          delayYears: 0
+        }
+      }
+      const { request } = routeRequest(
+        { ...edits, condition: 'Poor', strategicSignificance: undefined },
+        stored
+      )
+      const saved = await updatePostInterventionAreaHabitat.handler(request, {})
+      expect(saved).toMatchObject({
+        ref: edits.ref,
+        status: 'Incomplete',
+        units: 0,
+        proposed: {
+          strategicSignificance: null,
+          rejectedStrategicSignificance: 'Medium'
+        }
+      })
+      expect(setProjectFeature).toHaveBeenCalledWith(
+        expect.anything(),
+        projectId,
+        expect.objectContaining({ feature: saved })
+      )
+      const correctedRequest = routeRequest(
+        { ...edits, strategicSignificance: 'High' },
+        saved
+      ).request
+      const corrected = await updatePostInterventionAreaHabitat.handler(
+        correctedRequest,
+        {}
+      )
+      expect(corrected).toMatchObject({
+        status: 'Complete',
+        proposed: {
+          strategicSignificance: 'High',
+          rejectedStrategicSignificance: null
+        }
+      })
+      expect(corrected.units).toBeGreaterThan(0)
+      expect(
+        postInterventionHabitatSchema.validate(corrected).error
+      ).toBeUndefined()
+      expect(stored.proposed.rejectedStrategicSignificance).toBe('Medium')
+    }
+  )
+
   test('route persists the complete edit and records the authenticated actor', async () => {
     const { request, tx } = routeRequest(edits)
     const result = await updatePostInterventionAreaHabitat.handler(request, {})
@@ -589,22 +687,24 @@ test('callers cannot mutate the cached creation reference', () => {
   expect(getAreaCreationReference()).toEqual(expected)
 })
 
-test('only area parent links permit an explicit unlinked null', () => {
-  expect(
-    postInterventionHabitatSchema.extract('parentFeatureId').validate(null)
-      .error
-  ).toBeUndefined()
+test('only editable Created families permit an explicit unlinked null', () => {
   for (const schema of [
+    postInterventionHabitatSchema,
     postInterventionLinearHabitatSchema,
     postInterventionWatercourseSchema
   ]) {
     const field = schema.extract('parentFeatureId')
-    expect(field.validate(null).error).toBeDefined()
+    expect(field.validate(null).error).toBeUndefined()
     expect(field.validate(undefined).error).toBeUndefined()
     expect(field.validate(featureId).error).toBeUndefined()
     expect(field.describe().flags.description).toContain('BNG Service template')
-    expect(field.describe().flags.description).not.toContain('Created area')
+    expect(field.describe().flags.description).toContain('Created area')
   }
+  const nonEditableParent =
+    postInterventionVerticalHabitatSchema.extract('parentFeatureId')
+  expect(nonEditableParent.validate(null).error).toBeDefined()
+  expect(nonEditableParent.validate(undefined).error).toBeUndefined()
+  expect(nonEditableParent.validate(featureId).error).toBeUndefined()
 })
 
 test.each([
@@ -613,7 +713,7 @@ test.each([
   ['missing reference', { ref: undefined }],
   ['blank reference', { ref: ' ' }],
   ['null reference', { ref: null }],
-  ['hedgerow', { layer: 'hedgerows' }],
+  ['Enhanced hedgerow', { layer: 'hedgerows', retentionCategory: 'Enhanced' }],
   ['watercourse', { layer: 'watercourses' }]
 ])(
   'the shared edit entry point refuses Created-area timing for %s',
@@ -635,3 +735,76 @@ test.each([
     expect(project).toEqual(original)
   }
 )
+
+test.each([2.5, 31])(
+  'area omission keeps imported timing %s, while null clears and new values stay strict',
+  async (advanceYears) => {
+    const stored = {
+      ...feature,
+      proposed: { ...feature.proposed, advanceYears, delayYears: 0 }
+    }
+    const payload = { ...edits }
+    delete payload.advanceYears
+    delete payload.delayYears
+    expect(
+      postInterventionAreaEditPayload.validate(payload).error
+    ).toBeUndefined()
+    const saved = await updatePostInterventionAreaHabitat.handler(
+      routeRequest(payload, stored).request,
+      {}
+    )
+    expect(saved.proposed).toMatchObject({ advanceYears, delayYears: 0 })
+    expect(
+      postInterventionAreaEditPayload.validate({ ...payload, advanceYears })
+        .error
+    ).toBeDefined()
+    const cleared = await updatePostInterventionAreaHabitat.handler(
+      routeRequest({ ...payload, advanceYears: null }, stored).request,
+      {}
+    )
+    expect(cleared.proposed.advanceYears).toBeNull()
+    await expect(
+      updatePostInterventionAreaHabitat.handler(
+        routeRequest({ ...payload, delayYears: 1 }, stored).request,
+        {}
+      )
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+  }
+)
+
+test('area omitted timing keeps 30+ metadata and timing without an extended edit is invalid', async () => {
+  const payload = { ...edits }
+  delete payload.delayYears
+  const stored = {
+    ...feature,
+    proposed: { ...feature.proposed, delayYears: 30, delayYearsIs30Plus: true }
+  }
+  const saved = await updatePostInterventionAreaHabitat.handler(
+    routeRequest(payload, stored).request,
+    {}
+  )
+  expect(saved.proposed).toMatchObject({
+    delayYears: 30,
+    delayYearsIs30Plus: true
+  })
+  expect(
+    postInterventionAreaEditPayload.validate({ advanceYears: 1 }).error
+  ).toBeDefined()
+  expect(
+    postInterventionAreaEditPayload.validate({ delayYears: 1 }).error
+  ).toBeDefined()
+})
+
+test('normalises legacy Created retention before persisting an area edit', async () => {
+  const stored = structuredClone(feature)
+  delete stored.retentionCategory
+  stored.baseline.retentionCategory = 'Created'
+  setProjectFeature.mockImplementationOnce((_tx, _id, { feature: saved }) => {
+    expect(postInterventionHabitatSchema.validate(saved).error).toBeUndefined()
+  })
+  const { request } = routeRequest(edits, stored)
+  const result = await updatePostInterventionAreaHabitat.handler(request)
+  expect(result.retentionCategory).toBe('Created')
+  expect(result.baseline).not.toHaveProperty('retentionCategory')
+  expect(stored.baseline.retentionCategory).toBe('Created')
+})

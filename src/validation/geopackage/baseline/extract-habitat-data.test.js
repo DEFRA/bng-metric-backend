@@ -503,7 +503,7 @@ describe('extractHabitatData — featureId join keys', () => {
 })
 
 describe('extractHabitatData — habitat document fields and shape', () => {
-  it('extracts habitat fields per parcel: ref, type, condition, plus retention/strategic significance', () => {
+  it('extracts habitat fields per parcel: ref, type, condition, retention, and strategic significance fixed at Low', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [
@@ -528,9 +528,12 @@ describe('extractHabitatData — habitat document fields and shape', () => {
         type: LOWLAND_MEADOWS,
         broadType: 'Grassland',
         condition: 'Good',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retain',
-        properties: expect.objectContaining({ Area: 1.23 })
+        properties: expect.objectContaining({
+          Area: 1.23,
+          'Baseline Strategic Significance': 'High'
+        })
       })
     )
     expect(out.document.habitats[0]).not.toHaveProperty('area')
@@ -1115,7 +1118,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
     )
   })
 
-  it('promotes metadata plus strategic significance and retention onto hedgerows (Comments column)', () => {
+  it('promotes metadata, Low strategic significance and retention onto hedgerows (Comments column)', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [],
@@ -1138,13 +1141,13 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
       expect.objectContaining({
         ...EXPECTED_METADATA,
         comment: 'Hedge note',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retained'
       })
     )
   })
 
-  it('promotes metadata, strategic significance, retention and enhancement type onto watercourses', () => {
+  it('promotes metadata, Low strategic significance, retention and enhancement type onto watercourses', () => {
     const out = extractHabitatData({
       redline: [],
       areas: [],
@@ -1168,7 +1171,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
       expect.objectContaining({
         ...EXPECTED_METADATA,
         comment: 'River note',
-        strategicSignificance: 'High',
+        strategicSignificance: 'Low',
         retentionCategory: 'Retained',
         enhancementType: 'Re-meandering'
       })
@@ -1213,6 +1216,87 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
         rawDistinctiveness: null
       })
     )
+  })
+
+  it('trims a comment and keeps the spaces inside it', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          Comment: '  kept  note \n'
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBe('kept  note')
+  })
+
+  it('stores no comment when the cell is only whitespace', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: 'P1', Comment: ' \t\n ' })],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBeNull()
+  })
+
+  it('leaves an Enhanced or Created comment off the baseline habitat of a legacy combined upload', () => {
+    const out = extractHabitatData(
+      {
+        redline: [],
+        areas: [
+          feature({
+            [PARCEL_REF]: 'P1',
+            'Retention Category': '1. Enhanced',
+            Comment: 'enhanced note'
+          }),
+          feature({
+            [PARCEL_REF]: 'P2',
+            'Retention Category': 'Created',
+            Comment: 'created note'
+          }),
+          feature({
+            [PARCEL_REF]: 'P3',
+            'Retention Category': '4. Lost',
+            Comment: 'lost note'
+          })
+        ],
+        hedgerows: [],
+        watercourses: []
+      },
+      { commentStaysWithPostIntervention: true }
+    )
+
+    const byRef = Object.fromEntries(
+      out.document.habitats.map((habitat) => [habitat.ref, habitat.comment])
+    )
+    expect(byRef).toEqual({
+      P1: null,
+      P2: null,
+      P3: 'lost note'
+    })
+  })
+
+  it('keeps an Enhanced comment when the upload does not also save a post-intervention document', () => {
+    const out = extractHabitatData({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'P1',
+          'Retention Category': 'Enhanced',
+          Comment: '  enhanced note  '
+        })
+      ],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    expect(out.document.habitats[0].comment).toBe('enhanced note')
   })
 })
 
@@ -1388,6 +1472,7 @@ describe('extractHabitatData — Parcel Ref clean-up (BMD-1058)', () => {
 
 describe('extractHabitatData — vertical area habitats', () => {
   const FEAT_ID_WALL = 'featwall-0000-0000-0000-000000000000'
+  const WALL_HECTARES = 0.00375
   const WALL_SQM = 37.5
   const habitatSizes = {
     areaHabitats: {
@@ -1429,8 +1514,8 @@ describe('extractHabitatData — vertical area habitats', () => {
     )
   }
 
-  it('sizes each one by the area typed in, in square metres, not by its line', () => {
-    const out = extractWithWall(WALL_SQM)
+  it('sizes each one by the area typed in, in hectares, held in square metres, not by its line', () => {
+    const out = extractWithWall(WALL_HECTARES)
 
     expect(out.document.verticalHabitats).toEqual([
       expect.objectContaining({
@@ -1440,7 +1525,7 @@ describe('extractHabitatData — vertical area habitats', () => {
         type: 'Facade-bound green wall',
         condition: 'Poor',
         sizeSquareMetres: WALL_SQM,
-        // As typed, not rounded to the square metre.
+        // Converted from the hectares typed, not rounded to the square metre.
         area: WALL_SQM,
         status: 'Complete'
       })
@@ -1451,7 +1536,7 @@ describe('extractHabitatData — vertical area habitats', () => {
   })
 
   it('counts their area in the area habitats total but not in the site', () => {
-    const out = extractWithWall(WALL_SQM)
+    const out = extractWithWall(WALL_HECTARES)
 
     expect(out.document.habitatSizes).toMatchObject({
       areaHabitats: { totalSquareMetres: HABITAT_SQM + WALL_SQM },
@@ -1460,8 +1545,8 @@ describe('extractHabitatData — vertical area habitats', () => {
     })
   })
 
-  it('keeps a face under half a square metre as typed, so it does not show as 0', () => {
-    const out = extractWithWall(0.4)
+  it('keeps an area under half a square metre as typed, so it does not show as 0', () => {
+    const out = extractWithWall(0.00004)
 
     expect(out.document.verticalHabitats[0]).toMatchObject({
       sizeSquareMetres: 0.4,
@@ -1480,4 +1565,40 @@ describe('extractHabitatData — vertical area habitats', () => {
       totalSquareMetres: 0
     })
   })
+})
+
+describe('extractHabitatData — baseline strategic significance (BMD-1086)', () => {
+  it.each([['High'], ['Medium'], [null]])(
+    'stores Low on every layer when the file says %s, keeping the file value in properties',
+    (value) => {
+      const significance = { 'Baseline Strategic Significance': value }
+      const out = extractHabitatData({
+        redline: [],
+        areas: [feature({ [PARCEL_REF]: 'H1', ...significance })],
+        hedgerows: [
+          feature({ [PARCEL_REF]: 'HG1', ...significance }, SAMPLE_LINESTRING)
+        ],
+        watercourses: [
+          feature({ [PARCEL_REF]: 'W1', ...significance }, SAMPLE_LINESTRING)
+        ],
+        trees: [feature({ 'Tree Ref': 'T1', ...significance }, SAMPLE_POINT)],
+        verticalHabitats: [
+          feature({ [PARCEL_REF]: 'V1', ...significance }, SAMPLE_LINESTRING)
+        ]
+      })
+
+      const { habitats, hedgerows, watercourses, trees, verticalHabitats } =
+        out.document
+      for (const doc of [
+        ...habitats,
+        ...hedgerows,
+        ...watercourses,
+        ...trees,
+        ...verticalHabitats
+      ]) {
+        expect(doc.strategicSignificance).toBe('Low')
+        expect(doc.properties['Baseline Strategic Significance']).toBe(value)
+      }
+    }
+  )
 })

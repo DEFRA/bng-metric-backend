@@ -14,6 +14,7 @@ import {
   habitatSizesSummarySchema,
   baselineUnitsTotalsSchema,
   featureIdDescription,
+  BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION,
   redLineSchema,
   featureDataEnvelopeFields
 } from './project-shared-schemas.js'
@@ -44,7 +45,7 @@ const metadataSchemaKeys = () => ({
   comment: Joi.string()
     .allow(null, '')
     .description(
-      'Free-text comment from the GeoPackage (Comment / Comments column).'
+      'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null.'
     ),
   mappedBy: Joi.string()
     .allow(null, '')
@@ -77,9 +78,6 @@ const metadataSchemaKeys = () => ({
       'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
     )
 })
-
-const STRATEGIC_SIGNIFICANCE_DESCRIPTION =
-  'Strategic significance category from the GeoPackage.'
 
 const RETENTION_CATEGORY_DESCRIPTION = 'Retention category from the GeoPackage.'
 
@@ -134,7 +132,7 @@ const habitatSchema = Joi.object({
     ),
   strategicSignificance: Joi.string()
     .allow(null, '')
-    .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
+    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
   retentionCategory: Joi.string()
     .allow(null, '')
     .description(RETENTION_CATEGORY_DESCRIPTION),
@@ -206,7 +204,7 @@ const treeSchema = habitatSchema
         'Notional tree area in square metres: the per-size reference area times the Count column.'
       ),
     irreplaceable: Joi.boolean().description(
-      'Not yet read for trees (BMD-1172), so always absent on a tree, even when the file marks the tree irreplaceable.'
+      "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
     ),
     units: Joi.number()
       .allow(null)
@@ -270,12 +268,12 @@ const verticalHabitatSchema = habitatSchema
     area: Joi.number()
       .allow(null)
       .description(
-        'Face area in square metres, as typed: the same value as sizeSquareMetres, not rounded, so a face under half a square metre does not show as 0.'
+        'Area in square metres, converted from the hectares typed: the same value as sizeSquareMetres, not rounded to the square metre, so an area under half a square metre does not show as 0.'
       ),
     sizeSquareMetres: Joi.number()
       .allow(null)
       .description(
-        "Face area in square metres, as the surveyor estimated it on site and typed it into the template's Area (m²) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+        "Area in square metres, converted from the hectares the surveyor estimated on site and typed into the template's Area (ha) column; a line cannot give it. Units are priced on it, in hectares. Null when it is not a number above 0, which the upload refuses (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
       ),
     units: Joi.number()
       .allow(null)
@@ -353,7 +351,7 @@ function linearFeatureSchema({
       ),
     strategicSignificance: Joi.string()
       .allow(null, '')
-      .description(STRATEGIC_SIGNIFICANCE_DESCRIPTION),
+      .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION),
     retentionCategory: Joi.string()
       .allow(null, '')
       .description(RETENTION_CATEGORY_DESCRIPTION),

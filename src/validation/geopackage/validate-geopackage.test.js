@@ -1,5 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import Database from 'better-sqlite3'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 import { ERROR_CODES, makeError } from './errors.js'
 import {
@@ -74,6 +75,15 @@ describe('validateGpkg when required system tables are missing', () => {
     expect(result.errors.map((e) => e.message)).toContain(
       'Missing required GeoPackage system table: gpkg_spatial_ref_sys'
     )
+    const missing = result.errors.filter(
+      (e) => e.code === ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE
+    )
+    expect(missing.map((e) => e.details)).toEqual([
+      { table: 'gpkg_contents' },
+      { table: 'gpkg_geometry_columns' },
+      { table: 'gpkg_spatial_ref_sys' }
+    ])
+    result.errors.forEach(expectDeclaredDetails)
   })
 
   it('reports only the missing table when two of three system tables are present', () => {
@@ -233,6 +243,15 @@ describe('validateGpkg when the Red Line Boundary geometry column is missing or 
     expect(
       result.errors.some((e) => String(e.message).includes('wrong_geom'))
     ).toBe(true)
+    expect(
+      result.errors.find((e) => e.code === 'GPKG_BASELINE_MISSING_COLUMN')
+        .details
+    ).toEqual({
+      layer: LAYER_RLB,
+      column: 'wrong_geom',
+      variants: ['geometry']
+    })
+    result.errors.forEach(expectDeclaredDetails)
   })
 
   it('accepts Red Line Boundary when the geometry column is named geom', () => {

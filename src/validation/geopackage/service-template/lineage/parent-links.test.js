@@ -201,7 +201,7 @@ describe('checkParentLinks', () => {
     })
   })
 
-  it('refuses a row whose parent_uuid more than one baseline habitat has, listing them and the rows that name it', () => {
+  it('refuses a row whose parent matches more than one baseline habitat, listing them and the rows that name it', () => {
     const errors = check({
       baseline: [
         baselineParcel(),
@@ -214,7 +214,7 @@ describe('checkParentLinks', () => {
       {
         code: ERROR_CODES.STAGED_AMBIGUOUS_PARENT,
         message:
-          'One or more post-intervention habitats name a baseline habitat whose feature_uuid more than one baseline habitat has: Area Habitats Baseline H001, H001 copy, named by H001, H001b',
+          'One or more post-intervention habitats have a parent that matches more than one baseline habitat: Area Habitats Baseline H001, H001 copy, named by H001, H001b',
         details: {
           count: 1,
           sample: [
@@ -361,6 +361,59 @@ describe('checkParentLinks', () => {
     expect(run(HEDGE)).toEqual([])
     expect(
       run([HEDGE[0], [529773.868, 180070.227]]).map((e) => e.code)
+    ).toEqual([ERROR_CODES.STAGED_BASELINE_DRIFTED])
+  })
+
+  it('checks individual trees, naming each by its Habitat Ref', () => {
+    const TREE_UUID = '3b1f6c2a-8d4e-5f70-9a1b-2c3d4e5f6a7b'
+    const baselineTree = {
+      properties: {
+        fid: 1,
+        'Tree Ref': 'T001',
+        'Baseline Rural or Urban Tree': 'Urban tree',
+        feature_uuid: TREE_UUID
+      },
+      nativeGeometry: { type: 'Point', coordinates: [529600.1234, 179900.5678] }
+    }
+    const tree = (overrides) => ({
+      properties: {
+        fid: 1,
+        'Tree Ref': 'T001',
+        'Retention Category': 'Retained',
+        'Proposed Rural or Urban Tree': 'Urban tree',
+        parent_uuid: TREE_UUID,
+        parent_geom: 'Point (529600.123 179900.568)',
+        ...overrides
+      }
+    })
+    const run = (rows) =>
+      checkParentLinks(
+        layers(
+          { trees: [baselineTree] },
+          { trees: 'Individual Trees Baseline' }
+        ),
+        layers({ trees: rows }, { trees: 'Individual Trees Post-Intervention' })
+      )
+
+    expect(run([tree()])).toEqual([])
+    expect(
+      run([
+        tree({
+          fid: 2,
+          'Tree Ref': 'T009',
+          parent_uuid: null,
+          parent_geom: null
+        })
+      ])[0]
+    ).toMatchObject({
+      code: ERROR_CODES.STAGED_PARENT_LINK_MISSING,
+      message:
+        'One or more Retained or Enhanced post-intervention habitats do not name the baseline habitat they continue: Individual Trees Post-Intervention T009 (Urban tree)'
+    })
+    expect(
+      run([tree({ parent_geom: 'Point (529610 179900.568)' })]).map(
+        (e) => e.code
+      )
     ).toEqual([ERROR_CODES.STAGED_BASELINE_DRIFTED])
   })
 

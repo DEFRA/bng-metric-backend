@@ -138,7 +138,7 @@ describe('extractPostIntervention — habitat nested structure', () => {
         type: 'Modified grassland',
         broadType: 'Grassland',
         condition: 'Moderate',
-        strategicSignificance: 'Low significance'
+        strategicSignificance: 'Low'
       })
     )
     expect(hab.baseline).not.toHaveProperty('retentionCategory')
@@ -281,7 +281,7 @@ describe('extractPostIntervention — Retained empty proposed copy', () => {
         type: 'Developed land; sealed surface',
         broadType: 'Urban',
         condition: 'N/A - Other',
-        strategicSignificance: 'Low significance'
+        strategicSignificance: 'Low'
       })
     )
     expect(hab.status).toBe('Complete')
@@ -606,7 +606,7 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
     return hedge
   }
 
-  it('reads Baseline and Proposed Strategic Significance', () => {
+  it('fixes Baseline Strategic Significance at Low and reads the Proposed one', () => {
     const out = extractHedgerows(
       feature(
         {
@@ -624,11 +624,12 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
     )
 
     const hedge = out.document.hedgerows[0]
-    expect(hedge.baseline.strategicSignificance).toBe(LOW)
+    // Baseline is fixed at Low whatever the file says (BMD-1086).
+    expect(hedge.baseline.strategicSignificance).toBe('Low')
     expect(hedge.proposed.strategicSignificance).toBe(HIGH)
   })
 
-  it('copies the baseline value onto an empty proposed side for a Retained hedgerow', () => {
+  it('copies the baseline Low onto an empty proposed side for a Retained hedgerow', () => {
     const out = extractHedgerows(
       feature(
         {
@@ -644,7 +645,7 @@ describe('extractPostIntervention — hedgerow strategic significance', () => {
       )
     )
 
-    expect(out.document.hedgerows[0].proposed.strategicSignificance).toBe(LOW)
+    expect(out.document.hedgerows[0].proposed.strategicSignificance).toBe('Low')
   })
 
   it('prices a created hedgerow at the Proposed Strategic Significance in the file', () => {
@@ -1200,5 +1201,159 @@ describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
     expect(out.geometries.habitats[0].ref).toBe('H001')
     expect(out.document.hedgerows[0].ref).toBe('P'.repeat(100))
     expect(out.document.watercourses[0].ref).toBe('R001')
+  })
+})
+
+describe('extractPostIntervention — baseline strategic significance (BMD-1086)', () => {
+  it('stores Low on the baseline side of every layer, keeping the Proposed value and the file value in properties', () => {
+    const significance = {
+      'Retention Category': 'Enhanced',
+      'Baseline Strategic Significance': 'High',
+      'Proposed Strategic Significance': 'High'
+    }
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [feature({ [PARCEL_REF]: 'H1', ...significance })],
+      hedgerows: [
+        feature({ [PARCEL_REF]: 'HG1', ...significance }, SAMPLE_LINESTRING)
+      ],
+      watercourses: [
+        feature({ [PARCEL_REF]: 'W1', ...significance }, SAMPLE_LINESTRING)
+      ],
+      trees: [treeFeature({ 'Tree Ref': 'T1', ...significance })],
+      verticalHabitats: [
+        feature({ [PARCEL_REF]: 'V1', ...significance }, SAMPLE_LINESTRING)
+      ]
+    })
+
+    const { habitats, hedgerows, watercourses, trees, verticalHabitats } =
+      out.document
+    const docs = [
+      ...habitats,
+      ...hedgerows,
+      ...watercourses,
+      ...trees,
+      ...verticalHabitats
+    ]
+    expect(docs).toHaveLength(5)
+    for (const doc of docs) {
+      expect(doc.baseline.strategicSignificance).toBe('Low')
+      expect(doc.proposed.strategicSignificance).toBe('High')
+      expect(doc.properties['Baseline Strategic Significance']).toBe('High')
+    }
+  })
+})
+
+describe('extractPostIntervention — comments', () => {
+  it('keeps a trimmed comment on Enhanced and Created habitats only', () => {
+    const out = extractPostIntervention({
+      redline: [],
+      areas: [
+        feature({
+          [PARCEL_REF]: 'H-enhanced',
+          'Retention Category': 'Enhanced',
+          Comment: '  enhanced note  '
+        }),
+        feature({
+          [PARCEL_REF]: 'H-created',
+          'Retention Category': '1. Created',
+          Comment: 'created note'
+        }),
+        feature({
+          [PARCEL_REF]: 'H-retained',
+          'Retention Category': 'Retained',
+          Comment: 'retained note'
+        }),
+        feature({
+          [PARCEL_REF]: 'H-lost',
+          'Retention Category': 'Lost',
+          Comment: 'lost note'
+        })
+      ],
+      hedgerows: [
+        feature(
+          {
+            [PARCEL_REF]: 'HG1',
+            'Retention Category': 'Enhanced',
+            Comments: ' \n '
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      watercourses: [
+        feature(
+          {
+            [PARCEL_REF]: 'W1',
+            'Retention Category': 'Created',
+            Comments: 'river note'
+          },
+          SAMPLE_LINESTRING
+        )
+      ],
+      trees: [
+        treeFeature({
+          'Tree Ref': 'T1',
+          'Retention Category': 'Enhanced',
+          Comment: 'tree note'
+        })
+      ],
+      verticalHabitats: [
+        feature(
+          {
+            [PARCEL_REF]: 'V1',
+            'Retention Category': 'Retained',
+            Comment: 'wall note'
+          },
+          SAMPLE_LINESTRING
+        )
+      ]
+    })
+
+    const area = (ref) =>
+      out.document.habitats.find((habitat) => habitat.ref === ref)
+    expect(area('H-enhanced').comment).toBe('enhanced note')
+    expect(area('H-created').comment).toBe('created note')
+    expect(area('H-retained').comment).toBeNull()
+    expect(area('H-lost').comment).toBeNull()
+    expect(out.document.hedgerows[0].comment).toBeNull()
+    expect(out.document.watercourses[0].comment).toBe('river note')
+    expect(out.document.trees[0].comment).toBe('tree note')
+    expect(out.document.verticalHabitats[0].comment).toBeNull()
+  })
+
+  it('keeps a comment on every retention category of a BNG Service template file', () => {
+    const out = extractPostIntervention(
+      {
+        redline: [],
+        areas: [
+          feature({
+            [PARCEL_REF]: 'H-retained',
+            'Retention Category': 'Retained',
+            Comment: '  retained note  '
+          }),
+          feature({
+            [PARCEL_REF]: 'H-enhanced',
+            'Retention Category': 'Enhanced',
+            Comment: 'enhanced note'
+          }),
+          feature({
+            [PARCEL_REF]: 'H-created',
+            'Retention Category': 'Created',
+            Comment: 'created note'
+          })
+        ],
+        hedgerows: [],
+        watercourses: [],
+        trees: [],
+        verticalHabitats: []
+      },
+      { template: { name: 'bng-service', version: '1.0' } }
+    )
+
+    const area = (ref) =>
+      out.document.habitats.find((habitat) => habitat.ref === ref)
+    expect(area('H-retained').comment).toBe('retained note')
+    expect(area('H-enhanced').comment).toBe('enhanced note')
+    expect(area('H-created').comment).toBe('created note')
   })
 })

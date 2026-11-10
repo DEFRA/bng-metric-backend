@@ -7,6 +7,7 @@ import { describe, expect, it } from 'vitest'
 
 import {
   ENHANCEMENT_RULE_LAYERS,
+  TREE_ENHANCEMENT_RULE,
   checkFeatureEnhancement,
   enhancementRulesForLayer
 } from './enhancement-rules.js'
@@ -176,6 +177,6 @@ describe('enhancementRulesForLayer', () => {
       ENHANCEMENT_RULE.LOW_HEDGEROW,
       ENHANCEMENT_RULE.VERY_LOW_HEDGEROW
     ])
-    expect(enhancementRulesForLayer('trees')).toEqual([])
+    expect(enhancementRulesForLayer('trees')).toEqual([TREE_ENHANCEMENT_RULE])
   })
 })

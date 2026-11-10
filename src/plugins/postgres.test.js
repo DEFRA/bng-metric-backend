@@ -1,5 +1,15 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
-import { postgres } from './postgres.js'
+import { config } from '../config.js'
+import { postgres, postgresOptionsFromConfig } from './postgres.js'
+import {
+  checkSchemaIsCurrent,
+  schemaErrorListener
+} from '../db/schema-check.js'
+
+vi.mock('../db/schema-check.js', () => ({
+  checkSchemaIsCurrent: vi.fn().mockResolvedValue('current'),
+  schemaErrorListener: vi.fn().mockReturnValue(() => {})
+}))
 
 vi.mock('../common/helpers/logging/logger.js', () => ({
   createLogger: vi.fn().mockReturnValue({
@@ -42,6 +52,7 @@ const CONNECTION_REFUSED = 'connection refused'
 const mockServer = {
   logger: { info: vi.fn(), error: vi.fn() },
   decorate: vi.fn(),
+  events: { on: vi.fn() },
   secureContext: null
 }
 
@@ -53,6 +64,9 @@ const baseOptions = {
   localPassword: 'dev',
   region: 'eu-west-2'
 }
+
+// IAM authentication needs the TLS options secureContext provides.
+const iamServer = { ...mockServer, secureContext: {} }
 
 function resetMocks() {
   mockServer.decorate.mockReset()
@@ -111,6 +125,24 @@ describe('#postgres plugin local auth', () => {
     expect(mockRelease).toHaveBeenCalled()
   })
 
+  // A deploy can reach an environment before its migrations do: said at
+  // startup, and on every request that fails for it.
+  test('Should check the schema is current and listen for schema errors', async () => {
+    await postgres.plugin.register(mockServer, {
+      ...baseOptions,
+      iamAuthentication: false
+    })
+
+    expect(checkSchemaIsCurrent).toHaveBeenCalledWith(
+      expect.objectContaining({ connect: mockConnect }),
+      expect.anything()
+    )
+    expect(mockServer.events.on).toHaveBeenCalledWith(
+      { name: 'request', channels: 'error' },
+      vi.mocked(schemaErrorListener).mock.results.at(-1).value
+    )
+  })
+
   test('Should throw if startup connection fails', async () => {
     mockConnect.mockRejectedValueOnce(new Error(CONNECTION_REFUSED))
 
@@ -147,7 +179,7 @@ describe('#postgres plugin IAM auth', () => {
     const { Signer } = await import('@aws-sdk/rds-signer')
     const getPasswordFn = await captureLocalPasswordFn()
 
-    await postgres.plugin.register(mockServer, {
+    await postgres.plugin.register(iamServer, {
       ...baseOptions,
       iamAuthentication: true
     })
@@ -182,7 +214,7 @@ describe('#postgres plugin IAM auth', () => {
       this.connect = mockConnect
     })
 
-    await postgres.plugin.register(mockServer, {
+    await postgres.plugin.register(iamServer, {
       ...baseOptions,
       iamAuthentication: true
     })
@@ -193,6 +225,76 @@ describe('#postgres plugin IAM auth', () => {
     await expect(passwordFn()).rejects.toThrow('credentials expired')
     expect(logger.error).toHaveBeenCalledWith(
       'Failed to obtain IAM RDS token: credentials expired'
+    )
+  })
+})
+
+describe('#postgres plugin TLS', () => {
+  beforeEach(resetMocks)
+
+  async function captureSsl(options) {
+    const Pool = (await import('pg-pool')).default
+    let ssl
+    Pool.mockImplementation(function (opts) {
+      ssl = opts.ssl
+      this.on = () => {}
+      this.connect = mockConnect
+    })
+    const secureContext = {}
+    await postgres.plugin.register(
+      { ...mockServer, secureContext },
+      {
+        ...baseOptions,
+        iamAuthentication: true,
+        ...options
+      }
+    )
+    return { ssl, secureContext }
+  }
+
+  test('Should not verify the certificate when the flag is off', async () => {
+    const { ssl, secureContext } = await captureSsl({})
+
+    expect(ssl).toEqual({ rejectUnauthorized: false, secureContext })
+  })
+
+  test('Should verify the certificate when the flag is on', async () => {
+    const { ssl, secureContext } = await captureSsl({
+      tlsRejectUnauthorized: true
+    })
+
+    expect(ssl).toEqual({ rejectUnauthorized: true, secureContext })
+  })
+
+  test('Should verify the certificate when DB_TLS_REJECT_UNAUTHORIZED is set in config', async () => {
+    const original = {
+      iamAuthentication: config.get('postgres.iamAuthentication'),
+      tlsRejectUnauthorized: config.get('postgres.tlsRejectUnauthorized')
+    }
+    config.set('postgres.iamAuthentication', true)
+    config.set('postgres.tlsRejectUnauthorized', true)
+
+    try {
+      const { ssl } = await captureSsl(postgresOptionsFromConfig())
+
+      expect(ssl.rejectUnauthorized).toBe(true)
+    } finally {
+      config.set('postgres.iamAuthentication', original.iamAuthentication)
+      config.set(
+        'postgres.tlsRejectUnauthorized',
+        original.tlsRejectUnauthorized
+      )
+    }
+  })
+
+  test('Should fail at boot when IAM is on but no secureContext is registered', async () => {
+    await expect(
+      postgres.plugin.register(mockServer, {
+        ...baseOptions,
+        iamAuthentication: true
+      })
+    ).rejects.toThrow(
+      'Postgres IAM authentication needs TLS, but no secureContext is registered'
     )
   })
 })

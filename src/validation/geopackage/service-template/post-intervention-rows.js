@@ -7,9 +7,8 @@ import { templateForVersion } from './supported-versions.js'
  * Whether any of a BNG Service template file's Post-Intervention tables holds
  * a feature.
  *
- * Every Post-Intervention table of the version counts, including those the
- * service does not read yet (individual trees): a file
- * with features in any of them describes a post-intervention stage. Every
+ * Every Post-Intervention table of the version counts: a file with features
+ * in any of them describes a post-intervention stage. Every
  * table of a version is required, so the format gate has already refused a
  * file missing one; only the tables the file has are counted all the same, so
  * a table a later version makes optional cannot fail the count. A file that

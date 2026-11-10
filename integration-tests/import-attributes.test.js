@@ -146,8 +146,11 @@ describe('BMD-1059 real GeoPackage imports', () => {
         expect(area.baseline.type).toBe('Developed land; sealed surface')
         expect(area.baseline.condition).toBe('N/A - Other')
       } else {
-        expect(area.strategicSignificance).toBe(
-          area.properties['Baseline Strategic Significance']
+        // Baseline is stored as Low whatever the file says (BMD-1086); the
+        // file's value stays in the raw properties.
+        expect(area.strategicSignificance).toBe('Low')
+        expect(area.properties['Baseline Strategic Significance']).toBe(
+          'Area/compensation not in local strategy/ no local strategy'
         )
         expect(river.waterEncroachmentMultiplier).toBeUndefined()
         expect(river.riparianEncroachmentMultiplier).toBeUndefined()

@@ -83,13 +83,38 @@ export const ERROR_CODES = Object.freeze({
   TREE_COUNT_NOT_WHOLE: 'TREE_COUNT_NOT_WHOLE',
 
   /**
+   * One or more habitat comments hold characters that are not valid UTF-8.
+   * The column is Comment on area and tree habitats and Comments on hedgerows
+   * and watercourses. One error for every such comment. The file is refused
+   * and nothing from it is saved.
+   */
+  COMMENT_INVALID_CHARACTERS: 'COMMENT_INVALID_CHARACTERS',
+
+  /**
+   * One or more habitat comments are longer than 999 characters once leading
+   * and trailing whitespace is removed. Length is counted in characters, not
+   * bytes. A comment of exactly 999 characters is accepted. One error for
+   * every such comment. The file is refused and nothing from it is saved.
+   */
+  COMMENT_TOO_LONG: 'COMMENT_TOO_LONG',
+
+  /**
    * A BNG Service template vertical area habitat's Area is blank, zero,
-   * negative or not a number. The surveyor types it in, in square metres, as
-   * the face area they estimated on site; a line cannot give it, so there is
+   * negative or not a number. The surveyor types it in, in hectares, as the
+   * area they estimated on site; a line cannot give it, so there is
    * nothing to price the habitat on. One error for them all; `details.sample`
    * lists each row's table, Habitat Ref and Area.
    */
   VERTICAL_HABITAT_AREA_NOT_POSITIVE: 'VERTICAL_HABITAT_AREA_NOT_POSITIVE',
+
+  /**
+   * One or more BNG Service template individual trees, at baseline or
+   * post-intervention, have Irreplaceable Habitat "Yes": the service does not
+   * accept irreplaceable trees. A blank Irreplaceable Habitat is "No". One
+   * error for them all, per stage; `details.sample` lists each tree's table,
+   * Habitat Ref and fid. The frontend sends the user to the drop-out page.
+   */
+  IRREPLACEABLE_TREE: 'IRREPLACEABLE_TREE',
 
   /** Habitat sizes were not measured during validation, so the document cannot be built. */
   SIZING_FAILED: 'SIZING_FAILED',
@@ -200,6 +225,16 @@ export const ERROR_CODES = Object.freeze({
   STAGED_VERTICAL_CHILDREN_TOO_LARGE: 'STAGED_VERTICAL_CHILDREN_TOO_LARGE',
 
   /**
+   * BNG Service template baseline trees with fewer trees, by Count, than the
+   * Retained and Enhanced post-intervention trees linked to them together: a
+   * tree that is kept cannot multiply. A blank Count is one tree. Created
+   * trees, new planting, are not counted. `details.sample` lists each parent's
+   * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
+   * both counts. The frontend sends the user to the drop-out page.
+   */
+  STAGED_TREE_CHILDREN_TOO_MANY: 'STAGED_TREE_CHILDREN_TOO_MANY',
+
+  /**
    * BNG Service template baseline watercourses with both a Retained or Enhanced
    * post-intervention part and a Created part (BMD-1083): the service cannot
    * split a watercourse's length between continuation and loss.
@@ -285,8 +320,185 @@ export const ERROR_CODES = Object.freeze({
   VALIDATION_UNAVAILABLE: 'VALIDATION_UNAVAILABLE'
 })
 
+/**
+ * Where a customer can meet an error code: an upload code is shown on the
+ * drop-out page after a file is refused; an edit code on the page where a
+ * habitat is changed, after the file was accepted.
+ *
+ * Nothing in the service reads this at run time. It says which section of the
+ * frontend's error text (src/server/common/error-text/error-text.yaml) must
+ * word each code, and bng-metric-harness's check (npm run check:dropout-copy)
+ * loads this file to hold the frontend to it. So this file must keep
+ * importing nothing: the check loads it with no install.
+ */
+export const ERROR_SURFACES = Object.freeze({
+  UPLOAD: 'upload',
+  EDIT: 'edit'
+})
+
+// Every code is an upload code unless it is listed here. A new code raised
+// when a habitat is edited on screen must be added, or the frontend is asked
+// for drop-out page wording for an error that page never shows.
+const EDIT_ONLY_CODES = new Set([
+  ERROR_CODES.HABITAT_REF_IN_USE,
+  ERROR_CODES.ENHANCEMENT_NOT_VALID
+])
+const UPLOAD_AND_EDIT_CODES = new Set([
+  // The upload check refuses one in a file; an edit refuses one chosen on screen.
+  ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE
+])
+
+function surfacesOf(code) {
+  if (EDIT_ONLY_CODES.has(code)) {
+    return Object.freeze([ERROR_SURFACES.EDIT])
+  }
+  if (UPLOAD_AND_EDIT_CODES.has(code)) {
+    return Object.freeze([ERROR_SURFACES.UPLOAD, ERROR_SURFACES.EDIT])
+  }
+  return Object.freeze([ERROR_SURFACES.UPLOAD])
+}
+
+/** Each code's surfaces: where a customer can meet it. */
+export const ERROR_CODE_SURFACES = Object.freeze(
+  Object.fromEntries(
+    Object.values(ERROR_CODES).map((code) => [code, surfacesOf(code)])
+  )
+)
+
+/**
+ * The variant of a message the BNG Service template's gate puts in its own
+ * terms (service-template/service-template-gate.js).
+ */
+export const TEMPLATE_VARIANT = 'bng-service'
+
+/**
+ * The values, and the variants, that each code's `details` carry so the
+ * frontend can word the error itself.
+ *
+ * The frontend's error text (src/server/common/error-text/error-text.yaml)
+ * holds every sentence a customer sees; `message` is for logs. A message that
+ * names a value from the file, such as a layer name or an area, sends that
+ * value in `details` under the name given here, and the error text fills it
+ * into a {placeholder}. A code that words the same problem more than one way
+ * names the way in `details.variants`, and the error text words each one.
+ *
+ * Values are sent raw: a number as a number, so the frontend formats it,
+ * and a value the file does not have as null. A code not listed sends
+ * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * an entry says how its message writes a value, where that is not plain.
+ * bng-metric-harness's check (npm run check:dropout-copy, added by
+ * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the
+ * error text names only values a code sends and words every variant it can
+ * name.
+ *
+ * Unlike ERROR_CODE_SURFACES, this is also read at run time: the BNG Service
+ * template's gate (service-template/service-template-gate.js) tags an error
+ * with the bng-service variant when its entry here declares it. So removing
+ * TEMPLATE_VARIANT from an entry also stops the gate sending it, and the
+ * frontend words that error in the legacy template's terms.
+ */
+export const ERROR_CODE_DETAILS = Object.freeze({
+  // applicationId is the number; the message writes it in upper-case hex.
+  [ERROR_CODES.GPKG_NOT_A_GEOPACKAGE]: { values: ['applicationId'] },
+  [ERROR_CODES.GPKG_MISSING_SYSTEM_TABLE]: { values: ['table'] },
+  [ERROR_CODES.GPKG_MISSING_LAYER]: { values: ['layer'] },
+  [ERROR_CODES.GPKG_RLB_NO_GEOMETRY_COLUMN]: { variants: [TEMPLATE_VARIANT] },
+  [ERROR_CODES.GPKG_UNEXPECTED_FEATURE_LAYER]: {
+    values: ['layer'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_CONTENTS_DATA_TYPE]: {
+    values: ['layer', 'expected', 'found'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  // Each srs_id is a number or text as the file holds it, null when unset
+  // (the message says "unset"), or a blob as text.
+  [ERROR_CODES.GPKG_BASELINE_SRS_ID]: {
+    values: [
+      'layer',
+      'expectedSrsId',
+      'foundSrsId',
+      'contentsSrsId',
+      'geometryColumnsSrsId'
+    ],
+    variants: [TEMPLATE_VARIANT, 'contents', 'unreadable']
+  },
+  [ERROR_CODES.GPKG_BASELINE_GPKG_SRS_INCONSISTENT]: {
+    values: ['layer', 'contentsSrsId', 'geometryColumnsSrsId']
+  },
+  [ERROR_CODES.GPKG_BASELINE_INVALID_GEOMETRY_COLUMN_NAME]: {
+    values: ['layer', 'column', 'expected'],
+    variants: ['named']
+  },
+  [ERROR_CODES.GPKG_BASELINE_MULTIPLE_GEOMETRY_COLUMNS]: {
+    values: ['layer', 'found'],
+    variants: [TEMPLATE_VARIANT, 'registered']
+  },
+  [ERROR_CODES.GPKG_BASELINE_GEOMETRY_TYPE_NAME]: {
+    values: ['layer', 'expected', 'found'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_MISSING_COLUMN]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT, 'geometry']
+  },
+  // The message writes actualType with its article: "a Text", "an Integer".
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_SQLITE_TYPE]: {
+    values: ['layer', 'column', 'expectedType', 'actualType'],
+    variants: [TEMPLATE_VARIANT, 'undeclared', 'not-scalar']
+  },
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_NOT_NULL]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT, 'optional']
+  },
+  [ERROR_CODES.GPKG_BASELINE_COLUMN_PRIMARY_KEY]: {
+    values: ['layer', 'column'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  [ERROR_CODES.GPKG_BASELINE_GEOMETRY_REGISTRATION_MISSING]: {
+    values: ['layer'],
+    variants: [TEMPLATE_VARIANT]
+  },
+  // The message writes the counts with en-GB thousands separators.
+  [ERROR_CODES.GPKG_TOO_MANY_FEATURES]: {
+    values: ['featureCount', 'maxFeatureCount']
+  },
+  [ERROR_CODES.TEMPLATE_VERSION_DUPLICATED]: { values: ['recordCount'] },
+  // allowedBands is the list of distinctiveness bands the service takes, in
+  // the order the note names them. Only the upload check sends it; an edit's
+  // error sends no details.
+  [ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE]: {
+    values: ['allowedBands']
+  },
+  [ERROR_CODES.TEMPLATE_VERSION_UNSUPPORTED]: {
+    values: ['version', 'supportedVersions']
+  },
+  // The message writes each area to the units its sentence uses: this one
+  // to the whole square metre, AREA_SUM_MISMATCH's to two places.
+  [ERROR_CODES.REDLINE_AREA_TOO_LARGE]: { values: ['areaSqM'] },
+  [ERROR_CODES.REDLINE_INVALID_GEOMETRY]: { values: ['reason', 'location'] },
+  [ERROR_CODES.NO_HABITAT_AREAS]: { variants: ['structure'] },
+  [ERROR_CODES.AREA_SUM_MISMATCH]: {
+    values: ['habitatsAreaSqM', 'redlineAreaSqM']
+  },
+  [ERROR_CODES.NO_DERIVED_BASELINE_HABITATS]: { variants: ['read'] },
+  [ERROR_CODES.BASELINE_TYPE_MISSING]: { values: ['rowCount'] }
+})
+
 export function makeError(code, message, details) {
   return details === undefined ? { code, message } : { code, message, details }
+}
+
+/**
+ * `error` with `variant` added to its `details.variants` (ERROR_CODE_DETAILS):
+ * the way its message words the problem, when its code has more than one.
+ */
+export function withVariant(error, variant) {
+  const details = error.details ?? {}
+  return {
+    ...error,
+    details: { ...details, variants: [...(details.variants ?? []), variant] }
+  }
 }
 
 /** Top-level key holding the uploaded file's own name, on both the metadata probe and the extracted document. */
