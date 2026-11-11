@@ -119,33 +119,47 @@ describe('habitat comments on upload', () => {
     expect(commentOf(stored.postIntervention.watercourses, 'R1')).toBeNull()
   })
 
-  it('rejects the file and saves nothing when a comment is too long or not UTF-8', async () => {
-    const project = await createProject('Comment dropout')
-    const firstUpload = await uploadFixture(FIXTURE)
-    const saved = await callValidate(firstUpload, { projectId: project.id })
-    expect(saved.result).toEqual({ valid: true, errors: [] })
-    const before = await fetchProject(project.id)
+  it.each([
+    [
+      'too long, by the length check before any other check (BMD-1175)',
+      (db) =>
+        db
+          .prepare(
+            `UPDATE Habitats SET "Comment" = ? WHERE "Parcel Ref" = 'H1'`
+          )
+          .run(`  ${'a'.repeat(COMMENT_LIMIT + 1)}  `),
+      ['TEXT_TOO_LONG']
+    ],
+    [
+      'not UTF-8',
+      (db) =>
+        db
+          .prepare(
+            `UPDATE Habitats SET "Comment" = CAST(X'48FF3031' AS TEXT) WHERE "Parcel Ref" = 'H2'`
+          )
+          .run(),
+      ['COMMENT_INVALID_CHARACTERS']
+    ]
+  ])(
+    'rejects the file and saves nothing when a comment is %s',
+    async (_label, edit, codes) => {
+      const project = await createProject('Comment dropout')
+      const firstUpload = await uploadFixture(FIXTURE)
+      const saved = await callValidate(firstUpload, { projectId: project.id })
+      expect(saved.result).toEqual({ valid: true, errors: [] })
+      const before = await fetchProject(project.id)
 
-    const uploadId = await editedFixture((db) => {
-      db.prepare(
-        `UPDATE Habitats SET "Comment" = ? WHERE "Parcel Ref" = 'H1'`
-      ).run(`  ${'a'.repeat(COMMENT_LIMIT + 1)}  `)
-      db.prepare(
-        `UPDATE Habitats SET "Comment" = CAST(X'48FF3031' AS TEXT) WHERE "Parcel Ref" = 'H2'`
-      ).run()
-    })
+      const uploadId = await editedFixture(edit)
 
-    const response = await callPostInterventionValidate(uploadId, {
-      projectId: project.id
-    })
-    expect(response.statusCode).toBe(HTTP_OK)
-    expect(response.result.valid).toBe(false)
-    expect(response.result.errors.map((error) => error.code)).toEqual([
-      'COMMENT_INVALID_CHARACTERS',
-      'COMMENT_TOO_LONG'
-    ])
-    expect(await fetchProject(project.id)).toEqual(before)
-  })
+      const response = await callPostInterventionValidate(uploadId, {
+        projectId: project.id
+      })
+      expect(response.statusCode).toBe(HTTP_OK)
+      expect(response.result.valid).toBe(false)
+      expect(response.result.errors.map((error) => error.code)).toEqual(codes)
+      expect(await fetchProject(project.id)).toEqual(before)
+    }
+  )
 
   it('saves an edited comment and returns it on the feature', async () => {
     const project = await createProject('Comment edit')

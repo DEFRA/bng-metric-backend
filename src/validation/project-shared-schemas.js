@@ -7,6 +7,7 @@
 import Joi from 'joi'
 
 import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
+import { longFileText } from './text-joi.js'
 
 export const MAX_FILENAME_LENGTH = 255
 
@@ -192,9 +193,9 @@ export const redLineSchema = Joi.object({
     .description(
       'Stable UUID for the Red Line Boundary; join key to the bng.baseline_red_line geometry row. There is at most one per document, so it is carried forward on re-upload without needing a ref.'
     ),
-  siteName: Joi.string()
-    .allow(null, '')
-    .description('Site name from the GeoPackage Red Line Boundary layer.'),
+  siteName: longFileText().description(
+    'Site name from the GeoPackage Red Line Boundary layer.'
+  ),
   area: Joi.number()
     .allow(null)
     .description(

@@ -147,7 +147,10 @@ function withDroppedColumnsChanged() {
   const changed = {
     'Baseline Distinctiveness': 'V.High',
     'Proposed Distinctiveness': 'V.High',
-    'Spatial risk category': 'Far from site',
+    // Another value its list offers: one that no list offers is refused at
+    // upload (BMD-1175).
+    'Spatial risk category':
+      'Compensation outside LPA or NCA of impact site and beyond neighbouring LPA or NCA',
     Area: 1,
     Length: 1,
     'Baseline Length': 1

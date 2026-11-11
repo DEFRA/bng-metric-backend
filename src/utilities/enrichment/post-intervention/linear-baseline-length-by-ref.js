@@ -2,6 +2,7 @@ import { BaselineLookupError } from 'bng-library/metric'
 
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
 import { pricedLengthKm } from '../shared/enrich-units-shared.js'
+import { shownValue } from '../../../validation/geopackage/text-limits.js'
 
 /**
  * Convert a linear feature size in metres to kilometres, unrounded, matching
@@ -81,14 +82,14 @@ export function lookupBaselineLinearLength(
 ) {
   if (!baselineLengthByRef) {
     throw new BaselineLookupError(
-      `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${ref}")`
+      `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${shownValue(ref)}")`
     )
   }
   if (parentFeatureId) {
     const parentKm = baselineLengthByRef.byFeatureId?.get(parentFeatureId)
     if (parentKm == null) {
       throw new BaselineLookupError(
-        `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for the parent of parcel ref "${ref}"`
+        `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for the parent of parcel ref "${shownValue(ref)}"`
       )
     }
     return parentKm
@@ -97,7 +98,7 @@ export function lookupBaselineLinearLength(
   const lengthKm = key === null ? undefined : baselineLengthByRef.get(key)
   if (lengthKm == null) {
     throw new BaselineLookupError(
-      `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for parcel ref "${ref}"`
+      `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for parcel ref "${shownValue(ref)}"`
     )
   }
   return lengthKm

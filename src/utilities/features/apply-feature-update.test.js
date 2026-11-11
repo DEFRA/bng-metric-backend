@@ -1436,13 +1436,13 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.feature.ref).toBe('A1')
   })
 
-  test('trims the reference and truncates it to 100 characters, as an import does (BMD-1058)', () => {
+  test('trims the reference, as an import does (BMD-1058)', () => {
     const result = applyFeatureUpdate(projectFixture(), {
       featureId: HABITAT_ID,
-      edits: { ...KEEP_HABITAT, ref: `  ${'x'.repeat(120)}  ` }
+      edits: { ...KEEP_HABITAT, ref: `  ${'x'.repeat(99)}  ` }
     })
 
-    expect(result.feature.ref).toBe('x'.repeat(100))
+    expect(result.feature.ref).toBe('x'.repeat(99))
   })
 
   test('keeps the stored reference when the edit sends a blank one', () => {

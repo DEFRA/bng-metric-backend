@@ -17,6 +17,7 @@ import {
 import { compareGpkgToBaselineSchema } from '../geopackage-internals-schema-compare.js'
 import { createLogger } from '../../../common/helpers/logging/logger.js'
 import { missingVersionError, readTemplateVersion } from './version-record.js'
+import { checkTextValues } from '../text-values-gate.js'
 import {
   supportedTemplateVersions,
   templateForVersion
@@ -179,9 +180,11 @@ function checkStructure(db, schema) {
 
 /**
  * @param {import('better-sqlite3').Database} db
+ * @param {(table: string) => boolean} includeTable the tables whose text
+ *   values are checked once the structure passes
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, template: { name: string, version: string } | null }}
  */
-function runServiceTemplateGate(db) {
+function runServiceTemplateGate(db, includeTable) {
   const refused = (errors) => ({ valid: false, errors, template: null })
 
   const identityErrors = checkGeoPackageIdentity(db)
@@ -201,9 +204,15 @@ function runServiceTemplateGate(db) {
   }
 
   const structureErrors = checkStructure(db, template.schema)
+  // Only a file whose structure passes has its text values checked, before
+  // anything else reads one (BMD-1175).
+  const gateErrors =
+    structureErrors.length > 0
+      ? structureErrors
+      : checkTextValues(db, includeTable)
   return {
-    valid: structureErrors.length === 0,
-    errors: structureErrors,
+    valid: gateErrors.length === 0,
+    errors: gateErrors,
     template: { name: FORMAT_BNG_SERVICE, version: record.version }
   }
 }
@@ -214,12 +223,20 @@ function runServiceTemplateGate(db) {
  * of that version. Nothing is unpacked.
  *
  * @param {string} filePath
+ * @param {(table: string) => boolean} [includeTable] the tables the upload
+ *   reads, whose text values are checked (text-values-gate.js); every table
+ *   unless given
  * @returns {{ valid: boolean, errors: Array<{ code: string, message: string, details?: object }>, template: { name: string, version: string } | null }}
  *   `template` names the template and version the file was checked against,
  *   once its version record has been read and is supported
  */
-export function validateServiceTemplateGpkgFile(filePath) {
-  const result = withGpkgFileDatabase(filePath, runServiceTemplateGate)
+export function validateServiceTemplateGpkgFile(
+  filePath,
+  includeTable = () => true
+) {
+  const result = withGpkgFileDatabase(filePath, (db) =>
+    runServiceTemplateGate(db, includeTable)
+  )
   logger.info(
     `validateServiceTemplateGpkg: valid=${result.valid}, errors=${JSON.stringify(result.errors)}`
   )

@@ -2,6 +2,7 @@ import { FEATURE_UUID } from 'bng-library/bng-service'
 
 import { makeError } from '../../errors.js'
 import { retentionCategoryFromProps } from '../../post-intervention/extract-post-intervention-sub-objects.js'
+import { shownValue } from '../../text-limits.js'
 
 /**
  * What the lineage checks of a BNG Service template file (BMD-1083) share:
@@ -103,8 +104,11 @@ export function parentsByUuid(baseline) {
 
 /** How a message names a row or parent: its table, ref and habitat type. */
 export function label(offender) {
-  const name = offender.ref ?? `fid ${offender.fid}`
-  const habitatType = offender.habitatType ? ` (${offender.habitatType})` : ''
+  const name =
+    offender.ref == null ? `fid ${offender.fid}` : shownValue(offender.ref)
+  const habitatType = offender.habitatType
+    ? ` (${shownValue(offender.habitatType)})`
+    : ''
   return `${offender.table} ${name}${habitatType}`
 }
 

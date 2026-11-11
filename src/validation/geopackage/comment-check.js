@@ -1,6 +1,7 @@
 import { ERROR_CODES } from './errors.js'
 import { collated, describeOffender, hasInvalidUtf8Text } from './offenders.js'
 import { PROP_KEYS, pickProp } from './properties.js'
+import { LONG_TEXT_LIMIT } from './text-limits.js'
 
 // The same labels deriveRetentionCategory persists. This module lives in the
 // shared validation root, which must not import a flow's enrichment folder, so
@@ -17,11 +18,10 @@ const RETENTION_ENHANCED = 'Enhanced'
  * accepts.
  *
  * The longest comment the service accepts, in characters, once leading and
- * trailing whitespace has been removed. The QGIS template declares the column
- * TEXT(999), but SQLite does not enforce it, so a longer comment is refused
- * rather than cut.
+ * trailing whitespace has been removed: the limit an upload's text-value
+ * check gives a comment (text-limits.js, BMD-1175).
  */
-export const MAX_COMMENT_LENGTH = 999
+export const MAX_COMMENT_LENGTH = LONG_TEXT_LIMIT
 
 const INVALID_CHARACTERS_HEADING =
   'One or more comments contain characters that are not valid UTF-8'
@@ -49,8 +49,8 @@ const CARRIAGE_RETURN = /\r\n?/g
  * A comment as the service stores it: line breaks as LF, leading and trailing
  * whitespace removed, and a blank one stored as null. Characters within the
  * text are kept, including spaces. A value that is not text is null. An
- * over-long comment is not cut here: the upload is refused before anything is
- * saved.
+ * over-long comment never reaches here: the upload is refused before anything
+ * is read, and an edit by its route.
  *
  * @param {unknown} value
  * @returns {string | null}
@@ -133,37 +133,25 @@ export function commentForPostIntervention(props, { template = false } = {}) {
 }
 
 /**
- * Refuse a file whose comments are not valid UTF-8, or are longer than
- * {@link MAX_COMMENT_LENGTH} characters once trimmed. Each problem is one
- * error for every habitat it applies to, and a comment can be both. A null,
- * empty or whitespace-only comment is allowed.
+ * Refuse a file whose comments are not valid UTF-8: one error for every
+ * habitat it applies to. A null, empty or whitespace-only comment is allowed.
+ * A comment's length is checked earlier, with every other text value, by
+ * text-values-gate.js.
  *
  * @param {object} layers Output of readGeoPackage
  * @returns {Array<{ code: string, message: string, details: object }>}
  */
 export function checkHabitatComments(layers) {
   const invalid = []
-  const tooLong = []
   const tables = layers?.layerTables
   for (const layer of COMMENT_LAYERS) {
-    collectCommentOffenders(
-      layers?.[layer],
-      layer,
-      tables?.[layer],
-      invalid,
-      tooLong
-    )
+    collectCommentOffenders(layers?.[layer], layer, tables?.[layer], invalid)
   }
   return [
     collated(
       ERROR_CODES.COMMENT_INVALID_CHARACTERS,
       INVALID_CHARACTERS_HEADING,
       invalid
-    ),
-    collated(
-      ERROR_CODES.COMMENT_TOO_LONG,
-      `One or more comments are longer than ${MAX_COMMENT_LENGTH} characters`,
-      tooLong
     )
   ].filter(Boolean)
 }
@@ -173,15 +161,13 @@ export function checkHabitatComments(layers) {
  * @param {string} layer
  * @param {string | undefined} table
  * @param {object[]} invalid
- * @param {object[]} tooLong
  */
-function collectCommentOffenders(features, layer, table, invalid, tooLong) {
+function collectCommentOffenders(features, layer, table, invalid) {
   ;(features ?? []).forEach((feature, idx) => {
     recordComment(
       feature,
       describeOffender(layer, feature, idx, table),
-      invalid,
-      tooLong
+      invalid
     )
   })
 }
@@ -190,9 +176,8 @@ function collectCommentOffenders(features, layer, table, invalid, tooLong) {
  * @param {object} feature
  * @param {object} offender
  * @param {object[]} invalid
- * @param {object[]} tooLong
  */
-function recordComment(feature, offender, invalid, tooLong) {
+function recordComment(feature, offender, invalid) {
   const raw = commentOf(feature?.properties)
   if (isBlankComment(raw)) {
     return
@@ -200,9 +185,6 @@ function recordComment(feature, offender, invalid, tooLong) {
   const text = commentText(raw)
   if (text == null || hasInvalidUtf8Text(text)) {
     invalid.push(offender)
-  }
-  if (text != null && commentLength(text) > MAX_COMMENT_LENGTH) {
-    tooLong.push(offender)
   }
 }
 

@@ -12,6 +12,7 @@ import {
   getHedgerowDistinctiveness,
   getWatercourseDistinctiveness
 } from '../reference/habitat-distinctiveness.js'
+import { shownValue } from './text-limits.js'
 
 // MVS scope: only Medium, Low and Very Low distinctiveness habitats are
 // accepted. High and Very High are rejected with one aggregate error listing
@@ -33,7 +34,7 @@ const ALLOWED_BANDS = Object.keys(distinctivenessScores).filter(
 // `idx` is always set (from the forEach below), so it's the terminal fallback.
 function describeFeature(sample) {
   if (sample.feature_ref) {
-    return `Feature Ref ${sample.feature_ref}`
+    return `Feature Ref ${shownValue(sample.feature_ref)}`
   }
   if (sample.fid != null && sample.fid !== '') {
     return `fid ${sample.fid}`

@@ -106,8 +106,8 @@ describe('#projectSchema', () => {
           type: 'Urban tree',
           broadType: 'Individual trees',
           treeSize: 'Medium',
-          treeSpecies: 'Street tree',
-          ruralOrUrban: 'Urban',
+          treeSpecies: 'Native',
+          ruralOrUrban: 'Urban tree',
           count: 1,
           condition: 'Good',
           distinctiveness: 'Medium',
@@ -358,8 +358,8 @@ describe('#habitatDataSchema', () => {
         featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
         type: 'Watercourse footprint - Watercourse footprint',
         condition: 'Moderate',
-        riparianEncroachment: 'None',
-        watercourseEncroachment: 'None',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        watercourseEncroachment: 'No Encroachment',
         sizeMetres: 30,
         status: 'Complete',
         properties: {}
@@ -393,6 +393,20 @@ describe('#habitatDataSchema', () => {
     const { error } = habitatDataSchema.validate(baseline)
     expect(error).toBeDefined()
     expect(error.message).toMatch(/"watercourses\[0\]\.status" must be one of/)
+  })
+
+  // The stored limit, apart from the upload's (BMD-1175): 999 characters,
+  // counted as code points.
+  test('Should accept a comment of 999 characters and refuse one of 1,000', () => {
+    const baseline = structuredClone(validBaseline)
+    baseline.habitats[0].comment = '🌳'.repeat(999)
+    expect(habitatDataSchema.validate(baseline).error).toBeUndefined()
+
+    baseline.habitats[0].comment = '🌳'.repeat(1000)
+    const { error } = habitatDataSchema.validate(baseline)
+    expect(error.details.map((detail) => detail.type)).toEqual([
+      'string.maxCharacters'
+    ])
   })
 
   test('Should reject the legacy misspelled watercoursEncroachment field', () => {
@@ -452,6 +466,18 @@ describe('#postInterventionDataSchema', () => {
   test('Should validate a valid post-intervention document', () => {
     const { error } = postInterventionDataSchema.validate(validPostIntervention)
     expect(error).toBeUndefined()
+  })
+
+  test('Should accept a comment of 999 characters and refuse one of 1,000', () => {
+    const doc = structuredClone(validPostIntervention)
+    doc.habitats[0].comment = '🌳'.repeat(999)
+    expect(postInterventionDataSchema.validate(doc).error).toBeUndefined()
+
+    doc.habitats[0].comment = '🌳'.repeat(1000)
+    const { error } = postInterventionDataSchema.validate(doc)
+    expect(error.details.map((detail) => detail.type)).toEqual([
+      'string.maxCharacters'
+    ])
   })
 
   test('Should require status on habitat records', () => {
@@ -527,8 +553,8 @@ describe('#postInterventionDataSchema', () => {
             conditionScore: 3,
             distinctiveness: 'High',
             distinctivenessScore: 6,
-            riparianEncroachment: 'None',
-            watercourseEncroachment: 'None',
+            riparianEncroachment: 'No Encroachment/No Encroachment',
+            watercourseEncroachment: 'No Encroachment',
             strategicSignificance: 'Low'
           },
           proposed: {
@@ -539,9 +565,9 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             advanceYears: 0,
             delayYears: 0,
-            riparianEncroachment: 'Minor',
+            riparianEncroachment: 'Minor/Minor',
             watercourseEncroachment: 'Minor',
-            strategicSignificance: 'Medium'
+            strategicSignificance: 'High'
           },
           properties: {}
         }
@@ -615,8 +641,8 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             strategicSignificance: 'Low',
             treeSize: 'Small',
-            treeSpecies: 'Street tree',
-            ruralOrUrban: 'Urban',
+            treeSpecies: 'Native',
+            ruralOrUrban: 'Urban tree',
             sizeSquareMetres: 41,
             area: 41
           },
@@ -629,8 +655,8 @@ describe('#postInterventionDataSchema', () => {
             distinctivenessScore: 4,
             strategicSignificance: 'Low',
             treeSize: 'Small',
-            treeSpecies: 'Street tree',
-            ruralOrUrban: 'Urban',
+            treeSpecies: 'Native',
+            ruralOrUrban: 'Urban tree',
             sizeSquareMetres: 41,
             area: 41,
             advanceYears: 0,

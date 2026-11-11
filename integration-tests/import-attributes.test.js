@@ -53,7 +53,7 @@ async function changedFixture(proposed = false, mode = 'nulls') {
     // Identifiers are fixed test constants. Values use SQLite parameters.
     db.prepare(
       `UPDATE Habitats SET "${prefix} Broad Habitat Type" = ?, "${prefix} Habitat Type" = ?, "${prefix} Condition" = ? WHERE "Parcel Ref" = 'H1'`
-    ).run('not a broad habitat', 'Modified grassland', ' \t ')
+    ).run('Woodland and forest', 'Modified grassland', ' \t ')
     db.prepare(
       `UPDATE Hedgerows SET "${prefix} Hedge Type" = ?, "${prefix} Condition" = ? WHERE "Parcel Ref" = 'H1'`
     ).run(null, 'Good')
@@ -61,7 +61,7 @@ async function changedFixture(proposed = false, mode = 'nulls') {
       `UPDATE Rivers SET "${prefix} River Type" = ?, "${prefix} Condition" = ?, "${prefix} Encroachment into Watercourse" = ?, "${prefix} Encroachment into riparian zone" = ? WHERE "Parcel Ref" = 'R1'`
     ).run(
       proposed ? null : 'Ditches',
-      proposed ? 'Good' : 'unknown condition',
+      proposed ? 'Good' : 'N/A - Other',
       null,
       ' \t '
     )
@@ -70,15 +70,15 @@ async function changedFixture(proposed = false, mode = 'nulls') {
         `UPDATE Habitats SET "${prefix} Condition" = 'Good' WHERE "Parcel Ref" = 'H1'`
       ).run()
       db.prepare(
-        `UPDATE Hedgerows SET "${prefix} Hedge Type" = 'Native hedgerow', "${prefix} Condition" = 'unknown condition' WHERE "Parcel Ref" = 'H1'`
+        `UPDATE Hedgerows SET "${prefix} Hedge Type" = 'Native hedgerow', "${prefix} Condition" = 'N/A - Other' WHERE "Parcel Ref" = 'H1'`
       ).run()
       db.prepare(
-        `UPDATE Rivers SET "${prefix} River Type" = 'Ditches', "${prefix} Condition" = 'unknown condition', "${prefix} Encroachment into Watercourse" = 'No Encroachment', "${prefix} Encroachment into riparian zone" = 'No Encroachment/No Encroachment' WHERE "Parcel Ref" = 'R1'`
+        `UPDATE Rivers SET "${prefix} River Type" = 'Ditches', "${prefix} Condition" = 'N/A - Other', "${prefix} Encroachment into Watercourse" = 'No Encroachment', "${prefix} Encroachment into riparian zone" = 'No Encroachment/No Encroachment' WHERE "Parcel Ref" = 'R1'`
       ).run()
     }
     if (proposed) {
       db.prepare(
-        `UPDATE Habitats SET "Proposed Strategic Significance" = 'keep source value', "Habitat created in advance/years" = '2', "Delay in starting habitat creation/years" = '0' WHERE "Parcel Ref" = 'H1'`
+        `UPDATE Habitats SET "Proposed Strategic Significance" = 'High', "Habitat created in advance/years" = '2', "Delay in starting habitat creation/years" = '0' WHERE "Parcel Ref" = 'H1'`
       ).run()
     }
     if (mode === 'retained' || mode === 'retained-invalid') {
@@ -92,9 +92,25 @@ async function changedFixture(proposed = false, mode = 'nulls') {
         `UPDATE Rivers SET "Retention Category" = 'Retained', "Baseline River Type" = 'Ditches', "Baseline Condition" = 'Good', "Baseline Encroachment into Watercourse" = 'No Encroachment', "Baseline Encroachment into riparian zone" = 'No Encroachment/No Encroachment', "Proposed River Type" = NULL, "Proposed Condition" = NULL, "Proposed Encroachment into Watercourse" = NULL, "Proposed Encroachment into riparian zone" = NULL, "Proposed Strategic Significance" = NULL WHERE "Parcel Ref" = 'R1'`
       ).run()
     }
+    if (mode === 'as-the-gate-reads') {
+      db.prepare(
+        `UPDATE Habitats SET "Site Name" = ?, "Retention Category" = 'Retained ', "Habitat created in advance/years" = '5.0' WHERE "Parcel Ref" = 'H1'`
+      ).run(`${'s'.repeat(999)}   `)
+      db.prepare(
+        `UPDATE Hedgerows SET "Habitat created in advance/years" = 'N/A' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+      db.prepare(
+        `UPDATE Rivers SET "Habitat created in advance/years" = 'Habitat already in target condition' WHERE "Parcel Ref" = 'R1'`
+      ).run()
+    }
+    if (mode === 'not-in-list') {
+      db.prepare(
+        `UPDATE Habitats SET "Baseline Condition" = 'Splendid' WHERE "Parcel Ref" = 'H1'`
+      ).run()
+    }
     if (mode === 'retained-invalid') {
       db.prepare(
-        `UPDATE Hedgerows SET "Baseline Condition" = 'unknown condition', "Proposed Condition" = '   ' WHERE "Parcel Ref" = 'H1'`
+        `UPDATE Hedgerows SET "Baseline Condition" = 'N/A - Other', "Proposed Condition" = '   ' WHERE "Parcel Ref" = 'H1'`
       ).run()
     }
   } finally {
@@ -113,7 +129,7 @@ describe('BMD-1059 real GeoPackage imports', () => {
       'post_intervention_habitats'
     ]
   ])(
-    'saves nulls and invalid values without rejecting a %s upload',
+    'saves blank values, and list values that do not fit their row, without rejecting a %s upload',
     async (documentKey, proposed, validate, geometryTable) => {
       const project = await createProject(`BMD-1059 ${documentKey}`)
       const uploadId = await changedFixture(proposed)
@@ -125,8 +141,10 @@ describe('BMD-1059 real GeoPackage imports', () => {
       const hedge = stored.hedgerows.find((feature) => feature.ref === 'H1')
       const river = stored.watercourses.find((feature) => feature.ref === 'R1')
       const side = (feature) => (proposed ? feature.proposed : feature)
+      // A real broad habitat that does not hold the habitat type keeps the
+      // broad habitat and loses the type.
       expect(side(area)).toMatchObject({
-        broadType: null,
+        broadType: 'Woodland and forest',
         type: null,
         condition: null
       })
@@ -138,8 +156,10 @@ describe('BMD-1059 real GeoPackage imports', () => {
         riparianEncroachment: null
       })
       if (proposed) {
+        // A significance that is in its list is kept; one that is not in
+        // any list is refused at upload (BMD-1175).
         expect(area.proposed).toMatchObject({
-          strategicSignificance: null,
+          strategicSignificance: 'High',
           advanceYears: null,
           delayYears: null
         })
@@ -171,7 +191,7 @@ describe('BMD-1059 real GeoPackage imports', () => {
     ['baseline', false, callValidate],
     ['postIntervention', true, callPostInterventionValidate]
   ])(
-    'persists Incomplete status for nonempty invalid %s attributes',
+    'persists Incomplete status for %s attributes that do not fit their row',
     async (documentKey, proposed, validate) => {
       const project = await createProject(
         `BMD-1059 invalid status ${documentKey}`
@@ -192,6 +212,52 @@ describe('BMD-1059 real GeoPackage imports', () => {
       }
     }
   )
+
+  // A value that no list offers at all is refused before anything is read
+  // (BMD-1175); one that is in a list but does not fit its row is still
+  // saved as null, as above.
+  it('refuses a value no list offers, and saves nothing', async () => {
+    const project = await createProject('BMD-1175 value not in any list')
+    const before = await fetchProject(project.id)
+    const uploadId = await changedFixture(false, 'not-in-list')
+    const refused = await callValidate(uploadId, { projectId: project.id })
+    expect(refused.statusCode).toBe(200)
+    expect(refused.result.valid).toBe(false)
+    expect(refused.result.errors).toEqual([
+      expect.objectContaining({
+        code: 'VALUE_NOT_ALLOWED',
+        details: {
+          count: 1,
+          sample: [
+            expect.objectContaining({
+              table: 'Habitats',
+              ref: 'H1',
+              column: 'Baseline Condition',
+              value: 'Splendid'
+            })
+          ]
+        }
+      })
+    ])
+    expect(await fetchProject(project.id)).toEqual(before)
+  })
+
+  // The upload checks a value once trimmed, and as a list word once a list
+  // number, case, spacing and a whole-number decimal are set aside; the saved
+  // document is checked the same way, so such a file saves (BMD-1175).
+  it('saves values padded with spaces, "5.0", "N/A" and "Habitat already in target condition"', async () => {
+    const project = await createProject(
+      'BMD-1175 values as the gate reads them'
+    )
+    const uploadId = await changedFixture(false, 'as-the-gate-reads')
+    const response = await callValidate(uploadId, { projectId: project.id })
+    expect(response.result).toEqual({ valid: true, errors: [] })
+    const { baseline } = await fetchProject(project.id)
+    const area = baseline.habitats.find((feature) => feature.ref === 'H1')
+    expect(area.properties['Habitat created in advance/years']).toBe('5.0')
+    expect(area.retentionCategory).toBe('Retained ')
+    expect(area.siteName).toBe(`${'s'.repeat(999)}   `)
+  })
 
   it('saves retained baseline fallback with Complete status', async () => {
     const project = await createProject('BMD-1059 retained fallback')

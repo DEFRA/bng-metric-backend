@@ -821,10 +821,20 @@ describe('updateFeature validation', () => {
     expect(payloadSchema.validate({ ref: '  B-A1  ' }).value.ref).toBe('B-A1')
   })
 
-  test('accepts a reference over 100 characters, which the save truncates (BMD-1058)', () => {
+  test('accepts a reference of 99 characters once trimmed, counting an emoji as one', () => {
     expect(
-      payloadSchema.validate({ ref: 'x'.repeat(150) }).error
+      payloadSchema.validate({ ref: ` ${'🌳'.repeat(99)} ` }).error
     ).toBeUndefined()
+  })
+
+  test('rejects a reference over 99 characters, rather than cutting it (BMD-1175)', () => {
+    const { error } = payloadSchema.validate({ ref: 'x'.repeat(100) })
+    expect(error.message).toMatch(/must be 99 characters or fewer/)
+  })
+
+  test('rejects a drop-down choice over 99 characters (BMD-1175)', () => {
+    const { error } = payloadSchema.validate({ condition: 'c'.repeat(100) })
+    expect(error.message).toMatch(/must be 99 characters or fewer/)
   })
 
   test.each([

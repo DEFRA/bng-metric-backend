@@ -57,7 +57,7 @@ describe('toStructuralSchema', () => {
       },
       {
         name: 'Habitat Ref',
-        sqliteType: 'TEXT',
+        sqliteType: 'TEXT(99)',
         notNull: false,
         primaryKey: false
       }

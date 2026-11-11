@@ -497,6 +497,42 @@ describe('setProjectFeature — postIntervention', () => {
   })
 })
 
+describe('setProjectFeature — a value saved before BMD-1175', () => {
+  test('refuses the edit with a 422 naming the field, not a 500, and writes nothing', async () => {
+    const db = makeDb()
+    const refused = await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: { ...validPostInterventionHabitat, ref: 'R'.repeat(100) },
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    }).catch((error) => error)
+    expect(refused.output.statusCode).toBe(422)
+    expect(refused.output.payload.code).toBe('STORED_VALUE_NOT_ALLOWED')
+    expect(refused.message).toMatch(/\(ref\)/)
+    expect(refused.output.payload.fields).toEqual(['ref'])
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('still answers a broken fragment with a 500', async () => {
+    const db = makeDb()
+    const refused = await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'habitats',
+      index: 0,
+      feature: {
+        ...validPostInterventionHabitat,
+        ref: 'R'.repeat(100),
+        type: 'Grassland'
+      },
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    }).catch((error) => error)
+    expect(refused.output.statusCode).toBe(500)
+  })
+})
+
 describe('setProjectFeature — trading rules', () => {
   // A habitat edit moves units between habitat types, so the caller recomputes
   // the trading-rules figures and passes them in to be written in the same
@@ -726,6 +762,23 @@ describe('setProjectFeature — re-derived post-intervention document', () => {
     // One UPDATE: the two documents can never be persisted apart.
     expect(db._update).toHaveBeenCalledTimes(1)
     expectActorStamped(db)
+  })
+
+  test('accepts a baseline edit when another post-intervention feature holds a value saved before BMD-1175', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'baseline',
+      layer: 'habitats',
+      index: 0,
+      feature: validHabitat,
+      unitsTotals: validUnitsTotals,
+      postIntervention: {
+        ...validPostInterventionDocument,
+        habitats: [{ ...validPostInterventionHabitat, ref: 'R'.repeat(100) }]
+      },
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
   })
 
   test('rejects a document that fails its schema, before writing', async () => {

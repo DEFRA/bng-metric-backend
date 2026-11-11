@@ -75,6 +75,15 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * An edit to a habitat saved before the service checked text limits and
+   * lists (BMD-1175): the habitat, or its post-intervention document, holds a
+   * value longer than its limit or outside its list. The edit is refused, not
+   * saved with the old value cut or cleared; uploading the file again, with
+   * the value corrected, updates it.
+   */
+  STORED_VALUE_NOT_ALLOWED: 'STORED_VALUE_NOT_ALLOWED',
+
+  /**
    * One or more Enhanced rows enhance a baseline habitat the service cannot
    * enhance at all, such as a Medium habitat in Good condition (BMD-1182). The
    * file is refused rather than the enhancement nulled. One error for them
@@ -100,12 +109,34 @@ export const ERROR_CODES = Object.freeze({
   COMMENT_INVALID_CHARACTERS: 'COMMENT_INVALID_CHARACTERS',
 
   /**
-   * One or more habitat comments are longer than 999 characters once leading
-   * and trailing whitespace is removed. Length is counted in characters, not
-   * bytes. A comment of exactly 999 characters is accepted. One error for
-   * every such comment. The file is refused and nothing from it is saved.
+   * A text value is longer than its column's limit, counted in characters
+   * once leading and trailing whitespace is removed (BMD-1175): 99 for a
+   * reference, Location and every drop-down or filled-in column, 255 for
+   * Spatial risk category, and 999 for a comment and the other Red Line
+   * Boundary details. One error for each value, naming the table, the
+   * feature, the column, the limit and the length. Checked before any other
+   * check reads a value.
    */
-  COMMENT_TOO_LONG: 'COMMENT_TOO_LONG',
+  TEXT_TOO_LONG: 'TEXT_TOO_LONG',
+
+  /**
+   * A drop-down or filled-in column holds a value that none of its lists
+   * offers, in either template (BMD-1175). A blank value is not this error.
+   * One error for each value; the value is shown cut to 99 characters.
+   */
+  VALUE_NOT_ALLOWED: 'VALUE_NOT_ALLOWED',
+
+  /** A BNG Service template baseline feature's feature_uuid is not blank and not a UUID (BMD-1175). */
+  FEATURE_UUID_INVALID: 'FEATURE_UUID_INVALID',
+
+  /** A post-intervention feature's parent_uuid is not blank and not a UUID (BMD-1175). */
+  PARENT_UUID_INVALID: 'PARENT_UUID_INVALID',
+
+  /**
+   * A post-intervention feature's parent_geom is not blank and is not WKT of
+   * its table's shape, or its multi form (BMD-1175).
+   */
+  PARENT_GEOM_INVALID: 'PARENT_GEOM_INVALID',
 
   /**
    * A BNG Service template vertical area habitat's Area is blank, zero,
@@ -352,7 +383,8 @@ export const ERROR_SURFACES = Object.freeze({
 // for drop-out page wording for an error that page never shows.
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.HABITAT_REF_IN_USE,
-  ERROR_CODES.ENHANCEMENT_NOT_VALID
+  ERROR_CODES.ENHANCEMENT_NOT_VALID,
+  ERROR_CODES.STORED_VALUE_NOT_ALLOWED
 ])
 const UPLOAD_AND_EDIT_CODES = new Set([
   // The upload check refuses one in a file; an edit refuses one chosen on screen.
@@ -395,7 +427,12 @@ export const TEMPLATE_VARIANT = 'bng-service'
  *
  * Values are sent raw: a number as a number, so the frontend formats it,
  * and a value the file does not have as null. A code not listed sends
- * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * nothing the wording needs beyond its `count` and `sample`. The keys of a
+ * `sample` entry, one for each feature an error lists, are out of this
+ * table's scope: the frontend reads them for each bullet (error-file
+ * controller, SAMPLE_VALUES), and its own test holds each bullet's wording
+ * to the keys it reads. The text-value checks' entries, for example, are
+ * built by `offender` in text-values-gate.js. A comment beside
  * an entry says how its message writes a value, where that is not plain.
  * bng-metric-harness's check (npm run check:dropout-copy, added by
  * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the

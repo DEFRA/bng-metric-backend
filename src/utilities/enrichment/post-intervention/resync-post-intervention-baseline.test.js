@@ -179,6 +179,24 @@ describe('resyncPostInterventionBaselineSide', () => {
     expect(postIntervention.habitats[0].baseline.type).toBe(MODIFIED_GRASSLAND)
   })
 
+  // Before BMD-1175 a long ref was saved cut, and before BMD-1058 whole, so a
+  // stored baseline ref can be longer than the post-intervention ref that
+  // names it. They still match on their first 100 characters.
+  test('matches a baseline ref saved whole to the post-intervention ref saved cut to 100 characters', () => {
+    const postIntervention = {
+      habitats: [postInterventionHabitat({ ref: 'A'.repeat(100) })]
+    }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineHabitat({ ref: 'A'.repeat(101), condition: 'Good' })]
+      }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
   test('only propagates fields the baseline document actually carries', () => {
     const postIntervention = { habitats: [postInterventionHabitat()] }
     const source = baselineHabitat({ type: NEUTRAL_GRASSLAND })

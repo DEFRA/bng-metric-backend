@@ -12,28 +12,29 @@ import {
 } from './project-post-intervention-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
+import { listedFileText, shortFileText } from '../text-joi.js'
 
 const postInterventionLinearBaselineSubSchema = Joi.object({
-  type: Joi.string()
-    .allow(null, '')
-    .description('Baseline hedgerow type from Baseline Hedge Type column.'),
+  type: shortFileText().description(
+    'Baseline hedgerow type from Baseline Hedge Type column.'
+  ),
   ...baselineCommonFields(),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
+  strategicSignificance: listedFileText('strategicSignificance').description(
+    BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+  )
 }).description(
   'Baseline hedgerow values from the Baseline * GeoPackage columns.'
 )
 
 const postInterventionLinearProposedSubSchema = Joi.object({
   ...createdTimingSelectionFields(),
-  type: Joi.string()
-    .allow(null, '')
-    .description('Proposed hedgerow type from Proposed Hedge Type column.'),
+  type: shortFileText().description(
+    'Proposed hedgerow type from Proposed Hedge Type column.'
+  ),
   ...proposedCommonFields(),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description('Proposed Strategic Significance from the GeoPackage.')
+  strategicSignificance: listedFileText('strategicSignificance').description(
+    'Proposed Strategic Significance from the GeoPackage.'
+  )
 }).description(
   'Proposed hedgerow values from the Proposed * GeoPackage columns.'
 )
@@ -53,15 +54,15 @@ export const postInterventionLinearHabitatSchema = Joi.object({
 }).description('A post-intervention hedgerow (linear) feature.')
 
 const watercourseEncroachmentFields = {
-  riparianEncroachment: Joi.string()
-    .allow(null, '')
-    .description('Riparian-zone encroachment category.'),
-  watercourseEncroachment: Joi.string()
-    .allow(null, '')
-    .description('Watercourse encroachment category.'),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description('Strategic Significance from the GeoPackage.'),
+  riparianEncroachment: listedFileText('riparianEncroachment').description(
+    'Riparian-zone encroachment category.'
+  ),
+  watercourseEncroachment: listedFileText(
+    'watercourseEncroachment'
+  ).description('Watercourse encroachment category.'),
+  strategicSignificance: listedFileText('strategicSignificance').description(
+    'Strategic Significance from the GeoPackage.'
+  ),
   waterEncroachmentMultiplier: Joi.number()
     .allow(null)
     .description(
@@ -85,26 +86,22 @@ export const postInterventionWatercourseSchema = Joi.object({
     layer: 'watercourses'
   }),
   baseline: Joi.object({
-    type: Joi.string()
-      .allow(null, '')
-      .description(
-        'Baseline watercourse type from Baseline River Type column.'
-      ),
+    type: shortFileText().description(
+      'Baseline watercourse type from Baseline River Type column.'
+    ),
     ...baselineCommonFields(),
     ...watercourseEncroachmentFields,
-    strategicSignificance: Joi.string()
-      .allow(null, '')
-      .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
+    strategicSignificance: listedFileText('strategicSignificance').description(
+      BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+    )
   }).description(
     'Baseline watercourse values from the Baseline * GeoPackage columns.'
   ),
   proposed: Joi.object({
     ...createdTimingSelectionFields(),
-    type: Joi.string()
-      .allow(null, '')
-      .description(
-        'Proposed watercourse type from Proposed River Type column.'
-      ),
+    type: shortFileText().description(
+      'Proposed watercourse type from Proposed River Type column.'
+    ),
     ...proposedCommonFields(),
     ...watercourseEncroachmentFields
   }).description(

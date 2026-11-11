@@ -9,6 +9,7 @@ import { ERROR_CODES } from './errors.js'
 import { readGeoPackage } from './geopackage.js'
 import {
   MAX_HABITAT_REF_LENGTH,
+  isHabitatRefTooLong,
   checkHabitatRefs,
   cleanHabitatRef
 } from './habitat-ref-check.js'
@@ -36,7 +37,7 @@ describe('checkHabitatRefs — valid references', () => {
     expect(checkHabitatRefs(layers)).toEqual([])
   })
 
-  it('passes a reference longer than the maximum, which is truncated on save (AC5)', () => {
+  it('leaves a reference longer than the maximum to the format gate, which refuses it (BMD-1175)', () => {
     const layers = {
       areas: [feature('H'.repeat(MAX_HABITAT_REF_LENGTH + 20))]
     }
@@ -145,34 +146,30 @@ describe('checkHabitatRefs — invalid characters (AC2)', () => {
   })
 })
 
+describe('isHabitatRefTooLong', () => {
+  it('allows 99 characters once trimmed, counting an emoji as one, and refuses 100', () => {
+    expect(
+      isHabitatRefTooLong(` ${'🌳'.repeat(MAX_HABITAT_REF_LENGTH)} `)
+    ).toBe(false)
+    expect(isHabitatRefTooLong('R'.repeat(MAX_HABITAT_REF_LENGTH + 1))).toBe(
+      true
+    )
+    expect(MAX_HABITAT_REF_LENGTH).toBe(99)
+  })
+})
+
 describe('cleanHabitatRef', () => {
   it('trims leading and trailing whitespace (AC3)', () => {
     expect(cleanHabitatRef('  H001 \t')).toBe('H001')
   })
 
-  it(`truncates to ${MAX_HABITAT_REF_LENGTH} characters (AC5)`, () => {
-    const ref = cleanHabitatRef(` ${'A'.repeat(MAX_HABITAT_REF_LENGTH + 5)} `)
-    expect(ref).toBe('A'.repeat(MAX_HABITAT_REF_LENGTH))
-  })
-
-  it('keeps a reference of exactly the maximum length', () => {
-    const ref = 'B'.repeat(MAX_HABITAT_REF_LENGTH)
-    expect(cleanHabitatRef(ref)).toBe(ref)
-  })
-
-  it('counts characters, so a cut never splits one in two', () => {
-    const ref = cleanHabitatRef('🌳'.repeat(MAX_HABITAT_REF_LENGTH + 1))
-    expect(Array.from(ref)).toHaveLength(MAX_HABITAT_REF_LENGTH)
-    expect(ref).toBe('🌳'.repeat(MAX_HABITAT_REF_LENGTH))
-  })
-
-  it('leaves no trailing space where the cut lands on one', () => {
-    const ref = `${'C'.repeat(MAX_HABITAT_REF_LENGTH - 1)} tail`
-    expect(cleanHabitatRef(ref)).toBe('C'.repeat(MAX_HABITAT_REF_LENGTH - 1))
+  it(`never cuts a reference: one over ${MAX_HABITAT_REF_LENGTH} characters is refused before it is saved (BMD-1175)`, () => {
+    const long = 'A'.repeat(MAX_HABITAT_REF_LENGTH + 5)
+    expect(cleanHabitatRef(` ${long} `)).toBe(long)
   })
 
   it('changes nothing in a reference it has already cleaned', () => {
-    const once = cleanHabitatRef(`  ${'D'.repeat(MAX_HABITAT_REF_LENGTH + 3)}`)
+    const once = cleanHabitatRef(`  ${'D'.repeat(MAX_HABITAT_REF_LENGTH)}`)
     expect(cleanHabitatRef(once)).toBe(once)
   })
 
