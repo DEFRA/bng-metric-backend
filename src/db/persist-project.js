@@ -55,8 +55,9 @@ const FEATURE_SCHEMA_BY_LAYER = {
   verticalHabitats: verticalHabitatSchema,
   // A baseline individual tree is editable — its condition, reference and
   // comment (BMD-1112), and its urban/rural setting (BMD-1172) — so it needs
-  // its own item schema here. There is no post-intervention counterpart: a post-intervention tree is not editable,
-  // so POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER deliberately has no `trees`.
+  // its own item schema here. There is no post-intervention counterpart: a
+  // post-intervention tree is not editable, so
+  // POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER deliberately has no `trees`.
   trees: treeSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema

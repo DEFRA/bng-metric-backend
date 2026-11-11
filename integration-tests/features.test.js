@@ -420,6 +420,65 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
     })
   })
 
+  // A baseline tree became editable in BMD-1112, but no test drove a tree edit
+  // against the real persistence choke point: the route's own unit tests mock
+  // persist-project.js, so the `trees` layer being absent from its schema map
+  // only showed up as a 500 on a running server. This one carries a comment,
+  // which the setting and refusal tests above do not.
+  it('dispatches to the tree recompute and writes the trees layer', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: null,
+      treeSize: 'Medium',
+      count: 1,
+      area: 44,
+      sizeSquareMetres: 44
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Good',
+        comment: '  mature oak  '
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.type).toBe('tree')
+    expect(res.result.feature).toMatchObject({
+      featureId: tree.featureId,
+      condition: 'Good',
+      comment: 'mature oak',
+      // The notional area is read-only on the details page, so an edit must
+      // leave it exactly as imported.
+      area: 44,
+      sizeSquareMetres: 44,
+      count: 1
+    })
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0]).toMatchObject({
+      condition: 'Good',
+      comment: 'mature oak'
+    })
+  })
+
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
       headers,
