@@ -280,18 +280,33 @@ describe('BMD-1059 real GeoPackage imports', () => {
     }
   })
 
-  it('nulls invalid copied baseline attributes on retained imports', async () => {
-    const project = await createProject('BMD-1059 retained invalid attributes')
+  // BMD-1059 nulled an invalid baseline attribute copied onto a Retained row
+  // and saved the file. The derived baseline hedgerow is then incomplete, so
+  // BMD-1195 refuses the file and saves nothing from it.
+  it('refuses a post-intervention file whose retained baseline attribute is invalid (BMD-1195)', async () => {
+    const project = await createProject('BMD-1195 retained invalid attributes')
     const uploadId = await changedFixture(true, 'retained-invalid')
-    expect(
-      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
-        .statusCode
-    ).toBe(200)
-    const stored = (await fetchProject(project.id)).postIntervention
-    const hedge = stored.hedgerows.find((feature) => feature.ref === 'H1')
-    expect(hedge.baseline.condition).toBeNull()
-    expect(hedge.proposed.condition).toBeNull()
-    expect(hedge.properties['Proposed Condition']).toBe('   ')
+    const response = await callPostInterventionValidate(uploadId, {
+      projectId: project.id
+    })
+    expect(response.statusCode).toBe(200)
+    expect(response.result).toEqual({
+      valid: false,
+      errors: [
+        expect.objectContaining({
+          code: 'BASELINE_HABITATS_INCOMPLETE',
+          details: {
+            count: 1,
+            sample: [
+              expect.objectContaining({ layer: 'hedgerows', feature_ref: 'H1' })
+            ]
+          }
+        })
+      ]
+    })
+    const stored = await fetchProject(project.id)
+    expect(stored.baseline).toBeUndefined()
+    expect(stored.postIntervention).toBeUndefined()
   })
 
   it('keeps stable feature IDs for re-uploads', async () => {

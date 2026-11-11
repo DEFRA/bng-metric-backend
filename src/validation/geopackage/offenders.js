@@ -79,9 +79,11 @@ export function labelOffender({ layer, table, fid, idx }) {
  * @param {string} code
  * @param {string} heading
  * @param {Array<{ layer: string, table?: string, fid?: unknown, idx: number }>} offenders
+ * @param {(offender: object) => string} [labeller] names each offender in the
+ *   message; by default its layer and fid
  * @returns {{ code: string, message: string, details: { count: number, sample: object[] } } | null}
  */
-export function collated(code, heading, offenders) {
+export function collated(code, heading, offenders, labeller = labelOffender) {
   if (offenders.length === 0) {
     return null
   }
@@ -92,7 +94,7 @@ export function collated(code, heading, offenders) {
       : ''
   return makeError(
     code,
-    `${heading}: ${sample.map(labelOffender).join(', ')}${more}`,
+    `${heading}: ${sample.map(labeller).join(', ')}${more}`,
     { count: offenders.length, sample }
   )
 }

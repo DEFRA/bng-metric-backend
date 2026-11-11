@@ -177,6 +177,18 @@ export const ERROR_CODES = Object.freeze({
   BASELINE_TYPE_MISSING: 'BASELINE_TYPE_MISSING',
 
   /**
+   * One or more area habitats, hedgerows or watercourses in the baseline a
+   * post-intervention file is saved with are Incomplete: an attribute their
+   * units need is missing, or their units cannot be calculated (BMD-1195).
+   * The baseline cannot be edited once a post-intervention file is uploaded,
+   * so the file is refused and nothing from it is saved. A baseline-only
+   * upload is not refused. One error for them all; `details.sample` lists
+   * each habitat's layer, Feature Ref and habitat type. The frontend sends
+   * the user to the drop-out page.
+   */
+  BASELINE_HABITATS_INCOMPLETE: 'BASELINE_HABITATS_INCOMPLETE',
+
+  /**
    * The file has no BNG Service template version record, and is not a legacy
    * file either, so there is nothing to say which template it is.
    */
