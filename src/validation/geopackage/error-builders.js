@@ -1,4 +1,5 @@
 import { ERROR_CODES, makeError } from './errors.js'
+import { shownValue } from './text-limits.js'
 
 // ---------------------------------------------------------------------------
 // Per-feature description helpers
@@ -14,7 +15,7 @@ import { ERROR_CODES, makeError } from './errors.js'
  */
 function describeFeature(sample) {
   if (sample?.feature_ref) {
-    return `Feature Ref ${sample.feature_ref}`
+    return `Feature Ref ${shownValue(sample.feature_ref)}`
   }
   if (sample?.fid != null && sample.fid !== '') {
     return `fid ${sample.fid}`

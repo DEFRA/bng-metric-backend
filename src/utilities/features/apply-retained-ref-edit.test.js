@@ -14,7 +14,7 @@ const PI_WATERCOURSE_ID = 'ff0e8400-e29b-41d4-a716-446655440006'
 const PI_SPLIT_ID = 'aa1e8400-e29b-41d4-a716-446655440007'
 const SECOND_BASELINE_HABITAT_ID = 'aa2e8400-e29b-41d4-a716-446655440008'
 
-const MAX_REF_LENGTH = 100
+const MAX_REF_LENGTH = 99
 
 const AREA_IDENTITY = {
   type: 'Modified grassland',
@@ -225,10 +225,10 @@ describe('applyRetainedRefEdit — renaming through the baseline parcel', () => 
     })
   })
 
-  test('trims the reference and truncates it to 100 characters, as an import does (BMD-1058)', () => {
+  test('trims the reference, as an import does (BMD-1058)', () => {
     const result = applyRetainedRefEdit(projectFixture(), {
       featureId: PI_HABITAT_ID,
-      ref: `  ${'x'.repeat(120)}  `
+      ref: `  ${'x'.repeat(MAX_REF_LENGTH)}  `
     })
 
     expect(result.feature.ref).toBe('x'.repeat(MAX_REF_LENGTH))

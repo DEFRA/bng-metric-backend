@@ -367,6 +367,19 @@ describe('BMD-1048 Created area edits', () => {
     ).toBeDefined()
   })
 
+  // A comment belongs to a baseline habitat and is editable only there
+  // (BMD-1112), so sending one here is refused rather than quietly dropped.
+  test('refuses a comment, which only a baseline edit can save', () => {
+    const { error } = postInterventionAreaEditPayload.validate({
+      ...edits,
+      comment: 'A note'
+    })
+    expect(error?.message).toMatch(/comment.*not allowed/)
+    expect(
+      postInterventionAreaEditPayload.validate(edits).error
+    ).toBeUndefined()
+  })
+
   test('advance can floor time at zero without resetting delay or difficulty', () => {
     const result = update({ advanceYears: 10 })
     expect(result.feature.proposed).toMatchObject({

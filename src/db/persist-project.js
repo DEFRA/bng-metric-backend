@@ -22,6 +22,7 @@ import { isDeepStrictEqual } from 'node:util'
 import { eq, sql } from 'drizzle-orm'
 
 import { projects } from './schema/index.js'
+import { ERROR_CODES } from '../validation/geopackage/errors.js'
 import { projectDetailsReturning } from './project-details-columns.js'
 import {
   postInterventionDataSchema,
@@ -272,6 +273,63 @@ function hasConsistentTemplateFragments({
   )
 }
 
+const STORED_VALUE_RULES = new Set(['string.maxCharacters', 'string.inList'])
+
+/**
+ * Whether a Joi failure is one a stored value can have only because it was
+ * saved before the service checked text limits and lists (BMD-1175): a text
+ * over its limit, or a listed field's value outside its list.
+ */
+const isStoredValueFailure = (detail) => STORED_VALUE_RULES.has(detail.type)
+
+/**
+ * The schema failures of a fragment an edit writes, less any that come only
+ * from a value saved before BMD-1175. A fragment with any other failure is
+ * broken, and is answered with a 500 as assertFragmentValid answers it.
+ *
+ * @param {import('joi').Schema} schema
+ * @param {unknown} value
+ * @param {string} label
+ * @returns {import('joi').ValidationErrorItem[]} the stored-value failures
+ */
+function storedValueFailures(schema, value, label) {
+  const { error } = schema.validate(value, { abortEarly: false })
+  if (!error) {
+    return []
+  }
+  if (!error.details.every(isStoredValueFailure)) {
+    throw Boom.badImplementation(
+      `${label} failed schema validation before persist: ${error.message}`
+    )
+  }
+  return error.details
+}
+
+/**
+ * As assertFragmentValid, for the feature an edit writes. A feature that
+ * fails only because a value saved before BMD-1175 is longer than its limit
+ * or outside its list is refused with a 422, not a 500: the user can put it
+ * right by uploading the file again. The payload names the fields in
+ * `fields`, as paths within the feature.
+ *
+ * @param {import('joi').Schema} schema
+ * @param {unknown} value
+ * @param {string} label
+ */
+function assertEditFragmentValid(schema, value, label) {
+  const failures = storedValueFailures(schema, value, label)
+  if (failures.length === 0) {
+    return
+  }
+  const fields = [...new Set(failures.map((detail) => detail.path.join('.')))]
+  const refused = Boom.badData(
+    `This habitat holds a value saved before the service checked text lengths and lists (${fields.join(', ')}). Upload the file again, with the value corrected, to update it.`
+  )
+  refused.output.payload.code = ERROR_CODES.STORED_VALUE_NOT_ALLOWED
+  refused.output.payload.fields = fields
+  throw refused
+}
+
 /**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
@@ -306,7 +364,7 @@ function assertFeatureEditValid({
       'persist: a post-intervention feature edit must not also replace the post-intervention document without consistent template fragments'
     )
   }
-  assertFragmentValid(
+  assertEditFragmentValid(
     featureSchemaFor(documentKey, layer),
     feature,
     `${documentKey}.${layer}[${index}]`
@@ -336,7 +394,11 @@ function assertFeatureEditValid({
     )
   }
   if (postIntervention) {
-    assertFragmentValid(
+    // The document re-derived after a baseline edit carries every other
+    // feature as it was stored. A value saved there before BMD-1175 is not
+    // this edit's to refuse: the edited feature is checked above, and a value
+    // the edit brings into the document comes from that feature.
+    storedValueFailures(
       habitatDataSchemaFor(POST_INTERVENTION_DOCUMENT_KEY),
       postIntervention,
       'project.postIntervention'

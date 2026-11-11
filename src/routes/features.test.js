@@ -1,6 +1,7 @@
 import { beforeEach, describe, test, expect, vi } from 'vitest'
 
 import { drizzleLockTimeout } from '../../test/helpers/postgres-errors.js'
+import { MAX_COMMENT_LENGTH } from '../validation/geopackage/comment-check.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import {
   getFeature,
@@ -57,7 +58,10 @@ const sampleWatercourse = {
   sizeMetres: 1000
 }
 
-function makeProject(habitats = [sampleHabitat]) {
+function makeProject(
+  habitats = [sampleHabitat],
+  watercourse = sampleWatercourse
+) {
   return {
     id: PROJECT_ID,
     project: {
@@ -65,7 +69,7 @@ function makeProject(habitats = [sampleHabitat]) {
       baseline: {
         habitats,
         hedgerows: [sampleHedgerow],
-        watercourses: [sampleWatercourse],
+        watercourses: [watercourse],
         units: {
           totalUnits: 4,
           habitatsTotal: 4,
@@ -342,6 +346,87 @@ describe('updateFeature handler - area habitat dispatch', () => {
       })
     )
   })
+
+  test('persists a trimmed comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: '  kept  note  '
+        }
+      },
+      {}
+    )
+    expect(trimmed.feature.comment).toBe('kept  note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        feature: expect.objectContaining({ comment: 'kept  note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: ' \n\t '
+        }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('stores a submitted CRLF line break as LF', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good',
+          comment: 'one\r\ntwo\r\n\r\nthree'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('one\ntwo\n\nthree')
+  })
+
+  test('leaves a stored comment alone when the edit does not send one', async () => {
+    const drizzle = makeTxDrizzle(
+      makeProject([{ ...sampleHabitat, comment: 'kept' }])
+    )
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          broadType: 'Grassland',
+          habitatType: 'Other neutral grassland',
+          condition: 'Good'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('kept')
+  })
 })
 
 describe('updateFeature handler - hedgerow dispatch', () => {
@@ -401,6 +486,212 @@ describe('updateFeature handler - hedgerow dispatch', () => {
         })
       })
     )
+  })
+
+  test('persists a trimmed hedgerow comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
+        payload: {
+          habitatType: 'Native hedgerow',
+          condition: 'Good',
+          comment: '  hedge note  '
+        }
+      },
+      {}
+    )
+    expect(trimmed.feature.comment).toBe('hedge note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'hedgerows',
+        feature: expect.objectContaining({ comment: 'hedge note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: HEDGEROW_ID },
+        payload: {
+          habitatType: 'Native hedgerow',
+          condition: 'Good',
+          comment: '   '
+        }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
+  })
+})
+
+describe('updateFeature handler - individual tree dispatch (BMD-1112)', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // Small × 3 trees: 123 m² of notional area, 0.0492 units in Poor condition.
+  function projectWithTree(overrides = {}) {
+    const projectRow = makeProject()
+    projectRow.project.baseline.trees = [
+      {
+        featureId: TREE_ID,
+        ref: 'T001',
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Small',
+        count: 3,
+        condition: 'Poor',
+        comment: 'Imported tree note',
+        sizeSquareMetres: 123,
+        area: 123,
+        units: 0.0492,
+        status: 'Complete',
+        ...overrides
+      }
+    ]
+    return projectRow
+  }
+
+  // What the details page submits: the tree's broad habitat and habitat type
+  // as stored, neither being editable here, plus its condition.
+  function saveTree(projectRow, payload) {
+    return updateFeature.handler(
+      {
+        drizzle: makeTxDrizzle(projectRow),
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: TREE_ID },
+        payload: {
+          broadType: 'Individual trees',
+          habitatType: 'Urban tree',
+          condition: 'Poor',
+          ...payload
+        }
+      },
+      {}
+    )
+  }
+
+  test('persists a trimmed tree comment and turns a whitespace-only one into null', async () => {
+    const trimmed = await saveTree(projectWithTree(), {
+      comment: '  tree  note  '
+    })
+    expect(trimmed.feature.comment).toBe('tree  note')
+    // The notional area is untouched: a comment cannot move a tree's size.
+    expect(trimmed.feature.sizeSquareMetres).toBe(123)
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'trees',
+        feature: expect.objectContaining({ comment: 'tree  note' })
+      })
+    )
+
+    const blank = await saveTree(projectWithTree(), { comment: ' \n\t ' })
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('leaves a stored tree comment alone when the edit does not send one', async () => {
+    const result = await saveTree(projectWithTree(), {})
+    expect(result.feature.comment).toBe('Imported tree note')
+  })
+
+  // habitatSizes.trees splits the square metres by urban and rural, and no
+  // edit rebuilds that summary, so the type stays as imported for now.
+  test('refuses a change to the urban/rural habitat type', async () => {
+    await expect(
+      saveTree(projectWithTree(), { habitatType: 'Rural tree' })
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+  })
+})
+
+describe('updateFeature handler - watercourse dispatch', () => {
+  // The comment is merged by type-agnostic code (mergeBaselineFeature), but
+  // only the area and hedgerow paths proved it; a watercourse carries the
+  // encroachment selections too, so it is saved through its own recompute.
+  test('persists a trimmed watercourse comment and turns a whitespace-only one into null', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const payload = {
+      habitatType: 'Ditches',
+      condition: 'Moderate',
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment'
+    }
+    const trimmed = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: { ...payload, comment: '  river  note  ' }
+      },
+      {}
+    )
+    expect(trimmed.type).toBe('watercourse')
+    expect(trimmed.feature.comment).toBe('river  note')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'watercourses',
+        feature: expect.objectContaining({ comment: 'river  note' })
+      })
+    )
+
+    const blank = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: { ...payload, comment: ' \n\t ' }
+      },
+      {}
+    )
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('stores a submitted CRLF line break as LF on a watercourse', async () => {
+    const drizzle = makeTxDrizzle(makeProject())
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Moderate',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment',
+          comment: 'one\r\ntwo'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('one\ntwo')
+  })
+
+  test('leaves a stored watercourse comment alone when the edit does not send one', async () => {
+    const drizzle = makeTxDrizzle(
+      makeProject(undefined, { ...sampleWatercourse, comment: 'kept' })
+    )
+    const result = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: WATERCOURSE_ID },
+        payload: {
+          habitatType: 'Ditches',
+          condition: 'Moderate',
+          watercourseEncroachment: 'No Encroachment',
+          riparianEncroachment: 'No Encroachment'
+        }
+      },
+      {}
+    )
+    expect(result.feature.comment).toBe('kept')
   })
 })
 
@@ -609,10 +900,20 @@ describe('updateFeature validation', () => {
     expect(payloadSchema.validate({ ref: '  B-A1  ' }).value.ref).toBe('B-A1')
   })
 
-  test('accepts a reference over 100 characters, which the save truncates (BMD-1058)', () => {
+  test('accepts a reference of 99 characters once trimmed, counting an emoji as one', () => {
     expect(
-      payloadSchema.validate({ ref: 'x'.repeat(150) }).error
+      payloadSchema.validate({ ref: ` ${'🌳'.repeat(99)} ` }).error
     ).toBeUndefined()
+  })
+
+  test('rejects a reference over 99 characters, rather than cutting it (BMD-1175)', () => {
+    const { error } = payloadSchema.validate({ ref: 'x'.repeat(100) })
+    expect(error.message).toMatch(/must be 99 characters or fewer/)
+  })
+
+  test('rejects a drop-down choice over 99 characters (BMD-1175)', () => {
+    const { error } = payloadSchema.validate({ condition: 'c'.repeat(100) })
+    expect(error.message).toMatch(/must be 99 characters or fewer/)
   })
 
   test.each([
@@ -631,6 +932,51 @@ describe('updateFeature validation', () => {
   test('rejects a habitat reference holding a lone surrogate, which has no UTF-8 form', () => {
     const { error } = payloadSchema.validate({ ref: 'B-A\uD800' })
     expect(error.message).toMatch(/not valid UTF-8/)
+  })
+
+  test('accepts a comment, including null and blank', () => {
+    expect(payloadSchema.validate({ comment: 'A note' }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: null }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: '' }).error).toBeUndefined()
+    expect(payloadSchema.validate({ comment: '  kept  ' }).value.comment).toBe(
+      'kept'
+    )
+  })
+
+  test('accepts a comment of exactly 999 characters, counting an emoji as one', () => {
+    expect(
+      payloadSchema.validate({ comment: 'a'.repeat(MAX_COMMENT_LENGTH) }).error
+    ).toBeUndefined()
+    expect(
+      payloadSchema.validate({ comment: '🌳'.repeat(MAX_COMMENT_LENGTH) }).error
+    ).toBeUndefined()
+  })
+
+  // A browser sends a textarea's line break as CRLF, which is stored as the
+  // one LF character it is, so the limit is not quietly two characters short
+  // of itself for every line break in the comment.
+  test('accepts 999 characters whose line break was submitted as CRLF', () => {
+    expect(
+      payloadSchema.validate({
+        comment: `${'a'.repeat(MAX_COMMENT_LENGTH - 2)}\r\na`
+      }).error
+    ).toBeUndefined()
+  })
+
+  test('rejects a comment of 1000 characters', () => {
+    const { error } = payloadSchema.validate({
+      comment: 'a'.repeat(MAX_COMMENT_LENGTH + 1)
+    })
+    expect(error.message).toMatch(/longer than 999/)
+  })
+
+  test('rejects a comment that is not valid UTF-8', () => {
+    expect(
+      payloadSchema.validate({ comment: 'note \uFFFD' }).error.message
+    ).toMatch(/not valid UTF-8/)
+    expect(
+      payloadSchema.validate({ comment: 'note \uD800' }).error.message
+    ).toMatch(/not valid UTF-8/)
   })
 
   test('rejects unknown keys to stop the frontend silently leaking new fields', () => {

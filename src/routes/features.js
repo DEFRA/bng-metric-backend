@@ -151,6 +151,16 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       selections and recompute units from the engine's encroachment
  *       multipliers (BMD-597).
  *
+ *       `comment` is optional free-text supporting information (BMD-1112);
+ *       leaving it out keeps the stored comment. Blank or whitespace-only is
+ *       stored as null. Text that is not valid UTF-8, or longer than 999
+ *       characters once trimmed, is a 400. Line breaks are stored as LF,
+ *       whatever the caller sends. The comment is saved on the baseline
+ *       feature only: a Retained post-intervention row's own stored comment,
+ *       which only a BNG Service template upload sets, is left as imported,
+ *       so a retained habitat's displayed comment must be read from the
+ *       baseline feature it is joined to.
+ *
  *       `ref` is optional; leaving it out keeps the stored reference. When
  *       sent it follows the import rules (BMD-1058): a blank or
  *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
@@ -188,11 +198,20 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *               riparianEncroachment:
  *                 type: string
  *                 nullable: true
+ *               comment:
+ *                 type: string
+ *                 nullable: true
+ *                 description: >
+ *                   Free-text supporting information. Optional; leaving it
+ *                   out keeps the stored comment. Blank or whitespace-only
+ *                   is stored as null, and line breaks as LF. Invalid UTF-8,
+ *                   or more than 999 characters after trimming, is a 400.
+ *                   Baseline features only.
  *     responses:
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Invalid payload (e.g. a blank habitat reference), or the feature type is not editable via this endpoint (e.g. an individual tree)
+ *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a post-intervention tree, or a change to a baseline tree's urban/rural habitat type)
  *       404:
  *         description: Project or feature not found
  *       422:

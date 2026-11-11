@@ -680,8 +680,9 @@ describe('extractPostIntervention — watercourse nested structure', () => {
             [PARCEL_REF]: 'WC1',
             'Baseline River Type': 'Chalk stream',
             'Baseline Condition': 'Good',
-            'Baseline Encroachment into riparian zone': 'None',
-            'Baseline Encroachment into Watercourse': 'None',
+            'Baseline Encroachment into riparian zone':
+              'No Encroachment/No Encroachment',
+            'Baseline Encroachment into Watercourse': 'No Encroachment',
             'Baseline Strategic Significance': 'Low',
             'Proposed River Type': 'Modified watercourse',
             'Proposed Condition': 'Moderate',
@@ -701,8 +702,8 @@ describe('extractPostIntervention — watercourse nested structure', () => {
       expect.objectContaining({
         type: 'Chalk stream',
         condition: 'Good',
-        riparianEncroachment: 'None',
-        watercourseEncroachment: 'None',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        watercourseEncroachment: 'No Encroachment',
         strategicSignificance: 'Low'
       })
     )
@@ -776,8 +777,9 @@ describe('extractPostIntervention — watercourse nested structure', () => {
             [PARCEL_REF]: 'WC1',
             'Proposed River Type': 'Chalk stream',
             'Proposed Condition': 'Good',
-            'Proposed Encroachment into riparian zone': 'None',
-            'Proposed Encroachment into Watercourse': 'None'
+            'Proposed Encroachment into riparian zone':
+              'No Encroachment/No Encroachment',
+            'Proposed Encroachment into Watercourse': 'No Encroachment'
           },
           SAMPLE_LINESTRING
         )
@@ -830,12 +832,12 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         treeFeature({
           'Tree Ref': 'T1',
           'Baseline Tree Size': 'Small',
-          'Baseline Tree Type': 'Oak',
-          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Tree Type': 'Native',
+          'Baseline Rural or Urban Tree': 'Urban tree',
           'Baseline Condition': '2. Moderate',
           'Proposed Tree Size': 'Medium',
-          'Proposed Tree Type': 'Oak',
-          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Tree Type': 'Native',
+          'Proposed Rural or Urban Tree': 'Urban tree',
           'Proposed Condition': '2. Moderate',
           Count: 1
         })
@@ -849,8 +851,8 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         broadType: 'Individual trees',
         condition: 'Moderate',
         treeSize: 'Small',
-        treeSpecies: 'Oak',
-        ruralOrUrban: 'Urban',
+        treeSpecies: 'Native',
+        ruralOrUrban: 'Urban tree',
         sizeSquareMetres: SMALL_TREE_SQM,
         area: SMALL_TREE_SQM
       })
@@ -885,10 +887,10 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         treeFeature({
           'Tree Ref': 'T1',
           'Baseline Tree Size': 'Small',
-          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Rural or Urban Tree': 'Urban tree',
           'Baseline Condition': '2. Moderate',
           'Proposed Tree Size': 'Medium',
-          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Rural or Urban Tree': 'Urban tree',
           'Proposed Condition': '2. Moderate',
           Count: TREE_COUNT
         })
@@ -924,7 +926,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
           'Tree Ref': 'T-lost',
           'Retention Category': 'Lost',
           'Baseline Tree Size': 'Small',
-          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Rural or Urban Tree': 'Urban tree',
           'Baseline Condition': '2. Moderate',
           'Proposed Tree Size': 'N/A',
           'Proposed Rural or Urban Tree': 'N/A',
@@ -935,10 +937,10 @@ describe('extractPostIntervention — individual tree nested structure', () => {
           'Tree Ref': 'T-kept',
           'Retention Category': 'Retained',
           'Baseline Tree Size': 'Small',
-          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Rural or Urban Tree': 'Urban tree',
           'Baseline Condition': '2. Moderate',
           'Proposed Tree Size': 'Medium',
-          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Rural or Urban Tree': 'Urban tree',
           'Proposed Condition': '2. Moderate',
           Count: 1
         })
@@ -962,7 +964,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
           'Tree Ref': 'T1',
           'Retention Category': 'Retained',
           'Baseline Tree Size': 'Small',
-          'Baseline Rural or Urban Tree': 'Urban',
+          'Baseline Rural or Urban Tree': 'Urban tree',
           'Baseline Condition': '2. Moderate',
           'Proposed Tree Size': 'N/A',
           'Proposed Rural or Urban Tree': 'N/A',
@@ -979,7 +981,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         broadType: 'Individual trees',
         condition: 'Moderate',
         treeSize: 'Small',
-        ruralOrUrban: 'Urban',
+        ruralOrUrban: 'Urban tree',
         sizeSquareMetres: SMALL_TREE_SQM,
         area: SMALL_TREE_SQM
       })
@@ -999,7 +1001,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
         treeFeature({
           'Tree Ref': 'T1',
           'Proposed Tree Size': 'Medium',
-          'Proposed Rural or Urban Tree': 'Rural',
+          'Proposed Rural or Urban Tree': 'Rural tree',
           'Proposed Condition': 'Moderate'
         })
       ]
@@ -1063,7 +1065,7 @@ describe('extractPostIntervention — individual tree nested structure', () => {
           'Proposed Condition': 'Fairly Poor',
           'Proposed Strategic Significance':
             'Area/compensation not in local strategy/ no local strategy',
-          'Proposed Rural or Urban Tree': 'Urban',
+          'Proposed Rural or Urban Tree': 'Urban tree',
           'Habitat Created/Enhanced in advance/years': '1',
           'Delay in starting habitat creation/enhancement in years': '0',
           Count: 1
@@ -1119,13 +1121,13 @@ describe('extractPostIntervention — individual tree nested structure', () => {
           treeFeature({
             'Tree Ref': 'T-urban',
             'Proposed Tree Size': 'Medium',
-            'Proposed Rural or Urban Tree': 'Urban',
+            'Proposed Rural or Urban Tree': 'Urban tree',
             'Proposed Condition': 'Moderate'
           }),
           treeFeature({
             'Tree Ref': 'T-rural',
             'Proposed Tree Size': 'Small',
-            'Proposed Rural or Urban Tree': 'Rural',
+            'Proposed Rural or Urban Tree': 'Rural tree',
             'Proposed Condition': 'Moderate'
           })
         ]
@@ -1158,10 +1160,10 @@ describe('extractPostIntervention — individual tree nested structure', () => {
             'Tree Ref': 'T1',
             'Retention Category': 'Retained',
             'Baseline Tree Size': 'Large',
-            'Baseline Rural or Urban Tree': 'Rural',
+            'Baseline Rural or Urban Tree': 'Rural tree',
             'Baseline Condition': 'Moderate',
             'Proposed Tree Size': 'Large',
-            'Proposed Rural or Urban Tree': 'Rural',
+            'Proposed Rural or Urban Tree': 'Rural tree',
             'Proposed Condition': 'Moderate'
           })
         ]
@@ -1187,9 +1189,63 @@ describe('extractPostIntervention — individual tree nested structure', () => {
   })
 })
 
+describe('extractPostIntervention — a degraded tree’s blank proposed setting (BMD-1184)', () => {
+  const SERVICE_TEMPLATE = { template: { name: 'bng-service', version: '1.0' } }
+  const DEGRADED_TREE = {
+    'Tree Ref': 'T1',
+    'Retention Category': 'Created',
+    Category: 'Existing',
+    'Baseline Tree Size': 'Large',
+    'Baseline Rural or Urban Tree': 'Rural',
+    'Baseline Condition': 'Moderate',
+    'Proposed Rural or Urban Tree': '',
+    'Proposed Condition': 'Poor'
+  }
+
+  const proposedOf = (properties, meta) =>
+    extractPostIntervention(
+      {
+        redline: [],
+        areas: [],
+        hedgerows: [],
+        watercourses: [],
+        trees: [treeFeature(properties)]
+      },
+      meta
+    ).document.trees[0].proposed
+
+  it('gives an Existing Created tree with a blank setting its baseline setting', () => {
+    expect(proposedOf(DEGRADED_TREE, SERVICE_TEMPLATE)).toMatchObject({
+      type: 'Rural tree',
+      ruralOrUrban: 'Rural',
+      condition: 'Poor'
+    })
+  })
+
+  it('keeps the setting an Existing Created tree proposes', () => {
+    expect(
+      proposedOf(
+        { ...DEGRADED_TREE, 'Proposed Rural or Urban Tree': 'Urban' },
+        SERVICE_TEMPLATE
+      )
+    ).toMatchObject({ type: 'Urban tree', ruralOrUrban: 'Urban' })
+  })
+
+  it.each([
+    ['a Newly Planted tree', { Category: 'Newly Planted' }, SERVICE_TEMPLATE],
+    ['a legacy upload’s tree', {}, {}]
+  ])('leaves the blank setting of %s blank', (_name, overrides, meta) => {
+    expect(proposedOf({ ...DEGRADED_TREE, ...overrides }, meta)).toMatchObject({
+      type: null,
+      ruralOrUrban: ''
+    })
+  })
+})
+
 describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
-  it('trims and truncates the Parcel Ref on habitats, hedgerows and watercourses', () => {
-    const long = `${'P'.repeat(105)}  `
+  it('trims the Parcel Ref on habitats, hedgerows and watercourses', () => {
+    // A ref over 99 characters is refused by the format gate (BMD-1175).
+    const long = `${'P'.repeat(99)}  `
     const out = extractPostIntervention({
       redline: [],
       areas: [feature({ [PARCEL_REF]: ' H001 ' }, SAMPLE_POLYGON)],
@@ -1199,7 +1255,7 @@ describe('extractPostIntervention — Parcel Ref clean-up (BMD-1058)', () => {
 
     expect(out.document.habitats[0].ref).toBe('H001')
     expect(out.geometries.habitats[0].ref).toBe('H001')
-    expect(out.document.hedgerows[0].ref).toBe('P'.repeat(100))
+    expect(out.document.hedgerows[0].ref).toBe('P'.repeat(99))
     expect(out.document.watercourses[0].ref).toBe('R001')
   })
 })

@@ -1436,13 +1436,13 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.feature.ref).toBe('A1')
   })
 
-  test('trims the reference and truncates it to 100 characters, as an import does (BMD-1058)', () => {
+  test('trims the reference, as an import does (BMD-1058)', () => {
     const result = applyFeatureUpdate(projectFixture(), {
       featureId: HABITAT_ID,
-      edits: { ...KEEP_HABITAT, ref: `  ${'x'.repeat(120)}  ` }
+      edits: { ...KEEP_HABITAT, ref: `  ${'x'.repeat(99)}  ` }
     })
 
-    expect(result.feature.ref).toBe('x'.repeat(100))
+    expect(result.feature.ref).toBe('x'.repeat(99))
   })
 
   test('keeps the stored reference when the edit sends a blank one', () => {
@@ -1689,6 +1689,181 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
 
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.project.postIntervention).not.toHaveProperty('lostHabitats')
+  })
+})
+
+describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // A Small tree point standing for 3 trees: 41 m² each by the Metric's
+  // per-size reference area, so 123 m², and 0.0492 units in Poor condition.
+  function projectWithTree(overrides = {}) {
+    const project = projectFixture()
+    project.baseline.trees = [
+      {
+        featureId: TREE_ID,
+        ref: 'T001',
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Small',
+        count: 3,
+        condition: 'Poor',
+        comment: 'Imported tree note',
+        sizeSquareMetres: 123,
+        area: 123,
+        units: 0.0492,
+        status: 'Complete',
+        ...overrides
+      }
+    ]
+    return project
+  }
+
+  // What the details page submits for a tree: its broad habitat and habitat
+  // type as stored, since neither is editable here, plus its condition.
+  function treeEdits(edits) {
+    return {
+      broadType: 'Individual trees',
+      habitatType: 'Urban tree',
+      condition: 'Poor',
+      ...edits
+    }
+  }
+
+  test('saves a trimmed comment, leaving the size class, count and area alone', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({ comment: '  A note  kept  ' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.type).toBe('tree')
+    expect(result.layer).toBe('trees')
+    expect(result.feature).toMatchObject({
+      comment: 'A note  kept',
+      treeSize: 'Small',
+      count: 3,
+      sizeSquareMetres: 123,
+      units: 0.0492,
+      status: 'Complete'
+    })
+  })
+
+  test('stores a blank comment as no comment, removing the imported one', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({ comment: ' \n\t ' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.comment).toBeNull()
+  })
+
+  test('leaves the stored comment alone when the edit does not send one', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({})
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.comment).toBe('Imported tree note')
+  })
+
+  test('recomputes the tree units and the urban total when the condition changes', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({ condition: 'Moderate' })
+    })
+
+    expect(result.feature).toMatchObject({
+      condition: 'Moderate',
+      distinctiveness: 'Medium',
+      units: 0.0984,
+      status: 'Complete'
+    })
+    expect(result.project.baseline.units).toMatchObject({
+      treesTotal: 0.0984,
+      treesUrbanTotal: 0.0984,
+      treesRuralTotal: 0,
+      // Trees carry their own total rather than joining habitatsTotal.
+      habitatsTotal: 4
+    })
+    expect(result.project.baseline.units.totalUnits).toBeCloseTo(4.0984, 10)
+  })
+
+  // A tree imported without a readable "Rural or Urban" column has no habitat
+  // type, so it is Incomplete. Its comment must still be editable: the page
+  // submits the blank type back unchanged, which is not a type change.
+  test('saves a comment on a tree with no urban/rural type, leaving it Incomplete', () => {
+    const result = applyFeatureUpdate(
+      projectWithTree({ type: null, units: null, status: 'Incomplete' }),
+      {
+        featureId: TREE_ID,
+        edits: treeEdits({
+          habitatType: '',
+          condition: '',
+          comment: 'Size class missing from the survey'
+        })
+      }
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      type: null,
+      comment: 'Size class missing from the survey',
+      status: 'Incomplete'
+    })
+  })
+
+  // Changing it would move the tree's square metres between the urban and
+  // rural buckets of habitatSizes.trees, which no edit rebuilds.
+  test('turns away a change of urban/rural habitat type', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+
+  test('turns away an edit that would make a tree another broad habitat', () => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland'
+      })
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+
+  test('does not make a post-intervention tree editable', () => {
+    const project = projectWithTree()
+    project.postIntervention = {
+      habitats: [],
+      trees: [{ ...project.baseline.trees[0], featureId: TREE_ID }],
+      hedgerows: [],
+      watercourses: [],
+      units: { totalUnits: 0 }
+    }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      edits: treeEdits({ comment: 'nope' })
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
   })
 })
 
