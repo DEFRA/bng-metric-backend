@@ -64,6 +64,19 @@ export function columnKey(column) {
 // A legacy list number, as in "4. Fairly Poor": digits and a full stop not
 // followed by another digit, so a decimal such as "5.0" keeps its digits.
 const LIST_NUMBER = /^\d+\.(?!\d)\s*/
+
+/**
+ * A list value without its legacy list number, as in "Fairly Poor" for
+ * "4. Fairly Poor". A decimal such as "5.0" keeps its digits. The one place
+ * the list number is recognised: the data dictionary's words and the
+ * comparison (normaliseListValue) both use it.
+ *
+ * @param {string} value
+ * @returns {string}
+ */
+export function withoutListNumber(value) {
+  return value.replace(LIST_NUMBER, '')
+}
 // A whole number of years written as a decimal, as in "5.0".
 const WHOLE_DECIMAL = /^(\d+)\.0+$/
 const WHITESPACE_RUN = /\s+/g
@@ -139,9 +152,7 @@ export function textLimitOf(column) {
  * @returns {string}
  */
 export function normaliseListValue(value) {
-  return String(value)
-    .trim()
-    .replace(LIST_NUMBER, '')
+  return withoutListNumber(String(value).trim())
     .replaceAll(WHITESPACE_RUN, ' ')
     .split(SLASH)
     .map((part) => part.trim())

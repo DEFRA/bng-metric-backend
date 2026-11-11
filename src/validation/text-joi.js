@@ -16,7 +16,8 @@ import {
   characterCount,
   isNullWord,
   normaliseListValue,
-  textLimitOf
+  textLimitOf,
+  withoutListNumber
 } from './geopackage/text-limits.js'
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from './geopackage/tree-constants.js'
 import { getHabitatsByBroad } from './reference/habitat-reference.js'
@@ -166,15 +167,12 @@ const LISTED_FIELDS = Object.freeze({
   }
 })
 
-// A legacy list number, as in "4. Fairly Poor".
-const LIST_NUMBER = /^\d+\.(?!\d)\s*/
-
 /** The words a field's lists offer, without list numbers, for the data dictionary. */
 function shownWords(columns) {
   const words = columns.flatMap((column) =>
     Object.entries(TEMPLATE_ALLOWED_VALUES)
       .filter(([name]) => name.trim() === column)
-      .flatMap(([, values]) => values.map((v) => v.replace(LIST_NUMBER, '')))
+      .flatMap(([, values]) => values.map(withoutListNumber))
   )
   return [...new Set(words)].sort((a, b) => a.localeCompare(b))
 }
