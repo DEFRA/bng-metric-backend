@@ -459,7 +459,30 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
   }
 
   test('renames an area habitat’s parcel onto another area habitat’s reference (AC7: no uniqueness check)', () => {
-    const project = withSecondArea(projectFixture())
+    const SECOND_PI_HABITAT_ID = 'aa3e8400-e29b-41d4-a716-44665544000d'
+    function withSecondAreaRow(project) {
+      withSecondArea(project)
+      project.postIntervention.habitats.push(
+        retainedHabitat(SECOND_PI_HABITAT_ID, 'A2', {
+          type: 'Other neutral grassland',
+          broadType: 'Grassland',
+          condition: 'Good'
+        })
+      )
+      return project
+    }
+    const secondRow = (result) =>
+      result.postIntervention.habitats.find(
+        (row) => row.featureId === SECOND_PI_HABITAT_ID
+      )
+    const unclashed = applyRetainedRefEdit(
+      withSecondAreaRow(projectFixture()),
+      {
+        featureId: PI_HABITAT_ID,
+        ref: 'P-A1'
+      }
+    )
+    const project = withSecondAreaRow(projectFixture())
 
     const result = applyRetainedRefEdit(project, {
       featureId: PI_HABITAT_ID,
@@ -470,13 +493,24 @@ describe('applyRetainedRefEdit — a reference another baseline habitat carries'
       status: RETAINED_REF_RESULT.OK,
       documentKey: 'baseline',
       feature: { featureId: BASELINE_HABITAT_ID, ref: 'A2' },
-      postInterventionFeature: { featureId: PI_HABITAT_ID, ref: 'A2' }
+      postInterventionFeature: {
+        featureId: PI_HABITAT_ID,
+        ref: 'A2',
+        baseline: AREA_IDENTITY
+      }
     })
     expect(
       project.baseline.habitats.find(
         (feature) => feature.featureId === SECOND_BASELINE_HABITAT_ID
       ).ref
     ).toBe('A2')
+    // The other parcel's row keeps its identity, proposed values and units.
+    expect(secondRow(result)).toMatchObject({
+      ref: 'A2',
+      baseline: { type: 'Other neutral grassland', condition: 'Good' },
+      proposed: { type: 'Other neutral grassland', condition: 'Good' }
+    })
+    expect(secondRow(result)).toEqual(secondRow(unclashed))
   })
 
   test('renames a hedgerow onto a watercourse’s reference', () => {
@@ -604,5 +638,92 @@ describe('applyRetainedRefEdit — a row stored with its category under baseline
     expect(result.postInterventionFeature.baseline).not.toHaveProperty(
       'retentionCategory'
     )
+  })
+})
+
+describe('applyRetainedRefEdit — Enhanced linear rows keep their own baseline length', () => {
+  const ENHANCED_HEDGEROW_ID = 'bb1e8400-e29b-41d4-a716-446655440009'
+  const SHORT_HEDGEROW_ID = 'bb2e8400-e29b-41d4-a716-44665544000a'
+
+  // An Enhanced hedgerow on the 1 km baseline hedgerow H1, beside the Retained
+  // one; the baseline watercourse W1 is 500 m long.
+  function withEnhancedHedgerow(project) {
+    project.postIntervention.hedgerows.push({
+      featureId: ENHANCED_HEDGEROW_ID,
+      ref: 'H1',
+      retentionCategory: 'Enhanced',
+      sizeMetres: 1000,
+      units: null,
+      status: 'Incomplete',
+      baseline: { type: 'Native hedgerow', condition: 'Good' },
+      proposed: {
+        type: 'Species-rich native hedgerow',
+        condition: 'Good',
+        strategicSignificance:
+          'Area/compensation not in local strategy/ no local strategy',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    })
+    return project
+  }
+
+  function enhancedRow(result) {
+    return result.postIntervention.hedgerows.find(
+      (row) => row.featureId === ENHANCED_HEDGEROW_ID
+    )
+  }
+
+  test('a watercourse renamed onto the hedgerow’s ref leaves the Enhanced hedgerow’s units alone', () => {
+    const unclashed = enhancedRow(
+      applyRetainedRefEdit(withEnhancedHedgerow(projectFixture()), {
+        featureId: PI_WATERCOURSE_ID,
+        ref: 'P-W1'
+      })
+    )
+    const clashed = enhancedRow(
+      applyRetainedRefEdit(withEnhancedHedgerow(projectFixture()), {
+        featureId: PI_WATERCOURSE_ID,
+        ref: 'H1'
+      })
+    )
+
+    expect(unclashed.status).toBe('Complete')
+    expect(unclashed.units).toBeGreaterThan(0)
+    expect(clashed).toMatchObject({
+      status: 'Complete',
+      units: unclashed.units
+    })
+  })
+
+  test('a hedgerow renamed onto a shorter hedgerow’s ref keeps its Enhanced row priced on its own length', () => {
+    function withShortHedgerow(project) {
+      project.baseline.hedgerows.push({
+        featureId: SHORT_HEDGEROW_ID,
+        ref: 'H2',
+        type: 'Species-rich native hedgerow',
+        condition: 'Poor',
+        sizeMetres: 100,
+        units: 1
+      })
+      return withEnhancedHedgerow(project)
+    }
+    const unclashed = enhancedRow(
+      applyRetainedRefEdit(withShortHedgerow(projectFixture()), {
+        featureId: PI_HEDGEROW_ID,
+        ref: 'P-H1'
+      })
+    )
+
+    const result = applyRetainedRefEdit(withShortHedgerow(projectFixture()), {
+      featureId: PI_HEDGEROW_ID,
+      ref: 'H2'
+    })
+
+    expect(enhancedRow(result)).toMatchObject({
+      ref: 'H2',
+      status: 'Complete',
+      units: unclashed.units
+    })
   })
 })

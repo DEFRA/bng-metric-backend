@@ -29,7 +29,10 @@
 // parent. Other legacy rows use `ref` — the Parcel Ref / Tree Ref column — for the same
 // reason carry-forward-feature-ids.js and buildBaselineLinearLengthByRef use
 // it: featureIds are assigned per document, so a baseline parcel and the
-// post-intervention row describing it share no id.
+// post-intervention row describing it share no id. The feature each row is
+// resolved to is handed on to the re-pricing, so an Enhanced linear row is
+// priced against that feature's length, not whichever feature in its layer
+// last carried its ref.
 //
 // A ref is NOT unique. The metric allows several features to share one where
 // parcels combine or split, so the join is one-to-many in both directions:
@@ -489,14 +492,17 @@ export function resolveJoinedBaselineFeature(feature, layer, baseline) {
 /**
  * @param {object[]} features post-intervention features for one layer, mutated
  * @param {{ candidatesByRef: Map<string, object[]>, updatedById: Map<string, object>, fields: readonly string[], byParent: boolean }} index
- * @param {{ layer: string, logger: object }} context
+ * @param {{ layer: string, logger: object, sourceFeatureIdByRow: Map<string, string> }} context
  * @returns {number} how many features changed
  */
-function resyncLayer(features, index, { layer, logger }) {
+function resyncLayer(features, index, { layer, logger, sourceFeatureIdByRow }) {
   let changed = 0
   for (const feature of features) {
     const resolved = resolveSource(feature, index)
     if (resolved.source) {
+      if (feature.featureId) {
+        sourceFeatureIdByRow.set(feature.featureId, resolved.source.featureId)
+      }
       const identityChanged = syncFeatureIdentity(
         feature,
         resolved.source,
@@ -532,12 +538,14 @@ function resyncLayer(features, index, { layer, logger }) {
  * @param {object} [documents.baseline] the baseline as it now stands
  * @param {object} [documents.previousBaseline] the baseline as it stood before
  *   the edit; only consulted to break a tie between features sharing a ref
+ * @param {Map<string, string>} [documents.sourceFeatureIdByRow] filled with the
+ *   featureId of the baseline feature each resolved row was re-synced from
  * @param {{ warn: (msg: string) => void }} [logger]
  * @returns {number} how many features changed
  */
 export function resyncPostInterventionBaselineSide(
   postInterventionDocument,
-  { baseline, previousBaseline = baseline },
+  { baseline, previousBaseline = baseline, sourceFeatureIdByRow = new Map() },
   logger = NO_OP_LOGGER
 ) {
   let changed = 0
@@ -557,7 +565,7 @@ export function resyncPostInterventionBaselineSide(
         fields,
         byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
       },
-      { layer, logger }
+      { layer, logger, sourceFeatureIdByRow }
     )
   }
   return changed
@@ -605,9 +613,10 @@ export function rederivePostInterventionFromBaseline(
       rederived[layer] = rederived[layer].map(withRootRetentionCategory)
     }
   }
+  const sourceFeatureIdByRow = new Map()
   resyncPostInterventionBaselineSide(
     rederived,
-    { baseline, previousBaseline },
+    { baseline, previousBaseline, sourceFeatureIdByRow },
     logger
   )
   // What each parent loses depends on its type and size, and whether a
@@ -623,7 +632,7 @@ export function rederivePostInterventionFromBaseline(
   enrichPostInterventionDocumentWithUnits(
     rederived,
     logger,
-    postInterventionEnrichOptions(baseline)
+    postInterventionEnrichOptions(baseline, { sourceFeatureIdByRow })
   )
   // Legacy Lost linear rows have no proposed habitat and remain Complete at
   // zero units. New uploads exclude them, but stored documents may contain them.

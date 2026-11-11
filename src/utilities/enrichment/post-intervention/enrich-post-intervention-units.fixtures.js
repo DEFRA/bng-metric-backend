@@ -1,7 +1,29 @@
+import { buildBaselineLinearLengthByRef } from './linear-baseline-length-by-ref.js'
+
 const NO_RIPARIAN_ENCROACHMENT = 'No Encroachment/No Encroachment'
 const NO_WATERCOURSE_ENCROACHMENT = 'No Encroachment'
 
 export const FEAT_ID = 'aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa'
+
+const ONE_KM_IN_METRES = 1000
+
+/**
+ * Baseline lengths for the Enhanced linear fixtures, which price their
+ * baseline side from the baseline feature with the same ref: a 1 km hedgerow
+ * HW1 and a 1 km watercourse R1, unless told otherwise.
+ *
+ * @param {{ hedgerows?: string[], watercourses?: string[] }} [refs]
+ */
+export function makeBaselineLengths({
+  hedgerows = ['HW1'],
+  watercourses = ['R1']
+} = {}) {
+  const oneKm = (ref) => ({ ref, sizeMetres: ONE_KM_IN_METRES })
+  return buildBaselineLinearLengthByRef(
+    hedgerows.map(oneKm),
+    watercourses.map(oneKm)
+  )
+}
 
 // Created and enhanced features carry a valid Proposed Strategic Significance,
 // otherwise validation nulls it (BMD-1051) and units remain null (BMD-1070).

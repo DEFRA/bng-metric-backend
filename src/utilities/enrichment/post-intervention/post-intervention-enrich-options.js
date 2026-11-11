@@ -11,13 +11,18 @@ import { buildBaselineLinearLengthByRef } from './linear-baseline-length-by-ref.
 
 /**
  * @param {object | undefined} baseline the project's stored baseline document
- * @returns {{ baselineLengthByRef: Map<string, number>, baselineUnits: object | undefined, baselineDocument: object | undefined }}
+ * @param {{ sourceFeatureIdByRow?: Map<string, string> }} [resolved] the
+ *   baseline feature the re-derive resolved each post-intervention row to, so
+ *   an Enhanced linear row is priced against that feature's length rather
+ *   than whichever feature last carried its ref
+ * @returns {{ baselineLengthByRef: object, baselineUnits: object | undefined, baselineDocument: object | undefined }}
  */
-export function postInterventionEnrichOptions(baseline) {
+export function postInterventionEnrichOptions(baseline, resolved = {}) {
   return {
     baselineLengthByRef: buildBaselineLinearLengthByRef(
       baseline?.hedgerows ?? [],
-      baseline?.watercourses ?? []
+      baseline?.watercourses ?? [],
+      resolved
     ),
     baselineUnits: baseline?.units,
     // Area trading rules need the stored baseline features, not just the

@@ -1822,3 +1822,113 @@ describe('applyFeatureUpdate — vertical area habitats', () => {
     })
   })
 })
+
+describe('applyFeatureUpdate — Enhanced linear rows keep their own baseline length (BMD-1180 AC7)', () => {
+  const PI_ENHANCED_HEDGEROW_ID = 'ee0e8400-e29b-41d4-a716-44665544000b'
+  const SHORT_HEDGEROW_ID = 'bb3e8400-e29b-41d4-a716-44665544000c'
+  const NATIVE_GOOD = { type: 'Native hedgerow', condition: 'Good' }
+  const WATERCOURSE_EDIT = {
+    habitatType: 'Ditches',
+    condition: 'Good',
+    watercourseEncroachment: 'No Encroachment',
+    riparianEncroachment: 'No Encroachment/No Encroachment'
+  }
+
+  function enhancedHedgerow(ref) {
+    return {
+      featureId: PI_ENHANCED_HEDGEROW_ID,
+      ref,
+      retentionCategory: 'Enhanced',
+      sizeMetres: 1000,
+      units: null,
+      status: 'Incomplete',
+      baseline: { ...NATIVE_GOOD },
+      proposed: {
+        type: 'Species-rich native hedgerow',
+        condition: 'Good',
+        strategicSignificance: LOW_STRATEGIC_SIGNIFICANCE,
+        advanceYears: 0,
+        delayYears: 0
+      }
+    }
+  }
+
+  // A 1 km baseline hedgerow H1 with an Enhanced row on it, and a 500 m
+  // baseline watercourse W1.
+  function projectWithEnhancedHedgerow() {
+    const project = projectFixture()
+    Object.assign(project.baseline.hedgerows[0], NATIVE_GOOD)
+    project.baseline.watercourses.push({
+      featureId: WATERCOURSE_ID,
+      ref: 'W1',
+      type: 'Ditches',
+      condition: 'Good',
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      sizeMetres: 500
+    })
+    project.postIntervention = {
+      habitats: [],
+      trees: [],
+      hedgerows: [enhancedHedgerow('H1')],
+      watercourses: [],
+      units: { totalUnits: 0 }
+    }
+    return project
+  }
+
+  function enhancedRow(result) {
+    return result.postIntervention.hedgerows.find(
+      (row) => row.featureId === PI_ENHANCED_HEDGEROW_ID
+    )
+  }
+
+  test('a baseline watercourse renamed onto the hedgerow’s ref leaves the Enhanced hedgerow’s units alone', () => {
+    const unclashed = enhancedRow(
+      applyFeatureUpdate(projectWithEnhancedHedgerow(), {
+        featureId: WATERCOURSE_ID,
+        edits: { ...WATERCOURSE_EDIT, ref: 'P-W1' }
+      })
+    )
+
+    const result = applyFeatureUpdate(projectWithEnhancedHedgerow(), {
+      featureId: WATERCOURSE_ID,
+      edits: { ...WATERCOURSE_EDIT, ref: 'H1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(unclashed).toMatchObject({ status: 'Complete' })
+    expect(unclashed.units).toBeGreaterThan(0)
+    expect(enhancedRow(result)).toMatchObject({
+      status: 'Complete',
+      units: unclashed.units
+    })
+  })
+
+  test('a post-intervention edit prices the Enhanced hedgerow on its own parcel among several sharing its ref', () => {
+    const alone = projectWithEnhancedHedgerow()
+    const shared = projectWithEnhancedHedgerow()
+    // A shorter, different hedgerow later in the layer carries H1 too.
+    shared.baseline.hedgerows.push({
+      featureId: SHORT_HEDGEROW_ID,
+      ref: 'H1',
+      type: 'Species-rich native hedgerow',
+      condition: 'Poor',
+      sizeMetres: 100
+    })
+    const edit = {
+      featureId: PI_ENHANCED_HEDGEROW_ID,
+      documentKey: 'postIntervention',
+      edits: { habitatType: 'Species-rich native hedgerow', condition: 'Good' }
+    }
+
+    const expected = applyFeatureUpdate(alone, edit).feature
+    const result = applyFeatureUpdate(shared, edit)
+
+    expect(expected.status).toBe('Complete')
+    expect(result.feature).toMatchObject({
+      status: 'Complete',
+      units: expected.units
+    })
+  })
+})

@@ -28,14 +28,14 @@ import { enrichPostInterventionHedgerowTradingRules } from './enrich-post-interv
  * sub-object with informational distinctiveness/conditionScore. Always sets
  * `postInterventionDocument.units` totals afterward.
  *
- * For Enhanced watercourses the engine needs the baseline feature length. Pass
- * a `Map<parcelRef, lengthKm>` built from the project's stored baseline
- * watercourses as `options.baselineLengthByRef`; if missing, Enhanced watercourse
- * features will be marked Incomplete with a warning.
+ * For Enhanced hedgerows and watercourses the engine needs the baseline
+ * feature length. Pass the lengths buildBaselineLinearLengthByRef builds from
+ * the project's stored baseline as `options.baselineLengthByRef`; if missing,
+ * Enhanced linear features will be marked Incomplete with a warning.
  *
  * @param {{ habitats?: object[], trees?: object[], verticalHabitats?: object[], hedgerows?: object[], watercourses?: object[] }} postInterventionDocument
  * @param {{ warn: (msg: string) => void }} [logger]
- * @param {{ baselineLengthByRef?: Map<string, number>, baselineUnits?: object, baselineDocument?: object }} [options]
+ * @param {{ baselineLengthByRef?: object, baselineUnits?: object, baselineDocument?: object }} [options]
  * @returns {typeof postInterventionDocument}
  */
 export function enrichPostInterventionDocumentWithUnits(

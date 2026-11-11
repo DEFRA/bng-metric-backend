@@ -8,7 +8,8 @@ import {
   makeDoc,
   makeEnhancedHedgerow,
   makeHedgerow,
-  makeLostHedgerow
+  makeLostHedgerow,
+  makeBaselineLengths
 } from './enrich-post-intervention-units.fixtures.js'
 
 describe('hedgerow — Retained', () => {
@@ -142,7 +143,7 @@ describe('hedgerow — Created', () => {
 })
 
 describe('hedgerow — Enhanced', () => {
-  const BASELINE_LENGTH_BY_REF = new Map([['HW1', 1]])
+  const BASELINE_LENGTH_BY_REF = makeBaselineLengths()
 
   it('calculates units using both baseline and proposed hedge type', () => {
     const doc = makeDoc({ hedgerows: [makeEnhancedHedgerow()] })
@@ -178,7 +179,7 @@ describe('hedgerow — Enhanced', () => {
     const doc = makeDoc({ hedgerows: [makeEnhancedHedgerow()] })
     const logger = { warn: vi.fn() }
     enrichPostInterventionDocumentWithUnits(doc, logger, {
-      baselineLengthByRef: new Map()
+      baselineLengthByRef: makeBaselineLengths({ hedgerows: [] })
     })
 
     expect(doc.hedgerows[0].status).toBe('Incomplete')

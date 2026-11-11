@@ -240,7 +240,7 @@ function prepareHedgerowProposedContext(hedgerow) {
  * @param {object} hedgerow
  * @param {ReturnType<typeof prepareHedgerowProposedContext>} ctx
  * @param {{ warn: (msg: string) => void }} logger
- * @param {Map<string, number> | undefined} baselineLengthByRef
+ * @param {object | undefined} baselineLengthByRef buildBaselineLinearLengthByRef's result
  * @returns {(() => object) | null}
  */
 function resolveHedgerowProposedCalculate(
@@ -307,7 +307,7 @@ function resolveHedgerowProposedCalculate(
  *
  * @param {object} hedgerow
  * @param {{ warn: (msg: string) => void }} logger
- * @param {Map<string, number> | undefined} baselineLengthByRef
+ * @param {object | undefined} baselineLengthByRef buildBaselineLinearLengthByRef's result
  */
 export function enrichPostInterventionHedgerowProposedSide(
   hedgerow,
@@ -351,7 +351,7 @@ export function enrichPostInterventionHedgerowProposedSide(
 /**
  * @param {object} hedgerow
  * @param {{ warn: (msg: string) => void }} logger
- * @param {Map<string, number> | undefined} [baselineLengthByRef]
+ * @param {object | undefined} [baselineLengthByRef] buildBaselineLinearLengthByRef's result
  */
 export function enrichPostInterventionHedgerowWithUnits(
   hedgerow,

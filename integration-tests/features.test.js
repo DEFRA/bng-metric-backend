@@ -369,6 +369,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
   async function seedRetainedProject({
     retentionCategory = 'Retained',
     otherBaselineHabitats = [],
+    otherPostInterventionHabitats = [],
     postInterventionUnits = {
       totalUnits: 4,
       habitatsTotal: 4,
@@ -417,7 +418,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
             }
           },
           postIntervention: {
-            habitats: [retainedRow],
+            habitats: [retainedRow, ...otherPostInterventionHabitats],
             trees: [],
             hedgerows: [],
             watercourses: [],
@@ -499,19 +500,42 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
 
   it('saves a reference another baseline habitat carries, leaving that habitat and its rows alone (AC7: no uniqueness check)', async () => {
     const otherHabitatId = randomUUID()
+    const otherRowId = randomUUID()
+    const otherIdentity = {
+      type: 'Other neutral grassland',
+      broadType: 'Grassland',
+      condition: 'Good'
+    }
     const { projectId, retainedRow } = await seedRetainedProject({
       otherBaselineHabitats: [
         {
           featureId: otherHabitatId,
           ref: 'A2',
-          type: 'Other neutral grassland',
-          broadType: 'Grassland',
-          condition: 'Good',
+          ...otherIdentity,
           sizeSquareMetres: 10_000,
-          units: 8,
+          units: 12,
           status: 'Complete'
         }
-      ]
+      ],
+      otherPostInterventionHabitats: [
+        {
+          featureId: otherRowId,
+          ref: 'A2',
+          retentionCategory: 'Retained',
+          area: 10_000,
+          sizeSquareMetres: 10_000,
+          units: 12,
+          status: 'Complete',
+          baseline: { ...otherIdentity },
+          proposed: { ...otherIdentity, advanceYears: 0, delayYears: 0 }
+        }
+      ],
+      postInterventionUnits: {
+        totalUnits: 16,
+        habitatsTotal: 16,
+        hedgerowsTotal: 0,
+        watercoursesTotal: 0
+      }
     })
 
     const res = await server.inject({
@@ -533,7 +557,17 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     ).toMatchObject({ type: 'Other neutral grassland', condition: 'Good' })
     expect(stored.postIntervention.habitats[0]).toMatchObject({
       featureId: retainedRow.featureId,
-      ref: 'A2'
+      ref: 'A2',
+      baseline: { type: RETAINED_IDENTITY.type }
+    })
+    expect(
+      stored.postIntervention.habitats.find((h) => h.featureId === otherRowId)
+    ).toMatchObject({
+      ref: 'A2',
+      baseline: { type: 'Other neutral grassland', condition: 'Good' },
+      proposed: { type: 'Other neutral grassland', condition: 'Good' },
+      units: 12,
+      status: 'Complete'
     })
   })
 

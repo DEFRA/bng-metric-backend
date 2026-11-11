@@ -32,8 +32,10 @@
 // references need not be unique, on import (BMD-1058) or on edit (BMD-1180
 // AC7). The re-derive below still carries the rename onto the right rows,
 // because it matches each row against the baseline as it stood before the
-// edit; later edits tell the parcels apart by each row's imported values
-// (resync-post-intervention-baseline.js).
+// edit, and prices each Enhanced hedgerow or watercourse against the length of
+// the feature it matched, not whichever feature last carried its ref
+// (linear-baseline-length-by-ref.js). Later edits tell the parcels apart by
+// each row's imported values (resync-post-intervention-baseline.js).
 
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'

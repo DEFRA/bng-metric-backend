@@ -43,7 +43,10 @@ import {
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
-import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  preserveCreatedParent,
+  resolveJoinedBaselineFeature
+} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
@@ -141,6 +144,25 @@ function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   })
 }
 
+/**
+ * The baseline lengths an edited post-intervention hedgerow is priced against,
+ * with the row resolved to its baseline feature as the re-derive resolves it:
+ * several hedgerows may share its ref, and only one of them is its own.
+ */
+function editedHedgerowLengths(existing, baseline) {
+  const { source } = resolveJoinedBaselineFeature(
+    existing,
+    'hedgerows',
+    baseline
+  )
+  const sourceFeatureIdByRow = new Map()
+  if (source?.featureId && existing.featureId) {
+    sourceFeatureIdByRow.set(existing.featureId, source.featureId)
+  }
+  return postInterventionEnrichOptions(baseline, { sourceFeatureIdByRow })
+    .baselineLengthByRef
+}
+
 function recomputeHedgerowEdit(
   existing,
   edits,
@@ -154,8 +176,7 @@ function recomputeHedgerowEdit(
       existing,
       { habitatType: edits.habitatType, condition: edits.condition },
       {
-        baselineLengthByRef:
-          postInterventionEnrichOptions(baseline).baselineLengthByRef,
+        baselineLengthByRef: editedHedgerowLengths(existing, baseline),
         logger
       }
     )
