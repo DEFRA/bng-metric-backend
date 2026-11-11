@@ -530,6 +530,85 @@ describe('updateFeature handler - hedgerow dispatch', () => {
   })
 })
 
+describe('updateFeature handler - individual tree dispatch (BMD-1112)', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // Small × 3 trees: 123 m² of notional area, 0.0492 units in Poor condition.
+  function projectWithTree(overrides = {}) {
+    const projectRow = makeProject()
+    projectRow.project.baseline.trees = [
+      {
+        featureId: TREE_ID,
+        ref: 'T001',
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Small',
+        count: 3,
+        condition: 'Poor',
+        comment: 'Imported tree note',
+        sizeSquareMetres: 123,
+        area: 123,
+        units: 0.0492,
+        status: 'Complete',
+        ...overrides
+      }
+    ]
+    return projectRow
+  }
+
+  // What the details page submits: the tree's broad habitat and habitat type
+  // as stored, neither being editable here, plus its condition.
+  function saveTree(projectRow, payload) {
+    return updateFeature.handler(
+      {
+        drizzle: makeTxDrizzle(projectRow),
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: TREE_ID },
+        payload: {
+          broadType: 'Individual trees',
+          habitatType: 'Urban tree',
+          condition: 'Poor',
+          ...payload
+        }
+      },
+      {}
+    )
+  }
+
+  test('persists a trimmed tree comment and turns a whitespace-only one into null', async () => {
+    const trimmed = await saveTree(projectWithTree(), {
+      comment: '  tree  note  '
+    })
+    expect(trimmed.feature.comment).toBe('tree  note')
+    // The notional area is untouched: a comment cannot move a tree's size.
+    expect(trimmed.feature.sizeSquareMetres).toBe(123)
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'trees',
+        feature: expect.objectContaining({ comment: 'tree  note' })
+      })
+    )
+
+    const blank = await saveTree(projectWithTree(), { comment: ' \n\t ' })
+    expect(blank.feature.comment).toBeNull()
+  })
+
+  test('leaves a stored tree comment alone when the edit does not send one', async () => {
+    const result = await saveTree(projectWithTree(), {})
+    expect(result.feature.comment).toBe('Imported tree note')
+  })
+
+  // habitatSizes.trees splits the square metres by urban and rural, and no
+  // edit rebuilds that summary, so the type stays as imported for now.
+  test('refuses a change to the urban/rural habitat type', async () => {
+    await expect(
+      saveTree(projectWithTree(), { habitatType: 'Rural tree' })
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+  })
+})
+
 describe('updateFeature handler - watercourse dispatch', () => {
   // The comment is merged by type-agnostic code (mergeBaselineFeature), but
   // only the area and hedgerow paths proved it; a watercourse carries the

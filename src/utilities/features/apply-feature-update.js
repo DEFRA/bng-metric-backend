@@ -53,6 +53,7 @@ import {
   VERTICAL_BROAD_HABITATS,
   isVerticalHabitat
 } from '../../validation/reference/vertical-habitats.js'
+import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../validation/geopackage/tree-constants.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -223,9 +224,43 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
   return recomputeHabitatEdit(existing, edits, context)
 }
 
+/**
+ * A baseline individual tree is edited as an area habitat (BMD-1112). Its size
+ * is notional — the per-size reference area times the number of trees the point
+ * stands for (tree-sizes.js) — and the details page shows the size class and
+ * count read-only, so an edit moves its condition, reference or comment and
+ * never its area.
+ *
+ * The urban/rural habitat type cannot be changed here yet. A tree's area is
+ * the same either way, but `habitatSizes.trees` keeps the square metres split
+ * by urban and rural (summarizeTreeSizes, via buildHabitatSizesSummary), and
+ * that summary is only ever built on the upload path: nothing downstream of an
+ * edit rebuilds it (refresh-edit-figures.js refreshes units, not sizes). So
+ * flipping a tree urban → rural would leave its square metres filed under the
+ * type it used to have. Allowing the change means refreshing that summary on
+ * edit, which belongs with making trees editable in full.
+ *
+ * Leaving the type as stored is allowed whatever it is, so a tree imported
+ * without a recognisable urban/rural column stays Incomplete and can still
+ * take a comment. A post-intervention tree is not editable.
+ */
+function recomputeTreeEdit(existing, edits, context) {
+  if (context.documentKey === 'postIntervention') {
+    return null
+  }
+  if (edits.broadType !== INDIVIDUAL_TREES_BROAD_HABITAT) {
+    return null
+  }
+  if ((edits.habitatType ?? null) !== (existing.type ?? null)) {
+    return null
+  }
+  return recomputeHabitatEdit(existing, edits, context)
+}
+
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
   habitat: recomputeHabitatEdit,
   verticalHabitat: recomputeVerticalHabitatEdit,
+  tree: recomputeTreeEdit,
   hedgerow: recomputeHedgerowEdit,
   watercourse: recomputeWatercourseEdit
 })
@@ -249,7 +284,7 @@ function mergeBaselineFeature(type, existing, edits, derived) {
     units: derived.units,
     status: derived.status
   }
-  if (type === 'habitat' || type === 'verticalHabitat') {
+  if (type === 'habitat' || type === 'verticalHabitat' || type === 'tree') {
     return { ...base, broadType: edits.broadType, type: edits.habitatType }
   } else if (type === 'watercourse') {
     return {
