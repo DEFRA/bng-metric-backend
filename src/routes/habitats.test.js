@@ -669,6 +669,14 @@ describe('updateAreaHabitat validation', () => {
     expect(error?.message).toBe('"ref" is not allowed')
   })
 
+  test('legacy baseline area route refuses a comment it would not save', () => {
+    const { error } = updateAreaHabitat.options.validate.payload.validate({
+      condition: 'Good',
+      comment: 'typed note'
+    })
+    expect(error?.message).toBe('"comment" is not allowed')
+  })
+
   test('PI reference edits allow omitted significance with the other required area fields', () => {
     const { error } =
       updatePostInterventionAreaHabitat.options.validate.payload.validate({

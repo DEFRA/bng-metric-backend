@@ -68,6 +68,17 @@ export const continues = (properties) => CONTINUING.has(retentionOf(properties))
 /** Whether a row is a creation, linked to a parent or not. */
 export const isCreated = (properties) => retentionOf(properties) === CREATED
 
+/** A tree's Category for a tree that was there at baseline. */
+const EXISTING = 'Existing'
+
+/**
+ * Whether a row can record a habitat that gets worse. A tree can only when it
+ * is the baseline tree itself, Category Existing: a Newly Planted tree linked
+ * to a parent is planting in its place, a creation, however it compares.
+ */
+export const canDegrade = (layer, properties) =>
+  layer !== 'trees' || text(properties?.Category) === EXISTING
+
 /** A post-intervention row's habitat type, or its baseline one if it has none. */
 export function habitatTypeOf(layer, properties) {
   const [baselineType, proposedType] = HABITAT_TYPE[layer]

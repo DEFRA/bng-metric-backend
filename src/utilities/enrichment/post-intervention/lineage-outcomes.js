@@ -10,6 +10,7 @@ import {
   isSameHabitatType,
   watercourseChange
 } from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
+import { canDegrade } from '../../../validation/geopackage/service-template/lineage/lineage-rows.js'
 import { MIN_PARCEL_AREA_SQ_M } from '../../../validation/geopackage/geometry-constants.js'
 import { treeCountOrDefault } from '../../../validation/geopackage/tree-sizes.js'
 import { buildAdvanceDelayFields } from '../../../validation/geopackage/post-intervention/extract-post-intervention-sub-objects.js'
@@ -104,9 +105,12 @@ function childrenByParent(features) {
   return children
 }
 
-/** Trees are outside the degraded rows' rules: a Created tree is planting. */
+/**
+ * A Created child of its parent's own habitat type. A tree only when it is the
+ * baseline tree itself, Category Existing: a Newly Planted one is planting.
+ */
 const isDegraded = (layer, parent, child) =>
-  layer !== 'trees' &&
+  canDegrade(layer, child.properties) &&
   resolveRetentionCategory(child) === RETENTION_CREATED &&
   isSameHabitatType(parent, child.proposed ?? {})
 

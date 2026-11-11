@@ -1,16 +1,19 @@
+import { isSameHabitatType } from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
+import { canDegrade } from '../../../validation/geopackage/service-template/lineage/lineage-rows.js'
 import {
   summarizeTreeSizes,
   treeAreaFields
 } from '../../../validation/geopackage/tree-sizes.js'
 import {
+  RETENTION_CREATED,
   RETENTION_ENHANCED,
   RETENTION_RETAINED,
   resolveRetentionCategory
 } from './retention-category.js'
 
 /**
- * What a BNG Service template upload's Retained and Enhanced trees take from
- * the baseline tree they are linked to (`parentFeatureId`), worked out on the
+ * What a BNG Service template upload's Retained, Enhanced and degraded trees
+ * take from the baseline tree they are linked to (`parentFeatureId`), worked out on the
  * saved documents before they are priced, and again when a baseline edit
  * re-derives the post-intervention document.
  *
@@ -27,8 +30,11 @@ import {
  * been edited since, so its baseline side is set from the parent as well: the
  * enhancement it records is checked against the true baseline.
  *
- * A Created tree, linked to a parent or not, is new planting at its own size,
- * and is left as it is.
+ * An Existing tree that is Created is the baseline tree whose condition gets
+ * worse, recorded as lost and created again (guide, "Habitat retention"): the
+ * same tree, so it keeps its parent's size class, type and setting too, in
+ * the condition it proposes. A Newly Planted tree, linked to a parent or not,
+ * is new planting at its own size, and is left as it is.
  */
 
 /** What a tree is, on either side: the fields a kept tree takes from its parent. */
@@ -46,6 +52,26 @@ const RETAINED_TREE_FIELDS = Object.freeze(['condition'])
 const CONTINUING = new Set([RETENTION_RETAINED, RETENTION_ENHANCED])
 
 /**
+ * Whether a tree is its parent, kept or recorded as lost and created again.
+ * A Created tree is its parent only when it is Existing and keeps its Urban or
+ * Rural setting, as the file's check reads a degraded tree (lineage-rules.js),
+ * before its proposed side is overwritten here. As there, a blank proposed
+ * setting is the row's own baseline one. An Existing tree recorded in the
+ * other setting is a creation in that setting.
+ */
+const isParentTree = (tree, parent, retention) =>
+  CONTINUING.has(retention) ||
+  (retention === RETENTION_CREATED &&
+    canDegrade('trees', tree.properties) &&
+    isSameHabitatType(parent, proposedSetting(tree)))
+
+/** A tree's proposed setting, or its baseline one when it proposes none. */
+const proposedSetting = (tree) => ({
+  ...tree.proposed,
+  type: tree.proposed?.type ?? tree.baseline?.type ?? null
+})
+
+/**
  * @param {object} side a tree's baseline or proposed side, mutated
  * @param {object} parent the baseline tree
  * @param {readonly string[]} fields
@@ -60,8 +86,8 @@ function takeFromParent(side, parent, fields, size) {
 }
 
 /**
- * Give each linked Retained and Enhanced tree its parent's identity, priced
- * for its own Count. Mutates `postIntervention`.
+ * Give each linked Retained, Enhanced and degraded tree its parent's
+ * identity, priced for its own Count. Mutates `postIntervention`.
  *
  * @param {object} postIntervention the post-intervention document, linked
  * @param {object} baseline the baseline document saved with it
@@ -75,7 +101,7 @@ export function alignTreesWithParents(postIntervention, baseline) {
   for (const tree of postIntervention?.trees ?? []) {
     const parent = parents.get(tree.parentFeatureId)
     const retention = resolveRetentionCategory(tree)
-    if (!parent || !CONTINUING.has(retention)) {
+    if (!parent || !isParentTree(tree, parent, retention)) {
       continue
     }
     const size = treeAreaFields(parent.treeSize, tree.count)

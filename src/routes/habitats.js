@@ -28,10 +28,14 @@ import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
-// The baseline typed route saves dropdowns only; reference renaming belongs to
-// its unified feature route. Created PI edits use their own complete payload.
-const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
-  schema.forbidden()
+// The baseline typed route saves dropdowns only; reference renaming and the
+// habitat comment (BMD-1112) belong to its unified feature route, which is
+// what the details page calls. Neither reaches `createdFeatureEdits`, so
+// accepting one here would answer 200 having saved nothing. Created PI edits
+// use their own complete payload.
+const areaHabitatEditPayload = featureEditPayload.fork(
+  ['ref', 'comment'],
+  (schema) => schema.forbidden()
 )
 
 /**
