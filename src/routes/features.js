@@ -211,7 +211,7 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Invalid payload (e.g. a blank habitat reference), or the feature type is not editable via this endpoint (e.g. an individual tree)
+ *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a post-intervention tree, or a change to a baseline tree's urban/rural habitat type)
  *       404:
  *         description: Project or feature not found
  *       422:
