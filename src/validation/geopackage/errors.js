@@ -85,17 +85,16 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * An edit the endpoint cannot carry out on this feature, as against a value
-   * it will not accept: the feature is of a kind that is not editable on this
-   * path, or the edit changes a field that kind pins. A baseline individual
-   * tree pins its urban/rural habitat type (recomputeTreeEdit), because the
-   * square metres are filed by urban and rural in a summary only the upload
-   * builds, so a save that changes its Broad habitat or Habitat type is
-   * refused while the rest of the tree, including its comment, stays
-   * editable (BMD-1112).
+   * it will not accept: the feature is of a kind it does not edit, such as a
+   * post-intervention tree, or the edit would make the feature something its
+   * kind cannot become — a tree that is no longer a tree (keepsTreeATree), or
+   * a vertical area habitat that is no longer vertical.
    *
    * No one field the page can edit is to blame, and the refusal is not the
    * reference the edit routes answer a bare 400 for, so the edit pages show
-   * it in the error summary only and keep what the user typed.
+   * it in the error summary only and keep what the user typed, rather than
+   * blaming a valid reference or dropping the user on an error page
+   * (BMD-1112).
    */
   FEATURE_NOT_EDITABLE: 'FEATURE_NOT_EDITABLE',
 
