@@ -14,6 +14,26 @@ const logger = createLogger()
 // (BMD-1174); they do not.
 
 /**
+ * Longest one call to the CDP Uploader may take. Below the frontend's backend
+ * timeout, so a hung uploader fails here, with a logged reason, rather than
+ * holding the request open for as long as the hang lasts (BMD-1200).
+ * @returns {number}
+ */
+function requestTimeoutMs() {
+  return config.get('cdpUploader.requestTimeoutMs')
+}
+
+/**
+ * The timeout for one call made before `deadline`: the per-call timeout, or the
+ * time left if that is less. Never 0, which Wreck reads as "no timeout".
+ * @param {number} deadline epoch milliseconds
+ * @returns {number}
+ */
+function callTimeoutBefore(deadline) {
+  return Math.max(1, Math.min(requestTimeoutMs(), deadline - Date.now()))
+}
+
+/**
  * Get the CDP Uploader base URL
  * @returns {string}
  */
@@ -81,7 +101,8 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
       headers: {
         'Content-Type': 'application/json'
       },
-      json: true
+      json: true,
+      timeout: requestTimeoutMs()
     })
 
     // Extract just the path from uploadUrl (cdp-uploader may return full URL)
@@ -128,6 +149,11 @@ const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
  * An explicit terminal status (e.g. 'rejected') fails fast — there's no
  * point waiting 30 s for an answer CDP has already given us.
  *
+ * No call to the uploader runs past the deadline: each one gets the smaller of
+ * its own timeout and the time left. The deadline is a rung of the validate
+ * route's timeout ladder (docs/geometry-validation.md), and a call that started
+ * just before it could otherwise hold the route for a whole call timeout more.
+ *
  * @param {string} uploadId
  * @param {{ timeoutMs?: number, pollIntervalMs?: number }} [options]
  * @returns {Promise<{bucket: string, key: string}>}
@@ -143,7 +169,9 @@ export async function waitForUploadReady(
 
   while (Date.now() < deadline) {
     attempt++
-    const statusResult = await getUploadStatus(uploadId)
+    const statusResult = await getUploadStatus(uploadId, {
+      timeoutMs: callTimeoutBefore(deadline)
+    })
     const { uploadStatus } = statusResult
 
     logger.info(
@@ -169,7 +197,14 @@ export async function waitForUploadReady(
     }
 
     if (uploadStatus === 'ready') {
-      return getUploadedFileS3Location(uploadId)
+      if (Date.now() >= deadline) {
+        throw new UploadTimeoutError(
+          `Upload ${uploadId} was ready, but the ${timeoutMs}ms wait ended before its S3 location was fetched`
+        )
+      }
+      return getUploadedFileS3Location(uploadId, {
+        timeoutMs: callTimeoutBefore(deadline)
+      })
     }
 
     await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
@@ -206,9 +241,13 @@ export class UploadTimeoutError extends Error {
  * Returns the bucket and key for the first file in the upload (baseline uploads
  * are single-file). Throws if the upload is not complete or no file is found.
  * @param {string} uploadId - The upload ID to resolve
+ * @param {{ timeoutMs?: number }} [options]
  * @returns {Promise<{bucket: string, key: string, filename: string|null, fileSize: number|null}>}
  */
-export async function getUploadedFileS3Location(uploadId) {
+export async function getUploadedFileS3Location(
+  uploadId,
+  { timeoutMs = requestTimeoutMs() } = {}
+) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/status/${uploadId}`
 
@@ -216,7 +255,7 @@ export async function getUploadedFileS3Location(uploadId) {
     `Fetching S3 location for upload - url: ${url}, uploadId: ${uploadId}`
   )
 
-  const { payload } = await Wreck.get(url, { json: true })
+  const { payload } = await Wreck.get(url, { json: true, timeout: timeoutMs })
 
   // CDP Uploader returns the file under payload.form.file (single object),
   // not in a files array as might be expected.
@@ -245,16 +284,20 @@ export async function getUploadedFileS3Location(uploadId) {
 /**
  * Get the upload status from CDP Uploader
  * @param {string} uploadId - The upload ID to check status for
+ * @param {{ timeoutMs?: number }} [options]
  * @returns {Promise<{uploadStatus: string, error?: string}>}
  */
-export async function getUploadStatus(uploadId) {
+export async function getUploadStatus(
+  uploadId,
+  { timeoutMs = requestTimeoutMs() } = {}
+) {
   const baseUrl = getCdpUploaderUrl()
   const url = `${baseUrl}/status/${uploadId}`
 
   logger.info(`Fetching upload status - url: ${url}, uploadId: ${uploadId}`)
 
   try {
-    const { payload } = await Wreck.get(url, { json: true })
+    const { payload } = await Wreck.get(url, { json: true, timeout: timeoutMs })
 
     const file = payload.form?.file
     const errorMessage =

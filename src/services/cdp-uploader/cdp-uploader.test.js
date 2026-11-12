@@ -27,6 +27,9 @@ const REDIRECT = '/projects/1/upload-received'
 const FILENAME = 'survey.gpkg'
 const UPLOADED_FILE_SIZE = 204800
 const MAX_FILE_SIZE_BYTES = 104857600
+const REQUEST_TIMEOUT_MS = 5000
+const READY_WAIT_MS = 1000
+const LATE_READY_MS = 2000
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -62,9 +65,12 @@ describe('getCdpUploaderUrl', () => {
 
 describe('initiateUpload', () => {
   beforeEach(() => {
-    vi.spyOn(config, 'get').mockImplementation((key) =>
-      key === 'upload.maxFileSizeBytes' ? MAX_FILE_SIZE_BYTES : null
-    )
+    vi.spyOn(config, 'get').mockImplementation((key) => {
+      if (key === 'upload.maxFileSizeBytes') {
+        return MAX_FILE_SIZE_BYTES
+      }
+      return key === 'cdpUploader.requestTimeoutMs' ? REQUEST_TIMEOUT_MS : null
+    })
     delete process.env.ENVIRONMENT
   })
 
@@ -99,7 +105,8 @@ describe('initiateUpload', () => {
           maxFileSize: MAX_FILE_SIZE_BYTES
         }),
         headers: { 'Content-Type': 'application/json' },
-        json: true
+        json: true,
+        timeout: REQUEST_TIMEOUT_MS
       })
     )
   })
@@ -133,7 +140,9 @@ describe('initiateUpload', () => {
 })
 
 function stubLocalUploaderUrl() {
-  vi.spyOn(config, 'get').mockReturnValue(null)
+  vi.spyOn(config, 'get').mockImplementation((key) =>
+    key === 'cdpUploader.requestTimeoutMs' ? REQUEST_TIMEOUT_MS : null
+  )
   delete process.env.ENVIRONMENT
 }
 
@@ -164,7 +173,7 @@ describe('getUploadStatus — successful responses', () => {
     })
     expect(Wreck.get).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
-      { json: true }
+      { json: true, timeout: REQUEST_TIMEOUT_MS }
     )
   })
 
@@ -462,5 +471,82 @@ describe('waitForUploadReady failures', () => {
     await expect(
       waitForUploadReady(UPLOAD_ID, { timeoutMs: 0, pollIntervalMs: 0 })
     ).rejects.toThrow(/did not reach 'ready' status/)
+  })
+})
+
+describe('waitForUploadReady timeouts', () => {
+  beforeEach(stubLocalUploaderUrl)
+
+  afterEach(() => {
+    vi.useRealTimers()
+  })
+
+  it('gives no call more time than is left before its deadline', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+
+    await waitForUploadReady(UPLOAD_ID, {
+      timeoutMs: READY_WAIT_MS,
+      pollIntervalMs: 0
+    })
+
+    for (const [, options] of vi.mocked(Wreck.get).mock.calls) {
+      expect(options.timeout).toBeGreaterThan(0)
+      expect(options.timeout).toBeLessThanOrEqual(READY_WAIT_MS)
+    }
+  })
+
+  it('gives each call the uploader timeout when more time than that is left', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+
+    await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
+
+    for (const [, options] of vi.mocked(Wreck.get).mock.calls) {
+      expect(options.timeout).toBe(REQUEST_TIMEOUT_MS)
+    }
+  })
+
+  it('throws UploadTimeoutError, without fetching the S3 location, when the upload is ready only after the deadline', async () => {
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.mocked(Wreck.get).mockImplementation(async () => {
+      vi.setSystemTime(Date.now() + LATE_READY_MS)
+      return { payload: readyUploadPayload }
+    })
+
+    await expect(
+      waitForUploadReady(UPLOAD_ID, {
+        timeoutMs: READY_WAIT_MS,
+        pollIntervalMs: 0
+      })
+    ).rejects.toThrow(/wait ended before its S3 location was fetched/)
+    expect(Wreck.get).toHaveBeenCalledTimes(1)
+  })
+})
+
+describe('uploader call timeouts', () => {
+  beforeEach(stubLocalUploaderUrl)
+
+  it('getUploadedFileS3Location uses the uploader timeout by default', async () => {
+    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+
+    await getUploadedFileS3Location(UPLOAD_ID)
+
+    expect(Wreck.get).toHaveBeenCalledWith(
+      'http://localhost:7337/status/abc-123',
+      { json: true, timeout: REQUEST_TIMEOUT_MS }
+    )
+  })
+
+  it('getUploadStatus answers a timed-out call as a transient error', async () => {
+    const timedOut = Object.assign(new Error('Client request timeout'), {
+      output: { statusCode: 504 }
+    })
+    vi.mocked(Wreck.get).mockRejectedValue(timedOut)
+
+    const result = await getUploadStatus(UPLOAD_ID)
+
+    expect(result).toEqual({
+      uploadStatus: 'error',
+      error: 'Unable to check upload status'
+    })
   })
 })

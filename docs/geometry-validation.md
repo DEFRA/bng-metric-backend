@@ -213,6 +213,13 @@ validations in a full perf run, on a contended 2-vCPU box, was **2,155 ms** (p95
 `/upload/{id}/status` to `ready` before calling validate at all — it catches a
 lost race, not a virus scan.
 
+The ready rung holds even when the uploader hangs. Every call to the uploader has
+a timeout (`CDP_UPLOADER_TIMEOUT_MS`, 5 s, below the frontend's 10 s
+`BACKEND_TIMEOUT_MS`), and inside this rung a call gets the smaller of that and
+the time left of `UPLOAD_READY_TIMEOUT_MS`. Before BMD-1200 these calls had no
+timeout, and a call that started just before the deadline could hold the route
+for as long as the hang lasted.
+
 That leaves **1.8 s** of margin for TLS, routing and the parts nobody has
 measured. If a rung needs to grow, another has to shrink, or the frontend budget
 has to rise first.
