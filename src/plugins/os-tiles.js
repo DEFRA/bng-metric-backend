@@ -160,6 +160,80 @@ function errorResponse(h, what, error) {
   return h.response({ error: message }).code(status)
 }
 
+/** The capability and tile routes, raster and vector, over one tile service. */
+function tileRoutes(service) {
+  return [
+    {
+      method: 'GET',
+      path: '/os-tiles/capabilities',
+      handler: async (_request, h) => {
+        try {
+          return h.response({
+            layer: service.config.layer,
+            grid: await service.getPublishedGrid()
+          })
+        } catch (error) {
+          return errorResponse(h, 'capabilities', error)
+        }
+      }
+    },
+    {
+      method: 'GET',
+      // `.png` is part of the path so the route cannot collide with
+      // `/capabilities`, and so browsers and CDNs see a file extension.
+      path: '/os-tiles/{z}/{col}/{row}.png',
+      options: { validate: { params: tileParams } },
+      handler: async (request, h) => {
+        const { z, col, row } = request.params
+        try {
+          const tile = await service.getTile(z, col, row)
+          return h
+            .response(tile.png)
+            .type(tile.contentType)
+            .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
+        } catch (error) {
+          return errorResponse(h, `tile ${z}/${col}/${row}`, error)
+        }
+      }
+    },
+    // The vector flavour: same service, the OS NGD API – Tiles ngd-base
+    // tileset upstream. `/vector` in the path keeps the two capability
+    // documents distinct — their grids differ (512 px tiles against 256,
+    // and a deeper zoom range).
+    {
+      method: 'GET',
+      path: '/os-tiles/vector/capabilities',
+      handler: async (_request, h) => {
+        try {
+          return h.response({
+            layer: 'ngd-base',
+            grid: await service.getPublishedVectorGrid()
+          })
+        } catch (error) {
+          return errorResponse(h, 'vector capabilities', error)
+        }
+      }
+    },
+    {
+      method: 'GET',
+      path: '/os-tiles/vector/{z}/{col}/{row}.pbf',
+      options: { validate: { params: tileParams } },
+      handler: async (request, h) => {
+        const { z, col, row } = request.params
+        try {
+          const tile = await service.getVectorTile(z, col, row)
+          return h
+            .response(tile.pbf)
+            .type(tile.contentType)
+            .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
+        } catch (error) {
+          return errorResponse(h, `vector tile ${z}/${col}/${row}`, error)
+        }
+      }
+    }
+  ]
+}
+
 const osTiles = {
   plugin: {
     name: 'os-tiles',
@@ -180,83 +254,14 @@ const osTiles = {
       })
       server.app.osTiles = service
 
-      const routes = [
-        {
-          method: 'GET',
-          path: '/os-tiles/capabilities',
-          handler: async (_request, h) => {
-            try {
-              return h.response({
-                layer: service.config.layer,
-                grid: await service.getPublishedGrid()
-              })
-            } catch (error) {
-              return errorResponse(h, 'capabilities', error)
-            }
-          }
-        },
-        {
-          method: 'GET',
-          // `.png` is part of the path so the route cannot collide with
-          // `/capabilities`, and so browsers and CDNs see a file extension.
-          path: '/os-tiles/{z}/{col}/{row}.png',
-          options: { validate: { params: tileParams } },
-          handler: async (request, h) => {
-            const { z, col, row } = request.params
-            try {
-              const tile = await service.getTile(z, col, row)
-              return h
-                .response(tile.png)
-                .type(tile.contentType)
-                .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
-            } catch (error) {
-              return errorResponse(h, `tile ${z}/${col}/${row}`, error)
-            }
-          }
-        },
-        // The vector flavour: same service, the OS NGD API – Tiles ngd-base
-        // tileset upstream. `/vector` in the path keeps the two capability
-        // documents distinct — their grids differ (512 px tiles against 256,
-        // and a deeper zoom range).
-        {
-          method: 'GET',
-          path: '/os-tiles/vector/capabilities',
-          handler: async (_request, h) => {
-            try {
-              return h.response({
-                layer: 'ngd-base',
-                grid: await service.getPublishedVectorGrid()
-              })
-            } catch (error) {
-              return errorResponse(h, 'vector capabilities', error)
-            }
-          }
-        },
-        {
-          method: 'GET',
-          path: '/os-tiles/vector/{z}/{col}/{row}.pbf',
-          options: { validate: { params: tileParams } },
-          handler: async (request, h) => {
-            const { z, col, row } = request.params
-            try {
-              const tile = await service.getVectorTile(z, col, row)
-              return h
-                .response(tile.pbf)
-                .type(tile.contentType)
-                .header('x-tile-cache', tile.cached ? 'hit' : 'miss')
-            } catch (error) {
-              return errorResponse(h, `vector tile ${z}/${col}/${row}`, error)
-            }
-          }
-        }
-      ]
-
       // Every tile route spends the OS API quota on a cache miss, so each
       // carries the tile rate limits (plugins/rate-limit.js). The report
       // builder calls the service on server.app directly, so these limits
       // never reach a report's map.
       server.route(
-        routes.map((route) => withRateLimit(route, RATE_LIMITED.osTiles))
+        tileRoutes(service).map((route) =>
+          withRateLimit(route, RATE_LIMITED.osTiles)
+        )
       )
     }
   }
