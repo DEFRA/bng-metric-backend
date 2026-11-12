@@ -213,12 +213,19 @@ validations in a full perf run, on a contended 2-vCPU box, was **2,155 ms** (p95
 `/upload/{id}/status` to `ready` before calling validate at all — it catches a
 lost race, not a virus scan.
 
-The ready rung holds even when the uploader hangs. Every call to the uploader has
-a timeout (`CDP_UPLOADER_TIMEOUT_MS`, 5 s, below the frontend's 10 s
-`BACKEND_TIMEOUT_MS`), and inside this rung a call gets the smaller of that and
-the time left of `UPLOAD_READY_TIMEOUT_MS`. Before BMD-1200 these calls had no
-timeout, and a call that started just before the deadline could hold the route
-for as long as the hang lasted.
+The ready rung holds even when the uploader hangs:
+
+- Every call to the uploader has one deadline for the whole exchange, headers
+  and body together (`CDP_UPLOADER_TIMEOUT_MS`, 5 s, below the frontend's 10 s
+  `BACKEND_TIMEOUT_MS`). Wreck's own shortcuts would apply the timeout twice,
+  once to each, so `uploader-http.js` does the call instead.
+- Inside this rung a status check gets the smaller of that and the time left of
+  `UPLOAD_READY_TIMEOUT_MS`, and so does the pause between checks.
+- The file's S3 location comes from the 'ready' status answer itself, so there
+  is no second call after it.
+
+Before BMD-1200 these calls had no timeout, and a call that started just before
+the deadline could hold the route for as long as the hang lasted.
 
 That leaves **1.8 s** of margin for TLS, routing and the parts nobody has
 measured. If a rung needs to grow, another has to shrink, or the frontend budget

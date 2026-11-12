@@ -1,13 +1,10 @@
 import { vi, describe, it, expect, beforeEach, afterEach } from 'vitest'
-import Wreck from '@hapi/wreck'
-
 import { config } from '../../config.js'
+import { uploaderGet, uploaderPost } from './uploader-http.js'
 
-vi.mock('@hapi/wreck', () => ({
-  default: {
-    post: vi.fn(),
-    get: vi.fn()
-  }
+vi.mock('./uploader-http.js', () => ({
+  uploaderGet: vi.fn(),
+  uploaderPost: vi.fn()
 }))
 
 const {
@@ -30,6 +27,8 @@ const MAX_FILE_SIZE_BYTES = 104857600
 const REQUEST_TIMEOUT_MS = 5000
 const READY_WAIT_MS = 1000
 const LATE_READY_MS = 2000
+const SHORT_WAIT_MS = 50
+const LONG_POLL_INTERVAL_MS = 5000
 
 describe('getCdpUploaderUrl', () => {
   const originalEnv = process.env.ENVIRONMENT
@@ -75,7 +74,7 @@ describe('initiateUpload', () => {
   })
 
   it('should return uploadId and extract path from full uploadUrl', async () => {
-    vi.mocked(Wreck.post).mockResolvedValue({
+    vi.mocked(uploaderPost).mockResolvedValue({
       payload: {
         uploadId: UPLOAD_ID,
         uploadUrl: 'http://localhost:7337/upload/abc-123'
@@ -93,7 +92,7 @@ describe('initiateUpload', () => {
       uploadUrl: '/upload/abc-123'
     })
 
-    expect(Wreck.post).toHaveBeenCalledWith(
+    expect(uploaderPost).toHaveBeenCalledWith(
       'http://localhost:7337/initiate',
       expect.objectContaining({
         // Trailing slash on s3Path is stripped to avoid producing s3Keys
@@ -104,15 +103,14 @@ describe('initiateUpload', () => {
           s3Path: 'baseline',
           maxFileSize: MAX_FILE_SIZE_BYTES
         }),
-        headers: { 'Content-Type': 'application/json' },
-        json: true,
-        timeout: REQUEST_TIMEOUT_MS
-      })
+        headers: { 'Content-Type': 'application/json' }
+      }),
+      REQUEST_TIMEOUT_MS
     )
   })
 
   it('should return uploadUrl as-is when it is a relative path', async () => {
-    vi.mocked(Wreck.post).mockResolvedValue({
+    vi.mocked(uploaderPost).mockResolvedValue({
       payload: {
         uploadId: UPLOAD_ID,
         uploadUrl: '/upload/abc-123'
@@ -127,8 +125,8 @@ describe('initiateUpload', () => {
     expect(result.uploadUrl).toBe('/upload/abc-123')
   })
 
-  it('should return error when Wreck.post throws', async () => {
-    vi.mocked(Wreck.post).mockRejectedValue(new Error('Connection refused'))
+  it('should return error when the uploader call throws', async () => {
+    vi.mocked(uploaderPost).mockRejectedValue(new Error('Connection refused'))
 
     const result = await initiateUpload({
       redirect: REDIRECT,
@@ -150,7 +148,7 @@ describe('getUploadStatus — successful responses', () => {
   beforeEach(stubLocalUploaderUrl)
 
   it('should return uploadStatus and numberOfRejectedFiles from the response', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 0,
@@ -171,14 +169,14 @@ describe('getUploadStatus — successful responses', () => {
       numberOfRejectedFiles: 0,
       errorMessage: null
     })
-    expect(Wreck.get).toHaveBeenCalledWith(
+    expect(uploaderGet).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
-      { json: true, timeout: REQUEST_TIMEOUT_MS }
+      REQUEST_TIMEOUT_MS
     )
   })
 
   it('should return errorMessage from a rejected file', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 1,
@@ -205,7 +203,7 @@ describe('getUploadStatus — fallbacks and failures', () => {
   beforeEach(stubLocalUploaderUrl)
 
   it('should return null errorMessage when file is rejected but has no errorMessage', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 1,
@@ -219,7 +217,7 @@ describe('getUploadStatus — fallbacks and failures', () => {
   })
 
   it('should return null errorMessage when file is not rejected', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         numberOfRejectedFiles: 0,
@@ -240,7 +238,7 @@ describe('getUploadStatus edge cases', () => {
   })
 
   it('should return unknown when uploadStatus is missing', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {}
     })
 
@@ -253,8 +251,8 @@ describe('getUploadStatus edge cases', () => {
     })
   })
 
-  it('should return error status when Wreck.get throws', async () => {
-    vi.mocked(Wreck.get).mockRejectedValue(new Error('Connection refused'))
+  it('should return error status when the uploader call throws', async () => {
+    vi.mocked(uploaderGet).mockRejectedValue(new Error('Connection refused'))
 
     const result = await getUploadStatus(UPLOAD_ID)
 
@@ -272,7 +270,7 @@ describe('getUploadedFileS3Location', () => {
   })
 
   it('should return bucket, key, filename and fileSize from form.file', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         form: {
@@ -297,7 +295,7 @@ describe('getUploadedFileS3Location', () => {
   })
 
   it('should return null filename and fileSize when absent from form.file', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: {
         uploadStatus: 'ready',
         form: {
@@ -317,7 +315,7 @@ describe('getUploadedFileS3Location', () => {
   })
 
   it('should throw when form.file is absent', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: { uploadStatus: 'ready' }
     })
 
@@ -327,7 +325,7 @@ describe('getUploadedFileS3Location', () => {
   })
 
   it('should throw when s3Key is missing', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: { form: { file: { s3Bucket: S3_BUCKET } } }
     })
 
@@ -337,7 +335,7 @@ describe('getUploadedFileS3Location', () => {
   })
 
   it('should throw when s3Bucket is missing', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: { form: { file: { s3Key: S3_KEY } } }
     })
 
@@ -376,7 +374,7 @@ describe('waitForUploadReady when upload becomes ready', () => {
   beforeEach(stubLocalUploaderUrl)
 
   it('should return S3 location immediately when status is already ready', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: readyUploadPayload })
 
     const result = await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
@@ -384,7 +382,7 @@ describe('waitForUploadReady when upload becomes ready', () => {
   })
 
   it('should poll until the status becomes ready', async () => {
-    vi.mocked(Wreck.get)
+    vi.mocked(uploaderGet)
       .mockResolvedValueOnce({ payload: pendingUploadPayload })
       .mockResolvedValueOnce({ payload: pendingUploadPayload })
       .mockResolvedValue({ payload: readyUploadPayload })
@@ -392,12 +390,12 @@ describe('waitForUploadReady when upload becomes ready', () => {
     const result = await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
     expect(result).toEqual(expectedUploadedFileLocation)
-    // 2 pending status polls + 1 ready status poll + 1 S3 location fetch
-    expect(Wreck.get).toHaveBeenCalledTimes(4)
+    // 2 pending status polls + 1 ready status poll, which carries the location
+    expect(uploaderGet).toHaveBeenCalledTimes(3)
   })
 
   it('should retry rather than fail immediately when CDP Uploader returns a connection error', async () => {
-    vi.mocked(Wreck.get)
+    vi.mocked(uploaderGet)
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockRejectedValueOnce(new Error('ECONNREFUSED'))
       .mockResolvedValue({ payload: readyUploadPayload })
@@ -427,7 +425,7 @@ describe('waitForUploadReady failures', () => {
   }
 
   it('should throw UploadFailedError when a file is rejected (ready + numberOfRejectedFiles > 0)', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: virusRejectedPayload })
 
     await expect(
       waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
@@ -435,7 +433,7 @@ describe('waitForUploadReady failures', () => {
   })
 
   it('carries the rejection reason on the UploadFailedError', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: virusRejectedPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: virusRejectedPayload })
 
     const error = await waitForUploadReady(UPLOAD_ID, {
       pollIntervalMs: 0
@@ -448,7 +446,7 @@ describe('waitForUploadReady failures', () => {
   it('still throws UploadFailedError on a legacy top-level "rejected" status', async () => {
     // Defensive fallback: TERMINAL_FAILURE_STATUSES still catches a top-level
     // 'rejected' status should an uploader version ever emit one.
-    vi.mocked(Wreck.get).mockResolvedValue({
+    vi.mocked(uploaderGet).mockResolvedValue({
       payload: { uploadStatus: 'rejected', numberOfRejectedFiles: 0 }
     })
 
@@ -458,7 +456,7 @@ describe('waitForUploadReady failures', () => {
   })
 
   it('should throw UploadTimeoutError when the deadline is exceeded', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: pendingUploadPayload })
 
     await expect(
       waitForUploadReady(UPLOAD_ID, { timeoutMs: 0, pollIntervalMs: 0 })
@@ -466,7 +464,7 @@ describe('waitForUploadReady failures', () => {
   })
 
   it('should throw UploadTimeoutError with a descriptive message', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: pendingUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: pendingUploadPayload })
 
     await expect(
       waitForUploadReady(UPLOAD_ID, { timeoutMs: 0, pollIntervalMs: 0 })
@@ -482,43 +480,56 @@ describe('waitForUploadReady timeouts', () => {
   })
 
   it('gives no call more time than is left before its deadline', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: readyUploadPayload })
 
     await waitForUploadReady(UPLOAD_ID, {
       timeoutMs: READY_WAIT_MS,
       pollIntervalMs: 0
     })
 
-    for (const [, options] of vi.mocked(Wreck.get).mock.calls) {
-      expect(options.timeout).toBeGreaterThan(0)
-      expect(options.timeout).toBeLessThanOrEqual(READY_WAIT_MS)
+    for (const [, timeoutMs] of vi.mocked(uploaderGet).mock.calls) {
+      expect(timeoutMs).toBeGreaterThan(0)
+      expect(timeoutMs).toBeLessThanOrEqual(READY_WAIT_MS)
     }
   })
 
   it('gives each call the uploader timeout when more time than that is left', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: readyUploadPayload })
 
     await waitForUploadReady(UPLOAD_ID, { pollIntervalMs: 0 })
 
-    for (const [, options] of vi.mocked(Wreck.get).mock.calls) {
-      expect(options.timeout).toBe(REQUEST_TIMEOUT_MS)
+    for (const [, timeoutMs] of vi.mocked(uploaderGet).mock.calls) {
+      expect(timeoutMs).toBe(REQUEST_TIMEOUT_MS)
     }
   })
 
-  it('throws UploadTimeoutError, without fetching the S3 location, when the upload is ready only after the deadline', async () => {
+  it('reads the S3 location from the ready answer, with no second call to time out', async () => {
     vi.useFakeTimers({ toFake: ['Date'] })
-    vi.mocked(Wreck.get).mockImplementation(async () => {
+    vi.mocked(uploaderGet).mockImplementation(async () => {
       vi.setSystemTime(Date.now() + LATE_READY_MS)
       return { payload: readyUploadPayload }
     })
 
+    const result = await waitForUploadReady(UPLOAD_ID, {
+      timeoutMs: READY_WAIT_MS,
+      pollIntervalMs: 0
+    })
+
+    expect(result).toEqual(expectedUploadedFileLocation)
+    expect(uploaderGet).toHaveBeenCalledTimes(1)
+  })
+
+  it('does not sleep past the deadline between status checks', async () => {
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: pendingUploadPayload })
+    const startedAt = performance.now()
+
     await expect(
       waitForUploadReady(UPLOAD_ID, {
-        timeoutMs: READY_WAIT_MS,
-        pollIntervalMs: 0
+        timeoutMs: SHORT_WAIT_MS,
+        pollIntervalMs: LONG_POLL_INTERVAL_MS
       })
-    ).rejects.toThrow(/wait ended before its S3 location was fetched/)
-    expect(Wreck.get).toHaveBeenCalledTimes(1)
+    ).rejects.toThrow(UploadTimeoutError)
+    expect(performance.now() - startedAt).toBeLessThan(LONG_POLL_INTERVAL_MS)
   })
 })
 
@@ -526,13 +537,13 @@ describe('uploader call timeouts', () => {
   beforeEach(stubLocalUploaderUrl)
 
   it('getUploadedFileS3Location uses the uploader timeout by default', async () => {
-    vi.mocked(Wreck.get).mockResolvedValue({ payload: readyUploadPayload })
+    vi.mocked(uploaderGet).mockResolvedValue({ payload: readyUploadPayload })
 
     await getUploadedFileS3Location(UPLOAD_ID)
 
-    expect(Wreck.get).toHaveBeenCalledWith(
+    expect(uploaderGet).toHaveBeenCalledWith(
       'http://localhost:7337/status/abc-123',
-      { json: true, timeout: REQUEST_TIMEOUT_MS }
+      REQUEST_TIMEOUT_MS
     )
   })
 
@@ -540,7 +551,7 @@ describe('uploader call timeouts', () => {
     const timedOut = Object.assign(new Error('Client request timeout'), {
       output: { statusCode: 504 }
     })
-    vi.mocked(Wreck.get).mockRejectedValue(timedOut)
+    vi.mocked(uploaderGet).mockRejectedValue(timedOut)
 
     const result = await getUploadStatus(UPLOAD_ID)
 

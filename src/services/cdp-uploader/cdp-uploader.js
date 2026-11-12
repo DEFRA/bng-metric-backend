@@ -1,11 +1,11 @@
-import Wreck from '@hapi/wreck'
-
 import { config } from '../../config.js'
 import { createLogger } from '../../common/helpers/logging/logger.js'
+import { uploaderGet, uploaderPost } from './uploader-http.js'
 
 const logger = createLogger()
 
-// These Wreck calls DO go through the outbound proxy when HTTP_PROXY is set.
+// The Wreck calls in uploader-http.js DO go through the outbound proxy when
+// HTTP_PROXY is set.
 // Wreck calls Node's http/https `request` at request time, and setupProxy()
 // (common/helpers/proxy/setup-proxy.js) bootstraps global-agent, which
 // replaces those functions and forces its proxying agent over the one Wreck
@@ -88,22 +88,24 @@ export async function initiateUpload({ redirect, s3Bucket, s3Path, metadata }) {
   )
 
   try {
-    const { payload } = await Wreck.post(url, {
-      payload: JSON.stringify({
-        redirect,
-        s3Bucket,
-        s3Path: normalisedS3Path,
-        metadata,
-        // CDP Uploader rejects files larger than this at source (HTTP 413 on
-        // the upload POST) before they ever reach S3.
-        maxFileSize
-      }),
-      headers: {
-        'Content-Type': 'application/json'
+    const { payload } = await uploaderPost(
+      url,
+      {
+        payload: JSON.stringify({
+          redirect,
+          s3Bucket,
+          s3Path: normalisedS3Path,
+          metadata,
+          // CDP Uploader rejects files larger than this at source (HTTP 413 on
+          // the upload POST) before they ever reach S3.
+          maxFileSize
+        }),
+        headers: {
+          'Content-Type': 'application/json'
+        }
       },
-      json: true,
-      timeout: requestTimeoutMs()
-    })
+      requestTimeoutMs()
+    )
 
     // Extract just the path from uploadUrl (cdp-uploader may return full URL)
     const uploadUrl = payload.uploadUrl.startsWith('http')
@@ -143,20 +145,21 @@ const TERMINAL_FAILURE_STATUSES = new Set(['rejected'])
 
 /**
  * Poll the CDP Uploader until the upload reaches 'ready' status, then return
- * the S3 location of the uploaded file.
+ * the S3 location of the uploaded file, read from that same 'ready' status.
  *
  * Connection errors are treated as transient and retried until the timeout.
  * An explicit terminal status (e.g. 'rejected') fails fast — there's no
  * point waiting 30 s for an answer CDP has already given us.
  *
- * No call to the uploader runs past the deadline: each one gets the smaller of
- * its own timeout and the time left. The deadline is a rung of the validate
- * route's timeout ladder (docs/geometry-validation.md), and a call that started
- * just before it could otherwise hold the route for a whole call timeout more.
+ * Nothing here runs past the deadline: each status check gets the smaller of
+ * its own timeout and the time left, and so does the pause between checks. The
+ * deadline is a rung of the validate route's timeout ladder
+ * (docs/geometry-validation.md). The location comes from the 'ready' answer
+ * itself, so there is no second call to time out after it.
  *
  * @param {string} uploadId
  * @param {{ timeoutMs?: number, pollIntervalMs?: number }} [options]
- * @returns {Promise<{bucket: string, key: string}>}
+ * @returns {Promise<{bucket: string, key: string, filename: string|null, fileSize: number|null}>}
  * @throws {UploadFailedError} When CDP Uploader reports the upload was rejected
  * @throws {UploadTimeoutError} When the upload does not become ready within timeoutMs
  */
@@ -169,9 +172,10 @@ export async function waitForUploadReady(
 
   while (Date.now() < deadline) {
     attempt++
-    const statusResult = await getUploadStatus(uploadId, {
-      timeoutMs: callTimeoutBefore(deadline)
-    })
+    const { status: statusResult, file } = await checkUploadStatus(
+      uploadId,
+      callTimeoutBefore(deadline)
+    )
     const { uploadStatus } = statusResult
 
     logger.info(
@@ -184,7 +188,7 @@ export async function waitForUploadReady(
     // no s3Key. Detect that (and the legacy top-level 'rejected' fallback) BEFORE
     // the 'ready' branch, which would otherwise try to resolve a non-existent S3
     // location and throw a generic, mis-classified error. statusResult.error
-    // means getUploadStatus hit a transient connection problem — keep retrying.
+    // means checkUploadStatus hit a transient connection problem — keep retrying.
     if (
       !statusResult.error &&
       (statusResult.numberOfRejectedFiles > 0 ||
@@ -197,17 +201,11 @@ export async function waitForUploadReady(
     }
 
     if (uploadStatus === 'ready') {
-      if (Date.now() >= deadline) {
-        throw new UploadTimeoutError(
-          `Upload ${uploadId} was ready, but the ${timeoutMs}ms wait ended before its S3 location was fetched`
-        )
-      }
-      return getUploadedFileS3Location(uploadId, {
-        timeoutMs: callTimeoutBefore(deadline)
-      })
+      return s3LocationFrom(file, uploadId)
     }
 
-    await new Promise((resolve) => setTimeout(resolve, pollIntervalMs))
+    const pauseMs = Math.min(pollIntervalMs, deadline - Date.now())
+    await new Promise((resolve) => setTimeout(resolve, Math.max(0, pauseMs)))
   }
 
   throw new UploadTimeoutError(
@@ -237,29 +235,14 @@ export class UploadTimeoutError extends Error {
 }
 
 /**
- * Get the S3 location of the uploaded file for a completed upload.
- * Returns the bucket and key for the first file in the upload (baseline uploads
- * are single-file). Throws if the upload is not complete or no file is found.
- * @param {string} uploadId - The upload ID to resolve
- * @param {{ timeoutMs?: number }} [options]
- * @returns {Promise<{bucket: string, key: string, filename: string|null, fileSize: number|null}>}
+ * The S3 location of a completed upload's file, from its status answer.
+ * CDP Uploader returns the file under payload.form.file (single object), not in
+ * a files array as might be expected; baseline uploads are single-file.
+ * @param {object|undefined} file - payload.form.file of a status answer
+ * @param {string} uploadId
+ * @returns {{bucket: string, key: string, filename: string|null, fileSize: number|null}}
  */
-export async function getUploadedFileS3Location(
-  uploadId,
-  { timeoutMs = requestTimeoutMs() } = {}
-) {
-  const baseUrl = getCdpUploaderUrl()
-  const url = `${baseUrl}/status/${uploadId}`
-
-  logger.info(
-    `Fetching S3 location for upload - url: ${url}, uploadId: ${uploadId}`
-  )
-
-  const { payload } = await Wreck.get(url, { json: true, timeout: timeoutMs })
-
-  // CDP Uploader returns the file under payload.form.file (single object),
-  // not in a files array as might be expected.
-  const file = payload.form?.file
+function s3LocationFrom(file, uploadId) {
   if (!file) {
     throw new Error(`No file found for uploadId: ${uploadId}`)
   }
@@ -282,6 +265,73 @@ export async function getUploadedFileS3Location(
 }
 
 /**
+ * Get the S3 location of the uploaded file for a completed upload.
+ * Returns the bucket and key for the first file in the upload (baseline uploads
+ * are single-file). Throws if the upload is not complete or no file is found.
+ * @param {string} uploadId - The upload ID to resolve
+ * @param {{ timeoutMs?: number }} [options]
+ * @returns {Promise<{bucket: string, key: string, filename: string|null, fileSize: number|null}>}
+ */
+export async function getUploadedFileS3Location(
+  uploadId,
+  { timeoutMs = requestTimeoutMs() } = {}
+) {
+  const baseUrl = getCdpUploaderUrl()
+  const url = `${baseUrl}/status/${uploadId}`
+
+  logger.info(
+    `Fetching S3 location for upload - url: ${url}, uploadId: ${uploadId}`
+  )
+
+  const { payload } = await uploaderGet(url, timeoutMs)
+  return s3LocationFrom(payload.form?.file, uploadId)
+}
+
+/**
+ * Ask CDP Uploader for an upload's status. Returns the status a caller may see,
+ * and the file the answer names, which holds its S3 location and stays inside
+ * this module: the status route hands `status` to the browser as it is.
+ * @param {string} uploadId
+ * @param {number} timeoutMs the whole call
+ * @returns {Promise<{status: {uploadStatus: string, numberOfRejectedFiles?: number, errorMessage?: string|null, error?: string}, file?: object}>}
+ */
+async function checkUploadStatus(uploadId, timeoutMs) {
+  const baseUrl = getCdpUploaderUrl()
+  const url = `${baseUrl}/status/${uploadId}`
+
+  logger.info(`Fetching upload status - url: ${url}, uploadId: ${uploadId}`)
+
+  try {
+    const { payload } = await uploaderGet(url, timeoutMs)
+
+    const file = payload.form?.file
+    const errorMessage =
+      file?.fileStatus === 'rejected' ? (file?.errorMessage ?? null) : null
+
+    return {
+      status: {
+        uploadStatus: payload.uploadStatus ?? 'unknown',
+        numberOfRejectedFiles: payload.numberOfRejectedFiles ?? 0,
+        errorMessage
+      },
+      file
+    }
+  } catch (error) {
+    const statusCode = error?.output?.statusCode
+    const responsePayload = error?.data?.payload
+    logger.error(
+      `Error fetching upload status - url: ${url}, baseUrl: ${baseUrl}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
+    )
+    return {
+      status: {
+        uploadStatus: 'error',
+        error: 'Unable to check upload status'
+      }
+    }
+  }
+}
+
+/**
  * Get the upload status from CDP Uploader
  * @param {string} uploadId - The upload ID to check status for
  * @param {{ timeoutMs?: number }} [options]
@@ -291,32 +341,6 @@ export async function getUploadStatus(
   uploadId,
   { timeoutMs = requestTimeoutMs() } = {}
 ) {
-  const baseUrl = getCdpUploaderUrl()
-  const url = `${baseUrl}/status/${uploadId}`
-
-  logger.info(`Fetching upload status - url: ${url}, uploadId: ${uploadId}`)
-
-  try {
-    const { payload } = await Wreck.get(url, { json: true, timeout: timeoutMs })
-
-    const file = payload.form?.file
-    const errorMessage =
-      file?.fileStatus === 'rejected' ? (file?.errorMessage ?? null) : null
-
-    return {
-      uploadStatus: payload.uploadStatus ?? 'unknown',
-      numberOfRejectedFiles: payload.numberOfRejectedFiles ?? 0,
-      errorMessage
-    }
-  } catch (error) {
-    const statusCode = error?.output?.statusCode
-    const responsePayload = error?.data?.payload
-    logger.error(
-      `Error fetching upload status - url: ${url}, baseUrl: ${baseUrl}, uploadId: ${uploadId}, statusCode: ${statusCode}, responsePayload: ${JSON.stringify(responsePayload)}, message: ${error?.message}`
-    )
-    return {
-      uploadStatus: 'error',
-      error: 'Unable to check upload status'
-    }
-  }
+  const { status } = await checkUploadStatus(uploadId, timeoutMs)
+  return status
 }
