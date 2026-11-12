@@ -53,7 +53,12 @@ import {
   VERTICAL_BROAD_HABITATS,
   isVerticalHabitat
 } from '../../validation/reference/vertical-habitats.js'
-import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../validation/geopackage/tree-constants.js'
+import {
+  INDIVIDUAL_TREES_BROAD_HABITAT,
+  RURAL_TREE_TYPE,
+  URBAN_TREE_TYPE
+} from '../../validation/geopackage/tree-constants.js'
+import { withSummarizedTreeSizes } from '../../validation/geopackage/tree-sizes.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -224,21 +229,21 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
   return recomputeHabitatEdit(existing, edits, context)
 }
 
+/** The habitat types an individual tree can be edited to: its setting. */
+const TREE_HABITAT_TYPES = new Set([URBAN_TREE_TYPE, RURAL_TREE_TYPE])
+
 /**
  * A baseline individual tree is edited as an area habitat (BMD-1112). Its size
  * is notional — the per-size reference area times the number of trees the point
  * stands for (tree-sizes.js) — and the details page shows the size class and
- * count read-only, so an edit moves its condition, reference or comment and
- * never its area.
+ * count read-only, so an edit moves its condition, setting, reference or
+ * comment and never its area.
  *
- * The urban/rural habitat type cannot be changed here yet. A tree's area is
- * the same either way, but `habitatSizes.trees` keeps the square metres split
- * by urban and rural (summarizeTreeSizes, via buildHabitatSizesSummary), and
- * that summary is only ever built on the upload path: nothing downstream of an
- * edit rebuilds it (refresh-edit-figures.js refreshes units, not sizes). So
- * flipping a tree urban → rural would leave its square metres filed under the
- * type it used to have. Allowing the change means refreshing that summary on
- * edit, which belongs with making trees editable in full.
+ * A tree stays a tree: its broad habitat is always Individual trees, and its
+ * habitat type is Urban tree or Rural tree (BMD-1172). A tree's area is the same
+ * either way, but `habitatSizes.trees` keeps the square metres split by urban
+ * and rural, so a change of setting works that split out again
+ * (withEditedTreeSizes).
  *
  * Leaving the type as stored is allowed whatever it is, so a tree imported
  * without a recognisable urban/rural column stays Incomplete and can still
@@ -251,10 +256,36 @@ function recomputeTreeEdit(existing, edits, context) {
   if (edits.broadType !== INDIVIDUAL_TREES_BROAD_HABITAT) {
     return null
   }
-  if ((edits.habitatType ?? null) !== (existing.type ?? null)) {
+  const type = edits.habitatType ?? null
+  if (type !== (existing.type ?? null) && !TREE_HABITAT_TYPES.has(type)) {
     return null
   }
   return recomputeHabitatEdit(existing, edits, context)
+}
+
+/**
+ * The baseline's habitat-size summary after an edit to one of its trees, or
+ * undefined when the edit leaves it as it was: an edit to anything else, or a
+ * baseline saved without one.
+ *
+ * @param {object} featureSet the edited baseline
+ * @param {string} type the edited feature's type
+ * @param {string} documentKey
+ * @returns {object | undefined}
+ */
+function withEditedTreeSizes(featureSet, type, documentKey) {
+  if (
+    documentKey !== 'baseline' ||
+    type !== 'tree' ||
+    !featureSet.habitatSizes
+  ) {
+    return undefined
+  }
+  return withSummarizedTreeSizes(
+    featureSet.habitatSizes,
+    featureSet.trees ?? [],
+    (tree) => tree.type
+  )
 }
 
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
@@ -583,7 +614,7 @@ function resolveEditTarget(
  *   rows the re-derive could not match to a baseline feature, and about a
  *   proposed strategic significance the recompute had to reject (BMD-1051)
  * @returns {
- *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
+ *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
  *   { status: 'refInUse', type: string, ref: string } |
@@ -633,6 +664,14 @@ function applyFeatureUpdate(
     index,
     updatedFeature
   )
+  const habitatSizes = withEditedTreeSizes(
+    updatedFeatureSet,
+    found.type,
+    documentKey
+  )
+  if (habitatSizes) {
+    updatedFeatureSet.habitatSizes = habitatSizes
+  }
   const postIntervention = refreshFiguresDownstreamOfEdit(updatedFeatureSet, {
     project,
     documentKey,
@@ -660,6 +699,9 @@ function applyFeatureUpdate(
       documentKey === 'postIntervention'
         ? updatedFeatureSet.lostHabitats
         : undefined,
+    // Refreshed by a baseline tree edit, whose setting the urban and rural
+    // sizes are split by (BMD-1172).
+    habitatSizes,
     postIntervention,
     project: rebuiltProject(
       project,

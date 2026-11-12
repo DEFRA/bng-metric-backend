@@ -556,8 +556,8 @@ describe('updateFeature handler - individual tree dispatch (BMD-1112)', () => {
     return projectRow
   }
 
-  // What the details page submits: the tree's broad habitat and habitat type
-  // as stored, neither being editable here, plus its condition.
+  // What the details page submits: the tree's broad habitat, which is not
+  // editable, its habitat type and its condition.
   function saveTree(projectRow, payload) {
     return updateFeature.handler(
       {
@@ -600,12 +600,49 @@ describe('updateFeature handler - individual tree dispatch (BMD-1112)', () => {
     expect(result.feature.comment).toBe('Imported tree note')
   })
 
-  // habitatSizes.trees splits the square metres by urban and rural, and no
-  // edit rebuilds that summary, so the type stays as imported for now.
-  test('refuses a change to the urban/rural habitat type', async () => {
+  // habitatSizes.trees splits the square metres by urban and rural, so a
+  // change of setting writes the refreshed summary with the tree (BMD-1172).
+  test('persists a change to the urban/rural habitat type with the refreshed tree sizes', async () => {
+    const projectRow = projectWithTree()
+    projectRow.project.baseline.habitatSizes = {
+      areaHabitats: { totalSquareMetres: 123 },
+      hedgerows: { totalMetres: 0 },
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 123,
+        urbanSquareMetres: 123,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: 0 }
+    }
+
+    const result = await saveTree(projectRow, { habitatType: 'Rural tree' })
+
+    expect(result.feature.type).toBe('Rural tree')
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      PROJECT_ID,
+      expect.objectContaining({
+        layer: 'trees',
+        habitatSizes: expect.objectContaining({
+          trees: {
+            totalSquareMetres: 123,
+            urbanSquareMetres: 0,
+            ruralSquareMetres: 123
+          }
+        })
+      })
+    )
+  })
+
+  test('refuses a change of a tree to a habitat that is not a tree', async () => {
     await expect(
-      saveTree(projectWithTree(), { habitatType: 'Rural tree' })
+      saveTree(projectWithTree(), {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland'
+      })
     ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    expect(setProjectFeature).not.toHaveBeenCalled()
   })
 })
 

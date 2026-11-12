@@ -315,6 +315,111 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
     expect(rows[0].project.baseline.habitats).toEqual([])
   })
 
+  // The urban and rural tree sizes are split by setting, so a change of it
+  // writes the refreshed summary in the same update as the tree (BMD-1172).
+  it('moves a tree to its new setting and its sizes with it', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: 'Good',
+      treeSize: 'Medium',
+      count: 1,
+      area: 163,
+      sizeSquareMetres: 163
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 163 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 163,
+          urbanSquareMetres: 163,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 0 }
+      }
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.feature).toMatchObject({
+      type: 'Rural tree',
+      sizeSquareMetres: 163
+    })
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0].type).toBe('Rural tree')
+    expect(rows[0].project.baseline.habitatSizes.trees).toEqual({
+      totalSquareMetres: 163,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 163
+    })
+    expect(rows[0].project.baseline.habitatSizes.areaHabitats).toEqual({
+      totalSquareMetres: 163
+    })
+  })
+
+  it('refuses to make a tree a habitat that is not a tree', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: 'Good',
+      treeSize: 'Medium',
+      count: 1,
+      area: 163,
+      sizeSquareMetres: 163
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0]).toMatchObject({
+      broadType: 'Individual trees',
+      type: 'Urban tree'
+    })
+  })
+
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
       headers,

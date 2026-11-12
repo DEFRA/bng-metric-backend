@@ -1,8 +1,8 @@
 import { isSameHabitatType } from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
 import { canDegrade } from '../../../validation/geopackage/service-template/lineage/lineage-rows.js'
 import {
-  summarizeTreeSizes,
-  treeAreaFields
+  treeAreaFields,
+  withSummarizedTreeSizes
 } from '../../../validation/geopackage/tree-sizes.js'
 import {
   RETENTION_CREATED,
@@ -128,15 +128,11 @@ export function alignTreesWithParents(postIntervention, baseline) {
   return aligned
 }
 
-const finiteOrZero = (value) => (Number.isFinite(value) ? value : 0)
-
 /**
  * Work the document's tree sizes out again, after alignTreesWithParents has
  * given its kept trees their parents' size class and setting: the extract
- * summed them as the file proposed them. The area habitats' total includes
- * the trees, so it is worked out again from its parts, the site, the trees
- * and the vertical area habitats, as the extract builds it. A document with
- * no habitatSizes is left without one. Mutates `postIntervention`.
+ * summed them as the file proposed them. A document with no habitatSizes is
+ * left without one. Mutates `postIntervention`.
  *
  * @param {object} postIntervention
  */
@@ -145,15 +141,9 @@ export function refreshTreeHabitatSizes(postIntervention) {
   if (!sizes) {
     return
   }
-  sizes.trees = summarizeTreeSizes(
+  postIntervention.habitatSizes = withSummarizedTreeSizes(
+    sizes,
     postIntervention.trees ?? [],
     (tree) => tree.proposed?.type
   )
-  sizes.areaHabitats = {
-    ...sizes.areaHabitats,
-    totalSquareMetres:
-      finiteOrZero(sizes.site?.totalSquareMetres) +
-      sizes.trees.totalSquareMetres +
-      finiteOrZero(sizes.verticalHabitats?.totalSquareMetres)
-  }
 }

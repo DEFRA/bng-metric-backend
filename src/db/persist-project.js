@@ -32,6 +32,7 @@ import {
   lostHabitatsSchema,
   tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
+import { habitatSizesSummarySchema } from '../validation/project-shared-schemas.js'
 import {
   projectSchema,
   projectDetailsSchema,
@@ -39,6 +40,7 @@ import {
   baselineUnitsTotalsSchema,
   habitatSchema,
   linearHabitatSchema,
+  treeSchema,
   verticalHabitatSchema,
   watercourseHabitatSchema
 } from '../validation/project.js'
@@ -51,6 +53,11 @@ const HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY = {
 const FEATURE_SCHEMA_BY_LAYER = {
   habitats: habitatSchema,
   verticalHabitats: verticalHabitatSchema,
+  // A baseline individual tree is editable — its condition, reference and
+  // comment (BMD-1112), and its urban/rural setting (BMD-1172) — so it needs
+  // its own item schema here. There is no post-intervention counterpart: a post-intervention tree is not editable,
+  // so POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER deliberately has no `trees`.
+  trees: treeSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
 }
@@ -345,6 +352,7 @@ function assertFeatureEditValid({
   unitsTotals,
   tradingRules,
   lostHabitats,
+  habitatSizes,
   postIntervention
 }) {
   if (
@@ -393,6 +401,18 @@ function assertFeatureEditValid({
       `${documentKey}.lostHabitats`
     )
   }
+  if (habitatSizes) {
+    if (documentKey !== BASELINE_DOCUMENT_KEY) {
+      throw Boom.badImplementation(
+        'persist: only a baseline tree edit refreshes the habitat sizes'
+      )
+    }
+    assertFragmentValid(
+      habitatSizesSummarySchema,
+      habitatSizes,
+      `${documentKey}.habitatSizes`
+    )
+  }
   if (postIntervention) {
     // The document re-derived after a baseline edit carries every other
     // feature as it was stored. A value saved there before BMD-1175 is not
@@ -415,7 +435,7 @@ function assertFeatureEditValid({
  * @param {object} exec drizzle handle or transaction
  * @param {string} id project id
  * @param {object} params
- * @param {'habitats'|'verticalHabitats'|'hedgerows'|'watercourses'} params.layer
+ * @param {'habitats'|'verticalHabitats'|'trees'|'hedgerows'|'watercourses'} params.layer
  * @param {number} params.index position of the feature within its layer array
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals
@@ -424,6 +444,9 @@ function assertFeatureEditValid({
  * @param {Array<object>} [params.lostHabitats] refreshed
  *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
  *   Service template upload; omitted otherwise (BMD-1083)
+ * @param {object} [params.habitatSizes] refreshed baseline.habitatSizes, from a
+ *   baseline tree edit, which can move a tree between the urban and rural
+ *   sizes; omitted otherwise (BMD-1172)
  * @param {object} [params.postIntervention] the whole re-derived
  *   postIntervention document, written alongside a baseline feature edit or a
  *   template post-intervention edit. Baseline changes and template lineage
@@ -441,6 +464,7 @@ async function setProjectFeature(
     unitsTotals,
     tradingRules,
     lostHabitats,
+    habitatSizes,
     postIntervention,
     actorId
   }
@@ -454,6 +478,7 @@ async function setProjectFeature(
     unitsTotals,
     tradingRules,
     lostHabitats,
+    habitatSizes,
     postIntervention
   })
 
@@ -469,13 +494,16 @@ async function setProjectFeature(
   const withLostHabitats = lostHabitats
     ? jsonbSet(withTradingRules, [documentKey, 'lostHabitats'], lostHabitats)
     : withTradingRules
+  const withHabitatSizes = habitatSizes
+    ? jsonbSet(withLostHabitats, [documentKey, 'habitatSizes'], habitatSizes)
+    : withLostHabitats
   const withPostIntervention = postIntervention
     ? jsonbSet(
-        withLostHabitats,
+        withHabitatSizes,
         [POST_INTERVENTION_DOCUMENT_KEY],
         postIntervention
       )
-    : withLostHabitats
+    : withHabitatSizes
   await exec
     .update(projects)
     .set({ project: withPostIntervention, lastModifiedBy: actorId })

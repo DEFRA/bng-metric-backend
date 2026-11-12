@@ -93,3 +93,32 @@ export function summarizeTreeSizes(treeDocuments, getType) {
     ruralSquareMetres: sizeByType.get(RURAL_TREE_TYPE) ?? 0
   }
 }
+
+const finiteOrZero = (value) => (Number.isFinite(value) ? value : 0)
+
+/**
+ * A document's habitat-size summary with its tree sizes worked out again from
+ * `treeDocuments`. The area habitats' total includes the trees, so it is
+ * worked out again from its parts, the site, the trees and the vertical area
+ * habitats, as the extract builds it (buildHabitatSizesSummary). Returns a new
+ * summary; `habitatSizes` is not mutated.
+ *
+ * @param {object} habitatSizes the stored summary
+ * @param {object[]} treeDocuments
+ * @param {(tree: object) => string | null} getType as for summarizeTreeSizes
+ * @returns {object}
+ */
+export function withSummarizedTreeSizes(habitatSizes, treeDocuments, getType) {
+  const trees = summarizeTreeSizes(treeDocuments, getType)
+  return {
+    ...habitatSizes,
+    trees,
+    areaHabitats: {
+      ...habitatSizes.areaHabitats,
+      totalSquareMetres:
+        finiteOrZero(habitatSizes.site?.totalSquareMetres) +
+        trees.totalSquareMetres +
+        finiteOrZero(habitatSizes.verticalHabitats?.totalSquareMetres)
+    }
+  }
+}
