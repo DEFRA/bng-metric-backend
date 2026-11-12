@@ -338,6 +338,45 @@ function assertEditFragmentValid(schema, value, label) {
 }
 
 /**
+ * Refuse a feature edit's refreshed lost habitats or habitat sizes when they
+ * fail their schema or belong to the other document: only a post-intervention
+ * edit records lost habitats (BMD-1083), and only a baseline tree edit
+ * refreshes the habitat sizes (BMD-1172).
+ *
+ * @param {{ documentKey: string, lostHabitats?: object[], habitatSizes?: object }} fragments
+ */
+function assertDerivedSummariesValid({
+  documentKey,
+  lostHabitats,
+  habitatSizes
+}) {
+  if (lostHabitats) {
+    if (documentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
+      throw Boom.badImplementation(
+        'persist: only the post-intervention document records lost habitats'
+      )
+    }
+    assertFragmentValid(
+      lostHabitatsSchema,
+      lostHabitats,
+      `${documentKey}.lostHabitats`
+    )
+  }
+  if (habitatSizes) {
+    if (documentKey !== BASELINE_DOCUMENT_KEY) {
+      throw Boom.badImplementation(
+        'persist: only a baseline tree edit refreshes the habitat sizes'
+      )
+    }
+    assertFragmentValid(
+      habitatSizesSummarySchema,
+      habitatSizes,
+      `${documentKey}.habitatSizes`
+    )
+  }
+}
+
+/**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
  * carry.
@@ -389,30 +428,7 @@ function assertFeatureEditValid({
       `${documentKey}.tradingRules`
     )
   }
-  if (lostHabitats) {
-    if (documentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
-      throw Boom.badImplementation(
-        'persist: only the post-intervention document records lost habitats'
-      )
-    }
-    assertFragmentValid(
-      lostHabitatsSchema,
-      lostHabitats,
-      `${documentKey}.lostHabitats`
-    )
-  }
-  if (habitatSizes) {
-    if (documentKey !== BASELINE_DOCUMENT_KEY) {
-      throw Boom.badImplementation(
-        'persist: only a baseline tree edit refreshes the habitat sizes'
-      )
-    }
-    assertFragmentValid(
-      habitatSizesSummarySchema,
-      habitatSizes,
-      `${documentKey}.habitatSizes`
-    )
-  }
+  assertDerivedSummariesValid({ documentKey, lostHabitats, habitatSizes })
   if (postIntervention) {
     // The document re-derived after a baseline edit carries every other
     // feature as it was stored. A value saved there before BMD-1175 is not
