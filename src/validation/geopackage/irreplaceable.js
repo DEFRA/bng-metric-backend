@@ -18,6 +18,24 @@ export function irreplaceableFromProps(props) {
   return typeof value === 'string' && value.trim().toLowerCase() === 'yes'
 }
 
+/**
+ * Whether a habitat's "Irreplaceable Habitat" column says "No", the only value
+ * that asserts it is not irreplaceable. False for "Yes", a blank cell or any
+ * other value. Undefined for a file with no such column, as a legacy file has
+ * none.
+ *
+ * @param {object} props a feature's attributes, as the pipeline reads them
+ * @returns {boolean | undefined}
+ */
+export function markedNotIrreplaceable(props) {
+  const column = PROP_KEYS.irreplaceable.find((key) => key in (props ?? {}))
+  if (column === undefined) {
+    return undefined
+  }
+  const value = pickProp(props, PROP_KEYS.irreplaceable)
+  return typeof value === 'string' && value.trim().toLowerCase() === 'no'
+}
+
 /** `{ irreplaceable }` when the file records it, else nothing to spread. */
 export function irreplaceableField(props) {
   const irreplaceable = irreplaceableFromProps(props)

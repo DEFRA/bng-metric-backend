@@ -596,16 +596,20 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
     IMPORT_TIMEOUT_MS
   )
 
+  // A tree's Irreplaceable Habitat must say "No": "Yes", a blank cell or any
+  // other value refuses the file, at either stage.
   it.each([
-    ['baseline', BASELINE_TREES],
-    ['post-intervention', PI_TREES]
+    ['baseline', BASELINE_TREES, "'Yes'"],
+    ['post-intervention', PI_TREES, "'Yes'"],
+    ['baseline', BASELINE_TREES, "''"],
+    ['post-intervention', PI_TREES, 'NULL']
   ])(
-    'refuses a tree marked irreplaceable at %s, naming it',
-    async (stage, table) => {
+    'refuses a tree at %s whose Irreplaceable Habitat is not No (%s, set to %s), naming it',
+    async (stage, table, value) => {
       const result = await importUploadFile(
         editedSite(
-          `irreplaceable-${stage}`,
-          `UPDATE "${table}" SET "Irreplaceable Habitat" = 'Yes' WHERE "Habitat Ref" = 'T004';`
+          `irreplaceable-${stage}-${value.replaceAll("'", '')}`,
+          `UPDATE "${table}" SET "Irreplaceable Habitat" = ${value} WHERE "Habitat Ref" = 'T004';`
         ),
         {},
         POST_INTERVENTION
@@ -617,7 +621,7 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
       )
       expect(error.message).toContain(`${table} Habitat Ref T004`)
       expect(error.message).toContain(
-        'The service does not accept irreplaceable trees'
+        'Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees'
       )
     },
     IMPORT_TIMEOUT_MS

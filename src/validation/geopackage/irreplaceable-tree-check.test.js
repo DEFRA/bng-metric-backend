@@ -17,10 +17,22 @@ const layers = (trees, table = TABLE) => ({
 })
 
 describe('checkIrreplaceableTrees', () => {
-  it.each(['No', '', '  ', null, 'no'])(
+  it.each(['No', 'no', '  NO  '])(
     'accepts a tree whose Irreplaceable Habitat is %j',
     (value) => {
       expect(checkIrreplaceableTrees(layers([tree(value)]))).toBeNull()
+    }
+  )
+
+  // For a tree the column is mandatory: anything but "No" is treated as
+  // irreplaceable until the surveyor says otherwise.
+  it.each(['Yes', '', '  ', null, 'Unknown', 1])(
+    'refuses a tree whose Irreplaceable Habitat is %j',
+    (value) => {
+      expect(checkIrreplaceableTrees(layers([tree(value)]))).toMatchObject({
+        code: ERROR_CODES.IRREPLACEABLE_TREE,
+        details: { count: 1 }
+      })
     }
   )
 
@@ -34,19 +46,19 @@ describe('checkIrreplaceableTrees', () => {
     expect(checkIrreplaceableTrees({})).toBeNull()
   })
 
-  it('refuses every irreplaceable tree in one error, naming each', () => {
+  it('refuses every tree not marked No in one error, naming each', () => {
     const error = checkIrreplaceableTrees(
       layers([
         tree('Yes', { 'Tree Ref': 'T001' }),
         tree('No', { fid: 2, 'Tree Ref': 'T002' }),
-        tree(' yes ', { fid: 3, 'Tree Ref': '' })
+        tree('', { fid: 3, 'Tree Ref': '' })
       ])
     )
 
     expect(error).toEqual({
       code: ERROR_CODES.IRREPLACEABLE_TREE,
       message:
-        'One or more trees are marked as irreplaceable habitat. The service does not accept irreplaceable trees: Individual Trees Post-Intervention Habitat Ref T001, Individual Trees Post-Intervention fid 3',
+        'One or more trees have an Irreplaceable Habitat other than "No". Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees: Individual Trees Post-Intervention Habitat Ref T001, Individual Trees Post-Intervention fid 3',
       details: {
         count: 2,
         sample: [
