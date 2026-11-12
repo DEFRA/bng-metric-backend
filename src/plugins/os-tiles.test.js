@@ -92,8 +92,11 @@ describe('the tile routes', () => {
       expect(route.settings.plugins['hapi-rate-limit']).toMatchObject({
         enabled: true,
         ignorePathParams: true,
-        userPathLimit: config.default('rateLimit.osTiles.userLimit'),
-        pathLimit: config.default('rateLimit.osTiles.allUsersLimit')
+        userPathLimit: config.default('rateLimit.osTiles.userLimit')
+      })
+      expect(route.settings.plugins['rate-limit']).toMatchObject({
+        enabled: true,
+        limit: config.default('rateLimit.osTiles.allUsersLimit')
       })
     }
   })

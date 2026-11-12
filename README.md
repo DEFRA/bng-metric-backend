@@ -265,9 +265,11 @@ tests that show it, see [`docs/downstream-failures.md`](docs/downstream-failures
 ## Rate limits
 
 CDP's Nginx allows 1000 requests a second. The routes that cost the most to
-serve cannot carry that, so each has two limits, from
-[`hapi-rate-limit`](https://github.com/wraithgar/hapi-rate-limit): one for
-each user (the token's `sub` claim), and one for all users together. Every
+serve cannot carry that, so each has two limits: one for each user (the
+token's `sub` claim), from
+[`hapi-rate-limit`](https://github.com/wraithgar/hapi-rate-limit)'s
+`userPathLimit`, and one for all users together, counted by
+`src/plugins/rate-limit.js` itself. Every
 other route, `/health` and `/upload/{uploadId}/status` included, has no limit
 of its own; the CDP limit protects them.
 
@@ -305,15 +307,22 @@ the seconds until the limit that refused it resets. The frontend shows its
 
 What to know about the counts:
 
-- They are in memory (the default server cache). The backend has no Redis, so
+- They are in memory (the user counts in the default server cache). The
+  backend has no Redis, so
   **each copy of the backend counts on its own**. That is right for the
   all-users limit, because each copy has its own capacity, but it means a
   user can make up to the user limit **multiplied by the number of copies**.
 - A window starts at a key's first request and does not slide.
-- The plugin counts refused requests too, and a user's requests count toward
-  the all-users limit even when that user is over their own. One user who
-  keeps sending can therefore use up the all-users limit for everybody until
-  the window ends.
+- The all-users limit counts only requests the user limit let through. It is
+  not the plugin's `pathLimit` on purpose: that counts every request,
+  including ones the user limit refused, so one user who kept sending would
+  use up the all-users limit for everybody until the window ended. The plugin
+  still counts a user's refused requests toward that user's own limit, which
+  costs only that user.
+- When a user is over their own limit and the all-users limit is full too,
+  `Retry-After` is the later of the two resets.
+- Each window and `RATE_LIMIT_REPORT_INTERVAL_MS` must be at least 1000 ms: a
+  0 window would keep no count, and a 0 interval would report constantly.
 
 Where they sit among the load controls: the memory ceiling
 (`VALIDATION_MAX_RSS_BYTES`) refuses first, before authentication. The rate

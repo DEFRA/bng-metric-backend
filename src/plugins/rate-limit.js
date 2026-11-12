@@ -7,6 +7,14 @@
  * one for each user and one for all users together — and every other route
  * gets none, because the CDP limit protects them.
  *
+ * The limit for each user is hapi-rate-limit's `userPathLimit`. The limit for
+ * all users is NOT the plugin's `pathLimit`, on purpose: the plugin counts
+ * every request toward `pathLimit`, including the ones the user limit has
+ * already refused, so one user who kept sending would use up the all-users
+ * limit for everybody at almost no cost to themselves. The all-users limit is
+ * therefore counted here, in an `onPostAuth` step that runs after the
+ * plugin's, so it only ever sees requests the user limit let through.
+ *
  * Every plugin default is off at server level, so a route is limited only when
  * it opts in through `withRateLimit`:
  *   - `authLimit: false`. Every request comes from the frontend, so the
@@ -20,11 +28,12 @@
  * limit, parse budget and worker queue. They do not replace any of them.
  *
  * What to know about the counts:
- *   - They live in the default server cache, in memory, so each copy of the
- *     backend counts on its own. A user can make the user limit on each copy.
+ *   - They are in memory (the user counts in the default server cache), so
+ *     each copy of the backend counts on its own. A user can make the user
+ *     limit on each copy.
  *   - A window starts at the first request and does not slide.
- *   - The plugin counts refused requests too, and counts a user's requests
- *     toward the all-users limit even when that user is over their own.
+ *   - The plugin counts a user's refused requests toward that user's own
+ *     limit, which costs only that user.
  *
  * Refused requests are counted here and reported once each interval, as
  * memory-shed does: one log line and one metric for each route and type of
@@ -46,6 +55,9 @@ const logger = createLogger()
 /** hapi-rate-limit's name: the key of its route settings and request state. */
 export const RATE_LIMIT_PLUGIN = 'hapi-rate-limit'
 
+/** This plugin's name, and the key of the all-users settings on a route. */
+export const ALL_USERS_LIMIT_PLUGIN = 'rate-limit'
+
 /** The route families with a limit, each a section of `rateLimit` in config. */
 export const RATE_LIMITED = Object.freeze({
   uploadInitiate: 'uploadInitiate',
@@ -59,24 +71,29 @@ const MIN_RETRY_AFTER_SECONDS = 1
 
 /**
  * The route settings that turn the limits on for one route family, read from
- * config when the route is registered.
+ * config when the route is registered: the limit for each user under
+ * hapi-rate-limit's key, and the limit for all users under this plugin's.
  *
  * `ignorePathParams` counts the route's pattern rather than its path, so
- * `/baseline/validate/{uploadId}` is one count, not one per upload. Each
- * window goes in as the TTL of its cache entries, which is how the plugin
+ * `/baseline/validate/{uploadId}` is one count, not one per upload. The
+ * window goes in as the TTL of the plugin's cache entries, which is how it
  * times a window.
  * @param {string} family - one of {@link RATE_LIMITED}
  */
 export function rateLimitRouteOptions(family) {
+  const enabled = config.get('rateLimit.enabled')
   const windowMs = config.get(`rateLimit.${family}.windowMs`)
   return {
     [RATE_LIMIT_PLUGIN]: {
-      enabled: config.get('rateLimit.enabled'),
+      enabled,
       ignorePathParams: true,
       userPathLimit: config.get(`rateLimit.${family}.userLimit`),
-      pathLimit: config.get(`rateLimit.${family}.allUsersLimit`),
-      userPathCache: { expiresIn: windowMs },
-      pathCache: { expiresIn: windowMs }
+      userPathCache: { expiresIn: windowMs }
+    },
+    [ALL_USERS_LIMIT_PLUGIN]: {
+      enabled,
+      limit: config.get(`rateLimit.${family}.allUsersLimit`),
+      windowMs
     }
   }
 }
@@ -113,24 +130,45 @@ export function retryAfterSeconds(resetAt, windowMs, now) {
 }
 
 /**
- * Which limit refused the request, its reset time and its window, from the
- * state the plugin leaves on the request. The user limit wins when both are
- * over, because that user is the cause either way.
- * @param {object} state - `request.plugins['hapi-rate-limit']`
+ * The all-users count of each limited route: a fixed window from the route's
+ * first counted request. Only requests the user limit let through reach it.
  */
-function refusingLimit(state) {
-  if (state.userPathRemaining < 0) {
-    return {
-      type: RATE_LIMIT_TYPE.user,
-      resetAt: state.userPathReset,
-      windowMs: state.settings?.userPathCache?.expiresIn
-    }
+function createAllUsersCounter() {
+  const windows = new Map()
+  const current = (route, now) => {
+    const window = windows.get(route)
+    return window && window.resetAt > now ? window : null
   }
   return {
-    type: RATE_LIMIT_TYPE.allUsers,
-    resetAt: state.pathReset,
-    windowMs: state.settings?.pathCache?.expiresIn
+    /**
+     * Count one request. Null when it is admitted; the time the window resets
+     * when the route is already at its limit (the request is not counted).
+     */
+    admit(route, { limit, windowMs }, now) {
+      let window = current(route, now)
+      if (!window) {
+        window = { count: 0, resetAt: now + windowMs }
+        windows.set(route, window)
+      }
+      if (window.count >= limit) {
+        return window.resetAt
+      }
+      window.count++
+      return null
+    },
+    /** When the route's all-users limit is full, the time it resets; else null. */
+    fullUntil(route, limit, now) {
+      const window = current(route, now)
+      return window && window.count >= limit ? window.resetAt : null
+    }
   }
+}
+
+/** A 429 with the seconds to wait in Retry-After. */
+function tooManyRequests(seconds) {
+  const error = Boom.tooManyRequests('Too many requests')
+  error.output.headers['Retry-After'] = String(seconds)
+  return error
 }
 
 /** Counts refused requests by route and type of limit between two reports. */
@@ -173,10 +211,16 @@ function report(counter, intervalMs) {
 
 /**
  * The plugin's server options: every default off, the user from `sub`, and
- * the refusal below.
- * @param {ReturnType<typeof createRefusalCounter>} counter
+ * the refusal below. Only the user limit is the plugin's, so it only ever
+ * refuses as `user`.
+ *
+ * The wait is the user window's reset, or the all-users window's when that is
+ * also full and resets later: a retry at the user reset alone would only be
+ * refused again by the all-users limit.
+ * @param {ReturnType<typeof createRefusalCounter>} refusals
+ * @param {ReturnType<typeof createAllUsersCounter>} allUsers
  */
-function serverOptions(counter) {
+function serverOptions(refusals, allUsers) {
   return {
     enabled: false,
     userLimit: false,
@@ -186,15 +230,43 @@ function serverOptions(counter) {
     trustProxy: false,
     userAttribute: 'sub',
     limitExceededResponse: (request) => {
+      const now = Date.now()
       const state = request.plugins[RATE_LIMIT_PLUGIN] ?? {}
-      const { type, resetAt, windowMs } = refusingLimit(state)
-      counter.add(request.route.path, type)
-      const error = Boom.tooManyRequests('Too many requests')
-      error.output.headers['Retry-After'] = String(
-        retryAfterSeconds(resetAt, windowMs, Date.now())
+      const allUsersSettings =
+        request.route.settings.plugins[ALL_USERS_LIMIT_PLUGIN]
+      const allUsersReset = allUsersSettings
+        ? allUsers.fullUntil(request.route.path, allUsersSettings.limit, now)
+        : null
+      const resetAt = Math.max(state.userPathReset ?? 0, allUsersReset ?? 0)
+      refusals.add(request.route.path, RATE_LIMIT_TYPE.user)
+      return tooManyRequests(
+        retryAfterSeconds(
+          resetAt || undefined,
+          state.settings?.userPathCache?.expiresIn,
+          now
+        )
       )
-      return error
     }
+  }
+}
+
+/**
+ * The all-users limit, after the plugin's user limit has let the request
+ * through.
+ */
+function allUsersLimitStep(refusals, allUsers) {
+  return (request, h) => {
+    const settings = request.route.settings.plugins[ALL_USERS_LIMIT_PLUGIN]
+    if (!settings?.enabled) {
+      return h.continue
+    }
+    const now = Date.now()
+    const resetAt = allUsers.admit(request.route.path, settings, now)
+    if (resetAt === null) {
+      return h.continue
+    }
+    refusals.add(request.route.path, RATE_LIMIT_TYPE.allUsers)
+    return tooManyRequests(retryAfterSeconds(resetAt, settings.windowMs, now))
   }
 }
 
@@ -210,9 +282,15 @@ export const rateLimit = {
       )
 
       const counter = createRefusalCounter()
+      const allUsers = createAllUsersCounter()
       await server.register({
         plugin: hapiRateLimit,
-        options: serverOptions(counter)
+        options: serverOptions(counter, allUsers)
+      })
+      // After the plugin's own onPostAuth step, so a request the user limit
+      // refused never reaches the all-users count.
+      server.ext('onPostAuth', allUsersLimitStep(counter, allUsers), {
+        after: [RATE_LIMIT_PLUGIN]
       })
 
       const intervalMs = config.get('rateLimit.reportIntervalMs')

@@ -17,6 +17,7 @@ import {
 import { health } from '../routes/health.js'
 import { router } from './router.js'
 import {
+  ALL_USERS_LIMIT_PLUGIN,
   RATE_LIMITED,
   RATE_LIMIT_PLUGIN,
   rateLimit,
@@ -192,9 +193,12 @@ describe('#rateLimitRouteOptions', () => {
           enabled: true,
           ignorePathParams: true,
           userPathLimit: userLimit,
-          pathLimit: allUsersLimit,
-          userPathCache: { expiresIn: WINDOW_MS },
-          pathCache: { expiresIn: WINDOW_MS }
+          userPathCache: { expiresIn: WINDOW_MS }
+        },
+        [ALL_USERS_LIMIT_PLUGIN]: {
+          enabled: true,
+          limit: allUsersLimit,
+          windowMs: WINDOW_MS
         }
       })
     }
@@ -210,10 +214,9 @@ describe('#rateLimitRouteOptions', () => {
     expect(rateLimitRouteOptions(RATE_LIMITED.report)).toMatchObject({
       [RATE_LIMIT_PLUGIN]: {
         userPathLimit: 2,
-        pathLimit: 3,
-        userPathCache: { expiresIn: 1_000 },
-        pathCache: { expiresIn: 1_000 }
-      }
+        userPathCache: { expiresIn: 1_000 }
+      },
+      [ALL_USERS_LIMIT_PLUGIN]: { limit: 3, windowMs: 1_000 }
     })
   })
 
@@ -289,6 +292,17 @@ describe.each(LIMITED_ROUTES)('rate limit on $name', (route) => {
     expect(response.statusCode).toBe(HTTP_OK)
   })
 
+  test("does not count a user's refused requests toward the all-users limit", async () => {
+    await start()
+    // One user keeps sending well past the all-users limit. Only the requests
+    // their own limit let through count for everybody.
+    await sendMany(route, FIRST_USER, route.allUsersLimit + route.userLimit)
+
+    const response = await send(route, SECOND_USER)
+
+    expect(response.statusCode).toBe(HTTP_OK)
+  })
+
   test('refuses a new user once all users together reach the limit', async () => {
     await start()
     const users = Math.ceil(route.allUsersLimit / route.userLimit)
@@ -304,6 +318,36 @@ describe.each(LIMITED_ROUTES)('rate limit on $name', (route) => {
 
     expect(response.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
     expect(response.headers['retry-after']).toBe(String(WINDOW_SECONDS))
+  })
+})
+
+describe('the wait when both limits are full', () => {
+  test('is the later of the two resets, so a retry is not refused again', async () => {
+    const report = LIMITED_ROUTES.find((r) => r.family === RATE_LIMITED.report)
+    const at = (seconds) => vi.setSystemTime(START.getTime() + seconds * 1000)
+    vi.useFakeTimers({ toFake: ['Date'] })
+    await serverWith({ limited: [report] })
+
+    // 0 s: another user opens an all-users window, to 60 s.
+    at(0)
+    await sendMany(report, 'early-user', 1)
+    // 30 s: the first user uses their whole limit; their window runs to 90 s.
+    at(30)
+    await sendMany(report, FIRST_USER, report.userLimit)
+    // 61 s: that all-users window has ended. Others open a new one, to 121 s,
+    // and fill it.
+    at(61)
+    for (let u = 0; u < report.allUsersLimit / report.userLimit; u++) {
+      await sendMany(report, `sub-${u}`, report.userLimit)
+    }
+    // 70 s: the first user is over their own limit (resets at 90 s) and the
+    // all-users limit is full (resets at 121 s).
+    at(70)
+
+    const response = await send(report, FIRST_USER)
+
+    expect(response.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
+    expect(response.headers['retry-after']).toBe('51')
   })
 })
 

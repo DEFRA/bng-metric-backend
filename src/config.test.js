@@ -232,6 +232,22 @@ describe('#config rate limits', () => {
     vi.unstubAllEnvs()
   })
 
+  test.each([
+    ['RATE_LIMIT_REPORT_INTERVAL_MS', '0'],
+    ['RATE_LIMIT_REPORT_WINDOW_MS', '0'],
+    ['RATE_LIMIT_VALIDATE_WINDOW_MS', '999'],
+    ['RATE_LIMIT_OS_TILES_WINDOW_MS', 'a minute']
+  ])(
+    'Should refuse %s=%s: a window or interval is at least a second',
+    async (name, value) => {
+      vi.stubEnv(name, value)
+
+      await expect(reload()).rejects.toThrow(/at least 1000/)
+
+      vi.unstubAllEnvs()
+    }
+  )
+
   test('Should read each limit and window from its own variable', async () => {
     vi.stubEnv('RATE_LIMIT_REPORT_USER_LIMIT', '7')
     vi.stubEnv('RATE_LIMIT_REPORT_ALL_USERS_LIMIT', '30')

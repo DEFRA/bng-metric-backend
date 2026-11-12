@@ -48,6 +48,29 @@ convict.addFormat({
   }
 })
 
+/** Name of the format for a duration in milliseconds of at least a second. */
+const AT_LEAST_ONE_SECOND_MS = 'at-least-one-second-ms'
+
+const MIN_DURATION_MS = 1000
+
+/**
+ * A duration in whole milliseconds, at least a second. For the rate-limit
+ * windows and their report interval, where 0 would be harmful rather than
+ * off: a 0 window keeps no count, so the limit does nothing, and a 0 interval
+ * reports on every turn of the event loop.
+ */
+convict.addFormat({
+  name: AT_LEAST_ONE_SECOND_MS,
+  coerce: Number,
+  validate: (value) => {
+    if (!Number.isInteger(value) || value < MIN_DURATION_MS) {
+      throw new TypeError(
+        `must be a whole number of milliseconds of at least ${MIN_DURATION_MS} (got "${value}")`
+      )
+    }
+  }
+})
+
 const isProduction = process.env.NODE_ENV === 'production'
 const isTest = process.env.NODE_ENV === 'test'
 const isDevelopment = process.env.NODE_ENV === 'development'
@@ -86,8 +109,8 @@ function rateLimitFamily({ what, envPrefix, userLimit, allUsersLimit }) {
       env: `${envPrefix}_ALL_USERS_LIMIT`
     },
     windowMs: {
-      doc: `Length of the window, in milliseconds, that the ${what} limits count over. The window starts at the first request and does not slide.`,
-      format: 'nat',
+      doc: `Length of the window, in milliseconds, that the ${what} limits count over. The window starts at the first request and does not slide. At least 1000.`,
+      format: AT_LEAST_ONE_SECOND_MS,
       default: ONE_MINUTE_MS,
       env: `${envPrefix}_WINDOW_MS`
     }
@@ -373,8 +396,8 @@ const config = convict({
       env: 'RATE_LIMIT_ENABLED'
     },
     reportIntervalMs: {
-      doc: 'How often the refused requests counted since the last report are written as one log line and one metric for each route and type of limit (plugins/rate-limit.js).',
-      format: 'nat',
+      doc: 'How often the refused requests counted since the last report are written as one log line and one metric for each route and type of limit (plugins/rate-limit.js). At least 1000.',
+      format: AT_LEAST_ONE_SECOND_MS,
       default: ONE_MINUTE_MS,
       env: 'RATE_LIMIT_REPORT_INTERVAL_MS'
     },
