@@ -72,6 +72,7 @@
     "global-agent": "4.1.6",
     "hapi-pino": "13.0.0",
     "hapi-pulse": "4.0.0",
+    "hapi-rate-limit": "8.0.0",
     "https-proxy-agent": "9.1.0",
     "joi": "18.3.2",
     "jose": "6.2.15",
