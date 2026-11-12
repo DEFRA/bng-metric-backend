@@ -290,15 +290,18 @@ function allUsersLimitStep(refusals, allUsers) {
 }
 
 /**
- * A request the route answered 503 did no work: the validate routes refuse
- * as busy (VALIDATION_BUSY) or unavailable before they fetch the file. So it
- * gives back its place in the all-users count. Without this, users in the
- * frontend's busy-and-retry journey, each retrying every 5 to 8 seconds, would
- * use up the all-users limit with retries that cost nothing, and then be sent
- * a 429 exactly when the service is recovering.
+ * A request the route answered 503 gives back its place in the all-users
+ * count. Without this, users in the frontend's busy-and-retry journey, each
+ * retrying every 5 to 8 seconds, would use up the all-users limit with
+ * retries, and then be sent a 429 exactly when the service is recovering.
  *
- * The limit for each user still counts the retry; at about 13 a minute that
- * stays well under it.
+ * Most of those 503s did no work: the validate routes mostly refuse as busy
+ * (VALIDATION_BUSY), or as unavailable, before they fetch the file. Not all:
+ * a busy answer at the parse stage comes after the S3 download, and it is
+ * given back too. That is a choice, not an oversight. The download is the
+ * cheap part next to parsing and validating, and those retries are still
+ * bounded by the limit for each user, which counts every one of them (about
+ * 13 a minute against 40).
  */
 function refundBusyStep(allUsers) {
   return (request, h) => {

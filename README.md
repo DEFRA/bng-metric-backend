@@ -331,10 +331,12 @@ validate route's admission limit, parse budget and worker queue. They replace
 none of them. The validate limit for each user is well above the frontend's
 busy-and-retry journey, which calls validate at most about 13 times a minute
 (every 5 to 8 seconds for up to 2 minutes). Those retries do not use up the
-all-users limit: a request the route answers 503 (busy or unavailable) did no
-work, so it gives its place in the all-users count back. Without that, about
-nine users retrying at once would fill the validate limit of 120 with retries
-that cost nothing, and be refused just as the service recovered.
+all-users limit: a request the route answers 503 (busy or unavailable) gives
+its place in the all-users count back. Without that, about nine users retrying
+at once would fill the validate limit of 120 with retries, and be refused just
+as the service recovered. Most of those 503s come before the file is fetched;
+a busy answer at the parse stage comes after the S3 download and is given back
+too. The limit for each user still counts every retry.
 
 Refused requests are counted by route and type of limit, and once each
 `RATE_LIMIT_REPORT_INTERVAL_MS` the backend writes one warning log line and
