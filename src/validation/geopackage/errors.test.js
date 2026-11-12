@@ -148,7 +148,8 @@ describe('ERROR_CODE_SURFACES', () => {
   const EDIT_ERROR_HELPERS = [
     'ref-in-use-error.js',
     'invalid-enhancement-error.js',
-    'out-of-scope-error.js'
+    'out-of-scope-error.js',
+    'feature-not-editable-error.js'
   ]
 
   it('gives every code at least one surface, and no other', () => {

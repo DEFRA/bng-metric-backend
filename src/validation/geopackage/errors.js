@@ -84,6 +84,21 @@ export const ERROR_CODES = Object.freeze({
   STORED_VALUE_NOT_ALLOWED: 'STORED_VALUE_NOT_ALLOWED',
 
   /**
+   * An edit the endpoint cannot carry out on this feature, as against a value
+   * it will not accept: the feature is of a kind it does not edit, such as a
+   * post-intervention tree, or the edit would make the feature something its
+   * kind cannot become — a tree that is no longer a tree (keepsTreeATree), or
+   * a vertical area habitat that is no longer vertical.
+   *
+   * No one field the page can edit is to blame, and the refusal is not the
+   * reference the edit routes answer a bare 400 for, so the edit pages show
+   * it in the error summary only and keep what the user typed, rather than
+   * blaming a valid reference or dropping the user on an error page
+   * (BMD-1112).
+   */
+  FEATURE_NOT_EDITABLE: 'FEATURE_NOT_EDITABLE',
+
+  /**
    * One or more Enhanced rows enhance a baseline habitat the service cannot
    * enhance at all, such as a Medium habitat in Good condition (BMD-1182). The
    * file is refused rather than the enhancement nulled. One error for them
@@ -396,7 +411,8 @@ export const ERROR_SURFACES = Object.freeze({
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.HABITAT_REF_IN_USE,
   ERROR_CODES.ENHANCEMENT_NOT_VALID,
-  ERROR_CODES.STORED_VALUE_NOT_ALLOWED
+  ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
+  ERROR_CODES.FEATURE_NOT_EDITABLE
 ])
 const UPLOAD_AND_EDIT_CODES = new Set([
   // The upload check refuses one in a file; an edit refuses one chosen on screen.

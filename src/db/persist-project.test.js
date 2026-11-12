@@ -271,6 +271,9 @@ describe('setBaselineFeature', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 
+  // Deliberately not a plausible habitat layer, so it can never become a real
+  // one and quietly stop testing the throw — which is what happened to `trees`
+  // (see below).
   test('throws for an unknown layer', async () => {
     const db = makeDb()
     await expect(
@@ -278,6 +281,39 @@ describe('setBaselineFeature', () => {
         layer: 'notALayer',
         index: 0,
         feature: validHabitat,
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/unknown feature layer/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  // This layer stood in for the unknown one above until a baseline tree became
+  // editable (BMD-1112): every tree edit then reached the choke point and was
+  // refused as a developer error, 500, with nothing saved.
+  test('writes a baseline tree, which is an editable layer', async () => {
+    const db = makeDb()
+    await setBaselineFeature(db, PROJECT_ID, {
+      layer: 'trees',
+      index: 0,
+      feature: validTree,
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  // A post-intervention tree is not editable, so the one layer that exists on
+  // the baseline alone must stay refused on the other document.
+  test('throws for a post-intervention tree, which is not editable', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'trees',
+        index: 0,
+        feature: validTree,
         unitsTotals: validUnitsTotals,
         actorId: ACTOR_ID
       })

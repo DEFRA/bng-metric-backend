@@ -635,13 +635,22 @@ describe('updateFeature handler - individual tree dispatch (BMD-1112)', () => {
     )
   })
 
+  // The refusal carries FEATURE_NOT_EDITABLE so the details page can tell it
+  // from the bare 400 a refused reference gets, and neither blames the
+  // reference for it nor loses the supporting information the user typed
+  // (BMD-1112).
   test('refuses a change of a tree to a habitat that is not a tree', async () => {
     await expect(
       saveTree(projectWithTree(), {
         broadType: 'Grassland',
         habitatType: 'Modified grassland'
       })
-    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 400,
+        payload: { code: 'FEATURE_NOT_EDITABLE' }
+      }
+    })
     expect(setProjectFeature).not.toHaveBeenCalled()
   })
 })
