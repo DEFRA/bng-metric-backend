@@ -484,20 +484,46 @@ describe('BMD-1050 Created watercourse editing', () => {
     'delayYears',
     'watercourseEncroachment',
     'riparianEncroachment'
-  ])('clearing %s saves Incomplete with no unit contribution', (field) => {
-    const result = update({
-      [field]: null,
-      ...(field === 'habitatType' ? { condition: null } : {})
-    })
-    expect(result.feature.status).toBe('Incomplete')
-    expect(result.feature.units).toBeNull()
-    expect(result.unitsTotals.watercoursesTotal).toBe(4)
-    expect(result.feature.proposed.waterEncroachmentMultiplier).toBeNull()
-    expect(result.feature.proposed.riparianEncroachmentMultiplier).toBeNull()
-    expect(
-      postInterventionWatercourseSchema.validate(result.feature).error
-    ).toBeUndefined()
-  })
+  ])(
+    'clearing %s saves zero units, Incomplete, with no unit contribution (AC11 Scenario B)',
+    (field) => {
+      const result = update({
+        [field]: null,
+        ...(field === 'habitatType' ? { condition: null } : {})
+      })
+      expect(result.feature.status).toBe('Incomplete')
+      expect(result.feature.units).toBe(0)
+      expect(result.unitsTotals.watercoursesTotal).toBe(4)
+      expect(result.feature.proposed.waterEncroachmentMultiplier).toBeNull()
+      expect(result.feature.proposed.riparianEncroachmentMultiplier).toBeNull()
+      expect(
+        postInterventionWatercourseSchema.validate(result.feature).error
+      ).toBeUndefined()
+    }
+  )
+
+  test.each(['condition', 'strategicSignificance', 'watercourseEncroachment'])(
+    'an Incomplete %s edit stores zero units; a recalculation stores null, with the same status and derived fields (BMD-1070)',
+    (field) => {
+      const edited = update({ [field]: null }).feature
+      const rederived = rederivePostInterventionFromBaseline(
+        { watercourses: [structuredClone(edited)] },
+        { baseline: {} }
+      ).watercourses[0]
+      expect(edited.units).toBe(0)
+      expect(rederived.units).toBeNull()
+      for (const row of [edited, rederived]) {
+        expect(row.status).toBe('Incomplete')
+        expect(row.proposed).toMatchObject({
+          distinctiveness: null,
+          difficulty: null,
+          difficultyMultiplier: null,
+          waterEncroachmentMultiplier: null,
+          riparianEncroachmentMultiplier: null
+        })
+      }
+    }
+  )
 
   test.each(['Retained', 'Enhanced', null])(
     'rejects editing %s watercourses',
@@ -693,8 +719,10 @@ describe('imported choices and explicit clearing', () => {
       advanceYears: 2.5,
       watercourseEncroachment: 'Imported encroachment'
     })
+    // Saved from the edit form, so an Incomplete result stores zero units
+    // (AC11 Scenario B), as a cleared input does.
     expect(saved.status).toBe('Incomplete')
-    expect(saved.units).toBeNull()
+    expect(saved.units).toBe(0)
     expect(stored).toEqual(snapshot)
   })
 

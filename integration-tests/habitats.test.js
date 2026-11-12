@@ -832,8 +832,10 @@ describe('BMD-1050 Created watercourse saves', () => {
       advanceYears: 2.5,
       watercourseEncroachment: 'N/A - Culvert'
     })
+    // Saved from the edit form, so the Incomplete row stores zero units
+    // (BMD-1050 AC11 Scenario B).
     expect(stored.status).toBe('Incomplete')
-    expect(stored.units).toBeNull()
+    expect(stored.units).toBe(0)
     const cleared = await server.inject({
       method: 'PUT',
       url,
@@ -1148,7 +1150,8 @@ describe('BMD-1050 Created watercourse saves', () => {
       expect(cleared.statusCode).toBe(HTTP_OK)
       const document = (await read()).postIntervention
       expect(document.watercourses[0].proposed[field]).toBeNull()
-      expect(document.watercourses[0].units).toBeNull()
+      // BMD-1050 AC11 Scenario B: an incomplete edit saves zero units.
+      expect(document.watercourses[0].units).toBe(0)
       expect(document.watercourses[0].status).toBe('Incomplete')
       expect(document.units.watercoursesTotal).toBe(0)
     }
