@@ -14,7 +14,8 @@ import {
   updatePostInterventionWatercourse,
   updatePostInterventionHedgerow,
   updateAreaHabitat,
-  updatePostInterventionAreaHabitat
+  updatePostInterventionAreaHabitat,
+  updatePostInterventionTree
 } from '../routes/habitats.js'
 import {
   getFeature,
@@ -35,6 +36,7 @@ import {
   getWatercourseCreation,
   getHedgerowCreation,
   getAreaCreation,
+  getTreeCreation,
   getBroadHabitats,
   getLocalPlanningAuthorities,
   getHabitatTypes,
@@ -64,6 +66,7 @@ const router = {
         updatePostInterventionHedgerow,
         updateAreaHabitat,
         updatePostInterventionAreaHabitat,
+        updatePostInterventionTree,
         getFeature,
         getPostInterventionFeature,
         updateFeature,
@@ -79,6 +82,7 @@ const router = {
         getWatercourseCreation,
         getHedgerowCreation,
         getAreaCreation,
+        getTreeCreation,
         getBroadHabitats,
         getLocalPlanningAuthorities,
         getHabitatTypes,

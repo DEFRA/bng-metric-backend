@@ -32,6 +32,7 @@ import {
   lostHabitatsSchema,
   tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
+import { postInterventionTreeSchema } from '../validation/post-intervention/project-post-intervention-tree-schema.js'
 import { habitatSizesSummarySchema } from '../validation/project-shared-schemas.js'
 import {
   projectSchema,
@@ -55,9 +56,7 @@ const FEATURE_SCHEMA_BY_LAYER = {
   verticalHabitats: verticalHabitatSchema,
   // A baseline individual tree is editable — its condition, reference and
   // comment (BMD-1112), and its urban/rural setting (BMD-1172) — so it needs
-  // its own item schema here. There is no post-intervention counterpart: a
-  // post-intervention tree is not editable, so
-  // POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER deliberately has no `trees`.
+  // its own item schema here.
   trees: treeSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
@@ -65,6 +64,8 @@ const FEATURE_SCHEMA_BY_LAYER = {
 
 const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
   habitats: postInterventionHabitatSchema,
+  // A Created tree is editable, and a Retained tree's reference (BMD-1172).
+  trees: postInterventionTreeSchema,
   hedgerows: postInterventionLinearHabitatSchema,
   watercourses: postInterventionWatercourseSchema
 }
@@ -341,7 +342,7 @@ function assertEditFragmentValid(schema, value, label) {
 /**
  * Refuse a feature edit's refreshed lost habitats or habitat sizes when they
  * fail their schema or belong to the other document: only a post-intervention
- * edit records lost habitats (BMD-1083), and only a baseline tree edit
+ * edit records lost habitats (BMD-1083). A tree edit, on either document,
  * refreshes the habitat sizes (BMD-1172).
  *
  * @param {{ documentKey: string, lostHabitats?: object[], habitatSizes?: object }} fragments
@@ -364,11 +365,6 @@ function assertDerivedSummariesValid({
     )
   }
   if (habitatSizes) {
-    if (documentKey !== BASELINE_DOCUMENT_KEY) {
-      throw Boom.badImplementation(
-        'persist: only a baseline tree edit refreshes the habitat sizes'
-      )
-    }
     assertFragmentValid(
       habitatSizesSummarySchema,
       habitatSizes,
@@ -461,9 +457,9 @@ function assertFeatureEditValid({
  * @param {Array<object>} [params.lostHabitats] refreshed
  *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
  *   Service template upload; omitted otherwise (BMD-1083)
- * @param {object} [params.habitatSizes] refreshed baseline.habitatSizes, from a
- *   baseline tree edit, which can move a tree between the urban and rural
- *   sizes; omitted otherwise (BMD-1172)
+ * @param {object} [params.habitatSizes] the edited document's refreshed
+ *   habitatSizes, from a tree edit, which can move a tree between the urban
+ *   and rural sizes; omitted otherwise (BMD-1172)
  * @param {object} [params.postIntervention] the whole re-derived
  *   postIntervention document, written alongside a baseline feature edit or a
  *   template post-intervention edit. Baseline changes and template lineage

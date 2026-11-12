@@ -225,20 +225,26 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
 }
 
 /**
- * A baseline individual tree is edited as an area habitat (BMD-1112). Its size
- * is notional — the per-size reference area times the number of trees the point
+ * An individual tree is edited as an area habitat (BMD-1112). Its size is
+ * notional — the per-size reference area times the number of trees the point
  * stands for (tree-sizes.js) — and the details page shows the size class and
  * count read-only, so an edit moves its condition, setting, reference or
  * comment and never its area. It stays a tree (tree-edit.js), and a change of
  * setting moves it between the urban and rural sizes (withEditedTreeSizes).
- * A post-intervention tree is not editable.
+ *
+ * After intervention only a Created tree is edited this way, with the Created
+ * area habitat edit's complete payload (BMD-1172); a Retained tree's reference
+ * is renamed through apply-retained-ref-edit.js, and an Enhanced tree, like an
+ * Enhanced area habitat, is not editable.
  */
 function recomputeTreeEdit(existing, edits, context) {
-  if (context.documentKey === 'postIntervention') {
+  if (!keepsTreeATree(existing, edits, context.documentKey)) {
     return null
   }
-  if (!keepsTreeATree(existing, edits)) {
-    return null
+  if (context.documentKey === 'postIntervention') {
+    return Object.hasOwn(edits, 'advanceYears')
+      ? recomputeCreatedAreaEdit(existing, edits)
+      : null
   }
   return recomputeHabitatEdit(existing, edits, context)
 }
@@ -363,7 +369,7 @@ function resolveUpdatedFeature(
 ) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    ['habitat', 'hedgerow', 'watercourse'].includes(found.type) &&
+    CREATED_EDIT_TYPES.has(found.type) &&
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
@@ -426,13 +432,24 @@ function brokenEnhancementRule(found, derived, documentKey) {
   return check && !check.valid ? check.rule : null
 }
 
+// The post-intervention features a Created edit's complete payload reaches:
+// area habitats and trees, which carry a broad habitat, and hedgerows and
+// watercourses, which do not.
+const CREATED_EDIT_TYPES = new Set([
+  'habitat',
+  'tree',
+  'hedgerow',
+  'watercourse'
+])
+const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
+
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
   const unsupportedLinearBroadType =
-    found.type !== 'habitat' && edits.broadType !== null
+    !BROAD_HABITAT_TYPES.has(found.type) && edits.broadType !== null
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (!['habitat', 'hedgerow', 'watercourse'].includes(found.type) ||
+    (!CREATED_EDIT_TYPES.has(found.type) ||
       unsupportedLinearBroadType ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
@@ -675,8 +692,8 @@ function applyFeatureUpdate(
       documentKey === 'postIntervention'
         ? updatedFeatureSet.lostHabitats
         : undefined,
-    // Refreshed by a baseline tree edit, whose setting the urban and rural
-    // sizes are split by (BMD-1172).
+    // Refreshed by a tree edit, whose setting the urban and rural sizes are
+    // split by (BMD-1172).
     habitatSizes,
     postIntervention,
     project: rebuiltProject(

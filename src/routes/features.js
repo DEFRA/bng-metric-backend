@@ -212,7 +212,7 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a post-intervention tree, or a change to a baseline tree's urban/rural habitat type)
+ *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a change that would make a baseline tree a habitat other than an Urban tree or a Rural tree)
  *       404:
  *         description: Project or feature not found
  *       422:
@@ -245,7 +245,8 @@ const updateFeature = {
  *     summary: Rename a retained post-intervention habitat
  *     description: |
  *       Saves a new habitat reference for a Retained post-intervention area
- *       habitat, hedgerow or watercourse (BMD-1180), and returns the
+ *       habitat, individual tree (BMD-1172), hedgerow or watercourse
+ *       (BMD-1180), and returns the
  *       post-intervention feature as `{ type, feature }`. Nothing else on a
  *       Retained habitat is editable.
  *
@@ -284,7 +285,7 @@ const updateFeature = {
  *       200:
  *         description: Returns the renamed post-intervention feature with its type
  *       400:
- *         description: Invalid payload (e.g. a blank habitat reference), or the feature is not a Retained area habitat, hedgerow or watercourse
+ *         description: Invalid payload (e.g. a blank habitat reference), or the feature is not a Retained area habitat, tree, hedgerow or watercourse
  *       404:
  *         description: Project or feature not found
  *       422:
@@ -438,7 +439,7 @@ async function runRetainedRefUpdate(
   }
   if (result.status === RETAINED_REF_RESULT.NOT_RETAINED) {
     throw Boom.badRequest(
-      'Only the reference of a Retained area habitat, hedgerow or watercourse can be edited via this endpoint'
+      'Only the reference of a Retained area habitat, tree, hedgerow or watercourse can be edited via this endpoint'
     )
   }
   if (result.status === RETAINED_REF_RESULT.REF_IN_USE) {

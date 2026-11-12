@@ -1,7 +1,10 @@
 import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
 import { getHedgerowCreationReference } from '../validation/reference/hedgerow-creation.js'
 import Joi from 'joi'
-import { getAreaCreationReference } from '../validation/reference/area-creation.js'
+import {
+  getAreaCreationReference,
+  getTreeCreationReference
+} from '../validation/reference/area-creation.js'
 
 import { asc } from 'drizzle-orm'
 import { localPlanningAuthorities } from '../db/schema/index.js'
@@ -36,6 +39,23 @@ export const getAreaCreation = {
   path: '/reference/area-creation',
   options: { auth: false },
   handler: () => getAreaCreationReference()
+}
+
+/**
+ * @openapi
+ * /reference/tree-creation:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Individual tree creation habitat types, valid target conditions, difficulty and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: The Urban tree and Rural tree creation reference data, shaped as /reference/area-creation is, for the Created tree edit page (BMD-1172)
+ */
+export const getTreeCreation = {
+  method: 'GET',
+  path: '/reference/tree-creation',
+  options: { auth: false },
+  handler: () => getTreeCreationReference()
 }
 
 /**

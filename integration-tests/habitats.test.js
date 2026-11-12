@@ -421,6 +421,142 @@ describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-interve
   })
 })
 
+describe('PUT /projects/{projectId}/post-intervention/trees/{featureId} (BMD-1172)', () => {
+  // A Small rural tree newly planted, standing for 3 trees: 123 m².
+  async function seedCreatedTree(retentionCategory = 'Created') {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T026',
+      retentionCategory,
+      count: 3,
+      sizeSquareMetres: 123,
+      area: 123,
+      units: 0.0345,
+      status: 'Complete',
+      baseline: {},
+      proposed: {
+        broadType: 'Individual trees',
+        type: 'Rural tree',
+        treeSize: 'Small',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0,
+        sizeSquareMetres: 123,
+        area: 123
+      },
+      properties: {}
+    }
+    const projectId = await seedProject({
+      name: 'Created tree editing IT',
+      postIntervention: {
+        habitats: [],
+        trees: [tree],
+        hedgerows: [],
+        watercourses: [],
+        habitatSizes: {
+          areaHabitats: { totalSquareMetres: 1123 },
+          hedgerows: { totalMetres: 0 },
+          watercourses: { totalMetres: 0 },
+          trees: {
+            totalSquareMetres: 123,
+            urbanSquareMetres: 0,
+            ruralSquareMetres: 123
+          },
+          site: { totalSquareMetres: 1000 }
+        },
+        units: { totalUnits: 0.0345, habitatsTotal: 0, treesTotal: 0.0345 }
+      }
+    })
+    return { projectId, tree }
+  }
+
+  const payload = {
+    ref: 'T026',
+    broadType: 'Individual trees',
+    habitatType: 'Urban tree',
+    condition: 'Moderate',
+    strategicSignificance: 'Low',
+    advanceYears: 0,
+    delayYears: 0
+  }
+
+  async function readPostIntervention(projectId) {
+    const { rows } = await dbClient.query(
+      'SELECT project FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    return rows[0].project.postIntervention
+  }
+
+  it('saves a Created tree re-priced, and moves it to the urban size', async () => {
+    const { projectId, tree } = await seedCreatedTree()
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/trees/${tree.featureId}`,
+      headers,
+      payload
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toMatchObject({
+      featureId: tree.featureId,
+      count: 3,
+      sizeSquareMetres: 123,
+      status: 'Complete',
+      proposed: {
+        broadType: 'Individual trees',
+        type: 'Urban tree',
+        condition: 'Moderate'
+      }
+    })
+    const stored = await readPostIntervention(projectId)
+    expect(stored.trees[0]).toEqual(res.result)
+    expect(stored.units.treesTotal).toBe(res.result.units)
+    expect(stored.habitatSizes.trees).toEqual({
+      totalSquareMetres: 123,
+      urbanSquareMetres: 123,
+      ruralSquareMetres: 0
+    })
+  })
+
+  it('refuses a change to a non-tree habitat, leaving the tree unchanged', async () => {
+    const { projectId, tree } = await seedCreatedTree()
+    const before = await readPostIntervention(projectId)
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/trees/${tree.featureId}`,
+      headers,
+      payload: {
+        ...payload,
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(res.result.code).toBe('FEATURE_NOT_EDITABLE')
+    expect(await readPostIntervention(projectId)).toEqual(before)
+  })
+
+  it('refuses an Enhanced tree, leaving it unchanged', async () => {
+    const { projectId, tree } = await seedCreatedTree('Enhanced')
+    const before = await readPostIntervention(projectId)
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/trees/${tree.featureId}`,
+      headers,
+      payload
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(await readPostIntervention(projectId)).toEqual(before)
+  })
+})
+
 describe('BMD-1048 Created area editing', () => {
   it('persists complete and incomplete edits and rejects conflicting timing without writing', async () => {
     const feature = {

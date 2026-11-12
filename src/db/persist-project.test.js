@@ -304,9 +304,9 @@ describe('setBaselineFeature', () => {
     expectActorStamped(db)
   })
 
-  // A post-intervention tree is not editable, so the one layer that exists on
-  // the baseline alone must stay refused on the other document.
-  test('throws for a post-intervention tree, which is not editable', async () => {
+  // A Created post-intervention tree is editable (BMD-1172), against the
+  // post-intervention tree's own schema, which a baseline tree does not pass.
+  test('checks a post-intervention tree against the post-intervention tree schema', async () => {
     const db = makeDb()
     await expect(
       setProjectFeature(db, PROJECT_ID, {
@@ -317,8 +317,21 @@ describe('setBaselineFeature', () => {
         unitsTotals: validUnitsTotals,
         actorId: ACTOR_ID
       })
-    ).rejects.toThrow(/unknown feature layer/)
+    ).rejects.toThrow(/postIntervention\.trees\[0\] failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('writes a post-intervention tree', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'trees',
+      index: 0,
+      feature: validPostInterventionTree,
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
   })
 
   test('throws and does not write for an invalid feature', async () => {
@@ -367,6 +380,25 @@ const validPostInterventionHabitat = {
     type: 'Lowland meadows',
     broadType: 'Grassland',
     condition: 'Good'
+  },
+  properties: {}
+}
+
+const validPostInterventionTree = {
+  featureId: FEATURE_ID,
+  ref: 'T1',
+  retentionCategory: 'Created',
+  count: 1,
+  area: 41,
+  sizeSquareMetres: 41,
+  units: 0.1,
+  status: 'Complete',
+  baseline: {},
+  proposed: {
+    type: 'Rural tree',
+    broadType: 'Individual trees',
+    condition: 'Poor',
+    treeSize: 'Small'
   },
   properties: {}
 }
@@ -758,21 +790,24 @@ describe('setProjectFeature — habitat sizes (BMD-1172)', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 
-  test('refuses to write habitat sizes into the post-intervention document', async () => {
+  // A Created post-intervention tree can move between the urban and rural
+  // sizes too, so its document's summary is written with it.
+  test('writes the habitat sizes into the post-intervention document', async () => {
     const db = makeDb()
-    await expect(
-      setProjectFeature(
-        db,
-        PROJECT_ID,
-        edit({
-          documentKey: 'postIntervention',
-          layer: 'habitats',
-          feature: validPostInterventionHabitat,
-          habitatSizes
-        })
-      )
-    ).rejects.toThrow(/only a baseline tree edit/)
-    expect(db._update).not.toHaveBeenCalled()
+    await setProjectFeature(
+      db,
+      PROJECT_ID,
+      edit({
+        documentKey: 'postIntervention',
+        feature: validPostInterventionTree,
+        habitatSizes
+      })
+    )
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const [{ project }] = db._set.mock.calls[0]
+    const { params } = new PgDialect().sqlToQuery(project)
+    expect(params).toContain('{postIntervention,habitatSizes}')
   })
 })
 
