@@ -17,6 +17,7 @@ import {
 } from '../utilities/features/apply-retained-ref-edit.js'
 import { listRenamedRefs } from '../utilities/features/renamed-refs.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
+import { featureNotEditableError } from './feature-not-editable-error.js'
 import { refInUseError } from './ref-in-use-error.js'
 import {
   featureEditPayload,
@@ -397,7 +398,7 @@ async function runFeatureUpdate(
     )
   }
   if (result.status === APPLY_RESULT.UNSUPPORTED_TYPE) {
-    throw Boom.badRequest(
+    throw featureNotEditableError(
       `Feature type ${result.type} is not editable via this endpoint`
     )
   }

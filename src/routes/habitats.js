@@ -24,6 +24,7 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
+import { featureNotEditableError } from './feature-not-editable-error.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
@@ -322,7 +323,9 @@ function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   }
 
   if (result.status !== APPLY_RESULT.OK) {
-    throw Boom.badRequest(`This ${label.toLowerCase()} edit is not supported`)
+    throw featureNotEditableError(
+      `This ${label.toLowerCase()} edit is not supported`
+    )
   }
 }
 
