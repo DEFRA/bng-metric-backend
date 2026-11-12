@@ -62,8 +62,16 @@ const RETAINED_REF_RESULT = Object.freeze({
   REF_IN_USE: 'refInUse'
 })
 
-/** The layers whose Retained rows have an editable reference (BMD-1180). */
-const EDITABLE_LAYERS = new Set(['habitats', 'hedgerows', 'watercourses'])
+/**
+ * The layers whose Retained rows have an editable reference (BMD-1180), trees
+ * among them.
+ */
+const EDITABLE_LAYERS = new Set([
+  'habitats',
+  'trees',
+  'hedgerows',
+  'watercourses'
+])
 
 function replaceAt(features, index, feature) {
   const updated = features.slice()

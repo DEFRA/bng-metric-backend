@@ -13,6 +13,8 @@ const PI_HEDGEROW_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
 const PI_WATERCOURSE_ID = 'ff0e8400-e29b-41d4-a716-446655440006'
 const PI_SPLIT_ID = 'aa1e8400-e29b-41d4-a716-446655440007'
 const SECOND_BASELINE_HABITAT_ID = 'aa2e8400-e29b-41d4-a716-446655440008'
+const BASELINE_TREE_ID = 'aa3e8400-e29b-41d4-a716-446655440009'
+const PI_TREE_ID = 'aa4e8400-e29b-41d4-a716-44665544000a'
 
 const MAX_REF_LENGTH = 99
 
@@ -20,6 +22,13 @@ const AREA_IDENTITY = {
   type: 'Modified grassland',
   broadType: 'Grassland',
   condition: 'Poor'
+}
+
+const TREE_IDENTITY = {
+  type: 'Urban tree',
+  broadType: 'Individual trees',
+  condition: 'Moderate',
+  treeSize: 'Small'
 }
 
 function retainedHabitat(featureId, ref, identity = AREA_IDENTITY) {
@@ -195,6 +204,59 @@ describe('applyRetainedRefEdit — renaming through the baseline parcel', () => 
     })
     expect(result.feature.ref).toBe('P-W1')
     expect(result.postInterventionFeature.ref).toBe('P-W1')
+  })
+
+  test('renames a retained tree and its baseline tree', () => {
+    const project = projectFixture()
+    project.baseline.trees.push({
+      featureId: BASELINE_TREE_ID,
+      ref: 'T1',
+      ...TREE_IDENTITY,
+      sizeSquareMetres: 41,
+      units: 0.2
+    })
+    project.postIntervention.trees.push(
+      retainedHabitat(PI_TREE_ID, 'T1', TREE_IDENTITY)
+    )
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_TREE_ID,
+      ref: 'P-T1'
+    })
+
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      type: 'tree',
+      documentKey: 'baseline',
+      layer: 'trees'
+    })
+    expect(result.feature).toMatchObject({
+      featureId: BASELINE_TREE_ID,
+      ref: 'P-T1'
+    })
+    expect(result.postInterventionFeature.ref).toBe('P-T1')
+  })
+
+  test('renames a retained tree linked to its parent alone', () => {
+    const project = projectFixture()
+    project.postIntervention.trees.push({
+      ...retainedHabitat(PI_TREE_ID, 'T1', TREE_IDENTITY),
+      parentFeatureId: BASELINE_TREE_ID
+    })
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_TREE_ID,
+      ref: 'P-T1'
+    })
+
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      type: 'tree',
+      documentKey: 'postIntervention',
+      layer: 'trees',
+      index: 0
+    })
+    expect(result.feature).toMatchObject({ featureId: PI_TREE_ID, ref: 'P-T1' })
   })
 
   test('leaves the other layers and the stored project untouched', () => {
@@ -386,10 +448,11 @@ describe('applyRetainedRefEdit — edits it turns away', () => {
     }
   )
 
-  test('refuses an individual tree, whose reference is not editable', () => {
+  test('refuses an Enhanced individual tree', () => {
     const project = projectFixture()
     project.postIntervention.trees.push({
       ...retainedHabitat(PI_SPLIT_ID, 'T1'),
+      retentionCategory: 'Enhanced',
       type: 'Urban tree'
     })
 

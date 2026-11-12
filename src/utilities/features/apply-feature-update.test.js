@@ -1979,7 +1979,9 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
     })
   })
 
-  test('does not make a post-intervention tree editable', () => {
+  // After intervention a tree takes the Created edit's complete payload, not
+  // the baseline page's dropdowns and comment.
+  test('does not take the baseline tree edit on a post-intervention tree', () => {
     const project = projectWithTree()
     project.postIntervention = {
       habitats: [],
@@ -1994,6 +1996,195 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
       documentKey: 'postIntervention',
       edits: treeEdits({ comment: 'nope' })
     })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+})
+
+describe('applyFeatureUpdate — Created post-intervention trees', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
+
+  // A Small rural tree newly planted, standing for 3 trees: 123 m².
+  function projectWithCreatedTree(overrides = {}) {
+    const project = projectFixture()
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: TREE_ID,
+          ref: 'T026',
+          retentionCategory: 'Created',
+          count: 3,
+          sizeSquareMetres: 123,
+          area: 123,
+          units: 0.0345,
+          status: 'Complete',
+          baseline: {},
+          proposed: {
+            type: 'Rural tree',
+            broadType: 'Individual trees',
+            treeSize: 'Small',
+            condition: 'Poor',
+            strategicSignificance: 'Low',
+            advanceYears: 0,
+            delayYears: 0,
+            sizeSquareMetres: 123,
+            area: 123
+          },
+          ...overrides
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1123 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 123,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 123
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0.0345 }
+    }
+    return project
+  }
+
+  // What the Created edit page submits for a tree.
+  function createdTreeEdits(edits) {
+    return {
+      ref: 'T026',
+      broadType: 'Individual trees',
+      habitatType: 'Rural tree',
+      condition: 'Poor',
+      strategicSignificance: 'Low',
+      advanceYears: 0,
+      delayYears: 0,
+      ...edits
+    }
+  }
+
+  function editCreatedTree(edits, project = projectWithCreatedTree()) {
+    return applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: createdTreeEdits(edits)
+    })
+  }
+
+  test('prices a new target condition as a creation, at its planted size', () => {
+    const result = editCreatedTree({ condition: 'Moderate' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.layer).toBe('trees')
+    expect(result.feature).toMatchObject({
+      featureId: TREE_ID,
+      count: 3,
+      sizeSquareMetres: 123,
+      status: 'Complete',
+      proposed: {
+        broadType: 'Individual trees',
+        type: 'Rural tree',
+        treeSize: 'Small',
+        condition: 'Moderate'
+      }
+    })
+    // 0.0123 ha x 4 x 2 x the 27-year multiplier, as the Metric prices it.
+    expect(result.feature.units).toBeCloseTo(0.0376, 4)
+    expect(result.unitsTotals.treesTotal).toBeCloseTo(0.0376, 4)
+  })
+
+  test('prices the edited timing', () => {
+    const result = editCreatedTree({ advanceYears: 2 })
+
+    expect(result.feature.proposed.advanceYears).toBe(2)
+    expect(result.feature.units).toBeCloseTo(0.037, 4)
+  })
+
+  test('moves a tree from rural to urban, and between the urban and rural sizes', () => {
+    const result = editCreatedTree({ habitatType: 'Urban tree' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.type).toBe('Urban tree')
+    expect(result.habitatSizes.trees).toEqual({
+      totalSquareMetres: 123,
+      urbanSquareMetres: 123,
+      ruralSquareMetres: 0
+    })
+    expect(result.habitatSizes.areaHabitats.totalSquareMetres).toBe(1123)
+    expect(result.project.postIntervention.habitatSizes).toEqual(
+      result.habitatSizes
+    )
+  })
+
+  test('renames the tree, recording the rename so a baseline edit leaves it alone', () => {
+    const result = editCreatedTree({ ref: '  T026-new  ' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      ref: 'T026-new',
+      referenceEdited: true,
+      parentFeatureId: null
+    })
+  })
+
+  test('leaves the habitat sizes as stored on an edit that keeps the tree type', () => {
+    const result = editCreatedTree({ condition: 'Moderate' })
+
+    expect(result.habitatSizes).toBeUndefined()
+  })
+
+  test('saves zero units, Incomplete, when the target condition is left blank', () => {
+    const result = editCreatedTree({ condition: null })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({ units: 0, status: 'Incomplete' })
+  })
+
+  // As on the baseline: a tree is an Urban tree or a Rural tree.
+  test('turns away an edit that leaves the habitat type blank', () => {
+    const result = editCreatedTree({ habitatType: null })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+
+  test('turns away an edit that would make a tree another broad habitat', () => {
+    const project = projectWithCreatedTree()
+    const result = editCreatedTree(
+      { broadType: 'Grassland', habitatType: 'Modified grassland' },
+      project
+    )
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+    expect(project.postIntervention.trees[0].proposed.type).toBe('Rural tree')
+  })
+
+  test('turns away an edit to a habitat type that is not a tree', () => {
+    const result = editCreatedTree({ habitatType: 'Modified grassland' })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+
+  test('turns away the edit for an Enhanced tree', () => {
+    const result = editCreatedTree(
+      {},
+      projectWithCreatedTree({ retentionCategory: 'Enhanced' })
+    )
 
     expect(result).toEqual({
       status: APPLY_RESULT.UNSUPPORTED_TYPE,

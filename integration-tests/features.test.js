@@ -662,6 +662,88 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     })
   })
 
+  // A Retained tree's reference is editable too. One linked to its
+  // parent by id, as a BNG Service template tree is, is renamed alone.
+  it('renames a retained tree linked to its parent, leaving the baseline tree alone', async () => {
+    const tree = {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Moderate',
+      treeSize: 'Small'
+    }
+    const baselineTree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      ...tree,
+      count: 1,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.2,
+      status: 'Complete'
+    }
+    const retainedTree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      retentionCategory: 'Retained',
+      parentFeatureId: baselineTree.featureId,
+      count: 1,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.2,
+      status: 'Complete',
+      baseline: { ...tree },
+      proposed: { ...tree, advanceYears: 0, delayYears: 0 }
+    }
+    const projectId = randomUUID()
+    await dbClient.query(
+      `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+       VALUES ($1, $2, $3, $3)`,
+      [
+        projectId,
+        {
+          name: 'Retained tree ref edit IT',
+          baseline: {
+            habitats: [],
+            trees: [baselineTree],
+            hedgerows: [],
+            watercourses: [],
+            units: { totalUnits: 0.2, habitatsTotal: 0, treesTotal: 0.2 }
+          },
+          postIntervention: {
+            habitats: [],
+            trees: [retainedTree],
+            hedgerows: [],
+            watercourses: [],
+            units: { totalUnits: 0.2, habitatsTotal: 0, treesTotal: 0.2 }
+          }
+        },
+        userId
+      ]
+    )
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedTree.featureId}`,
+      payload: { ref: 'P-T1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({
+      type: 'tree',
+      feature: expect.objectContaining({
+        featureId: retainedTree.featureId,
+        ref: 'P-T1'
+      })
+    })
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention.trees[0].ref).toBe('P-T1')
+    expect(rows[0].project.baseline.trees[0].ref).toBe('T1')
+  })
+
   it('returns 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
     const { projectId, retainedRow } = await seedRetainedProject({
       otherBaselineHabitats: [
