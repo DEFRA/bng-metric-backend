@@ -458,8 +458,8 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *     tags: [Habitats]
  *     summary: Save a Created individual tree's reference, habitat type, target condition, strategic significance and timing
  *     description: |
- *       Takes the Created area habitat payload, for a Created tree only
- *       (BMD-1172). The tree stays a tree: broadType must be Individual
+ *       Takes the Created area habitat payload, for a Created tree only.
+ *       The tree stays a tree: broadType must be Individual
  *       trees, and habitatType Urban tree or Rural tree. A blank condition
  *       saves the tree Incomplete with zero units. The tree's size is its size
  *       class times its Count and is not edited; a change between Urban tree and Rural tree moves it

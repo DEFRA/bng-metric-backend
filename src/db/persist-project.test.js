@@ -304,7 +304,7 @@ describe('setBaselineFeature', () => {
     expectActorStamped(db)
   })
 
-  // A Created post-intervention tree is editable (BMD-1172), against the
+  // A Created post-intervention tree is editable, against the
   // post-intervention tree's own schema, which a baseline tree does not pass.
   test('checks a post-intervention tree against the post-intervention tree schema', async () => {
     const db = makeDb()

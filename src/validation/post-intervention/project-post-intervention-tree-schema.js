@@ -67,7 +67,7 @@ const postInterventionTreeProposedSubSchema = Joi.object({
   // factory so any future engine field flows to trees automatically — omitting
   // one previously caused persistence to reject non-retained trees.
   ...proposedCommonFields(),
-  // A Created tree is edited as a Created area habitat is (BMD-1172).
+  // A Created tree is edited as a Created area habitat is.
   ...createdTimingSelectionFields()
 }).description(
   'Proposed individual-tree values from the Proposed * GeoPackage columns.'
@@ -94,7 +94,7 @@ export const postInterventionTreeSchema = Joi.object({
   ),
   ...parentFeatureIdField({ editableCreated: true }),
   referenceEdited: Joi.boolean().description(
-    'Whether the user changed a Created tree reference (BMD-1172). Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
+    'Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
   ),
   irreplaceable: Joi.boolean().description(
     "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."

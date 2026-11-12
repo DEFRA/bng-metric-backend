@@ -421,7 +421,7 @@ describe('PUT /projects/{projectId}/habitats/{featureId} — with a post-interve
   })
 })
 
-describe('PUT /projects/{projectId}/post-intervention/trees/{featureId} (BMD-1172)', () => {
+describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => {
   // A Small rural tree newly planted, standing for 3 trees: 123 m².
   async function seedCreatedTree(retentionCategory = 'Created') {
     const tree = {

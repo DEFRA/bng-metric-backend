@@ -64,7 +64,7 @@ const FEATURE_SCHEMA_BY_LAYER = {
 
 const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
   habitats: postInterventionHabitatSchema,
-  // A Created tree is editable, and a Retained tree's reference (BMD-1172).
+  // A Created tree is editable, and a Retained tree's reference.
   trees: postInterventionTreeSchema,
   hedgerows: postInterventionLinearHabitatSchema,
   watercourses: postInterventionWatercourseSchema
@@ -459,7 +459,7 @@ function assertFeatureEditValid({
  *   Service template upload; omitted otherwise (BMD-1083)
  * @param {object} [params.habitatSizes] the edited document's refreshed
  *   habitatSizes, from a tree edit, which can move a tree between the urban
- *   and rural sizes; omitted otherwise (BMD-1172)
+ *   and rural sizes; omitted otherwise
  * @param {object} [params.postIntervention] the whole re-derived
  *   postIntervention document, written alongside a baseline feature edit or a
  *   template post-intervention edit. Baseline changes and template lineage

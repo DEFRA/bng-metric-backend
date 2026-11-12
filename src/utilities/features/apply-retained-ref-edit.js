@@ -64,7 +64,7 @@ const RETAINED_REF_RESULT = Object.freeze({
 
 /**
  * The layers whose Retained rows have an editable reference (BMD-1180), trees
- * among them (BMD-1172).
+ * among them.
  */
 const EDITABLE_LAYERS = new Set([
   'habitats',

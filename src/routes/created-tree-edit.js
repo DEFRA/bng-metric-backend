@@ -12,7 +12,7 @@ import {
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../validation/geopackage/tree-constants.js'
 import { featureNotEditableError } from './feature-not-editable-error.js'
 
-// A Created individual tree is edited as a Created area habitat is (BMD-1172),
+// A Created individual tree is edited as a Created area habitat is,
 // with the same payload, but it stays a tree: its broad habitat is always
 // Individual trees, and its habitat type is Urban tree or Rural tree. Its size
 // is its planted size class times its Count, which the page shows and does

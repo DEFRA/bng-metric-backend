@@ -83,7 +83,7 @@ function put(payload, stored) {
   return updatePostInterventionTree.handler(routeRequest(payload, stored), {})
 }
 
-describe('Created tree reference (BMD-1172)', () => {
+describe('Created tree reference', () => {
   test('offers only Urban tree and Rural tree, in Individual trees', () => {
     const reference = getTreeCreationReference()
 
@@ -113,7 +113,7 @@ describe('Created tree reference (BMD-1172)', () => {
   })
 })
 
-describe('validateCreatedTreeEdit (BMD-1172)', () => {
+describe('validateCreatedTreeEdit', () => {
   test('passes a complete edit that keeps the tree a tree', () => {
     expect(validateCreatedTreeEdit(tree, edits)).toMatchObject(edits)
   })
@@ -166,7 +166,7 @@ describe('validateCreatedTreeEdit (BMD-1172)', () => {
   })
 })
 
-describe('PUT /projects/{projectId}/post-intervention/trees/{featureId} (BMD-1172)', () => {
+describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => {
   beforeEach(() => vi.clearAllMocks())
 
   test('is a PUT at the tree path', () => {

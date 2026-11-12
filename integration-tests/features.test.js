@@ -662,7 +662,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     })
   })
 
-  // A Retained tree's reference is editable too (BMD-1172). One linked to its
+  // A Retained tree's reference is editable too. One linked to its
   // parent by id, as a BNG Service template tree is, is renamed alone.
   it('renames a retained tree linked to its parent, leaving the baseline tree alone', async () => {
     const tree = {

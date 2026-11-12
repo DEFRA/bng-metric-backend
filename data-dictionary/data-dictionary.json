@@ -5024,7 +5024,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the user changed a Created tree reference (BMD-1172). Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
+      "description": "Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
     },
     {
       "path": "postIntervention.trees[].irreplaceable",

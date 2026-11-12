@@ -67,7 +67,7 @@ function buildCreationReference(includeBroad) {
 // The pinned library reference data is static for this process. Keep the
 // cached snapshots private so callers cannot mutate another request's choices.
 // Individual trees have their own: a tree is created as an Urban tree or a
-// Rural tree and can never become another area habitat (BMD-1172).
+// Rural tree and can never become another area habitat.
 const areaCreationReference = structuredClone(
   buildCreationReference((broad) => !isTrees(broad))
 )

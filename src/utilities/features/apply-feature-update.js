@@ -233,7 +233,7 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
  * setting moves it between the urban and rural sizes (withEditedTreeSizes).
  *
  * After intervention only a Created tree is edited this way, with the Created
- * area habitat edit's complete payload (BMD-1172); a Retained tree's reference
+ * area habitat edit's complete payload; a Retained tree's reference
  * is renamed through apply-retained-ref-edit.js, and an Enhanced tree, like an
  * Enhanced area habitat, is not editable.
  */
@@ -693,7 +693,7 @@ function applyFeatureUpdate(
         ? updatedFeatureSet.lostHabitats
         : undefined,
     // Refreshed by a tree edit, whose setting the urban and rural sizes are
-    // split by (BMD-1172).
+    // split by.
     habitatSizes,
     postIntervention,
     project: rebuiltProject(

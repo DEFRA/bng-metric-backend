@@ -49,7 +49,7 @@ export const getAreaCreation = {
  *     summary: Individual tree creation habitat types, valid target conditions, difficulty and temporal multipliers
  *     responses:
  *       200:
- *         description: The Urban tree and Rural tree creation reference data, shaped as /reference/area-creation is, for the Created tree edit page (BMD-1172)
+ *         description: The Urban tree and Rural tree creation reference data, shaped as /reference/area-creation is, for the Created tree edit page
  */
 export const getTreeCreation = {
   method: 'GET',

@@ -1,5 +1,5 @@
 // What an individual tree edit may change, and the habitat-size summary it
-// refreshes (BMD-1112, BMD-1172): a baseline tree's, and a Created
+// refreshes (BMD-1112): a baseline tree's, and a Created
 // post-intervention tree's. Split out of apply-feature-update.js, which prices
 // the edit.
 

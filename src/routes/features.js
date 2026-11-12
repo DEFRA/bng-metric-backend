@@ -245,7 +245,7 @@ const updateFeature = {
  *     summary: Rename a retained post-intervention habitat
  *     description: |
  *       Saves a new habitat reference for a Retained post-intervention area
- *       habitat, individual tree (BMD-1172), hedgerow or watercourse
+ *       habitat, individual tree, hedgerow or watercourse
  *       (BMD-1180), and returns the
  *       post-intervention feature as `{ type, feature }`. Nothing else on a
  *       Retained habitat is editable.

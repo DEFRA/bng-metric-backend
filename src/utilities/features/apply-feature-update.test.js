@@ -1979,8 +1979,8 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
     })
   })
 
-  // After intervention a tree takes the Created edit's complete payload
-  // (BMD-1172), not the baseline page's dropdowns and comment.
+  // After intervention a tree takes the Created edit's complete payload, not
+  // the baseline page's dropdowns and comment.
   test('does not take the baseline tree edit on a post-intervention tree', () => {
     const project = projectWithTree()
     project.postIntervention = {
@@ -2004,7 +2004,7 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
   })
 })
 
-describe('applyFeatureUpdate — Created post-intervention trees (BMD-1172)', () => {
+describe('applyFeatureUpdate — Created post-intervention trees', () => {
   const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
 
   // A Small rural tree newly planted, standing for 3 trees: 123 m².
