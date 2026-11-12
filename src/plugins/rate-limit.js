@@ -45,6 +45,7 @@ import hapiRateLimit from 'hapi-rate-limit'
 import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { metricsCounter } from '../common/helpers/metrics.js'
+import { HTTP_STATUS } from '../common/helpers/http/status-codes.js'
 import {
   RATE_LIMIT_METRIC,
   RATE_LIMIT_TYPE
@@ -160,6 +161,20 @@ function createAllUsersCounter() {
     fullUntil(route, limit, now) {
       const window = current(route, now)
       return window && window.count >= limit ? window.resetAt : null
+    },
+    /** The time the route's current window resets, or null when it has none. */
+    windowResetAt(route, now) {
+      return current(route, now)?.resetAt ?? null
+    },
+    /**
+     * Give back one counted request, when the window it was counted in is
+     * still the current one. A later window never pays for an earlier one.
+     */
+    refund(route, resetAt, now) {
+      const window = current(route, now)
+      if (window?.resetAt === resetAt && window.count > 0) {
+        window.count--
+      }
     }
   }
 }
@@ -263,10 +278,42 @@ function allUsersLimitStep(refusals, allUsers) {
     const now = Date.now()
     const resetAt = allUsers.admit(request.route.path, settings, now)
     if (resetAt === null) {
+      // Remembered so a busy answer can give the request back (below).
+      request.plugins[ALL_USERS_LIMIT_PLUGIN] = {
+        windowResetAt: allUsers.windowResetAt(request.route.path, now)
+      }
       return h.continue
     }
     refusals.add(request.route.path, RATE_LIMIT_TYPE.allUsers)
     return tooManyRequests(retryAfterSeconds(resetAt, settings.windowMs, now))
+  }
+}
+
+/**
+ * A request the route answered 503 did no work: the validate routes refuse
+ * as busy (VALIDATION_BUSY) or unavailable before they fetch the file. So it
+ * gives back its place in the all-users count. Without this, users in the
+ * frontend's busy-and-retry journey, each retrying every 5 to 8 seconds, would
+ * use up the all-users limit with retries that cost nothing, and then be sent
+ * a 429 exactly when the service is recovering.
+ *
+ * The limit for each user still counts the retry; at about 13 a minute that
+ * stays well under it.
+ */
+function refundBusyStep(allUsers) {
+  return (request, h) => {
+    const counted = request.plugins[ALL_USERS_LIMIT_PLUGIN]
+    if (!counted) {
+      return h.continue
+    }
+    const { response } = request
+    const status = response.isBoom
+      ? response.output.statusCode
+      : response.statusCode
+    if (status === HTTP_STATUS.SERVICE_UNAVAILABLE) {
+      allUsers.refund(request.route.path, counted.windowResetAt, Date.now())
+    }
+    return h.continue
   }
 }
 
@@ -292,6 +339,7 @@ export const rateLimit = {
       server.ext('onPostAuth', allUsersLimitStep(counter, allUsers), {
         after: [RATE_LIMIT_PLUGIN]
       })
+      server.ext('onPreResponse', refundBusyStep(allUsers))
 
       const intervalMs = config.get('rateLimit.reportIntervalMs')
       const timer = setInterval(() => report(counter, intervalMs), intervalMs)

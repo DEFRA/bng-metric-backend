@@ -321,6 +321,62 @@ describe.each(LIMITED_ROUTES)('rate limit on $name', (route) => {
   })
 })
 
+describe('a busy answer', () => {
+  const validate = LIMITED_ROUTES.find(
+    (r) => r.path === '/baseline/validate/{uploadId}'
+  )
+  const HTTP_SERVICE_UNAVAILABLE = 503
+  let busy
+
+  async function startBusyValidate() {
+    busy = true
+    await serverWith({
+      routes: [
+        withRateLimit(
+          {
+            method: validate.method,
+            path: validate.path,
+            handler: (_request, h) =>
+              busy
+                ? h.response({ valid: false }).code(HTTP_SERVICE_UNAVAILABLE)
+                : 'ok'
+          },
+          validate.family
+        )
+      ]
+    })
+  }
+
+  test('does not use up the all-users limit, so busy retries are not refused', async () => {
+    await startBusyValidate()
+    // More users than the all-users limit allows each retry under their own
+    // limit, as the frontend's busy-and-retry journey does.
+    const retries = 13
+    const users = Math.ceil(validate.allUsersLimit / retries) + 2
+    const statuses = []
+    for (let u = 0; u < users; u++) {
+      statuses.push(...(await sendMany(validate, `retrying-${u}`, retries)))
+    }
+
+    expect(statuses.every((code) => code === HTTP_SERVICE_UNAVAILABLE)).toBe(
+      true
+    )
+
+    // Once the pool frees up, the next request is served, not refused.
+    busy = false
+    expect((await send(validate, 'a-new-user')).statusCode).toBe(HTTP_OK)
+  })
+
+  test('still counts toward the limit for each user', async () => {
+    await startBusyValidate()
+    await sendMany(validate, FIRST_USER, validate.userLimit)
+
+    const response = await send(validate, FIRST_USER)
+
+    expect(response.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
+  })
+})
+
 describe('the wait when both limits are full', () => {
   test('is the later of the two resets, so a retry is not refused again', async () => {
     const report = LIMITED_ROUTES.find((r) => r.family === RATE_LIMITED.report)
