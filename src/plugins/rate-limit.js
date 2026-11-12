@@ -127,6 +127,10 @@ export function withRateLimit(route, family) {
  */
 export function retryAfterSeconds(resetAt, windowMs, now) {
   const waitMs = Number.isFinite(resetAt) ? resetAt - now : windowMs
+  if (!Number.isFinite(waitMs)) {
+    // Neither a reset nor a window: the least wait, never "NaN".
+    return MIN_RETRY_AFTER_SECONDS
+  }
   return Math.max(MIN_RETRY_AFTER_SECONDS, Math.ceil(waitMs / MS_PER_SECOND))
 }
 
@@ -254,12 +258,10 @@ function serverOptions(refusals, allUsers) {
         : null
       const resetAt = Math.max(state.userPathReset ?? 0, allUsersReset ?? 0)
       refusals.add(request.route.path, RATE_LIMIT_TYPE.user)
+      // The fallback window is this plugin's own route setting, from the same
+      // rateLimit.<family>.windowMs, rather than the other plugin's state.
       return tooManyRequests(
-        retryAfterSeconds(
-          resetAt || undefined,
-          state.settings?.userPathCache?.expiresIn,
-          now
-        )
+        retryAfterSeconds(resetAt || undefined, allUsersSettings?.windowMs, now)
       )
     }
   }

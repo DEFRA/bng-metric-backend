@@ -6,6 +6,7 @@
 
 import Hapi from '@hapi/hapi'
 import Boom from '@hapi/boom'
+import Joi from 'joi'
 import { afterEach, describe, expect, test, vi } from 'vitest'
 
 import { config } from '../config.js'
@@ -44,6 +45,7 @@ const WINDOW_MS = 60_000
 const WINDOW_SECONDS = 60
 const START = new Date('2026-11-12T10:00:00Z')
 const HTTP_OK = 200
+const HTTP_BAD_REQUEST = 400
 const HTTP_TOO_MANY_REQUESTS = 429
 const UNLIMITED_REQUESTS = 100
 
@@ -178,6 +180,10 @@ describe('#retryAfterSeconds', () => {
     expect(retryAfterSeconds(undefined, WINDOW_MS, 1_000)).toBe(WINDOW_SECONDS)
   })
 
+  test('is 1 second, never NaN, with neither a reset nor a window', () => {
+    expect(retryAfterSeconds(undefined, undefined, 1_000)).toBe(1)
+  })
+
   test('is never less than 1 second', () => {
     expect(retryAfterSeconds(1_000, WINDOW_MS, 1_000)).toBe(1)
     expect(retryAfterSeconds(500, WINDOW_MS, 1_000)).toBe(1)
@@ -237,11 +243,28 @@ describe('#rateLimitRouteOptions', () => {
   })
 })
 
-describe.each(LIMITED_ROUTES)('rate limit on $name', (route) => {
+// The tile defaults (600 and 3000) would mean thousands of injects in a test,
+// which can outrun the test timeout on a slow runner. The behaviour is the same
+// at a tenth of them, and the defaults themselves are asserted above.
+const TILE_TEST_LIMITS = { userLimit: 60, allUsersLimit: 300 }
+
+const BEHAVIOUR_CASES = LIMITED_ROUTES.map((route) =>
+  route.family === RATE_LIMITED.osTiles
+    ? { ...route, ...TILE_TEST_LIMITS }
+    : route
+)
+
+describe.each(BEHAVIOUR_CASES)('rate limit on $name', (route) => {
   async function start() {
     vi.useFakeTimers({ toFake: ['Date'] })
     vi.setSystemTime(START)
-    return serverWith({ limited: [route] })
+    return serverWith({
+      limited: [route],
+      configOverrides: {
+        [`rateLimit.${route.family}.userLimit`]: route.userLimit,
+        [`rateLimit.${route.family}.allUsersLimit`]: route.allUsersLimit
+      }
+    })
   }
 
   test('allows each user up to the limit', async () => {
@@ -318,6 +341,62 @@ describe.each(LIMITED_ROUTES)('rate limit on $name', (route) => {
 
     expect(response.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
     expect(response.headers['retry-after']).toBe(String(WINDOW_SECONDS))
+  })
+})
+
+describe('a configured window', () => {
+  test('is the window of the limit for each user too, not the plugin default', async () => {
+    const report = LIMITED_ROUTES.find((r) => r.family === RATE_LIMITED.report)
+    const twoMinutes = 120_000
+    vi.useFakeTimers({ toFake: ['Date'] })
+    vi.setSystemTime(START)
+    await serverWith({
+      limited: [report],
+      configOverrides: { 'rateLimit.report.windowMs': twoMinutes }
+    })
+    await sendMany(report, FIRST_USER, report.userLimit)
+    // Past the plugin's default minute, inside the configured two.
+    vi.setSystemTime(START.getTime() + 61_000)
+
+    const response = await send(report, FIRST_USER)
+
+    expect(response.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
+    expect(response.headers['retry-after']).toBe('59')
+  })
+})
+
+describe('a request the route itself refuses', () => {
+  test('still counts, because the limits are checked before the route validates it', async () => {
+    // As the validate routes: a uploadId that is not a UUID gets a 400 from
+    // the route's own validation, which runs after the limits (onPostAuth).
+    const validate = LIMITED_ROUTES.find(
+      (r) => r.path === '/baseline/validate/{uploadId}'
+    )
+    await serverWith({
+      routes: [
+        withRateLimit(
+          {
+            method: validate.method,
+            path: validate.path,
+            options: {
+              validate: {
+                params: Joi.object({ uploadId: Joi.string().uuid() })
+              }
+            },
+            handler: () => 'ok'
+          },
+          validate.family
+        )
+      ]
+    })
+    const notAnUploadId = { url: () => '/baseline/validate/not-an-upload-id' }
+    const cheap = { ...validate, ...notAnUploadId }
+
+    const statuses = await sendMany(cheap, FIRST_USER, validate.userLimit)
+    const over = await send(cheap, FIRST_USER)
+
+    expect(statuses.every((status) => status === HTTP_BAD_REQUEST)).toBe(true)
+    expect(over.statusCode).toBe(HTTP_TOO_MANY_REQUESTS)
   })
 })
 
