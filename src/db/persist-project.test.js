@@ -26,6 +26,14 @@ const validUnitsTotals = {
   treesRuralTotal: 0
 }
 const validHabitat = { featureId: FEATURE_ID, status: 'Complete' }
+const validTree = {
+  featureId: FEATURE_ID,
+  ref: 'T1',
+  broadType: 'Individual trees',
+  type: 'Urban tree',
+  condition: 'Moderate',
+  status: 'Complete'
+}
 
 // One mock supports every chain the helpers use:
 //   insert(projects).values(...).returning()
@@ -267,7 +275,7 @@ describe('setBaselineFeature', () => {
     const db = makeDb()
     await expect(
       setBaselineFeature(db, PROJECT_ID, {
-        layer: 'trees',
+        layer: 'notALayer',
         index: 0,
         feature: validHabitat,
         unitsTotals: validUnitsTotals,
@@ -658,6 +666,76 @@ describe('setProjectFeature — lost habitats (BMD-1083)', () => {
         })
       )
     ).rejects.toThrow(/only the post-intervention document/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+describe('setProjectFeature — habitat sizes (BMD-1172)', () => {
+  // A baseline tree edit can move a tree between the urban and rural sizes,
+  // so the caller passes the refreshed summary to be written in the same
+  // surgical update as the tree.
+  const habitatSizes = {
+    areaHabitats: { totalSquareMetres: 1123 },
+    hedgerows: { totalMetres: 0 },
+    watercourses: { totalMetres: 0 },
+    trees: {
+      totalSquareMetres: 123,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 123
+    },
+    site: { totalSquareMetres: 1000 }
+  }
+  const edit = (overrides) => ({
+    layer: 'trees',
+    index: 0,
+    feature: { ...validTree, type: 'Rural tree' },
+    unitsTotals: validUnitsTotals,
+    actorId: ACTOR_ID,
+    ...overrides
+  })
+
+  test('writes the habitat sizes when they are supplied', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, edit({ habitatSizes }))
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const [{ project }] = db._set.mock.calls[0]
+    const { params } = new PgDialect().sqlToQuery(project)
+    expect(params).toContain('{baseline,habitatSizes}')
+    expect(params).toContain(JSON.stringify(habitatSizes))
+  })
+
+  test('rejects habitat sizes that fail their schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(
+        db,
+        PROJECT_ID,
+        edit({
+          habitatSizes: {
+            ...habitatSizes,
+            trees: { ...habitatSizes.trees, ruralSquareMetres: 'lots' }
+          }
+        })
+      )
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('refuses to write habitat sizes into the post-intervention document', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(
+        db,
+        PROJECT_ID,
+        edit({
+          documentKey: 'postIntervention',
+          layer: 'habitats',
+          feature: validPostInterventionHabitat,
+          habitatSizes
+        })
+      )
+    ).rejects.toThrow(/only a baseline tree edit/)
     expect(db._update).not.toHaveBeenCalled()
   })
 })

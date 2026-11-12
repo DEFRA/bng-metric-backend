@@ -1719,8 +1719,8 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
     return project
   }
 
-  // What the details page submits for a tree: its broad habitat and habitat
-  // type as stored, since neither is editable here, plus its condition.
+  // What the details page submits for a tree: its broad habitat, which is not
+  // editable, its habitat type and its condition.
   function treeEdits(edits) {
     return {
       broadType: 'Individual trees',
@@ -1815,12 +1815,147 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
     })
   })
 
-  // Changing it would move the tree's square metres between the urban and
-  // rural buckets of habitatSizes.trees, which no edit rebuilds.
-  test('turns away a change of urban/rural habitat type', () => {
+  // The baseline's size summary, with the tree's 123 m² in the urban split,
+  // beside 1000 m² of parcels and 10 m² of vertical area habitats.
+  function withHabitatSizes(project) {
+    project.baseline.habitatSizes = {
+      areaHabitats: { totalSquareMetres: 1133 },
+      hedgerows: { totalMetres: 0 },
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 123,
+        urbanSquareMetres: 123,
+        ruralSquareMetres: 0
+      },
+      verticalHabitats: { totalSquareMetres: 10 },
+      site: { totalSquareMetres: 1000 }
+    }
+    return project
+  }
+
+  test('moves a tree from urban to rural, re-pricing it and its urban and rural totals (BMD-1172)', () => {
+    const result = applyFeatureUpdate(withHabitatSizes(projectWithTree()), {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      type: 'Rural tree',
+      broadType: 'Individual trees',
+      sizeSquareMetres: 123,
+      units: 0.0492,
+      status: 'Complete'
+    })
+    expect(result.project.baseline.units).toMatchObject({
+      treesTotal: 0.0492,
+      treesUrbanTotal: 0,
+      treesRuralTotal: 0.0492
+    })
+  })
+
+  test('moves the tree between the urban and rural sizes, leaving the totals alone (BMD-1172)', () => {
+    const project = withHabitatSizes(projectWithTree())
+    const stored = structuredClone(project.baseline.habitatSizes)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    const refreshed = {
+      ...stored,
+      trees: {
+        totalSquareMetres: 123,
+        urbanSquareMetres: 0,
+        ruralSquareMetres: 123
+      }
+    }
+    expect(result.habitatSizes).toEqual(refreshed)
+    expect(result.project.baseline.habitatSizes).toEqual(refreshed)
+    // The stored project is not mutated.
+    expect(project.baseline.habitatSizes).toEqual(stored)
+  })
+
+  test('leaves the habitat sizes as stored on an edit that keeps the tree type', () => {
+    const project = withHabitatSizes(projectWithTree())
+    const stored = structuredClone(project.baseline.habitatSizes)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      edits: treeEdits({ condition: 'Moderate', comment: 'Pollarded' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.habitatSizes).toBeUndefined()
+    expect(result.project.baseline.habitatSizes).toEqual(stored)
+  })
+
+  // The schema allows a summary with no site. A tree edit cannot change a
+  // tree's area, so only the urban and rural split is replaced: the area
+  // habitats' total is never worked out again from parts that are missing.
+  test('replaces only the urban and rural split, on a summary with no site', () => {
+    const project = withHabitatSizes(projectWithTree())
+    delete project.baseline.habitatSizes.site
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    expect(result.habitatSizes.areaHabitats).toEqual({
+      totalSquareMetres: 1133
+    })
+    expect(result.habitatSizes.site).toBeUndefined()
+    expect(result.habitatSizes.trees).toEqual({
+      totalSquareMetres: 123,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 123
+    })
+  })
+
+  test('gives a tree with no urban/rural type one (BMD-1172)', () => {
+    const result = applyFeatureUpdate(
+      withHabitatSizes(
+        projectWithTree({ type: null, units: null, status: 'Incomplete' })
+      ),
+      {
+        featureId: TREE_ID,
+        edits: treeEdits({ habitatType: 'Rural tree' })
+      }
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      type: 'Rural tree',
+      units: 0.0492,
+      status: 'Complete'
+    })
+    expect(result.habitatSizes.trees).toEqual({
+      totalSquareMetres: 123,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 123
+    })
+  })
+
+  test('leaves the habitat sizes alone for a baseline saved without them', () => {
     const result = applyFeatureUpdate(projectWithTree(), {
       featureId: TREE_ID,
       edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.habitatSizes).toBeUndefined()
+    expect(result.project.baseline.habitatSizes).toBeUndefined()
+  })
+
+  test.each([
+    ['a habitat type that is not a tree', 'Modified grassland'],
+    ['no habitat type', '']
+  ])('turns away a change of a tree to %s', (_label, habitatType) => {
+    const result = applyFeatureUpdate(projectWithTree(), {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType })
     })
 
     expect(result).toEqual({

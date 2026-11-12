@@ -364,6 +364,7 @@ async function persistFeatureEdit(
     index: result.index,
     feature: result.feature,
     unitsTotals: result.unitsTotals,
+    habitatSizes: result.habitatSizes,
     postIntervention: result.postIntervention,
     actorId
   })

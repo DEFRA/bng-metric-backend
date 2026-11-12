@@ -289,6 +289,7 @@ async function persistFeatureEdit(
     unitsTotals: result.unitsTotals,
     tradingRules: result.tradingRules,
     lostHabitats: result.lostHabitats,
+    habitatSizes: result.habitatSizes,
     postIntervention: result.postIntervention,
     actorId
   })
