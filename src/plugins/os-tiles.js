@@ -31,6 +31,7 @@ import { config } from '../config.js'
 import { createLogger } from '../common/helpers/logging/logger.js'
 import { createOsTiles } from '../services/os-tiles/index.js'
 import { isOsTileError } from '../services/os-tiles/errors.js'
+import { RATE_LIMITED, withRateLimit } from './rate-limit.js'
 
 const logger = createLogger()
 
@@ -179,7 +180,7 @@ const osTiles = {
       })
       server.app.osTiles = service
 
-      server.route([
+      const routes = [
         {
           method: 'GET',
           path: '/os-tiles/capabilities',
@@ -248,7 +249,15 @@ const osTiles = {
             }
           }
         }
-      ])
+      ]
+
+      // Every tile route spends the OS API quota on a cache miss, so each
+      // carries the tile rate limits (plugins/rate-limit.js). The report
+      // builder calls the service on server.app directly, so these limits
+      // never reach a report's map.
+      server.route(
+        routes.map((route) => withRateLimit(route, RATE_LIMITED.osTiles))
+      )
     }
   }
 }

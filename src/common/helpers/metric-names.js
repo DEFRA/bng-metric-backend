@@ -183,3 +183,28 @@ export const DATABASE_METRIC = {
    */
   schemaCheckSkipped: 'DatabaseSchemaCheckSkipped'
 }
+
+/**
+ * Requests refused by a rate limit (plugins/rate-limit.js).
+ *
+ * Counted in memory and emitted once per RATE_LIMIT_REPORT_INTERVAL_MS for
+ * each route and type of limit that refused something, so a burst costs one
+ * EMF flush per interval rather than one per refused request. The dimensions
+ * are the route's path pattern (e.g. `/projects/{projectId}/report.pdf`, never
+ * the path with its ids) and {@link RATE_LIMIT_TYPE}. Nothing that identifies
+ * a user is a dimension.
+ */
+export const RATE_LIMIT_METRIC = {
+  requestsRefused: 'RateLimitRequestsRefused'
+}
+
+/**
+ * Values for the `limit` dimension on RateLimitRequestsRefused: which of the
+ * route's two limits refused the request. `user` says one user sent too much;
+ * `all_users` says the route as a whole did. When both are over, `user` wins,
+ * because that user is the cause either way.
+ */
+export const RATE_LIMIT_TYPE = Object.freeze({
+  user: 'user',
+  allUsers: 'all_users'
+})

@@ -262,6 +262,74 @@ See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 For how the service behaves when Postgres, S3 or CDP Uploader fails, and the
 tests that show it, see [`docs/downstream-failures.md`](docs/downstream-failures.md).
 
+## Rate limits
+
+CDP's Nginx allows 1000 requests a second. The routes that cost the most to
+serve cannot carry that, so each has two limits, from
+[`hapi-rate-limit`](https://github.com/wraithgar/hapi-rate-limit): one for
+each user (the token's `sub` claim), and one for all users together. Every
+other route, `/health` and `/upload/{uploadId}/status` included, has no limit
+of its own; the CDP limit protects them.
+
+| Routes                                                                                     | Config section             | Each user | All users | Window |
+| :----------------------------------------------------------------------------------------- | :------------------------- | --------: | --------: | -----: |
+| `POST /upload/initiate`                                                                    | `rateLimit.uploadInitiate` |        10 |        60 |  1 min |
+| `POST /baseline/validate/{uploadId}`, `POST /post-intervention/validate/{uploadId}` (each) | `rateLimit.validate`       |        40 |       120 |  1 min |
+| `GET /projects/{projectId}/report.pdf`                                                     | `rateLimit.report`         |         5 |        20 |  1 min |
+| `GET /os-tiles/*` (each of the 4 routes; they spend the OS API quota)                      | `rateLimit.osTiles`        |       600 |      3000 |  1 min |
+
+The values are estimates. The rate-limit profile of the performance tests
+(bng-perf-tests) confirms or changes them.
+
+Each value has its own environment variable, `RATE_LIMIT_<FAMILY>_USER_LIMIT`,
+`RATE_LIMIT_<FAMILY>_ALL_USERS_LIMIT` and `RATE_LIMIT_<FAMILY>_WINDOW_MS`, where
+`<FAMILY>` is `UPLOAD_INITIATE`, `VALIDATE`, `REPORT` or `OS_TILES`.
+
+| Setting                         | Default | Notes                                                                 |
+| :------------------------------ | ------: | :-------------------------------------------------------------------- |
+| `RATE_LIMIT_ENABLED`            |  `true` | `false` turns every limit off. Set per environment in cdp-app-config. |
+| `RATE_LIMIT_REPORT_INTERVAL_MS` |   60000 | How often refused requests are logged and counted.                    |
+
+`RATE_LIMIT_ENABLED` is on by default, unlike a feature flag. It is off in two
+places, because they send more than the limits as one user on purpose:
+
+- the performance test environment while a capacity profile (`standard` or
+  `short`) runs. It is on while the `rate-limit` profile runs. The setting is
+  in cdp-app-config, so the backend must be deployed again before each profile;
+- the journey test stack (bng-metric-journey-tests) and this repository's
+  integration tests.
+
+A refused request gets **429 Too Many Requests** with a `Retry-After` header:
+the seconds until the limit that refused it resets. The frontend shows its
+"too many requests" page with that wait.
+
+What to know about the counts:
+
+- They are in memory (the default server cache). The backend has no Redis, so
+  **each copy of the backend counts on its own**. That is right for the
+  all-users limit, because each copy has its own capacity, but it means a
+  user can make up to the user limit **multiplied by the number of copies**.
+- A window starts at a key's first request and does not slide.
+- The plugin counts refused requests too, and a user's requests count toward
+  the all-users limit even when that user is over their own. One user who
+  keeps sending can therefore use up the all-users limit for everybody until
+  the window ends.
+
+Where they sit among the load controls: the memory ceiling
+(`VALIDATION_MAX_RSS_BYTES`) refuses first, before authentication. The rate
+limits are checked after authentication and before the handler, so before the
+validate route's admission limit, parse budget and worker queue. They replace
+none of them. The validate limit for each user is well above the frontend's
+busy-and-retry journey, which calls validate at most about 13 times a minute
+(every 5 to 8 seconds for up to 2 minutes).
+
+Refused requests are counted by route and type of limit, and once each
+`RATE_LIMIT_REPORT_INTERVAL_MS` the backend writes one warning log line and
+one `RateLimitRequestsRefused` metric for each, with the dimensions `route`
+(the route pattern, e.g. `/projects/{projectId}/report.pdf`) and `limit`
+(`user` or `all_users`). Neither records the user. See
+`src/plugins/rate-limit.js`.
+
 ## Development helpers
 
 ### Proxy

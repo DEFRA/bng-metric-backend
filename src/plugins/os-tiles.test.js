@@ -79,6 +79,24 @@ describe('the tile routes', () => {
       expect(route.settings.auth).toBeUndefined()
     }
   })
+
+  test('each carry the map tile rate limits, because a miss spends the OS quota', async () => {
+    const { server } = await serverWith()
+
+    const routes = server
+      .table()
+      .filter((route) => route.path.startsWith('/os-tiles'))
+
+    expect(routes.length).toBe(4)
+    for (const route of routes) {
+      expect(route.settings.plugins['hapi-rate-limit']).toMatchObject({
+        enabled: true,
+        ignorePathParams: true,
+        userPathLimit: config.default('rateLimit.osTiles.userLimit'),
+        pathLimit: config.default('rateLimit.osTiles.allUsersLimit')
+      })
+    }
+  })
 })
 
 describe('GET /os-tiles/capabilities', () => {

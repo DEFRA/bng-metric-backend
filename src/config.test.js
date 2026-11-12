@@ -184,3 +184,67 @@ describe('#config perf-evidence flag', () => {
     vi.unstubAllEnvs()
   })
 })
+
+describe('#config rate limits', () => {
+  const reload = async () => {
+    vi.resetModules()
+    const { config } = await import('./config.js')
+    return config
+  }
+
+  test('Should be on by default, with the start values for each route family', async () => {
+    vi.stubEnv('RATE_LIMIT_ENABLED', undefined)
+
+    const config = await reload()
+
+    expect(config.get('rateLimit.enabled')).toBe(true)
+    expect(config.get('rateLimit.uploadInitiate')).toEqual({
+      userLimit: 10,
+      allUsersLimit: 60,
+      windowMs: 60000
+    })
+    expect(config.get('rateLimit.validate')).toEqual({
+      userLimit: 40,
+      allUsersLimit: 120,
+      windowMs: 60000
+    })
+    expect(config.get('rateLimit.report')).toEqual({
+      userLimit: 5,
+      allUsersLimit: 20,
+      windowMs: 60000
+    })
+    expect(config.get('rateLimit.osTiles')).toEqual({
+      userLimit: 600,
+      allUsersLimit: 3000,
+      windowMs: 60000
+    })
+
+    vi.unstubAllEnvs()
+  })
+
+  test('Should read RATE_LIMIT_ENABLED=false as off', async () => {
+    vi.stubEnv('RATE_LIMIT_ENABLED', 'false')
+
+    const config = await reload()
+
+    expect(config.get('rateLimit.enabled')).toBe(false)
+
+    vi.unstubAllEnvs()
+  })
+
+  test('Should read each limit and window from its own variable', async () => {
+    vi.stubEnv('RATE_LIMIT_REPORT_USER_LIMIT', '7')
+    vi.stubEnv('RATE_LIMIT_REPORT_ALL_USERS_LIMIT', '30')
+    vi.stubEnv('RATE_LIMIT_REPORT_WINDOW_MS', '120000')
+
+    const config = await reload()
+
+    expect(config.get('rateLimit.report')).toEqual({
+      userLimit: 7,
+      allUsersLimit: 30,
+      windowMs: 120000
+    })
+
+    vi.unstubAllEnvs()
+  })
+})
