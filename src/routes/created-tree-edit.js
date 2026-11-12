@@ -1,5 +1,4 @@
 import Boom from '@hapi/boom'
-import { postInterventionAreaEditPayload } from './created-area-edit.js'
 import {
   resolveStoredTiming,
   validateReferenceAndTiming
@@ -17,11 +16,13 @@ import { featureNotEditableError } from './feature-not-editable-error.js'
 // Individual trees, and its habitat type is Urban tree or Rural tree. Its size
 // is its planted size class times its Count, which the page shows and does
 // not edit.
-export const postInterventionTreeEditPayload = postInterventionAreaEditPayload
+export { postInterventionAreaEditPayload as postInterventionTreeEditPayload } from './created-area-edit.js'
 
+// A tree that is not Created is refused with FEATURE_NOT_EDITABLE: no field on
+// the form is to blame for it.
 export function validateCreatedTreeEdit(feature, edits) {
   if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
-    throw Boom.badRequest('Only a Created tree can be edited')
+    throw featureNotEditableError('Only a Created tree can be edited')
   }
   if (!Object.hasOwn(edits, 'ref')) {
     throw Boom.badRequest(

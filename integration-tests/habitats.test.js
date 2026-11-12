@@ -553,6 +553,7 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     })
 
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(res.result.code).toBe('FEATURE_NOT_EDITABLE')
     expect(await readPostIntervention(projectId)).toEqual(before)
   })
 })

@@ -118,11 +118,23 @@ describe('validateCreatedTreeEdit', () => {
     expect(validateCreatedTreeEdit(tree, edits)).toMatchObject(edits)
   })
 
-  test('refuses a tree that is not Created', () => {
-    expect(() =>
-      validateCreatedTreeEdit({ ...tree, retentionCategory: 'Enhanced' }, edits)
-    ).toThrow(/Only a Created tree/)
-  })
+  test.each(['Enhanced', 'Retained'])(
+    'refuses a tree that is %s as FEATURE_NOT_EDITABLE',
+    (retentionCategory) => {
+      expect(() =>
+        validateCreatedTreeEdit({ ...tree, retentionCategory }, edits)
+      ).toThrow(
+        expect.objectContaining({
+          message: 'Only a Created tree can be edited',
+          output: expect.objectContaining({
+            payload: expect.objectContaining({
+              code: ERROR_CODES.FEATURE_NOT_EDITABLE
+            })
+          })
+        })
+      )
+    }
+  )
 
   test('refuses an edit without the complete Created payload', () => {
     const { ref: _ref, ...dropdownsOnly } = edits
@@ -219,7 +231,12 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
   test('refuses an Enhanced tree, and writes nothing', async () => {
     await expect(
       put(edits, { ...tree, retentionCategory: 'Enhanced' })
-    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 400,
+        payload: { code: ERROR_CODES.FEATURE_NOT_EDITABLE }
+      }
+    })
     expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
