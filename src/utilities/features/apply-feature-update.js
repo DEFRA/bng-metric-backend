@@ -58,7 +58,7 @@ import {
   RURAL_TREE_TYPE,
   URBAN_TREE_TYPE
 } from '../../validation/geopackage/tree-constants.js'
-import { withSummarizedTreeSizes } from '../../validation/geopackage/tree-sizes.js'
+import { summarizeTreeSizes } from '../../validation/geopackage/tree-sizes.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -264,28 +264,32 @@ function recomputeTreeEdit(existing, edits, context) {
 }
 
 /**
- * The baseline's habitat-size summary after an edit to one of its trees, or
- * undefined when the edit leaves it as it was: an edit to anything else, or a
- * baseline saved without one.
+ * The baseline's habitat-size summary after an edit that moves one of its
+ * trees to another setting, or undefined when the edit leaves the summary as
+ * it was: an edit to anything else, one that keeps the tree's type, or a
+ * baseline saved without a summary. Only the urban and rural split moves: a
+ * tree edit cannot change a tree's area, so the trees' total and the area
+ * habitats' total stay as stored.
  *
  * @param {object} featureSet the edited baseline
- * @param {string} type the edited feature's type
+ * @param {{ type: string, feature: object }} found the feature as stored
+ * @param {object} updatedFeature the feature as edited
  * @param {string} documentKey
  * @returns {object | undefined}
  */
-function withEditedTreeSizes(featureSet, type, documentKey) {
+function withEditedTreeSizes(featureSet, found, updatedFeature, documentKey) {
   if (
     documentKey !== 'baseline' ||
-    type !== 'tree' ||
+    found.type !== 'tree' ||
+    (found.feature.type ?? null) === (updatedFeature.type ?? null) ||
     !featureSet.habitatSizes
   ) {
     return undefined
   }
-  return withSummarizedTreeSizes(
-    featureSet.habitatSizes,
-    featureSet.trees ?? [],
-    (tree) => tree.type
-  )
+  return {
+    ...featureSet.habitatSizes,
+    trees: summarizeTreeSizes(featureSet.trees ?? [], (tree) => tree.type)
+  }
 }
 
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
@@ -666,7 +670,8 @@ function applyFeatureUpdate(
   )
   const habitatSizes = withEditedTreeSizes(
     updatedFeatureSet,
-    found.type,
+    found,
+    updatedFeature,
     documentKey
   )
   if (habitatSizes) {

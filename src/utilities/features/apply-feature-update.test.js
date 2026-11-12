@@ -1877,6 +1877,43 @@ describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
     expect(project.baseline.habitatSizes).toEqual(stored)
   })
 
+  test('leaves the habitat sizes as stored on an edit that keeps the tree type', () => {
+    const project = withHabitatSizes(projectWithTree())
+    const stored = structuredClone(project.baseline.habitatSizes)
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      edits: treeEdits({ condition: 'Moderate', comment: 'Pollarded' })
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.habitatSizes).toBeUndefined()
+    expect(result.project.baseline.habitatSizes).toEqual(stored)
+  })
+
+  // The schema allows a summary with no site. A tree edit cannot change a
+  // tree's area, so only the urban and rural split is replaced: the area
+  // habitats' total is never worked out again from parts that are missing.
+  test('replaces only the urban and rural split, on a summary with no site', () => {
+    const project = withHabitatSizes(projectWithTree())
+    delete project.baseline.habitatSizes.site
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      edits: treeEdits({ habitatType: 'Rural tree' })
+    })
+
+    expect(result.habitatSizes.areaHabitats).toEqual({
+      totalSquareMetres: 1133
+    })
+    expect(result.habitatSizes.site).toBeUndefined()
+    expect(result.habitatSizes.trees).toEqual({
+      totalSquareMetres: 123,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 123
+    })
+  })
+
   test('gives a tree with no urban/rural type one (BMD-1172)', () => {
     const result = applyFeatureUpdate(
       withHabitatSizes(
