@@ -1,7 +1,7 @@
 import { HABITAT_REF } from 'bng-library/bng-service'
 
 import { ERROR_CODES, makeError } from './errors.js'
-import { irreplaceableFromProps } from './irreplaceable.js'
+import { markedNotIrreplaceable } from './irreplaceable.js'
 import { PROP_KEYS, pickProp } from './properties.js'
 
 const SAMPLE_CAP = 50
@@ -34,12 +34,14 @@ function labelOf(sample) {
 }
 
 /**
- * Refuse individual trees marked irreplaceable (Irreplaceable Habitat "Yes"):
- * the service does not accept irreplaceable trees, such as ancient and
- * veteran trees, which the Metric guide records as irreplaceable habitat.
- * Run on each stage's tables, so a tree marked at either stage refuses the
- * file. A blank Irreplaceable Habitat is "No" (irreplaceable.js), and a legacy
- * file, which has no such column, is never refused by it.
+ * Refuse individual trees whose Irreplaceable Habitat is not "No": the service
+ * does not accept irreplaceable trees, such as ancient and veteran trees,
+ * which the Metric guide records as irreplaceable habitat. For a tree the
+ * column is mandatory: "Yes", a blank cell or any other value is treated as
+ * irreplaceable until the surveyor asserts "No". Other habitats still read a
+ * blank as "No" (irreplaceable.js). Run on each stage's tables, so a tree at
+ * either stage refuses the file. A legacy file, which has no such column, is
+ * never refused by it.
  *
  * @param {object} layers Output of readGeoPackage
  * @returns {{ code: string, message: string, details: { count: number, sample: object[] } }|null}
@@ -49,7 +51,7 @@ export function checkIrreplaceableTrees(layers) {
   const offenders = []
   const features = layers?.[TREE_LAYER] ?? []
   features.forEach((feature, idx) => {
-    if (irreplaceableFromProps(feature?.properties) === true) {
+    if (markedNotIrreplaceable(feature?.properties) === false) {
       offenders.push(describe(feature, idx, table))
     }
   })
@@ -67,7 +69,7 @@ export function checkIrreplaceableTrees(layers) {
 
   return makeError(
     ERROR_CODES.IRREPLACEABLE_TREE,
-    `One or more trees are marked as irreplaceable habitat. The service does not accept irreplaceable trees: ${shown}${more}`,
+    `One or more trees have an Irreplaceable Habitat other than "No". Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees: ${shown}${more}`,
     { count: offenders.length, sample }
   )
 }

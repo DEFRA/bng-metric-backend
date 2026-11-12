@@ -165,9 +165,10 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * One or more BNG Service template individual trees, at baseline or
-   * post-intervention, have Irreplaceable Habitat "Yes": the service does not
-   * accept irreplaceable trees. A blank Irreplaceable Habitat is "No". One
-   * error for them all, per stage; `details.sample` lists each tree's table,
+   * post-intervention, have an Irreplaceable Habitat other than "No": "Yes",
+   * a blank cell or any other value. The service does not accept irreplaceable
+   * trees, so for a tree the column must say "No". One error for them all,
+   * per stage; `details.sample` lists each tree's table,
    * Habitat Ref and fid. The frontend sends the user to the drop-out page.
    */
   IRREPLACEABLE_TREE: 'IRREPLACEABLE_TREE',
