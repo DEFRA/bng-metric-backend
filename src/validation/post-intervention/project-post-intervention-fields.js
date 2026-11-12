@@ -167,7 +167,7 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     units: Joi.number()
       .allow(null)
       .description(
-        'Post-intervention biodiversity units, calculated from proposed values; null when required calculation inputs are missing.'
+        `Post-intervention biodiversity units, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created watercourse is saved from its edit form with such an input blank (BMD-1050 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.`
       ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
