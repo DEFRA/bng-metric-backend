@@ -77,6 +77,14 @@ export const getTreeEnhancement = {
   handler: () => getTreeEnhancementReference()
 }
 
+// A baseline habitat or condition label, as the area enhancement route takes
+// it; blank or absent when the baseline has none.
+const MAX_BASELINE_FIELD_LENGTH = 200
+const baselineField = Joi.string()
+  .max(MAX_BASELINE_FIELD_LENGTH)
+  .allow('')
+  .optional()
+
 /**
  * @openapi
  * /reference/area-enhancement:
@@ -112,9 +120,9 @@ export const getAreaEnhancement = {
     auth: false,
     validate: {
       query: Joi.object({
-        broadType: Joi.string().max(200).allow('').optional(),
-        type: Joi.string().max(200).allow('').optional(),
-        condition: Joi.string().max(200).allow('').optional()
+        broadType: baselineField,
+        type: baselineField,
+        condition: baselineField
       })
     }
   },

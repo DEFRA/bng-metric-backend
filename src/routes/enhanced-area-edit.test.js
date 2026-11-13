@@ -5,10 +5,14 @@ import {
 } from 'bng-library/metric'
 import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
-import { checkFeatureEnhancement } from '../validation/geopackage/post-intervention/enhancement-rules.js'
+import {
+  checkFeatureEnhancement,
+  enhancementTarget
+} from '../validation/geopackage/post-intervention/enhancement-rules.js'
 import { postInterventionHabitatSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
 import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
+import { validateCreatedAreaEdit } from './created-area-edit.js'
 import { getAreaEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
 
@@ -304,4 +308,56 @@ describe('BMD-1045 Enhanced area edits', () => {
       expect(result.status).toBe('unsupportedType')
     }
   )
+})
+
+describe('BMD-1045 edge cases', () => {
+  test('the area edit refuses a feature that is neither Created nor Enhanced', () => {
+    expect(() =>
+      validateCreatedAreaEdit(
+        { ...feature, retentionCategory: 'Retained' },
+        edits
+      )
+    ).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({ statusCode: 400 })
+      })
+    )
+  })
+
+  test('an Enhanced area with no stored baseline is offered nothing, so any choice is refused', () => {
+    const { baseline: _omitted, ...withoutBaseline } = feature
+    expect(() => validateCreatedAreaEdit(withoutBaseline, edits)).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({ statusCode: 400 })
+      })
+    )
+  })
+
+  test('enhancementTarget is not valid for a layer the rules do not cover, or a baseline they cannot read', () => {
+    const proposed = {
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition: 'Good'
+    }
+    expect(enhancementTarget('trees', { baseline, proposed })).toEqual({
+      valid: false,
+      timeToTarget: null
+    })
+    expect(
+      enhancementTarget('habitats', { baseline: { type: 'Nope' }, proposed })
+    ).toEqual({ valid: false, timeToTarget: null })
+    expect(enhancementTarget('habitats', { baseline, proposed })).toEqual({
+      valid: true,
+      timeToTarget: expect.anything()
+    })
+  })
+
+  // Fills the cache with 501 baselines, each read against every habitat.
+  test('the per-baseline cache starts again once full, and still answers correctly', () => {
+    const expected = getAreaEnhancementReference(baseline)
+    for (let i = 0; i <= 500; i++) {
+      getAreaEnhancementReference({ broadType: 'Nope', type: `Unknown ${i}` })
+    }
+    expect(getAreaEnhancementReference(baseline)).toEqual(expected)
+  }, 30_000)
 })
