@@ -6,6 +6,7 @@ import {
   getTreeCreationReference,
   getTreeEnhancementReference
 } from '../validation/reference/area-creation.js'
+import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 
 import { asc } from 'drizzle-orm'
 import { localPlanningAuthorities } from '../db/schema/index.js'
@@ -74,6 +75,50 @@ export const getTreeEnhancement = {
   path: '/reference/tree-enhancement',
   options: { auth: false },
   handler: () => getTreeEnhancementReference()
+}
+
+/**
+ * @openapi
+ * /reference/area-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: The valid enhancements of a baseline area habitat, with their enhancement difficulty, time to target and temporal multipliers
+ *     parameters:
+ *       - in: query
+ *         name: broadType
+ *         schema: { type: string }
+ *         description: The baseline habitat's broad habitat
+ *       - in: query
+ *         name: type
+ *         schema: { type: string }
+ *         description: The baseline habitat's habitat type
+ *       - in: query
+ *         name: condition
+ *         schema: { type: string }
+ *         description: The baseline habitat's condition
+ *     responses:
+ *       200:
+ *         description: |
+ *           Shaped as /reference/area-creation, listing only the broad
+ *           habitats, habitat types and target conditions that are valid
+ *           enhancements of the baseline (BMD-820's rules), each condition
+ *           with its enhancement time to target from the baseline. Empty
+ *           habitatTypes for a baseline that cannot be enhanced.
+ */
+export const getAreaEnhancement = {
+  method: 'GET',
+  path: '/reference/area-enhancement',
+  options: {
+    auth: false,
+    validate: {
+      query: Joi.object({
+        broadType: Joi.string().max(200).allow('').optional(),
+        type: Joi.string().max(200).allow('').optional(),
+        condition: Joi.string().max(200).allow('').optional()
+      })
+    }
+  },
+  handler: (request) => getAreaEnhancementReference(request.query)
 }
 
 /**

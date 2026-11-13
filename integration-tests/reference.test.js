@@ -250,6 +250,38 @@ describe('GET /reference/area-creation', () => {
   })
 })
 
+describe('GET /reference/area-enhancement', () => {
+  it('serves the valid enhancements of a baseline without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/area-enhancement?broadType=Grassland&type=Modified%20grassland&condition=Poor'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    const type = res.result.habitatTypes.find(
+      (t) => t.broad === 'Grassland' && t.name === 'Modified grassland'
+    )
+    expect(type.conditions).toContainEqual({
+      condition: 'Moderate',
+      score: 2,
+      years: 10
+    })
+    expect(type.conditions.map((c) => c.condition)).not.toContain('Poor')
+    expect(res.result.strategicSignificance).toContainEqual({
+      value: 'High',
+      score: 1.15
+    })
+  })
+
+  it('serves no habitat types for a baseline it does not know', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/area-enhancement'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.habitatTypes).toEqual([])
+  })
+})
+
 describe('GET /reference/hedgerow-creation', () => {
   it('returns hedgerow-only creation choices without authentication', async () => {
     const res = await server.inject({
