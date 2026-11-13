@@ -370,7 +370,7 @@ export function preserveCreatedParent(
 ) {
   const createdEdit =
     documentKey === 'postIntervention' &&
-    ['habitats', 'hedgerows', 'watercourses'].includes(layer)
+    ['habitats', 'trees', 'hedgerows', 'watercourses'].includes(layer)
   if (
     !createdEdit ||
     resolveRetentionCategory(existing) !== RETENTION_CREATED ||

@@ -6,7 +6,7 @@ import { postgres, postgresOptionsFromConfig } from './plugins/postgres.js'
 import { authJwt } from './plugins/auth-jwt.js'
 import { router } from './plugins/router.js'
 import { requestLogger } from './common/helpers/logging/request-logger.js'
-import { rateEvidence } from './plugins/rate-evidence.js'
+import { rateLimit } from './plugins/rate-limit.js'
 import {
   memoryShed,
   memoryShedOptionsFromConfig
@@ -66,9 +66,10 @@ async function createServer() {
       plugin: memoryShed.plugin,
       options: memoryShedOptionsFromConfig()
     },
-    // rateEvidence - observability only (spike Item W3): logs uncapped
-    // service-wide request bursts. It does NOT rate-limit anything.
-    rateEvidence,
+    // rateLimit - hapi-rate-limit, off by default and turned on route by
+    // route (plugins/rate-limit.js). It checks after authentication, so after
+    // memoryShed and before a handler's own load controls.
+    rateLimit,
     requestTracing,
     requestCorrelation,
     secureContext,

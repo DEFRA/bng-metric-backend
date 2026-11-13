@@ -54,7 +54,7 @@ submitted with the delay, still participates in the mutual-exclusion check.
 | `setProjectBaselineAndPostIntervention` | `setProjectBaselineAndPostIntervention(exec, id, { baseline, postIntervention }, actorId)`   | `{baseline}` and `{postIntervention}`     | `baselineSchema` + post-intervention habitat document schema |
 | `setProjectFeature`                     | `setProjectFeature(exec, id, { documentKey?, layer, index, feature, unitsTotals, actorId })` | one feature + document unit totals        | matching layer item schema + `baselineUnitsTotalsSchema`     |
 | `setBaselineFeature`                    | `setBaselineFeature(exec, id, { layer, index, feature, unitsTotals, actorId })`              | one baseline feature + `{baseline,units}` | matching layer item schema + `baselineUnitsTotalsSchema`     |
-| `setProjectDetails`                     | `setProjectDetails(exec, id, patch, actorId, where?)`                                        | `{details}` merge                         | `projectDetailsSchema`                                       |
+| `setProjectDetails`                     | `setProjectDetails(exec, id, patch, actorId, where?, { name? })`                             | `{details}` merge (+ `{name}` when given) | `projectDetailsSchema` (+ `projectSchema.extract('name')`)   |
 
 `setProjectFeature` is the partial-update workhorse: the feature-edit routes
 read the project under `SELECT … FOR UPDATE`, recompute one feature via

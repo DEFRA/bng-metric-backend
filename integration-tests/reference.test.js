@@ -180,6 +180,29 @@ describe('GET /reference/watercourse-encroachments', () => {
   })
 })
 
+describe('GET /reference/tree-creation', () => {
+  it('serves the Urban tree and Rural tree creation options without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/tree-creation'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.habitatTypes.map((t) => [t.broad, t.name])).toEqual([
+      ['Individual trees', 'Rural tree'],
+      ['Individual trees', 'Urban tree']
+    ])
+    expect(res.result.habitatTypes[0]).toMatchObject({
+      difficulty: 'Low',
+      difficultyMultiplier: 1
+    })
+    expect(res.result.habitatTypes[0].conditions).toContainEqual({
+      condition: 'Poor',
+      score: 1,
+      years: 10
+    })
+  })
+})
+
 describe('GET /reference/area-creation', () => {
   it('serves creation options without authentication', async () => {
     const res = await server.inject({

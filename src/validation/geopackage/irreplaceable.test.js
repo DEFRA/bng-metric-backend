@@ -1,6 +1,10 @@
 import { describe, expect, it } from 'vitest'
 
-import { irreplaceableField, irreplaceableFromProps } from './irreplaceable.js'
+import {
+  irreplaceableField,
+  irreplaceableFromProps,
+  markedNotIrreplaceable
+} from './irreplaceable.js'
 
 const COLUMN = 'Irreplaceable Habitat'
 
@@ -28,5 +32,26 @@ describe('irreplaceableField', () => {
       irreplaceable: true
     })
     expect(irreplaceableField({})).toEqual({})
+  })
+})
+
+describe('markedNotIrreplaceable', () => {
+  it.each(['No', 'no', '  NO '])('is true for %j', (value) => {
+    expect(markedNotIrreplaceable({ 'Irreplaceable Habitat': value })).toBe(
+      true
+    )
+  })
+
+  it.each(['Yes', '', '   ', null, 'Unknown', 0])(
+    'is false for %j',
+    (value) => {
+      expect(markedNotIrreplaceable({ 'Irreplaceable Habitat': value })).toBe(
+        false
+      )
+    }
+  )
+
+  it('is undefined for a file with no Irreplaceable Habitat column', () => {
+    expect(markedNotIrreplaceable({ fid: 1 })).toBeUndefined()
   })
 })

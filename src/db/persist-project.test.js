@@ -26,6 +26,14 @@ const validUnitsTotals = {
   treesRuralTotal: 0
 }
 const validHabitat = { featureId: FEATURE_ID, status: 'Complete' }
+const validTree = {
+  featureId: FEATURE_ID,
+  ref: 'T1',
+  broadType: 'Individual trees',
+  type: 'Urban tree',
+  condition: 'Moderate',
+  status: 'Complete'
+}
 
 // One mock supports every chain the helpers use:
 //   insert(projects).values(...).returning()
@@ -263,11 +271,14 @@ describe('setBaselineFeature', () => {
     expect(db._update).not.toHaveBeenCalled()
   })
 
+  // Deliberately not a plausible habitat layer, so it can never become a real
+  // one and quietly stop testing the throw — which is what happened to `trees`
+  // (see below).
   test('throws for an unknown layer', async () => {
     const db = makeDb()
     await expect(
       setBaselineFeature(db, PROJECT_ID, {
-        layer: 'trees',
+        layer: 'notALayer',
         index: 0,
         feature: validHabitat,
         unitsTotals: validUnitsTotals,
@@ -275,6 +286,52 @@ describe('setBaselineFeature', () => {
       })
     ).rejects.toThrow(/unknown feature layer/)
     expect(db._update).not.toHaveBeenCalled()
+  })
+
+  // This layer stood in for the unknown one above until a baseline tree became
+  // editable (BMD-1112): every tree edit then reached the choke point and was
+  // refused as a developer error, 500, with nothing saved.
+  test('writes a baseline tree, which is an editable layer', async () => {
+    const db = makeDb()
+    await setBaselineFeature(db, PROJECT_ID, {
+      layer: 'trees',
+      index: 0,
+      feature: validTree,
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
+    expectActorStamped(db)
+  })
+
+  // A Created post-intervention tree is editable, against the
+  // post-intervention tree's own schema, which a baseline tree does not pass.
+  test('checks a post-intervention tree against the post-intervention tree schema', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(db, PROJECT_ID, {
+        documentKey: 'postIntervention',
+        layer: 'trees',
+        index: 0,
+        feature: validTree,
+        unitsTotals: validUnitsTotals,
+        actorId: ACTOR_ID
+      })
+    ).rejects.toThrow(/postIntervention\.trees\[0\] failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  test('writes a post-intervention tree', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, {
+      documentKey: 'postIntervention',
+      layer: 'trees',
+      index: 0,
+      feature: validPostInterventionTree,
+      unitsTotals: validUnitsTotals,
+      actorId: ACTOR_ID
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
   })
 
   test('throws and does not write for an invalid feature', async () => {
@@ -323,6 +380,25 @@ const validPostInterventionHabitat = {
     type: 'Lowland meadows',
     broadType: 'Grassland',
     condition: 'Good'
+  },
+  properties: {}
+}
+
+const validPostInterventionTree = {
+  featureId: FEATURE_ID,
+  ref: 'T1',
+  retentionCategory: 'Created',
+  count: 1,
+  area: 41,
+  sizeSquareMetres: 41,
+  units: 0.1,
+  status: 'Complete',
+  baseline: {},
+  proposed: {
+    type: 'Rural tree',
+    broadType: 'Individual trees',
+    condition: 'Poor',
+    treeSize: 'Small'
   },
   properties: {}
 }
@@ -682,6 +758,79 @@ describe('setProjectFeature — lost habitats (BMD-1083)', () => {
       )
     ).rejects.toThrow(/only the post-intervention document/)
     expect(db._update).not.toHaveBeenCalled()
+  })
+})
+
+describe('setProjectFeature — habitat sizes (BMD-1172)', () => {
+  // A baseline tree edit can move a tree between the urban and rural sizes,
+  // so the caller passes the refreshed summary to be written in the same
+  // surgical update as the tree.
+  const habitatSizes = {
+    areaHabitats: { totalSquareMetres: 1123 },
+    hedgerows: { totalMetres: 0 },
+    watercourses: { totalMetres: 0 },
+    trees: {
+      totalSquareMetres: 123,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 123
+    },
+    site: { totalSquareMetres: 1000 }
+  }
+  const edit = (overrides) => ({
+    layer: 'trees',
+    index: 0,
+    feature: { ...validTree, type: 'Rural tree' },
+    unitsTotals: validUnitsTotals,
+    actorId: ACTOR_ID,
+    ...overrides
+  })
+
+  test('writes the habitat sizes when they are supplied', async () => {
+    const db = makeDb()
+    await setProjectFeature(db, PROJECT_ID, edit({ habitatSizes }))
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const [{ project }] = db._set.mock.calls[0]
+    const { params } = new PgDialect().sqlToQuery(project)
+    expect(params).toContain('{baseline,habitatSizes}')
+    expect(params).toContain(JSON.stringify(habitatSizes))
+  })
+
+  test('rejects habitat sizes that fail their schema, before writing', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectFeature(
+        db,
+        PROJECT_ID,
+        edit({
+          habitatSizes: {
+            ...habitatSizes,
+            trees: { ...habitatSizes.trees, ruralSquareMetres: 'lots' }
+          }
+        })
+      )
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
+
+  // A Created post-intervention tree can move between the urban and rural
+  // sizes too, so its document's summary is written with it.
+  test('writes the habitat sizes into the post-intervention document', async () => {
+    const db = makeDb()
+    await setProjectFeature(
+      db,
+      PROJECT_ID,
+      edit({
+        documentKey: 'postIntervention',
+        feature: validPostInterventionTree,
+        habitatSizes
+      })
+    )
+
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const [{ project }] = db._set.mock.calls[0]
+    const { params } = new PgDialect().sqlToQuery(project)
+    expect(params).toContain('{postIntervention,habitatSizes}')
   })
 })
 

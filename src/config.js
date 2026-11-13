@@ -2,6 +2,8 @@ import convict from 'convict'
 import convictFormatWithValidator from 'convict-format-with-validator'
 import { configDotenv } from 'dotenv'
 
+import { rateLimitSettings } from './config/rate-limit.js'
+
 convict.addFormats(convictFormatWithValidator)
 
 /** Name of the boolean format registered below and used by every flag. */
@@ -328,6 +330,15 @@ const config = convict({
       default: 104857600,
       env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
     }
+  },
+  rateLimit: {
+    enabled: {
+      doc: 'Turns the rate limits on the costly routes on or off (plugins/rate-limit.js). On by default. Turned off where one user sends more than the limits on purpose: the capacity profiles of the performance tests and the journey test stack. Set per environment in cdp-app-config.',
+      format: STRICT_BOOLEAN,
+      default: true,
+      env: 'RATE_LIMIT_ENABLED'
+    },
+    ...rateLimitSettings
   },
   aws: {
     region: {

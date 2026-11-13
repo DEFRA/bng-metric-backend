@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 469 schema fields.
+**25 tables**, mapping 472 schema fields.
 
 ## Diagram
 
@@ -777,7 +777,7 @@ habitats in the postIntervention document. 39 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 47 column(s) mapped from the JSON document.
+trees in the postIntervention document. 50 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -793,6 +793,7 @@ trees in the postIntervention document. 47 column(s) mapped from the JSON docume
 | `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
+| `reference_edited`                           | `boolean` |     | `postIntervention.trees[].referenceEdited`                        |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
@@ -829,6 +830,8 @@ trees in the postIntervention document. 47 column(s) mapped from the JSON docume
 | `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.trees[].proposed.strategicSignificanceScore`    |                                                                                  |
 | `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.trees[].proposed.advanceOrDelay`                |                                                                                  |
 | `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.trees[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.trees[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.trees[].proposed.delayYearsIs30Plus`            |                                                                                  |
 | `properties`                                 | `jsonb`   |     | `postIntervention.trees[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_vertical_habitats`

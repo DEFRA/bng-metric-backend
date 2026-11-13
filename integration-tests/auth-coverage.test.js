@@ -37,6 +37,10 @@ const PUBLIC_ROUTES = new Map([
     'Static area creation reference data; no per-user scope'
   ],
   [
+    'get /reference/tree-creation',
+    'Static individual tree creation reference data; no per-user scope'
+  ],
+  [
     'get /reference/local-planning-authorities',
     'Static Planning Data lookup; no per-user scope'
   ],

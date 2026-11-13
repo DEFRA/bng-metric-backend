@@ -95,22 +95,14 @@ it('advertises persisted editable Created-feature metadata as boolean columns', 
     'postIntervention.hedgerows[].referenceEdited',
     'postIntervention.watercourses[].referenceEdited',
     'postIntervention.watercourses[].proposed.advanceYearsIs30Plus',
-    'postIntervention.watercourses[].proposed.delayYearsIs30Plus'
+    'postIntervention.watercourses[].proposed.delayYearsIs30Plus',
+    'postIntervention.trees[].referenceEdited',
+    'postIntervention.trees[].proposed.advanceYearsIs30Plus',
+    'postIntervention.trees[].proposed.delayYearsIs30Plus'
   ]) {
     expect(
       columns.find((column) => column.jsonPaths.includes(path))
     ).toMatchObject({ type: 'boolean' })
-  }
-  for (const layer of ['trees']) {
-    for (const field of ['advanceYearsIs30Plus', 'delayYearsIs30Plus']) {
-      expect(
-        columns.some((column) =>
-          column.jsonPaths.includes(
-            `postIntervention.${layer}[].proposed.${field}`
-          )
-        )
-      ).toBe(false)
-    }
   }
 })
 

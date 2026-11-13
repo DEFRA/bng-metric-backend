@@ -32,6 +32,8 @@ import {
   lostHabitatsSchema,
   tradingRulesSchema
 } from '../validation/post-intervention/project-post-intervention-schema.js'
+import { postInterventionTreeSchema } from '../validation/post-intervention/project-post-intervention-tree-schema.js'
+import { habitatSizesSummarySchema } from '../validation/project-shared-schemas.js'
 import {
   projectSchema,
   projectDetailsSchema,
@@ -39,6 +41,7 @@ import {
   baselineUnitsTotalsSchema,
   habitatSchema,
   linearHabitatSchema,
+  treeSchema,
   verticalHabitatSchema,
   watercourseHabitatSchema
 } from '../validation/project.js'
@@ -51,12 +54,18 @@ const HABITAT_DATA_SCHEMA_BY_DOCUMENT_KEY = {
 const FEATURE_SCHEMA_BY_LAYER = {
   habitats: habitatSchema,
   verticalHabitats: verticalHabitatSchema,
+  // A baseline individual tree is editable — its condition, reference and
+  // comment (BMD-1112), and its urban/rural setting (BMD-1172) — so it needs
+  // its own item schema here.
+  trees: treeSchema,
   hedgerows: linearHabitatSchema,
   watercourses: watercourseHabitatSchema
 }
 
 const POST_INTERVENTION_FEATURE_SCHEMA_BY_LAYER = {
   habitats: postInterventionHabitatSchema,
+  // A Created tree is editable, and a Retained tree's reference.
+  trees: postInterventionTreeSchema,
   hedgerows: postInterventionLinearHabitatSchema,
   watercourses: postInterventionWatercourseSchema
 }
@@ -331,6 +340,40 @@ function assertEditFragmentValid(schema, value, label) {
 }
 
 /**
+ * Refuse a feature edit's refreshed lost habitats or habitat sizes when they
+ * fail their schema or belong to the other document: only a post-intervention
+ * edit records lost habitats (BMD-1083). A tree edit, on either document,
+ * refreshes the habitat sizes (BMD-1172).
+ *
+ * @param {{ documentKey: string, lostHabitats?: object[], habitatSizes?: object }} fragments
+ */
+function assertDerivedSummariesValid({
+  documentKey,
+  lostHabitats,
+  habitatSizes
+}) {
+  if (lostHabitats) {
+    if (documentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
+      throw Boom.badImplementation(
+        'persist: only the post-intervention document records lost habitats'
+      )
+    }
+    assertFragmentValid(
+      lostHabitatsSchema,
+      lostHabitats,
+      `${documentKey}.lostHabitats`
+    )
+  }
+  if (habitatSizes) {
+    assertFragmentValid(
+      habitatSizesSummarySchema,
+      habitatSizes,
+      `${documentKey}.habitatSizes`
+    )
+  }
+}
+
+/**
  * Refuse, before anything is written, a feature edit whose fragments do not
  * each pass their own schema, or that writes a subtree its document does not
  * carry.
@@ -345,6 +388,7 @@ function assertFeatureEditValid({
   unitsTotals,
   tradingRules,
   lostHabitats,
+  habitatSizes,
   postIntervention
 }) {
   if (
@@ -381,18 +425,7 @@ function assertFeatureEditValid({
       `${documentKey}.tradingRules`
     )
   }
-  if (lostHabitats) {
-    if (documentKey !== POST_INTERVENTION_DOCUMENT_KEY) {
-      throw Boom.badImplementation(
-        'persist: only the post-intervention document records lost habitats'
-      )
-    }
-    assertFragmentValid(
-      lostHabitatsSchema,
-      lostHabitats,
-      `${documentKey}.lostHabitats`
-    )
-  }
+  assertDerivedSummariesValid({ documentKey, lostHabitats, habitatSizes })
   if (postIntervention) {
     // The document re-derived after a baseline edit carries every other
     // feature as it was stored. A value saved there before BMD-1175 is not
@@ -415,7 +448,7 @@ function assertFeatureEditValid({
  * @param {object} exec drizzle handle or transaction
  * @param {string} id project id
  * @param {object} params
- * @param {'habitats'|'verticalHabitats'|'hedgerows'|'watercourses'} params.layer
+ * @param {'habitats'|'verticalHabitats'|'trees'|'hedgerows'|'watercourses'} params.layer
  * @param {number} params.index position of the feature within its layer array
  * @param {object} params.feature the updated feature document
  * @param {object} params.unitsTotals refreshed baseline.units totals
@@ -424,6 +457,9 @@ function assertFeatureEditValid({
  * @param {Array<object>} [params.lostHabitats] refreshed
  *   postIntervention.lostHabitats, from a post-intervention edit to a BNG
  *   Service template upload; omitted otherwise (BMD-1083)
+ * @param {object} [params.habitatSizes] the edited document's refreshed
+ *   habitatSizes, from a tree edit, which can move a tree between the urban
+ *   and rural sizes; omitted otherwise
  * @param {object} [params.postIntervention] the whole re-derived
  *   postIntervention document, written alongside a baseline feature edit or a
  *   template post-intervention edit. Baseline changes and template lineage
@@ -441,6 +477,7 @@ async function setProjectFeature(
     unitsTotals,
     tradingRules,
     lostHabitats,
+    habitatSizes,
     postIntervention,
     actorId
   }
@@ -454,6 +491,7 @@ async function setProjectFeature(
     unitsTotals,
     tradingRules,
     lostHabitats,
+    habitatSizes,
     postIntervention
   })
 
@@ -469,13 +507,16 @@ async function setProjectFeature(
   const withLostHabitats = lostHabitats
     ? jsonbSet(withTradingRules, [documentKey, 'lostHabitats'], lostHabitats)
     : withTradingRules
+  const withHabitatSizes = habitatSizes
+    ? jsonbSet(withLostHabitats, [documentKey, 'habitatSizes'], habitatSizes)
+    : withLostHabitats
   const withPostIntervention = postIntervention
     ? jsonbSet(
-        withLostHabitats,
+        withHabitatSizes,
         [POST_INTERVENTION_DOCUMENT_KEY],
         postIntervention
       )
-    : withLostHabitats
+    : withHabitatSizes
   await exec
     .update(projects)
     .set({ project: withPostIntervention, lastModifiedBy: actorId })
