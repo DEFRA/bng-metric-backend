@@ -10,7 +10,7 @@ import {
   pickProp
 } from '../../properties.js'
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
-import { SQ_METRES_PER_HECTARE, treeCountOrDefault } from '../../tree-sizes.js'
+import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import {
@@ -65,9 +65,9 @@ import {
  *   habitat lost for a time and put back (guide, "Accounting for temporary
  *   losses"), which the delay already discounts, so it may be in any
  *   condition and needs no years in advance.
- * - individual trees: the Retained and Enhanced trees linked to a parent
- *   never count more trees than it has, as a tree that is kept cannot
- *   multiply. Created trees are not counted against it. A tree is an area
+ * - individual trees: each point is one tree, so a parent is kept by one
+ *   post-intervention tree at most, as a tree that is kept cannot multiply.
+ *   Newly Planted trees are not counted against it. A tree is an area
  *   habitat, so an Existing tree Created in its parent's Urban or Rural
  *   setting is the parent itself, counted with the kept trees, and a degraded
  *   row like any other: it must be in a lower
@@ -252,32 +252,22 @@ function checkVerticalArea(parent, children, context) {
   }
 }
 
-/** The number of trees a tree row stands for: its Count, or 1 when blank. */
-const treeCount = (feature) =>
-  treeCountOrDefault(pickProp(feature.properties, PROP_KEYS.treeCount))
-
 /**
- * A tree parent with fewer trees than the children that are still it
- * together: its Retained and Enhanced trees, and an Existing tree Created in
- * its setting, which is the parent recorded as lost and created again.
+ * A tree parent kept by more than one post-intervention tree: its Retained
+ * and Enhanced trees, and an Existing tree Created in its setting, which is
+ * the parent recorded as lost and created again. Each point is one tree, so
+ * one of them at most can be it.
  */
-function checkTreeCount(parent, children, context) {
+function checkTreeKeptOnce(parent, children, context) {
   const kept = children.filter(
     (child) =>
       continues(child.properties) ||
       isCreatedInOwnType(context.layer, parent, child)
   )
-  if (kept.length === 0) {
-    return
-  }
-  const parentCount = treeCount(parent)
-  const keptCount = kept.reduce((sum, child) => sum + treeCount(child), 0)
-  if (keptCount > parentCount) {
-    context.found.tooManyTrees.push({
-      ...offendingParent(context.layer, context.tables.baseline, parent, kept),
-      count: parentCount,
-      childCount: keptCount
-    })
+  if (kept.length > 1) {
+    context.found.tooManyTrees.push(
+      offendingParent(context.layer, context.tables.baseline, parent, kept)
+    )
   }
 }
 
@@ -396,7 +386,7 @@ function checkLayer(layer, baseline, postIntervention, found) {
       checkWatercourseFamily(parent, children, context)
     }
     if (layer === 'trees') {
-      checkTreeCount(parent, children, context)
+      checkTreeKeptOnce(parent, children, context)
     }
     const createdMetres = createdMetresOnce(layer, parent, children)
     for (const child of children) {
@@ -436,10 +426,9 @@ const RULE_ERRORS = [
   {
     code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
     heading:
-      'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in its setting',
+      'One or more baseline trees have more than one kept tree linked to them. A post-intervention tree is kept if it is Retained or Enhanced, or Created with Category Existing in the same Urban or Rural setting. A baseline tree is one tree, so only one kept tree can be linked to it',
     found: 'tooManyTrees',
-    describe: (parent) =>
-      `${describeParent(parent)} (${parent.count} trees, linked ${parent.childCount})`
+    describe: describeParent
   },
   {
     code: ERROR_CODES.STAGED_WATERCOURSE_RETAINED_AND_CREATED,

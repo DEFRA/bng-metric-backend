@@ -926,7 +926,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(tree.baseline.condition).toBe('Fairly Poor')
   })
 
-  test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
+  test('keeps a Retained tree priced as one tree when its parent is edited', () => {
     const baselineTree = (condition) => ({
       featureId: 'baseline-t1',
       ref: 'T1',
@@ -937,9 +937,8 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       ruralOrUrban: 'Urban tree',
       condition,
       strategicSignificance: 'Low',
-      count: 3,
-      sizeSquareMetres: 489,
-      area: 489
+      sizeSquareMetres: 163,
+      area: 163
     })
     const side = (condition) => ({
       type: 'Urban tree',
@@ -949,17 +948,16 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       ruralOrUrban: 'Urban tree',
       condition,
       strategicSignificance: 'Low',
-      sizeSquareMetres: 326,
-      area: 326
+      sizeSquareMetres: 163,
+      area: 163
     })
     const kept = {
       featureId: 'pi-t1',
       ref: 'T1',
       parentFeatureId: 'baseline-t1',
       retentionCategory: 'Retained',
-      count: 2,
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       status: 'Complete',
       units: null,
       baseline: side('Moderate'),
@@ -977,15 +975,13 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
     const [tree] = rederived.trees
     expect(tree).toMatchObject({
-      sizeSquareMetres: 326,
-      baseline: { condition: 'Good', sizeSquareMetres: 326 },
-      proposed: { condition: 'Good', sizeSquareMetres: 326 }
+      sizeSquareMetres: 163,
+      baseline: { condition: 'Good', sizeSquareMetres: 163 },
+      proposed: { condition: 'Good', sizeSquareMetres: 163 }
     })
-    // Two Medium Urban trees in Good condition: 0.0326 ha × 4 × 3.
-    expect(tree.units).toBeCloseTo(0.3912, 10)
-    expect(rederived.lostHabitats).toEqual([
-      expect.objectContaining({ layer: 'trees', ref: 'T1', lostTreeCount: 1 })
-    ])
+    // One Medium Urban tree in Good condition: 0.0163 ha × 4 × 3.
+    expect(tree.units).toBeCloseTo(0.1956, 10)
+    expect(rederived.lostHabitats).toEqual([])
   })
 
   test('moves a kept tree to the setting its parent is edited to, with its sizes (BMD-1172)', () => {
@@ -995,20 +991,18 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       treeSize: 'Medium',
       condition: 'Moderate',
       strategicSignificance: 'Low',
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       ...extra
     })
-    const parent = (type) =>
-      tree(type, { featureId: 'baseline-t1', ref: 'T1', count: 2 })
+    const parent = (type) => tree(type, { featureId: 'baseline-t1', ref: 'T1' })
     const kept = {
       featureId: 'pi-t1',
       ref: 'T1',
       parentFeatureId: 'baseline-t1',
       retentionCategory: 'Retained',
-      count: 2,
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       status: 'Complete',
       units: null,
       baseline: tree('Urban tree'),
@@ -1016,12 +1010,12 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       properties: {}
     }
     const habitatSizes = {
-      areaHabitats: { totalSquareMetres: 326 },
+      areaHabitats: { totalSquareMetres: 163 },
       hedgerows: { totalMetres: 0 },
       watercourses: { totalMetres: 0 },
       trees: {
-        totalSquareMetres: 326,
-        urbanSquareMetres: 326,
+        totalSquareMetres: 163,
+        urbanSquareMetres: 163,
         ruralSquareMetres: 0
       },
       site: { totalSquareMetres: 0 }
@@ -1040,11 +1034,11 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       proposed: { type: 'Rural tree' }
     })
     expect(rederived.habitatSizes.trees).toEqual({
-      totalSquareMetres: 326,
+      totalSquareMetres: 163,
       urbanSquareMetres: 0,
-      ruralSquareMetres: 326
+      ruralSquareMetres: 163
     })
-    expect(rederived.habitatSizes.areaHabitats.totalSquareMetres).toBe(326)
+    expect(rederived.habitatSizes.areaHabitats.totalSquareMetres).toBe(163)
     expect(rederived.lostHabitats).toEqual([])
   })
 

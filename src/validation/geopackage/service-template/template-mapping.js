@@ -28,10 +28,9 @@ import {
  * The Red Line Boundary is read for its geometry alone.
  *
  * Individual trees are read under the legacy Urban Trees layer's names, which
- * the template keeps for every tree column but Habitat Ref. A tree's size is
- * the tree helper's area for its size class times its Count, so its Count is
- * read when the file has one; a file without one prices each point as a
- * single tree, as the Metric reads a blank Count.
+ * the template keeps for every tree column but Habitat Ref. Each point is one
+ * tree: the template has no Count, and one in a file is not read, so a tree's
+ * size is the tree helper's area for its size class.
  */
 
 /** The legacy pipeline's name for a habitat's reference. */
@@ -142,7 +141,6 @@ const LAYER_COLUMNS = {
       'Proposed Strategic Significance',
       'Habitat Created/Enhanced in advance/years',
       'Delay in starting habitat creation/enhancement in years',
-      'Count',
       'Comment'
     ),
     ...dropped('Spatial risk category')

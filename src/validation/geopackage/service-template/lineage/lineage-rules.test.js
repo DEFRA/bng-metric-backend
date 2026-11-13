@@ -108,8 +108,8 @@ function river(n, metres, overrides = {}) {
 
 const POINT = { type: 'Point', coordinates: [50, 50] }
 
-/** A baseline tree point standing for `count` trees (a blank Count is one). */
-function tree(n, count, overrides = {}) {
+/** A baseline tree point: one tree. */
+function tree(n, overrides = {}) {
   return {
     properties: {
       fid: n,
@@ -117,7 +117,6 @@ function tree(n, count, overrides = {}) {
       'Baseline Tree Size': 'Medium',
       'Baseline Rural or Urban Tree': 'Urban tree',
       'Baseline Condition': 'Moderate',
-      Count: count,
       feature_uuid: uuid(400 + n),
       ...overrides
     },
@@ -136,7 +135,6 @@ function treeChild(parent, overrides = {}) {
       'Proposed Rural or Urban Tree':
         parent.properties['Baseline Rural or Urban Tree'],
       'Proposed Condition': parent.properties['Baseline Condition'],
-      Count: parent.properties.Count,
       parent_uuid: parent.properties.feature_uuid,
       ...overrides
     },
@@ -418,80 +416,57 @@ describe('checkLineageRules', () => {
   })
 
   describe('individual trees', () => {
-    it('passes kept trees that together count no more than their parent, whatever is planted', () => {
-      const parent = tree(1, 5)
+    /** A Newly Planted tree linked to `parent`: planting in its place. */
+    const plantedTree = (parent, ref) =>
+      treeChild(parent, {
+        'Tree Ref': ref,
+        'Retention Category': 'Created',
+        Category: 'Newly Planted'
+      })
 
-      expect(
-        check(
-          { trees: [parent] },
-          {
-            trees: [
-              treeChild(parent, { 'Tree Ref': 'T001a', Count: 3 }),
-              treeChild(parent, {
-                'Tree Ref': 'T001b',
-                'Retention Category': 'Enhanced',
-                'Proposed Condition': 'Good',
-                Count: 2
-              }),
-              // Replacement planting is new trees, not the parent's.
-              treeChild(parent, {
-                'Tree Ref': 'T001c',
-                'Retention Category': 'Created',
-                Count: 10
-              })
-            ]
-          }
-        )
-      ).toEqual([])
-    })
+    it.each(['Retained', 'Enhanced'])(
+      'passes a tree kept by one %s point, whatever is planted in its place',
+      (retentionCategory) => {
+        const parent = tree(1)
 
-    it('passes a baseline tree with no child, or fewer kept trees: they are felled', () => {
-      const felled = tree(1, 4)
-      const thinned = tree(2, 4)
-
-      expect(
-        check(
-          { trees: [felled, thinned] },
-          { trees: [treeChild(thinned, { Count: 1 })] }
-        )
-      ).toEqual([])
-    })
-
-    it('reads a blank Count as one tree', () => {
-      const parent = tree(1, null)
-
-      expect(
-        check({ trees: [parent] }, { trees: [treeChild(parent)] })
-      ).toEqual([])
-      expect(
-        codes(
+        expect(
           check(
             { trees: [parent] },
-            { trees: [treeChild(parent, { Count: 2 })] }
+            {
+              trees: [
+                treeChild(parent, {
+                  'Tree Ref': 'T001a',
+                  'Retention Category': retentionCategory,
+                  'Proposed Condition':
+                    retentionCategory === 'Enhanced' ? 'Good' : 'Moderate'
+                }),
+                plantedTree(parent, 'T001b'),
+                plantedTree(parent, 'T001c')
+              ]
+            }
           )
-        )
-      ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
+        ).toEqual([])
+      }
+    )
+
+    it('passes a baseline tree with no child: it is felled', () => {
+      expect(check({ trees: [tree(1)] }, { trees: [] })).toEqual([])
     })
 
-    it('refuses a parent with fewer trees than its kept children together', () => {
-      const parent = tree(1, 3)
+    it('refuses a tree kept by more than one point, as a point is one tree', () => {
+      const parent = tree(1)
 
       const errors = check(
         { trees: [parent] },
         {
           trees: [
-            treeChild(parent, { 'Tree Ref': 'T001a', Count: 2 }),
+            treeChild(parent, { 'Tree Ref': 'T001a' }),
             treeChild(parent, {
               'Tree Ref': 'T001b',
               'Retention Category': 'Enhanced',
-              'Proposed Condition': 'Good',
-              Count: 2
+              'Proposed Condition': 'Good'
             }),
-            treeChild(parent, {
-              'Tree Ref': 'T001c',
-              'Retention Category': 'Created',
-              Count: 1
-            })
+            plantedTree(parent, 'T001c')
           ]
         }
       )
@@ -500,7 +475,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
           message:
-            'One or more baseline trees have fewer trees than the post-intervention trees that are still them, linked to them together: Retained, Enhanced, or Existing and Created in its setting: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b (3 trees, linked 4)',
+            'One or more baseline trees have more than one kept tree linked to them. A post-intervention tree is kept if it is Retained or Enhanced, or Created with Category Existing in the same Urban or Rural setting. A baseline tree is one tree, so only one kept tree can be linked to it: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b',
           details: {
             count: 1,
             sample: [
@@ -510,9 +485,7 @@ describe('checkLineageRules', () => {
                 fid: 1,
                 ref: 'T001',
                 habitatType: 'Urban tree',
-                childRefs: ['T001a', 'T001b'],
-                count: 3,
-                childCount: 4
+                childRefs: ['T001a', 'T001b']
               }
             ]
           }
@@ -521,7 +494,7 @@ describe('checkLineageRules', () => {
     })
 
     it('does not hold a Newly Planted tree linked to a parent to the degraded rows’ rules: it is planting', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         check(
@@ -550,7 +523,7 @@ describe('checkLineageRules', () => {
       })
 
     it('passes an Existing tree Created in a worse condition, 30+ years in advance', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         check({ trees: [parent] }, { trees: [degradedTree(parent)] })
@@ -558,7 +531,7 @@ describe('checkLineageRules', () => {
     })
 
     it('refuses an Existing tree Created in the same or a better condition, with no delay', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       for (const condition of ['Moderate', 'Good']) {
         const errors = check(
@@ -587,7 +560,7 @@ describe('checkLineageRules', () => {
     })
 
     it('refuses a worse Existing tree that is not created 30+ years in advance', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         codes(
@@ -605,28 +578,26 @@ describe('checkLineageRules', () => {
       ).toEqual([ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS])
     })
 
-    it.each([
-      [
-        'one degraded tree standing for more trees than it',
-        (parent) => [degradedTree(parent, { Count: 10 })]
-      ],
-      [
-        'the tree both kept and recorded as lost and created again',
-        (parent) => [
-          treeChild(parent, { 'Tree Ref': 'T001a' }),
-          degradedTree(parent, { 'Tree Ref': 'T001b' })
-        ]
-      ]
-    ])('counts a degraded tree as its parent: refuses %s', (_, children) => {
-      const parent = tree(1, 1)
+    it('counts a degraded tree as its parent: refuses the tree both kept and recorded as lost and created again', () => {
+      const parent = tree(1)
 
       expect(
-        codes(check({ trees: [parent] }, { trees: children(parent) }))
+        codes(
+          check(
+            { trees: [parent] },
+            {
+              trees: [
+                treeChild(parent, { 'Tree Ref': 'T001a' }),
+                degradedTree(parent, { 'Tree Ref': 'T001b' })
+              ]
+            }
+          )
+        )
       ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
     })
 
     it('passes an Existing tree put back after a delay, in any condition', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         check(
@@ -645,7 +616,7 @@ describe('checkLineageRules', () => {
     })
 
     it('reads a degraded tree with a blank proposed setting as in its baseline setting', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         codes(
@@ -668,7 +639,7 @@ describe('checkLineageRules', () => {
     })
 
     it('does not count an Existing tree Created in the other setting as degraded', () => {
-      const parent = tree(1, 1)
+      const parent = tree(1)
 
       expect(
         check(
