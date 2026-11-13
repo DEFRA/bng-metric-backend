@@ -10,6 +10,7 @@ import { ERROR_CODES } from '../../validation/geopackage/errors.js'
 import { importUploadFile } from './import-upload-file.js'
 import { uploadRefusal } from './save-upload-for-project.js'
 import { projectAfterUpload } from './persist-upload.js'
+import { expectDeclaredDetails } from '../../../test/helpers/declared-details.js'
 
 // importUploadFile is what the metric comparison in bng-metric-harness calls
 // to import a file as an upload does (BMD-1036), so these run real files
@@ -31,6 +32,29 @@ const IMPORT_TIMEOUT_MS = 30_000
 const TEMPLATE_FIXTURES = path.join(FIXTURES, 'service-template')
 
 const refsOf = (document) => document.habitats.map((h) => h.ref)
+
+const BASELINE_LAYERS = ['habitats', 'hedgerows', 'watercourses']
+
+/** The baseline area habitats, hedgerows and watercourses that are not Complete. */
+const incompleteBaselineRefs = (baseline) =>
+  BASELINE_LAYERS.flatMap((layer) =>
+    baseline[layer].filter((f) => f.status !== 'Complete').map((f) => f.ref)
+  )
+
+/** Expect `result` to be the one BMD-1195 refusal, naming `layer` `ref`. */
+function expectIncompleteBaselineRefusal(result, layer, ref) {
+  expect(result.accepted).toBe(false)
+  expect(result.errors).toEqual([
+    expect.objectContaining({
+      code: ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
+      details: {
+        count: 1,
+        sample: [expect.objectContaining({ layer, feature_ref: ref })]
+      }
+    })
+  ])
+  expectDeclaredDetails(result.errors[0])
+}
 
 /**
  * Run a describe block's tests with the service-template flag set, as the
@@ -181,6 +205,134 @@ describe('importUploadFile, a legacy file', () => {
     },
     IMPORT_TIMEOUT_MS
   )
+
+  describe('BMD-1195 a baseline habitat the file leaves incomplete', () => {
+    it.each([
+      [
+        'AC1 an area habitat with no Baseline Condition',
+        'habitats',
+        'H002',
+        `UPDATE Habitats SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'H002'`
+      ],
+      [
+        'AC1 an area habitat with no Baseline Broad Habitat Type',
+        'habitats',
+        'H002',
+        `UPDATE Habitats SET "Baseline Broad Habitat Type" = NULL WHERE "Parcel Ref" = 'H002'`
+      ],
+      [
+        'AC1 a Lost area habitat with no Baseline Condition',
+        'habitats',
+        'H003',
+        `UPDATE Habitats SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'H003'`
+      ],
+      [
+        'AC2 a hedgerow with no Baseline Condition',
+        'hedgerows',
+        'HG004',
+        `UPDATE Hedgerows SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'HG004'`
+      ],
+      [
+        'AC3 a watercourse with no Baseline Condition',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'R002'`
+      ],
+      [
+        'AC3 a watercourse with no baseline Encroachment into Watercourse',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Encroachment into Watercourse" = NULL WHERE "Parcel Ref" = 'R002'`
+      ],
+      [
+        'AC3 a watercourse with no baseline Encroachment into riparian zone',
+        'watercourses',
+        'R002',
+        `UPDATE Rivers SET "Baseline Encroachment into riparian zone" = NULL WHERE "Parcel Ref" = 'R002'`
+      ]
+    ])(
+      '%s refuses the post-intervention file, and saves nothing',
+      async (name, layer, ref, sql) => {
+        const stored = await importBaseline()
+        const before = structuredClone(stored)
+
+        const result = await importUploadFile(
+          editedPostIntervention(name.replaceAll(/\W+/g, '-'), sql),
+          stored,
+          POST_INTERVENTION
+        )
+
+        expectIncompleteBaselineRefusal(result, layer, ref)
+        expect(result.project).toBeUndefined()
+        expect(stored).toEqual(before)
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC6 saves the same file uploaded as a baseline, with the habitat Incomplete',
+      async () => {
+        const result = await importUploadFile(
+          editedPostIntervention(
+            'baseline-only-incomplete',
+            `UPDATE Hedgerows SET "Baseline Condition" = NULL WHERE "Parcel Ref" = 'HG004'`
+          ),
+          {},
+          BASELINE
+        )
+
+        expect(result.accepted).toBe(true)
+        expect(incompleteBaselineRefs(result.project.baseline)).toEqual([
+          'HG004'
+        ])
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC4 accepts a file whose baseline habitats are all complete, and saves them Complete',
+      async () => {
+        const result = await importUploadFile(
+          POST_INTERVENTION_FILE,
+          await importBaseline(),
+          POST_INTERVENTION
+        )
+
+        expect(result.accepted).toBe(true)
+        expect(incompleteBaselineRefs(result.project.baseline)).toEqual([])
+      },
+      IMPORT_TIMEOUT_MS
+    )
+
+    it(
+      'AC5 does not count Created rows, which have no baseline, even with blank Baseline columns',
+      async () => {
+        const result = await importUploadFile(
+          editedPostIntervention(
+            'created-blank-baseline',
+            [
+              `UPDATE Hedgerows SET "Baseline Hedge Type" = NULL, "Baseline Condition" = NULL WHERE "Retention Category" = 'Created';`,
+              `UPDATE Rivers SET "Baseline River Type" = NULL, "Baseline Condition" = NULL, "Baseline Encroachment into Watercourse" = NULL, "Baseline Encroachment into riparian zone" = NULL WHERE "Retention Category" = 'Created';`
+            ].join('\n')
+          ),
+          await importBaseline(),
+          POST_INTERVENTION
+        )
+
+        expect(result.accepted).toBe(true)
+        const { baseline, postIntervention } = result.project
+        expect(incompleteBaselineRefs(baseline)).toEqual([])
+        const created = [
+          ...postIntervention.hedgerows,
+          ...postIntervention.watercourses
+        ].filter((f) => f.retentionCategory === 'Created')
+        expect(created.map((f) => f.ref)).toEqual(
+          expect.arrayContaining(['HG005', 'R003'])
+        )
+      },
+      IMPORT_TIMEOUT_MS
+    )
+  })
 })
 
 describe('importUploadFile, a BNG Service template file', () => {
@@ -270,6 +422,38 @@ describe('importUploadFile, a BNG Service template file', () => {
           outcome: 'removed'
         })
       )
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'BMD-1195 refuses a file whose Area Habitats Baseline table has an incomplete habitat',
+    async () => {
+      const scratch = mkdtempSync(path.join(tmpdir(), 'incomplete-baseline-'))
+      try {
+        const copy = path.join(scratch, 'incomplete-baseline.gpkg')
+        copyFileSync(SITE, copy)
+        const db = new Database(copy)
+        try {
+          db.exec(
+            `UPDATE "Area Habitats Baseline" SET "Baseline Condition" = NULL WHERE "Habitat Ref" = 'H001'`
+          )
+        } finally {
+          db.close()
+        }
+
+        const refused = await importUploadFile(copy, {}, POST_INTERVENTION)
+        expectIncompleteBaselineRefusal(refused, 'habitats', 'H001')
+
+        // AC6: the baseline endpoint still takes it.
+        const baselineOnly = await importUploadFile(copy, {}, BASELINE)
+        expect(baselineOnly.accepted).toBe(true)
+        expect(incompleteBaselineRefs(baselineOnly.project.baseline)).toEqual([
+          'H001'
+        ])
+      } finally {
+        rmSync(scratch, { recursive: true, force: true })
+      }
     },
     IMPORT_TIMEOUT_MS
   )
@@ -412,16 +596,20 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
     IMPORT_TIMEOUT_MS
   )
 
+  // A tree's Irreplaceable Habitat must say "No": "Yes", a blank cell or any
+  // other value refuses the file, at either stage.
   it.each([
-    ['baseline', BASELINE_TREES],
-    ['post-intervention', PI_TREES]
+    ['baseline', BASELINE_TREES, "'Yes'"],
+    ['post-intervention', PI_TREES, "'Yes'"],
+    ['baseline', BASELINE_TREES, "''"],
+    ['post-intervention', PI_TREES, 'NULL']
   ])(
-    'refuses a tree marked irreplaceable at %s, naming it',
-    async (stage, table) => {
+    'refuses a tree at %s whose Irreplaceable Habitat is not No (%s, set to %s), naming it',
+    async (stage, table, value) => {
       const result = await importUploadFile(
         editedSite(
-          `irreplaceable-${stage}`,
-          `UPDATE "${table}" SET "Irreplaceable Habitat" = 'Yes' WHERE "Habitat Ref" = 'T004';`
+          `irreplaceable-${stage}-${value.replaceAll("'", '')}`,
+          `UPDATE "${table}" SET "Irreplaceable Habitat" = ${value} WHERE "Habitat Ref" = 'T004';`
         ),
         {},
         POST_INTERVENTION
@@ -433,7 +621,7 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
       )
       expect(error.message).toContain(`${table} Habitat Ref T004`)
       expect(error.message).toContain(
-        'The service does not accept irreplaceable trees'
+        'Irreplaceable Habitat must be "No" for every tree, because the service does not accept irreplaceable trees'
       )
     },
     IMPORT_TIMEOUT_MS
@@ -595,6 +783,160 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
       expect(
         postIntervention.lostHabitats.find((entry) => entry.ref === 'T010')
       ).toMatchObject({ layer: 'trees', outcome: 'lost', lostTreeCount: 1 })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+})
+
+describe('importUploadFile, a BNG Service template file’s tree whose condition gets worse', () => {
+  withServiceTemplate(true)
+  const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
+  const PI_TREES = 'Individual Trees Post-Intervention'
+  const scratch = mkdtempSync(path.join(tmpdir(), 'import-degraded-tree-'))
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }))
+
+  // The Metric's figures for T004, a Very large Rural tree in Fairly Poor
+  // condition at baseline (User Guide, Table 15; the Metric's scores): a
+  // Medium habitat, score 4. Created again in Poor condition, its time to
+  // target is 10 years, which 30+ years in advance covers, so its time
+  // multiplier is 1; tree creation is Low difficulty, 1; Low significance, 1.
+  const VERY_LARGE_HECTARES = 0.0765
+  const MEDIUM_DISTINCTIVENESS = 4
+  const FAIRLY_POOR = 1.5
+  const POOR = 1
+  const BASELINE_UNITS =
+    VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * FAIRLY_POOR
+  const CREATED_UNITS = VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * POOR
+
+  /** The default site with T004 recorded as lost and created again, worse. */
+  function degradedSite(name, values) {
+    const copy = path.join(scratch, `${name}.gpkg`)
+    copyFileSync(SITE, copy)
+    const db = new Database(copy)
+    try {
+      const columns = Object.keys(values)
+      db.prepare(
+        `UPDATE "${PI_TREES}" SET ${columns.map((c) => `"${c}" = ?`).join(', ')} WHERE "Habitat Ref" = 'T004'`
+      ).run(...Object.values(values))
+    } finally {
+      db.close()
+    }
+    return copy
+  }
+
+  const DEGRADED = {
+    'Retention Category': 'Created',
+    Category: 'Existing',
+    'Proposed Condition': 'Poor',
+    'Proposed Strategic Significance': 'Low',
+    'Habitat Created/Enhanced in advance/years': '30+',
+    'Delay in starting habitat creation/enhancement in years': '0'
+  }
+
+  it(
+    'records the baseline tree as lost and the same tree as created, worse, and prices both as the Metric does',
+    async () => {
+      const result = await importUploadFile(
+        degradedSite('degraded', DEGRADED),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.errors ?? []).toEqual([])
+      const { baseline, postIntervention } = result.project
+      const parent = baseline.trees.find((tree) => tree.ref === 'T004')
+      const created = postIntervention.trees.find((tree) => tree.ref === 'T004')
+      expect(parent.units).toBeCloseTo(BASELINE_UNITS, 10)
+      expect(created).toMatchObject({
+        retentionCategory: 'Created',
+        parentFeatureId: parent.featureId,
+        status: 'Complete',
+        sizeSquareMetres: 765,
+        proposed: {
+          treeSize: 'Very large',
+          type: 'Rural tree',
+          condition: 'Poor',
+          advanceYears: 30
+        }
+      })
+      expect(created.units).toBeCloseTo(CREATED_UNITS, 10)
+      expect(
+        postIntervention.lostHabitats.find((lost) => lost.ref === 'T004')
+      ).toEqual({
+        layer: 'trees',
+        featureId: parent.featureId,
+        ref: 'T004',
+        type: 'Rural tree',
+        outcome: 'lostAndRecreated',
+        lostSizeSquareMetres: 765,
+        lostTreeCount: 1,
+        recreatedAs: [created.featureId]
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'reads a blank proposed setting as the baseline one, keeping the condition, timing and units',
+    async () => {
+      const result = await importUploadFile(
+        degradedSite('degraded-blank-setting', {
+          ...DEGRADED,
+          'Proposed Rural or Urban Tree': null
+        }),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.errors ?? []).toEqual([])
+      const { baseline, postIntervention } = result.project
+      const parent = baseline.trees.find((tree) => tree.ref === 'T004')
+      const created = postIntervention.trees.find((tree) => tree.ref === 'T004')
+      expect(created).toMatchObject({
+        status: 'Complete',
+        sizeSquareMetres: 765,
+        proposed: {
+          type: 'Rural tree',
+          condition: 'Poor',
+          strategicSignificance: 'Low',
+          advanceYears: 30,
+          delayYears: 0
+        }
+      })
+      expect(created.units).toBeCloseTo(CREATED_UNITS, 10)
+      expect(
+        postIntervention.lostHabitats.find((lost) => lost.ref === 'T004')
+      ).toMatchObject({
+        outcome: 'lostAndRecreated',
+        recreatedAs: [created.featureId],
+        featureId: parent.featureId
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it.each([
+    [
+      'in the same condition',
+      { 'Proposed Condition': 'Fairly Poor' },
+      ERROR_CODES.STAGED_DEGRADE_NOT_WORSE
+    ],
+    [
+      'not 30+ years in advance',
+      { 'Habitat Created/Enhanced in advance/years': '5' },
+      ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
+    ]
+  ])(
+    'refuses an Existing tree Created %s',
+    async (name, overrides, code) => {
+      const result = await importUploadFile(
+        degradedSite(name.replaceAll(' ', '-'), { ...DEGRADED, ...overrides }),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(false)
+      expect(result.errors.map((e) => e.code)).toContain(code)
     },
     IMPORT_TIMEOUT_MS
   )

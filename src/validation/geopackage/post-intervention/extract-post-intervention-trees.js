@@ -14,6 +14,7 @@ import {
 } from '../tree-constants.js'
 import { treeAreaFields } from '../tree-sizes.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
+import { RETENTION_CREATED } from '../../../utilities/enrichment/post-intervention/retention-category.js'
 import {
   copyRetainedProposedFromBaseline,
   RETAINED_TREE_EMPTINESS_FIELDS,
@@ -24,6 +25,7 @@ import {
   emptyHabitatScoreFields,
   retentionCategoryFromProps
 } from './extract-post-intervention-sub-objects.js'
+import { canDegrade } from '../service-template/lineage/lineage-rows.js'
 
 const BASELINE_TREE_KEYS = {
   treeSize: PROP_KEYS.treeSize,
@@ -80,6 +82,29 @@ function buildTreeProposedSubObject(props, count) {
   }
 }
 
+const isBlank = (value) =>
+  typeof value === 'string' ? !value.trim() : value == null
+
+/**
+ * A BNG Service template Existing tree that is Created is the baseline tree
+ * whose condition gets worse, in its own setting. The file's check reads a
+ * blank Proposed Rural or Urban Tree as the row's Baseline one
+ * (habitatTypeOf in lineage-rows.js), so the proposed side takes it here,
+ * before the import's normalisation would clear the condition, strategic
+ * significance and timing of a side with no habitat type. Mutates `proposed`.
+ */
+function fillDegradedTreeSetting(proposed, baseline, props, retention) {
+  if (
+    retention !== RETENTION_CREATED ||
+    !canDegrade('trees', props) ||
+    !isBlank(proposed.ruralOrUrban)
+  ) {
+    return
+  }
+  proposed.ruralOrUrban = baseline.ruralOrUrban
+  proposed.type = baseline.type
+}
+
 /**
  * @param {object} feature
  * @param {(feature: object) => { featureId: string, props: object, ref: string | null }} initParsedFeature
@@ -97,10 +122,14 @@ export function buildPostInterventionTree(
   const count = pickProp(props, PROP_KEYS.treeCount)
   const proposed = buildTreeProposedSubObject(props, count)
   const baseline = buildTreeBaselineSubObject(props, count)
+  const retentionCategory = retentionCategoryFromProps(props)
+  if (template) {
+    fillDegradedTreeSetting(proposed, baseline, props, retentionCategory)
+  }
   const document = {
     featureId,
     ref,
-    retentionCategory: retentionCategoryFromProps(props),
+    retentionCategory,
     comment: commentForPostIntervention(props, { template }),
     area: proposed.area,
     sizeSquareMetres: proposed.sizeSquareMetres,

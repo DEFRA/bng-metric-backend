@@ -11,36 +11,32 @@ import {
   proposedCommonFields
 } from './project-post-intervention-fields.js'
 import { parentFeatureIdField } from './project-lineage-fields.js'
+import { createdTimingSelectionFields } from './project-timing-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
+import { listedFileText, shortFileText } from '../text-joi.js'
 
 function treeSideCommonFields() {
   return {
-    type: Joi.string()
-      .allow(null, '')
-      .description(
-        "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
-      ),
-    broadType: Joi.string()
-      .allow(null, '')
-      .description("Always 'Individual trees' for tree features."),
+    type: shortFileText().description(
+      "Tree habitat type — 'Urban tree' or 'Rural tree', derived from the Rural or Urban Tree column."
+    ),
+    broadType: listedFileText('broadType').description(
+      "Always 'Individual trees' for tree features."
+    ),
     ...baselineCommonFields(),
-    strategicSignificance: Joi.string()
-      .allow(null, '')
-      .description('Strategic Significance from the GeoPackage.'),
-    treeSize: Joi.string()
-      .allow(null, '')
-      .description(
-        "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
-      ),
-    treeSpecies: Joi.string()
-      .allow(null, '')
-      .description('Tree species/type free text (Tree Type column).'),
-    ruralOrUrban: Joi.string()
-      .allow(null, '')
-      .description(
-        'Raw Rural or Urban Tree value as written in the GeoPackage.'
-      ),
+    strategicSignificance: listedFileText('strategicSignificance').description(
+      'Strategic Significance from the GeoPackage.'
+    ),
+    treeSize: listedFileText('treeSize').description(
+      "Tree size band from the GeoPackage (e.g. 'Medium'); determines the per-tree area."
+    ),
+    treeSpecies: listedFileText('treeSpecies').description(
+      'Tree species/type free text (Tree Type column).'
+    ),
+    ruralOrUrban: listedFileText('ruralOrUrban').description(
+      'Raw Rural or Urban Tree value as written in the GeoPackage.'
+    ),
     sizeSquareMetres: Joi.number()
       .allow(null)
       .description(
@@ -56,9 +52,9 @@ function treeSideCommonFields() {
 
 const postInterventionTreeBaselineSubSchema = Joi.object({
   ...treeSideCommonFields(),
-  strategicSignificance: Joi.string()
-    .allow(null, '')
-    .description(BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION)
+  strategicSignificance: listedFileText('strategicSignificance').description(
+    BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
+  )
 }).description(
   'Baseline individual-tree values from the Baseline * GeoPackage columns.'
 )
@@ -70,7 +66,9 @@ const postInterventionTreeProposedSubSchema = Joi.object({
   // the engine time/difficulty multipliers) as an area parcel. Reuse the shared
   // factory so any future engine field flows to trees automatically — omitting
   // one previously caused persistence to reject non-retained trees.
-  ...proposedCommonFields()
+  ...proposedCommonFields(),
+  // A Created tree is edited as a Created area habitat is.
+  ...createdTimingSelectionFields()
 }).description(
   'Proposed individual-tree values from the Proposed * GeoPackage columns.'
 )
@@ -94,9 +92,12 @@ export const postInterventionTreeSchema = Joi.object({
     'trees',
     "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
   ),
-  ...parentFeatureIdField(),
+  ...parentFeatureIdField({ editableCreated: true }),
+  referenceEdited: Joi.boolean().description(
+    'Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
+  ),
   irreplaceable: Joi.boolean().description(
-    "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with an irreplaceable tree is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
+    "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
   ),
   baseline: postInterventionTreeBaselineSubSchema,
   proposed: postInterventionTreeProposedSubSchema,

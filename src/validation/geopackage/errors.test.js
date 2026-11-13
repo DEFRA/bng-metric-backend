@@ -147,7 +147,8 @@ describe('ERROR_CODE_SURFACES', () => {
   // The helpers the edit routes refuse a change with.
   const EDIT_ERROR_HELPERS = [
     'invalid-enhancement-error.js',
-    'out-of-scope-error.js'
+    'out-of-scope-error.js',
+    'feature-not-editable-error.js'
   ]
 
   it('gives every code at least one surface, and no other', () => {

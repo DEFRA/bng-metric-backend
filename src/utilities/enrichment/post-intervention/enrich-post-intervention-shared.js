@@ -34,6 +34,7 @@ export {
   RETENTION_ENHANCED,
   GPKG_RETENTION_LOST
 } from './retention-category.js'
+import { shownValue } from '../../../validation/geopackage/text-limits.js'
 
 export const LOG_ENRICH_PI_PREFIX = 'enrichPostIntervention: '
 
@@ -207,6 +208,11 @@ export function handleProposedEnrichmentError(error, feature, context, logger) {
   )
 }
 
+/** A value from the file as a log shows it: text cut to 99 characters, anything else as it is. */
+function shownText(value) {
+  return typeof value === 'string' ? shownValue(value) : value
+}
+
 /**
  * Log when proposed-side enrichment is skipped due to missing or invalid inputs.
  *
@@ -360,11 +366,11 @@ export function resolveProposedStrategicSignificance(feature, context, logger) {
       event: STRATEGIC_SIGNIFICANCE_INVALID_EVENT,
       layer: context,
       featureId: feature.featureId ?? null,
-      ref: feature.ref ?? null,
-      value: value ?? null,
+      ref: shownText(feature.ref) ?? null,
+      value: shownText(value) ?? null,
       reason
     },
-    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(value)} (${reason}) — nulled, units null (valid values: Low, High)`
+    `${LOG_ENRICH_PI_PREFIX}${context} featureId ${feature.featureId ?? 'unknown'}: invalid proposed strategic significance ${JSON.stringify(shownText(value))} (${reason}) — nulled, units null (valid values: Low, High)`
   )
   applyInvalidStrategicSignificanceResult(feature, value)
   return null

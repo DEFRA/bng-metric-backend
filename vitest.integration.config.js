@@ -25,7 +25,11 @@ export default defineConfig({
       AWS_ACCESS_KEY_ID: 'test',
       AWS_SECRET_ACCESS_KEY: 'test',
       AWS_REGION: 'eu-west-2',
-      AWS_DEFAULT_REGION: 'eu-west-2'
+      AWS_DEFAULT_REGION: 'eu-west-2',
+      // The suites call the limited routes (validate, report, upload start)
+      // many times as one user, so the rate limits would refuse them. The
+      // limits have their own unit tests (src/plugins/rate-limit.test.js).
+      RATE_LIMIT_ENABLED: 'false'
     },
     coverage: {
       enabled: false,

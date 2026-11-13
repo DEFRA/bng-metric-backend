@@ -314,6 +314,170 @@ describe('PUT /projects/{projectId}/features/{featureId}', () => {
     expect(rows[0].project.baseline.habitats).toEqual([])
   })
 
+  // The urban and rural tree sizes are split by setting, so a change of it
+  // writes the refreshed summary in the same update as the tree (BMD-1172).
+  it('moves a tree to its new setting and its sizes with it', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: 'Good',
+      treeSize: 'Medium',
+      count: 1,
+      area: 163,
+      sizeSquareMetres: 163
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 163 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 163,
+          urbanSquareMetres: 163,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 0 }
+      }
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.feature).toMatchObject({
+      type: 'Rural tree',
+      sizeSquareMetres: 163
+    })
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0].type).toBe('Rural tree')
+    expect(rows[0].project.baseline.habitatSizes.trees).toEqual({
+      totalSquareMetres: 163,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 163
+    })
+    expect(rows[0].project.baseline.habitatSizes.areaHabitats).toEqual({
+      totalSquareMetres: 163
+    })
+  })
+
+  it('refuses to make a tree a habitat that is not a tree', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: 'Good',
+      treeSize: 'Medium',
+      count: 1,
+      area: 163,
+      sizeSquareMetres: 163
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Good'
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0]).toMatchObject({
+      broadType: 'Individual trees',
+      type: 'Urban tree'
+    })
+  })
+
+  // A baseline tree became editable in BMD-1112, but no test drove a tree edit
+  // against the real persistence choke point: the route's own unit tests mock
+  // persist-project.js, so the `trees` layer being absent from its schema map
+  // only showed up as a 500 on a running server. This one carries a comment,
+  // which the setting and refusal tests above do not.
+  it('dispatches to the tree recompute and writes the trees layer', async () => {
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      condition: null,
+      treeSize: 'Medium',
+      count: 1,
+      area: 44,
+      sizeSquareMetres: 44
+    }
+    const projectId = await seedProjectWithBaseline({
+      habitats: [],
+      trees: [tree],
+      hedgerows: [],
+      watercourses: []
+    })
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/features/${tree.featureId}`,
+      payload: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Good',
+        comment: '  mature oak  '
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.type).toBe('tree')
+    expect(res.result.feature).toMatchObject({
+      featureId: tree.featureId,
+      condition: 'Good',
+      comment: 'mature oak',
+      // The notional area is read-only on the details page, so an edit must
+      // leave it exactly as imported.
+      area: 44,
+      sizeSquareMetres: 44,
+      count: 1
+    })
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.baseline.trees[0]).toMatchObject({
+      condition: 'Good',
+      comment: 'mature oak'
+    })
+  })
+
   it('returns 404 when the project does not exist', async () => {
     const res = await server.inject({
       headers,
@@ -496,6 +660,88 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
       featureId: baselineHabitat.featureId,
       ref: 'A1'
     })
+  })
+
+  // A Retained tree's reference is editable too. One linked to its
+  // parent by id, as a BNG Service template tree is, is renamed alone.
+  it('renames a retained tree linked to its parent, leaving the baseline tree alone', async () => {
+    const tree = {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      condition: 'Moderate',
+      treeSize: 'Small'
+    }
+    const baselineTree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      ...tree,
+      count: 1,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.2,
+      status: 'Complete'
+    }
+    const retainedTree = {
+      featureId: randomUUID(),
+      ref: 'T1',
+      retentionCategory: 'Retained',
+      parentFeatureId: baselineTree.featureId,
+      count: 1,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.2,
+      status: 'Complete',
+      baseline: { ...tree },
+      proposed: { ...tree, advanceYears: 0, delayYears: 0 }
+    }
+    const projectId = randomUUID()
+    await dbClient.query(
+      `INSERT INTO bng.projects (id, project, user_id, last_modified_by)
+       VALUES ($1, $2, $3, $3)`,
+      [
+        projectId,
+        {
+          name: 'Retained tree ref edit IT',
+          baseline: {
+            habitats: [],
+            trees: [baselineTree],
+            hedgerows: [],
+            watercourses: [],
+            units: { totalUnits: 0.2, habitatsTotal: 0, treesTotal: 0.2 }
+          },
+          postIntervention: {
+            habitats: [],
+            trees: [retainedTree],
+            hedgerows: [],
+            watercourses: [],
+            units: { totalUnits: 0.2, habitatsTotal: 0, treesTotal: 0.2 }
+          }
+        },
+        userId
+      ]
+    )
+
+    const res = await server.inject({
+      headers,
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/features/${retainedTree.featureId}`,
+      payload: { ref: 'P-T1' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({
+      type: 'tree',
+      feature: expect.objectContaining({
+        featureId: retainedTree.featureId,
+        ref: 'P-T1'
+      })
+    })
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention.trees[0].ref).toBe('P-T1')
+    expect(rows[0].project.baseline.trees[0].ref).toBe('T1')
   })
 
   it('saves a reference another baseline habitat carries, leaving that habitat and its rows alone (AC7: no uniqueness check)', async () => {

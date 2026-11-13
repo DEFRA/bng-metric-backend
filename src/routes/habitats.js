@@ -11,6 +11,10 @@ import {
   postInterventionAreaEditPayload,
   validateCreatedAreaEdit
 } from './created-area-edit.js'
+import {
+  postInterventionTreeEditPayload,
+  validateCreatedTreeEdit
+} from './created-tree-edit.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -24,14 +28,19 @@ import {
   APPLY_RESULT,
   applyFeatureUpdate
 } from '../utilities/features/apply-feature-update.js'
+import { featureNotEditableError } from './feature-not-editable-error.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
-// The baseline typed route saves dropdowns only; reference renaming belongs to
-// its unified feature route. Created PI edits use their own complete payload.
-const areaHabitatEditPayload = featureEditPayload.fork(['ref'], (schema) =>
-  schema.forbidden()
+// The baseline typed route saves dropdowns only; reference renaming and the
+// habitat comment (BMD-1112) belong to its unified feature route, which is
+// what the details page calls. Neither reaches `createdFeatureEdits`, so
+// accepting one here would answer 200 having saved nothing. Created PI edits
+// use their own complete payload.
+const areaHabitatEditPayload = featureEditPayload.fork(
+  ['ref', 'comment'],
+  (schema) => schema.forbidden()
 )
 
 /**
@@ -191,6 +200,12 @@ const CREATED_EDIT_TYPES = {
     label: 'Hedgerow',
     payload: postInterventionHedgerowEditPayload,
     validate: validateCreatedHedgerowEdit
+  },
+  tree: {
+    layer: 'trees',
+    label: 'Tree',
+    payload: postInterventionTreeEditPayload,
+    validate: validateCreatedTreeEdit
   }
 }
 
@@ -285,6 +300,7 @@ async function persistFeatureEdit(
     unitsTotals: result.unitsTotals,
     tradingRules: result.tradingRules,
     lostHabitats: result.lostHabitats,
+    habitatSizes: result.habitatSizes,
     postIntervention: result.postIntervention,
     actorId
   })
@@ -317,7 +333,9 @@ function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   }
 
   if (result.status !== APPLY_RESULT.OK) {
-    throw Boom.badRequest(`This ${label.toLowerCase()} edit is not supported`)
+    throw featureNotEditableError(
+      `This ${label.toLowerCase()} edit is not supported`
+    )
   }
 }
 
@@ -431,6 +449,57 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
   path: '/projects/{projectId}/post-intervention/hedgerows/{featureId}',
   documentKey: 'postIntervention',
   featureType: 'hedgerow'
+})
+
+/**
+ * @openapi
+ * /projects/{projectId}/post-intervention/trees/{featureId}:
+ *   put:
+ *     tags: [Habitats]
+ *     summary: Save a Created individual tree's reference, habitat type, target condition, strategic significance and timing
+ *     description: |
+ *       Takes the Created area habitat payload, for a Created tree only.
+ *       The tree stays a tree: broadType must be Individual
+ *       trees, and habitatType Urban tree or Rural tree. A blank condition
+ *       saves the tree Incomplete with zero units. The tree's size is its size
+ *       class times its Count and is not edited; a change between Urban tree and Rural tree moves it
+ *       between the urban and rural tree sizes. Omitted timing fields retain
+ *       the stored values; explicit null clears them. New timing selections
+ *       must be integer years 0 to 30 or 30+.
+ *     parameters:
+ *       - $ref: '#/components/parameters/ProjectId'
+ *       - $ref: '#/components/parameters/FeatureId'
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required: [ref, broadType, habitatType, condition]
+ *             properties:
+ *               ref: { type: string }
+ *               broadType: { type: string, enum: ['Individual trees'] }
+ *               habitatType: { type: string, enum: ['Urban tree', 'Rural tree'] }
+ *               condition: { type: string, nullable: true }
+ *               strategicSignificance: { type: string, nullable: true, description: 'An option returned by /reference/tree-creation, or null for an incomplete edit.' }
+ *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *     responses:
+ *       200:
+ *         description: Updated tree, with recalculated units, status and project totals
+ *       400:
+ *         description: Invalid reference, choices or timing, a tree that would no longer be a tree, or a tree that is not Created (code FEATURE_NOT_EDITABLE for a non-tree habitat)
+ *       401:
+ *         description: Authentication required
+ *       404:
+ *         description: Project or tree not found
+ *       409:
+ *         description: Another edit for this project is in progress
+ */
+export const updatePostInterventionTree = createUpdateFeatureRoute({
+  path: '/projects/{projectId}/post-intervention/trees/{featureId}',
+  documentKey: 'postIntervention',
+  featureType: 'tree'
 })
 
 export { updateAreaHabitat, updatePostInterventionAreaHabitat }

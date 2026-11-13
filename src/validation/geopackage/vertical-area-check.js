@@ -3,6 +3,7 @@ import { HABITAT_REF } from 'bng-library/bng-service'
 import { ERROR_CODES, makeError } from './errors.js'
 import { PROP_KEYS, pickProp } from './properties.js'
 import { SQ_METRES_PER_HECTARE } from './tree-sizes.js'
+import { shownValue } from './text-limits.js'
 
 const SAMPLE_CAP = 50
 
@@ -79,7 +80,7 @@ function describe(feature, idx, table) {
 function labelOf(sample) {
   const name = sample.table ?? VERTICAL_LAYER
   if (sample.feature_ref != null) {
-    return `${name} ${HABITAT_REF} ${sample.feature_ref}`
+    return `${name} ${HABITAT_REF} ${shownValue(sample.feature_ref)}`
   }
   if (sample.fid != null) {
     return `${name} fid ${sample.fid}`

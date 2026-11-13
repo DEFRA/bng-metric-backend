@@ -77,8 +77,10 @@ vi.mock(
     const { validateGpkgFile } =
       await import('../validation/geopackage/geopackage.js')
     return {
-      validateServiceTemplateGpkgFile: vi.fn((...args) =>
-        validateGpkgFile(...args)
+      // The file alone: the template gate also takes the tables whose text
+      // values it checks, which the legacy gate does not.
+      validateServiceTemplateGpkgFile: vi.fn((filePath) =>
+        validateGpkgFile(filePath)
       )
     }
   }
@@ -385,7 +387,8 @@ describe('validateBaseline handler — pipeline calls', () => {
       )
 
       expect(validateServiceTemplateGpkgFile).toHaveBeenCalledWith(
-        MOCK_DOWNLOAD_PATH
+        MOCK_DOWNLOAD_PATH,
+        expect.any(Function)
       )
     })
 

@@ -11,10 +11,20 @@ import {
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType
 } from './habitat-reference.js'
+import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../geopackage/tree-constants.js'
 
-function buildAreaCreationReference() {
+const isTrees = (broad) => broad === INDIVIDUAL_TREES_BROAD_HABITAT
+
+/**
+ * The creation choices for the broad habitats `includeBroad` keeps: each
+ * habitat type with the target conditions it can be created to, its creation
+ * difficulty, and the multipliers the edit page prices a creation with.
+ *
+ * @param {(broad: string) => boolean} includeBroad
+ */
+function buildCreationReference(includeBroad) {
   const habitatTypes = Object.entries(getAreaHabitatTypesByBroad())
-    .filter(([broad]) => broad !== 'Individual trees')
+    .filter(([broad]) => includeBroad(broad))
     .flatMap(([broad, types]) =>
       types
         .filter((type) => !type.name.includes('(IGGI)'))
@@ -55,9 +65,18 @@ function buildAreaCreationReference() {
 }
 
 // The pinned library reference data is static for this process. Keep the
-// cached snapshot private so callers cannot mutate another request's choices.
-const areaCreationReference = structuredClone(buildAreaCreationReference())
+// cached snapshots private so callers cannot mutate another request's choices.
+// Individual trees have their own: a tree is created as an Urban tree or a
+// Rural tree and can never become another area habitat.
+const areaCreationReference = structuredClone(
+  buildCreationReference((broad) => !isTrees(broad))
+)
+const treeCreationReference = structuredClone(buildCreationReference(isTrees))
 
 export function getAreaCreationReference() {
   return structuredClone(areaCreationReference)
+}
+
+export function getTreeCreationReference() {
+  return structuredClone(treeCreationReference)
 }

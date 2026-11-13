@@ -8,6 +8,7 @@
   "GET /projects/{projectId}/post-intervention/features/{featureId}",
   "GET /projects/{projectId}/report.pdf",
   "GET /reference/area-creation",
+  "GET /reference/tree-creation",
   "GET /reference/broad-habitats",
   "GET /reference/conditions",
   "GET /reference/habitat-types",
@@ -33,5 +34,6 @@
   "PUT /projects/{projectId}/post-intervention/features/{featureId}",
   "PUT /projects/{projectId}/post-intervention/habitats/{featureId}",
   "PUT /projects/{projectId}/post-intervention/hedgerows/{featureId}",
+  "PUT /projects/{projectId}/post-intervention/trees/{featureId}",
   "PUT /projects/{projectId}/post-intervention/watercourses/{featureId}"
 ]

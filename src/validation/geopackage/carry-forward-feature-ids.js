@@ -24,7 +24,6 @@
 // every project, and the file, and so the uuid, is the user's.
 import { FEATURE_UUID } from 'bng-library/bng-service'
 
-import { cleanHabitatRef } from './habitat-ref-check.js'
 import { PROP_KEYS } from './properties.js'
 
 /**
@@ -48,15 +47,26 @@ export const REF_PROP_KEYS_BY_LAYER = Object.freeze({
 export const RED_LINE_KEY = 'redLine'
 
 /**
+ * Before BMD-1175 a reference longer than this was saved cut to it, and
+ * before BMD-1058 it was saved as it was. So a stored project can hold a
+ * baseline reference saved whole and the post-intervention reference that
+ * names it saved cut. Refs are compared by this many characters at most, as
+ * they were, so those two still match. A reference the service takes today
+ * is at most 99 characters, so this changes nothing for one.
+ */
+export const REF_COMPARE_LENGTH = 100
+
+/**
  * Clean a ref to a comparable string, collapsing blank, missing and non-scalar
- * values to null. It is cleaned exactly as a habitat ref is stored (trimmed and
- * truncated, cleanHabitatRef), so an incoming ref and the stored one it came
- * from compare equal however long it was. Refs reach us as whatever the
- * GeoPackage column held, so a
- * numeric ref must stringify the same way on both sides of the comparison —
- * but anything that is not a string or number has no meaningful ref value, and
- * stringifying it would collapse every such feature onto one lookup key
- * ('[object Object]') and match them to each other.
+ * values to null: trimmed, as a habitat ref is stored (cleanHabitatRef), then
+ * cut to REF_COMPARE_LENGTH characters and trimmed again, so a ref saved
+ * whole and the same ref saved cut compare equal. Characters are counted as
+ * code points, so a cut never splits one. Refs reach us as whatever the
+ * GeoPackage column held, so a numeric ref must stringify the same way on
+ * both sides of the comparison — but anything that is not a string or number
+ * has no meaningful ref value, and stringifying it would collapse every such
+ * feature onto one lookup key ('[object Object]') and match them to each
+ * other.
  *
  * @param {unknown} ref
  * @returns {string | null}
@@ -65,8 +75,13 @@ export function normaliseRef(ref) {
   if (typeof ref !== 'string' && typeof ref !== 'number') {
     return null
   }
-  const cleaned = cleanHabitatRef(ref)
-  return cleaned === '' ? null : cleaned
+  const cleaned = typeof ref === 'number' ? ref.toString() : ref.trim()
+  const characters = Array.from(cleaned)
+  const compared =
+    characters.length > REF_COMPARE_LENGTH
+      ? characters.slice(0, REF_COMPARE_LENGTH).join('').trimEnd()
+      : cleaned
+  return compared === '' ? null : compared
 }
 
 const UUID_PATTERN =

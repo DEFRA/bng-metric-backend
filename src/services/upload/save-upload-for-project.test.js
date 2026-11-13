@@ -88,6 +88,29 @@ const POST_INTERVENTION_CONFIG = {
   uploadLabel: 'post-intervention'
 }
 
+// A baseline feature as enrichment leaves a complete one. A post-intervention
+// file whose baseline has an incomplete one is refused (BMD-1195).
+function completeArea(feature) {
+  return {
+    broadType: 'Heathland and shrub',
+    type: 'Mixed scrub',
+    condition: 'Good',
+    status: 'Complete',
+    ...feature
+  }
+}
+
+function completeWatercourse(feature) {
+  return {
+    type: 'Ditches',
+    condition: 'Good',
+    watercourseEncroachment: 'No Encroachment',
+    riparianEncroachment: 'No Encroachment/No Encroachment',
+    status: 'Complete',
+    ...feature
+  }
+}
+
 function makeLogger() {
   return { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 }
@@ -190,8 +213,18 @@ describe('saveUploadForProject', () => {
           condition: 'Poor'
         }
       }
+      // The derived baseline is complete, so the post-intervention rows are
+      // checked; an incomplete one is refused first (BMD-1195).
       extractHabitatData.mockReturnValue({
-        document: { habitats: [{ ...habitat.baseline }] },
+        document: {
+          habitats: [
+            completeArea({
+              broadType: 'Grassland',
+              type: 'Modified grassland',
+              condition: 'Moderate'
+            })
+          ]
+        },
         geometries: { habitats: [] }
       })
       extractPostIntervention.mockReturnValue({
@@ -362,9 +395,9 @@ describe('saveUploadForProject', () => {
 
     it('AC5-AC7 derives the baseline and persists both documents together', async () => {
       const derivedBaseline = {
-        habitats: [{ ref: 'H1' }, { ref: 'H2' }],
+        habitats: [completeArea({ ref: 'H1' }), completeArea({ ref: 'H2' })],
         hedgerows: [],
-        watercourses: [{ ref: 'R1', sizeMetres: 1000 }],
+        watercourses: [completeWatercourse({ ref: 'R1', sizeMetres: 1000 })],
         units: { habitatsTotal: 6 }
       }
       extractHabitatData.mockReturnValue({
@@ -502,7 +535,7 @@ describe('saveUploadForProject', () => {
 
     it('BMD-1182 refuses a file that enhances a baseline that cannot be enhanced, and saves neither document', async () => {
       extractHabitatData.mockReturnValue({
-        document: { habitats: [{ ref: 'H1' }] },
+        document: { habitats: [completeArea({ ref: 'H1' })] },
         geometries: { habitats: [] }
       })
       extractPostIntervention.mockReturnValueOnce({
@@ -542,6 +575,77 @@ describe('saveUploadForProject', () => {
         ]
       })
       expect(enrichPostInterventionDocumentWithUnits).not.toHaveBeenCalled()
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(persistUpload).not.toHaveBeenCalled()
+    })
+
+    it('BMD-1195 refuses a file whose baseline has an incomplete habitat, before reading the post-intervention rows, and saves neither document', async () => {
+      extractHabitatData.mockReturnValue({
+        document: {
+          habitats: [
+            completeArea({ ref: 'H1' }),
+            completeArea({ ref: 'H2', condition: null })
+          ]
+        },
+        geometries: { habitats: [] }
+      })
+
+      const result = await saveCombined(
+        COMBINED_LAYERS,
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(result).toBe(h)
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
+            details: {
+              count: 1,
+              sample: [expect.objectContaining({ feature_ref: 'H2' })]
+            }
+          })
+        ]
+      })
+      expect(extractPostIntervention).not.toHaveBeenCalled()
+      expect(persistCombinedUpload).not.toHaveBeenCalled()
+      expect(persistUpload).not.toHaveBeenCalled()
+    })
+
+    it('BMD-1195 refuses a file whose baseline habitat has every attribute but its units cannot be calculated', async () => {
+      extractHabitatData.mockReturnValue({
+        document: {
+          habitats: [completeArea({ ref: 'H1' }), completeArea({ ref: 'H2' })]
+        },
+        geometries: { habitats: [] }
+      })
+      enrichBaselineDocumentWithUnits.mockImplementationOnce((document) => {
+        Object.assign(document.habitats[1], {
+          status: 'Incomplete',
+          units: null
+        })
+      })
+
+      const result = await saveCombined(
+        COMBINED_LAYERS,
+        POST_INTERVENTION_CONFIG
+      )
+
+      expect(result).toBe(h)
+      expect(h.response).toHaveBeenCalledWith({
+        valid: false,
+        errors: [
+          expect.objectContaining({
+            code: ERROR_CODES.BASELINE_HABITATS_INCOMPLETE,
+            details: {
+              count: 1,
+              sample: [expect.objectContaining({ feature_ref: 'H2' })]
+            }
+          })
+        ]
+      })
+      expect(extractPostIntervention).not.toHaveBeenCalled()
       expect(persistCombinedUpload).not.toHaveBeenCalled()
       expect(persistUpload).not.toHaveBeenCalled()
     })
@@ -687,7 +791,9 @@ describe('saveUploadForProject', () => {
 
     beforeEach(() => {
       extractHabitatData.mockReturnValue({
-        document: { habitats: [{ ref: 'H1' }, { ref: 'H2' }] },
+        document: {
+          habitats: [completeArea({ ref: 'H1' }), completeArea({ ref: 'H2' })]
+        },
         geometries: { habitats: [] }
       })
     })

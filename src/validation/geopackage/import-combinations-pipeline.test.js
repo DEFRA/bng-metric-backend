@@ -27,7 +27,7 @@ function row(retention = 'Created', overrides = {}) {
       'Baseline Hedge Type': 'Native hedgerow',
       'Baseline River Type': 'Ditches',
       'Baseline Tree Size': 'Small',
-      'Baseline Rural or Urban Tree': 'Urban',
+      'Baseline Rural or Urban Tree': 'Urban tree',
       'Baseline Condition': 'Moderate',
       'Baseline Encroachment into Watercourse': 'No Encroachment',
       'Baseline Encroachment into riparian zone':
@@ -37,7 +37,7 @@ function row(retention = 'Created', overrides = {}) {
       'Proposed Hedge Type': 'Native hedgerow',
       'Proposed River Type': 'Ditches',
       'Proposed Tree Size': 'Small',
-      'Proposed Rural or Urban Tree': 'Urban',
+      'Proposed Rural or Urban Tree': 'Urban tree',
       'Proposed Condition': 'Good',
       'Proposed Strategic Significance': 'Low',
       'Proposed Encroachment into Watercourse': 'No Encroachment',

@@ -27,6 +27,7 @@ import {
   recomputeWatercourse
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
+import { cleanComment } from '../../validation/geopackage/comment-check.js'
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
@@ -54,6 +55,7 @@ import {
   VERTICAL_BROAD_HABITATS,
   isVerticalHabitat
 } from '../../validation/reference/vertical-habitats.js'
+import { keepsTreeATree, withEditedTreeSizes } from './tree-edit.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -100,6 +102,21 @@ function normalizeRef(ref) {
   return cleaned === '' ? undefined : cleaned
 }
 
+/**
+ * The edited comment as it is stored, or undefined when the edit leaves it
+ * alone. An absent comment is not a request to clear it. Blank and
+ * whitespace-only become null.
+ *
+ * @param {object} edits
+ * @returns {string | null | undefined}
+ */
+function normalizeComment(edits) {
+  if (!Object.hasOwn(edits, 'comment')) {
+    return undefined
+  }
+  return cleanComment(edits.comment)
+}
+
 function normalizeEdits(edits = {}) {
   return {
     ref: normalizeRef(edits.ref),
@@ -117,7 +134,8 @@ function normalizeEdits(edits = {}) {
     habitatType: blankToNull(edits.habitatType),
     condition: blankToNull(edits.condition),
     watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
-    riparianEncroachment: blankToNull(edits.riparianEncroachment)
+    riparianEncroachment: blankToNull(edits.riparianEncroachment),
+    comment: normalizeComment(edits)
   }
 }
 
@@ -225,9 +243,35 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
   return recomputeHabitatEdit(existing, edits, context)
 }
 
+/**
+ * An individual tree is edited as an area habitat (BMD-1112). Its size is
+ * notional — the per-size reference area times the number of trees the point
+ * stands for (tree-sizes.js) — and the details page shows the size class and
+ * count read-only, so an edit moves its condition, setting, reference or
+ * comment and never its area. It stays a tree (tree-edit.js), and a change of
+ * setting moves it between the urban and rural sizes (withEditedTreeSizes).
+ *
+ * After intervention only a Created tree is edited this way, with the Created
+ * area habitat edit's complete payload; a Retained tree's reference
+ * is renamed through apply-retained-ref-edit.js, and an Enhanced tree, like an
+ * Enhanced area habitat, is not editable.
+ */
+function recomputeTreeEdit(existing, edits, context) {
+  if (!keepsTreeATree(existing, edits, context.documentKey)) {
+    return null
+  }
+  if (context.documentKey === 'postIntervention') {
+    return Object.hasOwn(edits, 'advanceYears')
+      ? recomputeCreatedAreaEdit(existing, edits)
+      : null
+  }
+  return recomputeHabitatEdit(existing, edits, context)
+}
+
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
   habitat: recomputeHabitatEdit,
   verticalHabitat: recomputeVerticalHabitatEdit,
+  tree: recomputeTreeEdit,
   hedgerow: recomputeHedgerowEdit,
   watercourse: recomputeWatercourseEdit
 })
@@ -242,6 +286,8 @@ function mergeBaselineFeature(type, existing, edits, derived) {
   const base = {
     ...existing,
     ...(edits.ref === undefined ? {} : { ref: edits.ref }),
+    // Omitted when the edit did not send a comment, so the stored one stays.
+    ...(edits.comment === undefined ? {} : { comment: edits.comment }),
     condition: edits.condition,
     distinctiveness: derived.distinctiveness,
     distinctivenessScore: derived.distinctivenessScore,
@@ -249,7 +295,7 @@ function mergeBaselineFeature(type, existing, edits, derived) {
     units: derived.units,
     status: derived.status
   }
-  if (type === 'habitat' || type === 'verticalHabitat') {
+  if (type === 'habitat' || type === 'verticalHabitat' || type === 'tree') {
     return { ...base, broadType: edits.broadType, type: edits.habitatType }
   } else if (type === 'watercourse') {
     return {
@@ -342,7 +388,7 @@ function resolveUpdatedFeature(
 ) {
   const recomputedWholeFeature =
     documentKey === 'postIntervention' &&
-    ['habitat', 'hedgerow', 'watercourse'].includes(found.type) &&
+    CREATED_EDIT_TYPES.has(found.type) &&
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? derived.updatedFeature
@@ -405,13 +451,24 @@ function brokenEnhancementRule(found, derived, documentKey) {
   return check && !check.valid ? check.rule : null
 }
 
+// The post-intervention features a Created edit's complete payload reaches:
+// area habitats and trees, which carry a broad habitat, and hedgerows and
+// watercourses, which do not.
+const CREATED_EDIT_TYPES = new Set([
+  'habitat',
+  'tree',
+  'hedgerow',
+  'watercourse'
+])
+const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
+
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
   const unsupportedLinearBroadType =
-    found.type !== 'habitat' && edits.broadType !== null
+    !BROAD_HABITAT_TYPES.has(found.type) && edits.broadType !== null
   return (
     documentKey === 'postIntervention' &&
     Object.hasOwn(edits, 'advanceYears') &&
-    (!['habitat', 'hedgerow', 'watercourse'].includes(found.type) ||
+    (!CREATED_EDIT_TYPES.has(found.type) ||
       unsupportedLinearBroadType ||
       resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
       edits.ref === undefined)
@@ -488,6 +545,40 @@ function resolveEditTarget(
 }
 
 /**
+ * The edited document: the feature spliced into its layer, and, when the edit
+ * moves a baseline tree to another setting, its habitat-size summary
+ * refreshed. The stored document is not mutated.
+ *
+ * @param {object} featureSet the document being edited
+ * @param {{ found: object, updatedFeature: object, featureId: string, documentKey: string }} edit
+ * @returns {{ index: number, updatedFeatureSet: object, habitatSizes: object | undefined }}
+ */
+function withUpdatedFeature(
+  featureSet,
+  { found, updatedFeature, featureId, documentKey }
+) {
+  const index = featureSet[found.key].findIndex(
+    (f) => f?.featureId === featureId
+  )
+  const updatedFeatureSet = spliceFeatureInFeatureSet(
+    featureSet,
+    found.key,
+    index,
+    updatedFeature
+  )
+  const habitatSizes = withEditedTreeSizes(
+    updatedFeatureSet,
+    found,
+    updatedFeature,
+    documentKey
+  )
+  if (habitatSizes) {
+    updatedFeatureSet.habitatSizes = habitatSizes
+  }
+  return { index, updatedFeatureSet, habitatSizes }
+}
+
+/**
  * Given a project document, locate `featureId`, recompute its derived block
  * from the supplied edits, splice it back into its layer, and refresh the
  * feature-set unit totals. Returns the updated project plus the updated
@@ -505,7 +596,7 @@ function resolveEditTarget(
  * @param {object} project — full row.project JSONB
  * @param {object} params
  * @param {string} params.featureId
- * @param {object} params.edits  { ref?, broadType?, habitatType?, condition? }
+ * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment? }
  *   `ref` renames a baseline feature (BMD-1061), or a Created area when
  *   the complete timing/strategic edit payload is supplied (BMD-1048). The re-derive then carries the new ref onto the
  *   post-intervention rows measured against the feature, so the two documents
@@ -516,7 +607,7 @@ function resolveEditTarget(
  *   rows the re-derive could not match to a baseline feature, and about a
  *   proposed strategic significance the recompute had to reject (BMD-1051)
  * @returns {
- *   { status: 'ok', type: string, project: object, feature: object, postIntervention: object | null } |
+ *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
@@ -556,14 +647,9 @@ function applyFeatureUpdate(
       serviceTemplate: isTemplateUpload(project?.postIntervention)
     }
   )
-  const index = featureSet[found.key].findIndex(
-    (f) => f?.featureId === featureId
-  )
-  const updatedFeatureSet = spliceFeatureInFeatureSet(
+  const { index, updatedFeatureSet, habitatSizes } = withUpdatedFeature(
     featureSet,
-    found.key,
-    index,
-    updatedFeature
+    { found, updatedFeature, featureId, documentKey }
   )
   const postIntervention = refreshFiguresDownstreamOfEdit(updatedFeatureSet, {
     project,
@@ -592,6 +678,9 @@ function applyFeatureUpdate(
       documentKey === 'postIntervention'
         ? updatedFeatureSet.lostHabitats
         : undefined,
+    // Refreshed by a tree edit, whose setting the urban and rural sizes are
+    // split by.
+    habitatSizes,
     postIntervention,
     project: rebuiltProject(
       project,

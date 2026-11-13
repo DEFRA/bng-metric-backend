@@ -101,9 +101,10 @@ const STRATEGIC_SIGNIFICANCE_FIELD = 'strategicSignificance'
  * deliberately shares its lists: a column that identifies a habitat on one side
  * identifies it on the other, so a new one is added in a single place.
  *
- * Trees are included for completeness — they are not editable today
- * (`recomputeForType` in apply-feature-update.js has no tree branch), so no
- * route can currently make a tree's two copies disagree.
+ * A baseline tree is editable (BMD-1112), but only its condition, reference
+ * and comment: `recomputeTreeEdit` pins the urban/rural habitat type and the
+ * size class and count are read-only, so the only identity field an edit can
+ * move is the condition, which the re-derive carries across like any other.
  */
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
@@ -372,7 +373,7 @@ export function preserveCreatedParent(
 ) {
   const createdEdit =
     documentKey === 'postIntervention' &&
-    ['habitats', 'hedgerows', 'watercourses'].includes(layer)
+    ['habitats', 'trees', 'hedgerows', 'watercourses'].includes(layer)
   if (
     !createdEdit ||
     resolveRetentionCategory(existing) !== RETENTION_CREATED ||

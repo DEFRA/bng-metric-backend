@@ -14,7 +14,8 @@ import {
   updatePostInterventionWatercourse,
   updatePostInterventionHedgerow,
   updateAreaHabitat,
-  updatePostInterventionAreaHabitat
+  updatePostInterventionAreaHabitat,
+  updatePostInterventionTree
 } from '../routes/habitats.js'
 import {
   getFeature,
@@ -35,6 +36,7 @@ import {
   getWatercourseCreation,
   getHedgerowCreation,
   getAreaCreation,
+  getTreeCreation,
   getBroadHabitats,
   getLocalPlanningAuthorities,
   getHabitatTypes,
@@ -47,11 +49,14 @@ import {
 } from '../routes/reference.js'
 import { swagger } from '../common/helpers/swagger.js'
 import { osTiles, osTilesEnabled } from './os-tiles.js'
+import { RATE_LIMITED, withRateLimit } from './rate-limit.js'
 
 const router = {
   plugin: {
     name: 'router',
     register: async (server, _options) => {
+      // The costly routes carry rate limits (plugins/rate-limit.js); the
+      // rest are left to the CDP limit.
       server.route([
         health,
         postAuthSession,
@@ -64,21 +69,23 @@ const router = {
         updatePostInterventionHedgerow,
         updateAreaHabitat,
         updatePostInterventionAreaHabitat,
+        updatePostInterventionTree,
         getFeature,
         getPostInterventionFeature,
         updateFeature,
         updatePostInterventionFeatureRef,
-        initiateUpload,
+        withRateLimit(initiateUpload, RATE_LIMITED.uploadInitiate),
         uploadStatus,
-        validateBaseline,
-        validatePostIntervention,
+        withRateLimit(validateBaseline, RATE_LIMITED.validate),
+        withRateLimit(validatePostIntervention, RATE_LIMITED.validate),
         getUserProjects,
-        getProjectReport,
+        withRateLimit(getProjectReport, RATE_LIMITED.report),
         getProjectDetails,
         updateProjectDetails,
         getWatercourseCreation,
         getHedgerowCreation,
         getAreaCreation,
+        getTreeCreation,
         getBroadHabitats,
         getLocalPlanningAuthorities,
         getHabitatTypes,

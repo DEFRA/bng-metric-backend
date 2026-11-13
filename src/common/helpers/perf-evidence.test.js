@@ -27,11 +27,11 @@ describe('#perfEvidence', () => {
     test('Should default the fields to an empty object', () => {
       const info = vi.fn()
 
-      logPerf({ info }, 'no-rate-limit')
+      logPerf({ info }, 'pipeline-inline')
 
       expect(info).toHaveBeenCalledWith(
-        { [PERF_EVIDENCE_MARKER]: 'no-rate-limit' },
-        'perf-evidence: no-rate-limit'
+        { [PERF_EVIDENCE_MARKER]: 'pipeline-inline' },
+        'perf-evidence: pipeline-inline'
       )
     })
 

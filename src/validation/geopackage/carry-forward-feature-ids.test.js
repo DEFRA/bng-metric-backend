@@ -18,11 +18,26 @@ describe('#normaliseRef', () => {
     expect(normaliseRef('  PR-1 ')).toBe('PR-1')
   })
 
-  it('cuts a long ref as it is stored, so the stored ref matches the incoming one', () => {
-    const incoming = `  ${'A'.repeat(120)}`
+  it('trims a ref as it is stored, so the stored ref matches the incoming one', () => {
+    const incoming = `  ${'A'.repeat(99)}`
     const stored = normaliseRef(incoming)
-    expect(stored).toBe('A'.repeat(100))
+    expect(stored).toBe('A'.repeat(99))
     expect(normaliseRef(stored)).toBe(stored)
+  })
+
+  // Before BMD-1175 a ref over 100 characters was saved cut, and before
+  // BMD-1058 whole, so a stored project can hold both forms of one ref.
+  it('compares a stored ref by its first 100 characters, so one saved whole matches one saved cut', () => {
+    const whole = `${'A'.repeat(100)}B `
+    const cut = 'A'.repeat(100)
+    expect(normaliseRef(whole)).toBe(cut)
+    expect(normaliseRef(cut)).toBe(cut)
+    expect(normaliseRef(`${'A'.repeat(99)} B`)).toBe('A'.repeat(99))
+    expect(normaliseRef(`${'🌳'.repeat(101)}`)).toBe('🌳'.repeat(100))
+  })
+
+  it('leaves a ref the service takes today, of up to 99 characters, whole', () => {
+    expect(normaliseRef(` ${'A'.repeat(99)} `)).toBe('A'.repeat(99))
   })
 
   it('stringifies numeric refs so both sides compare alike', () => {

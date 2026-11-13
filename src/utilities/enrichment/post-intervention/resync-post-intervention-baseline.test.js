@@ -179,6 +179,24 @@ describe('resyncPostInterventionBaselineSide', () => {
     expect(postIntervention.habitats[0].baseline.type).toBe(MODIFIED_GRASSLAND)
   })
 
+  // Before BMD-1175 a long ref was saved cut, and before BMD-1058 whole, so a
+  // stored baseline ref can be longer than the post-intervention ref that
+  // names it. They still match on their first 100 characters.
+  test('matches a baseline ref saved whole to the post-intervention ref saved cut to 100 characters', () => {
+    const postIntervention = {
+      habitats: [postInterventionHabitat({ ref: 'A'.repeat(100) })]
+    }
+
+    const changed = resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineHabitat({ ref: 'A'.repeat(101), condition: 'Good' })]
+      }
+    })
+
+    expect(changed).toBe(1)
+    expect(postIntervention.habitats[0].baseline.condition).toBe('Good')
+  })
+
   test('only propagates fields the baseline document actually carries', () => {
     const postIntervention = { habitats: [postInterventionHabitat()] }
     const source = baselineHabitat({ type: NEUTRAL_GRASSLAND })
@@ -911,6 +929,66 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.lostHabitats).toEqual([
       expect.objectContaining({ layer: 'trees', ref: 'T1', lostTreeCount: 1 })
     ])
+  })
+
+  test('moves a kept tree to the setting its parent is edited to, with its sizes (BMD-1172)', () => {
+    const tree = (type, extra) => ({
+      type,
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      condition: 'Moderate',
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 326,
+      area: 326,
+      ...extra
+    })
+    const parent = (type) =>
+      tree(type, { featureId: 'baseline-t1', ref: 'T1', count: 2 })
+    const kept = {
+      featureId: 'pi-t1',
+      ref: 'T1',
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Retained',
+      count: 2,
+      sizeSquareMetres: 326,
+      area: 326,
+      status: 'Complete',
+      units: null,
+      baseline: tree('Urban tree'),
+      proposed: tree('Urban tree'),
+      properties: {}
+    }
+    const habitatSizes = {
+      areaHabitats: { totalSquareMetres: 326 },
+      hedgerows: { totalMetres: 0 },
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 326,
+        urbanSquareMetres: 326,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: 0 }
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      { trees: [kept], template: TEMPLATE, lostHabitats: [], habitatSizes },
+      {
+        baseline: { trees: [parent('Rural tree')] },
+        previousBaseline: { trees: [parent('Urban tree')] }
+      }
+    )
+
+    expect(rederived.trees[0]).toMatchObject({
+      baseline: { type: 'Rural tree' },
+      proposed: { type: 'Rural tree' }
+    })
+    expect(rederived.habitatSizes.trees).toEqual({
+      totalSquareMetres: 326,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 326
+    })
+    expect(rederived.habitatSizes.areaHabitats.totalSquareMetres).toBe(326)
+    expect(rederived.lostHabitats).toEqual([])
   })
 
   test('keeps the advance of an encroachment-only change the baseline edit leaves one', () => {

@@ -66,6 +66,31 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * An edit to a habitat saved before the service checked text limits and
+   * lists (BMD-1175): the habitat, or its post-intervention document, holds a
+   * value longer than its limit or outside its list. The edit is refused, not
+   * saved with the old value cut or cleared; uploading the file again, with
+   * the value corrected, updates it.
+   */
+  STORED_VALUE_NOT_ALLOWED: 'STORED_VALUE_NOT_ALLOWED',
+
+  /**
+   * An edit the endpoint cannot carry out on this feature, as against a value
+   * it will not accept: the feature is of a kind it does not edit, such as an
+   * Enhanced post-intervention tree, or the edit would make the feature
+   * something its kind cannot become — a tree that is no longer a tree
+   * (keepsTreeATree, created-tree-edit.js), or a vertical area habitat that is
+   * no longer vertical.
+   *
+   * No one field the page can edit is to blame, and the refusal is not the
+   * reference the edit routes answer a bare 400 for, so the edit pages show
+   * it in the error summary only and keep what the user typed, rather than
+   * blaming a valid reference or dropping the user on an error page
+   * (BMD-1112).
+   */
+  FEATURE_NOT_EDITABLE: 'FEATURE_NOT_EDITABLE',
+
+  /**
    * One or more Enhanced rows enhance a baseline habitat the service cannot
    * enhance at all, such as a Medium habitat in Good condition (BMD-1182). The
    * file is refused rather than the enhancement nulled. One error for them
@@ -91,12 +116,34 @@ export const ERROR_CODES = Object.freeze({
   COMMENT_INVALID_CHARACTERS: 'COMMENT_INVALID_CHARACTERS',
 
   /**
-   * One or more habitat comments are longer than 999 characters once leading
-   * and trailing whitespace is removed. Length is counted in characters, not
-   * bytes. A comment of exactly 999 characters is accepted. One error for
-   * every such comment. The file is refused and nothing from it is saved.
+   * A text value is longer than its column's limit, counted in characters
+   * once leading and trailing whitespace is removed (BMD-1175): 99 for a
+   * reference, Location and every drop-down or filled-in column, 255 for
+   * Spatial risk category, and 999 for a comment and the other Red Line
+   * Boundary details. One error for each value, naming the table, the
+   * feature, the column, the limit and the length. Checked before any other
+   * check reads a value.
    */
-  COMMENT_TOO_LONG: 'COMMENT_TOO_LONG',
+  TEXT_TOO_LONG: 'TEXT_TOO_LONG',
+
+  /**
+   * A drop-down or filled-in column holds a value that none of its lists
+   * offers, in either template (BMD-1175). A blank value is not this error.
+   * One error for each value; the value is shown cut to 99 characters.
+   */
+  VALUE_NOT_ALLOWED: 'VALUE_NOT_ALLOWED',
+
+  /** A BNG Service template baseline feature's feature_uuid is not blank and not a UUID (BMD-1175). */
+  FEATURE_UUID_INVALID: 'FEATURE_UUID_INVALID',
+
+  /** A post-intervention feature's parent_uuid is not blank and not a UUID (BMD-1175). */
+  PARENT_UUID_INVALID: 'PARENT_UUID_INVALID',
+
+  /**
+   * A post-intervention feature's parent_geom is not blank and is not WKT of
+   * its table's shape, or its multi form (BMD-1175).
+   */
+  PARENT_GEOM_INVALID: 'PARENT_GEOM_INVALID',
 
   /**
    * A BNG Service template vertical area habitat's Area is blank, zero,
@@ -109,9 +156,10 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * One or more BNG Service template individual trees, at baseline or
-   * post-intervention, have Irreplaceable Habitat "Yes": the service does not
-   * accept irreplaceable trees. A blank Irreplaceable Habitat is "No". One
-   * error for them all, per stage; `details.sample` lists each tree's table,
+   * post-intervention, have an Irreplaceable Habitat other than "No": "Yes",
+   * a blank cell or any other value. The service does not accept irreplaceable
+   * trees, so for a tree the column must say "No". One error for them all,
+   * per stage; `details.sample` lists each tree's table,
    * Habitat Ref and fid. The frontend sends the user to the drop-out page.
    */
   IRREPLACEABLE_TREE: 'IRREPLACEABLE_TREE',
@@ -135,6 +183,18 @@ export const ERROR_CODES = Object.freeze({
    * overstate the net change, so the upload is rejected.
    */
   BASELINE_TYPE_MISSING: 'BASELINE_TYPE_MISSING',
+
+  /**
+   * One or more area habitats, hedgerows or watercourses in the baseline a
+   * post-intervention file is saved with are Incomplete: an attribute their
+   * units need is missing, or their units cannot be calculated (BMD-1195).
+   * The baseline cannot be edited once a post-intervention file is uploaded,
+   * so the file is refused and nothing from it is saved. A baseline-only
+   * upload is not refused. One error for them all; `details.sample` lists
+   * each habitat's layer, Feature Ref and habitat type. The frontend sends
+   * the user to the drop-out page.
+   */
+  BASELINE_HABITATS_INCOMPLETE: 'BASELINE_HABITATS_INCOMPLETE',
 
   /**
    * The file has no BNG Service template version record, and is not a legacy
@@ -226,9 +286,10 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * BNG Service template baseline trees with fewer trees, by Count, than the
-   * Retained and Enhanced post-intervention trees linked to them together: a
-   * tree that is kept cannot multiply. A blank Count is one tree. Created
-   * trees, new planting, are not counted. `details.sample` lists each parent's
+   * post-intervention trees that are still them, linked to them together: the
+   * Retained and Enhanced trees, and an Existing tree Created in the parent's
+   * setting (the parent recorded as lost and created again). A tree cannot
+   * multiply. A blank Count is one tree. Newly Planted trees are not counted. `details.sample` lists each parent's
    * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
    * both counts. The frontend sends the user to the drop-out page.
    */
@@ -255,8 +316,9 @@ export const ERROR_CODES = Object.freeze({
   STAGED_NATURAL_WATERCOURSE_LOST: 'STAGED_NATURAL_WATERCOURSE_LOST',
 
   /**
-   * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, but not in a lower condition and with no delay
+   * BNG Service template area habitats, hedgerows or Existing individual
+   * trees Created in their parent's habitat type (a tree's Urban or Rural
+   * setting), linked to it, but not in a lower condition and with no delay
    * (BMD-1083): the habitat was kept. A row with a delay is a habitat lost for
    * a time and put back, which no degrade rule refuses. `details.sample` lists
    * each row's table, Habitat Ref and habitat type, and its parent's Habitat
@@ -266,9 +328,9 @@ export const ERROR_CODES = Object.freeze({
   STAGED_DEGRADE_NOT_WORSE: 'STAGED_DEGRADE_NOT_WORSE',
 
   /**
-   * BNG Service template area habitats or hedgerows Created in their parent's
-   * habitat type, linked to it, with no delay, whose "Habitat created in
-   * advance/years" is not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
+   * BNG Service template area habitats, hedgerows or Existing individual
+   * trees Created in their parent's habitat type, linked to it, with no
+   * delay, whose years created in advance are not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
    * as lost and created again in a lower condition. `details.sample` lists each
    * row as STAGED_DEGRADE_NOT_WORSE does.
    */
@@ -339,7 +401,11 @@ export const ERROR_SURFACES = Object.freeze({
 // Every code is an upload code unless it is listed here. A new code raised
 // when a habitat is edited on screen must be added, or the frontend is asked
 // for drop-out page wording for an error that page never shows.
-const EDIT_ONLY_CODES = new Set([ERROR_CODES.ENHANCEMENT_NOT_VALID])
+const EDIT_ONLY_CODES = new Set([
+  ERROR_CODES.ENHANCEMENT_NOT_VALID,
+  ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
+  ERROR_CODES.FEATURE_NOT_EDITABLE
+])
 const UPLOAD_AND_EDIT_CODES = new Set([
   // The upload check refuses one in a file; an edit refuses one chosen on screen.
   ERROR_CODES.HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE
@@ -381,7 +447,12 @@ export const TEMPLATE_VARIANT = 'bng-service'
  *
  * Values are sent raw: a number as a number, so the frontend formats it,
  * and a value the file does not have as null. A code not listed sends
- * nothing the wording needs beyond its `count` and `sample`. A comment beside
+ * nothing the wording needs beyond its `count` and `sample`. The keys of a
+ * `sample` entry, one for each feature an error lists, are out of this
+ * table's scope: the frontend reads them for each bullet (error-file
+ * controller, SAMPLE_VALUES), and its own test holds each bullet's wording
+ * to the keys it reads. The text-value checks' entries, for example, are
+ * built by `offender` in text-values-gate.js. A comment beside
  * an entry says how its message writes a value, where that is not plain.
  * bng-metric-harness's check (npm run check:dropout-copy, added by
  * DEFRA/bng-metric-harness#225) loads it to hold the error text to it, so the
