@@ -167,6 +167,118 @@ describe('GET /projects/{projectId}/post-intervention/features/{featureId}', () 
     })
     expect(res.statusCode).toBe(HTTP_NOT_FOUND)
   })
+
+  // BMD-1187: a Retained feature carries its baseline parcel's comment, read
+  // from that one baseline layer in Postgres.
+  async function seedWithPostIntervention(baseline, postIntervention) {
+    const projectId = await seedProjectWithBaseline(baseline)
+    await dbClient.query(
+      `UPDATE bng.projects
+          SET project = jsonb_set(project, '{postIntervention}', $2::jsonb)
+        WHERE id = $1`,
+      [projectId, postIntervention]
+    )
+    return projectId
+  }
+
+  function getPostInterventionFeature(projectId, featureId) {
+    return server.inject({
+      headers,
+      method: 'GET',
+      url: `/projects/${projectId}/post-intervention/features/${featureId}`
+    })
+  }
+
+  it('returns a Retained hedgerow’s baseline comment, joined by ref', async () => {
+    const rowId = randomUUID()
+    const projectId = await seedWithPostIntervention(
+      {
+        habitats: [
+          { featureId: randomUUID(), ref: 'H1', comment: 'An area habitat' }
+        ],
+        hedgerows: [
+          { featureId: randomUUID(), ref: 'H1', comment: 'Line one\nLine two' }
+        ]
+      },
+      {
+        hedgerows: [
+          { featureId: rowId, ref: 'H1', retentionCategory: 'Retained' }
+        ]
+      }
+    )
+
+    const res = await getPostInterventionFeature(projectId, rowId)
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toEqual({
+      type: 'hedgerow',
+      feature: expect.objectContaining({ featureId: rowId }),
+      baselineComment: 'Line one\nLine two'
+    })
+  })
+
+  it('joins a template upload’s Retained row by its parent', async () => {
+    const parentId = randomUUID()
+    const rowId = randomUUID()
+    const projectId = await seedWithPostIntervention(
+      {
+        habitats: [
+          { featureId: parentId, ref: 'Baseline-ref', comment: 'Edited' }
+        ]
+      },
+      {
+        template: { name: 'bng-service' },
+        habitats: [
+          {
+            featureId: rowId,
+            ref: 'PI-ref',
+            parentFeatureId: parentId,
+            retentionCategory: 'Retained',
+            comment: 'As imported'
+          }
+        ]
+      }
+    )
+
+    const res = await getPostInterventionFeature(projectId, rowId)
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.baselineComment).toBe('Edited')
+  })
+
+  it('returns null for a Retained row with no baseline parcel', async () => {
+    const rowId = randomUUID()
+    const projectId = await seedWithPostIntervention(
+      { habitats: [] },
+      {
+        habitats: [
+          { featureId: rowId, ref: 'A1', retentionCategory: 'Retained' }
+        ]
+      }
+    )
+
+    const res = await getPostInterventionFeature(projectId, rowId)
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.baselineComment).toBeNull()
+  })
+
+  it('leaves baselineComment off an Enhanced row', async () => {
+    const rowId = randomUUID()
+    const projectId = await seedWithPostIntervention(
+      { habitats: [{ featureId: randomUUID(), ref: 'A1', comment: 'Saved' }] },
+      {
+        habitats: [
+          { featureId: rowId, ref: 'A1', retentionCategory: 'Enhanced' }
+        ]
+      }
+    )
+
+    const res = await getPostInterventionFeature(projectId, rowId)
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).not.toHaveProperty('baselineComment')
+  })
 })
 
 describe('PUT /projects/{projectId}/features/{featureId}', () => {

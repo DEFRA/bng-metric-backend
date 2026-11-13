@@ -2,8 +2,10 @@ import { describe, test, expect } from 'vitest'
 import { PgDialect } from 'drizzle-orm/pg-core'
 
 import {
+  baselineLayerColumns,
   featureByIdColumns,
   habitatByIdColumns,
+  postInterventionTemplateColumn,
   readFeatureMatch
 } from './project-features.js'
 
@@ -125,5 +127,26 @@ describe('#readFeatureMatch', () => {
     expect(() => readFeatureMatch(row, FEATURE_ID)).toThrow(
       `featureId ${FEATURE_ID} appears in multiple layers: habitat, hedgerow`
     )
+  })
+})
+
+// BMD-1187: what a Retained feature's baseline comment is read from.
+describe('#postInterventionTemplateColumn', () => {
+  test('Should read only the post-intervention template record', () => {
+    const { sql, params } = render(postInterventionTemplateColumn())
+
+    expect(sql).toContain(`-> 'postIntervention' -> 'template'`)
+    expect(params).toEqual([])
+  })
+})
+
+describe('#baselineLayerColumns', () => {
+  test('Should read one baseline layer, not the document', () => {
+    const { features } = baselineLayerColumns({ layer: 'hedgerows' })
+
+    const { sql, params } = render(features)
+
+    expect(sql).toContain(`-> 'baseline' ->`)
+    expect(params).toEqual(['hedgerows'])
   })
 })

@@ -496,24 +496,35 @@ function resolveSource(feature, index) {
 }
 
 /**
- * The baseline feature a post-intervention row is joined to by its ref, for an
- * edit that starts on the post-intervention side (BMD-1180). Resolved exactly
+ * The baseline feature a post-intervention row is joined to, resolved exactly
  * as the re-derive resolves it, against the baseline as it stands, so a row
  * this finds a source for is a row the re-derive will carry a rename onto.
  *
+ * By default the row is joined by its ref, as a legacy row is, for an edit
+ * that starts on the post-intervention side (BMD-1180). With `templateUpload`,
+ * a row of a BNG Service template upload is joined by the parent its file
+ * named (BMD-1083), as the re-derive joins it — used to read a Retained
+ * habitat's baseline comment (BMD-1187).
+ *
  * @param {object} feature post-intervention feature
- * @param {string} layer document layer: habitats, trees, hedgerows or watercourses
- * @param {object | undefined} baseline the project's baseline document
+ * @param {string} layer document layer: habitats, verticalHabitats, trees, hedgerows or watercourses
+ * @param {object | undefined} baseline the project's baseline document, or at
+ *   least its `layer`
+ * @param {{ templateUpload?: boolean }} [options]
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
-export function resolveJoinedBaselineFeature(feature, layer, baseline) {
+export function resolveJoinedBaselineFeature(
+  feature,
+  layer,
+  baseline,
+  { templateUpload = false } = {}
+) {
   const features = baseline?.[layer]
   return resolveSource(feature, {
     candidatesByRef: buildBaselineCandidatesByRef(features),
     updatedById: buildFeatureById(features),
     fields: IDENTITY_FIELDS_BY_LAYER[layer] ?? [],
-    // Only a legacy row is joined by its ref; a template row's parent is named.
-    byParent: false
+    byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
   })
 }
 
