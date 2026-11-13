@@ -526,6 +526,29 @@ describe('setProjectDetails', () => {
     ).rejects.toThrow(/failed schema validation/)
     expect(db._update).not.toHaveBeenCalled()
   })
+
+  test('BMD-849 sets the name in the same UPDATE as the details', async () => {
+    const db = makeDb([{ details: validDetails }])
+    await setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID, undefined, {
+      name: 'Renamed project'
+    })
+    expect(db._update).toHaveBeenCalledTimes(1)
+    const { project } = db._set.mock.calls[0][0]
+    const { sql: updateSql, params } = new PgDialect().sqlToQuery(project)
+    expect(updateSql).toContain("'{details}'")
+    expect(params).toContain(JSON.stringify('Renamed project'))
+    expectActorStamped(db)
+  })
+
+  test('BMD-849 throws and does not write for an invalid name', async () => {
+    const db = makeDb()
+    await expect(
+      setProjectDetails(db, PROJECT_ID, validDetails, ACTOR_ID, undefined, {
+        name: 123
+      })
+    ).rejects.toThrow(/failed schema validation/)
+    expect(db._update).not.toHaveBeenCalled()
+  })
 })
 
 describe('setProjectFeature — postIntervention', () => {

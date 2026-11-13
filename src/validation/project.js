@@ -393,6 +393,12 @@ const watercourseHabitatSchema = linearFeatureSchema({
   rootDescription: 'A watercourse (linear) feature.'
 })
 
+// The project details page's limits (BMD-849), which it also sets on its
+// inputs.
+const PROJECT_DETAILS_PERSON_MAX_LENGTH = 255
+const PLANNING_APPLICATION_REFERENCE_MAX_LENGTH = 50
+const PLANNING_APPLICATION_TYPE_MAX_LENGTH = 100
+
 const projectDetailsSchema = Joi.object({
   localPlanningAuthority: Joi.string()
     .allow(null, '')
@@ -404,6 +410,7 @@ const projectDetailsSchema = Joi.object({
       'Planning Data reference for the selected Local Planning Authority; absent on legacy free-text records.'
     ),
   surveyCompleters: Joi.string()
+    .max(PROJECT_DETAILS_PERSON_MAX_LENGTH)
     .allow(null, '')
     .description('Names of survey completer(s).'),
   surveyCompletionDate: Joi.string()
@@ -420,7 +427,24 @@ const projectDetailsSchema = Joi.object({
     .description(
       'Whether the project is a National Significant Infrastructure Project.'
     ),
-  applicant: Joi.string().allow(null, '').description('Applicant name.')
+  applicant: Joi.string()
+    .max(PROJECT_DETAILS_PERSON_MAX_LENGTH)
+    .allow(null, '')
+    .description(
+      'Name of the applicant for planning permission: a person and/or a company.'
+    ),
+  planningApplicationReference: Joi.string()
+    .max(PLANNING_APPLICATION_REFERENCE_MAX_LENGTH)
+    .allow(null, '')
+    .description(
+      "The planning application's reference, in whatever form the local planning authority gives it."
+    ),
+  planningApplicationType: Joi.string()
+    .max(PLANNING_APPLICATION_TYPE_MAX_LENGTH)
+    .allow(null, '')
+    .description(
+      'The type of planning application, as the user words it, such as "Outline planning permission".'
+    )
 }).description('Project details entered by the user.')
 
 const habitatDataSchema = Joi.object({
@@ -451,7 +475,7 @@ const habitatDataSchema = Joi.object({
 
 const projectSchema = Joi.object({
   name: Joi.string().description(
-    'Project name shown to the user; editable via PATCH /projects/{id}.'
+    'Project name shown to the user; editable via PATCH /projects/{id} and, with the other details, PATCH /projects/{id}/details.'
   ),
   site: siteSchema,
   units: unitsSchema,

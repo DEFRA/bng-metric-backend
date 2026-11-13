@@ -1012,7 +1012,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Project name shown to the user; editable via PATCH /projects/{id}."
+      "description": "Project name shown to the user; editable via PATCH /projects/{id} and, with the other details, PATCH /projects/{id}/details."
     },
     {
       "path": "site",
@@ -1131,7 +1131,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255"],
       "openMap": false,
       "description": "Names of survey completer(s)."
     },
@@ -1175,9 +1175,31 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255"],
       "openMap": false,
-      "description": "Applicant name."
+      "description": "Name of the applicant for planning permission: a person and/or a company."
+    },
+    {
+      "path": "details.planningApplicationReference",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": ["max 50"],
+      "openMap": false,
+      "description": "The planning application's reference, in whatever form the local planning authority gives it."
+    },
+    {
+      "path": "details.planningApplicationType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": ["max 100"],
+      "openMap": false,
+      "description": "The type of planning application, as the user words it, such as \"Outline planning permission\"."
     },
     {
       "path": "baseline",

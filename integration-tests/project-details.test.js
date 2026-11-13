@@ -213,6 +213,50 @@ describe('PATCH /projects/{id}/details', () => {
     expect(res.result.nsips).toBe('No')
   })
 
+  it('BMD-849 saves the name and details in one write', async () => {
+    const project = await createProject('Before rename')
+    const res = await patchDetails(project.id, {
+      name: 'After rename',
+      surveyCompleters: 'Jane Smith',
+      planningApplicationReference: '24/01234/FUL',
+      planningApplicationType: 'Outline planning permission'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).not.toHaveProperty('name')
+
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [project.id]
+    )
+    expect(rows[0].project.name).toBe('After rename')
+    expect(rows[0].project.details).toEqual({
+      surveyCompleters: 'Jane Smith',
+      planningApplicationReference: '24/01234/FUL',
+      planningApplicationType: 'Outline planning permission'
+    })
+
+    const audits = await dbClient.query(
+      `SELECT count(*)::int AS n FROM bng.audit_log
+        WHERE project_id = $1 AND operation = 'UPDATE'`,
+      [project.id]
+    )
+    expect(audits.rows[0].n).toBe(1)
+  })
+
+  it('BMD-849 leaves the name alone when an LPA refusal rejects the save', async () => {
+    const project = await createProject('Keep this name')
+    const res = await patchDetails(project.id, {
+      name: 'Never saved',
+      localPlanningAuthorityReference: 'E60099999'
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    const { rows } = await dbClient.query(
+      `SELECT project FROM bng.projects WHERE id = $1`,
+      [project.id]
+    )
+    expect(rows[0].project.name).toBe('Keep this name')
+  })
+
   it('returns 404 for an unknown UUID', async () => {
     const res = await patchDetails(randomUUID(), {
       localPlanningAuthorityReference: 'E60000325'
