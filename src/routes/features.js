@@ -185,7 +185,7 @@ function createGetFeatureRoute({
         response.baselineComment = await readRetainedBaselineComment(request, {
           projectId,
           found,
-          templateUpload: rows[0].template != null
+          templateUpload: isTemplateUpload({ template: rows[0].template })
         })
       }
       return response
