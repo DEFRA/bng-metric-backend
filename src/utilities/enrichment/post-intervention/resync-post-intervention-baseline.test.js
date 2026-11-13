@@ -870,6 +870,62 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.watercourses[0].ref).toBe('R1a')
   })
 
+  test('keeps a renamed legacy Enhanced tree’s ref, and follows the parent it was renamed from, when that parent is renamed and edited', () => {
+    const baselineTree = (ref, condition) => ({
+      featureId: 'baseline-t1',
+      ref,
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Small',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 41,
+      area: 41
+    })
+    const side = (condition) => ({
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Small',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 41,
+      area: 41
+    })
+    // Another baseline tree now carries the parent's old ref, so a join by
+    // ref would find the wrong one.
+    const impostor = {
+      ...baselineTree('T1', 'Good'),
+      featureId: 'baseline-t2'
+    }
+    const enhanced = {
+      featureId: 'pi-t1',
+      ref: 'T1 enhanced',
+      referenceEdited: true,
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      units: null,
+      baseline: side('Poor'),
+      proposed: side('Good'),
+      properties: {}
+    }
+    const postIntervention = { trees: [enhanced], lostHabitats: [] }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        trees: [baselineTree('T1 renamed', 'Fairly Poor'), impostor]
+      },
+      previousBaseline: { trees: [baselineTree('T1', 'Poor')] }
+    })
+
+    const [tree] = postIntervention.trees
+    expect(tree.ref).toBe('T1 enhanced')
+    expect(tree.parentFeatureId).toBe('baseline-t1')
+    expect(tree.baseline.condition).toBe('Fairly Poor')
+  })
+
   test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
     const baselineTree = (condition) => ({
       featureId: 'baseline-t1',

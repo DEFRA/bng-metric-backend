@@ -213,6 +213,23 @@ describe('validatePostInterventionTreeEdit', () => {
     ).toMatchObject(enhancedEdits)
   })
 
+  test('reads an Enhanced tree whose file left its proposed setting blank as in its baseline one', () => {
+    const blankSetting = {
+      ...enhancedTree,
+      proposed: { ...enhancedTree.proposed, type: null }
+    }
+
+    expect(
+      validatePostInterventionTreeEdit(blankSetting, enhancedEdits)
+    ).toMatchObject(enhancedEdits)
+    expect(() =>
+      validatePostInterventionTreeEdit(blankSetting, {
+        ...enhancedEdits,
+        habitatType: 'Rural tree'
+      })
+    ).toThrow(/keeps its baseline tree/)
+  })
+
   test('refuses an Enhanced tree moved to another setting as FEATURE_NOT_EDITABLE', () => {
     let thrown
     try {

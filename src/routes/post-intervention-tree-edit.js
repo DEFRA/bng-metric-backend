@@ -45,13 +45,21 @@ export function validatePostInterventionTreeEdit(feature, edits) {
   validateTreeChoices(resolved)
   if (
     retention === RETENTION_ENHANCED &&
-    resolved.habitatType !== feature.proposed?.type
+    resolved.habitatType !== enhancedTreeSetting(feature)
   ) {
     throw featureNotEditableError(
       'An Enhanced tree keeps its baseline tree’s Urban or Rural setting'
     )
   }
   return resolved
+}
+
+// An Enhanced tree's setting: its proposed one, or, where its file left that
+// blank, its baseline one, as the upload reads it (tree-lineage.js,
+// proposedSetting). A legacy upload's trees, and a template tree that names no
+// parent, keep the setting their file gave.
+function enhancedTreeSetting(feature) {
+  return feature.proposed?.type ?? feature.baseline?.type ?? null
 }
 
 // A change to a non-tree habitat, or a blank habitat type, is refused with
