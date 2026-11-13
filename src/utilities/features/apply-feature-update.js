@@ -31,7 +31,7 @@ import { cleanComment } from '../../validation/geopackage/comment-check.js'
 import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
-import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
+import { brokenEnhancementRule } from './edit-enhancement-rule.js'
 import {
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -232,10 +232,12 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
  * comment and never its area. It stays a tree (tree-edit.js), and a change of
  * setting moves it between the urban and rural sizes (withEditedTreeSizes).
  *
- * After intervention only a Created tree is edited this way, with the Created
- * area habitat edit's complete payload; a Retained tree's reference
- * is renamed through apply-retained-ref-edit.js, and an Enhanced tree, like an
- * Enhanced area habitat, is not editable.
+ * After intervention a Created or an Enhanced tree is edited this way, with
+ * the Created area habitat edit's complete payload, and priced by its
+ * retention category as the upload prices it: a Created tree as a creation,
+ * and an Enhanced one as an enhancement of its baseline tree's condition, in
+ * its baseline tree's setting (post-intervention-tree-edit.js). A Retained
+ * tree's reference is renamed through apply-retained-ref-edit.js.
  */
 function recomputeTreeEdit(existing, edits, context) {
   if (!keepsTreeATree(existing, edits, context.documentKey)) {
@@ -406,32 +408,6 @@ function rebuiltProject(
   return rebuilt
 }
 
-/**
- * The enhancement rule an edit to an enhanced post-intervention feature
- * breaks, or null. An edit must leave a valid enhancement of the feature's
- * baseline, as an import must (reject-invalid-enhancements.js); unlike an
- * import, it is refused rather than saved with its proposed values nulled.
- * The edit replaces only some proposed fields, so the check runs on the
- * recomputed feature, which carries all of them.
- *
- * @param {{ key: string }} found
- * @param {{ updatedFeature?: object }} derived
- * @param {string} documentKey
- * @returns {string | null} one of bng-library's ENHANCEMENT_RULE
- */
-function brokenEnhancementRule(found, derived, documentKey) {
-  const feature = derived.updatedFeature
-  if (
-    documentKey !== 'postIntervention' ||
-    !feature ||
-    resolveRetentionCategory(feature) !== RETENTION_ENHANCED
-  ) {
-    return null
-  }
-  const check = checkFeatureEnhancement(found.key, feature)
-  return check && !check.valid ? check.rule : null
-}
-
 // The post-intervention features a Created edit's complete payload reaches:
 // area habitats and trees, which carry a broad habitat, and hedgerows and
 // watercourses, which do not.
@@ -443,6 +419,22 @@ const CREATED_EDIT_TYPES = new Set([
 ])
 const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
 
+/**
+ * Whether the complete edit payload may be applied to a feature of this
+ * retention: a Created one of any type that takes it, and an Enhanced tree,
+ * whose condition is all it enhances.
+ *
+ * @param {{ type: string, feature: object }} found
+ * @returns {boolean}
+ */
+function takesCompleteEdit(found) {
+  const retention = resolveRetentionCategory(found.feature)
+  return (
+    retention === RETENTION_CREATED ||
+    (found.type === 'tree' && retention === RETENTION_ENHANCED)
+  )
+}
+
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
   const unsupportedLinearBroadType =
     !BROAD_HABITAT_TYPES.has(found.type) && edits.broadType !== null
@@ -451,7 +443,7 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
     Object.hasOwn(edits, 'advanceYears') &&
     (!CREATED_EDIT_TYPES.has(found.type) ||
       unsupportedLinearBroadType ||
-      resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
+      !takesCompleteEdit(found) ||
       edits.ref === undefined)
   )
 }

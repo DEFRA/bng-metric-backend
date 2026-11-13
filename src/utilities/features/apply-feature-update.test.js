@@ -2180,16 +2180,187 @@ describe('applyFeatureUpdate — Created post-intervention trees', () => {
     })
   })
 
-  test('turns away the edit for an Enhanced tree', () => {
+  test('turns away the edit for a Retained tree', () => {
     const result = editCreatedTree(
       {},
-      projectWithCreatedTree({ retentionCategory: 'Enhanced' })
+      projectWithCreatedTree({ retentionCategory: 'Retained' })
     )
 
     expect(result).toEqual({
       status: APPLY_RESULT.UNSUPPORTED_TYPE,
       type: 'tree'
     })
+  })
+})
+
+describe('applyFeatureUpdate — Enhanced post-intervention trees', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440006'
+  const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440007'
+
+  // A Small urban tree in Poor condition, kept and enhanced: 41 m², its size,
+  // type and setting its baseline tree's.
+  function projectWithEnhancedTree(overrides = {}) {
+    const project = projectFixture()
+    const side = {
+      area: 41,
+      type: 'Urban tree',
+      treeSize: 'Small',
+      broadType: 'Individual trees',
+      sizeSquareMetres: 41
+    }
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: TREE_ID,
+          ref: 'T001',
+          retentionCategory: 'Enhanced',
+          parentFeatureId: PARENT_ID,
+          count: null,
+          sizeSquareMetres: 41,
+          area: 41,
+          units: 0.0309,
+          status: 'Complete',
+          baseline: {
+            ...side,
+            condition: 'Poor',
+            strategicSignificance: 'Low'
+          },
+          proposed: {
+            ...side,
+            condition: 'Good',
+            strategicSignificance: 'High',
+            advanceYears: 0,
+            delayYears: 0
+          },
+          ...overrides
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1041 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 41,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0.0309 }
+    }
+    return project
+  }
+
+  // What the edit page submits for an Enhanced tree.
+  function enhancedTreeEdits(edits) {
+    return {
+      ref: 'T001',
+      broadType: 'Individual trees',
+      habitatType: 'Urban tree',
+      condition: 'Good',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: 0,
+      ...edits
+    }
+  }
+
+  function editEnhancedTree(edits, project = projectWithEnhancedTree()) {
+    return applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: enhancedTreeEdits(edits)
+    })
+  }
+
+  test('prices the target condition as an enhancement of its baseline tree, as the Metric does', () => {
+    const result = editEnhancedTree({})
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      featureId: TREE_ID,
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 41,
+      status: 'Complete',
+      proposed: {
+        type: 'Urban tree',
+        treeSize: 'Small',
+        condition: 'Good',
+        strategicSignificance: 'High'
+      }
+    })
+    // 0.0041 ha x [(4 x 3 - 4 x 1) x the 30+ year multiplier + 4 x 1] x 1.15
+    expect(result.feature.units).toBeCloseTo(0.0309, 4)
+  })
+
+  test('re-prices a nearer target condition and the edited timing', () => {
+    const atGood = editEnhancedTree({ strategicSignificance: 'Low' })
+    const atModerate = editEnhancedTree({
+      condition: 'Moderate',
+      strategicSignificance: 'Low'
+    })
+    const inAdvance = editEnhancedTree({
+      condition: 'Moderate',
+      strategicSignificance: 'Low',
+      advanceYears: 5
+    })
+
+    expect(atModerate.status).toBe(APPLY_RESULT.OK)
+    expect(atModerate.feature.proposed.condition).toBe('Moderate')
+    expect(atModerate.feature.units).toBeLessThan(atGood.feature.units)
+    expect(inAdvance.feature.proposed.advanceYears).toBe(5)
+    expect(inAdvance.feature.units).toBeGreaterThan(atModerate.feature.units)
+  })
+
+  test('turns away a target condition no better than the baseline one, leaving the tree as stored', () => {
+    const project = projectWithEnhancedTree()
+    const result = editEnhancedTree({ condition: 'Poor' }, project)
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.INVALID_ENHANCEMENT,
+      type: 'tree',
+      rule: 'tree-better-condition'
+    })
+    expect(project.postIntervention.trees[0].proposed.condition).toBe('Good')
+  })
+
+  test('saves a blank target condition Incomplete with zero units', () => {
+    const result = editEnhancedTree({ condition: null })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.units).toBe(0)
+  })
+
+  test('drops the rule its import broke once the edit gives it a valid condition', () => {
+    const result = editEnhancedTree(
+      {},
+      projectWithEnhancedTree({ invalidEnhancement: 'tree-better-condition' })
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).not.toHaveProperty('invalidEnhancement')
+  })
+
+  test('renames the tree, keeping its parent', () => {
+    const result = editEnhancedTree({ ref: 'T001-enhanced' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      ref: 'T001-enhanced',
+      referenceEdited: true,
+      parentFeatureId: PARENT_ID
+    })
+  })
+
+  test('leaves the habitat sizes as stored', () => {
+    const result = editEnhancedTree({ condition: 'Moderate' })
+
+    expect(result.habitatSizes).toBeUndefined()
   })
 })
 

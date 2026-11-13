@@ -85,10 +85,11 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * An edit the endpoint cannot carry out on this feature, as against a value
-   * it will not accept: the feature is of a kind it does not edit, such as an
-   * Enhanced post-intervention tree, or the edit would make the feature
+   * it will not accept: the feature is of a kind it does not edit, such as a
+   * Retained post-intervention tree, or the edit would make the feature
    * something its kind cannot become — a tree that is no longer a tree
-   * (keepsTreeATree, created-tree-edit.js), or a vertical area habitat that is
+   * (keepsTreeATree, post-intervention-tree-edit.js), an Enhanced tree in
+   * another setting from its baseline tree, or a vertical area habitat that is
    * no longer vertical.
    *
    * No one field the page can edit is to blame, and the refusal is not the
