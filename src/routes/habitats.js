@@ -13,8 +13,8 @@ import {
 } from './created-area-edit.js'
 import {
   postInterventionTreeEditPayload,
-  validateCreatedTreeEdit
-} from './created-tree-edit.js'
+  validatePostInterventionTreeEdit
+} from './post-intervention-tree-edit.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -205,7 +205,7 @@ const CREATED_EDIT_TYPES = {
     layer: 'trees',
     label: 'Tree',
     payload: postInterventionTreeEditPayload,
-    validate: validateCreatedTreeEdit
+    validate: validatePostInterventionTreeEdit
   }
 }
 
@@ -456,11 +456,14 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  * /projects/{projectId}/post-intervention/trees/{featureId}:
  *   put:
  *     tags: [Habitats]
- *     summary: Save a Created individual tree's reference, habitat type, target condition, strategic significance and timing
+ *     summary: Save a Created or Enhanced individual tree's reference, habitat type, target condition, strategic significance and timing
  *     description: |
- *       Takes the Created area habitat payload, for a Created tree only.
- *       The tree stays a tree: broadType must be Individual
- *       trees, and habitatType Urban tree or Rural tree. A blank condition
+ *       Takes the Created area habitat payload, for a Created or an Enhanced
+ *       tree. The tree stays a tree: broadType must be Individual
+ *       trees, and habitatType Urban tree or Rural tree. An Enhanced tree
+ *       keeps its baseline tree's setting, so its habitatType must be the one
+ *       stored, and its target condition must be better than its baseline
+ *       condition (the options /reference/tree-enhancement gives). A blank condition
  *       saves the tree Incomplete with zero units. The tree's size is its size
  *       class times its Count and is not edited; a change between Urban tree and Rural tree moves it
  *       between the urban and rural tree sizes. Omitted timing fields retain
@@ -488,11 +491,13 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *       200:
  *         description: Updated tree, with recalculated units, status and project totals
  *       400:
- *         description: Invalid reference, choices or timing, a tree that would no longer be a tree, or a tree that is not Created (code FEATURE_NOT_EDITABLE for a non-tree habitat)
+ *         description: Invalid reference, choices or timing (code FEATURE_NOT_EDITABLE for a non-tree habitat, a Retained tree, or an Enhanced tree given another setting)
  *       401:
  *         description: Authentication required
  *       404:
  *         description: Project or tree not found
+ *       422:
+ *         description: An Enhanced tree's target condition is not better than its baseline condition (code ENHANCEMENT_NOT_VALID, rule tree-better-condition)
  *       409:
  *         description: Another edit for this project is in progress
  */

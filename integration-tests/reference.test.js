@@ -203,6 +203,27 @@ describe('GET /reference/tree-creation', () => {
   })
 })
 
+describe('GET /reference/tree-enhancement', () => {
+  it('serves the target conditions each baseline condition can be enhanced to, without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/tree-enhancement'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.habitatTypes.map((t) => [t.broad, t.name])).toEqual([
+      ['Individual trees', 'Rural tree'],
+      ['Individual trees', 'Urban tree']
+    ])
+    const [rural] = res.result.habitatTypes
+    expect(rural).toMatchObject({ difficulty: 'Low', difficultyMultiplier: 1 })
+    expect(rural.enhancements.Moderate).toEqual([
+      { condition: 'Good', score: 3, years: 16 },
+      { condition: 'Fairly Good', score: 2.5, years: 8 }
+    ])
+    expect(rural.enhancements.Good).toEqual([])
+  })
+})
+
 describe('GET /reference/area-creation', () => {
   it('serves creation options without authentication', async () => {
     const res = await server.inject({

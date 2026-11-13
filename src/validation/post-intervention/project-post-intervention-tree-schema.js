@@ -94,7 +94,7 @@ export const postInterventionTreeSchema = Joi.object({
   ),
   ...parentFeatureIdField({ editableCreated: true }),
   referenceEdited: Joi.boolean().description(
-    'Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
+    'Whether the user changed a Created or Enhanced tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
   ),
   irreplaceable: Joi.boolean().description(
     "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."

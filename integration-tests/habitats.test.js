@@ -13,6 +13,7 @@ const HTTP_OK = 200
 const HTTP_BAD_REQUEST = 400
 const HTTP_UNAUTHORIZED = 401
 const HTTP_NOT_FOUND = 404
+const HTTP_UNPROCESSABLE = 422
 const ONE_HECTARE_IN_SQUARE_METRES = 10_000
 
 let server
@@ -541,8 +542,8 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     expect(await readPostIntervention(projectId)).toEqual(before)
   })
 
-  it('refuses an Enhanced tree, leaving it unchanged', async () => {
-    const { projectId, tree } = await seedCreatedTree('Enhanced')
+  it('refuses a Retained tree, leaving it unchanged', async () => {
+    const { projectId, tree } = await seedCreatedTree('Retained')
     const before = await readPostIntervention(projectId)
 
     const res = await server.inject({
@@ -554,6 +555,111 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
 
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
     expect(res.result.code).toBe('FEATURE_NOT_EDITABLE')
+    expect(await readPostIntervention(projectId)).toEqual(before)
+  })
+
+  // A Small urban tree in Poor condition, kept and enhanced to Good: 41 m².
+  async function seedEnhancedTree() {
+    const side = {
+      broadType: 'Individual trees',
+      type: 'Urban tree',
+      treeSize: 'Small',
+      sizeSquareMetres: 41,
+      area: 41
+    }
+    const tree = {
+      featureId: randomUUID(),
+      ref: 'T001',
+      retentionCategory: 'Enhanced',
+      count: null,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.0309,
+      status: 'Complete',
+      baseline: { ...side, condition: 'Poor', strategicSignificance: 'Low' },
+      proposed: {
+        ...side,
+        condition: 'Good',
+        strategicSignificance: 'High',
+        advanceYears: 0,
+        delayYears: 0
+      },
+      properties: {}
+    }
+    const projectId = await seedProject({
+      name: 'Enhanced tree editing IT',
+      postIntervention: {
+        habitats: [],
+        trees: [tree],
+        hedgerows: [],
+        watercourses: [],
+        habitatSizes: {
+          areaHabitats: { totalSquareMetres: 1041 },
+          hedgerows: { totalMetres: 0 },
+          watercourses: { totalMetres: 0 },
+          trees: {
+            totalSquareMetres: 41,
+            urbanSquareMetres: 41,
+            ruralSquareMetres: 0
+          },
+          site: { totalSquareMetres: 1000 }
+        },
+        units: { totalUnits: 0.0309, habitatsTotal: 0, treesTotal: 0.0309 }
+      }
+    })
+    return { projectId, tree }
+  }
+
+  const enhancedPayload = {
+    ref: 'T001',
+    broadType: 'Individual trees',
+    habitatType: 'Urban tree',
+    condition: 'Moderate',
+    strategicSignificance: 'Low',
+    advanceYears: 0,
+    delayYears: 0
+  }
+
+  it('saves an Enhanced tree re-priced as an enhancement to its new target condition', async () => {
+    const { projectId, tree } = await seedEnhancedTree()
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/trees/${tree.featureId}`,
+      headers,
+      payload: enhancedPayload
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toMatchObject({
+      featureId: tree.featureId,
+      retentionCategory: 'Enhanced',
+      status: 'Complete',
+      proposed: { type: 'Urban tree', condition: 'Moderate' }
+    })
+    expect(res.result.units).toBeLessThan(tree.units)
+    const stored = await readPostIntervention(projectId)
+    expect(stored.trees[0]).toEqual(res.result)
+    expect(stored.units.treesTotal).toBe(res.result.units)
+    expect(stored.habitatSizes.trees.urbanSquareMetres).toBe(41)
+  })
+
+  it('refuses an Enhanced tree a condition no better than its baseline one, leaving it unchanged', async () => {
+    const { projectId, tree } = await seedEnhancedTree()
+    const before = await readPostIntervention(projectId)
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/trees/${tree.featureId}`,
+      headers,
+      payload: { ...enhancedPayload, condition: 'Poor' }
+    })
+
+    expect(res.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(res.result).toMatchObject({
+      code: 'ENHANCEMENT_NOT_VALID',
+      rule: 'tree-better-condition'
+    })
     expect(await readPostIntervention(projectId)).toEqual(before)
   })
 })

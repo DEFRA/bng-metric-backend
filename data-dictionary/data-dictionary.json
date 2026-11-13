@@ -4428,7 +4428,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.habitats[].referenceEdited",
@@ -5013,7 +5013,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.trees[].referenceEdited",
@@ -5024,7 +5024,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
+      "description": "Whether the user changed a Created or Enhanced tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
     },
     {
       "path": "postIntervention.trees[].irreplaceable",
@@ -6222,7 +6222,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.hedgerows[].referenceEdited",
@@ -6734,7 +6734,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.watercourses[].referenceEdited",

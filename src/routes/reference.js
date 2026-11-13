@@ -3,7 +3,8 @@ import { getHedgerowCreationReference } from '../validation/reference/hedgerow-c
 import Joi from 'joi'
 import {
   getAreaCreationReference,
-  getTreeCreationReference
+  getTreeCreationReference,
+  getTreeEnhancementReference
 } from '../validation/reference/area-creation.js'
 
 import { asc } from 'drizzle-orm'
@@ -56,6 +57,23 @@ export const getTreeCreation = {
   path: '/reference/tree-creation',
   options: { auth: false },
   handler: () => getTreeCreationReference()
+}
+
+/**
+ * @openapi
+ * /reference/tree-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Individual tree enhancement target conditions by baseline condition, difficulty and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: The Urban tree and Rural tree enhancement reference data, for the Enhanced tree edit page. Each habitat type gives, under `enhancements`, the target conditions each baseline condition can be enhanced to, with their years to target; strategic significance and time multipliers are shaped as /reference/tree-creation's are
+ */
+export const getTreeEnhancement = {
+  method: 'GET',
+  path: '/reference/tree-enhancement',
+  options: { auth: false },
+  handler: () => getTreeEnhancementReference()
 }
 
 /**

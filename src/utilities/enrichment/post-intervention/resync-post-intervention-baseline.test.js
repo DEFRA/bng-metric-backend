@@ -1522,4 +1522,26 @@ describe('preserveCreatedParent', () => {
 
     expect(updated.parentFeatureId).toBe('baseline-a1')
   })
+
+  test('finds a legacy Enhanced tree’s parent by its old ref before the rename', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, { ...context, layer: 'trees' })
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('leaves an Enhanced area habitat alone, as its own page does not rename it', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, context)
+
+    expect(updated).not.toHaveProperty('referenceEdited')
+    expect(updated).not.toHaveProperty('parentFeatureId')
+  })
 })

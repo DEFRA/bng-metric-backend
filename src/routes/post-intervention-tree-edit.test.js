@@ -1,9 +1,12 @@
 import { describe, test, expect, vi, beforeEach } from 'vitest'
 
-import { getTreeCreationReference } from '../validation/reference/area-creation.js'
-import { validateCreatedTreeEdit } from './created-tree-edit.js'
+import {
+  getTreeCreationReference,
+  getTreeEnhancementReference
+} from '../validation/reference/area-creation.js'
+import { validatePostInterventionTreeEdit } from './post-intervention-tree-edit.js'
 import { updatePostInterventionTree } from './habitats.js'
-import { getTreeCreation } from './reference.js'
+import { getTreeCreation, getTreeEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 
@@ -39,6 +42,47 @@ const tree = {
     delayYears: 0
   },
   properties: {}
+}
+
+// A Small urban tree in Poor condition, kept and enhanced to Good.
+const enhancedTree = {
+  featureId,
+  ref: 'T001',
+  retentionCategory: 'Enhanced',
+  count: null,
+  sizeSquareMetres: 41,
+  area: 41,
+  units: 0.0309,
+  status: 'Complete',
+  baseline: {
+    broadType: 'Individual trees',
+    type: 'Urban tree',
+    treeSize: 'Small',
+    condition: 'Poor',
+    strategicSignificance: 'Low',
+    sizeSquareMetres: 41
+  },
+  proposed: {
+    broadType: 'Individual trees',
+    type: 'Urban tree',
+    treeSize: 'Small',
+    condition: 'Good',
+    strategicSignificance: 'High',
+    advanceYears: 0,
+    delayYears: 0,
+    sizeSquareMetres: 41
+  },
+  properties: {}
+}
+
+const enhancedEdits = {
+  ref: 'T001',
+  broadType: 'Individual trees',
+  habitatType: 'Urban tree',
+  condition: 'Moderate',
+  strategicSignificance: 'Low',
+  advanceYears: 0,
+  delayYears: 0
 }
 
 const edits = {
@@ -113,32 +157,97 @@ describe('Created tree reference', () => {
   })
 })
 
-describe('validateCreatedTreeEdit', () => {
-  test('passes a complete edit that keeps the tree a tree', () => {
-    expect(validateCreatedTreeEdit(tree, edits)).toMatchObject(edits)
+describe('Enhanced tree reference', () => {
+  test('offers Urban tree and Rural tree, at the enhancement difficulty', () => {
+    const reference = getTreeEnhancementReference()
+
+    expect(reference.habitatTypes.map((t) => [t.broad, t.name])).toEqual([
+      ['Individual trees', 'Rural tree'],
+      ['Individual trees', 'Urban tree']
+    ])
+    for (const type of reference.habitatTypes) {
+      expect(type).toMatchObject({ difficulty: 'Low', difficultyMultiplier: 1 })
+    }
+    expect(reference.strategicSignificance).toEqual(
+      getTreeCreationReference().strategicSignificance
+    )
+    expect(reference.timeMultipliers).toEqual(
+      getTreeCreationReference().timeMultipliers
+    )
   })
 
-  test.each(['Enhanced', 'Retained'])(
-    'refuses a tree that is %s as FEATURE_NOT_EDITABLE',
-    (retentionCategory) => {
-      expect(() =>
-        validateCreatedTreeEdit({ ...tree, retentionCategory }, edits)
-      ).toThrow(
-        expect.objectContaining({
-          message: 'Only a Created tree can be edited',
-          output: expect.objectContaining({
-            payload: expect.objectContaining({
-              code: ERROR_CODES.FEATURE_NOT_EDITABLE
-            })
+  test('gives each baseline condition only the better ones, with the years the Metric gives', () => {
+    const [{ enhancements }] = getTreeEnhancementReference().habitatTypes
+    const targets = (from) =>
+      enhancements[from].map((c) => [c.condition, c.years])
+
+    expect(targets('Poor')).toEqual([
+      ['Good', '30+'],
+      ['Fairly Good', 24],
+      ['Moderate', 16],
+      ['Fairly Poor', 8]
+    ])
+    expect(targets('Moderate')).toEqual([
+      ['Good', 16],
+      ['Fairly Good', 8]
+    ])
+    expect(targets('Fairly Good')).toEqual([['Good', 8]])
+    expect(targets('Good')).toEqual([])
+  })
+
+  test('is served at /reference/tree-enhancement, without authentication', () => {
+    expect(getTreeEnhancement.path).toBe('/reference/tree-enhancement')
+    expect(getTreeEnhancement.options.auth).toBe(false)
+    expect(getTreeEnhancement.handler()).toEqual(getTreeEnhancementReference())
+  })
+})
+
+describe('validatePostInterventionTreeEdit', () => {
+  test('passes a complete edit that keeps the tree a tree', () => {
+    expect(validatePostInterventionTreeEdit(tree, edits)).toMatchObject(edits)
+  })
+
+  test('passes an Enhanced tree edit that keeps its baseline setting', () => {
+    expect(
+      validatePostInterventionTreeEdit(enhancedTree, enhancedEdits)
+    ).toMatchObject(enhancedEdits)
+  })
+
+  test('refuses an Enhanced tree moved to another setting as FEATURE_NOT_EDITABLE', () => {
+    let thrown
+    try {
+      validatePostInterventionTreeEdit(enhancedTree, {
+        ...enhancedEdits,
+        habitatType: 'Rural tree'
+      })
+    } catch (err) {
+      thrown = err
+    }
+    expect(thrown?.message).toMatch(/keeps its baseline tree/)
+    expect(thrown?.output.payload.code).toBe(ERROR_CODES.FEATURE_NOT_EDITABLE)
+  })
+
+  test('refuses a Retained tree as FEATURE_NOT_EDITABLE', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(
+        { ...tree, retentionCategory: 'Retained' },
+        edits
+      )
+    ).toThrow(
+      expect.objectContaining({
+        message: 'Only a Created or Enhanced tree can be edited',
+        output: expect.objectContaining({
+          payload: expect.objectContaining({
+            code: ERROR_CODES.FEATURE_NOT_EDITABLE
           })
         })
-      )
-    }
-  )
+      })
+    )
+  })
 
   test('refuses an edit without the complete Created payload', () => {
     const { ref: _ref, ...dropdownsOnly } = edits
-    expect(() => validateCreatedTreeEdit(tree, dropdownsOnly)).toThrow(
+    expect(() => validatePostInterventionTreeEdit(tree, dropdownsOnly)).toThrow(
       /reference, habitat, condition and timing together/
     )
   })
@@ -150,7 +259,7 @@ describe('validateCreatedTreeEdit', () => {
   ])('refuses %s as FEATURE_NOT_EDITABLE', (_label, overrides) => {
     let thrown
     try {
-      validateCreatedTreeEdit(tree, { ...edits, ...overrides })
+      validatePostInterventionTreeEdit(tree, { ...edits, ...overrides })
     } catch (err) {
       thrown = err
     }
@@ -160,7 +269,7 @@ describe('validateCreatedTreeEdit', () => {
 
   test('refuses a condition a tree cannot be created to', () => {
     expect(() =>
-      validateCreatedTreeEdit(tree, {
+      validatePostInterventionTreeEdit(tree, {
         ...edits,
         condition: 'Condition Assessment N/A'
       })
@@ -169,7 +278,7 @@ describe('validateCreatedTreeEdit', () => {
 
   test('refuses a positive advance and delay together', () => {
     expect(() =>
-      validateCreatedTreeEdit(tree, {
+      validatePostInterventionTreeEdit(tree, {
         ...edits,
         advanceYears: 2,
         delayYears: 1
@@ -228,9 +337,40 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
-  test('refuses an Enhanced tree, and writes nothing', async () => {
+  test('saves an Enhanced tree re-priced as an enhancement to its new target condition', async () => {
+    const saved = await put(enhancedEdits, enhancedTree)
+
+    expect(saved).toMatchObject({
+      featureId,
+      retentionCategory: 'Enhanced',
+      status: 'Complete',
+      proposed: {
+        type: 'Urban tree',
+        condition: 'Moderate',
+        strategicSignificance: 'Low'
+      }
+    })
+    expect(setProjectFeature).toHaveBeenCalledTimes(1)
+  })
+
+  test('refuses an Enhanced tree given a condition no better than its baseline one as ENHANCEMENT_NOT_VALID, and writes nothing', async () => {
     await expect(
-      put(edits, { ...tree, retentionCategory: 'Enhanced' })
+      put({ ...enhancedEdits, condition: 'Poor' }, enhancedTree)
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 422,
+        payload: {
+          code: ERROR_CODES.ENHANCEMENT_NOT_VALID,
+          rule: 'tree-better-condition'
+        }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('refuses a Retained tree, and writes nothing', async () => {
+    await expect(
+      put(edits, { ...tree, retentionCategory: 'Retained' })
     ).rejects.toMatchObject({
       output: {
         statusCode: 400,
