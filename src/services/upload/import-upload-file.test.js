@@ -536,18 +536,12 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   const MEDIUM_DISTINCTIVENESS = 4
   const CONDITION = { 'Fairly Poor': 1.5, Moderate: 2, Good: 3, Poor: 1 }
 
-  /**
-   * A copy of the default site with a Count column on both tree tables, as
-   * the template will have, and `sql` run on it.
-   */
+  /** A copy of the default site with `sql` run on it. */
   function editedSite(name, sql) {
     const copy = path.join(scratch, `${name}.gpkg`)
     copyFileSync(SITE, copy)
     const db = new Database(copy)
     try {
-      for (const table of [BASELINE_TREES, PI_TREES]) {
-        db.exec(`ALTER TABLE "${table}" ADD COLUMN "Count" INTEGER`)
-      }
       db.exec(sql)
     } finally {
       db.close()
@@ -568,26 +562,26 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   }
 
   it(
-    'prices each tree at its size class’s area times its Count, as an Urban or Rural tree',
+    'prices each tree as one tree at its size class’s area, as an Urban or Rural tree, a Count in the file not read',
     async () => {
       const { baseline } = await importSite(
         'counts',
-        `UPDATE "${BASELINE_TREES}" SET Count = 3 WHERE "Habitat Ref" = 'T002';`
+        `ALTER TABLE "${BASELINE_TREES}" ADD COLUMN "Count" INTEGER;
+         UPDATE "${BASELINE_TREES}" SET Count = 3 WHERE "Habitat Ref" = 'T002';`
       )
 
-      // T002 is a Medium Rural tree in Poor condition, three times over.
+      // T002 is one Medium Rural tree in Poor condition.
       const t002 = byRef(baseline.trees, 'T002')
       expect(t002).toMatchObject({
         type: 'Rural tree',
         treeSize: 'Medium',
-        count: 3,
-        sizeSquareMetres: 489
+        sizeSquareMetres: 163
       })
+      expect(t002.count ?? null).toBeNull()
       expect(t002.units).toBeCloseTo(
-        HECTARES.Medium * 3 * MEDIUM_DISTINCTIVENESS * CONDITION.Poor,
+        HECTARES.Medium * MEDIUM_DISTINCTIVENESS * CONDITION.Poor,
         10
       )
-      // T003 has no Count: one tree.
       expect(byRef(baseline.trees, 'T003')).toMatchObject({
         type: 'Urban tree',
         sizeSquareMetres: 366
@@ -628,13 +622,9 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   )
 
   it(
-    'loses a felled tree in full, and the difference when fewer trees are kept',
+    'loses a felled tree in full, and nothing of a kept one',
     async () => {
-      const { postIntervention } = await importSite(
-        'felled',
-        `UPDATE "${BASELINE_TREES}" SET Count = 3 WHERE "Habitat Ref" = 'T004';
-         UPDATE "${PI_TREES}" SET Count = 2 WHERE "Habitat Ref" = 'T004';`
-      )
+      const { postIntervention } = await importSite('felled', '')
 
       const lost = (ref) =>
         postIntervention.lostHabitats.find(
@@ -646,34 +636,32 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
         lostTreeCount: 1,
         lostSizeSquareMetres: 163
       })
-      // T004, three Very large trees, keeps two.
-      expect(lost('T004')).toMatchObject({
-        outcome: 'lost',
-        lostTreeCount: 1,
-        lostSizeSquareMetres: 765
-      })
+      // T004, a Very large tree, is kept.
+      expect(lost('T004')).toBeUndefined()
       const t004 = byRef(postIntervention.trees, 'T004')
-      expect(t004.sizeSquareMetres).toBe(1530)
+      expect(t004.sizeSquareMetres).toBe(765)
       expect(t004.units).toBeCloseTo(
         HECTARES['Very large'] *
-          2 *
           MEDIUM_DISTINCTIVENESS *
           CONDITION['Fairly Poor'],
         10
       )
-      // A tree kept in full loses nothing.
       expect(lost('T010')).toBeUndefined()
     },
     IMPORT_TIMEOUT_MS
   )
 
   it(
-    'refuses a tree whose kept children count more trees than it has, naming it',
+    'refuses a tree kept by more than one point, naming it',
     async () => {
+      // A second Retained point copied from T004's.
       const result = await importUploadFile(
         editedSite(
           'too-many',
-          `UPDATE "${PI_TREES}" SET Count = 2 WHERE "Habitat Ref" = 'T004';`
+          `CREATE TEMP TABLE copied AS SELECT * FROM "${PI_TREES}" WHERE "Habitat Ref" = 'T004';
+           UPDATE copied SET fid = (SELECT MAX(fid) + 1 FROM "${PI_TREES}"),
+             "Habitat Ref" = 'T004b';
+           INSERT INTO "${PI_TREES}" SELECT * FROM copied;`
         ),
         {},
         POST_INTERVENTION
@@ -752,23 +740,22 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   )
 
   it(
-    'prices a Created tree as a creation at its planted size and Count, linked to a parent or not',
+    'prices a Created tree as a creation at its planted size, linked to a parent or not',
     async () => {
-      // T005 is planted with no parent; T010, felled, is replaced by two
-      // newly planted Small Urban trees linked to it.
+      // T005 is planted with no parent; T010, felled, is replaced by a newly
+      // planted Small Urban tree linked to it.
       const { postIntervention } = await importSite(
         'created',
-        `UPDATE "${PI_TREES}" SET Count = 4 WHERE "Habitat Ref" = 'T005';
-         UPDATE "${PI_TREES}" SET "Habitat Ref" = 'T010R', "Retention Category" = 'Created',
+        `UPDATE "${PI_TREES}" SET "Habitat Ref" = 'T010R', "Retention Category" = 'Created',
            Category = 'Newly Planted', "Proposed Tree Size" = 'Small',
-           "Proposed Rural or Urban Tree" = 'Urban tree', "Proposed Condition" = 'Moderate', Count = 2
+           "Proposed Rural or Urban Tree" = 'Urban tree', "Proposed Condition" = 'Moderate'
          WHERE "Habitat Ref" = 'T010';`
       )
 
       const t005 = byRef(postIntervention.trees, 'T005')
       expect(t005).toMatchObject({
         status: 'Complete',
-        sizeSquareMetres: 366 * 4
+        sizeSquareMetres: 366
       })
       expect(t005.units).toBeGreaterThan(0)
       const replacement = byRef(postIntervention.trees, 'T010R')
@@ -776,7 +763,7 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
         retentionCategory: 'Created',
         parentFeatureId: expect.any(String),
         status: 'Complete',
-        sizeSquareMetres: 82,
+        sizeSquareMetres: 41,
         proposed: { treeSize: 'Small', type: 'Urban tree' }
       })
       // The felled tree is still lost in full: planting is not keeping it.

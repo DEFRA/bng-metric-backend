@@ -12,7 +12,6 @@ import {
 } from '../../../validation/geopackage/service-template/lineage/habitat-change.js'
 import { canDegrade } from '../../../validation/geopackage/service-template/lineage/lineage-rows.js'
 import { MIN_PARCEL_AREA_SQ_M } from '../../../validation/geopackage/geometry-constants.js'
-import { treeCountOrDefault } from '../../../validation/geopackage/tree-sizes.js'
 import { buildAdvanceDelayFields } from '../../../validation/geopackage/post-intervention/extract-post-intervention-sub-objects.js'
 import { PROPOSED_PROP_KEYS } from '../../../validation/geopackage/properties.js'
 import {
@@ -124,24 +123,18 @@ function lostOutcome(children, recreated) {
     : LOST_OUTCOME.lost
 }
 
-/** The trees a tree point stands for: its Count, or 1 when blank. */
-const treeCount = (feature) => treeCountOrDefault(feature?.count)
-
-/** A tree parent's trees less those its Retained and Enhanced children keep. */
-function lostTreeCount(parent, continuing) {
-  const kept = continuing.reduce((sum, child) => sum + treeCount(child), 0)
-  return Math.max(0, treeCount(parent) - kept)
-}
+/** A tree point is one tree, lost whole or kept whole. */
+const TREES_PER_POINT = 1
 
 /**
- * Whether a parent with children keeps all of itself. A tree is kept by its
- * Count, not its area: a tree with no recognised size class has none, and
- * its felled trees are lost all the same.
+ * Whether a parent with children keeps all of itself. A tree is one tree, so
+ * it is kept by a Retained or Enhanced child, not by its area: a tree with no
+ * recognised size class has none, and is lost all the same when felled.
  */
-function keptWhole(layer, lost) {
+function keptWhole(layer, continuing, lostSize, sizeField) {
   return layer === 'trees'
-    ? lost.treeCount === 0
-    : lost.size <= TOLERANCE[lost.sizeField]
+    ? continuing.length > 0
+    : lostSize <= TOLERANCE[sizeField]
 }
 
 /** A parent's loss, or null when its Retained and Enhanced children keep it. */
@@ -154,11 +147,10 @@ function lostParent(layer, parent, children, sizeField) {
     0
   )
   const lostSize = Math.max(0, sizeOf(parent, sizeField) - kept)
-  const lostTrees = layer === 'trees' ? lostTreeCount(parent, continuing) : 0
   const recreated = children.filter((child) => isDegraded(layer, parent, child))
   if (
     children.length > 0 &&
-    keptWhole(layer, { size: lostSize, sizeField, treeCount: lostTrees })
+    keptWhole(layer, continuing, lostSize, sizeField)
   ) {
     return null
   }
@@ -170,7 +162,7 @@ function lostParent(layer, parent, children, sizeField) {
     outcome: lostOutcome(children, recreated),
     [sizeField === 'sizeMetres' ? 'lostSizeMetres' : 'lostSizeSquareMetres']:
       lostSize,
-    ...(layer === 'trees' && { lostTreeCount: lostTrees }),
+    ...(layer === 'trees' && { lostTreeCount: TREES_PER_POINT }),
     recreatedAs: recreated.map((child) => child.featureId)
   }
 }
