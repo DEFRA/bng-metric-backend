@@ -721,7 +721,6 @@ test('only editable Created families permit an explicit unlinked null', () => {
 })
 
 test.each([
-  ['Enhanced area', { retentionCategory: 'Enhanced' }],
   ['Retained area', { retentionCategory: 'Retained' }],
   ['missing reference', { ref: undefined }],
   ['blank reference', { ref: ' ' }],

@@ -7,9 +7,11 @@ import {
   validateReferenceAndTiming
 } from './created-feature-edit.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
+import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 import {
   resolveRetentionCategory,
-  RETENTION_CREATED
+  RETENTION_CREATED,
+  RETENTION_ENHANCED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
 // A comment belongs to a baseline habitat (BMD-1112) and is editable only on
@@ -36,19 +38,33 @@ export function validateCreatedAreaEdit(feature, edits) {
   if (!Object.hasOwn(edits, 'ref')) {
     return edits
   }
-  if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
+  const reference = editReference(feature)
+  if (!reference) {
     throw Boom.badRequest(
-      'These attributes can only be edited on Created areas'
+      'These attributes can only be edited on Created or Enhanced areas'
     )
   }
   const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
-  validateAreaChoices(resolved)
+  validateAreaChoices(resolved, reference)
   return resolved
 }
 
-function validateAreaChoices(edits) {
-  const reference = getAreaCreationReference()
+// A Created area chooses from every area habitat it can be created as
+// (BMD-1048); an Enhanced one only from the valid enhancements of its
+// baseline (BMD-1045), the choices its edit form offers.
+function editReference(feature) {
+  const category = resolveRetentionCategory(feature)
+  if (category === RETENTION_CREATED) {
+    return getAreaCreationReference()
+  }
+  if (category === RETENTION_ENHANCED) {
+    return getAreaEnhancementReference(feature.baseline ?? {})
+  }
+  return null
+}
+
+function validateAreaChoices(edits, reference) {
   const type = reference.habitatTypes.find(
     (t) => t.broad === edits.broadType && t.name === edits.habitatType
   )

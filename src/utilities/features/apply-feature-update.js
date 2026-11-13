@@ -418,11 +418,13 @@ const CREATED_EDIT_TYPES = new Set([
   'watercourse'
 ])
 const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
+const ENHANCED_EDIT_TYPES = new Set(['habitat', 'tree'])
 
 /**
  * Whether the complete edit payload may be applied to a feature of this
- * retention: a Created one of any type that takes it, and an Enhanced tree,
- * whose condition is all it enhances.
+ * retention: a Created one of any type that takes it, an Enhanced tree,
+ * whose condition is all it enhances, and an Enhanced area habitat, edited
+ * within its baseline's valid enhancements (BMD-1045).
  *
  * @param {{ type: string, feature: object }} found
  * @returns {boolean}
@@ -431,7 +433,7 @@ function takesCompleteEdit(found) {
   const retention = resolveRetentionCategory(found.feature)
   return (
     retention === RETENTION_CREATED ||
-    (found.type === 'tree' && retention === RETENTION_ENHANCED)
+    (ENHANCED_EDIT_TYPES.has(found.type) && retention === RETENTION_ENHANCED)
   )
 }
 

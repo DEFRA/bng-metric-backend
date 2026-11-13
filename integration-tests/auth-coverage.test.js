@@ -45,6 +45,10 @@ const PUBLIC_ROUTES = new Map([
     'Static individual tree enhancement reference data; no per-user scope'
   ],
   [
+    'get /reference/area-enhancement',
+    'Static area enhancement reference data for a baseline; no per-user scope'
+  ],
+  [
     'get /reference/local-planning-authorities',
     'Static Planning Data lookup; no per-user scope'
   ],

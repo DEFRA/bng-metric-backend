@@ -195,6 +195,32 @@ export function checkFeatureEnhancement(layer, feature) {
 }
 
 /**
+ * Whether `proposed` is a valid enhancement of `baseline`, read as
+ * checkFeatureEnhancement reads a feature, and the metric's enhancement time
+ * to target between them. Offered as an edit form's choices (BMD-1045).
+ *
+ * @param {string} layer a post-intervention document key: habitats,
+ *   hedgerows or watercourses
+ * @param {{ baseline?: object, proposed?: object }} feature
+ * @returns {{ valid: boolean, timeToTarget: unknown }} `valid: false` when no
+ *   rule can be checked; timeToTarget is years, "30+", "Not Possible" or null
+ */
+export function enhancementTarget(layer, feature) {
+  const layerKind = KIND_BY_LAYER[layer]
+  if (!layerKind) {
+    return { valid: false, timeToTarget: null }
+  }
+  const check = checkEnhancement(
+    layerKind.kind,
+    readSide(layerKind, feature?.baseline),
+    readSide(layerKind, feature?.proposed)
+  )
+  return check.checked
+    ? { valid: check.valid, timeToTarget: check.timeToTarget }
+    : { valid: false, timeToTarget: null }
+}
+
+/**
  * @typedef {object} UnenhanceableFeatureBaseline
  * @property {string} rule one of bng-library's UNENHANCEABLE_BASELINE
  * @property {boolean} mvsOnly
