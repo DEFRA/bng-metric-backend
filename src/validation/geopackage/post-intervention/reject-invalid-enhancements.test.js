@@ -463,20 +463,22 @@ describe('importing a post-intervention file', () => {
       })
 
       expect(schemaError).toBeUndefined()
-      expect(validationError).toMatchObject({
-        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
-        details: {
-          count: 1,
-          sample: [
-            expect.objectContaining({
-              feature_ref: 'VALID',
-              habitat_type: 'Grassland - Other neutral grassland',
-              condition: 'Good',
-              rule: UNENHANCEABLE_BASELINE.MEDIUM_AREA_GOOD
-            })
-          ]
+      expect(validationError).toMatchObject([
+        {
+          code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+          details: {
+            count: 1,
+            sample: [
+              expect.objectContaining({
+                feature_ref: 'VALID',
+                habitat_type: 'Grassland - Other neutral grassland',
+                condition: 'Good',
+                rule: UNENHANCEABLE_BASELINE.MEDIUM_AREA_GOOD
+              })
+            ]
+          }
         }
-      })
+      ])
       expect(document.habitats[0].units).toBeNull()
       expect(document.habitats[0]).not.toHaveProperty('invalidEnhancement')
     })
@@ -492,10 +494,12 @@ describe('importing a post-intervention file', () => {
         { template: TEMPLATE, baselineDocument: templateBaseline('Good') }
       )
 
-      expect(validationError).toMatchObject({
-        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
-        details: { sample: [expect.objectContaining({ condition: 'Good' })] }
-      })
+      expect(validationError).toMatchObject([
+        {
+          code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+          details: { sample: [expect.objectContaining({ condition: 'Good' })] }
+        }
+      ])
     })
 
     it("accepts a template file whose row's parent can be enhanced", () => {
