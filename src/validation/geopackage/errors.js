@@ -62,15 +62,6 @@ export const ERROR_CODES = Object.freeze({
   /** One or more Parcel Refs hold characters that are not valid UTF-8 (BMD-1058). One error for them all. */
   HABITAT_REF_INVALID_CHARACTERS: 'HABITAT_REF_INVALID_CHARACTERS',
 
-  /**
-   * An edit would rename a habitat to a reference another baseline habitat in
-   * the same layer already carries (hedgerows and watercourses count as one
-   * layer). The reference joins each post-intervention row to its baseline
-   * parcel, so the rename would merge two parcels' rows. Imports may still
-   * repeat a reference (BMD-1058).
-   */
-  HABITAT_REF_IN_USE: 'HABITAT_REF_IN_USE',
-
   /** An edit would leave an enhanced habitat that is not a valid enhancement of its baseline. */
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
@@ -411,7 +402,6 @@ export const ERROR_SURFACES = Object.freeze({
 // when a habitat is edited on screen must be added, or the frontend is asked
 // for drop-out page wording for an error that page never shows.
 const EDIT_ONLY_CODES = new Set([
-  ERROR_CODES.HABITAT_REF_IN_USE,
   ERROR_CODES.ENHANCEMENT_NOT_VALID,
   ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
   ERROR_CODES.FEATURE_NOT_EDITABLE

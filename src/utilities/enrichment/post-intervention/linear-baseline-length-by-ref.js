@@ -15,17 +15,57 @@ export function linearLengthKmFromSizeMetres(sizeMetres) {
   return pricedLengthKm(sizeMetres)
 }
 
+/** The baseline layer an Enhanced feature's layer label names. */
+const LAYER_BY_LABEL = Object.freeze({
+  hedgerow: 'hedgerows',
+  watercourse: 'watercourses'
+})
+
 /**
- * The measured lengths of a baseline's hedgerows and watercourses, in km: a
- * Map<parcelRef, lengthKm>, which a legacy upload's Enhanced feature is priced
- * against by its own ref, and `byFeatureId`, which a BNG Service template
- * feature is priced against through its parent link (BMD-1083). A template
- * feature's ref need not be its parent's, and a hedgerow and a watercourse
- * may share one, so it is never looked up by ref.
+ * The measured lengths of a baseline's hedgerows and watercourses, in km.
+ *
+ * - `byRef` holds one Map<parcelRef, lengthKm> per layer, which a legacy
+ *   upload's Enhanced feature is priced against by its own ref. A hedgerow and
+ *   a watercourse may share a ref (BMD-1058, BMD-1180 AC7), so the layers are
+ *   never pooled: one would be priced against the other's length.
+ * - `byFeatureId` is what a feature linked to its baseline feature is priced
+ *   against: a BNG Service template feature through its parent link
+ *   (BMD-1083), or a legacy feature the re-derive resolved to one
+ *   (`sourceFeatureIdByRow`). Several features in a layer may share a ref, so
+ *   a feature whose baseline feature is known is never looked up by ref.
+ * - `sourceFeatureIdByRow` maps a post-intervention row's featureId to the
+ *   featureId of the baseline feature it was resolved to
+ *   (resync-post-intervention-baseline.js).
  */
-class BaselineLinearLengths extends Map {
+class BaselineLinearLengths {
+  /** @type {Record<string, Map<string, number>>} */
+  byRef = { hedgerows: new Map(), watercourses: new Map() }
+
   /** @type {Map<string, number>} */
   byFeatureId = new Map()
+
+  /** @type {Map<string, string>} */
+  sourceFeatureIdByRow
+
+  constructor(sourceFeatureIdByRow = new Map()) {
+    this.sourceFeatureIdByRow = sourceFeatureIdByRow
+  }
+}
+
+function addLayerLengths(lengths, layer, features) {
+  for (const feature of features) {
+    if (typeof feature.sizeMetres !== 'number' || feature.sizeMetres <= 0) {
+      continue
+    }
+    const lengthKm = linearLengthKmFromSizeMetres(feature.sizeMetres)
+    const ref = normaliseRef(feature.ref)
+    if (ref !== null) {
+      lengths.byRef[layer].set(ref, lengthKm)
+    }
+    if (feature.featureId) {
+      lengths.byFeatureId.set(feature.featureId, lengthKm)
+    }
+  }
 }
 
 /**
@@ -40,62 +80,79 @@ class BaselineLinearLengths extends Map {
  *
  * @param {object[]} [hedgerows]
  * @param {object[]} [watercourses]
- * @returns {Map<string, number>}
+ * @param {{ sourceFeatureIdByRow?: Map<string, string> }} [resolved]
+ *   the baseline feature each post-intervention row was resolved to
+ * @returns {BaselineLinearLengths}
  */
 export function buildBaselineLinearLengthByRef(
   hedgerows = [],
-  watercourses = []
+  watercourses = [],
+  { sourceFeatureIdByRow } = {}
 ) {
-  const lengths = new BaselineLinearLengths()
-  for (const feature of [...hedgerows, ...watercourses]) {
-    if (typeof feature.sizeMetres !== 'number' || feature.sizeMetres <= 0) {
-      continue
-    }
-    const lengthKm = linearLengthKmFromSizeMetres(feature.sizeMetres)
-    const ref = normaliseRef(feature.ref)
-    if (ref !== null) {
-      lengths.set(ref, lengthKm)
-    }
-    if (feature.featureId) {
-      lengths.byFeatureId.set(feature.featureId, lengthKm)
-    }
-  }
+  const lengths = new BaselineLinearLengths(sourceFeatureIdByRow)
+  addLayerLengths(lengths, 'hedgerows', hedgerows)
+  addLayerLengths(lengths, 'watercourses', watercourses)
   return lengths
+}
+
+function lookupByFeatureId(lengths, featureId, layerLabel, owner) {
+  const lengthKm = lengths.byFeatureId.get(featureId)
+  if (lengthKm == null) {
+    throw new BaselineLookupError(
+      `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for ${owner}`
+    )
+  }
+  return lengthKm
 }
 
 /**
  * The baseline length an Enhanced linear feature is priced against: its
  * parent's, when it is linked to one (a BNG Service template feature), else
- * the baseline feature's with its ref (a legacy feature).
+ * the baseline feature the re-derive resolved it to, else the baseline
+ * feature in its own layer with its ref (a legacy feature).
  *
- * @param {{ ref?: string | null, parentFeatureId?: string }} feature
- * @param {Map<string, number> | undefined} baselineLengthByRef
+ * @param {{ featureId?: string, ref?: string | null, parentFeatureId?: string }} feature
+ * @param {BaselineLinearLengths | undefined} baselineLengthByRef
  *   buildBaselineLinearLengthByRef's result
- * @param {string} layerLabel
+ * @param {'hedgerow' | 'watercourse'} layerLabel
  * @returns {number}
  * @throws {BaselineLookupError}
  */
 export function lookupBaselineLinearLength(
-  { ref, parentFeatureId },
+  feature,
   baselineLengthByRef,
   layerLabel
 ) {
+  const { featureId, ref, parentFeatureId } = feature
   if (!baselineLengthByRef) {
     throw new BaselineLookupError(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${shownValue(ref)}")`
     )
   }
   if (parentFeatureId) {
-    const parentKm = baselineLengthByRef.byFeatureId?.get(parentFeatureId)
-    if (parentKm == null) {
-      throw new BaselineLookupError(
-        `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for the parent of parcel ref "${shownValue(ref)}"`
-      )
-    }
-    return parentKm
+    return lookupByFeatureId(
+      baselineLengthByRef,
+      parentFeatureId,
+      layerLabel,
+      `the parent of parcel ref "${shownValue(ref)}"`
+    )
+  }
+  const sourceFeatureId = featureId
+    ? baselineLengthByRef.sourceFeatureIdByRow.get(featureId)
+    : undefined
+  if (sourceFeatureId) {
+    return lookupByFeatureId(
+      baselineLengthByRef,
+      sourceFeatureId,
+      layerLabel,
+      `parcel ref "${shownValue(ref)}"`
+    )
   }
   const key = normaliseRef(ref)
-  const lengthKm = key === null ? undefined : baselineLengthByRef.get(key)
+  const lengthKm =
+    key === null
+      ? undefined
+      : baselineLengthByRef.byRef[LAYER_BY_LABEL[layerLabel]]?.get(key)
   if (lengthKm == null) {
     throw new BaselineLookupError(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for parcel ref "${shownValue(ref)}"`

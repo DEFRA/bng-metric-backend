@@ -7,7 +7,8 @@ import {
   makeWatercourse,
   makeEnhancedHabitat,
   makeEnhancedHedgerow,
-  makeEnhancedWatercourse
+  makeEnhancedWatercourse,
+  makeBaselineLengths
 } from '../../utilities/enrichment/post-intervention/enrich-post-intervention-units.fixtures.js'
 import { rederivePostInterventionFromBaseline } from '../../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 
@@ -31,10 +32,7 @@ const LAYERS = [
   ['hedgerows', makeHedgerow, 'Hedgerow'],
   ['watercourses', makeWatercourse, 'Watercourse']
 ]
-const BASELINE_LENGTHS = new Map([
-  ['HW1', 1],
-  ['R1', 1]
-])
+const BASELINE_LENGTHS = makeBaselineLengths()
 const OPTIONS = { baselineLengthByRef: BASELINE_LENGTHS }
 const MISSING = [null, undefined, '', '   ']
 

@@ -14,8 +14,9 @@ import { pickProposedRecomputeFields } from './recompute-post-intervention-area-
  * @param {object} existing — persisted post-intervention hedgerow feature
  * @param {{ habitatType: string | null, condition: string | null }} edits
  * @param {object} options
- * @param {Map<string, number>} [options.baselineLengthByRef] baseline lengths
- *   by ref, which an enhanced hedgerow prices its baseline side from
+ * @param {object} [options.baselineLengthByRef] baseline lengths
+ *   (buildBaselineLinearLengthByRef), which an enhanced hedgerow prices its
+ *   baseline side from
  * @param {{ warn: Function }} [options.logger]
  * @returns {object} the recomputed proposed fields, `units`, `status` and the
  *   whole `updatedFeature`, as recomputePostInterventionAreaHabitat returns

@@ -44,11 +44,13 @@ import {
   copyProposedEngineMetrics
 } from '../enrichment/shared/proposed-enrichment-fields.js'
 
-import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
+import {
+  preserveCreatedParent,
+  resolveJoinedBaselineFeature
+} from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
-import { renameClashes } from './ref-in-use.js'
 import {
   VERTICAL_BROAD_HABITATS,
   isVerticalHabitat
@@ -67,8 +69,7 @@ const APPLY_RESULT = Object.freeze({
   FEATURE_WRONG_TYPE: 'featureWrongType',
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
-  INVALID_ENHANCEMENT: 'invalidEnhancement',
-  REF_IN_USE: 'refInUse'
+  INVALID_ENHANCEMENT: 'invalidEnhancement'
 })
 
 function blankToNull(value) {
@@ -161,6 +162,25 @@ function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   })
 }
 
+/**
+ * The baseline lengths an edited post-intervention hedgerow is priced against,
+ * with the row resolved to its baseline feature as the re-derive resolves it:
+ * several hedgerows may share its ref, and only one of them is its own.
+ */
+function editedHedgerowLengths(existing, baseline) {
+  const { source } = resolveJoinedBaselineFeature(
+    existing,
+    'hedgerows',
+    baseline
+  )
+  const sourceFeatureIdByRow = new Map()
+  if (source?.featureId && existing.featureId) {
+    sourceFeatureIdByRow.set(existing.featureId, source.featureId)
+  }
+  return postInterventionEnrichOptions(baseline, { sourceFeatureIdByRow })
+    .baselineLengthByRef
+}
+
 function recomputeHedgerowEdit(
   existing,
   edits,
@@ -174,8 +194,7 @@ function recomputeHedgerowEdit(
       existing,
       { habitatType: edits.habitatType, condition: edits.condition },
       {
-        baselineLengthByRef:
-          postInterventionEnrichOptions(baseline).baselineLengthByRef,
+        baselineLengthByRef: editedHedgerowLengths(existing, baseline),
         logger
       }
     )
@@ -457,29 +476,6 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
 }
 
 /**
- * Whether a baseline edit renames its feature onto a reference another
- * baseline habitat already carries (ref-in-use.js). Post-intervention edits
- * ignore `ref`.
- *
- * @param {object} featureSet the document being edited
- * @param {{ key: string, feature: object }} found
- * @param {{ ref?: string }} normalizedEdits
- * @param {string} documentKey
- * @returns {boolean}
- */
-function renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey) {
-  return (
-    documentKey === 'baseline' &&
-    renameClashes(featureSet, {
-      layer: found.key,
-      current: found.feature.ref,
-      next: normalizedEdits.ref,
-      exceptFeatureId: found.feature.featureId
-    })
-  )
-}
-
-/**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
  * apply path below deals only with edits that are going ahead.
@@ -506,15 +502,6 @@ function resolveEditTarget(
   if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
     return {
       rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
-    }
-  }
-  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
-    return {
-      rejection: {
-        status: APPLY_RESULT.REF_IN_USE,
-        type: found.type,
-        ref: normalizedEdits.ref
-      }
     }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
@@ -623,7 +610,6 @@ function withUpdatedFeature(
  *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
- *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */

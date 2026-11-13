@@ -1140,7 +1140,7 @@ describe('#updateFeature — project with a post-intervention document', () => {
     ])
   })
 
-  test('throws 422 HABITAT_REF_IN_USE when renaming onto another habitat’s reference', async () => {
+  test('saves a rename onto another habitat’s reference (BMD-1180 AC7: no uniqueness check)', async () => {
     const drizzle = makeTxDrizzle(
       makeProject([
         sampleHabitat,
@@ -1148,25 +1148,24 @@ describe('#updateFeature — project with a post-intervention document', () => {
       ])
     )
 
-    await expect(
-      updateFeature.handler(
-        {
-          drizzle,
-          auth: AUTH,
-          params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
-          payload: {
-            ref: '2',
-            broadType: 'Grassland',
-            habitatType: 'Modified grassland',
-            condition: 'Poor'
-          }
-        },
-        {}
-      )
-    ).rejects.toMatchObject({
-      output: { statusCode: 422, payload: { code: 'HABITAT_REF_IN_USE' } }
-    })
-    expect(setProjectFeature).not.toHaveBeenCalled()
+    const response = await updateFeature.handler(
+      {
+        drizzle,
+        auth: AUTH,
+        logger: { warn: vi.fn() },
+        params: { projectId: PROJECT_ID, featureId: HABITAT_ID },
+        payload: {
+          ref: '2',
+          broadType: 'Grassland',
+          habitatType: 'Modified grassland',
+          condition: 'Poor'
+        }
+      },
+      {}
+    )
+
+    expect(response.feature.ref).toBe('2')
+    expect(setProjectFeature).toHaveBeenCalledTimes(1)
   })
 
   test('touches no geometry row when the reference is unchanged', async () => {
@@ -1338,7 +1337,7 @@ describe('#updatePostInterventionFeatureRef — renaming a retained habitat (BMD
     expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
-  test('throws 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
+  test('saves a reference another baseline habitat carries (AC7: no uniqueness check)', async () => {
     const projectRow = projectRowWithRetainedRow()
     projectRow.project.baseline.habitats.push({
       ...sampleHabitat,
@@ -1347,16 +1346,13 @@ describe('#updatePostInterventionFeatureRef — renaming a retained habitat (BMD
     })
     const drizzle = makeTxDrizzle(projectRow)
 
-    await expect(
-      updatePostInterventionFeatureRef.handler(renameRequest(drizzle, 'A2'), {})
-    ).rejects.toMatchObject({
-      isBoom: true,
-      output: {
-        statusCode: 422,
-        payload: { code: 'HABITAT_REF_IN_USE' }
-      }
-    })
-    expect(setProjectFeature).not.toHaveBeenCalled()
+    const response = await updatePostInterventionFeatureRef.handler(
+      renameRequest(drizzle, 'A2'),
+      {}
+    )
+
+    expect(response.feature.ref).toBe('A2')
+    expect(setProjectFeature).toHaveBeenCalledTimes(1)
   })
 
   test('throws 404 when the project does not exist', async () => {
