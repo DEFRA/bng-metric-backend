@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 467 schema fields.
+**25 tables**, mapping 469 schema fields.
 
 ## Diagram
 
@@ -357,7 +357,7 @@ Project-level biodiversity unit summary. Exactly one per project. 3 column(s) ma
 
 ### `project_details`
 
-Project details entered by the user. Exactly one per project; null until the user fills them in. 7 column(s) mapped from the JSON document.
+Project details entered by the user. Exactly one per project; null until the user fills them in. 9 column(s) mapped from the JSON document.
 
 | Column                               | Type   | Key | JSON path                                 | Notes                 |
 | ------------------------------------ | ------ | --- | ----------------------------------------- | --------------------- |
@@ -370,6 +370,8 @@ Project details entered by the user. Exactly one per project; null until the use
 | `development_type`                   | `text` |     | `details.developmentType`                 |                       |
 | `nsips`                              | `text` |     | `details.nsips`                           |                       |
 | `applicant`                          | `text` |     | `details.applicant`                       |                       |
+| `planning_application_reference`     | `text` |     | `details.planningApplicationReference`    |                       |
+| `planning_application_type`          | `text` |     | `details.planningApplicationType`         |                       |
 
 ### `feature_set`
 

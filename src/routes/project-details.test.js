@@ -1,4 +1,5 @@
 import { describe, test, expect, vi } from 'vitest'
+import { PgDialect } from 'drizzle-orm/pg-core'
 import { getProjectDetails, updateProjectDetails } from './project-details.js'
 import { projectDetailsColumns } from '../db/project-details-columns.js'
 
@@ -186,6 +187,25 @@ describe('#updateProjectDetails', () => {
     expect(result).toEqual({})
   })
 
+  test('BMD-849 saves a name sent with the details, not into the details', async () => {
+    const drizzle = createMockDrizzle([{ details: sampleDetails }])
+    await updateProjectDetails.handler(
+      {
+        drizzle,
+        params: { id: PROJECT_ID },
+        payload: { name: 'Renamed project', surveyCompleters: 'Jane Smith' },
+        auth: { credentials: { sub: SUB } }
+      },
+      {}
+    )
+    expect(drizzle.update).toHaveBeenCalledTimes(1)
+    const { params } = new PgDialect().sqlToQuery(
+      drizzle._set.mock.calls[0][0].project
+    )
+    expect(params).toContain(JSON.stringify('Renamed project'))
+    expect(params).toContain(JSON.stringify({ surveyCompleters: 'Jane Smith' }))
+  })
+
   test('throws 404 when project not found or not visible', async () => {
     const drizzle = createMockDrizzle()
     await expect(
@@ -246,6 +266,36 @@ describe('#updateProjectDetails validation', () => {
   test('accepts empty string surveyCompletionDate', () => {
     const { error } = payloadSchema.validate({ surveyCompletionDate: '' })
     expect(error).toBeUndefined()
+  })
+
+  test('BMD-849 accepts the planning application fields and a name', () => {
+    const { error, value } = payloadSchema.validate({
+      ...sampleDetails,
+      name: '  Renamed project  ',
+      planningApplicationReference: '24/01234/FUL',
+      planningApplicationType: 'Outline planning permission'
+    })
+    expect(error).toBeUndefined()
+    expect(value.name).toBe('Renamed project')
+  })
+
+  test('BMD-849 rejects a blank name', () => {
+    const { error } = payloadSchema.validate({ name: '   ' })
+    expect(error.message).toContain('"name"')
+  })
+
+  test.each([
+    ['surveyCompleters', 255],
+    ['applicant', 255],
+    ['planningApplicationReference', 50],
+    ['planningApplicationType', 100]
+  ])('BMD-849 limits %s to %i characters', (field, max) => {
+    expect(
+      payloadSchema.validate({ [field]: 'a'.repeat(max) }).error
+    ).toBeUndefined()
+    expect(
+      payloadSchema.validate({ [field]: 'a'.repeat(max + 1) }).error.message
+    ).toContain(`"${field}" length must be less than or equal to ${max}`)
   })
 
   test('rejects a null payload', () => {
