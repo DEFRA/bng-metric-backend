@@ -17,12 +17,20 @@ import { canDegrade } from '../../validation/geopackage/service-template/lineage
 const TREES = 'trees'
 
 /**
- * The rules a degraded tree is held to, as the upload holds it
- * (service-template/lineage/lineage-rules.js, checkDegradedRow): the baseline
- * tree itself, recorded as lost and created again (guide, "Habitat
- * retention"), so it stays in its parent's Urban or Rural setting, and,
- * unless it is put back after a delay, it is in a lower condition and created
- * 30+ years in advance.
+ * The rules a degraded tree is held to: the baseline tree itself, recorded as
+ * lost and created again (guide, "Habitat retention").
+ *
+ * - worseCondition and advance30Plus are the upload's
+ *   (service-template/lineage/lineage-rules.js, checkDegradedRow): unless it
+ *   is put back after a delay, it is in a lower condition and created 30+
+ *   years in advance.
+ * - sameSetting is the edit's alone. The upload reads an Existing tree
+ *   Created in the other setting as no degrade at all, but a new tree of the
+ *   other type in the baseline tree's place, and accepts it. A degraded tree
+ *   is the baseline tree, which cannot move between an urban and a rural
+ *   setting, so an edit that moves it would quietly turn "this tree, lost and
+ *   created again" into "another tree in its place": a different record of
+ *   the site, for the file to make, not an edit on screen (BMD-1184 AC7).
  */
 export const DEGRADE_RULE = Object.freeze({
   sameSetting: 'degrade-same-setting',
