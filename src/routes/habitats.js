@@ -114,7 +114,9 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       document. Supplying ref requires broadType, habitatType
  *       and condition. Timing is optional: omit it to retain the stored value,
  *       or supply null to clear it.
- *       These extended edits are supported only for Created area habitats.
+ *       These extended edits are supported only for Created area habitats
+ *       and, choosing from the valid enhancements of the baseline (BMD-1045),
+ *       Enhanced ones.
  *       The 30+ timing input is stored as numeric 30 with an optional selection
  *       flag; response timing fields remain numeric or null.
  *     parameters:
@@ -143,7 +145,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *               strategicSignificance:
  *                 type: string
  *                 nullable: true
- *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
+ *                 description: An option returned by /reference/area-creation (a Created area) or /reference/area-enhancement (an Enhanced area, BMD-1045), or null for an incomplete edit.
  *               advanceYears:
  *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
@@ -175,11 +177,11 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to a non-Created area.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to an area that is neither Created nor Enhanced.
  *       404:
  *         description: Project or habitat not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`; `offered-enhancement` when an Enhanced area sends a choice its baseline's valid enhancements do not list, unless it keeps the stored value)
  *       409:
  *         description: Another edit for this project is in progress
  */

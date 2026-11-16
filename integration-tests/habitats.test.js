@@ -664,6 +664,144 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
   })
 })
 
+describe('BMD-1045 Enhanced area editing', () => {
+  it('saves a rename that keeps a stored IGGI proposal, which neither edit list offers', async () => {
+    // Littoral sand at Moderate can be enhanced to an IGGI in Good
+    // condition, and an import keeps that proposal.
+    const iggi = {
+      broadType: 'Intertidal hard structures',
+      type: 'Artificial hard structures with integrated greening of grey infrastructure (IGGI)',
+      condition: 'Good'
+    }
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'E-IGGI',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: ONE_HECTARE_IN_SQUARE_METRES,
+      units: 0,
+      status: 'Incomplete',
+      baseline: {
+        broadType: 'Intertidal sediment',
+        type: 'Littoral sand',
+        condition: 'Moderate'
+      },
+      proposed: { ...iggi, strategicSignificance: 'Low' }
+    }
+    const projectId = await seedProject({
+      name: 'Enhanced area IGGI rename IT',
+      postIntervention: { habitats: [feature] }
+    })
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`,
+      headers,
+      payload: {
+        ref: 'E-IGGI renamed',
+        broadType: iggi.broadType,
+        habitatType: iggi.type,
+        condition: iggi.condition,
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toMatchObject({
+      ref: 'E-IGGI renamed',
+      status: 'Complete',
+      proposed: iggi
+    })
+    const { rows } = await dbClient.query(
+      'SELECT project FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention.habitats[0]).toEqual(res.result)
+  })
+
+  it('persists complete and incomplete edits and refuses a choice that is not an enhancement of the baseline', async () => {
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'E-1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: ONE_HECTARE_IN_SQUARE_METRES,
+      units: 0,
+      status: 'Incomplete',
+      baseline: {
+        broadType: 'Grassland',
+        type: 'Modified grassland',
+        condition: 'Poor'
+      },
+      proposed: {
+        broadType: 'Grassland',
+        type: 'Modified grassland',
+        condition: 'Fairly Poor'
+      }
+    }
+    const projectId = await seedProject({
+      name: 'Enhanced area editing IT',
+      postIntervention: { habitats: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`
+    const readProject = async () => {
+      const { rows } = await dbClient.query(
+        'SELECT project FROM bng.projects WHERE id = $1',
+        [projectId]
+      )
+      return rows[0].project
+    }
+    const payload = {
+      ref: 'Enhanced reference',
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Moderate',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: 0
+    }
+
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result).toMatchObject({
+      ref: 'Enhanced reference',
+      retentionCategory: 'Enhanced',
+      status: 'Complete',
+      proposed: { condition: 'Moderate', strategicSignificance: 'High' }
+    })
+    expect(saved.result.units).toBeGreaterThan(0)
+    const complete = await readProject()
+    expect(complete.postIntervention.habitats[0]).toEqual(saved.result)
+    expect(complete.postIntervention.units.habitatsTotal).toBe(
+      saved.result.units
+    )
+
+    const refused = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, condition: 'Poor' }
+    })
+    // The contract the edit form reads to show the refusal on the condition.
+    expect(refused.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(refused.result).toMatchObject({
+      code: 'ENHANCEMENT_NOT_VALID',
+      rule: 'offered-enhancement'
+    })
+    expect(await readProject()).toEqual(complete)
+
+    const partial = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, strategicSignificance: null }
+    })
+    expect(partial.statusCode).toBe(HTTP_OK)
+    expect(partial.result).toMatchObject({ units: 0, status: 'Incomplete' })
+    expect((await readProject()).postIntervention.units.habitatsTotal).toBe(0)
+  })
+})
+
 describe('BMD-1048 Created area editing', () => {
   it('persists complete and incomplete edits and rejects conflicting timing without writing', async () => {
     const feature = {
