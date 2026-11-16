@@ -32,6 +32,7 @@ import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.j
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
 import { brokenEnhancementRule } from './edit-enhancement-rule.js'
+import { brokenDegradeRule } from './edit-degrade-rule.js'
 import {
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -68,6 +69,7 @@ const APPLY_RESULT = Object.freeze({
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
   INVALID_ENHANCEMENT: 'invalidEnhancement',
+  INVALID_DEGRADE: 'invalidDegrade',
   REF_IN_USE: 'refInUse'
 })
 
@@ -543,6 +545,19 @@ function resolveEditTarget(
         status: APPLY_RESULT.INVALID_ENHANCEMENT,
         type: found.type,
         rule
+      }
+    }
+  }
+  const degradeRule = brokenDegradeRule(found, derived, {
+    documentKey,
+    baseline
+  })
+  if (degradeRule) {
+    return {
+      rejection: {
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: found.type,
+        rule: degradeRule
       }
     }
   }
