@@ -740,6 +740,35 @@ describe('importUploadFile, a BNG Service template file’s individual trees', (
   )
 
   it(
+    'refuses an Enhanced tree whose baseline tree is in Good condition, naming it, as a Good tree cannot be enhanced',
+    async () => {
+      // T006 is Enhanced from Moderate to Good; its baseline is set to Good.
+      const result = await importUploadFile(
+        editedSite(
+          'enhanced-from-good',
+          `UPDATE "${BASELINE_TREES}" SET "Baseline Condition" = 'Good' WHERE "Habitat Ref" = 'T006';
+           UPDATE "${PI_TREES}" SET "Baseline Condition" = 'Good' WHERE "Habitat Ref" = 'T006';`
+        ),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(false)
+      expect(result.errors.map((e) => e.code)).toEqual([
+        ERROR_CODES.TREE_NOT_ENHANCEABLE
+      ])
+      expect(result.errors[0].details.sample).toEqual([
+        expect.objectContaining({
+          layer: 'trees',
+          feature_ref: 'T006',
+          condition: 'Good'
+        })
+      ])
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
     'prices a Created tree as a creation at its planted size, linked to a parent or not',
     async () => {
       // T005 is planted with no parent; T010, felled, is replaced by a newly
@@ -1034,7 +1063,28 @@ describe('uploadRefusal', () => {
     expect(uploadRefusal({ validationError })).toMatchObject({
       errors: [validationError],
       internal: false,
-      reason: 'upload rejected'
+      reason: 'upload rejected',
+      message: 'no baseline area habitats'
+    })
+  })
+
+  it('passes a refusal with an error for each reason through as those errors, logging both messages', () => {
+    const validationError = [
+      {
+        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+        message: 'a habitat cannot be enhanced'
+      },
+      {
+        code: ERROR_CODES.TREE_NOT_ENHANCEABLE,
+        message: 'a tree cannot be enhanced'
+      }
+    ]
+
+    expect(uploadRefusal({ validationError })).toEqual({
+      errors: validationError,
+      internal: false,
+      reason: 'upload rejected',
+      message: 'a habitat cannot be enhanced; a tree cannot be enhanced'
     })
   })
 })

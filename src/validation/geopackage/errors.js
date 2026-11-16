@@ -111,6 +111,18 @@ export const ERROR_CODES = Object.freeze({
   BASELINE_NOT_ENHANCEABLE: 'BASELINE_NOT_ENHANCEABLE',
 
   /**
+   * One or more Enhanced individual trees enhance a baseline tree in Good
+   * condition. A tree has no better condition than Good, and an Urban and a
+   * Rural tree are both Medium, so a Good tree cannot be enhanced at all: it
+   * is Retained, or lost and Created in a lower condition. The file is
+   * refused, as for BASELINE_NOT_ENHANCEABLE, which names the other habitats;
+   * a file with both is refused with both. `details.sample` lists each tree as
+   * BASELINE_NOT_ENHANCEABLE's does. The frontend sends the user to the
+   * drop-out page.
+   */
+  TREE_NOT_ENHANCEABLE: 'TREE_NOT_ENHANCEABLE',
+
+  /**
    * A tree point's "Count" is filled in but is not a whole number of trees
    * (1 or more). The template declares the column an integer, so there is no
    * right way to price 2.5 trees; the user corrects the file instead.
