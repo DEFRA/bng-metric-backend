@@ -15,7 +15,7 @@ import {
 import { postInterventionHabitatSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
 import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
-import { validateCreatedAreaEdit } from './created-area-edit.js'
+import { validatePostInterventionAreaEdit } from './created-area-edit.js'
 import { getAreaEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
 
@@ -377,7 +377,7 @@ describe('BMD-1045 Enhanced area edits', () => {
       habitatType: unread.proposed.type,
       condition: unread.proposed.condition
     }
-    expect(validateCreatedAreaEdit(unread, kept)).toMatchObject({
+    expect(validatePostInterventionAreaEdit(unread, kept)).toMatchObject({
       broadType: 'Grassland',
       habitatType: 'Modified grassland',
       condition: 'Fairly Poor'
@@ -503,7 +503,7 @@ describe('BMD-1045 Enhanced area edits', () => {
       proposed: { ...feature.proposed, ...iggi }
     }
     expect(() =>
-      validateCreatedAreaEdit(stored, {
+      validatePostInterventionAreaEdit(stored, {
         ...edits,
         broadType: iggi.broadType,
         habitatType: iggi.type,
@@ -597,7 +597,7 @@ describe('BMD-1045 Enhanced area edits', () => {
       }
     }
     expect(() =>
-      validateCreatedAreaEdit(stored, {
+      validatePostInterventionAreaEdit(stored, {
         ...edits,
         habitatType: 'Modified grassland',
         condition: 'Poor'
@@ -642,7 +642,7 @@ describe('BMD-1045 Enhanced area edits', () => {
 describe('BMD-1045 edge cases', () => {
   test('the area edit refuses a feature that is neither Created nor Enhanced', () => {
     expect(() =>
-      validateCreatedAreaEdit(
+      validatePostInterventionAreaEdit(
         { ...feature, retentionCategory: 'Retained' },
         edits
       )
@@ -655,7 +655,9 @@ describe('BMD-1045 edge cases', () => {
 
   test('an Enhanced area with no stored baseline is offered nothing, so any new choice is refused', () => {
     const { baseline: _omitted, ...withoutBaseline } = feature
-    expect(() => validateCreatedAreaEdit(withoutBaseline, edits)).toThrow(
+    expect(() =>
+      validatePostInterventionAreaEdit(withoutBaseline, edits)
+    ).toThrow(
       expect.objectContaining({
         output: expect.objectContaining({ statusCode: 422 })
       })
@@ -664,7 +666,7 @@ describe('BMD-1045 edge cases', () => {
 
   test('a Created area’s refused choice is still a bad request', () => {
     expect(() =>
-      validateCreatedAreaEdit(
+      validatePostInterventionAreaEdit(
         { ...feature, retentionCategory: 'Created' },
         { ...edits, broadType: 'Nope' }
       )

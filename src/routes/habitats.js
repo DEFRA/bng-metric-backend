@@ -9,7 +9,7 @@ import {
 } from './created-hedgerow-edit.js'
 import {
   postInterventionAreaEditPayload,
-  validateCreatedAreaEdit
+  validatePostInterventionAreaEdit
 } from './created-area-edit.js'
 import {
   postInterventionTreeEditPayload,
@@ -190,7 +190,7 @@ const CREATED_EDIT_TYPES = {
     layer: 'habitats',
     label: 'Habitat',
     payload: postInterventionAreaEditPayload,
-    validate: validateCreatedAreaEdit
+    validate: validatePostInterventionAreaEdit
   },
   watercourse: {
     layer: 'watercourses',
