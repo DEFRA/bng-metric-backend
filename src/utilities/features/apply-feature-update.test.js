@@ -2389,6 +2389,85 @@ describe('applyFeatureUpdate — a degraded post-intervention tree (BMD-1184)', 
     })
   })
 
+  test('saves a rename once its baseline tree is in the same condition, though the import left its delay blank', () => {
+    const project = projectWithDegradedTree({ delayYears: null })
+    project.baseline.trees[0].condition = 'Poor'
+
+    expect(
+      editDegradedTree({ ref: 'T001-degraded', delayYears: 0 }, project).status
+    ).toBe(APPLY_RESULT.OK)
+  })
+
+  // Put back after a delay, in Good condition with no years in advance: an
+  // edit that removes the delay leaves a degrade, held to its condition and
+  // timing again.
+  describe('an edit that removes the delay of a tree put back after one', () => {
+    const putBack = () =>
+      projectWithDegradedTree({
+        condition: 'Good',
+        advanceYears: 0,
+        delayYears: 5
+      })
+
+    test.each([
+      [
+        'keeping its condition',
+        { condition: 'Good', advanceYears: 0, delayYears: 0 },
+        'degrade-worse-condition'
+      ],
+      [
+        'in a lower condition but not 30+ years in advance',
+        { condition: 'Poor', advanceYears: 0, delayYears: 0 },
+        'degrade-advance-30-plus'
+      ]
+    ])('is refused %s, leaving the tree unchanged', (_, edits, rule) => {
+      const project = putBack()
+      const before = JSON.stringify(project)
+
+      expect(editDegradedTree(edits, project)).toEqual({
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: 'tree',
+        rule
+      })
+      expect(JSON.stringify(project)).toBe(before)
+    })
+
+    test('is saved in a lower condition, 30+ years in advance', () => {
+      const result = editDegradedTree(
+        { condition: 'Poor', advanceYears: '30+', delayYears: 0 },
+        putBack()
+      )
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature.proposed).toMatchObject({
+        condition: 'Poor',
+        delayYears: 0
+      })
+    })
+  })
+
+  // The upload reads an Existing tree Created in the other setting as a new
+  // tree of that type, not a degrade, so its edits are not held to the rules.
+  test('does not hold an Existing tree Created in the other setting to the degrade rules', () => {
+    const project = projectWithDegradedTree({ type: 'Urban tree' })
+
+    const result = editDegradedTree(
+      {
+        habitatType: 'Urban tree',
+        condition: 'Good',
+        advanceYears: 0,
+        delayYears: 0
+      },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed).toMatchObject({
+      type: 'Urban tree',
+      condition: 'Good'
+    })
+  })
+
   test('does not hold a Newly Planted tree linked to a parent to the degrade rules: it is planting', () => {
     const project = projectWithDegradedTree({ category: 'Newly Planted' })
 

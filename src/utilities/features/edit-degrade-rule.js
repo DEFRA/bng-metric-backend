@@ -77,8 +77,16 @@ function breaksCheck(check, parent, proposed) {
   return check.breaks(parent, proposed)
 }
 
+/**
+ * A field as the rules read it: a blank timing is 0 years, as isPutBack and
+ * is30PlusYearsInAdvance read it, and any other blank is null, so a stored
+ * null and an edit's 0 or undefined are the same value.
+ */
+const BLANK_AS = Object.freeze({ advanceYears: 0, delayYears: 0 })
+const readField = (side, field) => side[field] ?? BLANK_AS[field] ?? null
+
 const changesAny = (fields, before, after) =>
-  fields.some((field) => before[field] !== after[field])
+  fields.some((field) => readField(before, field) !== readField(after, field))
 
 /**
  * The baseline tree a stored post-intervention tree is a degrade of: Created,
