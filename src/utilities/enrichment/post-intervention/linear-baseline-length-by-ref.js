@@ -36,6 +36,11 @@ const LAYER_BY_LABEL = Object.freeze({
  * - `sourceFeatureIdByRow` maps a post-intervention row's featureId to the
  *   featureId of the baseline feature it was resolved to
  *   (resync-post-intervention-baseline.js).
+ * - `sharedRefs` holds, per layer, each ref that more than one feature
+ *   carries. Once the re-derive has run (`resolved`), a row it could not
+ *   resolve is not priced by such a ref: the length would be whichever
+ *   feature came last, not the row's own, and the row would still show as
+ *   Complete. An upload, which has no re-derive, still prices by ref.
  */
 class BaselineLinearLengths {
   /** @type {Record<string, Map<string, number>>} */
@@ -44,11 +49,18 @@ class BaselineLinearLengths {
   /** @type {Map<string, number>} */
   byFeatureId = new Map()
 
+  /** @type {Record<string, Set<string>>} */
+  sharedRefs = { hedgerows: new Set(), watercourses: new Set() }
+
   /** @type {Map<string, string>} */
   sourceFeatureIdByRow
 
-  constructor(sourceFeatureIdByRow = new Map()) {
-    this.sourceFeatureIdByRow = sourceFeatureIdByRow
+  /** @type {boolean} */
+  resolved
+
+  constructor(sourceFeatureIdByRow) {
+    this.resolved = sourceFeatureIdByRow !== undefined
+    this.sourceFeatureIdByRow = sourceFeatureIdByRow ?? new Map()
   }
 }
 
@@ -60,6 +72,9 @@ function addLayerLengths(lengths, layer, features) {
     const lengthKm = linearLengthKmFromSizeMetres(feature.sizeMetres)
     const ref = normaliseRef(feature.ref)
     if (ref !== null) {
+      if (lengths.byRef[layer].has(ref)) {
+        lengths.sharedRefs[layer].add(ref)
+      }
       lengths.byRef[layer].set(ref, lengthKm)
     }
     if (feature.featureId) {
@@ -81,7 +96,8 @@ function addLayerLengths(lengths, layer, features) {
  * @param {object[]} [hedgerows]
  * @param {object[]} [watercourses]
  * @param {{ sourceFeatureIdByRow?: Map<string, string> }} [resolved]
- *   the baseline feature each post-intervention row was resolved to
+ *   the baseline feature each post-intervention row was resolved to, when
+ *   the re-derive has run; left out for an upload
  * @returns {BaselineLinearLengths}
  */
 export function buildBaselineLinearLengthByRef(
@@ -109,7 +125,9 @@ function lookupByFeatureId(lengths, featureId, layerLabel, owner) {
  * The baseline length an Enhanced linear feature is priced against: its
  * parent's, when it is linked to one (a BNG Service template feature), else
  * the baseline feature the re-derive resolved it to, else the baseline
- * feature in its own layer with its ref (a legacy feature).
+ * feature in its own layer with its ref (a legacy feature). Once the
+ * re-derive has run, a ref several features in the layer carry is refused
+ * rather than guessed at.
  *
  * @param {{ featureId?: string, ref?: string | null, parentFeatureId?: string }} feature
  * @param {BaselineLinearLengths | undefined} baselineLengthByRef
@@ -148,11 +166,19 @@ export function lookupBaselineLinearLength(
       `parcel ref "${shownValue(ref)}"`
     )
   }
+  const layer = LAYER_BY_LABEL[layerLabel]
   const key = normaliseRef(ref)
+  if (
+    key !== null &&
+    baselineLengthByRef.resolved &&
+    baselineLengthByRef.sharedRefs[layer]?.has(key)
+  ) {
+    throw new BaselineLookupError(
+      `Cannot calculate Enhanced ${layerLabel} units: several baseline ${layerLabel}s carry parcel ref "${shownValue(ref)}" and none could be matched to this feature`
+    )
+  }
   const lengthKm =
-    key === null
-      ? undefined
-      : baselineLengthByRef.byRef[LAYER_BY_LABEL[layerLabel]]?.get(key)
+    key === null ? undefined : baselineLengthByRef.byRef[layer]?.get(key)
   if (lengthKm == null) {
     throw new BaselineLookupError(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for parcel ref "${shownValue(ref)}"`

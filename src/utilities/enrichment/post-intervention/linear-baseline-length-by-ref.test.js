@@ -175,7 +175,39 @@ describe('a legacy feature the re-derive resolved to its baseline feature (BMD-1
     ).toBe(1)
   })
 
-  it('falls back to its ref when it was not resolved', () => {
+  it('throws, rather than guessing, when the re-derive could not resolve it and its ref is shared', () => {
+    const lengths = buildBaselineLinearLengthByRef(hedgerows, [], {
+      sourceFeatureIdByRow: new Map()
+    })
+
+    expect(() =>
+      lookupBaselineLinearLength(
+        { featureId: ROW_ID, ref: 'H2' },
+        lengths,
+        'hedgerow'
+      )
+    ).toThrow(
+      /several baseline hedgerows carry parcel ref "H2" and none could be matched/
+    )
+  })
+
+  it('falls back to its ref when the re-derive could not resolve it and the ref is unique in its layer', () => {
+    const lengths = buildBaselineLinearLengthByRef(
+      [{ ref: 'H1', featureId: LONG_ID, sizeMetres: 1000 }],
+      [{ ref: 'H1', featureId: SHORT_ID, sizeMetres: 100 }],
+      { sourceFeatureIdByRow: new Map() }
+    )
+
+    expect(
+      lookupBaselineLinearLength(
+        { featureId: ROW_ID, ref: 'H1' },
+        lengths,
+        'hedgerow'
+      )
+    ).toBe(1)
+  })
+
+  it('still falls back to its ref on an upload, which has no re-derive', () => {
     const lengths = buildBaselineLinearLengthByRef(hedgerows, [])
 
     expect(

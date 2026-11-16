@@ -2432,4 +2432,24 @@ describe('applyFeatureUpdate — Enhanced linear rows keep their own baseline le
       units: expected.units
     })
   })
+  test('a post-intervention edit leaves the Enhanced hedgerow Incomplete, not mispriced, when another hedgerow with its ref cannot be told apart', () => {
+    const project = projectWithEnhancedHedgerow()
+    // A 100 m hedgerow with the same type and condition carries H1 too, so
+    // nothing stored says which of the two the Enhanced row belongs to.
+    project.baseline.hedgerows.push({
+      featureId: SHORT_HEDGEROW_ID,
+      ref: 'H1',
+      ...NATIVE_GOOD,
+      sizeMetres: 100
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: PI_ENHANCED_HEDGEROW_ID,
+      documentKey: 'postIntervention',
+      edits: { habitatType: 'Species-rich native hedgerow', condition: 'Good' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({ status: 'Incomplete', units: null })
+  })
 })
