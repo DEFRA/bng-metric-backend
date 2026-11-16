@@ -364,10 +364,12 @@ describe('BMD-1045 Enhanced area edits', () => {
   test('a rename keeps a stored proposal the edit form no longer offers', () => {
     // A baseline the rules cannot read offers nothing, so its stored
     // proposal is not listed; sending it back unchanged must not refuse or
-    // clear it.
+    // clear it. Every stored value is one persistence accepts.
     const unread = {
       ...feature,
-      baseline: { broadType: 'Nope', type: 'Unknown', condition: 'Poor' }
+      // An incomplete baseline, with no condition the rules can read, as
+      // persistence would store it.
+      baseline: { ...baseline, condition: null }
     }
     const kept = {
       ...edits,
@@ -414,7 +416,9 @@ describe('BMD-1045 Enhanced area edits', () => {
   test('a rename keeps a stored proposal the edit form no longer offers, end to end', async () => {
     const unread = {
       ...feature,
-      baseline: { broadType: 'Nope', type: 'Unknown', condition: 'Poor' }
+      // An incomplete baseline, with no condition the rules can read, as
+      // persistence would store it.
+      baseline: { ...baseline, condition: null }
     }
     await updatePostInterventionAreaHabitat.handler(
       routeRequest(

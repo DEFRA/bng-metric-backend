@@ -665,6 +665,61 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
 })
 
 describe('BMD-1045 Enhanced area editing', () => {
+  it('saves a rename that keeps a stored IGGI proposal, which neither edit list offers', async () => {
+    // Littoral sand at Moderate can be enhanced to an IGGI in Good
+    // condition, and an import keeps that proposal.
+    const iggi = {
+      broadType: 'Intertidal hard structures',
+      type: 'Artificial hard structures with integrated greening of grey infrastructure (IGGI)',
+      condition: 'Good'
+    }
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'E-IGGI',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: ONE_HECTARE_IN_SQUARE_METRES,
+      units: 0,
+      status: 'Incomplete',
+      baseline: {
+        broadType: 'Intertidal sediment',
+        type: 'Littoral sand',
+        condition: 'Moderate'
+      },
+      proposed: { ...iggi, strategicSignificance: 'Low' }
+    }
+    const projectId = await seedProject({
+      name: 'Enhanced area IGGI rename IT',
+      postIntervention: { habitats: [feature] }
+    })
+
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${projectId}/post-intervention/habitats/${feature.featureId}`,
+      headers,
+      payload: {
+        ref: 'E-IGGI renamed',
+        broadType: iggi.broadType,
+        habitatType: iggi.type,
+        condition: iggi.condition,
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    })
+
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result).toMatchObject({
+      ref: 'E-IGGI renamed',
+      status: 'Complete',
+      proposed: iggi
+    })
+    const { rows } = await dbClient.query(
+      'SELECT project FROM bng.projects WHERE id = $1',
+      [projectId]
+    )
+    expect(rows[0].project.postIntervention.habitats[0]).toEqual(res.result)
+  })
+
   it('persists complete and incomplete edits and refuses a choice that is not an enhancement of the baseline', async () => {
     const feature = {
       featureId: randomUUID(),
