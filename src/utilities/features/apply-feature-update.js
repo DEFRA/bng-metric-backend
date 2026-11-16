@@ -27,11 +27,10 @@ import {
   recomputeWatercourse
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
-import { cleanComment } from '../../validation/geopackage/comment-check.js'
-import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
-import { brokenEnhancementRule } from './edit-enhancement-rule.js'
+import { brokenEditRule, EDIT_RULE_KIND } from './edit-rules.js'
+import { normalizeEdits } from './normalize-edits.js'
 import {
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -68,75 +67,15 @@ const APPLY_RESULT = Object.freeze({
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
   INVALID_ENHANCEMENT: 'invalidEnhancement',
+  INVALID_DEGRADE: 'invalidDegrade',
   REF_IN_USE: 'refInUse'
 })
 
-function blankToNull(value) {
-  if (value === null || value === undefined) {
-    return null
-  } else {
-    const trimmed = typeof value === 'string' ? value.trim() : value
-    if (trimmed === '') {
-      return null
-    } else {
-      return trimmed
-    }
-  }
-}
-
-/**
- * The edited ref as it is stored, or undefined when the edit leaves the ref
- * alone. Unlike the dropdown fields, an absent ref is not a request to clear
- * it: a habitat must always have one (BMD-1058), and baseline renaming (BMD-1061) and full Created-area edits
- * send it. The route has already refused a blank one.
- *
- * @param {unknown} ref
- * @returns {string | undefined}
- */
-function normalizeRef(ref) {
-  if (ref === undefined || ref === null) {
-    return undefined
-  }
-  const cleaned = cleanHabitatRef(ref)
-  return cleaned === '' ? undefined : cleaned
-}
-
-/**
- * The edited comment as it is stored, or undefined when the edit leaves it
- * alone. An absent comment is not a request to clear it. Blank and
- * whitespace-only become null.
- *
- * @param {object} edits
- * @returns {string | null | undefined}
- */
-function normalizeComment(edits) {
-  if (!Object.hasOwn(edits, 'comment')) {
-    return undefined
-  }
-  return cleanComment(edits.comment)
-}
-
-function normalizeEdits(edits = {}) {
-  return {
-    ref: normalizeRef(edits.ref),
-    ...(Object.hasOwn(edits, 'advanceYears')
-      ? {
-          strategicSignificance:
-            edits.strategicSignificance === undefined
-              ? undefined
-              : blankToNull(edits.strategicSignificance),
-          advanceYears: edits.advanceYears,
-          delayYears: edits.delayYears
-        }
-      : {}),
-    broadType: blankToNull(edits.broadType),
-    habitatType: blankToNull(edits.habitatType),
-    condition: blankToNull(edits.condition),
-    watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
-    riparianEncroachment: blankToNull(edits.riparianEncroachment),
-    comment: normalizeComment(edits)
-  }
-}
+/** The rejection for each kind of service rule an edit breaks. */
+const REJECTION_BY_EDIT_RULE = Object.freeze({
+  [EDIT_RULE_KIND.enhancement]: APPLY_RESULT.INVALID_ENHANCEMENT,
+  [EDIT_RULE_KIND.degrade]: APPLY_RESULT.INVALID_DEGRADE
+})
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   if (documentKey === 'postIntervention') {
@@ -536,13 +475,13 @@ function resolveEditTarget(
       }
     }
   }
-  const rule = brokenEnhancementRule(found, derived, documentKey)
-  if (rule) {
+  const broken = brokenEditRule(found, derived, { documentKey, baseline })
+  if (broken) {
     return {
       rejection: {
-        status: APPLY_RESULT.INVALID_ENHANCEMENT,
+        status: REJECTION_BY_EDIT_RULE[broken.kind],
         type: found.type,
-        rule
+        rule: broken.rule
       }
     }
   }
@@ -615,6 +554,7 @@ function withUpdatedFeature(
  *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
+ *   { status: 'invalidDegrade', type: string, rule: string } |
  *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
