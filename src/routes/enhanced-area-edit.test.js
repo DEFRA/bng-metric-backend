@@ -3,7 +3,10 @@ import {
   calculateEnhancedAreaHabitatPostIntervention,
   HABITAT_DIFFICULTY
 } from 'bng-library/metric'
-import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
+import {
+  _areaEnhancementCacheSize,
+  getAreaEnhancementReference
+} from '../validation/reference/area-enhancement.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import {
   checkFeatureEnhancement,
@@ -271,13 +274,65 @@ describe('BMD-1045 Enhanced area edits', () => {
     ],
     ['an unknown broad habitat', { broadType: 'Nope' }]
   ])('the route refuses %s before any write', async (_name, overrides) => {
+    // ENHANCEMENT_NOT_VALID, so the edit form can show it against the target
+    // condition, as for a page loaded before its baseline was edited.
     await expect(
       updatePostInterventionAreaHabitat.handler(
         routeRequest({ ...edits, ...overrides }),
         {}
       )
-    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 422,
+        payload: { code: 'ENHANCEMENT_NOT_VALID', rule: 'offered-enhancement' }
+      }
+    })
     expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('a rename keeps a stored proposal the edit form no longer offers', () => {
+    // A baseline the rules cannot read offers nothing, so its stored
+    // proposal is not listed; sending it back unchanged must not refuse or
+    // clear it.
+    const unread = {
+      ...feature,
+      baseline: { broadType: 'Nope', type: 'Unknown', condition: 'Poor' }
+    }
+    const kept = {
+      ...edits,
+      broadType: unread.proposed.broadType,
+      habitatType: unread.proposed.type,
+      condition: unread.proposed.condition
+    }
+    expect(validateCreatedAreaEdit(unread, kept)).toMatchObject({
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Fairly Poor'
+    })
+  })
+
+  test('a kept condition under a changed habitat type is checked against the list', () => {
+    // Modified grassland does not list Poor, the baseline's own condition, as
+    // a target, though Other neutral grassland does.
+    const stored = {
+      ...feature,
+      proposed: {
+        ...feature.proposed,
+        type: 'Other neutral grassland',
+        condition: 'Poor'
+      }
+    }
+    expect(() =>
+      validateCreatedAreaEdit(stored, {
+        ...edits,
+        habitatType: 'Modified grassland',
+        condition: 'Poor'
+      })
+    ).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({ statusCode: 422 })
+      })
+    )
   })
 
   test('AC14: the route refuses both an advance and a delay above zero', async () => {
@@ -324,9 +379,22 @@ describe('BMD-1045 edge cases', () => {
     )
   })
 
-  test('an Enhanced area with no stored baseline is offered nothing, so any choice is refused', () => {
+  test('an Enhanced area with no stored baseline is offered nothing, so any new choice is refused', () => {
     const { baseline: _omitted, ...withoutBaseline } = feature
     expect(() => validateCreatedAreaEdit(withoutBaseline, edits)).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({ statusCode: 422 })
+      })
+    )
+  })
+
+  test('a Created area’s refused choice is still a bad request', () => {
+    expect(() =>
+      validateCreatedAreaEdit(
+        { ...feature, retentionCategory: 'Created' },
+        { ...edits, broadType: 'Nope' }
+      )
+    ).toThrow(
       expect.objectContaining({
         output: expect.objectContaining({ statusCode: 400 })
       })
@@ -352,12 +420,24 @@ describe('BMD-1045 edge cases', () => {
     })
   })
 
-  // Fills the cache with 501 baselines, each read against every habitat.
-  test('the per-baseline cache starts again once full, and still answers correctly', () => {
-    const expected = getAreaEnhancementReference(baseline)
-    for (let i = 0; i <= 500; i++) {
-      getAreaEnhancementReference({ broadType: 'Nope', type: `Unknown ${i}` })
+  test('a baseline the rules cannot read is offered nothing and not cached', () => {
+    const before = _areaEnhancementCacheSize()
+    for (const unread of [
+      { broadType: 'Nope', type: 'Unknown', condition: 'Poor' },
+      { ...baseline, condition: 'Not a condition' },
+      { ...baseline, condition: null }
+    ]) {
+      expect(getAreaEnhancementReference(unread).habitatTypes).toEqual([])
     }
-    expect(getAreaEnhancementReference(baseline)).toEqual(expected)
-  }, 30_000)
+    expect(_areaEnhancementCacheSize()).toBe(before)
+  })
+
+  test('the same baseline read two ways shares one cached answer', () => {
+    const expected = getAreaEnhancementReference(baseline)
+    const size = _areaEnhancementCacheSize()
+    expect(
+      getAreaEnhancementReference({ ...baseline, condition: '1. Poor' })
+    ).toEqual(expected)
+    expect(_areaEnhancementCacheSize()).toBe(size)
+  })
 })

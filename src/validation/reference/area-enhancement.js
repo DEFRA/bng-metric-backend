@@ -4,7 +4,10 @@ import {
   getAreaHabitatTypesByBroad,
   getConditionsForHabitatType
 } from './habitat-reference.js'
-import { enhancementTarget } from '../geopackage/post-intervention/enhancement-rules.js'
+import {
+  enhancementTarget,
+  readAreaSide
+} from '../geopackage/post-intervention/enhancement-rules.js'
 
 // BMD-1045: the choices an Enhanced area habitat's edit form offers are the
 // valid enhancements of its baseline, by the same rules an import applies
@@ -14,7 +17,10 @@ import { enhancementTarget } from '../geopackage/post-intervention/enhancement-r
 // enhancement difficulty. A broad habitat or habitat type is listed only when
 // it has at least one valid target condition.
 
-const CACHE_LIMIT = 500
+// Keyed on the baseline as the rules read it, so the keys are the finite set
+// of real area habitats and their conditions. A baseline the rules cannot
+// read is offered nothing and never cached, so the public reference route
+// cannot fill the cache with made-up baselines.
 const referenceByBaseline = new Map()
 
 function referenceKey(table, broad, name) {
@@ -76,13 +82,13 @@ export function getAreaEnhancementReference(baseline = {}) {
     type: baseline.type ?? null,
     condition: baseline.condition ?? null
   }
-  const key = JSON.stringify(side)
+  const { strategicSignificance, timeMultipliers } = getAreaCreationReference()
+  const { habitat, condition } = readAreaSide(side)
+  if (!habitat || !isConditionOf(habitat, condition)) {
+    return { habitatTypes: [], strategicSignificance, timeMultipliers }
+  }
+  const key = `${habitat}|${condition}`
   if (!referenceByBaseline.has(key)) {
-    if (referenceByBaseline.size >= CACHE_LIMIT) {
-      referenceByBaseline.clear()
-    }
-    const { strategicSignificance, timeMultipliers } =
-      getAreaCreationReference()
     referenceByBaseline.set(key, {
       habitatTypes: enhancementHabitatTypes(side),
       strategicSignificance,
@@ -90,4 +96,20 @@ export function getAreaEnhancementReference(baseline = {}) {
     })
   }
   return structuredClone(referenceByBaseline.get(key))
+}
+
+function isConditionOf(habitat, condition) {
+  return (
+    typeof condition === 'string' &&
+    getConditionsForHabitatType(habitat).some((c) => c.condition === condition)
+  )
+}
+
+/**
+ * How many baselines the reference holds, for tests.
+ *
+ * @returns {number}
+ */
+export function _areaEnhancementCacheSize() {
+  return referenceByBaseline.size
 }

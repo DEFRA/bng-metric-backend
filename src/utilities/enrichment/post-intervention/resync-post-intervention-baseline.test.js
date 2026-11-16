@@ -926,6 +926,59 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(tree.baseline.condition).toBe('Fairly Poor')
   })
 
+  test('keeps a renamed Enhanced area habitat’s ref, and follows the parent it was renamed from, when that parent is edited (BMD-1045)', () => {
+    const baselineArea = (ref, condition, featureId = 'baseline-h1') => ({
+      featureId,
+      ref,
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 10000,
+      area: 10000
+    })
+    const side = (condition) => ({
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 10000,
+      area: 10000
+    })
+    const enhanced = {
+      featureId: 'pi-h1',
+      ref: 'H1 renamed',
+      referenceEdited: true,
+      parentFeatureId: 'baseline-h1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 10000,
+      area: 10000,
+      status: 'Complete',
+      units: null,
+      baseline: side('Poor'),
+      proposed: side('Moderate'),
+      properties: {}
+    }
+    const postIntervention = { habitats: [enhanced], lostHabitats: [] }
+
+    // Another baseline habitat carries the Enhanced area's new ref, so a join
+    // by ref would find the wrong one.
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [
+          baselineArea('H1', 'Fairly Poor'),
+          baselineArea('H1 renamed', 'Good', 'baseline-h2')
+        ]
+      },
+      previousBaseline: { habitats: [baselineArea('H1', 'Poor')] }
+    })
+
+    const [area] = postIntervention.habitats
+    expect(area.ref).toBe('H1 renamed')
+    expect(area.parentFeatureId).toBe('baseline-h1')
+    expect(area.baseline.condition).toBe('Fairly Poor')
+  })
+
   test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
     const baselineTree = (condition) => ({
       featureId: 'baseline-t1',
@@ -1591,11 +1644,26 @@ describe('preserveCreatedParent', () => {
     })
   })
 
-  test('leaves an Enhanced area habitat alone, as its own page does not rename it', () => {
+  test('finds a legacy Enhanced area habitat’s parent by its old ref before the rename (BMD-1045)', () => {
     const existing = created({ retentionCategory: 'Enhanced' })
     const updated = renamed(existing)
 
     preserveCreatedParent(existing, updated, context)
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('leaves an Enhanced hedgerow alone, as its own page does not rename it', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, {
+      ...context,
+      layer: 'hedgerows'
+    })
 
     expect(updated).not.toHaveProperty('referenceEdited')
     expect(updated).not.toHaveProperty('parentFeatureId')

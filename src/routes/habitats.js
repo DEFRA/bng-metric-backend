@@ -180,7 +180,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       404:
  *         description: Project or habitat not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`; `offered-enhancement` when an Enhanced area sends a choice its baseline's valid enhancements do not list, unless it keeps the stored value)
  *       409:
  *         description: Another edit for this project is in progress
  */

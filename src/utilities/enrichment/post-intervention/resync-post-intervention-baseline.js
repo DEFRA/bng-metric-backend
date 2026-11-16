@@ -353,9 +353,13 @@ function warnUnresolved(
   )
 }
 
+// The Enhanced features whose own page can rename them: a tree (BMD-1172) and
+// an area habitat (BMD-1045).
+const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats'])
+
 /**
  * Whether a post-intervention row's own edit page renames it: a Created
- * feature's, and an Enhanced individual tree's. A Retained row is renamed
+ * feature's, and an Enhanced individual tree's or area habitat's. A Retained row is renamed
  * through its baseline parcel instead (apply-retained-ref-edit.js).
  *
  * @param {object} feature
@@ -366,7 +370,7 @@ function isRenamedOnItsOwnPage(feature, layer) {
   const retention = resolveRetentionCategory(feature)
   return (
     retention === RETENTION_CREATED ||
-    (retention === RETENTION_ENHANCED && layer === 'trees')
+    (retention === RETENTION_ENHANCED && ENHANCED_OWN_PAGE_LAYERS.has(layer))
   )
 }
 
@@ -374,7 +378,7 @@ function isRenamedOnItsOwnPage(feature, layer) {
  * Whether a row renamed on its own page is joined to its baseline feature by
  * the parent recorded when it was renamed, rather than by its ref. Only such a
  * row is marked `referenceEdited` (preserveCreatedParent): a Created one, or
- * an Enhanced tree.
+ * an Enhanced tree or area habitat.
  *
  * @param {object} feature
  * @returns {boolean}
@@ -389,7 +393,7 @@ function isJoinedByEditedRef(feature) {
 
 /**
  * Preserve lineage before an editable Created reference, or an Enhanced
- * tree's, changes its join key.
+ * tree's or area habitat's, changes its join key.
  *
  * A BNG Service template row's parent is the one its file named, kept as
  * `parentFeatureId` whatever its ref (BMD-1083). One that names none has no

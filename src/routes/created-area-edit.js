@@ -8,6 +8,7 @@ import {
 } from './created-feature-edit.js'
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
+import { invalidEnhancementError } from './invalid-enhancement-error.js'
 import {
   resolveRetentionCategory,
   RETENTION_CREATED,
@@ -46,8 +47,24 @@ export function validateCreatedAreaEdit(feature, edits) {
   }
   const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
-  validateAreaChoices(resolved, reference)
+  if (!areaChoicesValid(resolved, reference, feature.proposed ?? {})) {
+    throw refusedAreaChoices(feature)
+  }
   return resolved
+}
+
+// The rule an Enhanced area breaks when it sends a choice its baseline's valid
+// enhancements do not list, such as from a page loaded before the baseline
+// was edited (BMD-1045).
+const OFFERED_ENHANCEMENT_RULE = 'offered-enhancement'
+
+// An Enhanced area's choices are refused as an invalid enhancement, so its
+// edit form can show the refusal against the target condition; a Created
+// area's as a bad request.
+function refusedAreaChoices(feature) {
+  return resolveRetentionCategory(feature) === RETENTION_ENHANCED
+    ? invalidEnhancementError(OFFERED_ENHANCEMENT_RULE)
+    : Boom.badRequest('Choose valid area habitat and target condition options')
 }
 
 // A Created area chooses from every area habitat it can be created as
@@ -64,20 +81,32 @@ function editReference(feature) {
   return null
 }
 
-function validateAreaChoices(edits, reference) {
+// Each choice must be one the reference offers, unless it keeps the stored
+// value along with every choice above it: a broad habitat, a type in it and a
+// condition of that type. An Enhanced area saved before its baseline changed,
+// or whose baseline the rules cannot read, keeps a proposal its edit form does
+// not list, and renaming it must not refuse or clear that proposal (BMD-1045).
+// The whole feature is still checked as an enhancement once recomputed
+// (brokenEnhancementRule).
+function areaChoicesValid(edits, reference, stored) {
+  const keepsBroad = keeps(edits.broadType, stored.broadType)
+  const keepsType = keepsBroad && keeps(edits.habitatType, stored.type)
+  const keepsCondition = keepsType && keeps(edits.condition, stored.condition)
   const type = reference.habitatTypes.find(
     (t) => t.broad === edits.broadType && t.name === edits.habitatType
   )
-  const invalidBroad =
-    edits.broadType &&
-    !reference.habitatTypes.some((t) => t.broad === edits.broadType)
-  const invalidType = edits.habitatType && !type
-  const invalidCondition =
-    edits.condition &&
-    !type?.conditions.some((c) => c.condition === edits.condition)
-  if (invalidBroad || invalidType || invalidCondition) {
-    throw Boom.badRequest(
-      'Choose valid area habitat and target condition options'
-    )
-  }
+  const validBroad =
+    !edits.broadType ||
+    keepsBroad ||
+    reference.habitatTypes.some((t) => t.broad === edits.broadType)
+  const validType = !edits.habitatType || keepsType || Boolean(type)
+  const validCondition =
+    !edits.condition ||
+    keepsCondition ||
+    Boolean(type?.conditions.some((c) => c.condition === edits.condition))
+  return validBroad && validType && validCondition
+}
+
+function keeps(value, stored) {
+  return Boolean(value) && value === stored
 }

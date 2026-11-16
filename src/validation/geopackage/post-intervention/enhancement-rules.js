@@ -129,6 +129,18 @@ function readSide(layerKind, side) {
 }
 
 /**
+ * An area habitat side as the area rules read it: the metric's habitat label
+ * and the condition with its list prefix stripped. The habitat is null when
+ * the rules do not recognise it (BMD-1045).
+ *
+ * @param {object | undefined} side
+ * @returns {EnhancementSide}
+ */
+export function readAreaSide(side) {
+  return readSide(KIND_BY_LAYER.habitats, side)
+}
+
+/**
  * @typedef {object} EnhancementSide
  * @property {string | null} habitat the metric's label, null if unrecognised
  * @property {unknown} condition prefix stripped
