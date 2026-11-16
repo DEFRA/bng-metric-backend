@@ -554,6 +554,7 @@ function withUpdatedFeature(
  *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
+ *   { status: 'invalidDegrade', type: string, rule: string } |
  *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }

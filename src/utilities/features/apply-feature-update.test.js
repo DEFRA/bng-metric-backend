@@ -2468,6 +2468,35 @@ describe('applyFeatureUpdate — a degraded post-intervention tree (BMD-1184)', 
     })
   })
 
+  // A blank condition is no condition lower than the baseline tree's, so
+  // clearing it is a break of the condition rule unless the tree is put back
+  // after a delay, which is then saved Incomplete, as any Created tree is.
+  test('refuses clearing its condition with no delay, leaving the tree unchanged', () => {
+    const project = projectWithDegradedTree()
+    const before = JSON.stringify(project)
+
+    expect(editDegradedTree({ condition: '' }, project)).toEqual({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      type: 'tree',
+      rule: 'degrade-worse-condition'
+    })
+    expect(JSON.stringify(project)).toBe(before)
+  })
+
+  test('saves clearing its condition once put back after a delay, Incomplete with no units', () => {
+    const result = editDegradedTree(
+      { condition: '', advanceYears: 0, delayYears: 5 },
+      projectWithDegradedTree({ advanceYears: 0, delayYears: 5 })
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      status: 'Incomplete',
+      units: 0,
+      proposed: { condition: null, delayYears: 5 }
+    })
+  })
+
   test('does not hold a Newly Planted tree linked to a parent to the degrade rules: it is planting', () => {
     const project = projectWithDegradedTree({ category: 'Newly Planted' })
 
