@@ -2,7 +2,11 @@ import { UNENHANCEABLE_BASELINE } from 'bng-library/metric'
 import { describe, expect, it } from 'vitest'
 
 import { ERROR_CODES } from '../errors.js'
-import { refuseUnenhanceableBaselines } from './refuse-unenhanceable-baselines.js'
+import {
+  refuseUnenhanceableBaselines,
+  refuseUnenhanceableFeatures,
+  refuseUnenhanceableTrees
+} from './refuse-unenhanceable-baselines.js'
 
 const SAMPLE_CAP = 50
 
@@ -22,6 +26,38 @@ function area(ref, type, condition, broadType = 'Grassland') {
 function linear(ref, type, condition) {
   return enhanced(ref, { type, condition })
 }
+
+/** The refusal that checks a layer: trees have their own. */
+const refusalFor = (layer) =>
+  layer === 'trees' ? refuseUnenhanceableTrees : refuseUnenhanceableBaselines
+
+describe('refuseUnenhanceableFeatures', () => {
+  const goodTree = area('T1', 'Rural tree', 'Good', 'Individual trees')
+  const goodGrassland = area('H1', 'Other neutral grassland', 'Good')
+
+  it('refuses a file with both with an error for each', () => {
+    expect(
+      refuseUnenhanceableFeatures({
+        habitats: [goodGrassland],
+        trees: [goodTree]
+      }).map((error) => error.code)
+    ).toEqual([
+      ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+      ERROR_CODES.TREE_NOT_ENHANCEABLE
+    ])
+  })
+
+  it('refuses a file with one with that error alone, and accepts one with neither', () => {
+    expect(
+      refuseUnenhanceableFeatures({ trees: [goodTree] }).map((e) => e.code)
+    ).toEqual([ERROR_CODES.TREE_NOT_ENHANCEABLE])
+    expect(
+      refuseUnenhanceableFeatures({
+        habitats: [area('H1', 'Other neutral grassland', 'Moderate')]
+      })
+    ).toBeNull()
+  })
+})
 
 describe('refuseUnenhanceableBaselines', () => {
   it('AC1 refuses an enhanced Medium area habitat in Good condition', () => {
@@ -172,7 +208,7 @@ describe('refuseUnenhanceableBaselines', () => {
     (layer, feature) => {
       delete feature.proposed
 
-      const error = refuseUnenhanceableBaselines({ [layer]: [feature] })
+      const error = refusalFor(layer)({ [layer]: [feature] })
 
       expect(error.details.sample[0]).toMatchObject({
         layer,
@@ -245,7 +281,7 @@ describe('refuseUnenhanceableBaselines', () => {
     ['watercourses', linear(undefined, 'Ditches', 'Good'), 'a watercourse'],
     ['trees', area(null, 'Rural tree', 'Good', 'Individual trees'), 'a tree']
   ])('names a feature on %s with no ref as %j', (layer, feature, label) => {
-    const error = refuseUnenhanceableBaselines({ [layer]: [feature] })
+    const error = refusalFor(layer)({ [layer]: [feature] })
 
     expect(error.message).toMatch(new RegExp(`: ${label}$`))
   })
@@ -292,12 +328,16 @@ describe('refuseUnenhanceableBaselines', () => {
   })
 
   it.each(['Rural tree', 'Urban tree'])(
-    'AC1 refuses an enhanced %s in Good condition, a Medium area habitat',
+    'refuses an enhanced %s in Good condition with its own error, a Medium area habitat',
     (type) => {
-      const error = refuseUnenhanceableBaselines({
+      const error = refuseUnenhanceableTrees({
         trees: [area('T1', type, 'Good', 'Individual trees')]
       })
 
+      expect(error.code).toBe(ERROR_CODES.TREE_NOT_ENHANCEABLE)
+      expect(error.message).toBe(
+        'One or more trees are enhanced, but their baseline tree is in Good condition and cannot be enhanced: record each as Retained, or, if its condition will get worse, as lost and Created in a lower condition 30+ years in advance: Feature Ref T1'
+      )
       expect(error.details.sample).toEqual([
         expect.objectContaining({
           layer: 'trees',
@@ -311,10 +351,18 @@ describe('refuseUnenhanceableBaselines', () => {
 
   it('accepts an enhanced tree in Moderate condition', () => {
     expect(
-      refuseUnenhanceableBaselines({
+      refuseUnenhanceableTrees({
         trees: [area('T1', 'Rural tree', 'Moderate', 'Individual trees')]
       })
     ).toBeNull()
+  })
+
+  it('leaves trees to refuseUnenhanceableTrees, and the other habitats to it', () => {
+    const goodTree = area('T1', 'Rural tree', 'Good', 'Individual trees')
+    const goodGrassland = area('H1', 'Other neutral grassland', 'Good')
+
+    expect(refuseUnenhanceableBaselines({ trees: [goodTree] })).toBeNull()
+    expect(refuseUnenhanceableTrees({ habitats: [goodGrassland] })).toBeNull()
   })
 
   describe('a row linked to its parent in the baseline (BNG Service template)', () => {

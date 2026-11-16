@@ -246,6 +246,175 @@ describe('#getPostInterventionFeature', () => {
   })
 })
 
+// BMD-1187: a Retained feature carries its baseline parcel's comment. The
+// route reads the feature (with the upload's template record), then only that
+// feature's baseline layer, so the stub answers the two selects in turn.
+describe('#getPostInterventionFeature — a Retained feature’s baseline comment', () => {
+  const BASELINE_PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440010'
+  const retainedHabitat = {
+    ...sampleHabitat,
+    ref: 'A1',
+    retentionCategory: 'Retained',
+    baseline: { type: 'Modified grassland', broadType: 'Grassland' }
+  }
+
+  function sequenceMockDrizzle(...results) {
+    const select = vi.fn()
+    for (const rows of results) {
+      select.mockReturnValueOnce({
+        from: () => ({ where: () => Promise.resolve(rows) })
+      })
+    }
+    return { select }
+  }
+
+  function featureLookupRow(feature, { template = null } = {}) {
+    return {
+      ...featureRow(
+        {
+          id: PROJECT_ID,
+          project: { postIntervention: { habitats: [feature] } }
+        },
+        feature.featureId,
+        'postIntervention'
+      ),
+      template
+    }
+  }
+
+  function getRequest(drizzle, featureId = HABITAT_ID) {
+    return {
+      drizzle,
+      auth: AUTH,
+      params: { projectId: PROJECT_ID, featureId }
+    }
+  }
+
+  test('returns the joined baseline feature’s comment', async () => {
+    const drizzle = sequenceMockDrizzle(
+      [featureLookupRow(retainedHabitat)],
+      [
+        {
+          features: [
+            { featureId: BASELINE_PARENT_ID, ref: 'A1', comment: 'Saved' }
+          ]
+        }
+      ]
+    )
+
+    const result = await getPostInterventionFeature.handler(
+      getRequest(drizzle),
+      {}
+    )
+
+    expect(result).toEqual({
+      type: 'habitat',
+      feature: retainedHabitat,
+      baselineComment: 'Saved'
+    })
+  })
+
+  test('reads only the feature’s own baseline layer', async () => {
+    const drizzle = sequenceMockDrizzle(
+      [featureLookupRow(retainedHabitat)],
+      [{ features: [] }]
+    )
+
+    await getPostInterventionFeature.handler(getRequest(drizzle), {})
+
+    const layerSelect = drizzle.select.mock.calls[1][0]
+    expect(Object.keys(layerSelect)).toEqual(['features'])
+  })
+
+  test('returns null when the joined baseline feature has no comment', async () => {
+    const drizzle = sequenceMockDrizzle(
+      [featureLookupRow(retainedHabitat)],
+      [{ features: [{ featureId: BASELINE_PARENT_ID, ref: 'A1' }] }]
+    )
+
+    const result = await getPostInterventionFeature.handler(
+      getRequest(drizzle),
+      {}
+    )
+
+    expect(result.baselineComment).toBeNull()
+  })
+
+  test('returns null when the baseline holds no such layer', async () => {
+    const drizzle = sequenceMockDrizzle(
+      [featureLookupRow(retainedHabitat)],
+      [{ features: null }]
+    )
+
+    const result = await getPostInterventionFeature.handler(
+      getRequest(drizzle),
+      {}
+    )
+
+    expect(result.baselineComment).toBeNull()
+  })
+
+  test('joins a template upload’s row by its parent, not its own comment or ref', async () => {
+    const row = {
+      ...retainedHabitat,
+      ref: 'PI-ref',
+      parentFeatureId: BASELINE_PARENT_ID,
+      comment: 'Imported with the post-intervention table'
+    }
+    const drizzle = sequenceMockDrizzle(
+      [featureLookupRow(row, { template: { name: 'bng-service' } })],
+      [
+        {
+          features: [
+            {
+              featureId: BASELINE_PARENT_ID,
+              ref: 'Baseline-ref',
+              comment: 'Saved'
+            }
+          ]
+        }
+      ]
+    )
+
+    const result = await getPostInterventionFeature.handler(
+      getRequest(drizzle),
+      {}
+    )
+
+    expect(result.baselineComment).toBe('Saved')
+  })
+
+  test.each(['Enhanced', 'Created'])(
+    'leaves baselineComment off an %s feature, without reading the baseline',
+    async (retentionCategory) => {
+      const drizzle = sequenceMockDrizzle([
+        featureLookupRow({ ...retainedHabitat, retentionCategory })
+      ])
+
+      const result = await getPostInterventionFeature.handler(
+        getRequest(drizzle),
+        {}
+      )
+
+      expect(result).not.toHaveProperty('baselineComment')
+      expect(drizzle.select).toHaveBeenCalledTimes(1)
+    }
+  )
+
+  test('adds nothing to a baseline feature read', async () => {
+    const drizzle = getFeatureMockDrizzle([
+      featureRow(makeProject(), HABITAT_ID)
+    ])
+
+    const result = await getFeature.handler(getRequest(drizzle), {})
+
+    expect(result).not.toHaveProperty('baselineComment')
+    expect(Object.keys(drizzle.select.mock.calls[0][0])).not.toContain(
+      'template'
+    )
+  })
+})
+
 describe('#getFeature validation', () => {
   const paramsSchema = getFeature.options.validate.params
 

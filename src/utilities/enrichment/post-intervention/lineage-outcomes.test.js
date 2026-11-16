@@ -261,93 +261,73 @@ describe('lostBaselineHabitats — vertical area habitats', () => {
 })
 
 describe('lostBaselineHabitats — individual trees', () => {
-  /** A baseline tree point standing for `count` Medium trees (163 m² each). */
-  const tree = (n, count) => ({
+  /** A baseline tree point: one Medium tree (163 m²). */
+  const tree = (n) => ({
     featureId: id(n),
     ref: `T00${n}`,
     type: 'Urban tree',
     broadType: 'Individual trees',
     treeSize: 'Medium',
     condition: 'Moderate',
-    count,
-    sizeSquareMetres: 163 * (count ?? 1)
+    sizeSquareMetres: 163
   })
-  const kept = (n, parent, retentionCategory, count) => ({
-    ...child(n, parent, retentionCategory, 163 * (count ?? 1)),
-    count
-  })
+  const kept = (n, parent, retentionCategory) =>
+    child(n, parent, retentionCategory, 163)
 
-  it('records a felled tree, which no post-intervention point names, as removed in full', () => {
-    expect(
-      lostBaselineHabitats({ trees: [] }, { trees: [tree(1, 3)] })
-    ).toEqual([
+  it('records a felled tree, which no post-intervention point names, as one tree removed in full', () => {
+    expect(lostBaselineHabitats({ trees: [] }, { trees: [tree(1)] })).toEqual([
       {
         layer: 'trees',
         featureId: id(1),
         ref: 'T001',
         type: 'Urban tree',
         outcome: LOST_OUTCOME.removed,
-        lostSizeSquareMetres: 489,
-        lostTreeCount: 3,
+        lostSizeSquareMetres: 163,
+        lostTreeCount: 1,
         recreatedAs: []
       }
     ])
   })
 
-  it('records the trees its Retained and Enhanced points do not keep as lost', () => {
-    const parent = tree(1, 5)
+  it.each(['Retained', 'Enhanced'])(
+    'records nothing for a tree its %s point keeps, whatever is planted besides',
+    (retentionCategory) => {
+      const parent = tree(1)
+      const planted = {
+        ...kept(2, parent, 'Created'),
+        properties: { Category: 'Newly Planted' }
+      }
 
-    const [lost] = lostBaselineHabitats(
-      {
-        trees: [
-          kept(1, parent, 'Retained', 2),
-          kept(2, parent, 'Enhanced', 1),
-          // New planting is not the parent kept.
-          kept(3, parent, 'Created', 4)
-        ]
-      },
-      { trees: [parent] }
-    )
+      expect(
+        lostBaselineHabitats(
+          { trees: [kept(1, parent, retentionCategory), planted] },
+          { trees: [parent] }
+        )
+      ).toEqual([])
+    }
+  )
 
-    expect(lost).toMatchObject({
-      outcome: LOST_OUTCOME.lost,
-      lostSizeSquareMetres: 326,
-      lostTreeCount: 2,
-      recreatedAs: []
-    })
-  })
-
-  it('records nothing for a tree kept whole, a blank Count being one tree', () => {
-    const parent = tree(1, null)
+  it('keeps or loses a tree with no recognised size class as one tree, by whether a point keeps it', () => {
+    const parent = { ...tree(1), treeSize: null, sizeSquareMetres: null }
+    const retained = { ...kept(1, parent, 'Retained'), sizeSquareMetres: null }
 
     expect(
-      lostBaselineHabitats(
-        { trees: [kept(1, parent, 'Retained', null)] },
-        { trees: [parent] }
-      )
+      lostBaselineHabitats({ trees: [retained] }, { trees: [parent] })
     ).toEqual([])
-  })
-
-  it('records felled trees by their Count when the tree has no recognised size class', () => {
-    const parent = { ...tree(1, 3), treeSize: null, sizeSquareMetres: null }
-    const child = { ...kept(1, parent, 'Retained', 1), sizeSquareMetres: null }
-
-    expect(
-      lostBaselineHabitats({ trees: [child] }, { trees: [parent] })
-    ).toEqual([
+    expect(lostBaselineHabitats({ trees: [] }, { trees: [parent] })).toEqual([
       expect.objectContaining({
         layer: 'trees',
-        outcome: LOST_OUTCOME.lost,
+        outcome: LOST_OUTCOME.removed,
         lostSizeSquareMetres: 0,
-        lostTreeCount: 2
+        lostTreeCount: 1
       })
     ])
   })
 
   it('records a tree replaced by Newly Planted trees as lost, not re-created', () => {
-    const parent = tree(1, 1)
+    const parent = tree(1)
     const planted = {
-      ...kept(1, parent, 'Created', 1),
+      ...kept(1, parent, 'Created'),
       properties: { Category: 'Newly Planted' }
     }
 
@@ -364,9 +344,9 @@ describe('lostBaselineHabitats — individual trees', () => {
   })
 
   it('records a tree whose condition gets worse as lost and re-created, in full', () => {
-    const parent = tree(1, 1)
+    const parent = tree(1)
     const degraded = {
-      ...kept(1, parent, 'Created', 1),
+      ...kept(1, parent, 'Created'),
       properties: { Category: 'Existing' },
       proposed: {
         type: 'Urban tree',

@@ -75,6 +75,31 @@ function habitatByIdColumns({ featureId }) {
 }
 
 /**
+ * The post-intervention document's `template` record, SQL NULL for a legacy
+ * upload: what tells a BNG Service template upload apart (isTemplateUpload),
+ * selected beside the feature so the document need not be.
+ */
+function postInterventionTemplateColumn() {
+  return sql`${projects.project} -> 'postIntervention' -> 'template'`.as(
+    'template'
+  )
+}
+
+/**
+ * Select map for one baseline layer, SQL NULL when the baseline holds no such
+ * layer. A post-intervention row's baseline parent is resolved within its own
+ * layer (resolveJoinedBaselineFeature), so only that layer is read, not the
+ * document. `layer` is bound as a parameter, never interpolated.
+ *
+ * @param {{ layer: string }} params
+ */
+function baselineLayerColumns({ layer }) {
+  return {
+    features: sql`${projects.project} -> 'baseline' -> ${layer}`.as('features')
+  }
+}
+
+/**
  * Read the layer columns back as a single match, mirroring findFeature: the
  * featureId is expected to be unique across layers, and the same id appearing
  * in two of them means upstream data corruption, so it throws rather than
@@ -99,4 +124,10 @@ function readFeatureMatch(row, featureId) {
   return matches[0] ?? null
 }
 
-export { featureByIdColumns, habitatByIdColumns, readFeatureMatch }
+export {
+  baselineLayerColumns,
+  featureByIdColumns,
+  habitatByIdColumns,
+  postInterventionTemplateColumn,
+  readFeatureMatch
+}
