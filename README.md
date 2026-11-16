@@ -200,6 +200,7 @@ validation failure.
 | `VALIDATION_MAX_RSS_BYTES`            | Derived | RSS above which new requests (not `/health`) get a 503. See below. |
 | `UPLOAD_READY_TIMEOUT_MS`             |    2000 | Wait for CDP Uploader to report the file ready.                    |
 | `UPLOAD_DOWNLOAD_TIMEOUT_MS`          |   10000 | Budget for streaming the file out of S3.                           |
+| `CDP_UPLOADER_TIMEOUT_MS`             |    5000 | Per call to the CDP Uploader. Below the frontend's 10 s timeout.   |
 
 Each worker settles at a few hundred MB of WebAssembly heap that is never
 returned, so the worker count is a memory budget as much as a throughput setting.
