@@ -1063,7 +1063,28 @@ describe('uploadRefusal', () => {
     expect(uploadRefusal({ validationError })).toMatchObject({
       errors: [validationError],
       internal: false,
-      reason: 'upload rejected'
+      reason: 'upload rejected',
+      message: 'no baseline area habitats'
+    })
+  })
+
+  it('passes a refusal with an error for each reason through as those errors, logging both messages', () => {
+    const validationError = [
+      {
+        code: ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+        message: 'a habitat cannot be enhanced'
+      },
+      {
+        code: ERROR_CODES.TREE_NOT_ENHANCEABLE,
+        message: 'a tree cannot be enhanced'
+      }
+    ]
+
+    expect(uploadRefusal({ validationError })).toEqual({
+      errors: validationError,
+      internal: false,
+      reason: 'upload rejected',
+      message: 'a habitat cannot be enhanced; a tree cannot be enhanced'
     })
   })
 })

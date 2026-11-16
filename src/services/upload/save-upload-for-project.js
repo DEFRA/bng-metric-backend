@@ -399,7 +399,7 @@ function derivedBaselineHasAreaHabitats(document) {
  * post-intervention document enriched against that baseline — not the stored
  * one, which the same transaction is about to replace.
  *
- * @returns {{ schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
+ * @returns {{ schemaError?: object, validationError?: object | object[], document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
  */
 function extractUploadDocuments(sized, context, logger, config) {
   const { layersWithIds, baselineLayers, baselineRead, storedProject } = sized
@@ -534,7 +534,7 @@ function runUntimed(_stage, run) {
  * @param {{ uploadId?: string | null, filename?: string | null, fileSize?: number | null, geometrySizes?: object, template?: { name: string, version: string }, baselineStage?: { layers: object, geometrySizes?: object } }} context
  * @param {{ logger: object, config: { projectDocumentKey: string }, runStage?: (stage: 'sizing' | 'enrich', run: Function) => Promise<object> }} options
  *   `runStage` wraps each stage; the route times them
- * @returns {Promise<{ sizingError?: Error, schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }>}
+ * @returns {Promise<{ sizingError?: Error, schemaError?: object, validationError?: object | object[], document?: object, geometries?: object, baseline?: object, postIntervention?: object }>}
  *   `baseline` and `postIntervention` for a post-intervention upload, which
  *   replaces both; `document` for a baseline upload
  */
@@ -631,7 +631,7 @@ export function uploadRefusal(extracted) {
   }
   if (extracted.validationError) {
     // A check that refuses a file for more than one reason sends an error
-    // for each (refuseUnenhanceableBaselines).
+    // for each (refuseUnenhanceableFeatures).
     const errors = [extracted.validationError].flat()
     return {
       errors,
