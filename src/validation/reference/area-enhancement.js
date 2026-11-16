@@ -84,10 +84,11 @@ export function getAreaEnhancementReference(baseline = {}) {
   }
   const { strategicSignificance, timeMultipliers } = getAreaCreationReference()
   const { habitat, condition } = readAreaSide(side)
-  if (!habitat || !isConditionOf(habitat, condition)) {
+  const knownCondition = habitat ? conditionOf(habitat, condition) : null
+  if (!knownCondition) {
     return { habitatTypes: [], strategicSignificance, timeMultipliers }
   }
-  const key = `${habitat}|${condition}`
+  const key = `${habitat}|${knownCondition}`
   if (!referenceByBaseline.has(key)) {
     referenceByBaseline.set(key, {
       habitatTypes: enhancementHabitatTypes(side),
@@ -98,10 +99,12 @@ export function getAreaEnhancementReference(baseline = {}) {
   return structuredClone(referenceByBaseline.get(key))
 }
 
-function isConditionOf(habitat, condition) {
+// The habitat's reference condition the baseline names, or null.
+function conditionOf(habitat, condition) {
   return (
-    typeof condition === 'string' &&
-    getConditionsForHabitatType(habitat).some((c) => c.condition === condition)
+    getConditionsForHabitatType(habitat).find(
+      (c) => typeof condition === 'string' && c.condition === condition
+    )?.condition ?? null
   )
 }
 

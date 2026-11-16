@@ -106,22 +106,35 @@ function editReference(feature) {
 // rule. Only a proposal whose baseline the rules cannot read is kept through
 // a rename.
 function areaChoicesValid(edits, reference, stored) {
-  const keepsBroad = keeps(edits.broadType, stored.broadType)
-  const keepsType = keepsBroad && keeps(edits.habitatType, stored.type)
-  const keepsCondition = keepsType && keeps(edits.condition, stored.condition)
+  const kept = keptChoices(edits, stored)
   const type = reference.habitatTypes.find(
     (t) => t.broad === edits.broadType && t.name === edits.habitatType
   )
-  const validBroad =
-    !edits.broadType ||
-    keepsBroad ||
-    reference.habitatTypes.some((t) => t.broad === edits.broadType)
-  const validType = !edits.habitatType || keepsType || Boolean(type)
-  const validCondition =
-    !edits.condition ||
-    keepsCondition ||
-    Boolean(type?.conditions.some((c) => c.condition === edits.condition))
-  return validBroad && validType && validCondition
+  return (
+    choiceValid(edits.broadType, kept.broad, () =>
+      reference.habitatTypes.some((t) => t.broad === edits.broadType)
+    ) &&
+    choiceValid(edits.habitatType, kept.type, () => Boolean(type)) &&
+    choiceValid(edits.condition, kept.condition, () =>
+      Boolean(type?.conditions.some((c) => c.condition === edits.condition))
+    )
+  )
+}
+
+// Which choices keep their stored value along with every choice above them.
+function keptChoices(edits, stored) {
+  const broad = keeps(edits.broadType, stored.broadType)
+  const type = broad && keeps(edits.habitatType, stored.type)
+  return {
+    broad,
+    type,
+    condition: type && keeps(edits.condition, stored.condition)
+  }
+}
+
+// A blank choice and a kept one are valid; any other must be offered.
+function choiceValid(value, kept, offered) {
+  return !value || kept || offered()
 }
 
 function keeps(value, stored) {
