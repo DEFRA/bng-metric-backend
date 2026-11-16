@@ -73,8 +73,13 @@ function update(overrides = {}, stored = feature) {
   )
 }
 
-function routeRequest(payload, stored = feature) {
-  const row = { project: { postIntervention: { habitats: [stored] } } }
+function routeRequest(payload, stored = feature, baselineDocument) {
+  const row = {
+    project: {
+      ...(baselineDocument ? { baseline: baselineDocument } : {}),
+      postIntervention: { habitats: [stored] }
+    }
+  }
   const tx = {
     execute: vi.fn(),
     select: () => ({
@@ -309,6 +314,127 @@ describe('BMD-1045 Enhanced area edits', () => {
       habitatType: 'Modified grassland',
       condition: 'Fairly Poor'
     })
+  })
+
+  test('a rename that keeps a proposal its improved baseline makes invalid is refused by the enhancement rule', async () => {
+    // The baseline was edited up to Moderate after a Moderate proposal was
+    // saved, so the proposal is no longer an enhancement of it and the list
+    // does not offer it.
+    const stored = {
+      ...feature,
+      baseline: { ...baseline, condition: 'Moderate' },
+      proposed: { ...feature.proposed, condition: 'Moderate' }
+    }
+    await expect(
+      updatePostInterventionAreaHabitat.handler(
+        routeRequest(
+          { ...edits, ref: 'Renamed', condition: 'Moderate' },
+          stored
+        ),
+        {}
+      )
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 422,
+        payload: {
+          code: 'ENHANCEMENT_NOT_VALID',
+          rule: expect.not.stringMatching(/^offered-enhancement$/)
+        }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('a rename keeps a stored proposal the edit form no longer offers, end to end', async () => {
+    const unread = {
+      ...feature,
+      baseline: { broadType: 'Nope', type: 'Unknown', condition: 'Poor' }
+    }
+    await updatePostInterventionAreaHabitat.handler(
+      routeRequest(
+        {
+          ...edits,
+          ref: 'Renamed',
+          broadType: unread.proposed.broadType,
+          habitatType: unread.proposed.type,
+          condition: unread.proposed.condition
+        },
+        unread
+      ),
+      {}
+    )
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      projectId,
+      expect.objectContaining({
+        feature: expect.objectContaining({
+          ref: 'Renamed',
+          proposed: expect.objectContaining({
+            broadType: 'Grassland',
+            type: 'Modified grassland',
+            condition: 'Fairly Poor'
+          })
+        })
+      })
+    )
+  })
+
+  test.each([
+    ['A Created', 'Created', 400],
+    ['An Enhanced', 'Enhanced', 422]
+  ])(
+    '%s area cannot keep a stored IGGI habitat type, which neither list offers',
+    (_label, retentionCategory, statusCode) => {
+      const iggi = {
+        broadType: 'Intertidal hard structures',
+        type: 'Artificial hard structures with integrated greening of grey infrastructure (IGGI)',
+        condition: 'Good'
+      }
+      const stored = {
+        ...feature,
+        retentionCategory,
+        proposed: { ...feature.proposed, ...iggi }
+      }
+      expect(() =>
+        validateCreatedAreaEdit(stored, {
+          ...edits,
+          broadType: iggi.broadType,
+          habitatType: iggi.type,
+          condition: iggi.condition
+        })
+      ).toThrow(
+        expect.objectContaining({
+          output: expect.objectContaining({ statusCode })
+        })
+      )
+    }
+  )
+
+  test('a rename through the route records the parent it was renamed from', async () => {
+    const baselineHabitat = {
+      featureId: 'baseline-h1',
+      ref: 'E-1',
+      ...baseline,
+      sizeSquareMetres: 25000,
+      area: 25000
+    }
+    await updatePostInterventionAreaHabitat.handler(
+      routeRequest({ ...edits, ref: 'E-1 renamed' }, feature, {
+        habitats: [baselineHabitat]
+      }),
+      {}
+    )
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      projectId,
+      expect.objectContaining({
+        feature: expect.objectContaining({
+          ref: 'E-1 renamed',
+          referenceEdited: true,
+          parentFeatureId: 'baseline-h1'
+        })
+      })
+    )
   })
 
   test('a kept condition under a changed habitat type is checked against the list', () => {

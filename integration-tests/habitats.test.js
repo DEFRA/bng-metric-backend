@@ -727,7 +727,12 @@ describe('BMD-1045 Enhanced area editing', () => {
       headers,
       payload: { ...payload, condition: 'Poor' }
     })
-    expect(refused.statusCode).toBe(HTTP_BAD_REQUEST)
+    // The contract the edit form reads to show the refusal on the condition.
+    expect(refused.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(refused.result).toMatchObject({
+      code: 'ENHANCEMENT_NOT_VALID',
+      rule: 'offered-enhancement'
+    })
     expect(await readProject()).toEqual(complete)
 
     const partial = await server.inject({

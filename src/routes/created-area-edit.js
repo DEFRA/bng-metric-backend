@@ -47,10 +47,26 @@ export function validateCreatedAreaEdit(feature, edits) {
   }
   const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
-  if (!areaChoicesValid(resolved, reference, feature.proposed ?? {})) {
+  if (!areaChoicesValid(resolved, reference, keepableChoices(feature))) {
     throw refusedAreaChoices(feature)
   }
   return resolved
+}
+
+// The stored choices an edit may keep unlisted: an Enhanced area's only, and
+// never an IGGI habitat type, which neither reference offers and no later
+// check refuses (BMD-1045). A Created area chooses from the creation list
+// alone, as before.
+function keepableChoices(feature) {
+  if (resolveRetentionCategory(feature) !== RETENTION_ENHANCED) {
+    return {}
+  }
+  const stored = feature.proposed ?? {}
+  return isIggi(stored.type) ? { broadType: stored.broadType } : stored
+}
+
+function isIggi(type) {
+  return typeof type === 'string' && type.includes('(IGGI)')
 }
 
 // The rule an Enhanced area breaks when it sends a choice its baseline's valid
@@ -83,11 +99,12 @@ function editReference(feature) {
 
 // Each choice must be one the reference offers, unless it keeps the stored
 // value along with every choice above it: a broad habitat, a type in it and a
-// condition of that type. An Enhanced area saved before its baseline changed,
-// or whose baseline the rules cannot read, keeps a proposal its edit form does
-// not list, and renaming it must not refuse or clear that proposal (BMD-1045).
-// The whole feature is still checked as an enhancement once recomputed
-// (brokenEnhancementRule).
+// condition of that type (BMD-1045). A kept choice skips only this
+// offered-enhancement check. The recomputed feature is still checked as an
+// enhancement (brokenEnhancementRule), so a kept proposal that is no longer a
+// valid enhancement of a readable baseline is refused with the library's
+// rule. Only a proposal whose baseline the rules cannot read is kept through
+// a rename.
 function areaChoicesValid(edits, reference, stored) {
   const keepsBroad = keeps(edits.broadType, stored.broadType)
   const keepsType = keepsBroad && keeps(edits.habitatType, stored.type)
