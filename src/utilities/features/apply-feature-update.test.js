@@ -2356,6 +2356,39 @@ describe('applyFeatureUpdate — a degraded post-intervention tree (BMD-1184)', 
     })
   })
 
+  // Its baseline tree edited to Poor, the condition the tree was degraded to:
+  // the tree no longer meets the condition rule, but that is the baseline
+  // edit's doing, so only an edit to the condition or timing is refused.
+  function projectWithBaselineTreeLowered() {
+    const project = projectWithDegradedTree()
+    project.baseline.trees[0].condition = 'Poor'
+    return project
+  }
+
+  test.each([
+    ['renames it', { ref: 'T001-degraded' }],
+    ['changes its strategic significance', { strategicSignificance: 'High' }]
+  ])(
+    'saves an edit that %s once its baseline tree is in the same condition',
+    (_, edits) => {
+      expect(
+        editDegradedTree(edits, projectWithBaselineTreeLowered()).status
+      ).toBe(APPLY_RESULT.OK)
+    }
+  )
+
+  test('still refuses a change to its condition once its baseline tree is in the same condition', () => {
+    expect(
+      editDegradedTree(
+        { condition: 'Moderate' },
+        projectWithBaselineTreeLowered()
+      )
+    ).toMatchObject({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      rule: 'degrade-worse-condition'
+    })
+  })
+
   test('does not hold a Newly Planted tree linked to a parent to the degrade rules: it is planting', () => {
     const project = projectWithDegradedTree({ category: 'Newly Planted' })
 

@@ -30,32 +30,69 @@ export const DEGRADE_RULE = Object.freeze({
   advance30Plus: 'degrade-advance-30-plus'
 })
 
-/** The baseline tree a post-intervention tree is linked to, if any. */
-function parentOf(tree, baseline) {
-  return tree.parentFeatureId
-    ? baseline?.trees?.find(
-        (parent) => parent.featureId === tree.parentFeatureId
-      )
-    : undefined
-}
-
-/**
- * Whether a stored post-intervention tree is a degraded one: Created,
- * Category Existing, and in its parent's setting, as lineage-outcomes.js
- * reads one when it records the parent as lost and created again.
- */
-function isDegradedTree(tree, parent) {
-  return (
-    Boolean(parent) &&
-    resolveRetentionCategory(tree) === RETENTION_CREATED &&
-    canDegrade(TREES, tree.properties) &&
-    isSameHabitatType(parent, tree.proposed ?? {})
-  )
-}
+/** Put back after a delay: a temporary loss the delay already discounts. */
+const isPutBack = (proposed) => (proposed.delayYears ?? 0) > 0
 
 /** "30+", which an import stores as 30 and an edit can send as either. */
 const is30PlusYearsInAdvance = (proposed) =>
   (proposed.advanceYears ?? 0) >= MAX_YEARS
+
+/**
+ * Each rule, in the order the upload checks them: whether a proposed side
+ * breaks it, whether a tree put back after a delay is exempt, and the fields
+ * an edit changes it by.
+ */
+const DEGRADE_CHECKS = Object.freeze([
+  {
+    rule: DEGRADE_RULE.sameSetting,
+    fields: ['type'],
+    breaks: (parent, proposed) => !isSameHabitatType(parent, proposed)
+  },
+  {
+    rule: DEGRADE_RULE.worseCondition,
+    fields: ['condition', 'delayYears'],
+    putBackExempt: true,
+    breaks: (parent, proposed) => !isLowerCondition(TREES, parent, proposed)
+  },
+  {
+    rule: DEGRADE_RULE.advance30Plus,
+    fields: ['advanceYears', 'delayYears'],
+    putBackExempt: true,
+    breaks: (_parent, proposed) => !is30PlusYearsInAdvance(proposed)
+  }
+])
+
+function breaksCheck(check, parent, proposed) {
+  if (check.putBackExempt && isPutBack(proposed)) {
+    return false
+  }
+  return check.breaks(parent, proposed)
+}
+
+const changesAny = (fields, before, after) =>
+  fields.some((field) => before[field] !== after[field])
+
+/**
+ * The baseline tree a stored post-intervention tree is a degrade of: Created,
+ * Category Existing, linked to it and in its setting, as lineage-outcomes.js
+ * reads one when it records the parent as lost and created again. Undefined
+ * for any other tree.
+ */
+function degradedParent(tree, baseline) {
+  if (
+    !tree.parentFeatureId ||
+    resolveRetentionCategory(tree) !== RETENTION_CREATED ||
+    !canDegrade(TREES, tree.properties)
+  ) {
+    return undefined
+  }
+  const parent = baseline?.trees?.find(
+    (candidate) => candidate.featureId === tree.parentFeatureId
+  )
+  return parent && isSameHabitatType(parent, tree.proposed ?? {})
+    ? parent
+    : undefined
+}
 
 /**
  * The degrade rule an edit to a degraded tree breaks, or null. An edit must
@@ -64,31 +101,32 @@ const is30PlusYearsInAdvance = (proposed) =>
  * the parent's loss into something the file did not record. The check runs on
  * the recomputed feature, which carries every proposed field.
  *
+ * A rule the tree already broke before the edit, such as after its baseline
+ * tree was edited to the same condition, refuses only an edit that changes
+ * the fields it is about: renaming the tree, or changing its strategic
+ * significance or comment, is still saved.
+ *
  * @param {{ type: string, feature: object }} found the stored feature
  * @param {{ updatedFeature?: object }} derived
  * @param {{ documentKey: string, baseline?: object }} context
  * @returns {string | null} one of DEGRADE_RULE
  */
 export function brokenDegradeRule(found, derived, { documentKey, baseline }) {
-  if (documentKey !== 'postIntervention' || found.type !== 'tree') {
-    return null
-  }
-  const parent = parentOf(found.feature, baseline)
   const edited = derived.updatedFeature
-  if (!edited || !isDegradedTree(found.feature, parent)) {
+  if (documentKey !== 'postIntervention' || found.type !== 'tree' || !edited) {
     return null
   }
-  const proposed = edited.proposed ?? {}
-  if (!isSameHabitatType(parent, proposed)) {
-    return DEGRADE_RULE.sameSetting
-  }
-  // Put back after a delay: a temporary loss the delay already discounts, so
-  // it may be in any condition and needs no years in advance.
-  if ((proposed.delayYears ?? 0) > 0) {
+  const parent = degradedParent(found.feature, baseline)
+  if (!parent) {
     return null
   }
-  if (!isLowerCondition(TREES, parent, proposed)) {
-    return DEGRADE_RULE.worseCondition
-  }
-  return is30PlusYearsInAdvance(proposed) ? null : DEGRADE_RULE.advance30Plus
+  const before = found.feature.proposed ?? {}
+  const after = edited.proposed ?? {}
+  const broken = DEGRADE_CHECKS.find(
+    (check) =>
+      breaksCheck(check, parent, after) &&
+      (!breaksCheck(check, parent, before) ||
+        changesAny(check.fields, before, after))
+  )
+  return broken?.rule ?? null
 }
