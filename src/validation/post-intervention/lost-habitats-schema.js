@@ -33,13 +33,13 @@ const lostHabitatSchema = Joi.object({
   lostSizeSquareMetres: Joi.number()
     .min(0)
     .description(
-      "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class times its Count."
+      "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class."
     ),
   lostTreeCount: Joi.number()
     .integer()
     .min(0)
     .description(
-      'A tree: its Count less that of its Retained and Enhanced post-intervention trees, the number of trees lost. A blank Count is one tree.'
+      'A tree: the number of trees lost. A BNG Service template tree point is one tree, so this is 1.'
     ),
   lostSizeMetres: Joi.number()
     .min(0)

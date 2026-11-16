@@ -86,7 +86,7 @@ export const postInterventionTreeSchema = Joi.object({
   count: Joi.number()
     .allow(null)
     .description(
-      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template Retained or Enhanced tree with a lower count than its parent loses the difference.'
+      'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template file has no Count: each of its points is one tree, and has none.'
     ),
   ...invalidEnhancementField(
     'trees',

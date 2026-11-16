@@ -107,8 +107,11 @@ export function commentForBaseline(
  * upload ever sets, is deliberately left as imported rather than overwritten
  * by an edit the user made elsewhere.
  *
- * Nothing resolves the two today, so a retained habitat's displayed comment
- * is whichever document the reader looked at. In a legacy upload only the
+ * The details page resolves it: GET post-intervention/features/{featureId}
+ * returns a Retained row's `baselineComment`, read from the baseline feature
+ * it is joined to (BMD-1187, utilities/features/retained-baseline-comment.js).
+ * Elsewhere nothing resolves the two, so a retained habitat's comment is
+ * whichever document the reader looked at. In a legacy upload only the
  * baseline carries one, so an edit is the only comment there is. In a
  * template upload both sides carry their own, and after a baseline edit they
  * differ — which is what the template's per-table Comment column is for. The

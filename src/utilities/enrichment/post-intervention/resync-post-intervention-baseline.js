@@ -21,8 +21,8 @@
 // `parentFeatureId` (BMD-1083), so its rows re-sync from that parent and
 // nothing else: refs are labels there, not the join, so a row with no parent
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
-// Its kept trees then take their parent's identity again, priced for their
-// own Count (tree-lineage.js).
+// Its kept trees then take their parent's identity again, priced as one tree
+// each (tree-lineage.js).
 //
 // In a legacy upload, reference-edited Created areas, hedgerows and watercourses retain their
 // explicit parent independently of their editable ref; null explicitly means no
@@ -99,10 +99,10 @@ const STRATEGIC_SIGNIFICANCE_FIELD = 'strategicSignificance'
  * deliberately shares its lists: a column that identifies a habitat on one side
  * identifies it on the other, so a new one is added in a single place.
  *
- * A baseline tree is editable (BMD-1112), but only its condition, reference
- * and comment: `recomputeTreeEdit` pins the urban/rural habitat type and the
- * size class and count are read-only, so the only identity field an edit can
- * move is the condition, which the re-derive carries across like any other.
+ * A baseline tree is editable, but only its condition, Urban or Rural
+ * setting, reference and comment: the size class and count are read-only, so
+ * the identity fields an edit can move are the condition and the setting,
+ * which the re-derive carries across like any other.
  */
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
@@ -500,24 +500,35 @@ function resolveSource(feature, index) {
 }
 
 /**
- * The baseline feature a post-intervention row is joined to by its ref, for an
- * edit that starts on the post-intervention side (BMD-1180). Resolved exactly
+ * The baseline feature a post-intervention row is joined to, resolved exactly
  * as the re-derive resolves it, against the baseline as it stands, so a row
  * this finds a source for is a row the re-derive will carry a rename onto.
  *
+ * By default the row is joined by its ref, as a legacy row is, for an edit
+ * that starts on the post-intervention side (BMD-1180). With `templateUpload`,
+ * a row of a BNG Service template upload is joined by the parent its file
+ * named (BMD-1083), as the re-derive joins it — used to read a Retained
+ * habitat's baseline comment (BMD-1187).
+ *
  * @param {object} feature post-intervention feature
- * @param {string} layer document layer: habitats, trees, hedgerows or watercourses
- * @param {object | undefined} baseline the project's baseline document
+ * @param {string} layer document layer: habitats, verticalHabitats, trees, hedgerows or watercourses
+ * @param {object | undefined} baseline the project's baseline document, or at
+ *   least its `layer`
+ * @param {{ templateUpload?: boolean }} [options]
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
-export function resolveJoinedBaselineFeature(feature, layer, baseline) {
+export function resolveJoinedBaselineFeature(
+  feature,
+  layer,
+  baseline,
+  { templateUpload = false } = {}
+) {
   const features = baseline?.[layer]
   return resolveSource(feature, {
     candidatesByRef: buildBaselineCandidatesByRef(features),
     updatedById: buildFeatureById(features),
     fields: IDENTITY_FIELDS_BY_LAYER[layer] ?? [],
-    // Only a legacy row is joined by its ref; a template row's parent is named.
-    byParent: false
+    byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
   })
 }
 

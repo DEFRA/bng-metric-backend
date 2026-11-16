@@ -246,6 +246,12 @@ const config = convict({
       format: String,
       default: 'baseline-files',
       env: 'CDP_UPLOADER_BUCKET'
+    },
+    requestTimeoutMs: {
+      doc: "Longest one call to the CDP Uploader (initiate, status, S3 location) may take. Must stay below the frontend's BACKEND_TIMEOUT_MS (10s), so a hung uploader fails here first, with a logged reason, rather than holding a connection and a request slot for as long as the hang lasts. Inside the validate route's wait for the uploader, a call gets the smaller of this and the time left of UPLOAD_READY_TIMEOUT_MS, so that rung of the timeout ladder still holds.",
+      format: 'int',
+      default: 5000,
+      env: 'CDP_UPLOADER_TIMEOUT_MS'
     }
   },
   validation: {

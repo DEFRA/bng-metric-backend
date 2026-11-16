@@ -13,7 +13,7 @@ import {
   filterLostPostInterventionLayers
 } from '../../validation/geopackage/post-intervention/extract-post-intervention.js'
 import { rejectInvalidEnhancements } from '../../validation/geopackage/post-intervention/reject-invalid-enhancements.js'
-import { refuseUnenhanceableBaselines } from '../../validation/geopackage/post-intervention/refuse-unenhanceable-baselines.js'
+import { refuseUnenhanceableFeatures } from '../../validation/geopackage/post-intervention/refuse-unenhanceable-baselines.js'
 import { refuseIncompleteBaselines } from '../../validation/geopackage/post-intervention/refuse-incomplete-baselines.js'
 import {
   ERROR_CODES,
@@ -114,7 +114,7 @@ const SAVE_HANDLERS_BY_DOCUMENT_KEY = Object.freeze({
     // Import only: an edit or a baseline re-derive never re-checks them. A
     // file it refuses is not saved at all; checkDocument then nulls what is
     // left for the user to fix.
-    refuseDocument: refuseUnenhanceableBaselines,
+    refuseDocument: refuseUnenhanceableFeatures,
     checkDocument: rejectInvalidEnhancements,
     enrichDocument: enrichPostInterventionDocumentWithUnits,
     documentSchema: postInterventionDataSchema
@@ -294,9 +294,9 @@ function sizeUploadedHabitats({ layersForSizing, baselineLayers }) {
  * @param {object} args
  * @param {object} [args.baselineDocument] the baseline a post-intervention
  *   document is enriched against; defaults to the stored baseline
- * @returns {{ document: object, geometries: object, schemaError?: object, validationError?: object }}
+ * @returns {{ document: object, geometries: object, schemaError?: object, validationError?: object | object[] }}
  *   `validationError` when the handlers refuse the file, which is then
- *   neither enriched nor schema-checked
+ *   neither enriched nor schema-checked: an error, or one for each reason
  */
 export function extractAndValidateDocument({
   handlers,
@@ -399,7 +399,7 @@ function derivedBaselineHasAreaHabitats(document) {
  * post-intervention document enriched against that baseline — not the stored
  * one, which the same transaction is about to replace.
  *
- * @returns {{ schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
+ * @returns {{ schemaError?: object, validationError?: object | object[], document?: object, geometries?: object, baseline?: object, postIntervention?: object }}
  */
 function extractUploadDocuments(sized, context, logger, config) {
   const { layersWithIds, baselineLayers, baselineRead, storedProject } = sized
@@ -534,7 +534,7 @@ function runUntimed(_stage, run) {
  * @param {{ uploadId?: string | null, filename?: string | null, fileSize?: number | null, geometrySizes?: object, template?: { name: string, version: string }, baselineStage?: { layers: object, geometrySizes?: object } }} context
  * @param {{ logger: object, config: { projectDocumentKey: string }, runStage?: (stage: 'sizing' | 'enrich', run: Function) => Promise<object> }} options
  *   `runStage` wraps each stage; the route times them
- * @returns {Promise<{ sizingError?: Error, schemaError?: object, validationError?: object, document?: object, geometries?: object, baseline?: object, postIntervention?: object }>}
+ * @returns {Promise<{ sizingError?: Error, schemaError?: object, validationError?: object | object[], document?: object, geometries?: object, baseline?: object, postIntervention?: object }>}
  *   `baseline` and `postIntervention` for a post-intervention upload, which
  *   replaces both; `document` for a baseline upload
  */
@@ -602,7 +602,7 @@ const SAVE_STAGE_METRICS = Object.freeze({
  * it, and so does importUploadFile, so a new way to refuse an upload cannot
  * reach one and not the other.
  *
- * @param {{ sizingError?: Error, schemaError?: object, validationError?: { code: string, message: string } }} extracted
+ * @param {{ sizingError?: Error, schemaError?: object, validationError?: { code: string, message: string } | Array<{ code: string, message: string }> }} extracted
  * @returns {{ errors: Array<{ code: string, message: string }>, internal: boolean, reason: string, message: string } | null}
  *   `internal` for a failure of the service's own, answered 500 and logged as
  *   an error; `reason` and `message` say what to log
@@ -630,11 +630,14 @@ export function uploadRefusal(extracted) {
     }
   }
   if (extracted.validationError) {
+    // A check that refuses a file for more than one reason sends an error
+    // for each (refuseUnenhanceableFeatures).
+    const errors = [extracted.validationError].flat()
     return {
-      errors: [extracted.validationError],
+      errors,
       internal: false,
       reason: 'upload rejected',
-      message: extracted.validationError.message
+      message: errors.map((error) => error.message).join('; ')
     }
   }
   return null

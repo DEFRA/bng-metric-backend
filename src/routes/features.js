@@ -24,7 +24,17 @@ import {
   projectFeatureIdParams,
   retainedRefEditPayload
 } from './shared-params.js'
-import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
+import {
+  baselineLayerColumns,
+  featureByIdColumns,
+  postInterventionTemplateColumn,
+  readFeatureMatch
+} from '../db/project-features.js'
+import {
+  retainedBaselineComment,
+  sharesBaselineComment
+} from '../utilities/features/retained-baseline-comment.js'
+import { isTemplateUpload } from '../utilities/enrichment/post-intervention/lineage-outcomes.js'
 
 /**
  * @openapi
@@ -68,6 +78,14 @@ import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
  *       Scans post-intervention habitats, hedgerows and watercourses and
  *       returns the matching feature with a `type` discriminator. Lets the
  *       frontend address any post-intervention feature by featureId alone.
+ *
+ *       A Retained feature also carries `baselineComment`: the comment saved
+ *       on the baseline feature it is joined to (BMD-1187), which is the
+ *       comment a Retained habitat shows. The join is the re-derive's: by
+ *       the parent a BNG Service template row names, otherwise by ref, with
+ *       the row's imported baseline values breaking a tie. The row's own
+ *       `comment`, which only a template upload sets and a baseline edit
+ *       leaves as imported, is not it.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
  *       - $ref: '#/components/parameters/FeatureId'
@@ -84,10 +102,49 @@ import { featureByIdColumns, readFeatureMatch } from '../db/project-features.js'
  *                   enum: [habitat, tree, verticalHabitat, hedgerow, watercourse]
  *                 feature:
  *                   type: object
+ *                 baselineComment:
+ *                   type: string
+ *                   nullable: true
+ *                   description: |
+ *                     Present for a Retained feature only. The joined
+ *                     baseline feature's comment, with line breaks as LF;
+ *                     null when it has none, or when no single baseline
+ *                     feature can be identified as the row's parcel.
  *       404:
  *         description: Project or feature not found
  */
-function createGetFeatureRoute({ path, documentKey }) {
+/**
+ * The comment a Retained post-intervention feature shows: its baseline
+ * parcel's (BMD-1187). Reads only the feature's own baseline layer.
+ *
+ * @param {import('@hapi/hapi').Request} request
+ * @param {{ projectId: string, found: { key: string, feature: object }, templateUpload: boolean }} params
+ * @returns {Promise<string | null>}
+ */
+async function readRetainedBaselineComment(
+  request,
+  { projectId, found, templateUpload }
+) {
+  const rows = await request.drizzle
+    .select(baselineLayerColumns({ layer: found.key }))
+    .from(projects)
+    .where(
+      and(eq(projects.id, projectId), visibleToUser(request.auth.credentials))
+    )
+  return retainedBaselineComment(found.feature, found.key, rows[0]?.features, {
+    templateUpload
+  })
+}
+
+/**
+ * @param {{ path: string, documentKey: string, withBaselineComment?: boolean }} params
+ *   `withBaselineComment` adds a Retained feature's `baselineComment`
+ */
+function createGetFeatureRoute({
+  path,
+  documentKey,
+  withBaselineComment = false
+}) {
   return {
     method: 'GET',
     path,
@@ -105,8 +162,12 @@ function createGetFeatureRoute({ path, documentKey }) {
       // here — see the header of src/db/project-features.js. A visible project
       // still returns a row when it holds no such feature, which is what keeps
       // the two 404s apart.
+      const columns = featureByIdColumns({ documentKey, featureId })
+      if (withBaselineComment) {
+        columns.template = postInterventionTemplateColumn()
+      }
       const rows = await request.drizzle
-        .select(featureByIdColumns({ documentKey, featureId }))
+        .select(columns)
         .from(projects)
         .where(and(eq(projects.id, projectId), visibleToUser(credentials)))
 
@@ -120,7 +181,15 @@ function createGetFeatureRoute({ path, documentKey }) {
           `Feature ${featureId} not found in project ${projectId}`
         )
       }
-      return { type: found.type, feature: found.feature }
+      const response = { type: found.type, feature: found.feature }
+      if (withBaselineComment && sharesBaselineComment(found.feature)) {
+        response.baselineComment = await readRetainedBaselineComment(request, {
+          projectId,
+          found,
+          templateUpload: isTemplateUpload({ template: rows[0].template })
+        })
+      }
+      return response
     }
   }
 }
@@ -132,7 +201,8 @@ const getFeature = createGetFeatureRoute({
 
 const getPostInterventionFeature = createGetFeatureRoute({
   path: '/projects/{projectId}/post-intervention/features/{featureId}',
-  documentKey: 'postIntervention'
+  documentKey: 'postIntervention',
+  withBaselineComment: true
 })
 
 /**
