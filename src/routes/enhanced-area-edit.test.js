@@ -141,6 +141,72 @@ describe('BMD-1045 area enhancement reference', () => {
     )
   })
 
+  test('offers a Medium baseline only the Medium grassland types, in better condition, with their enhancement times', () => {
+    const medium = getAreaEnhancementReference({
+      broadType: 'Grassland',
+      type: 'Other neutral grassland',
+      condition: 'Moderate'
+    })
+    const targets = [
+      { condition: 'Good', years: 10 },
+      { condition: 'Fairly Good', years: 8 }
+    ]
+    expect(
+      medium.habitatTypes.map((t) => ({
+        broad: t.broad,
+        name: t.name,
+        conditions: t.conditions.map(({ condition, years }) => ({
+          condition,
+          years
+        }))
+      }))
+    ).toEqual(
+      [
+        'Other lowland acid grassland',
+        'Other neutral grassland',
+        'Upland acid grassland'
+      ].map((name) => ({ broad: 'Grassland', name, conditions: targets }))
+    )
+  })
+
+  test('offers a Very Low baseline habitats across broad habitats, with their enhancement times', () => {
+    const veryLow = getAreaEnhancementReference({
+      broadType: 'Urban',
+      type: 'Artificial unvegetated, unsealed surface',
+      condition: 'N/A - Other'
+    })
+    expect(
+      [...new Set(veryLow.habitatTypes.map((t) => t.broad))].sort()
+    ).toEqual([
+      'Grassland',
+      'Heathland and shrub',
+      'Lakes',
+      'Sparsely vegetated land',
+      'Urban',
+      'Woodland and forest'
+    ])
+    const timesOf = (name) =>
+      Object.fromEntries(
+        veryLow.habitatTypes
+          .find((t) => t.name === name)
+          .conditions.map((c) => [c.condition, c.years])
+      )
+    expect(timesOf('Modified grassland')).toEqual({
+      Good: 15,
+      'Fairly Good': 12,
+      Moderate: 10,
+      'Fairly Poor': 5,
+      Poor: 1
+    })
+    expect(timesOf('Mixed scrub')).toEqual({
+      Good: 10,
+      'Fairly Good': 7,
+      Moderate: 5,
+      'Fairly Poor': 3,
+      Poor: 1
+    })
+  })
+
   test('carries the enhancement difficulty, not the creation one', () => {
     const type = reference.habitatTypes.find(
       (t) => t.name === 'Modified grassland'
@@ -379,36 +445,114 @@ describe('BMD-1045 Enhanced area edits', () => {
     )
   })
 
-  test.each([
-    ['A Created', 'Created', 400],
-    ['An Enhanced', 'Enhanced', 422]
-  ])(
-    '%s area cannot keep a stored IGGI habitat type, which neither list offers',
-    (_label, retentionCategory, statusCode) => {
-      const iggi = {
-        broadType: 'Intertidal hard structures',
-        type: 'Artificial hard structures with integrated greening of grey infrastructure (IGGI)',
-        condition: 'Good'
-      }
-      const stored = {
-        ...feature,
-        retentionCategory,
-        proposed: { ...feature.proposed, ...iggi }
-      }
-      expect(() =>
-        validateCreatedAreaEdit(stored, {
+  const iggi = {
+    broadType: 'Intertidal hard structures',
+    type: 'Artificial hard structures with integrated greening of grey infrastructure (IGGI)',
+    condition: 'Good'
+  }
+
+  test('a rename keeps a stored IGGI proposal the library accepts as an enhancement', async () => {
+    // Littoral sand at Moderate can be enhanced to an IGGI in Good condition,
+    // and an import keeps that proposal, though neither edit list offers IGGI.
+    const stored = {
+      ...feature,
+      baseline: {
+        broadType: 'Intertidal sediment',
+        type: 'Littoral sand',
+        condition: 'Moderate'
+      },
+      proposed: { ...feature.proposed, ...iggi }
+    }
+    await updatePostInterventionAreaHabitat.handler(
+      routeRequest(
+        {
           ...edits,
+          ref: 'Renamed',
           broadType: iggi.broadType,
           habitatType: iggi.type,
           condition: iggi.condition
+        },
+        stored
+      ),
+      {}
+    )
+    expect(setProjectFeature).toHaveBeenCalledWith(
+      expect.anything(),
+      projectId,
+      expect.objectContaining({
+        feature: expect.objectContaining({
+          ref: 'Renamed',
+          proposed: expect.objectContaining({
+            broadType: iggi.broadType,
+            type: iggi.type,
+            condition: iggi.condition
+          })
         })
-      ).toThrow(
-        expect.objectContaining({
-          output: expect.objectContaining({ statusCode })
-        })
-      )
+      })
+    )
+  })
+
+  test('a Created area cannot keep a stored IGGI habitat type, which the creation list does not offer', () => {
+    const stored = {
+      ...feature,
+      retentionCategory: 'Created',
+      proposed: { ...feature.proposed, ...iggi }
     }
-  )
+    expect(() =>
+      validateCreatedAreaEdit(stored, {
+        ...edits,
+        broadType: iggi.broadType,
+        habitatType: iggi.type,
+        condition: iggi.condition
+      })
+    ).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({ statusCode: 400 })
+      })
+    )
+  })
+
+  test('a complete edit to another habitat type saves its enhanced units, totals and trading rules', async () => {
+    await updatePostInterventionAreaHabitat.handler(
+      routeRequest({
+        ...edits,
+        habitatType: 'Other neutral grassland',
+        condition: 'Moderate'
+      }),
+      {}
+    )
+    const expected = calculateEnhancedAreaHabitatPostIntervention(
+      2.5,
+      'Grassland - Modified grassland',
+      'Grassland - Other neutral grassland',
+      'Poor',
+      'Moderate',
+      0,
+      2,
+      'High'
+    )
+    const [, , saved] = vi.mocked(setProjectFeature).mock.calls[0]
+    expect(saved.feature).toMatchObject({
+      status: 'Complete',
+      units: expected.units,
+      proposed: {
+        broadType: 'Grassland',
+        type: 'Other neutral grassland',
+        condition: 'Moderate',
+        distinctiveness: 'Medium',
+        difficulty:
+          HABITAT_DIFFICULTY['Grassland - Other neutral grassland'].Enhancement
+      }
+    })
+    expect(saved.unitsTotals.habitatsTotal).toBe(expected.units)
+    expect(saved.tradingRules.areaHabitats.habitatTypes).toEqual([
+      expect.objectContaining({
+        habitatType: 'Grassland - Other neutral grassland',
+        distinctiveness: 'Medium',
+        netUnitChange: expected.units
+      })
+    ])
+  })
 
   test('a rename through the route records the parent it was renamed from', async () => {
     const baselineHabitat = {

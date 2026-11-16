@@ -53,20 +53,15 @@ export function validateCreatedAreaEdit(feature, edits) {
   return resolved
 }
 
-// The stored choices an edit may keep unlisted: an Enhanced area's only, and
-// never an IGGI habitat type, which neither reference offers and no later
-// check refuses (BMD-1045). A Created area chooses from the creation list
-// alone, as before.
+// The stored choices an edit may keep unlisted: an Enhanced area's only
+// (BMD-1045). A Created area chooses from the creation list alone, as before.
+// An unchanged IGGI proposal is kept like any other: neither list offers an
+// IGGI type, so one can only be kept, never newly chosen, and the library
+// accepts some IGGI enhancements, which brokenEnhancementRule still checks.
 function keepableChoices(feature) {
-  if (resolveRetentionCategory(feature) !== RETENTION_ENHANCED) {
-    return {}
-  }
-  const stored = feature.proposed ?? {}
-  return isIggi(stored.type) ? { broadType: stored.broadType } : stored
-}
-
-function isIggi(type) {
-  return typeof type === 'string' && type.includes('(IGGI)')
+  return resolveRetentionCategory(feature) === RETENTION_ENHANCED
+    ? (feature.proposed ?? {})
+    : {}
 }
 
 // The rule an Enhanced area breaks when it sends a choice its baseline's valid
@@ -103,8 +98,9 @@ function editReference(feature) {
 // offered-enhancement check. The recomputed feature is still checked as an
 // enhancement (brokenEnhancementRule), so a kept proposal that is no longer a
 // valid enhancement of a readable baseline is refused with the library's
-// rule. Only a proposal whose baseline the rules cannot read is kept through
-// a rename.
+// rule. So a rename keeps only a proposal the lists cannot offer but the
+// library accepts, such as an IGGI one, or one whose baseline the rules
+// cannot read.
 function areaChoicesValid(edits, reference, stored) {
   const kept = keptChoices(edits, stored)
   const type = reference.habitatTypes.find(
