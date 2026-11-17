@@ -15,7 +15,7 @@ import {
 import { postInterventionHabitatSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
 import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
 import { updatePostInterventionAreaHabitat } from './habitats.js'
-import { validatePostInterventionAreaEdit } from './created-area-edit.js'
+import { validatePostInterventionAreaEdit } from './post-intervention-area-edit.js'
 import { getAreaEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
 

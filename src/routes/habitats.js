@@ -10,7 +10,7 @@ import {
 import {
   postInterventionAreaEditPayload,
   validatePostInterventionAreaEdit
-} from './created-area-edit.js'
+} from './post-intervention-area-edit.js'
 import {
   postInterventionTreeEditPayload,
   validatePostInterventionTreeEdit

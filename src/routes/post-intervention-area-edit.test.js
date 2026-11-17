@@ -16,7 +16,7 @@ import * as featureUpdates from '../utilities/features/apply-feature-update.js'
 import {
   validatePostInterventionAreaEdit,
   postInterventionAreaEditPayload
-} from './created-area-edit.js'
+} from './post-intervention-area-edit.js'
 import {
   resyncPostInterventionBaselineSide,
   rederivePostInterventionFromBaseline
