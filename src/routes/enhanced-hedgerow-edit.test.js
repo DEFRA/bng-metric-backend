@@ -11,8 +11,12 @@ vi.mock('../db/feature-geometry-refs.js', () => ({ setGeometryRefs: vi.fn() }))
 
 const featureId = 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb'
 const projectId = 'a1b2c3d4-e5f6-4a7b-8c9d-0e1f2a3b4c5d'
+// The baseline hedgerow and the Enhanced one differ in length, so a price
+// that read one length for both would show.
 const SIZE_METRES = 336
 const LENGTH_KM = 0.336
+const PROPOSED_METRES = 200
+const PROPOSED_KM = 0.2
 
 // BMD-1046: an Enhanced Native hedgerow at Moderate, enhanced to Good, linked
 // by ref to its baseline hedgerow.
@@ -27,7 +31,7 @@ const feature = {
   featureId,
   ref: 'HG-1',
   retentionCategory: 'Enhanced',
-  sizeMetres: SIZE_METRES,
+  sizeMetres: PROPOSED_METRES,
   units: 1,
   status: 'Complete',
   baseline,
@@ -71,7 +75,7 @@ function update(
 const unitsAt = (baselineKm) =>
   calculateEnhancedHedgerowPostIntervention(
     baselineKm,
-    LENGTH_KM,
+    PROPOSED_KM,
     'Native hedgerow',
     'Species-rich native hedgerow',
     'Moderate',
@@ -110,7 +114,7 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
     expect(result.status).toBe('ok')
     const expected = calculateEnhancedHedgerowPostIntervention(
       LENGTH_KM,
-      LENGTH_KM,
+      PROPOSED_KM,
       'Native hedgerow',
       'Species-rich native hedgerow',
       'Moderate',
@@ -166,9 +170,44 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
       ref: 'HG-1 renamed',
       status: 'Complete',
       referenceEdited: true,
-      parentFeatureId: baselineHedgerow.featureId
+      parentFeatureId: baselineHedgerow.featureId,
+      units: unitsAt(LENGTH_KM)
     })
-    expect(result.feature.units).toBeGreaterThan(0)
+    expect(result.unitsTotals.hedgerowsTotal).toBe(unitsAt(LENGTH_KM))
+    // Saving it again, now by its parent, keeps the units and the total.
+    const again = update({ ref: 'HG-1 renamed' }, result.feature)
+    expect(again.feature.units).toBe(unitsAt(LENGTH_KM))
+    expect(again.unitsTotals.hedgerowsTotal).toBe(unitsAt(LENGTH_KM))
+  })
+
+  test('a BNG Service template hedgerow that names no parent is priced by its new ref when renamed, as later re-derives price it', () => {
+    // A template row that names no parent finds none by its old ref. The
+    // baseline hedgerow carrying its old ref must not price the rename.
+    const template = {
+      ...feature,
+      templateTable: 'Hedgerows'
+    }
+    const result = applyFeatureUpdate(
+      {
+        baseline: { hedgerows: [baselineHedgerow] },
+        postIntervention: { template: 'bng-service', hedgerows: [template] }
+      },
+      {
+        featureId,
+        edits: { ...edits, ref: 'HG-1 renamed' },
+        documentKey: 'postIntervention',
+        expectedType: 'hedgerow',
+        baseline: { hedgerows: [baselineHedgerow] }
+      }
+    )
+    expect(result.status).toBe('ok')
+    expect(result.feature).toMatchObject({
+      ref: 'HG-1 renamed',
+      referenceEdited: true,
+      units: 0,
+      status: 'Incomplete'
+    })
+    expect(result.feature).not.toHaveProperty('parentFeatureId')
   })
 
   test.each([
@@ -312,15 +351,35 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
     })
   })
 
-  test('a kept condition under a changed habitat type is checked against the list', async () => {
-    await expect(
-      updatePostInterventionHedgerow.handler(
-        request({
-          ...edits,
-          habitatType: 'Species-rich native hedgerow',
-          condition: 'Poor'
+  test('a stored condition is kept only under its stored habitat type', () => {
+    // Poor is stored, and Species-rich native hedgerow does not list it.
+    // Sending Poor back under that new type is a changed choice, so the
+    // offered-choice check refuses it, before any enhancement rule.
+    const stored = {
+      ...feature,
+      proposed: { ...feature.proposed, condition: 'Poor' }
+    }
+    expect(() =>
+      validateCreatedHedgerowEdit(stored, {
+        ...edits,
+        habitatType: 'Species-rich native hedgerow',
+        condition: 'Poor'
+      })
+    ).toThrow(
+      expect.objectContaining({
+        output: expect.objectContaining({
+          statusCode: 422,
+          payload: expect.objectContaining({ rule: 'offered-enhancement' })
         })
-      )
-    ).rejects.toMatchObject({ output: { statusCode: 422 } })
+      })
+    )
+    // Under its stored type, the same condition is kept.
+    expect(
+      validateCreatedHedgerowEdit(stored, {
+        ...edits,
+        habitatType: 'Native hedgerow',
+        condition: 'Poor'
+      })
+    ).toMatchObject({ habitatType: 'Native hedgerow', condition: 'Poor' })
   })
 })

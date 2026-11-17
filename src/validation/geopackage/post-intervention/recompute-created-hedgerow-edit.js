@@ -21,7 +21,9 @@ export function recomputeCreatedHedgerowEdit(existing, edits) {
  * the edit, as a legacy row with no parent finds its baseline length by ref.
  * A rename is priced against the parent it records (preserveCreatedParent),
  * found the same way, so a ref several baseline hedgerows share prices and
- * links it to the same one. An edit that leaves an attribute the calculation
+ * links it to the same one. A BNG Service template row that names no parent
+ * finds none by its old ref, so a rename is priced by its new ref, as every
+ * later re-derive prices it. An edit that leaves an attribute the calculation
  * needs blank saves zero units, as BMD-1046 AC10 Scenario B asks.
  *
  * @param {object} existing the stored Enhanced hedgerow
@@ -35,22 +37,23 @@ export function recomputeEnhancedHedgerowEdit(
   { baselineLengthByRef, baselineHedgerows, serviceTemplate = false }
 ) {
   const feature = withRootRetentionCategory(structuredClone(existing))
-  if (
-    !serviceTemplate &&
-    edits.ref.trim() !== existing.ref &&
-    !Object.hasOwn(existing, 'parentFeatureId')
-  ) {
-    feature.parentFeatureId = renamedParentFeatureId(existing, {
-      layer: 'hedgerows',
-      baseline: baselineHedgerows
-    })
+  const ref = edits.ref.trim()
+  if (ref !== existing.ref && !Object.hasOwn(existing, 'parentFeatureId')) {
+    if (serviceTemplate) {
+      feature.ref = ref
+    } else {
+      feature.parentFeatureId = renamedParentFeatureId(existing, {
+        layer: 'hedgerows',
+        baseline: baselineHedgerows
+      })
+    }
   }
   feature.proposed = proposedAttributes(feature.proposed, edits)
   clearEngineDerivedProposedFields(feature)
   const result = recomputePostInterventionHedgerow(feature, edits, {
     baselineLengthByRef
   })
-  result.updatedFeature.ref = edits.ref.trim()
+  result.updatedFeature.ref = ref
   if (result.status === HABITAT_STATUS.INCOMPLETE) {
     result.units = 0
     result.updatedFeature.units = 0

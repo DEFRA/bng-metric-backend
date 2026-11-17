@@ -378,7 +378,7 @@ function isRenamedOnItsOwnPage(feature, layer) {
  * Whether a row renamed on its own page is joined to its baseline feature by
  * the parent recorded when it was renamed, rather than by its ref. Only such a
  * row is marked `referenceEdited` (preserveCreatedParent): a Created one, or
- * an Enhanced tree or area habitat.
+ * an Enhanced tree, area habitat or hedgerow.
  *
  * @param {object} feature
  * @returns {boolean}
@@ -393,7 +393,7 @@ function isJoinedByEditedRef(feature) {
 
 /**
  * Preserve lineage before an editable Created reference, or an Enhanced
- * tree's or area habitat's, changes its join key.
+ * tree's, area habitat's or hedgerow's, changes its join key.
  *
  * A BNG Service template row's parent is the one its file named, kept as
  * `parentFeatureId` whatever its ref (BMD-1083). One that names none has no
