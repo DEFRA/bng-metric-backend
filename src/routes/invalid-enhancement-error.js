@@ -7,6 +7,11 @@ import { ERROR_CODES } from '../validation/geopackage/errors.js'
 // outOfScopeDistinctivenessError, the request is well-formed but the value
 // breaks a service rule. `rule` names the enhancement rule it breaks, as the
 // import records it in `invalidEnhancement`.
+// The rule an Enhanced feature breaks when it sends a choice its baseline's
+// valid enhancements do not list, such as from a page loaded before the
+// baseline was edited (BMD-1045, BMD-1046).
+export const OFFERED_ENHANCEMENT_RULE = 'offered-enhancement'
+
 export function invalidEnhancementError(rule) {
   const err = Boom.badData(
     `The proposed habitat is not a valid enhancement of its baseline (rule ${rule})`

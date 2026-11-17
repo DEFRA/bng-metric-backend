@@ -1,11 +1,16 @@
 import {
   resolveRetentionCategory,
-  RETENTION_CREATED
+  RETENTION_CREATED,
+  RETENTION_ENHANCED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 import Boom from '@hapi/boom'
 import Joi from 'joi'
 import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 import { featureEditPayload } from './shared-params.js'
+import {
+  invalidEnhancementError,
+  OFFERED_ENHANCEMENT_RULE
+} from './invalid-enhancement-error.js'
 
 export const createdEditYears = Joi.alternatives()
   .try(Joi.number().integer().min(0).max(MAX_YEARS), Joi.valid(MAX_YEARS_PLUS))
@@ -73,12 +78,37 @@ function resolveCreatedLinearCondition(feature, edits) {
   return feature.proposed?.condition ?? null
 }
 
-export function validateCreatedLinearEdit(feature, edits, reference, label) {
-  if (resolveRetentionCategory(feature) !== RETENTION_CREATED) {
+/**
+ * Check a Created linear feature's edit against `reference`, or, with
+ * `enhancedReference`, an Enhanced one's against the valid enhancements of its
+ * baseline (BMD-1046). An omitted habitat type or condition keeps the stored
+ * one, unchecked; a sent one must be offered. An Enhanced feature's refused
+ * choice is an invalid enhancement (422), so its edit form can show it
+ * against the target condition; a Created one's is a bad request.
+ *
+ * @param {object} feature
+ * @param {object} edits
+ * @param {object} reference the creation reference
+ * @param {string} label
+ * @param {{ enhancedReference?: (feature: object) => object }} [options]
+ * @returns {object} the edits, with omitted values resolved
+ */
+export function validateCreatedLinearEdit(
+  feature,
+  edits,
+  reference,
+  label,
+  { enhancedReference } = {}
+) {
+  const retention = resolveRetentionCategory(feature)
+  const enhanced =
+    Boolean(enhancedReference) && retention === RETENTION_ENHANCED
+  if (!enhanced && retention !== RETENTION_CREATED) {
     throw Boom.badRequest(
       `These attributes can only be edited on Created ${label}s`
     )
   }
+  const choices = enhanced ? enhancedReference(feature) : reference
   const withType = {
     ...edits,
     habitatType:
@@ -91,17 +121,17 @@ export function validateCreatedLinearEdit(feature, edits, reference, label) {
     condition: resolveCreatedLinearCondition(feature, withType)
   }
   validateReferenceAndTiming(resolved)
-  const type = reference.habitatTypes.find(
-    (t) => t.name === resolved.habitatType
-  )
+  const type = choices.habitatTypes.find((t) => t.name === resolved.habitatType)
   if (
     (edits.habitatType && !type) ||
     (edits.condition &&
       !type?.conditions.some((c) => c.condition === edits.condition))
   ) {
-    throw Boom.badRequest(
-      `Choose valid ${label} habitat and target condition options`
-    )
+    throw enhanced
+      ? invalidEnhancementError(OFFERED_ENHANCEMENT_RULE)
+      : Boom.badRequest(
+          `Choose valid ${label} habitat and target condition options`
+        )
   }
   return resolved
 }

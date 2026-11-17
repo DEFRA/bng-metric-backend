@@ -19,7 +19,10 @@ import { recomputeCreatedWatercourseEdit } from '../../validation/geopackage/pos
 //   - adding a new feature type later means adding one recompute function,
 //     not a new persistence path.
 
-import { recomputeCreatedHedgerowEdit } from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
+import {
+  recomputeCreatedHedgerowEdit,
+  recomputeEnhancedHedgerowEdit
+} from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
 import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
 import {
   recomputeAreaHabitat,
@@ -107,7 +110,12 @@ function recomputeHedgerowEdit(
 ) {
   if (documentKey === 'postIntervention') {
     if (Object.hasOwn(edits, 'advanceYears')) {
-      return recomputeCreatedHedgerowEdit(existing, edits)
+      return resolveRetentionCategory(existing) === RETENTION_ENHANCED
+        ? recomputeEnhancedHedgerowEdit(existing, edits, {
+            baselineLengthByRef:
+              postInterventionEnrichOptions(baseline).baselineLengthByRef
+          })
+        : recomputeCreatedHedgerowEdit(existing, edits)
     }
     return recomputePostInterventionHedgerow(
       existing,
@@ -357,13 +365,14 @@ const CREATED_EDIT_TYPES = new Set([
   'watercourse'
 ])
 const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
-const ENHANCED_EDIT_TYPES = new Set(['habitat', 'tree'])
+const ENHANCED_EDIT_TYPES = new Set(['habitat', 'tree', 'hedgerow'])
 
 /**
  * Whether the complete edit payload may be applied to a feature of this
  * retention: a Created one of any type that takes it, an Enhanced tree,
- * whose condition is all it enhances, and an Enhanced area habitat, edited
- * within its baseline's valid enhancements (BMD-1045).
+ * whose condition is all it enhances, and an Enhanced area habitat or
+ * hedgerow, edited within its baseline's valid enhancements (BMD-1045,
+ * BMD-1046).
  *
  * @param {{ type: string, feature: object }} found
  * @returns {boolean}

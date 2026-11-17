@@ -664,6 +664,88 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
   })
 })
 
+describe('BMD-1046 Enhanced hedgerow editing', () => {
+  it('saves a complete edit priced against the baseline length, a blank one as zero units, and refuses a choice that is not an enhancement', async () => {
+    const parent = {
+      featureId: randomUUID(),
+      ref: 'HG-E',
+      sizeMetres: 336,
+      type: 'Native hedgerow',
+      condition: 'Moderate'
+    }
+    const feature = {
+      featureId: randomUUID(),
+      ref: 'HG-E',
+      retentionCategory: 'Enhanced',
+      sizeMetres: 336,
+      units: 0,
+      status: 'Incomplete',
+      baseline: { type: 'Native hedgerow', condition: 'Moderate' },
+      proposed: { type: 'Native hedgerow', condition: 'Good' }
+    }
+    const projectId = await seedProject({
+      name: 'Enhanced hedgerow editing IT',
+      baseline: { hedgerows: [parent] },
+      postIntervention: { hedgerows: [feature] }
+    })
+    const url = `/projects/${projectId}/post-intervention/hedgerows/${feature.featureId}`
+    const payload = {
+      ref: 'HG-E renamed',
+      habitatType: 'Species-rich native hedgerow',
+      condition: 'Moderate',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: 0
+    }
+    const readStored = async () => {
+      const { rows } = await dbClient.query(
+        'SELECT project FROM bng.projects WHERE id = $1',
+        [projectId]
+      )
+      return rows[0].project
+    }
+
+    const saved = await server.inject({ method: 'PUT', url, headers, payload })
+    expect(saved.statusCode).toBe(HTTP_OK)
+    expect(saved.result).toMatchObject({
+      ref: 'HG-E renamed',
+      retentionCategory: 'Enhanced',
+      status: 'Complete',
+      referenceEdited: true,
+      parentFeatureId: parent.featureId,
+      proposed: { type: 'Species-rich native hedgerow', condition: 'Moderate' }
+    })
+    expect(saved.result.units).toBeGreaterThan(0)
+    const complete = await readStored()
+    expect(complete.postIntervention.hedgerows[0]).toEqual(saved.result)
+    expect(complete.postIntervention.units.hedgerowsTotal).toBe(
+      saved.result.units
+    )
+
+    const refused = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, habitatType: 'Line of trees', condition: 'Good' }
+    })
+    expect(refused.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(refused.result).toMatchObject({
+      code: 'ENHANCEMENT_NOT_VALID',
+      rule: 'offered-enhancement'
+    })
+    expect(await readStored()).toEqual(complete)
+
+    const partial = await server.inject({
+      method: 'PUT',
+      url,
+      headers,
+      payload: { ...payload, strategicSignificance: null }
+    })
+    expect(partial.statusCode).toBe(HTTP_OK)
+    expect(partial.result).toMatchObject({ units: 0, status: 'Incomplete' })
+  })
+})
+
 describe('BMD-1045 Enhanced area editing', () => {
   it('saves a rename that keeps a stored IGGI proposal, which neither edit list offers', async () => {
     // Littoral sand at Moderate can be enhanced to an IGGI in Good

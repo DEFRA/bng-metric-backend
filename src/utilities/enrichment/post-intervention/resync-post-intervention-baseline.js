@@ -353,13 +353,13 @@ function warnUnresolved(
   )
 }
 
-// The Enhanced features whose own page can rename them: a tree (BMD-1172) and
-// an area habitat (BMD-1045).
-const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats'])
+// The Enhanced features whose own page can rename them: a tree (BMD-1172), an
+// area habitat (BMD-1045) and a hedgerow (BMD-1046).
+const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats', 'hedgerows'])
 
 /**
  * Whether a post-intervention row's own edit page renames it: a Created
- * feature's, and an Enhanced individual tree's or area habitat's. A Retained row is renamed
+ * feature's, and an Enhanced individual tree's, area habitat's or hedgerow's. A Retained row is renamed
  * through its baseline parcel instead (apply-retained-ref-edit.js).
  *
  * @param {object} feature
