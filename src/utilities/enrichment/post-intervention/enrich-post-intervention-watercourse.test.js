@@ -8,8 +8,7 @@ import {
   makeDoc,
   makeEnhancedWatercourse,
   makeLostWatercourse,
-  makeWatercourse,
-  makeBaselineLengths
+  makeWatercourse
 } from './enrich-post-intervention-units.fixtures.js'
 
 describe('BMD-1059 missing post-intervention encroachment', () => {
@@ -34,7 +33,7 @@ describe('BMD-1059 missing post-intervention encroachment', () => {
         feature[side][field] = value
         const doc = makeDoc({ watercourses: [feature] })
         enrichPostInterventionDocumentWithUnits(doc, undefined, {
-          baselineLengthByRef: makeBaselineLengths()
+          baselineLengthByRef: new Map([['R1', 1]])
         })
         expect(feature.status).toBe('Incomplete')
         expect(feature.units).toBeNull()
@@ -196,7 +195,7 @@ describe('watercourse — Created', () => {
 })
 
 describe('watercourse — Enhanced', () => {
-  const BASELINE_LENGTH_BY_REF = makeBaselineLengths()
+  const BASELINE_LENGTH_BY_REF = new Map([['R1', 1]])
 
   it('calculates Enhanced units using baseline length from lookup map', () => {
     const doc = makeDoc({ watercourses: [makeEnhancedWatercourse()] })
@@ -228,7 +227,7 @@ describe('watercourse — Enhanced', () => {
     const doc = makeDoc({ watercourses: [makeEnhancedWatercourse()] })
     const logger = { warn: vi.fn() }
     enrichPostInterventionDocumentWithUnits(doc, logger, {
-      baselineLengthByRef: makeBaselineLengths({ watercourses: [] })
+      baselineLengthByRef: new Map()
     })
 
     expect(doc.watercourses[0].status).toBe('Incomplete')

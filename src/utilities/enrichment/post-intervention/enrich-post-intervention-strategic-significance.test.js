@@ -15,8 +15,7 @@ import {
   makeEnhancedHedgerow,
   makeEnhancedWatercourse,
   makeHedgerow,
-  makeWatercourse,
-  makeBaselineLengths
+  makeWatercourse
 } from './enrich-post-intervention-units.fixtures.js'
 
 // BMD-1038 — created and enhanced units are multiplied by the feature's
@@ -35,7 +34,10 @@ const DECIMAL_PLACES = 10
 
 // Enhanced linear features price their baseline side from the baseline length
 // of the same ref (the fixtures use HW1 and R1).
-const BASELINE_LENGTH_BY_REF = makeBaselineLengths()
+const BASELINE_LENGTH_BY_REF = new Map([
+  ['HW1', 1],
+  ['R1', 1]
+])
 
 const LAYERS = {
   habitats: {

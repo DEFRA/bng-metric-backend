@@ -222,7 +222,7 @@ function prepareWatercourseProposedContext(watercourse) {
 /**
  * @param {object} watercourse
  * @param {ReturnType<typeof prepareWatercourseProposedContext>} ctx
- * @param {object | undefined} baselineLengthByRef buildBaselineLinearLengthByRef's result
+ * @param {Map<string, number> | undefined} baselineLengthByRef
  * @param {{ warn: (msg: string) => void }} logger
  * @returns {(() => object) | null}
  */
@@ -289,7 +289,7 @@ function resolveWatercourseProposedCalculate(
  * watercourse, dispatching on `retentionCategory`.
  *
  * @param {object} watercourse
- * @param {object | undefined} baselineLengthByRef buildBaselineLinearLengthByRef's result
+ * @param {Map<string, number> | undefined} baselineLengthByRef
  * @param {{ warn: (msg: string) => void }} logger
  */
 export function enrichPostInterventionWatercourseProposedSide(
@@ -339,7 +339,7 @@ export function enrichPostInterventionWatercourseProposedSide(
 /**
  * @param {object} watercourse
  * @param {{ warn: (msg: string) => void }} logger
- * @param {object | undefined} baselineLengthByRef buildBaselineLinearLengthByRef's result
+ * @param {Map<string, number> | undefined} baselineLengthByRef
  */
 export function enrichPostInterventionWatercourseWithUnits(
   watercourse,

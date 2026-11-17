@@ -20,24 +20,8 @@ describe('buildBaselineLinearLengthByRef', () => {
       [{ ref: 'R1', sizeMetres: 2000 }]
     )
 
-    expect(map.byRef.hedgerows.get('H1')).toBe(1)
-    expect(map.byRef.watercourses.get('R1')).toBe(2)
-  })
-
-  it('keeps a hedgerow and a watercourse sharing a ref apart (BMD-1180 AC7)', () => {
-    // An edit may rename a watercourse onto a hedgerow's ref: each is still
-    // priced against its own layer's length, whichever comes last.
-    const lengths = buildBaselineLinearLengthByRef(
-      [{ ref: 'X1', sizeMetres: 200 }],
-      [{ ref: 'X1', sizeMetres: 500 }]
-    )
-
-    expect(lookupBaselineLinearLength({ ref: 'X1' }, lengths, 'hedgerow')).toBe(
-      0.2
-    )
-    expect(
-      lookupBaselineLinearLength({ ref: 'X1' }, lengths, 'watercourse')
-    ).toBe(0.5)
+    expect(map.get('H1')).toBe(1)
+    expect(map.get('R1')).toBe(2)
   })
 })
 
@@ -81,7 +65,7 @@ describe('a baseline saved before references were cleaned (BMD-1058)', () => {
       []
     )
 
-    expect(map.byRef.hedgerows.size).toBe(0)
+    expect(map.size).toBe(0)
     expect(() =>
       lookupBaselineLinearLength({ ref: '   ' }, map, 'hedgerow')
     ).toThrow(/no baseline hedgerow found/)
@@ -97,11 +81,7 @@ describe('lookupBaselineLinearLength', () => {
 
   it('throws when the ref is absent from the map', () => {
     expect(() =>
-      lookupBaselineLinearLength(
-        { ref: 'R1' },
-        buildBaselineLinearLengthByRef(),
-        'watercourse'
-      )
+      lookupBaselineLinearLength({ ref: 'R1' }, new Map(), 'watercourse')
     ).toThrow(/no baseline watercourse found/)
   })
 })
@@ -148,90 +128,5 @@ describe('a BNG Service template feature, linked to its parent (BMD-1083)', () =
     ).toThrow(
       /no baseline watercourse found for the parent of parcel ref "R001"/
     )
-  })
-})
-
-describe('a legacy feature the re-derive resolved to its baseline feature (BMD-1180)', () => {
-  const LONG_ID = '8f7b4e30-ab65-4caf-9d73-4c5e6f708192'
-  const SHORT_ID = '90a85f41-bc76-4db0-8e84-5d6f708192a3'
-  const ROW_ID = 'a1b96052-cd87-4ec1-9f95-6e708192a3b4'
-  // Two hedgerows share H2 after a rename; the row is the long one's.
-  const hedgerows = [
-    { ref: 'H2', featureId: LONG_ID, sizeMetres: 1000 },
-    { ref: 'H2', featureId: SHORT_ID, sizeMetres: 100 }
-  ]
-
-  it('is priced against the feature it was resolved to, not the last with its ref', () => {
-    const lengths = buildBaselineLinearLengthByRef(hedgerows, [], {
-      sourceFeatureIdByRow: new Map([[ROW_ID, LONG_ID]])
-    })
-
-    expect(
-      lookupBaselineLinearLength(
-        { featureId: ROW_ID, ref: 'H2' },
-        lengths,
-        'hedgerow'
-      )
-    ).toBe(1)
-  })
-
-  it('throws, rather than guessing, when the re-derive could not resolve it and its ref is shared', () => {
-    const lengths = buildBaselineLinearLengthByRef(hedgerows, [], {
-      sourceFeatureIdByRow: new Map()
-    })
-
-    expect(() =>
-      lookupBaselineLinearLength(
-        { featureId: ROW_ID, ref: 'H2' },
-        lengths,
-        'hedgerow'
-      )
-    ).toThrow(
-      /several baseline hedgerows carry parcel ref "H2" and none could be matched/
-    )
-  })
-
-  it('falls back to its ref when the re-derive could not resolve it and the ref is unique in its layer', () => {
-    const lengths = buildBaselineLinearLengthByRef(
-      [{ ref: 'H1', featureId: LONG_ID, sizeMetres: 1000 }],
-      [{ ref: 'H1', featureId: SHORT_ID, sizeMetres: 100 }],
-      { sourceFeatureIdByRow: new Map() }
-    )
-
-    expect(
-      lookupBaselineLinearLength(
-        { featureId: ROW_ID, ref: 'H1' },
-        lengths,
-        'hedgerow'
-      )
-    ).toBe(1)
-  })
-
-  it('still falls back to its ref on an upload, which has no re-derive', () => {
-    const lengths = buildBaselineLinearLengthByRef(hedgerows, [])
-
-    expect(
-      lookupBaselineLinearLength(
-        { featureId: ROW_ID, ref: 'H2' },
-        lengths,
-        'hedgerow'
-      )
-    ).toBe(0.1)
-  })
-
-  it('throws when the feature it was resolved to has no measured length', () => {
-    const lengths = buildBaselineLinearLengthByRef(
-      [...hedgerows, { ref: 'H3', featureId: ROW_ID }],
-      [],
-      { sourceFeatureIdByRow: new Map([[ROW_ID, ROW_ID]]) }
-    )
-
-    expect(() =>
-      lookupBaselineLinearLength(
-        { featureId: ROW_ID, ref: 'H2' },
-        lengths,
-        'hedgerow'
-      )
-    ).toThrow(/no baseline hedgerow found for parcel ref "H2"/)
   })
 })

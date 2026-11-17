@@ -431,9 +431,7 @@ describe('saveUploadForProject', () => {
         { habitats: [] },
         logger,
         expect.objectContaining({
-          baselineLengthByRef: expect.objectContaining({
-            byFeatureId: expect.any(Map)
-          }),
+          baselineLengthByRef: expect.any(Map),
           baselineUnits: derivedBaseline.units,
           baselineDocument: derivedBaseline
         })

@@ -12,6 +12,7 @@ import {
 import { mintToken, authHeaders } from './helpers/auth-tokens.js'
 
 const HTTP_UNAUTHORIZED = 401
+const HTTP_UNPROCESSABLE = 422
 
 let server
 let dbClient
@@ -645,7 +646,6 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
   async function seedRetainedProject({
     retentionCategory = 'Retained',
     otherBaselineHabitats = [],
-    otherPostInterventionHabitats = [],
     postInterventionUnits = {
       totalUnits: 4,
       habitatsTotal: 4,
@@ -694,7 +694,7 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
             }
           },
           postIntervention: {
-            habitats: [retainedRow, ...otherPostInterventionHabitats],
+            habitats: [retainedRow],
             trees: [],
             hedgerows: [],
             watercourses: [],
@@ -856,44 +856,20 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
     expect(rows[0].project.baseline.trees[0].ref).toBe('T1')
   })
 
-  it('saves a reference another baseline habitat carries, leaving that habitat and its rows alone (AC7: no uniqueness check)', async () => {
-    const otherHabitatId = randomUUID()
-    const otherRowId = randomUUID()
-    const otherIdentity = {
-      type: 'Other neutral grassland',
-      broadType: 'Grassland',
-      condition: 'Good'
-    }
+  it('returns 422 HABITAT_REF_IN_USE for a reference another baseline habitat carries, and saves nothing', async () => {
     const { projectId, retainedRow } = await seedRetainedProject({
       otherBaselineHabitats: [
         {
-          featureId: otherHabitatId,
+          featureId: randomUUID(),
           ref: 'A2',
-          ...otherIdentity,
+          type: 'Other neutral grassland',
+          broadType: 'Grassland',
+          condition: 'Good',
           sizeSquareMetres: 10_000,
-          units: 12,
+          units: 8,
           status: 'Complete'
         }
-      ],
-      otherPostInterventionHabitats: [
-        {
-          featureId: otherRowId,
-          ref: 'A2',
-          retentionCategory: 'Retained',
-          area: 10_000,
-          sizeSquareMetres: 10_000,
-          units: 12,
-          status: 'Complete',
-          baseline: { ...otherIdentity },
-          proposed: { ...otherIdentity, advanceYears: 0, delayYears: 0 }
-        }
-      ],
-      postInterventionUnits: {
-        totalUnits: 16,
-        habitatsTotal: 16,
-        hedgerowsTotal: 0,
-        watercoursesTotal: 0
-      }
+      ]
     })
 
     const res = await server.inject({
@@ -903,30 +879,14 @@ describe('PUT /projects/{projectId}/post-intervention/features/{featureId}', () 
       payload: { ref: 'A2' }
     })
 
-    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.statusCode).toBe(HTTP_UNPROCESSABLE)
+    expect(res.result.code).toBe('HABITAT_REF_IN_USE')
     const { rows } = await dbClient.query(
       `SELECT project FROM bng.projects WHERE id = $1`,
       [projectId]
     )
-    const stored = rows[0].project
-    expect(stored.baseline.habitats.map(({ ref }) => ref)).toEqual(['A2', 'A2'])
-    expect(
-      stored.baseline.habitats.find((h) => h.featureId === otherHabitatId)
-    ).toMatchObject({ type: 'Other neutral grassland', condition: 'Good' })
-    expect(stored.postIntervention.habitats[0]).toMatchObject({
-      featureId: retainedRow.featureId,
-      ref: 'A2',
-      baseline: { type: RETAINED_IDENTITY.type }
-    })
-    expect(
-      stored.postIntervention.habitats.find((h) => h.featureId === otherRowId)
-    ).toMatchObject({
-      ref: 'A2',
-      baseline: { type: 'Other neutral grassland', condition: 'Good' },
-      proposed: { type: 'Other neutral grassland', condition: 'Good' },
-      units: 12,
-      status: 'Complete'
-    })
+    expect(rows[0].project.baseline.habitats[0].ref).toBe('A1')
+    expect(rows[0].project.postIntervention.habitats[0].ref).toBe('A1')
   })
 
   it('renames a row stored with its category under baseline, writing it at the root', async () => {

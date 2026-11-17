@@ -346,8 +346,9 @@ describe('resyncPostInterventionBaselineSide', () => {
   })
 
   test('keeps a hedgerow and a watercourse sharing a ref independent', () => {
-    // Refs are only meaningful within a layer, as they are for the linear
-    // lengths (buildBaselineLinearLengthByRef).
+    // Refs are only meaningful within a layer. The existing linear length map
+    // (buildBaselineLinearLengthByRef) puts both layers in one map, which is a
+    // separate defect — this join must not repeat it.
     const postIntervention = {
       hedgerows: [
         {
