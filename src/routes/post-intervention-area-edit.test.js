@@ -14,9 +14,9 @@ import {
 } from '../validation/post-intervention/project-post-intervention-schema.js'
 import * as featureUpdates from '../utilities/features/apply-feature-update.js'
 import {
-  validateCreatedAreaEdit,
+  validatePostInterventionAreaEdit,
   postInterventionAreaEditPayload
-} from './created-area-edit.js'
+} from './post-intervention-area-edit.js'
 import {
   resyncPostInterventionBaselineSide,
   rederivePostInterventionFromBaseline
@@ -398,7 +398,7 @@ describe('BMD-1048 Created area edits', () => {
     { condition: 'Not Possible' }
   ])('rejects invalid edits before persistence: %j', (invalid) => {
     expect(() =>
-      validateCreatedAreaEdit(feature, { ...edits, ...invalid })
+      validatePostInterventionAreaEdit(feature, { ...edits, ...invalid })
     ).toThrow()
   })
 
@@ -417,10 +417,10 @@ describe('BMD-1048 Created area edits', () => {
 
   test('allows duplicate references and valid UTF-8', () => {
     expect(() =>
-      validateCreatedAreaEdit(feature, { ...edits, ref: 'P-1' })
+      validatePostInterventionAreaEdit(feature, { ...edits, ref: 'P-1' })
     ).not.toThrow()
     expect(() =>
-      validateCreatedAreaEdit(feature, { ...edits, ref: 'é 🌿' })
+      validatePostInterventionAreaEdit(feature, { ...edits, ref: 'é 🌿' })
     ).not.toThrow()
   })
 
