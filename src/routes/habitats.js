@@ -168,10 +168,12 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *                 type: string
  *                 nullable: true
  *                 description: >
- *                   Supporting information (BMD-1153), sent with ref. Omit to
- *                   keep the stored comment. Blank or whitespace-only is
- *                   stored as null, and line breaks as LF. Invalid UTF-8, or
- *                   more than 999 characters after trimming, is a 400.
+ *                   Supporting information (BMD-1153), Created areas only,
+ *                   sent with ref: an Enhanced area sent one is a 400 (code
+ *                   FEATURE_NOT_EDITABLE). Omit to keep the stored comment.
+ *                   Blank or whitespace-only is stored as null, and line
+ *                   breaks as LF. Invalid UTF-8, or more than 999 characters
+ *                   after trimming, is a 400.
  *               broadType:
  *                 type: string
  *                 nullable: true
@@ -185,7 +187,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to an area that is neither Created nor Enhanced.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, extended edits to an area that is neither Created nor Enhanced, or an Enhanced area sent a comment (code FEATURE_NOT_EDITABLE).
  *       404:
  *         description: Project or habitat not found
  *       422:
