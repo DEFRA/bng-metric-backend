@@ -1,6 +1,11 @@
 import { BaselineLookupError } from 'bng-library/metric'
 
 import { normaliseRef } from '../../../validation/geopackage/carry-forward-feature-ids.js'
+import {
+  RETENTION_ENHANCED,
+  RETENTION_RETAINED,
+  resolveRetentionCategory
+} from './retention-category.js'
 import { pricedLengthKm } from '../shared/enrich-units-shared.js'
 import { shownValue } from '../../../validation/geopackage/text-limits.js'
 
@@ -26,6 +31,115 @@ export function linearLengthKmFromSizeMetres(sizeMetres) {
 class BaselineLinearLengths extends Map {
   /** @type {Map<string, number>} */
   byFeatureId = new Map()
+
+  /**
+   * The baseline length each Enhanced part of a split BNG Service watercourse
+   * is priced against, keyed by the post-intervention feature itself (see
+   * withEnhancedWatercourseShares). Empty until that runs.
+   *
+   * @type {WeakMap<object, number>}
+   */
+  enhancedShareByFeature = new WeakMap()
+}
+
+const hasPositiveSize = (feature) =>
+  typeof feature.sizeMetres === 'number' && feature.sizeMetres > 0
+
+const sumKm = (features) =>
+  features.reduce(
+    (total, feature) =>
+      total + linearLengthKmFromSizeMetres(feature.sizeMetres),
+    0
+  )
+
+/** One parent's Enhanced parts, each with its share of what Retained leaves. */
+function shareRemainder(parentKm, parts, shares) {
+  const byCategory = (category) =>
+    parts.filter(
+      (part) =>
+        resolveRetentionCategory(part) === category && hasPositiveSize(part)
+    )
+  const enhanced = byCategory(RETENTION_ENHANCED)
+  const enhancedKm = sumKm(enhanced)
+  if (enhanced.length === 0 || enhancedKm <= 0) {
+    return
+  }
+  const remainderKm = Math.max(
+    0,
+    parentKm - sumKm(byCategory(RETENTION_RETAINED))
+  )
+  for (const part of enhanced) {
+    shares.set(
+      part,
+      (remainderKm * linearLengthKmFromSizeMetres(part.sizeMetres)) / enhancedKm
+    )
+  }
+}
+
+/**
+ * The baseline lengths, with the share of its parent each Enhanced BNG
+ * Service watercourse is priced against (BMD-1212).
+ *
+ * The Metric records a re-meandered watercourse by splitting its baseline
+ * section into a retained and an enhanced section, with the total enhanced
+ * length in the enhanced one and no loss of length (User Guide, section 7,
+ * Watercourse enhancement); one baseline row both retained and enhanced it
+ * refuses. So an Enhanced part is priced against what its parent's Retained
+ * parts leave, not the whole parent: 100 m kept 40 m and re-meandered into
+ * 90 m is a 60 m section enhanced to 90 m. Several Enhanced parts of one
+ * parent share that remainder in proportion to their drawn lengths. A single
+ * Enhanced part with no Retained sibling keeps the whole parent, as before.
+ * A Created part takes nothing from it: it is a loss and a creation.
+ *
+ * Several Enhanced parts share by drawn length because the upload does not
+ * record how much of the baseline each one replaces. The template copies the
+ * whole parent's Baseline Length onto every part (and the import drops it),
+ * and a re-meandered channel may leave the baseline line entirely, so its
+ * geometry need not overlap the stretch it replaces. With one Enhanced part
+ * the share is exact. With several, a straight part and a re-meandered one
+ * from the same parent are an approximation: 100 m kept 40 m, with a
+ * straight 20 m part from 20 m of baseline and a 100 m part re-meandered
+ * from 40 m, gives them 10 m and 50 m, where the Metric, told each part's
+ * baseline section, would record 20 m and 40 m. The straight part then gains
+ * a lengthening it did not make, and the re-meandered one too little. The
+ * plugin's export (bng-metric-template) and the harness's expected figures
+ * (bng-library) share the same way, so the comparison holds; a user wanting
+ * the exact figures splits the parent into one baseline row per section.
+ *
+ * Only watercourses linked to a parent (the BNG Service template): a legacy
+ * watercourse is priced by its own ref, unchanged. Hedgerows are unchanged.
+ *
+ * @param {BaselineLinearLengths | undefined} baselineLengthByRef
+ *   buildBaselineLinearLengthByRef's result
+ * @param {object[]} [watercourses] the post-intervention watercourses
+ * @returns {BaselineLinearLengths | undefined} a copy with
+ *   `enhancedShareByFeature` filled; the argument itself is left as it is
+ */
+export function withEnhancedWatercourseShares(
+  baselineLengthByRef,
+  watercourses = []
+) {
+  if (!baselineLengthByRef?.byFeatureId) {
+    return baselineLengthByRef
+  }
+  const lengths = new BaselineLinearLengths(baselineLengthByRef)
+  lengths.byFeatureId = baselineLengthByRef.byFeatureId
+  const linked = watercourses.filter(
+    (feature) =>
+      feature?.parentFeatureId &&
+      lengths.byFeatureId.has(feature.parentFeatureId)
+  )
+  for (const [parentId, parts] of Map.groupBy(
+    linked,
+    (feature) => feature.parentFeatureId
+  )) {
+    shareRemainder(
+      lengths.byFeatureId.get(parentId),
+      parts,
+      lengths.enhancedShareByFeature
+    )
+  }
+  return lengths
 }
 
 /**
@@ -64,12 +178,32 @@ export function buildBaselineLinearLengthByRef(
 }
 
 /**
+ * A linked Enhanced feature's share of its parent's length, or the whole
+ * parent when it has none. A share of nothing (Retained parts as long as the
+ * parent) leaves no baseline to enhance, so the feature cannot be priced.
+ */
+function shareOfParent(feature, parentKm, baselineLengthByRef, layerLabel) {
+  const shareKm = baselineLengthByRef.enhancedShareByFeature?.get(feature)
+  if (shareKm == null) {
+    return parentKm
+  }
+  if (shareKm <= 0) {
+    throw new BaselineLookupError(
+      `Cannot calculate Enhanced ${layerLabel} units: the Retained parts of the parent of parcel ref "${shownValue(feature.ref)}" take its whole baseline length, so none is left to enhance`
+    )
+  }
+  return shareKm
+}
+
+/**
  * The baseline length an Enhanced linear feature is priced against: its
  * parent's, when it is linked to one (a BNG Service template feature, or a
  * renamed one), else the baseline feature's with its ref (a legacy feature).
  * An explicit null parent, a renamed feature's whose old ref matched no
  * baseline (BMD-1046), has no baseline length: it is never matched by ref,
- * which no longer names its baseline.
+ * which no longer names its baseline. An Enhanced part of a split BNG Service
+ * watercourse is priced against its share of what the parent's Retained parts
+ * leave (withEnhancedWatercourseShares).
  *
  * @param {{ ref?: string | null, parentFeatureId?: string | null }} feature
  * @param {Map<string, number> | undefined} baselineLengthByRef
@@ -79,10 +213,11 @@ export function buildBaselineLinearLengthByRef(
  * @throws {BaselineLookupError}
  */
 export function lookupBaselineLinearLength(
-  { ref, parentFeatureId },
+  feature,
   baselineLengthByRef,
   layerLabel
 ) {
+  const { ref, parentFeatureId } = feature
   if (!baselineLengthByRef) {
     throw new BaselineLookupError(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${shownValue(ref)}")`
@@ -97,7 +232,7 @@ export function lookupBaselineLinearLength(
         `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for the parent of parcel ref "${shownValue(ref)}"`
       )
     }
-    return parentKm
+    return shareOfParent(feature, parentKm, baselineLengthByRef, layerLabel)
   }
   const key = normaliseRef(ref)
   const lengthKm = key === null ? undefined : baselineLengthByRef.get(key)

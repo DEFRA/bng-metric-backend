@@ -212,6 +212,43 @@ describe('lostBaselineHabitats', () => {
       )
     ).toEqual([])
   })
+
+  // BMD-1212: a re-meandered channel records no loss of length, whole or
+  // split into a Retained and an Enhanced part (User Guide, section 7).
+  it('records no loss for a watercourse re-meandered in part, its Retained and Enhanced parts longer together than their parent', () => {
+    const ditch = line(1, 100, DITCH)
+
+    expect(
+      lostBaselineHabitats(
+        {
+          watercourses: [
+            child(1, ditch, 'Retained', 40),
+            child(2, ditch, 'Enhanced', 90, { condition: 'Good' })
+          ]
+        },
+        { watercourses: [ditch] }
+      )
+    ).toEqual([])
+  })
+
+  it('records the rest as lost for an Enhanced watercourse shorter than its parent', () => {
+    const ditch = line(1, 100, { ...DITCH, ref: 'R001' })
+
+    expect(
+      lostBaselineHabitats(
+        {
+          watercourses: [child(1, ditch, 'Enhanced', 80, { condition: 'Good' })]
+        },
+        { watercourses: [ditch] }
+      )
+    ).toEqual([
+      expect.objectContaining({
+        layer: 'watercourses',
+        ref: 'R001',
+        lostSizeMetres: 20
+      })
+    ])
+  })
 })
 
 describe('lostBaselineHabitats — vertical area habitats', () => {

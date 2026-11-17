@@ -25,7 +25,7 @@ import { featureNotEditableError } from './feature-not-editable-error.js'
 // A degraded tree, an Existing tree Created as its baseline tree lost and
 // created again, is held there to staying a degrade (brokenDegradeRule), and
 // refused as DEGRADE_NOT_VALID.
-export { postInterventionAreaEditPayload as postInterventionTreeEditPayload } from './created-area-edit.js'
+export { postInterventionAreaEditPayload as postInterventionTreeEditPayload } from './post-intervention-area-edit.js'
 
 const EDITABLE_RETENTION = new Set([RETENTION_CREATED, RETENTION_ENHANCED])
 

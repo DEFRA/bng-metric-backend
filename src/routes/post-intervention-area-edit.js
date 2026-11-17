@@ -35,11 +35,14 @@ export const postInterventionAreaEditPayload = featureEditPayload
   .with('delayYears', 'ref')
   .with('ref', ['broadType', 'habitatType', 'condition'])
 
-export function validateCreatedAreaEdit(feature, edits) {
+// A Created or an Enhanced area habitat's edit (BMD-1048, BMD-1045), named as
+// validatePostInterventionTreeEdit is for trees.
+export function validatePostInterventionAreaEdit(feature, edits) {
   if (!Object.hasOwn(edits, 'ref')) {
     return edits
   }
-  const reference = editReference(feature)
+  const enhanced = resolveRetentionCategory(feature) === RETENTION_ENHANCED
+  const reference = editReference(feature, enhanced)
   if (!reference) {
     throw Boom.badRequest(
       'These attributes can only be edited on Created or Enhanced areas'
@@ -47,21 +50,11 @@ export function validateCreatedAreaEdit(feature, edits) {
   }
   const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
-  if (!areaChoicesValid(resolved, reference, keepableChoices(feature))) {
-    throw refusedAreaChoices(feature)
+  const keepable = enhanced ? (feature.proposed ?? {}) : {}
+  if (!areaChoicesValid(resolved, reference, keepable)) {
+    throw refusedAreaChoices(enhanced)
   }
   return resolved
-}
-
-// The stored choices an edit may keep unlisted: an Enhanced area's only
-// (BMD-1045). A Created area chooses from the creation list alone, as before.
-// An unchanged IGGI proposal is kept like any other: neither list offers an
-// IGGI type, so one can only be kept, never newly chosen, and the library
-// accepts some IGGI enhancements, which brokenEnhancementRule still checks.
-function keepableChoices(feature) {
-  return resolveRetentionCategory(feature) === RETENTION_ENHANCED
-    ? (feature.proposed ?? {})
-    : {}
 }
 
 // The rule an Enhanced area breaks when it sends a choice its baseline's valid
@@ -72,8 +65,8 @@ const OFFERED_ENHANCEMENT_RULE = 'offered-enhancement'
 // An Enhanced area's choices are refused as an invalid enhancement, so its
 // edit form can show the refusal against the target condition; a Created
 // area's as a bad request.
-function refusedAreaChoices(feature) {
-  return resolveRetentionCategory(feature) === RETENTION_ENHANCED
+function refusedAreaChoices(enhanced) {
+  return enhanced
     ? invalidEnhancementError(OFFERED_ENHANCEMENT_RULE)
     : Boom.badRequest('Choose valid area habitat and target condition options')
 }
@@ -81,17 +74,21 @@ function refusedAreaChoices(feature) {
 // A Created area chooses from every area habitat it can be created as
 // (BMD-1048); an Enhanced one only from the valid enhancements of its
 // baseline (BMD-1045), the choices its edit form offers.
-function editReference(feature) {
-  const category = resolveRetentionCategory(feature)
-  if (category === RETENTION_CREATED) {
-    return getAreaCreationReference()
-  }
-  if (category === RETENTION_ENHANCED) {
+function editReference(feature, enhanced) {
+  if (enhanced) {
     return getAreaEnhancementReference(feature.baseline ?? {})
   }
-  return null
+  return resolveRetentionCategory(feature) === RETENTION_CREATED
+    ? getAreaCreationReference()
+    : null
 }
 
+// Only an Enhanced area may keep a stored choice unlisted; a Created area
+// chooses from the creation list alone, as before. An unchanged IGGI proposal
+// is kept like any other: neither list offers an IGGI type, so one can only
+// be kept, never newly chosen, and the library accepts some IGGI
+// enhancements, which brokenEnhancementRule still checks.
+//
 // Each choice must be one the reference offers, unless it keeps the stored
 // value along with every choice above it: a broad habitat, a type in it and a
 // condition of that type (BMD-1045). A kept choice skips only this

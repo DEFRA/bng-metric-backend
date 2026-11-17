@@ -10,7 +10,8 @@
  *   Page 2  key figures (pdfkit's built-in tagged table), then the baseline
  *           and post-intervention site maps side by side, and the legend
  *   Page 3+ one row (or one card) per habitat parcel: mini-map, ref, type,
- *           condition, size
+ *           condition, size; then the same per individual tree, with its
+ *           size class
  *
  * This module owns only the document: its metadata, its fonts and the order of
  * its pages. The pages build themselves — `summary-tiles.js`,
@@ -87,6 +88,7 @@ async function buildSiteReportPdf({
     maps: 0,
     tiles: 0,
     habitats: 0,
+    trees: 0,
     zooms: [],
     capped: cappedStats(baseline, postIntervention)
   }

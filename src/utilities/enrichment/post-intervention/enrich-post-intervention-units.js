@@ -17,6 +17,7 @@ import {
 import { enrichPostInterventionAreaHabitat } from './enrich-post-intervention-area-habitat.js'
 import { enrichPostInterventionHedgerowWithUnits } from './enrich-post-intervention-hedgerow.js'
 import { enrichPostInterventionWatercourseWithUnits } from './enrich-post-intervention-watercourse.js'
+import { withEnhancedWatercourseShares } from './linear-baseline-length-by-ref.js'
 import { enrichPostInterventionAreaTradingRules } from './enrich-post-intervention-area-trading-rules.js'
 import { enrichPostInterventionWatercourseTradingRules } from './enrich-post-intervention-watercourse-trading-rules.js'
 import { enrichPostInterventionHedgerowTradingRules } from './enrich-post-intervention-hedgerow-trading-rules.js'
@@ -80,11 +81,17 @@ export function enrichPostInterventionDocumentWithUnits(
     Array.isArray(postInterventionDocument?.watercourses) &&
     postInterventionDocument.watercourses.length > 0
   ) {
+    // Each Enhanced part of a split watercourse is priced against its share
+    // of the parent, which depends on its siblings (BMD-1212).
+    const watercourseLengths = withEnhancedWatercourseShares(
+      baselineLengthByRef,
+      postInterventionDocument.watercourses
+    )
     for (const watercourse of postInterventionDocument.watercourses) {
       enrichPostInterventionWatercourseWithUnits(
         watercourse,
         logger,
-        baselineLengthByRef
+        watercourseLengths
       )
     }
   }

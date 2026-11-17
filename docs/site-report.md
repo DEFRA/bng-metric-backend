@@ -2,7 +2,8 @@
 
 `GET /projects/{projectId}/report.pdf` renders a printable, screen-reader-structured
 report for one project: the site drawn on a map with its habitat parcels over it, the
-key figures, and one row per parcel carrying a thumbnail and the recorded attributes.
+key figures, and one row per parcel, then one per individual tree, carrying a thumbnail
+and the recorded attributes.
 
 Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harness.
 
@@ -12,7 +13,7 @@ Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harne
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | The summary, shaped like the service's own project summary screen: the project name over a "Summary" heading, then a tile section per unit type — net percentage change with its Met / Not met tag, trading rules, and the baseline, post-intervention and net unit change figures |
 | 2    | Key figures as a tagged table, the baseline and post-intervention site maps side by side, the legend and the basemap credit                                                                                                                                                        |
-| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records                                                                                                                                                                        |
+| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records. Then the same per individual tree, in a table of its own                                                                                                              |
 
 Page 1 mirrors the screen deliberately. A user arrives at the download from the project
 summary page, and a report whose first page restated the same figures differently would
@@ -185,6 +186,19 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
 Page 2 onwards presents the parcels one of two ways, chosen with
 `?layout=table|cards`. Same data, same mini-map, different shape.
 
+Individual trees follow the parcels, under their own heading, in the same layout. A tree
+is an area habitat in the metric, so its units are in the area habitat figures, and a
+report that listed the parcels alone would leave part of those figures with nothing on
+the page to account for them. Each layer is described once, in `pdf/listed-layers.js`,
+and both layouts draw from it, so they cannot drift apart on what they list. A tree's
+thumbnail is its point among the parcels; its row adds **Tree size** (Small, Medium,
+Large or Very large) and **Number of trees**, and gives its size to four decimal places,
+as a Small tree is 0.0041 ha. A row is one tree point. In the BNG Service template that
+is one tree; in the legacy template its Count can make it several, and its size is then
+the size class's area times the count, so the count is shown beside the size class, as the
+tree details screens show it (a blank Count is one tree). The side is the parcels' rule:
+the post-intervention trees where the project has them, otherwise the baseline ones.
+
 |                  | `table` (default)                  | `cards`                                     |
 | ---------------- | ---------------------------------- | ------------------------------------------- |
 | Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute |
@@ -207,12 +221,12 @@ this is the answer that already exists.
 
 ### What a card shows
 
-Sixteen fields, in reading order: what the parcel **is**, then how it is **judged**, then
+Seventeen fields, in reading order: what the parcel **is**, then how it is **judged**, then
 how the number was **arrived at**, then what was **recorded** about it on the ground.
 
 | Group        | Fields                                                                                          |
 | ------------ | ----------------------------------------------------------------------------------------------- |
-| Identity     | Ref and habitat type (the card heading), broad habitat                                          |
+| Identity     | Ref and habitat type (the card heading), broad habitat, tree size (trees only)                  |
 | Judgement    | Condition, distinctiveness, strategic significance, retention, spatial risk, size               |
 | The workings | Creation difficulty, time to target, advance or delay, final time to target, biodiversity units |
 | Recorded     | Calculation status, survey date, survey details, comment                                        |
@@ -603,19 +617,33 @@ and an arbitrarily long synchronous render. Every layer read is therefore capped
 
 Measured at that ceiling, on parcels of ~900 vertices each — the density a real survey
 has, taking 225,748 vertices across one file from the GEOS slivers check as the
-reference point:
+reference point. `node scripts/bench-site-report.mjs [spaced|tiled] [ceiling]
+[both|baseline]` reproduces every figure below. The cap applies to each layer, and the
+report lists two of them, parcels and trees, so a capped project can list 250 of each:
 
-| At the cap    | Table layout   | Cards layout   |
-| ------------- | -------------- | -------------- |
-| 250 per layer | 2.9 MB / 1.5 s | 3.8 MB / 2.8 s |
-| 500 per layer | 5.8 MB / 2.8 s | 7.6 MB / 5.9 s |
+| At the cap, 250 per layer, no basemap       | Table layout    | Cards layout    |
+| ------------------------------------------- | --------------- | --------------- |
+| Spaced parcels, baseline only               | 2.9 MB / 1.2 s  | 3.6 MB / 2.4 s  |
+| Spaced parcels and 250 trees, baseline only | 4.3 MB / 1.7 s  | 5.1 MB / 3.6 s  |
+| Spaced parcels and 250 trees, both sides    | 5.8 MB / 2.4 s  | 6.9 MB / 3.7 s  |
+| Tiled parcels, both sides                   | 17.4 MB / 4.2 s | 18.5 MB / 6.6 s |
+| Tiled parcels and 250 trees, both sides     | 18.9 MB / 4.5 s | 20.1 MB / 6.5 s |
+
+"Spaced" parcels stand a parcel's width apart, so a thumbnail draws only its own parcel;
+the first row is how the ceiling was first measured. "Tiled" parcels share their edges, as
+a surveyed site's do, and then each thumbnail also draws the eight neighbours its frame
+overlaps, in full, as context. A tree's thumbnail is a 50 m square around its point and
+draws the parcels it overlaps in the same way, which is most of what a tree costs.
 
 500 was the first choice and is what the earlier revision of this document claimed held
 the worst case to "roughly 2 MB and a couple of seconds". That was an extrapolation from
 the 50-parcel figure and it was wrong in both directions — the growth is not linear, and
-the cards layout was not measured at all. 250 is the value the measurements support: it
-stays inside the few-megabytes mark this page names as the point to start streaming,
-while remaining five times the largest example site.
+the cards layout was not measured at all. 250 was chosen on the first row of the table,
+which stays inside the few-megabytes mark this page names as the point to start streaming,
+while remaining five times the largest example site. **The tiled rows do not**: a tiled
+site at the cap passes 17 MB before any tree is listed, because of the neighbours each
+thumbnail draws. Trees add about 1.5 MB to either. Thinning the context a thumbnail draws,
+or streaming, is the change to make before raising the cap.
 
 The cap is applied in SQL — `.limit(cap + 1)` in `db/project-geometry.js` — rather than
 after the rows arrive, because slicing in JavaScript would still have read and parsed

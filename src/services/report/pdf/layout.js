@@ -140,14 +140,6 @@ const CREDIT_LINE_HEIGHT = 1.2
 
 const KEY_FIGURES_COLUMN_WIDTH = 110
 
-/** Column widths as fractions of the space the thumbnail column leaves. */
-const HABITAT_COLUMN_FRACTION = Object.freeze({
-  ref: 0.12,
-  type: 0.4,
-  condition: 0.26,
-  area: 0.22
-})
-
 const SQ_M_PER_HECTARE = 10_000
 const HECTARE_DECIMALS = 2
 const PARCEL_HECTARE_DECIMALS = 3
@@ -197,7 +189,6 @@ export {
   CREDIT_PLATE_OPACITY,
   CREDIT_PLATE_PADDING,
   FONT_SIZE,
-  HABITAT_COLUMN_FRACTION,
   HABITAT_ROW_DIVIDER_OFFSET,
   HABITAT_ROW_HEIGHT,
   HABITAT_ROW_MAP_OFFSET,

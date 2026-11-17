@@ -28,6 +28,7 @@ import {
   CONTENT_WIDTH,
   FONT_SIZE
 } from './layout.js'
+import { TREE_HECTARE_DECIMALS } from './listed-layers.js'
 import { toBuffer } from '../build-site-report.js'
 import {
   baselineSite,
@@ -80,6 +81,21 @@ describe('#cardValues', () => {
       distinctiveness: null,
       units: null,
       area: null
+    })
+  })
+
+  test("gives a tree's size class, and its size to the layer's places", () => {
+    const tree = baselineSite().layers.trees[0]
+
+    expect(cardValues(tree, TREE_HECTARE_DECIMALS)).toMatchObject({
+      treeSize: 'Small',
+      treeCount: '1',
+      area: '0.0041 ha'
+    })
+    // A parcel has no size class and no count, so its card leaves both out.
+    expect(cardValues(baselineSite().layers.habitats[0])).toMatchObject({
+      treeSize: null,
+      treeCount: null
     })
   })
 
@@ -353,6 +369,20 @@ describe('#addHabitatCards', () => {
 
     expect(cards.stats.habitats).toBe(2)
     expect(table.stats.habitats).toBe(2)
+  })
+
+  test('gives every tree a card of its own, after the parcels', async () => {
+    const cards = await render({ baseline: baselineSite() })
+    const table = await render({ baseline: baselineSite(), layout: 'table' })
+
+    expect(cards.text).toContain(
+      'Position of tree T1, shown in place among the habitat parcels.'
+    )
+    expect(cards.text.indexOf('/T (Individual trees)')).toBeGreaterThan(
+      cards.text.indexOf('/T (Habitat parcels)')
+    )
+    expect(cards.stats.trees).toBe(1)
+    expect(table.stats.trees).toBe(1)
   })
 
   test('produces no habitat section at all when there are no parcels', async () => {
