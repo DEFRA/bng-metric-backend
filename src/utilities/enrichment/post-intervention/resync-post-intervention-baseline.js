@@ -419,6 +419,24 @@ export function preserveCreatedParent(
   if (serviceTemplate || Object.hasOwn(existing, 'parentFeatureId')) {
     return
   }
+  updated.parentFeatureId = renamedParentFeatureId(existing, {
+    layer,
+    baseline
+  })
+}
+
+/**
+ * The baseline feature a legacy row is renamed away from: the one its old ref
+ * and stored baseline snapshot name, or null when none, or several alike, do.
+ * preserveCreatedParent records it, and an Enhanced hedgerow's rename is
+ * priced against it (BMD-1046), so both read the same baseline.
+ *
+ * @param {object} existing the row before the rename
+ * @param {{ layer: string, baseline: object[] | undefined }} options the
+ *   baseline features of the row's layer
+ * @returns {string | null}
+ */
+export function renamedParentFeatureId(existing, { layer, baseline }) {
   const candidates =
     buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
   const resolved = resolveBaselineFeature(
@@ -426,7 +444,7 @@ export function preserveCreatedParent(
     existing,
     IDENTITY_FIELDS_BY_LAYER[layer]
   )
-  updated.parentFeatureId = resolved.source?.featureId ?? null
+  return resolved.source?.featureId ?? null
 }
 
 /**

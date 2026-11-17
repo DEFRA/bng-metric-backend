@@ -11,6 +11,7 @@
   "GET /reference/tree-creation",
   "GET /reference/tree-enhancement",
   "GET /reference/area-enhancement",
+  "GET /reference/hedgerow-enhancement",
   "GET /reference/broad-habitats",
   "GET /reference/conditions",
   "GET /reference/habitat-types",

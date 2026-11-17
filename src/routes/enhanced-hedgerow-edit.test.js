@@ -48,10 +48,14 @@ const edits = {
   delayYears: 2
 }
 
-function update(overrides = {}, stored = feature) {
+function update(
+  overrides = {},
+  stored = feature,
+  hedgerows = [baselineHedgerow]
+) {
   return applyFeatureUpdate(
     {
-      baseline: { hedgerows: [baselineHedgerow] },
+      baseline: { hedgerows },
       postIntervention: { hedgerows: [stored] }
     },
     {
@@ -59,10 +63,21 @@ function update(overrides = {}, stored = feature) {
       edits: { ...edits, ...overrides },
       documentKey: 'postIntervention',
       expectedType: 'hedgerow',
-      baseline: { hedgerows: [baselineHedgerow] }
+      baseline: { hedgerows }
     }
   )
 }
+
+const unitsAt = (baselineKm) =>
+  calculateEnhancedHedgerowPostIntervention(
+    baselineKm,
+    LENGTH_KM,
+    'Native hedgerow',
+    'Species-rich native hedgerow',
+    'Moderate',
+    'Moderate',
+    { advanceYears: 0, delayYears: 2, strategicSignificance: 'High' }
+  ).units
 
 function request(payload, stored = feature) {
   const row = {
@@ -226,5 +241,86 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
         output: expect.objectContaining({ statusCode: 400 })
       })
     )
+  })
+
+  test('a rename shared by two baseline hedgerows is priced against the one it records as its parent', () => {
+    // Both baseline hedgerows carry the old ref. The stored baseline snapshot
+    // names the first (Moderate); the second, half as long, is Poor and comes
+    // last, so a join by ref alone would take its length.
+    const shorter = {
+      ...baselineHedgerow,
+      featureId: 'eeeeeeee-eeee-eeee-eeee-eeeeeeeeeeee',
+      sizeMetres: SIZE_METRES / 2,
+      condition: 'Poor'
+    }
+    const result = update({ ref: 'HG-1 renamed' }, feature, [
+      baselineHedgerow,
+      shorter
+    ])
+
+    expect(result.feature).toMatchObject({
+      parentFeatureId: baselineHedgerow.featureId,
+      units: unitsAt(LENGTH_KM)
+    })
+    // Saving it again, now by its parent, keeps the same units.
+    const again = update({ ref: 'HG-1 renamed' }, result.feature, [
+      baselineHedgerow,
+      shorter
+    ])
+    expect(again.feature.units).toBe(result.feature.units)
+  })
+
+  test('a hedgerow renamed with no baseline parent is not priced against a baseline that shares its new ref', () => {
+    // An earlier rename found no baseline hedgerow by its old ref, so it
+    // recorded an explicit null parent. Its new ref matches an unrelated
+    // baseline hedgerow, which must not price it.
+    const unrelated = { ...baselineHedgerow, ref: 'HG-1 renamed' }
+    const renamed = {
+      ...feature,
+      ref: 'HG-1 renamed',
+      referenceEdited: true,
+      parentFeatureId: null
+    }
+    const result = update({ ref: 'HG-1 renamed' }, renamed, [unrelated])
+
+    expect(result.status).toBe('ok')
+    expect(result.feature).toMatchObject({
+      parentFeatureId: null,
+      units: 0,
+      status: 'Incomplete'
+    })
+  })
+
+  test('a rename that sends back a stored proposal its unreadable baseline does not list is saved', async () => {
+    // A baseline with no condition offers nothing, so the stored proposal is
+    // not listed; sending it back unchanged must not refuse it.
+    const stored = { ...feature, baseline: { ...baseline, condition: null } }
+    const saved = await updatePostInterventionHedgerow.handler(
+      request(
+        {
+          ...edits,
+          ref: 'HG-1 renamed',
+          habitatType: stored.proposed.type,
+          condition: stored.proposed.condition
+        },
+        stored
+      )
+    )
+    expect(saved).toMatchObject({
+      ref: 'HG-1 renamed',
+      proposed: { type: 'Native hedgerow', condition: 'Good' }
+    })
+  })
+
+  test('a kept condition under a changed habitat type is checked against the list', async () => {
+    await expect(
+      updatePostInterventionHedgerow.handler(
+        request({
+          ...edits,
+          habitatType: 'Species-rich native hedgerow',
+          condition: 'Poor'
+        })
+      )
+    ).rejects.toMatchObject({ output: { statusCode: 422 } })
   })
 })

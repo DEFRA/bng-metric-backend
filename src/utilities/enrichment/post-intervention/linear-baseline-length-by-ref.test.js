@@ -130,3 +130,21 @@ describe('a BNG Service template feature, linked to its parent (BMD-1083)', () =
     )
   })
 })
+
+describe('lookupBaselineLinearLength with an explicit null parent (BMD-1046)', () => {
+  it('does not fall back to the ref, which no longer names its baseline', () => {
+    const map = buildBaselineLinearLengthByRef([
+      { featureId: 'h1', ref: 'R1', sizeMetres: 90 }
+    ])
+    expect(() =>
+      lookupBaselineLinearLength(
+        { ref: 'R1', parentFeatureId: null },
+        map,
+        'hedgerow'
+      )
+    ).toThrow(/Cannot calculate Enhanced hedgerow units/)
+    expect(lookupBaselineLinearLength({ ref: 'R1' }, map, 'hedgerow')).toBe(
+      0.09
+    )
+  })
+})

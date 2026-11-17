@@ -106,14 +106,16 @@ function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
 function recomputeHedgerowEdit(
   existing,
   edits,
-  { documentKey, logger, baseline }
+  { documentKey, logger, baseline, serviceTemplate }
 ) {
   if (documentKey === 'postIntervention') {
     if (Object.hasOwn(edits, 'advanceYears')) {
       return resolveRetentionCategory(existing) === RETENTION_ENHANCED
         ? recomputeEnhancedHedgerowEdit(existing, edits, {
             baselineLengthByRef:
-              postInterventionEnrichOptions(baseline).baselineLengthByRef
+              postInterventionEnrichOptions(baseline).baselineLengthByRef,
+            baselineHedgerows: baseline?.hedgerows,
+            serviceTemplate
           })
         : recomputeCreatedHedgerowEdit(existing, edits)
     }
@@ -462,7 +464,8 @@ function resolveEditTarget(
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
     documentKey,
     logger,
-    baseline
+    baseline,
+    serviceTemplate: isTemplateUpload(featureSet)
   })
   if (!derived) {
     return {

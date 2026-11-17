@@ -82,9 +82,13 @@ function resolveCreatedLinearCondition(feature, edits) {
  * Check a Created linear feature's edit against `reference`, or, with
  * `enhancedReference`, an Enhanced one's against the valid enhancements of its
  * baseline (BMD-1046). An omitted habitat type or condition keeps the stored
- * one, unchecked; a sent one must be offered. An Enhanced feature's refused
- * choice is an invalid enhancement (422), so its edit form can show it
- * against the target condition; a Created one's is a bad request.
+ * one, unchecked; a sent one must be offered, except that an Enhanced
+ * feature may send back its stored habitat type, and its stored condition
+ * under that type, unlisted, as an Enhanced area may (BMD-1045). The
+ * recomputed feature is still checked as an enhancement
+ * (brokenEnhancementRule). An Enhanced feature's refused choice is an
+ * invalid enhancement (422), so its edit form can show it against the target
+ * condition; a Created one's is a bad request.
  *
  * @param {object} feature
  * @param {object} edits
@@ -100,15 +104,12 @@ export function validateCreatedLinearEdit(
   label,
   { enhancedReference } = {}
 ) {
-  const retention = resolveRetentionCategory(feature)
-  const enhanced =
-    Boolean(enhancedReference) && retention === RETENTION_ENHANCED
-  if (!enhanced && retention !== RETENTION_CREATED) {
+  const enhanced = isEditableEnhanced(feature, enhancedReference)
+  if (!enhanced && resolveRetentionCategory(feature) !== RETENTION_CREATED) {
     throw Boom.badRequest(
       `These attributes can only be edited on Created ${label}s`
     )
   }
-  const choices = enhanced ? enhancedReference(feature) : reference
   const withType = {
     ...edits,
     habitatType:
@@ -121,17 +122,52 @@ export function validateCreatedLinearEdit(
     condition: resolveCreatedLinearCondition(feature, withType)
   }
   validateReferenceAndTiming(resolved)
-  const type = choices.habitatTypes.find((t) => t.name === resolved.habitatType)
-  if (
-    (edits.habitatType && !type) ||
-    (edits.condition &&
-      !type?.conditions.some((c) => c.condition === edits.condition))
-  ) {
-    throw enhanced
-      ? invalidEnhancementError(OFFERED_ENHANCEMENT_RULE)
-      : Boom.badRequest(
-          `Choose valid ${label} habitat and target condition options`
-        )
+  const choices = enhanced ? enhancedReference(feature) : reference
+  const kept = keptLinearChoices(
+    edits,
+    enhanced ? (feature.proposed ?? {}) : {}
+  )
+  if (!linearChoicesOffered(choices, resolved, edits, kept)) {
+    throw refusedLinearChoices(enhanced, label)
   }
   return resolved
+}
+
+function isEditableEnhanced(feature, enhancedReference) {
+  return (
+    Boolean(enhancedReference) &&
+    resolveRetentionCategory(feature) === RETENTION_ENHANCED
+  )
+}
+
+// Which sent choices keep the stored ones: the habitat type, omitted or sent
+// as stored, and the condition, sent as stored under a kept type.
+function keptLinearChoices(edits, stored) {
+  const type =
+    edits.habitatType === undefined ||
+    (Boolean(edits.habitatType) && edits.habitatType === stored.type)
+  return {
+    type,
+    condition:
+      type && Boolean(edits.condition) && edits.condition === stored.condition
+  }
+}
+
+// A blank or kept choice is valid; any other sent one must be offered.
+function linearChoicesOffered(choices, resolved, edits, kept) {
+  const type = choices.habitatTypes.find((t) => t.name === resolved.habitatType)
+  const typeOffered = !edits.habitatType || kept.type || Boolean(type)
+  const conditionOffered =
+    !edits.condition ||
+    kept.condition ||
+    Boolean(type?.conditions.some((c) => c.condition === edits.condition))
+  return typeOffered && conditionOffered
+}
+
+function refusedLinearChoices(enhanced, label) {
+  return enhanced
+    ? invalidEnhancementError(OFFERED_ENHANCEMENT_RULE)
+    : Boom.badRequest(
+        `Choose valid ${label} habitat and target condition options`
+      )
 }
