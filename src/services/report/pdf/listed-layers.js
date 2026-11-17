@@ -33,11 +33,33 @@ const COLUMN_LABELS = Object.freeze({
 })
 
 /**
- * A text column, its width a fraction of the space the thumbnail column
- * leaves. Each layer's fractions sum to one.
+ * Each layer's text columns, in order, with each one's width as a fraction of
+ * the space the thumbnail column leaves. Each layer's fractions sum to one.
  */
-function column(key, fraction) {
-  return Object.freeze({ key, label: COLUMN_LABELS[key], fraction })
+const HABITAT_COLUMN_FRACTIONS = Object.freeze({
+  ref: 0.12,
+  type: 0.4,
+  condition: 0.26,
+  area: 0.22
+})
+
+const TREE_COLUMN_FRACTIONS = Object.freeze({
+  ref: 0.1,
+  type: 0.18,
+  treeSize: 0.15,
+  // Wide enough for its heading on one line: "Number of trees" wraps through
+  // the header rule at a narrower width.
+  treeCount: 0.2,
+  condition: 0.18,
+  area: 0.19
+})
+
+function columnsOf(fractions) {
+  return Object.freeze(
+    Object.entries(fractions).map(([key, fraction]) =>
+      Object.freeze({ key, label: COLUMN_LABELS[key], fraction })
+    )
+  )
 }
 
 const HABITATS = Object.freeze({
@@ -54,12 +76,7 @@ const HABITATS = Object.freeze({
     postIntervention
       ? HABITAT_STYLES.postIntervention
       : HABITAT_STYLES.baseline,
-  columns: Object.freeze([
-    column('ref', 0.12),
-    column('type', 0.4),
-    column('condition', 0.26),
-    column('area', 0.22)
-  ])
+  columns: columnsOf(HABITAT_COLUMN_FRACTIONS)
 })
 
 /**
@@ -80,16 +97,7 @@ const TREES = Object.freeze({
   hectareDecimals: TREE_HECTARE_DECIMALS,
   // A point, drawn as the site maps draw a tree, on either side.
   style: () => HABITAT_STYLES.tree,
-  columns: Object.freeze([
-    column('ref', 0.1),
-    column('type', 0.18),
-    column('treeSize', 0.15),
-    // Wide enough for its heading on one line: "Number of trees" wraps
-    // through the header rule at a narrower width.
-    column('treeCount', 0.2),
-    column('condition', 0.18),
-    column('area', 0.19)
-  ])
+  columns: columnsOf(TREE_COLUMN_FRACTIONS)
 })
 
 const LISTED_LAYERS = Object.freeze([HABITATS, TREES])

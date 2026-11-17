@@ -46,9 +46,11 @@ const LAYOUTS = ['table', 'cards']
 const PITCH = { spaced: 2, tiled: 1 }
 const SIDES = ['both', 'baseline']
 
-const arrangement = process.argv[2] ?? 'spaced'
-const ceiling = Number(process.argv[3] ?? DEFAULT_CEILING)
-const sides = process.argv[4] ?? 'both'
+// The positional arguments, after node and the script's own path.
+const [arrangementArg, ceilingArg, sidesArg] = process.argv.slice(2)
+const arrangement = arrangementArg ?? 'spaced'
+const ceiling = Number(ceilingArg ?? DEFAULT_CEILING)
+const sides = sidesArg ?? 'both'
 if (
   !(arrangement in PITCH) ||
   !Number.isSafeInteger(ceiling) ||
