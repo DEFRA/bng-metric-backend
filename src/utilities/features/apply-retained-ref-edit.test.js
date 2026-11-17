@@ -624,6 +624,37 @@ describe('applyRetainedRefEdit — a BNG Service template upload', () => {
       feature: { featureId: PI_HABITAT_ID, ref: 'P-A1' }
     })
   })
+
+  test('renames a template row onto a reference another habitat carries: references need not be unique (BMD-1180 AC7)', () => {
+    const project = projectFixture()
+    project.postIntervention.template = { name: 'BNG Service template' }
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440099',
+      ref: 'A2'
+    })
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HABITAT_ID,
+      ref: 'A2'
+    })
+
+    expect(result).toMatchObject({
+      status: RETAINED_REF_RESULT.OK,
+      feature: { featureId: PI_HABITAT_ID, ref: 'A2' }
+    })
+  })
+
+  test('renames a template hedgerow onto a watercourse’s reference', () => {
+    const project = projectFixture()
+    project.postIntervention.template = { name: 'BNG Service template' }
+
+    const result = applyRetainedRefEdit(project, {
+      featureId: PI_HEDGEROW_ID,
+      ref: 'W1'
+    })
+
+    expect(result.status).toBe(RETAINED_REF_RESULT.OK)
+  })
 })
 
 describe('applyRetainedRefEdit — a row stored with its category under baseline', () => {

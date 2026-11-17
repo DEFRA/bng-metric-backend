@@ -12,6 +12,13 @@
 //
 // Imports may still repeat a reference (BMD-1058): parcels that combine or
 // split share one. This only stops an edit from creating a new clash.
+//
+// It applies to a legacy upload only. A BNG Service template upload links
+// each post-intervention row to its baseline parent by id (parentFeatureId,
+// BMD-1083), never by reference, so a rename there may repeat a reference
+// another habitat carries (BMD-1180 AC7). The callers decide which applies:
+// a template baseline edit does not ask, and a template Retained rename only
+// renames its own row (apply-retained-ref-edit.js).
 
 import { normaliseRef } from '../../validation/geopackage/carry-forward-feature-ids.js'
 

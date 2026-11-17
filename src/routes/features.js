@@ -233,12 +233,14 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       baseline feature it is joined to.
  *
  *       `ref` is optional; leaving it out keeps the stored reference. When
- *       sent it follows the import rules (BMD-1058): a blank or
- *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
- *       one longer than 100 characters is trimmed and truncated. Renaming
- *       onto a reference another baseline habitat in the same layer already
- *       carries (hedgerows and watercourses count as one layer) is a 422 with
- *       code HABITAT_REF_IN_USE. A renamed reference is carried onto the
+ *       sent it is trimmed, and a blank or whitespace-only value, one that is
+ *       not valid UTF-8, or one longer than 99 characters is a 400. On a
+ *       legacy upload, renaming onto a reference another baseline habitat in
+ *       the same layer already carries (hedgerows and watercourses count as
+ *       one layer) is a 422 with code HABITAT_REF_IN_USE, because its
+ *       post-intervention rows are joined to the baseline by reference. A BNG
+ *       Service template upload joins them by id, so there a reference need
+ *       not be unique (BMD-1180 AC7). A renamed reference is carried onto the
  *       post-intervention rows joined to the feature, and onto the stored
  *       geometry rows.
  *     parameters:
@@ -286,7 +288,7 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *       404:
  *         description: Project or feature not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the new reference is already used by another habitat in the same layer (code HABITAT_REF_IN_USE)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or, on a legacy upload, the new reference is already used by another habitat in the same layer (code HABITAT_REF_IN_USE)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -320,17 +322,16 @@ const updateFeature = {
  *       post-intervention feature as `{ type, feature }`. Nothing else on a
  *       Retained habitat is editable.
  *
- *       The reference follows the import rules (BMD-1058): a blank or
- *       whitespace-only value, or one that is not valid UTF-8, is a 400, and
- *       one longer than 100 characters is trimmed and truncated.
+ *       The reference is trimmed, and a blank or whitespace-only value, one
+ *       that is not valid UTF-8, or one longer than 99 characters is a 400.
  *
  *       A Retained habitat is joined to its baseline parcel by reference, so
  *       the rename is made to that parcel and carried onto every
  *       post-intervention row joined to it, as a baseline rename is
- *       (BMD-1061). That rename is refused with a 422 (code
- *       HABITAT_REF_IN_USE) when another baseline habitat in the same layer
- *       already carries the new reference (hedgerows and watercourses count as
- *       one layer), as a baseline rename is.
+ *       (BMD-1061). On a legacy upload that rename is refused with a 422
+ *       (code HABITAT_REF_IN_USE) when another baseline habitat in the same
+ *       layer already carries the new reference (hedgerows and watercourses
+ *       count as one layer), as a baseline rename is.
  *
  *       A BNG Service template habitat, which is linked to its parent by id,
  *       or one whose baseline parcel cannot be told apart is renamed alone.

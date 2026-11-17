@@ -435,6 +435,7 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
 function renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey) {
   return (
     documentKey === 'baseline' &&
+    !isTemplateUpload(featureSet) &&
     renameClashes(featureSet, {
       layer: found.key,
       current: found.feature.ref,

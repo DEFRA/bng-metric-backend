@@ -1498,6 +1498,39 @@ describe('applyFeatureUpdate — editing the habitat reference (BMD-1061)', () =
     expect(result.status).toBe(APPLY_RESULT.REF_IN_USE)
   })
 
+  test('lets a BNG Service template baseline rename onto a reference another habitat carries (BMD-1180 AC7)', () => {
+    const project = projectFixture()
+    project.baseline.template = { name: 'BNG Service', version: '1.0' }
+    project.baseline.habitats.push({
+      featureId: 'ff0e8400-e29b-41d4-a716-446655440006',
+      ref: 'A2'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: { ...KEEP_HABITAT, ref: 'A2' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.ref).toBe('A2')
+  })
+
+  test('lets a BNG Service template hedgerow take a watercourse’s reference', () => {
+    const project = projectFixture()
+    project.baseline.template = { name: 'BNG Service', version: '1.0' }
+    project.baseline.watercourses.push({
+      featureId: WATERCOURSE_ID,
+      ref: 'W1'
+    })
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HEDGEROW_ID,
+      edits: { habitatType: null, condition: null, ref: 'W1' }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+  })
+
   test('saves a reference an import already shared when the edit keeps it', () => {
     const project = projectFixture()
     project.baseline.habitats.push({
