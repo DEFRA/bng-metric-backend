@@ -108,18 +108,7 @@ export function validateCreatedLinearEdit(
   { enhancedReference } = {}
 ) {
   const enhanced = isEditableEnhanced(feature, enhancedReference)
-  if (!enhanced && resolveRetentionCategory(feature) !== RETENTION_CREATED) {
-    throw Boom.badRequest(
-      `These attributes can only be edited on Created ${label}s`
-    )
-  }
-  // A Created feature's comment is its supporting information (BMD-1153); an
-  // Enhanced one's is not editable yet (BMD-1190), as for areas and trees.
-  if (enhanced && Object.hasOwn(edits, 'comment')) {
-    throw featureNotEditableError(
-      `Supporting information can be edited on a Created ${label} only`
-    )
-  }
+  assertLinearEditable(feature, edits, { enhanced, label })
   const withType = {
     ...edits,
     habitatType:
@@ -141,6 +130,23 @@ export function validateCreatedLinearEdit(
     throw refusedLinearChoices(enhanced, label)
   }
   return resolved
+}
+
+// Only a Created feature, or an Enhanced one its kind lets be edited, takes
+// the complete edit. A Created feature's comment is its supporting
+// information (BMD-1153); an Enhanced one's is not editable yet (BMD-1190),
+// as for areas and trees.
+function assertLinearEditable(feature, edits, { enhanced, label }) {
+  if (!enhanced && resolveRetentionCategory(feature) !== RETENTION_CREATED) {
+    throw Boom.badRequest(
+      `These attributes can only be edited on Created ${label}s`
+    )
+  }
+  if (enhanced && Object.hasOwn(edits, 'comment')) {
+    throw featureNotEditableError(
+      `Supporting information can be edited on a Created ${label} only`
+    )
+  }
 }
 
 function isEditableEnhanced(feature, enhancedReference) {

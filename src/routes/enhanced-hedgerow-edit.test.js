@@ -309,6 +309,29 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
     expect(again.feature.units).toBe(result.feature.units)
   })
 
+  test('a rename whose old ref two identical baseline hedgerows share keeps the price it had', () => {
+    // Both match the stored snapshot alike, so neither is told apart. Until
+    // the rename the hedgerow was priced by ref, against the last of them; it
+    // keeps that price, and that one becomes its parent, rather than being
+    // left with no baseline and zero units.
+    const twin = {
+      ...baselineHedgerow,
+      featureId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      sizeMetres: SIZE_METRES / 2
+    }
+    const hedgerows = [baselineHedgerow, twin]
+    const before = update({}, feature, hedgerows)
+    expect(before.feature.units).toBe(unitsAt(LENGTH_KM / 2))
+
+    const renamed = update({ ref: 'HG-1 renamed' }, feature, hedgerows)
+    expect(renamed.feature).toMatchObject({
+      ref: 'HG-1 renamed',
+      status: 'Complete',
+      parentFeatureId: twin.featureId,
+      units: before.feature.units
+    })
+  })
+
   test('a hedgerow renamed with no baseline parent is not priced against a baseline that shares its new ref', () => {
     // An earlier rename found no baseline hedgerow by its old ref, so it
     // recorded an explicit null parent. Its new ref matches an unrelated

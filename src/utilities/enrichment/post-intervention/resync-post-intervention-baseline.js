@@ -439,12 +439,40 @@ export function preserveCreatedParent(
 export function renamedParentFeatureId(existing, { layer, baseline }) {
   const candidates =
     buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
-  const resolved = resolveBaselineFeature(
-    candidates,
-    existing,
-    IDENTITY_FIELDS_BY_LAYER[layer]
+  const fields = IDENTITY_FIELDS_BY_LAYER[layer]
+  const resolved = resolveBaselineFeature(candidates, existing, fields)
+  if (resolved.source) {
+    return resolved.source.featureId
+  }
+  if (
+    resolved.unresolvable === 'ambiguous' &&
+    isPricedByLength(existing, layer)
+  ) {
+    return lastMatch(candidates, existing, fields)
+  }
+  return null
+}
+
+// An Enhanced hedgerow or watercourse is priced against its baseline's length
+// (lookupBaselineLinearLength), so a rename must not leave it without one.
+const LENGTH_PRICED_LAYERS = new Set(['hedgerows', 'watercourses'])
+
+function isPricedByLength(feature, layer) {
+  return (
+    LENGTH_PRICED_LAYERS.has(layer) &&
+    resolveRetentionCategory(feature) === RETENTION_ENHANCED
   )
-  return resolved.source?.featureId ?? null
+}
+
+// When several baseline features share the old ref and match the stored
+// snapshot alike, the last of them: the one a join by that ref priced the
+// feature against until the rename (buildBaselineLinearLengthByRef keeps a
+// ref's last length), so a rename keeps its price (BMD-1046).
+function lastMatch(candidates, existing, fields) {
+  const matches = candidates.filter((candidate) =>
+    matchesSnapshot(candidate, existing, fields)
+  )
+  return matches.at(-1)?.featureId ?? null
 }
 
 /**
