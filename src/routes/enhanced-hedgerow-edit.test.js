@@ -351,6 +351,34 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
     })
   })
 
+  test('a kept proposal that no longer enhances a readable baseline is refused by the enhancement rule', async () => {
+    // The baseline was edited up to Good, the stored proposal's own
+    // condition. Resent unchanged, the kept type and condition pass the
+    // offered-choice check, and the recomputed feature is refused.
+    const stored = { ...feature, baseline: { ...baseline, condition: 'Good' } }
+    await expect(
+      updatePostInterventionHedgerow.handler(
+        request(
+          {
+            ...edits,
+            habitatType: stored.proposed.type,
+            condition: stored.proposed.condition
+          },
+          stored
+        )
+      )
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 422,
+        payload: {
+          code: 'ENHANCEMENT_NOT_VALID',
+          rule: expect.not.stringMatching(/^offered-enhancement$/)
+        }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
   test('a stored condition is kept only under its stored habitat type', () => {
     // Poor is stored, and Species-rich native hedgerow does not list it.
     // Sending Poor back under that new type is a changed choice, so the
