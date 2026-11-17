@@ -441,12 +441,13 @@ export function renamedParentFeatureId(existing, { layer, baseline }) {
     buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
   const fields = IDENTITY_FIELDS_BY_LAYER[layer]
   const resolved = resolveBaselineFeature(candidates, existing, fields)
-  if (resolved.source) {
+  const pricedByLength = isPricedByLength(existing, layer)
+  // A parent with no length cannot price an Enhanced linear feature, so it
+  // keeps the price the length index gave it instead.
+  if (resolved.source && (!pricedByLength || hasLength(resolved.source))) {
     return resolved.source.featureId
   }
-  return isPricedByLength(existing, layer)
-    ? fallbackParentId(candidates, existing, fields)
-    : null
+  return pricedByLength ? fallbackParentId(candidates, existing, fields) : null
 }
 
 // An Enhanced hedgerow or watercourse is priced against its baseline's length

@@ -2,6 +2,7 @@ import { describe, test, expect, vi, beforeEach } from 'vitest'
 import { calculateEnhancedHedgerowPostIntervention } from 'bng-library/metric'
 import { validateCreatedHedgerowEdit } from './created-hedgerow-edit.js'
 import { applyFeatureUpdate } from '../utilities/features/apply-feature-update.js'
+import { rederivePostInterventionFromBaseline } from '../utilities/enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { updatePostInterventionHedgerow } from './habitats.js'
 import { setProjectFeature } from '../db/persist-project.js'
 import { postInterventionLinearHabitatSchema } from '../validation/post-intervention/project-post-intervention-schema.js'
@@ -330,6 +331,67 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
       parentFeatureId: twin.featureId,
       units: before.feature.units
     })
+  })
+
+  test('a rename passes over the one baseline hedgerow its snapshot matches when that one has no length', () => {
+    // The snapshot (Poor) picks out the second row, which has no length; the
+    // length index priced the hedgerow against the first. It keeps that price.
+    const poorSnapshot = {
+      ...feature,
+      baseline: { ...baseline, condition: 'Poor' }
+    }
+    const lengthlessPoor = {
+      ...baselineHedgerow,
+      featureId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      condition: 'Poor',
+      sizeMetres: null
+    }
+    const hedgerows = [baselineHedgerow, lengthlessPoor]
+    const before = update({}, poorSnapshot, hedgerows)
+    expect(before.feature.units).toBeGreaterThan(0)
+
+    const renamed = update({ ref: 'HG-1 renamed' }, poorSnapshot, hedgerows)
+    expect(renamed.feature).toMatchObject({
+      status: 'Complete',
+      parentFeatureId: baselineHedgerow.featureId,
+      units: before.feature.units
+    })
+  })
+
+  test('a renamed hedgerow re-derived after its parent is edited follows the parent, not a baseline row carrying its new ref', () => {
+    const renamed = update({ ref: 'HG-1 renamed' }).feature
+    // The parent is edited down to Poor; a shorter decoy carries the new ref.
+    const editedParent = { ...baselineHedgerow, condition: 'Poor' }
+    const decoy = {
+      ...baselineHedgerow,
+      featureId: '99999999-9999-9999-9999-999999999999',
+      ref: 'HG-1 renamed',
+      sizeMetres: 100
+    }
+    const rederived = rederivePostInterventionFromBaseline(
+      { hedgerows: [renamed] },
+      {
+        baseline: { hedgerows: [editedParent, decoy] },
+        previousBaseline: { hedgerows: [baselineHedgerow] }
+      }
+    )
+    const expected = calculateEnhancedHedgerowPostIntervention(
+      LENGTH_KM,
+      PROPOSED_KM,
+      'Native hedgerow',
+      'Species-rich native hedgerow',
+      'Poor',
+      'Moderate',
+      { advanceYears: 0, delayYears: 2, strategicSignificance: 'High' }
+    ).units
+    const [row] = rederived.hedgerows
+    expect(row).toMatchObject({
+      ref: 'HG-1 renamed',
+      parentFeatureId: baselineHedgerow.featureId,
+      baseline: { condition: 'Poor' },
+      units: expected
+    })
+    expect(rederived.units.hedgerowsTotal).toBe(expected)
   })
 
   test('a rename passes over a matching baseline hedgerow that has no length', () => {

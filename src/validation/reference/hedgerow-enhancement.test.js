@@ -1,4 +1,5 @@
 import { describe, test, expect } from 'vitest'
+import { calculateEnhancedHedgerowPostIntervention } from 'bng-library/metric'
 import {
   _hedgerowEnhancementCacheSize,
   getHedgerowEnhancementReference
@@ -86,6 +87,36 @@ describe('BMD-1046 hedgerow enhancement reference', () => {
     )
     expect(reference.timeMultipliers).toEqual(creation.timeMultipliers)
   })
+
+  test.each([
+    ['a condition change', 'Native hedgerow', 'Good'],
+    ['a habitat type change', 'Species-rich native hedgerow', 'Moderate']
+  ])(
+    'carries the metric’s enhancement difficulty for %s',
+    (_change, type, condition) => {
+      const offered = getHedgerowEnhancementReference(
+        baseline
+      ).habitatTypes.find((t) => t.name === type)
+      const metric = calculateEnhancedHedgerowPostIntervention(
+        1,
+        1,
+        baseline.type,
+        type,
+        baseline.condition,
+        condition
+      )
+      expect(offered).toMatchObject({
+        difficulty: metric.difficulty,
+        difficultyMultiplier: metric.difficultyMultiplier
+      })
+      expect(offered.conditions).toContainEqual(
+        expect.objectContaining({
+          condition,
+          years: Number(metric.standardTimeToTargetCondition)
+        })
+      )
+    }
+  )
 
   test('is empty for a baseline that cannot be enhanced', () => {
     expect(
