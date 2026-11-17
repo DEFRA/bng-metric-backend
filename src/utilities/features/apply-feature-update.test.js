@@ -2216,16 +2216,500 @@ describe('applyFeatureUpdate — Created post-intervention trees', () => {
     })
   })
 
-  test('turns away the edit for an Enhanced tree', () => {
+  test('turns away the edit for a Retained tree', () => {
     const result = editCreatedTree(
       {},
-      projectWithCreatedTree({ retentionCategory: 'Enhanced' })
+      projectWithCreatedTree({ retentionCategory: 'Retained' })
     )
 
     expect(result).toEqual({
       status: APPLY_RESULT.UNSUPPORTED_TYPE,
       type: 'tree'
     })
+  })
+})
+
+describe('applyFeatureUpdate — a degraded post-intervention tree (BMD-1184)', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440008'
+  const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440009'
+
+  // T001, a Medium rural tree in Moderate condition, recorded as lost and
+  // created again in Poor condition, 30+ years in advance: Category
+  // Existing, Created, linked to its baseline tree.
+  function projectWithDegradedTree({
+    category = 'Existing',
+    ...proposed
+  } = {}) {
+    const project = projectFixture()
+    const side = {
+      type: 'Rural tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163
+    }
+    project.baseline.trees = [
+      {
+        featureId: PARENT_ID,
+        ref: 'T001',
+        ...side,
+        condition: 'Moderate',
+        strategicSignificance: 'Low'
+      }
+    ]
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: TREE_ID,
+          ref: 'T001',
+          retentionCategory: 'Created',
+          parentFeatureId: PARENT_ID,
+          properties: { Category: category },
+          sizeSquareMetres: 163,
+          area: 163,
+          units: 0.0652,
+          status: 'Complete',
+          baseline: { ...side, condition: 'Moderate' },
+          proposed: {
+            ...side,
+            condition: 'Poor',
+            strategicSignificance: 'Low',
+            advanceYears: 30,
+            delayYears: 0,
+            ...proposed
+          }
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1163 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 163,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 163
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0.0652 }
+    }
+    return project
+  }
+
+  function editDegradedTree(edits, project = projectWithDegradedTree()) {
+    return applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...edits
+      }
+    })
+  }
+
+  test('saves an edit that keeps it worse than its baseline tree, 30+ years in advance', () => {
+    const result = editDegradedTree({ strategicSignificance: 'High' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed).toMatchObject({
+      condition: 'Poor',
+      type: 'Rural tree',
+      strategicSignificance: 'High'
+    })
+  })
+
+  test.each([
+    [
+      'moves it to the other setting',
+      { habitatType: 'Urban tree' },
+      'degrade-same-setting'
+    ],
+    [
+      'puts it back in its baseline condition',
+      { condition: 'Moderate' },
+      'degrade-worse-condition'
+    ],
+    [
+      'puts it in a better condition',
+      { condition: 'Good' },
+      'degrade-worse-condition'
+    ],
+    [
+      'creates it fewer than 30+ years in advance',
+      { advanceYears: 5 },
+      'degrade-advance-30-plus'
+    ]
+  ])(
+    'refuses an edit that %s, leaving the tree unchanged',
+    (_, edits, rule) => {
+      const project = projectWithDegradedTree()
+      const before = JSON.stringify(project)
+
+      expect(editDegradedTree(edits, project)).toEqual({
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: 'tree',
+        rule
+      })
+      expect(JSON.stringify(project)).toBe(before)
+    }
+  )
+
+  test('saves a tree put back after a delay in any condition, with no years in advance', () => {
+    const result = editDegradedTree({
+      condition: 'Good',
+      advanceYears: 0,
+      delayYears: 5
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed).toMatchObject({
+      condition: 'Good',
+      delayYears: 5
+    })
+  })
+
+  test("still holds a tree put back after a delay to its baseline tree's setting", () => {
+    const project = projectWithDegradedTree({ advanceYears: 0, delayYears: 5 })
+
+    expect(
+      editDegradedTree(
+        { habitatType: 'Urban tree', advanceYears: 0, delayYears: 5 },
+        project
+      )
+    ).toMatchObject({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      rule: 'degrade-same-setting'
+    })
+  })
+
+  // Its baseline tree edited to Poor, the condition the tree was degraded to:
+  // the tree no longer meets the condition rule, but that is the baseline
+  // edit's doing, so only an edit to the condition or timing is refused.
+  function projectWithBaselineTreeLowered() {
+    const project = projectWithDegradedTree()
+    project.baseline.trees[0].condition = 'Poor'
+    return project
+  }
+
+  test.each([
+    ['renames it', { ref: 'T001-degraded' }],
+    ['changes its strategic significance', { strategicSignificance: 'High' }]
+  ])(
+    'saves an edit that %s once its baseline tree is in the same condition',
+    (_, edits) => {
+      expect(
+        editDegradedTree(edits, projectWithBaselineTreeLowered()).status
+      ).toBe(APPLY_RESULT.OK)
+    }
+  )
+
+  test('still refuses a change to its condition once its baseline tree is in the same condition', () => {
+    expect(
+      editDegradedTree(
+        { condition: 'Moderate' },
+        projectWithBaselineTreeLowered()
+      )
+    ).toMatchObject({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      rule: 'degrade-worse-condition'
+    })
+  })
+
+  test('saves a rename once its baseline tree is in the same condition, though the import left its delay blank', () => {
+    const project = projectWithDegradedTree({ delayYears: null })
+    project.baseline.trees[0].condition = 'Poor'
+
+    expect(
+      editDegradedTree({ ref: 'T001-degraded', delayYears: 0 }, project).status
+    ).toBe(APPLY_RESULT.OK)
+  })
+
+  // Put back after a delay, in Good condition with no years in advance: an
+  // edit that removes the delay leaves a degrade, held to its condition and
+  // timing again.
+  describe('an edit that removes the delay of a tree put back after one', () => {
+    const putBack = () =>
+      projectWithDegradedTree({
+        condition: 'Good',
+        advanceYears: 0,
+        delayYears: 5
+      })
+
+    test.each([
+      [
+        'keeping its condition',
+        { condition: 'Good', advanceYears: 0, delayYears: 0 },
+        'degrade-worse-condition'
+      ],
+      [
+        'in a lower condition but not 30+ years in advance',
+        { condition: 'Poor', advanceYears: 0, delayYears: 0 },
+        'degrade-advance-30-plus'
+      ]
+    ])('is refused %s, leaving the tree unchanged', (_, edits, rule) => {
+      const project = putBack()
+      const before = JSON.stringify(project)
+
+      expect(editDegradedTree(edits, project)).toEqual({
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: 'tree',
+        rule
+      })
+      expect(JSON.stringify(project)).toBe(before)
+    })
+
+    test('is saved in a lower condition, 30+ years in advance', () => {
+      const result = editDegradedTree(
+        { condition: 'Poor', advanceYears: '30+', delayYears: 0 },
+        putBack()
+      )
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature.proposed).toMatchObject({
+        condition: 'Poor',
+        delayYears: 0
+      })
+    })
+  })
+
+  // The upload reads an Existing tree Created in the other setting as a new
+  // tree of that type, not a degrade, so its edits are not held to the rules.
+  test('does not hold an Existing tree Created in the other setting to the degrade rules', () => {
+    const project = projectWithDegradedTree({ type: 'Urban tree' })
+
+    const result = editDegradedTree(
+      {
+        habitatType: 'Urban tree',
+        condition: 'Good',
+        advanceYears: 0,
+        delayYears: 0
+      },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed).toMatchObject({
+      type: 'Urban tree',
+      condition: 'Good'
+    })
+  })
+
+  // A blank condition is no condition lower than the baseline tree's, so
+  // clearing it is a break of the condition rule unless the tree is put back
+  // after a delay, which is then saved Incomplete, as any Created tree is.
+  test('refuses clearing its condition with no delay, leaving the tree unchanged', () => {
+    const project = projectWithDegradedTree()
+    const before = JSON.stringify(project)
+
+    expect(editDegradedTree({ condition: '' }, project)).toEqual({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      type: 'tree',
+      rule: 'degrade-worse-condition'
+    })
+    expect(JSON.stringify(project)).toBe(before)
+  })
+
+  test('saves clearing its condition once put back after a delay, Incomplete with no units', () => {
+    const result = editDegradedTree(
+      { condition: '', advanceYears: 0, delayYears: 5 },
+      projectWithDegradedTree({ advanceYears: 0, delayYears: 5 })
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      status: 'Incomplete',
+      units: 0,
+      proposed: { condition: null, delayYears: 5 }
+    })
+  })
+
+  test('does not hold a Newly Planted tree linked to a parent to the degrade rules: it is planting', () => {
+    const project = projectWithDegradedTree({ category: 'Newly Planted' })
+
+    expect(
+      editDegradedTree({ condition: 'Good', advanceYears: 0 }, project).status
+    ).toBe(APPLY_RESULT.OK)
+  })
+})
+
+describe('applyFeatureUpdate — Enhanced post-intervention trees', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440006'
+  const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440007'
+
+  // A Small urban tree in Poor condition, kept and enhanced: 41 m², its size,
+  // type and setting its baseline tree's.
+  function projectWithEnhancedTree(overrides = {}) {
+    const project = projectFixture()
+    const side = {
+      area: 41,
+      type: 'Urban tree',
+      treeSize: 'Small',
+      broadType: 'Individual trees',
+      sizeSquareMetres: 41
+    }
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: TREE_ID,
+          ref: 'T001',
+          retentionCategory: 'Enhanced',
+          parentFeatureId: PARENT_ID,
+          count: null,
+          sizeSquareMetres: 41,
+          area: 41,
+          units: 0.0309,
+          status: 'Complete',
+          baseline: {
+            ...side,
+            condition: 'Poor',
+            strategicSignificance: 'Low'
+          },
+          proposed: {
+            ...side,
+            condition: 'Good',
+            strategicSignificance: 'High',
+            advanceYears: 0,
+            delayYears: 0
+          },
+          ...overrides
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1041 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 41,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0.0309 }
+    }
+    return project
+  }
+
+  // What the edit page submits for an Enhanced tree.
+  function enhancedTreeEdits(edits) {
+    return {
+      ref: 'T001',
+      broadType: 'Individual trees',
+      habitatType: 'Urban tree',
+      condition: 'Good',
+      strategicSignificance: 'High',
+      advanceYears: 0,
+      delayYears: 0,
+      ...edits
+    }
+  }
+
+  function editEnhancedTree(edits, project = projectWithEnhancedTree()) {
+    return applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: enhancedTreeEdits(edits)
+    })
+  }
+
+  test('prices the target condition as an enhancement of its baseline tree, as the Metric does', () => {
+    const result = editEnhancedTree({})
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      featureId: TREE_ID,
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 41,
+      status: 'Complete',
+      proposed: {
+        type: 'Urban tree',
+        treeSize: 'Small',
+        condition: 'Good',
+        strategicSignificance: 'High'
+      }
+    })
+    // 0.0041 ha x [(4 x 3 - 4 x 1) x the 30+ year multiplier + 4 x 1] x 1.15
+    expect(result.feature.units).toBeCloseTo(0.0309, 4)
+  })
+
+  test('re-prices a nearer target condition and the edited timing', () => {
+    const atGood = editEnhancedTree({ strategicSignificance: 'Low' })
+    const atModerate = editEnhancedTree({
+      condition: 'Moderate',
+      strategicSignificance: 'Low'
+    })
+    const inAdvance = editEnhancedTree({
+      condition: 'Moderate',
+      strategicSignificance: 'Low',
+      advanceYears: 5
+    })
+
+    expect(atModerate.status).toBe(APPLY_RESULT.OK)
+    expect(atModerate.feature.proposed.condition).toBe('Moderate')
+    expect(atModerate.feature.units).toBeLessThan(atGood.feature.units)
+    expect(inAdvance.feature.proposed.advanceYears).toBe(5)
+    expect(inAdvance.feature.units).toBeGreaterThan(atModerate.feature.units)
+  })
+
+  test('turns away a target condition no better than the baseline one, leaving the tree as stored', () => {
+    const project = projectWithEnhancedTree()
+    const result = editEnhancedTree({ condition: 'Poor' }, project)
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.INVALID_ENHANCEMENT,
+      type: 'tree',
+      rule: 'tree-better-condition'
+    })
+    expect(project.postIntervention.trees[0].proposed.condition).toBe('Good')
+  })
+
+  test('saves a blank target condition Incomplete with zero units', () => {
+    const result = editEnhancedTree({ condition: null })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.units).toBe(0)
+  })
+
+  test('drops the rule its import broke once the edit gives it a valid condition', () => {
+    const result = editEnhancedTree(
+      {},
+      projectWithEnhancedTree({ invalidEnhancement: 'tree-better-condition' })
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).not.toHaveProperty('invalidEnhancement')
+  })
+
+  test('renames the tree, keeping its parent', () => {
+    const result = editEnhancedTree({ ref: 'T001-enhanced' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      ref: 'T001-enhanced',
+      referenceEdited: true,
+      parentFeatureId: PARENT_ID
+    })
+  })
+
+  test('leaves the habitat sizes as stored', () => {
+    const result = editEnhancedTree({ condition: 'Moderate' })
+
+    expect(result.habitatSizes).toBeUndefined()
   })
 })
 

@@ -66,6 +66,15 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * An edit would leave a degraded tree, the baseline tree recorded as lost
+   * and created again (Category Existing, Created), no longer a degrade of
+   * it: moved out of its parent's setting, or, with no delay, not in a lower
+   * condition or not created 30+ years in advance. `rule` names which
+   * (edit-degrade-rule.js, DEGRADE_RULE).
+   */
+  DEGRADE_NOT_VALID: 'DEGRADE_NOT_VALID',
+
+  /**
    * An edit to a habitat saved before the service checked text limits and
    * lists (BMD-1175): the habitat, or its post-intervention document, holds a
    * value longer than its limit or outside its list. The edit is refused, not
@@ -76,10 +85,11 @@ export const ERROR_CODES = Object.freeze({
 
   /**
    * An edit the endpoint cannot carry out on this feature, as against a value
-   * it will not accept: the feature is of a kind it does not edit, such as an
-   * Enhanced post-intervention tree, or the edit would make the feature
+   * it will not accept: the feature is of a kind it does not edit, such as a
+   * Retained post-intervention tree, or the edit would make the feature
    * something its kind cannot become — a tree that is no longer a tree
-   * (keepsTreeATree, created-tree-edit.js), or a vertical area habitat that is
+   * (keepsTreeATree, post-intervention-tree-edit.js), an Enhanced tree in
+   * another setting from its baseline tree, or a vertical area habitat that is
    * no longer vertical.
    *
    * No one field the page can edit is to blame, and the refusal is not the
@@ -99,6 +109,18 @@ export const ERROR_CODES = Object.freeze({
    * frontend sends the user to the drop-out page.
    */
   BASELINE_NOT_ENHANCEABLE: 'BASELINE_NOT_ENHANCEABLE',
+
+  /**
+   * One or more Enhanced individual trees enhance a baseline tree in Good
+   * condition. A tree has no better condition than Good, and an Urban and a
+   * Rural tree are both Medium, so a Good tree cannot be enhanced at all: it
+   * is Retained, or lost and Created in a lower condition. The file is
+   * refused, as for BASELINE_NOT_ENHANCEABLE, which names the other habitats;
+   * a file with both is refused with both. `details.sample` lists each tree as
+   * BASELINE_NOT_ENHANCEABLE's does. The frontend sends the user to the
+   * drop-out page.
+   */
+  TREE_NOT_ENHANCEABLE: 'TREE_NOT_ENHANCEABLE',
 
   /**
    * A tree point's "Count" is filled in but is not a whole number of trees
@@ -403,6 +425,7 @@ export const ERROR_SURFACES = Object.freeze({
 // for drop-out page wording for an error that page never shows.
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.ENHANCEMENT_NOT_VALID,
+  ERROR_CODES.DEGRADE_NOT_VALID,
   ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
   ERROR_CODES.FEATURE_NOT_EDITABLE
 ])

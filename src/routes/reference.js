@@ -3,8 +3,10 @@ import { getHedgerowCreationReference } from '../validation/reference/hedgerow-c
 import Joi from 'joi'
 import {
   getAreaCreationReference,
-  getTreeCreationReference
+  getTreeCreationReference,
+  getTreeEnhancementReference
 } from '../validation/reference/area-creation.js'
+import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 
 import { asc } from 'drizzle-orm'
 import { localPlanningAuthorities } from '../db/schema/index.js'
@@ -56,6 +58,75 @@ export const getTreeCreation = {
   path: '/reference/tree-creation',
   options: { auth: false },
   handler: () => getTreeCreationReference()
+}
+
+/**
+ * @openapi
+ * /reference/tree-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: Individual tree enhancement target conditions by baseline condition, difficulty and temporal multipliers
+ *     responses:
+ *       200:
+ *         description: The Urban tree and Rural tree enhancement reference data, for the Enhanced tree edit page. Each habitat type gives, under `enhancements`, the target conditions each baseline condition can be enhanced to, with their years to target; strategic significance and time multipliers are shaped as /reference/tree-creation's are
+ */
+export const getTreeEnhancement = {
+  method: 'GET',
+  path: '/reference/tree-enhancement',
+  options: { auth: false },
+  handler: () => getTreeEnhancementReference()
+}
+
+// A baseline habitat or condition label, as the area enhancement route takes
+// it; blank or absent when the baseline has none.
+const MAX_BASELINE_FIELD_LENGTH = 200
+const baselineField = Joi.string()
+  .max(MAX_BASELINE_FIELD_LENGTH)
+  .allow('')
+  .optional()
+
+/**
+ * @openapi
+ * /reference/area-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: The valid enhancements of a baseline area habitat, with their enhancement difficulty, time to target and temporal multipliers
+ *     parameters:
+ *       - in: query
+ *         name: broadType
+ *         schema: { type: string }
+ *         description: The baseline habitat's broad habitat
+ *       - in: query
+ *         name: type
+ *         schema: { type: string }
+ *         description: The baseline habitat's habitat type
+ *       - in: query
+ *         name: condition
+ *         schema: { type: string }
+ *         description: The baseline habitat's condition
+ *     responses:
+ *       200:
+ *         description: |
+ *           Shaped as /reference/area-creation, listing only the broad
+ *           habitats, habitat types and target conditions that are valid
+ *           enhancements of the baseline (BMD-820's rules), each condition
+ *           with its enhancement time to target from the baseline. Empty
+ *           habitatTypes for a baseline that cannot be enhanced.
+ */
+export const getAreaEnhancement = {
+  method: 'GET',
+  path: '/reference/area-enhancement',
+  options: {
+    auth: false,
+    validate: {
+      query: Joi.object({
+        broadType: baselineField,
+        type: baselineField,
+        condition: baselineField
+      })
+    }
+  },
+  handler: (request) => getAreaEnhancementReference(request.query)
 }
 
 /**

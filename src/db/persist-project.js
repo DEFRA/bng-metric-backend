@@ -540,20 +540,30 @@ async function setBaselineFeature(exec, id, params) {
  * `where` defaults to matching the id alone; routes pass a stricter condition
  * (id AND RBAC visibility) so a non-visible project updates nothing and the
  * route returns 404 — without leaking existence.
+ *
+ * `name`, when given, sets project.name in the same UPDATE: the project
+ * details page saves the name with the other details, and all or none of
+ * them must be saved (BMD-849).
  */
 async function setProjectDetails(
   exec,
   id,
   patch,
   actorId,
-  where = eq(projects.id, id)
+  where = eq(projects.id, id),
+  { name } = {}
 ) {
   assertActorId(actorId)
   assertFragmentValid(projectDetailsSchema, patch, 'project.details')
+  let target = projects.project
+  if (name !== undefined) {
+    assertFragmentValid(projectSchema.extract('name'), name, 'project.name')
+    target = jsonbSet(projects.project, ['name'], name)
+  }
   const [row] = await exec
     .update(projects)
     .set({
-      project: sql`jsonb_set(${projects.project}, '{details}', COALESCE(${projects.project}->'details', '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb)`,
+      project: sql`jsonb_set(${target}, '{details}', COALESCE(${projects.project}->'details', '{}'::jsonb) || ${JSON.stringify(patch)}::jsonb)`,
       lastModifiedBy: actorId
     })
     .where(where)

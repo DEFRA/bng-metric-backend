@@ -22,9 +22,8 @@ import {
  * tree keeps its parent's size class, Native or Non-native type and Urban or
  * Rural setting, whatever its Proposed columns say. A Retained tree keeps its
  * parent's condition and strategic significance too; an Enhanced one keeps
- * the condition and strategic significance it proposes. Either is priced for
- * its own Count, so one with fewer trees than its parent loses the difference
- * (lineage-outcomes.js).
+ * the condition and strategic significance it proposes. Each point is one
+ * tree, so either is priced as one tree of its parent's size class.
  *
  * The row's own Baseline columns are a copy of its parent's that may have
  * been edited since, so its baseline side is set from the parent as well: the
@@ -87,7 +86,7 @@ function takeFromParent(side, parent, fields, size) {
 
 /**
  * Give each linked Retained, Enhanced and degraded tree its parent's
- * identity, priced for its own Count. Mutates `postIntervention`.
+ * identity, priced as one tree. Mutates `postIntervention`.
  *
  * @param {object} postIntervention the post-intervention document, linked
  * @param {object} baseline the baseline document saved with it
@@ -104,7 +103,7 @@ export function alignTreesWithParents(postIntervention, baseline) {
     if (!parent || !isParentTree(tree, parent, retention)) {
       continue
     }
-    const size = treeAreaFields(parent.treeSize, tree.count)
+    const size = treeAreaFields(parent.treeSize)
     const fields =
       retention === RETENTION_RETAINED
         ? [...TREE_IDENTITY_FIELDS, ...RETAINED_TREE_FIELDS]

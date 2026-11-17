@@ -869,7 +869,63 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.watercourses[0].ref).toBe('R1a')
   })
 
-  test('keeps a partly felled tree priced for its own Count when its parent is edited', () => {
+  test('keeps a renamed legacy Enhanced tree’s ref, and follows the parent it was renamed from, when that parent is renamed and edited', () => {
+    const baselineTree = (ref, condition) => ({
+      featureId: 'baseline-t1',
+      ref,
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Small',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 41,
+      area: 41
+    })
+    const side = (condition) => ({
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Small',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 41,
+      area: 41
+    })
+    // Another baseline tree now carries the parent's old ref, so a join by
+    // ref would find the wrong one.
+    const impostor = {
+      ...baselineTree('T1', 'Good'),
+      featureId: 'baseline-t2'
+    }
+    const enhanced = {
+      featureId: 'pi-t1',
+      ref: 'T1 enhanced',
+      referenceEdited: true,
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      units: null,
+      baseline: side('Poor'),
+      proposed: side('Good'),
+      properties: {}
+    }
+    const postIntervention = { trees: [enhanced], lostHabitats: [] }
+
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        trees: [baselineTree('T1 renamed', 'Fairly Poor'), impostor]
+      },
+      previousBaseline: { trees: [baselineTree('T1', 'Poor')] }
+    })
+
+    const [tree] = postIntervention.trees
+    expect(tree.ref).toBe('T1 enhanced')
+    expect(tree.parentFeatureId).toBe('baseline-t1')
+    expect(tree.baseline.condition).toBe('Fairly Poor')
+  })
+
+  test('keeps a Retained tree priced as one tree when its parent is edited', () => {
     const baselineTree = (condition) => ({
       featureId: 'baseline-t1',
       ref: 'T1',
@@ -880,9 +936,8 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       ruralOrUrban: 'Urban tree',
       condition,
       strategicSignificance: 'Low',
-      count: 3,
-      sizeSquareMetres: 489,
-      area: 489
+      sizeSquareMetres: 163,
+      area: 163
     })
     const side = (condition) => ({
       type: 'Urban tree',
@@ -892,17 +947,16 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       ruralOrUrban: 'Urban tree',
       condition,
       strategicSignificance: 'Low',
-      sizeSquareMetres: 326,
-      area: 326
+      sizeSquareMetres: 163,
+      area: 163
     })
     const kept = {
       featureId: 'pi-t1',
       ref: 'T1',
       parentFeatureId: 'baseline-t1',
       retentionCategory: 'Retained',
-      count: 2,
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       status: 'Complete',
       units: null,
       baseline: side('Moderate'),
@@ -920,15 +974,13 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 
     const [tree] = rederived.trees
     expect(tree).toMatchObject({
-      sizeSquareMetres: 326,
-      baseline: { condition: 'Good', sizeSquareMetres: 326 },
-      proposed: { condition: 'Good', sizeSquareMetres: 326 }
+      sizeSquareMetres: 163,
+      baseline: { condition: 'Good', sizeSquareMetres: 163 },
+      proposed: { condition: 'Good', sizeSquareMetres: 163 }
     })
-    // Two Medium Urban trees in Good condition: 0.0326 ha × 4 × 3.
-    expect(tree.units).toBeCloseTo(0.3912, 10)
-    expect(rederived.lostHabitats).toEqual([
-      expect.objectContaining({ layer: 'trees', ref: 'T1', lostTreeCount: 1 })
-    ])
+    // One Medium Urban tree in Good condition: 0.0163 ha × 4 × 3.
+    expect(tree.units).toBeCloseTo(0.1956, 10)
+    expect(rederived.lostHabitats).toEqual([])
   })
 
   test('moves a kept tree to the setting its parent is edited to, with its sizes (BMD-1172)', () => {
@@ -938,20 +990,18 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       treeSize: 'Medium',
       condition: 'Moderate',
       strategicSignificance: 'Low',
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       ...extra
     })
-    const parent = (type) =>
-      tree(type, { featureId: 'baseline-t1', ref: 'T1', count: 2 })
+    const parent = (type) => tree(type, { featureId: 'baseline-t1', ref: 'T1' })
     const kept = {
       featureId: 'pi-t1',
       ref: 'T1',
       parentFeatureId: 'baseline-t1',
       retentionCategory: 'Retained',
-      count: 2,
-      sizeSquareMetres: 326,
-      area: 326,
+      sizeSquareMetres: 163,
+      area: 163,
       status: 'Complete',
       units: null,
       baseline: tree('Urban tree'),
@@ -959,12 +1009,12 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       properties: {}
     }
     const habitatSizes = {
-      areaHabitats: { totalSquareMetres: 326 },
+      areaHabitats: { totalSquareMetres: 163 },
       hedgerows: { totalMetres: 0 },
       watercourses: { totalMetres: 0 },
       trees: {
-        totalSquareMetres: 326,
-        urbanSquareMetres: 326,
+        totalSquareMetres: 163,
+        urbanSquareMetres: 163,
         ruralSquareMetres: 0
       },
       site: { totalSquareMetres: 0 }
@@ -983,11 +1033,11 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
       proposed: { type: 'Rural tree' }
     })
     expect(rederived.habitatSizes.trees).toEqual({
-      totalSquareMetres: 326,
+      totalSquareMetres: 163,
       urbanSquareMetres: 0,
-      ruralSquareMetres: 326
+      ruralSquareMetres: 163
     })
-    expect(rederived.habitatSizes.areaHabitats.totalSquareMetres).toBe(326)
+    expect(rederived.habitatSizes.areaHabitats.totalSquareMetres).toBe(163)
     expect(rederived.lostHabitats).toEqual([])
   })
 
@@ -1168,6 +1218,60 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
 })
 
 describe('resyncPostInterventionBaselineSide — a renamed baseline ref (BMD-1061)', () => {
+  test('keeps a renamed Enhanced area habitat’s ref, and follows the parent it was renamed from, when that parent is edited (BMD-1045)', () => {
+    const baselineArea = (ref, condition, featureId = 'baseline-h1') => ({
+      featureId,
+      ref,
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 10000,
+      area: 10000
+    })
+    const side = (condition) => ({
+      broadType: 'Grassland',
+      type: 'Modified grassland',
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 10000,
+      area: 10000
+    })
+    const enhanced = {
+      featureId: 'pi-h1',
+      ref: 'H1 renamed',
+      referenceEdited: true,
+      parentFeatureId: 'baseline-h1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 10000,
+      area: 10000,
+      status: 'Complete',
+      units: null,
+      baseline: side('Poor'),
+      proposed: side('Moderate'),
+      properties: {}
+    }
+    const postIntervention = { habitats: [enhanced], lostHabitats: [] }
+
+    // Another baseline habitat carries the Enhanced area's new ref, before and
+    // after the edit, so a join by ref would find the wrong one.
+    const decoy = (condition) =>
+      baselineArea('H1 renamed', condition, 'baseline-h2')
+    resyncPostInterventionBaselineSide(postIntervention, {
+      baseline: {
+        habitats: [baselineArea('H1', 'Fairly Poor'), decoy('Good')]
+      },
+      previousBaseline: {
+        habitats: [baselineArea('H1', 'Poor'), decoy('Good')]
+      }
+    })
+
+    const [area] = postIntervention.habitats
+    expect(area.ref).toBe('H1 renamed')
+    expect(area.parentFeatureId).toBe('baseline-h1')
+    expect(area.baseline.condition).toBe('Fairly Poor')
+  })
+
   test('carries the new ref onto the post-intervention row joined to the feature', () => {
     const previousBaseline = { habitats: [baselineHabitat()] }
     const baseline = { habitats: [baselineHabitat({ ref: 'B-A1' })] }
@@ -1520,5 +1624,42 @@ describe('preserveCreatedParent', () => {
     })
 
     expect(updated.parentFeatureId).toBe('baseline-a1')
+  })
+
+  test('finds a legacy Enhanced tree’s parent by its old ref before the rename', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, { ...context, layer: 'trees' })
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('finds a legacy Enhanced area habitat’s parent by its old ref before the rename (BMD-1045)', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, context)
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('leaves an Enhanced hedgerow alone, as its own page does not rename it', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, {
+      ...context,
+      layer: 'hedgerows'
+    })
+
+    expect(updated).not.toHaveProperty('referenceEdited')
+    expect(updated).not.toHaveProperty('parentFeatureId')
   })
 })

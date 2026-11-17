@@ -74,6 +74,12 @@ const postgres = {
       }
 
       const passwordProvider = createPasswordProvider(options)
+      // No statement or query timeout is set, on purpose (checked for
+      // BMD-1200). Lock waits are bounded by `SET LOCAL lock_timeout` on the
+      // write paths, and a hung database is bounded for the user by the
+      // frontend's backend timeouts. A statement timeout would also cut off a
+      // slow but valid upload persist, so measure the largest upload's persist
+      // before setting one.
       const pool = new Pool({
         host: options.host,
         port: options.port,

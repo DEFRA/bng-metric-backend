@@ -13,8 +13,8 @@ import {
 } from './created-area-edit.js'
 import {
   postInterventionTreeEditPayload,
-  validateCreatedTreeEdit
-} from './created-tree-edit.js'
+  validatePostInterventionTreeEdit
+} from './post-intervention-tree-edit.js'
 import { and, eq, sql } from 'drizzle-orm'
 
 import { projects } from '../db/schema/index.js'
@@ -31,6 +31,7 @@ import {
 import { featureNotEditableError } from './feature-not-editable-error.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
+import { invalidDegradeError } from './invalid-degrade-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 // The baseline typed route saves dropdowns only; reference renaming and the
@@ -113,7 +114,9 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       document. Supplying ref requires broadType, habitatType
  *       and condition. Timing is optional: omit it to retain the stored value,
  *       or supply null to clear it.
- *       These extended edits are supported only for Created area habitats.
+ *       These extended edits are supported only for Created area habitats
+ *       and, choosing from the valid enhancements of the baseline (BMD-1045),
+ *       Enhanced ones.
  *       The 30+ timing input is stored as numeric 30 with an optional selection
  *       flag; response timing fields remain numeric or null.
  *     parameters:
@@ -142,7 +145,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *               strategicSignificance:
  *                 type: string
  *                 nullable: true
- *                 description: An option returned by /reference/area-creation, or null for an incomplete edit.
+ *                 description: An option returned by /reference/area-creation (a Created area) or /reference/area-enhancement (an Enhanced area, BMD-1045), or null for an incomplete edit.
  *               advanceYears:
  *                 description: Omit to retain the stored timing; null explicitly clears it.
  *                 nullable: true
@@ -174,11 +177,11 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to a non-Created area.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to an area that is neither Created nor Enhanced.
  *       404:
  *         description: Project or habitat not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`; `offered-enhancement` when an Enhanced area sends a choice its baseline's valid enhancements do not list, unless it keeps the stored value)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -205,7 +208,7 @@ const CREATED_EDIT_TYPES = {
     layer: 'trees',
     label: 'Tree',
     payload: postInterventionTreeEditPayload,
-    validate: validateCreatedTreeEdit
+    validate: validatePostInterventionTreeEdit
   }
 }
 
@@ -330,6 +333,9 @@ function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   }
   if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
     throw invalidEnhancementError(result.rule)
+  }
+  if (result.status === APPLY_RESULT.INVALID_DEGRADE) {
+    throw invalidDegradeError(result.rule)
   }
 
   if (result.status !== APPLY_RESULT.OK) {
@@ -456,11 +462,14 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  * /projects/{projectId}/post-intervention/trees/{featureId}:
  *   put:
  *     tags: [Habitats]
- *     summary: Save a Created individual tree's reference, habitat type, target condition, strategic significance and timing
+ *     summary: Save a Created or Enhanced individual tree's reference, habitat type, target condition, strategic significance and timing
  *     description: |
- *       Takes the Created area habitat payload, for a Created tree only.
- *       The tree stays a tree: broadType must be Individual
- *       trees, and habitatType Urban tree or Rural tree. A blank condition
+ *       Takes the Created area habitat payload, for a Created or an Enhanced
+ *       tree. The tree stays a tree: broadType must be Individual
+ *       trees, and habitatType Urban tree or Rural tree. An Enhanced tree
+ *       keeps its baseline tree's setting, so its habitatType must be the one
+ *       stored, and its target condition must be better than its baseline
+ *       condition (the options /reference/tree-enhancement gives). A blank condition
  *       saves the tree Incomplete with zero units. The tree's size is its size
  *       class times its Count and is not edited; a change between Urban tree and Rural tree moves it
  *       between the urban and rural tree sizes. Omitted timing fields retain
@@ -488,11 +497,13 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *       200:
  *         description: Updated tree, with recalculated units, status and project totals
  *       400:
- *         description: Invalid reference, choices or timing, a tree that would no longer be a tree, or a tree that is not Created (code FEATURE_NOT_EDITABLE for a non-tree habitat)
+ *         description: Invalid reference, choices or timing (code FEATURE_NOT_EDITABLE for a non-tree habitat, a Retained tree, or an Enhanced tree given another setting)
  *       401:
  *         description: Authentication required
  *       404:
  *         description: Project or tree not found
+ *       422:
+ *         description: An Enhanced tree's target condition is not better than its baseline condition (code ENHANCEMENT_NOT_VALID, rule tree-better-condition), or the edit leaves a degraded tree (an Existing tree Created in a lower condition) no longer a degrade of its baseline tree (code DEGRADE_NOT_VALID, rule degrade-same-setting, degrade-worse-condition or degrade-advance-30-plus)
  *       409:
  *         description: Another edit for this project is in progress
  */

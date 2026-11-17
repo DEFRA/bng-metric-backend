@@ -21,8 +21,8 @@
 // `parentFeatureId` (BMD-1083), so its rows re-sync from that parent and
 // nothing else: refs are labels there, not the join, so a row with no parent
 // re-syncs from nothing, and a baseline rename leaves its rows' refs alone.
-// Its kept trees then take their parent's identity again, priced for their
-// own Count (tree-lineage.js).
+// Its kept trees then take their parent's identity again, priced as one tree
+// each (tree-lineage.js).
 //
 // In a legacy upload, reference-edited Created areas, hedgerows and watercourses retain their
 // explicit parent independently of their editable ref; null explicitly means no
@@ -85,6 +85,7 @@ import {
 import { postInterventionEnrichOptions } from './post-intervention-enrich-options.js'
 import {
   RETENTION_CREATED,
+  RETENTION_ENHANCED,
   RETENTION_RETAINED,
   isLegacyLostLinear,
   resolveRetentionCategory,
@@ -101,10 +102,10 @@ const STRATEGIC_SIGNIFICANCE_FIELD = 'strategicSignificance'
  * deliberately shares its lists: a column that identifies a habitat on one side
  * identifies it on the other, so a new one is added in a single place.
  *
- * A baseline tree is editable (BMD-1112), but only its condition, reference
- * and comment: `recomputeTreeEdit` pins the urban/rural habitat type and the
- * size class and count are read-only, so the only identity field an edit can
- * move is the condition, which the re-derive carries across like any other.
+ * A baseline tree is editable, but only its condition, Urban or Rural
+ * setting, reference and comment: the size class and count are read-only, so
+ * the identity fields an edit can move are the condition and the setting,
+ * which the re-derive carries across like any other.
  */
 const IDENTITY_FIELDS_BY_LAYER = Object.freeze({
   habitats: RETAINED_AREA_PROPOSED_FIELDS,
@@ -310,10 +311,7 @@ function syncFeatureIdentity(feature, source, fields) {
  * @returns {boolean} whether the ref changed
  */
 function syncRef(feature, source) {
-  if (
-    resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    feature.referenceEdited === true
-  ) {
+  if (isJoinedByEditedRef(feature)) {
     return false
   }
   const next = normaliseRef(source.ref)
@@ -358,8 +356,47 @@ function warnUnresolved(
   )
 }
 
+// The Enhanced features whose own page can rename them: a tree (BMD-1172) and
+// an area habitat (BMD-1045).
+const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats'])
+
 /**
- * Preserve lineage before an editable Created reference changes its join key.
+ * Whether a post-intervention row's own edit page renames it: a Created
+ * feature's, and an Enhanced individual tree's or area habitat's. A Retained row is renamed
+ * through its baseline parcel instead (apply-retained-ref-edit.js).
+ *
+ * @param {object} feature
+ * @param {string} layer its post-intervention document key
+ * @returns {boolean}
+ */
+function isRenamedOnItsOwnPage(feature, layer) {
+  const retention = resolveRetentionCategory(feature)
+  return (
+    retention === RETENTION_CREATED ||
+    (retention === RETENTION_ENHANCED && ENHANCED_OWN_PAGE_LAYERS.has(layer))
+  )
+}
+
+/**
+ * Whether a row renamed on its own page is joined to its baseline feature by
+ * the parent recorded when it was renamed, rather than by its ref. Only such a
+ * row is marked `referenceEdited` (preserveCreatedParent): a Created one, or
+ * an Enhanced tree or area habitat.
+ *
+ * @param {object} feature
+ * @returns {boolean}
+ */
+function isJoinedByEditedRef(feature) {
+  const retention = resolveRetentionCategory(feature)
+  return (
+    feature.referenceEdited === true &&
+    (retention === RETENTION_CREATED || retention === RETENTION_ENHANCED)
+  )
+}
+
+/**
+ * Preserve lineage before an editable Created reference, or an Enhanced
+ * tree's or area habitat's, changes its join key.
  *
  * A BNG Service template row's parent is the one its file named, kept as
  * `parentFeatureId` whatever its ref (BMD-1083). One that names none has no
@@ -371,12 +408,12 @@ export function preserveCreatedParent(
   updated,
   { documentKey, layer, baseline, serviceTemplate = false }
 ) {
-  const createdEdit =
+  const ownPageEdit =
     documentKey === 'postIntervention' &&
     ['habitats', 'trees', 'hedgerows', 'watercourses'].includes(layer)
   if (
-    !createdEdit ||
-    resolveRetentionCategory(existing) !== RETENTION_CREATED ||
+    !ownPageEdit ||
+    !isRenamedOnItsOwnPage(existing, layer) ||
     updated.ref === existing.ref
   ) {
     return
@@ -459,34 +496,42 @@ function resolveSource(feature, index) {
   if (index.byParent) {
     return resolveByParent(feature, index.updatedById, 'parentMissing')
   }
-  if (
-    resolveRetentionCategory(feature) === RETENTION_CREATED &&
-    feature.referenceEdited === true
-  ) {
+  if (isJoinedByEditedRef(feature)) {
     return resolveByParent(feature, index.updatedById, 'missing')
   }
   return resolveByRef(feature, index)
 }
 
 /**
- * The baseline feature a post-intervention row is joined to by its ref, for an
- * edit that starts on the post-intervention side (BMD-1180). Resolved exactly
+ * The baseline feature a post-intervention row is joined to, resolved exactly
  * as the re-derive resolves it, against the baseline as it stands, so a row
  * this finds a source for is a row the re-derive will carry a rename onto.
  *
+ * By default the row is joined by its ref, as a legacy row is, for an edit
+ * that starts on the post-intervention side (BMD-1180). With `templateUpload`,
+ * a row of a BNG Service template upload is joined by the parent its file
+ * named (BMD-1083), as the re-derive joins it — used to read a Retained
+ * habitat's baseline comment (BMD-1187).
+ *
  * @param {object} feature post-intervention feature
- * @param {string} layer document layer: habitats, trees, hedgerows or watercourses
- * @param {object | undefined} baseline the project's baseline document
+ * @param {string} layer document layer: habitats, verticalHabitats, trees, hedgerows or watercourses
+ * @param {object | undefined} baseline the project's baseline document, or at
+ *   least its `layer`
+ * @param {{ templateUpload?: boolean }} [options]
  * @returns {{ source: object } | { unresolvable: string, ref: string | null, candidateCount: number }}
  */
-export function resolveJoinedBaselineFeature(feature, layer, baseline) {
+export function resolveJoinedBaselineFeature(
+  feature,
+  layer,
+  baseline,
+  { templateUpload = false } = {}
+) {
   const features = baseline?.[layer]
   return resolveSource(feature, {
     candidatesByRef: buildBaselineCandidatesByRef(features),
     updatedById: buildFeatureById(features),
     fields: IDENTITY_FIELDS_BY_LAYER[layer] ?? [],
-    // Only a legacy row is joined by its ref; a template row's parent is named.
-    byParent: false
+    byParent: templateUpload && PARENT_LINKED_LAYERS.includes(layer)
   })
 }
 

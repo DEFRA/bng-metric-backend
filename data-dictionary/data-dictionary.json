@@ -1012,7 +1012,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Project name shown to the user; editable via PATCH /projects/{id}."
+      "description": "Project name shown to the user; editable via PATCH /projects/{id} and, with the other details, PATCH /projects/{id}/details."
     },
     {
       "path": "site",
@@ -1131,7 +1131,7 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255"],
       "openMap": false,
       "description": "Names of survey completer(s)."
     },
@@ -1175,9 +1175,31 @@
       "nullable": true,
       "emptyStringAllowed": true,
       "enumValues": [],
-      "constraints": [],
+      "constraints": ["max 255"],
       "openMap": false,
-      "description": "Applicant name."
+      "description": "Name of the applicant for planning permission: a person and/or a company."
+    },
+    {
+      "path": "details.planningApplicationReference",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": ["max 50"],
+      "openMap": false,
+      "description": "The planning application's reference, in whatever form the local planning authority gives it."
+    },
+    {
+      "path": "details.planningApplicationType",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": true,
+      "enumValues": [],
+      "constraints": ["max 100"],
+      "openMap": false,
+      "description": "The type of planning application, as the user words it, such as \"Outline planning permission\"."
     },
     {
       "path": "baseline",
@@ -2353,7 +2375,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE)."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template file has no Count: each of its points is one tree, and has none."
     },
     {
       "path": "baseline.verticalHabitats",
@@ -4428,7 +4450,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree or area habitat reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.habitats[].referenceEdited",
@@ -4439,7 +4461,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the user changed a Created area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour."
+      "description": "Whether the user changed a Created or Enhanced area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour."
     },
     {
       "path": "postIntervention.habitats[].irreplaceable",
@@ -4991,7 +5013,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template Retained or Enhanced tree with a lower count than its parent loses the difference."
+      "description": "Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template file has no Count: each of its points is one tree, and has none."
     },
     {
       "path": "postIntervention.trees[].invalidEnhancement",
@@ -5013,7 +5035,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree or area habitat reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.trees[].referenceEdited",
@@ -5024,7 +5046,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Whether the user changed a Created tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
+      "description": "Whether the user changed a Created or Enhanced tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is."
     },
     {
       "path": "postIntervention.trees[].irreplaceable",
@@ -6222,7 +6244,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree or area habitat reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.hedgerows[].referenceEdited",
@@ -6734,7 +6756,7 @@
       "enumValues": [],
       "constraints": ["uuid"],
       "openMap": false,
-      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference is edited. An explicit null records that an edited Created feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+      "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree or area habitat reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
       "path": "postIntervention.watercourses[].referenceEdited",
@@ -8249,7 +8271,7 @@
       "enumValues": [],
       "constraints": ["min 0"],
       "openMap": false,
-      "description": "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class times its Count."
+      "description": "An area habitat, vertical area habitat or tree: its area less that of its Retained and Enhanced post-intervention habitats, in square metres. A tree's area is the tree helper's area for its size class."
     },
     {
       "path": "postIntervention.lostHabitats[].lostTreeCount",
@@ -8260,7 +8282,7 @@
       "enumValues": [],
       "constraints": ["integer", "min 0"],
       "openMap": false,
-      "description": "A tree: its Count less that of its Retained and Enhanced post-intervention trees, the number of trees lost. A blank Count is one tree."
+      "description": "A tree: the number of trees lost. A BNG Service template tree point is one tree, so this is 1."
     },
     {
       "path": "postIntervention.lostHabitats[].lostSizeMetres",

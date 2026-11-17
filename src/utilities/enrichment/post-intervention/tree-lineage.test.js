@@ -7,7 +7,7 @@ import {
 
 const PARENT_ID = '00000000-0000-4000-8000-000000000001'
 
-/** A baseline tree: three Medium Rural trees, native, in Moderate condition. */
+/** A baseline tree: one Medium Rural tree, native, in Moderate condition. */
 const parent = () => ({
   featureId: PARENT_ID,
   ref: 'T001',
@@ -18,9 +18,8 @@ const parent = () => ({
   ruralOrUrban: 'Rural tree',
   condition: 'Moderate',
   strategicSignificance: 'Low',
-  count: 3,
-  sizeSquareMetres: 489,
-  area: 489
+  sizeSquareMetres: 163,
+  area: 163
 })
 
 /** A post-intervention tree whose Proposed columns say it grew and moved. */
@@ -40,7 +39,6 @@ function piTree(retentionCategory, overrides = {}) {
     featureId: 'pi-1',
     parentFeatureId: PARENT_ID,
     retentionCategory,
-    count: 2,
     sizeSquareMetres: 1530,
     area: 1530,
     baseline: { ...grown, strategicSignificance: 'Low' },
@@ -53,7 +51,7 @@ const align = (tree) =>
   alignTreesWithParents({ trees: [tree] }, { trees: [parent()] })
 
 describe('alignTreesWithParents', () => {
-  it('keeps a Retained tree as its parent was, priced for its own Count', () => {
+  it('keeps a Retained tree as its parent was, priced as one tree', () => {
     const tree = piTree('Retained')
 
     expect(align(tree)).toEqual([tree])
@@ -65,15 +63,15 @@ describe('alignTreesWithParents', () => {
       ruralOrUrban: 'Rural tree',
       condition: 'Moderate',
       strategicSignificance: 'Low',
-      sizeSquareMetres: 326,
-      area: 326
+      sizeSquareMetres: 163,
+      area: 163
     })
     expect(tree.baseline).toMatchObject({
       treeSize: 'Medium',
       condition: 'Moderate',
-      sizeSquareMetres: 326
+      sizeSquareMetres: 163
     })
-    expect(tree).toMatchObject({ sizeSquareMetres: 326, area: 326 })
+    expect(tree).toMatchObject({ sizeSquareMetres: 163, area: 163 })
   })
 
   it('keeps an Enhanced tree’s size, type and setting, but the condition and significance it proposes', () => {
@@ -88,17 +86,9 @@ describe('alignTreesWithParents', () => {
       ruralOrUrban: 'Rural tree',
       condition: 'Good',
       strategicSignificance: 'High',
-      sizeSquareMetres: 326
+      sizeSquareMetres: 163
     })
     expect(tree.baseline.condition).toBe('Moderate')
-  })
-
-  it('prices a tree with a blank Count as one tree', () => {
-    const tree = piTree('Retained', { count: null })
-
-    align(tree)
-
-    expect(tree.sizeSquareMetres).toBe(163)
   })
 
   it('leaves a Newly Planted tree, linked or not, at its planted size', () => {
@@ -142,7 +132,7 @@ describe('alignTreesWithParents', () => {
       ruralOrUrban: 'Rural tree',
       condition: 'Poor',
       advanceYears: 30,
-      sizeSquareMetres: 326
+      sizeSquareMetres: 163
     })
     expect(tree.baseline.condition).toBe('Moderate')
   })
@@ -165,7 +155,7 @@ describe('alignTreesWithParents', () => {
       type: 'Rural tree',
       treeSize: 'Medium',
       condition: 'Poor',
-      sizeSquareMetres: 326
+      sizeSquareMetres: 163
     })
   })
 

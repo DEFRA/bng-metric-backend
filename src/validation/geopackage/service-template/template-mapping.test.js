@@ -91,7 +91,7 @@ describe('the BNG Service template 1.0 mapping', () => {
     ])
   })
 
-  test('reads a tree under the legacy Urban Trees names, its Count included', () => {
+  test('reads a tree under the legacy Urban Trees names, and no Count, as each point is one tree', () => {
     const { trees } = TEMPLATE_MAPPING_1_0
     expect(trees.table(STAGE_BASELINE)).toBe('Individual Trees Baseline')
     expect(trees.table(STAGE_POST_INTERVENTION)).toBe(
@@ -107,12 +107,12 @@ describe('the BNG Service template 1.0 mapping', () => {
       'Proposed Tree Size',
       'Habitat Created/Enhanced in advance/years',
       'Delay in starting habitat creation/enhancement in years',
-      'Count',
       'parent_uuid'
     ]) {
       expect(trees.columns.get(column)).toBe(column)
     }
     expect(trees.columns.get('Spatial risk category')).toBeNull()
+    expect(trees.columns.has('Count')).toBe(false)
   })
 
   test('keeps a vertical area habitat’s typed Area, which a line cannot give', () => {

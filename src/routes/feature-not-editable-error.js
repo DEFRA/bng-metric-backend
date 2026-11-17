@@ -4,7 +4,7 @@ import { ERROR_CODES } from '../validation/geopackage/errors.js'
 
 // Shared 400 response for the edit routes when the endpoint cannot carry the
 // edit out on this feature: the feature is of a kind it does not edit, such as
-// an Enhanced post-intervention tree, or the edit would make the feature
+// a Retained post-intervention tree, or the edit would make the feature
 // something its kind cannot become, such as a tree that is no longer a tree
 // (keepsTreeATree, BMD-1172).
 //

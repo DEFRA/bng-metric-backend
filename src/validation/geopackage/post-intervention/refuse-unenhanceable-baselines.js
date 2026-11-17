@@ -5,7 +5,10 @@
 // side nulled instead (reject-invalid-enhancements.js), so the user can fix it
 // in the service. One whose baseline cannot be enhanced into anything has no
 // fix there: the row must be Retained, or the habitat lost and another
-// created, in the file.
+// created, in the file. An individual tree is refused with its own error, as
+// what to do instead is the same for every tree: one in Good condition, the
+// only tree the service cannot enhance, is Retained, or lost and Created in a
+// lower condition.
 
 import {
   RETENTION_ENHANCED,
@@ -22,6 +25,12 @@ const SAMPLE_CAP = 50
 
 const MESSAGE =
   'One or more habitats are enhanced, but their baseline habitat cannot be enhanced in this service'
+const TREE_MESSAGE =
+  'One or more trees are enhanced, but their baseline tree is in Good condition and cannot be enhanced: record each as Retained, or, if its condition will get worse, as lost and Created in a lower condition 30+ years in advance'
+const TREES = 'trees'
+const HABITAT_LAYERS = UNENHANCEABLE_BASELINE_LAYERS.filter(
+  (layer) => layer !== TREES
+)
 
 /**
  * @param {object | undefined} baselineDocument
@@ -86,22 +95,10 @@ function describeOffender({ layer, feature_ref: ref }) {
     : `Feature Ref ${ref}`
 }
 
-/**
- * Check every Enhanced area habitat, hedgerow, watercourse and individual
- * tree of a post-intervention document, and refuse the file if any enhances a
- * baseline that cannot be enhanced. Runs on import, once a BNG Service
- * template file's rows are linked to their parents and before any enhancement
- * is nulled.
- *
- * @param {object} document the post-intervention document
- * @param {object} [baselineDocument] the baseline the document is imported
- *   against, whose features a linked row's `parentFeatureId` names
- * @returns {{ code: string, message: string, details: { count: number, sample: object[] } } | null}
- *   one error for every offending habitat together, or null when there are none
- */
-export function refuseUnenhanceableBaselines(document, baselineDocument) {
+/** The Enhanced features of `layers` whose baseline cannot be enhanced. */
+function unenhanceableFeatures(document, baselineDocument, layers) {
   const offenders = []
-  for (const layer of UNENHANCEABLE_BASELINE_LAYERS) {
+  for (const layer of layers) {
     const parents = parentsById(baselineDocument, layer)
     for (const feature of document?.[layer] ?? []) {
       if (resolveRetentionCategory(feature) !== RETENTION_ENHANCED) {
@@ -116,6 +113,11 @@ export function refuseUnenhanceableBaselines(document, baselineDocument) {
       }
     }
   }
+  return offenders
+}
+
+/** One error naming every offender, or null when there are none. */
+function refusal(code, message, offenders) {
   if (offenders.length === 0) {
     return null
   }
@@ -125,8 +127,61 @@ export function refuseUnenhanceableBaselines(document, baselineDocument) {
       ? ` (and ${offenders.length - sample.length} more)`
       : ''
   return makeError(
-    ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
-    `${MESSAGE}: ${sample.map(describeOffender).join(', ')}${more}`,
+    code,
+    `${message}: ${sample.map(describeOffender).join(', ')}${more}`,
     { count: offenders.length, sample }
   )
+}
+
+/**
+ * Check every Enhanced area habitat, hedgerow and watercourse of a
+ * post-intervention document, and refuse the file if any enhances a baseline
+ * that cannot be enhanced. Individual trees are refuseUnenhanceableTrees'.
+ *
+ * @param {object} document the post-intervention document
+ * @param {object} [baselineDocument] the baseline the document is imported
+ *   against, whose features a linked row's `parentFeatureId` names
+ * @returns {{ code: string, message: string, details: { count: number, sample: object[] } } | null}
+ *   one error for every offending habitat together, or null when there are none
+ */
+export function refuseUnenhanceableBaselines(document, baselineDocument) {
+  return refusal(
+    ERROR_CODES.BASELINE_NOT_ENHANCEABLE,
+    MESSAGE,
+    unenhanceableFeatures(document, baselineDocument, HABITAT_LAYERS)
+  )
+}
+
+/**
+ * Check every Enhanced individual tree of a post-intervention document, and
+ * refuse the file if any enhances a baseline tree in Good condition, which
+ * cannot be enhanced (TREE_NOT_ENHANCEABLE).
+ *
+ * @param {object} document the post-intervention document
+ * @param {object} [baselineDocument] the baseline the document is imported
+ *   against
+ * @returns {{ code: string, message: string, details: { count: number, sample: object[] } } | null}
+ *   one error for every offending tree together, or null when there are none
+ */
+export function refuseUnenhanceableTrees(document, baselineDocument) {
+  return refusal(
+    ERROR_CODES.TREE_NOT_ENHANCEABLE,
+    TREE_MESSAGE,
+    unenhanceableFeatures(document, baselineDocument, [TREES])
+  )
+}
+
+/**
+ * Both refusals, run on import once a BNG Service template file's rows are
+ * linked to their parents and before any enhancement is nulled.
+ *
+ * @returns {object[] | null} an error for each refusal that applies, or null
+ *   when neither does
+ */
+export function refuseUnenhanceableFeatures(document, baselineDocument) {
+  const errors = [
+    refuseUnenhanceableBaselines(document, baselineDocument),
+    refuseUnenhanceableTrees(document, baselineDocument)
+  ].filter(Boolean)
+  return errors.length > 0 ? errors : null
 }

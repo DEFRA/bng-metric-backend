@@ -27,11 +27,10 @@ import {
   recomputeWatercourse
 } from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
-import { cleanComment } from '../../validation/geopackage/comment-check.js'
-import { cleanHabitatRef } from '../../validation/geopackage/habitat-ref-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
-import { checkFeatureEnhancement } from '../../validation/geopackage/post-intervention/enhancement-rules.js'
+import { brokenEditRule, EDIT_RULE_KIND } from './edit-rules.js'
+import { normalizeEdits } from './normalize-edits.js'
 import {
   RETENTION_CREATED,
   RETENTION_ENHANCED,
@@ -69,75 +68,16 @@ const APPLY_RESULT = Object.freeze({
   FEATURE_WRONG_TYPE: 'featureWrongType',
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
-  INVALID_ENHANCEMENT: 'invalidEnhancement'
+  INVALID_ENHANCEMENT: 'invalidEnhancement',
+  INVALID_DEGRADE: 'invalidDegrade',
+  REF_IN_USE: 'refInUse'
 })
 
-function blankToNull(value) {
-  if (value === null || value === undefined) {
-    return null
-  } else {
-    const trimmed = typeof value === 'string' ? value.trim() : value
-    if (trimmed === '') {
-      return null
-    } else {
-      return trimmed
-    }
-  }
-}
-
-/**
- * The edited ref as it is stored, or undefined when the edit leaves the ref
- * alone. Unlike the dropdown fields, an absent ref is not a request to clear
- * it: a habitat must always have one (BMD-1058), and baseline renaming (BMD-1061) and full Created-area edits
- * send it. The route has already refused a blank one.
- *
- * @param {unknown} ref
- * @returns {string | undefined}
- */
-function normalizeRef(ref) {
-  if (ref === undefined || ref === null) {
-    return undefined
-  }
-  const cleaned = cleanHabitatRef(ref)
-  return cleaned === '' ? undefined : cleaned
-}
-
-/**
- * The edited comment as it is stored, or undefined when the edit leaves it
- * alone. An absent comment is not a request to clear it. Blank and
- * whitespace-only become null.
- *
- * @param {object} edits
- * @returns {string | null | undefined}
- */
-function normalizeComment(edits) {
-  if (!Object.hasOwn(edits, 'comment')) {
-    return undefined
-  }
-  return cleanComment(edits.comment)
-}
-
-function normalizeEdits(edits = {}) {
-  return {
-    ref: normalizeRef(edits.ref),
-    ...(Object.hasOwn(edits, 'advanceYears')
-      ? {
-          strategicSignificance:
-            edits.strategicSignificance === undefined
-              ? undefined
-              : blankToNull(edits.strategicSignificance),
-          advanceYears: edits.advanceYears,
-          delayYears: edits.delayYears
-        }
-      : {}),
-    broadType: blankToNull(edits.broadType),
-    habitatType: blankToNull(edits.habitatType),
-    condition: blankToNull(edits.condition),
-    watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
-    riparianEncroachment: blankToNull(edits.riparianEncroachment),
-    comment: normalizeComment(edits)
-  }
-}
+/** The rejection for each kind of service rule an edit breaks. */
+const REJECTION_BY_EDIT_RULE = Object.freeze({
+  [EDIT_RULE_KIND.enhancement]: APPLY_RESULT.INVALID_ENHANCEMENT,
+  [EDIT_RULE_KIND.degrade]: APPLY_RESULT.INVALID_DEGRADE
+})
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   if (documentKey === 'postIntervention') {
@@ -251,10 +191,12 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
  * comment and never its area. It stays a tree (tree-edit.js), and a change of
  * setting moves it between the urban and rural sizes (withEditedTreeSizes).
  *
- * After intervention only a Created tree is edited this way, with the Created
- * area habitat edit's complete payload; a Retained tree's reference
- * is renamed through apply-retained-ref-edit.js, and an Enhanced tree, like an
- * Enhanced area habitat, is not editable.
+ * After intervention a Created or an Enhanced tree is edited this way, with
+ * the Created area habitat edit's complete payload, and priced by its
+ * retention category as the upload prices it: a Created tree as a creation,
+ * and an Enhanced one as an enhancement of its baseline tree's condition, in
+ * its baseline tree's setting (post-intervention-tree-edit.js). A Retained
+ * tree's reference is renamed through apply-retained-ref-edit.js.
  */
 function recomputeTreeEdit(existing, edits, context) {
   if (!keepsTreeATree(existing, edits, context.documentKey)) {
@@ -425,32 +367,6 @@ function rebuiltProject(
   return rebuilt
 }
 
-/**
- * The enhancement rule an edit to an enhanced post-intervention feature
- * breaks, or null. An edit must leave a valid enhancement of the feature's
- * baseline, as an import must (reject-invalid-enhancements.js); unlike an
- * import, it is refused rather than saved with its proposed values nulled.
- * The edit replaces only some proposed fields, so the check runs on the
- * recomputed feature, which carries all of them.
- *
- * @param {{ key: string }} found
- * @param {{ updatedFeature?: object }} derived
- * @param {string} documentKey
- * @returns {string | null} one of bng-library's ENHANCEMENT_RULE
- */
-function brokenEnhancementRule(found, derived, documentKey) {
-  const feature = derived.updatedFeature
-  if (
-    documentKey !== 'postIntervention' ||
-    !feature ||
-    resolveRetentionCategory(feature) !== RETENTION_ENHANCED
-  ) {
-    return null
-  }
-  const check = checkFeatureEnhancement(found.key, feature)
-  return check && !check.valid ? check.rule : null
-}
-
 // The post-intervention features a Created edit's complete payload reaches:
 // area habitats and trees, which carry a broad habitat, and hedgerows and
 // watercourses, which do not.
@@ -461,6 +377,24 @@ const CREATED_EDIT_TYPES = new Set([
   'watercourse'
 ])
 const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
+const ENHANCED_EDIT_TYPES = new Set(['habitat', 'tree'])
+
+/**
+ * Whether the complete edit payload may be applied to a feature of this
+ * retention: a Created one of any type that takes it, an Enhanced tree,
+ * whose condition is all it enhances, and an Enhanced area habitat, edited
+ * within its baseline's valid enhancements (BMD-1045).
+ *
+ * @param {{ type: string, feature: object }} found
+ * @returns {boolean}
+ */
+function takesCompleteEdit(found) {
+  const retention = resolveRetentionCategory(found.feature)
+  return (
+    retention === RETENTION_CREATED ||
+    (ENHANCED_EDIT_TYPES.has(found.type) && retention === RETENTION_ENHANCED)
+  )
+}
 
 function hasUnsupportedTimingEdit(found, edits, documentKey) {
   const unsupportedLinearBroadType =
@@ -470,7 +404,7 @@ function hasUnsupportedTimingEdit(found, edits, documentKey) {
     Object.hasOwn(edits, 'advanceYears') &&
     (!CREATED_EDIT_TYPES.has(found.type) ||
       unsupportedLinearBroadType ||
-      resolveRetentionCategory(found.feature) !== RETENTION_CREATED ||
+      !takesCompleteEdit(found) ||
       edits.ref === undefined)
   )
 }
@@ -531,13 +465,13 @@ function resolveEditTarget(
       }
     }
   }
-  const rule = brokenEnhancementRule(found, derived, documentKey)
-  if (rule) {
+  const broken = brokenEditRule(found, derived, { documentKey, baseline })
+  if (broken) {
     return {
       rejection: {
-        status: APPLY_RESULT.INVALID_ENHANCEMENT,
+        status: REJECTION_BY_EDIT_RULE[broken.kind],
         type: found.type,
-        rule
+        rule: broken.rule
       }
     }
   }
@@ -610,6 +544,8 @@ function withUpdatedFeature(
  *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
+ *   { status: 'invalidDegrade', type: string, rule: string } |
+ *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
  */
