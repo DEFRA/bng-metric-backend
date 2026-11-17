@@ -62,6 +62,8 @@ export function createdLinearEditPayload(reference, extra = {}) {
       .optional(),
     advanceYears: createdEditYears.optional(),
     delayYears: createdEditYears.optional(),
+    // Supporting information (BMD-1153); leaving it out keeps the stored one.
+    comment: featureEditPayload.extract('comment'),
     ...extra
   })
 }
