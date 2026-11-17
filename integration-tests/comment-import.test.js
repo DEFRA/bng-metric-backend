@@ -259,6 +259,95 @@ describe('habitat comments on upload', () => {
   })
 })
 
+const COMBINED_FIXTURE = 'post-intervention-combined.gpkg'
+
+/**
+ * The complete Created edit payload that keeps a feature's stored choices,
+ * with a comment. Omitted timing keeps the stored timing.
+ *
+ * @param {'trees' | 'hedgerows' | 'watercourses'} layer
+ * @param {object} feature
+ * @param {string} comment
+ * @returns {object}
+ */
+function createdEditPayload(layer, feature, comment) {
+  const payload = {
+    ref: feature.ref,
+    habitatType: feature.proposed.type,
+    condition: feature.proposed.condition,
+    comment
+  }
+  if (layer === 'trees') {
+    return { ...payload, broadType: feature.proposed.broadType }
+  }
+  return payload
+}
+
+describe('Created habitat supporting information (BMD-1153)', () => {
+  it('saves a Created tree, hedgerow and watercourse comment that a later baseline edit keeps', async () => {
+    const project = await createProject('Created comment')
+    const uploadId = await uploadFixture(COMBINED_FIXTURE)
+    expect(
+      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
+        .statusCode
+    ).toBe(HTTP_OK)
+
+    const imported = await fetchProject(project.id)
+    const { server, headers } = getPersistenceTestContext()
+    const edited = {}
+    for (const layer of ['trees', 'hedgerows', 'watercourses']) {
+      const created = imported.postIntervention[layer].find(
+        (feature) => feature.retentionCategory === 'Created'
+      )
+      const res = await server.inject({
+        method: 'PUT',
+        url: `/projects/${project.id}/post-intervention/${layer}/${created.featureId}`,
+        headers,
+        payload: createdEditPayload(
+          layer,
+          created,
+          `  ${layer} note\r\nsecond line  `
+        )
+      })
+      expect(res.statusCode).toBe(HTTP_OK)
+      expect(res.result.comment).toBe(`${layer} note\nsecond line`)
+      edited[layer] = created.featureId
+
+      const fetched = await server.inject({
+        method: 'GET',
+        url: `/projects/${project.id}/post-intervention/features/${created.featureId}`,
+        headers
+      })
+      expect(fetched.result.feature.comment).toBe(`${layer} note\nsecond line`)
+    }
+
+    // A baseline edit re-derives the post-intervention document from the
+    // baseline. The Created rows have no baseline parcel, so their own
+    // comments must come through it untouched.
+    const baselineHedgerow = imported.baseline.hedgerows[0]
+    const baselineEdit = await server.inject({
+      method: 'PUT',
+      url: `/projects/${project.id}/features/${baselineHedgerow.featureId}`,
+      headers,
+      payload: {
+        habitatType: baselineHedgerow.type,
+        condition: baselineHedgerow.condition,
+        comment: 'baseline note'
+      }
+    })
+    expect(baselineEdit.statusCode).toBe(HTTP_OK)
+
+    const after = await fetchProject(project.id)
+    for (const [layer, featureId] of Object.entries(edited)) {
+      expect(
+        after.postIntervention[layer].find(
+          (feature) => feature.featureId === featureId
+        ).comment
+      ).toBe(`${layer} note\nsecond line`)
+    }
+  })
+})
+
 const TEMPLATE_FIXTURE = 'service-template/plain-site.gpkg'
 
 /**

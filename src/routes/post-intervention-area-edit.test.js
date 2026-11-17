@@ -367,17 +367,20 @@ describe('BMD-1048 Created area edits', () => {
     ).toBeDefined()
   })
 
-  // A comment belongs to a baseline habitat and is editable only there
-  // (BMD-1112), so sending one here is refused rather than quietly dropped.
-  test('refuses a comment, which only a baseline edit can save', () => {
+  // A Created area's comment is saved with its complete edit (BMD-1153), so a
+  // comment without the reference is refused rather than quietly dropped.
+  test('takes a comment with the complete edit only', () => {
+    expect(
+      postInterventionAreaEditPayload.validate({ ...edits, comment: 'A note' })
+        .error
+    ).toBeUndefined()
     const { error } = postInterventionAreaEditPayload.validate({
-      ...edits,
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Good',
       comment: 'A note'
     })
-    expect(error?.message).toMatch(/comment.*not allowed/)
-    expect(
-      postInterventionAreaEditPayload.validate(edits).error
-    ).toBeUndefined()
+    expect(error?.message).toMatch(/comment.*ref/)
   })
 
   test('advance can floor time at zero without resetting delay or difficulty', () => {
