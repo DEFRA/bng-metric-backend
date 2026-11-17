@@ -384,6 +384,54 @@ describe('validateGeoPackageLayersGeos — non-area layers outside the redline',
     ).toContain(ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE)
   })
 
+  // BMD-1212: a re-meandered channel is longer than its baseline, and may
+  // wander; the red line check holds it all the same.
+  it('detects a re-meandered watercourse whose bend runs 5 m outside the redline', async () => {
+    const meander = [
+      [X0 + 10, Y0 + 10],
+      [X0 + 40, Y0 + 10],
+      [X0 + 50, Y0 - 5],
+      [X0 + 60, Y0 + 10],
+      [X0 + 90, Y0 + 10]
+    ]
+
+    expect(
+      await codesFor({
+        ...inside,
+        watercourses: [
+          line(meander, {
+            fid: 1,
+            'Retention Category': 'Enhanced',
+            'Enhancement Type': 'Enhanced by Realignment'
+          })
+        ]
+      })
+    ).toContain(ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE)
+  })
+
+  it('passes a re-meandered watercourse whose bends stay inside the redline', async () => {
+    const meander = [
+      [X0 + 10, Y0 + 10],
+      [X0 + 40, Y0 + 10],
+      [X0 + 50, Y0 + 30],
+      [X0 + 60, Y0 + 10],
+      [X0 + 90, Y0 + 10]
+    ]
+
+    expect(
+      await codesFor({
+        ...inside,
+        watercourses: [
+          line(meander, {
+            fid: 1,
+            'Retention Category': 'Enhanced',
+            'Enhancement Type': 'Enhanced by Realignment'
+          })
+        ]
+      })
+    ).not.toContain(ERROR_CODES.WATERCOURSES_OUTSIDE_REDLINE)
+  })
+
   it('detects an IGGI outside the redline', async () => {
     expect(
       await codesFor({

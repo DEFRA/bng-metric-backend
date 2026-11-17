@@ -3,7 +3,8 @@ import { describe, expect, it } from 'vitest'
 import {
   buildBaselineLinearLengthByRef,
   linearLengthKmFromSizeMetres,
-  lookupBaselineLinearLength
+  lookupBaselineLinearLength,
+  withEnhancedWatercourseShares
 } from './linear-baseline-length-by-ref.js'
 
 describe('linearLengthKmFromSizeMetres', () => {
@@ -128,5 +129,98 @@ describe('a BNG Service template feature, linked to its parent (BMD-1083)', () =
     ).toThrow(
       /no baseline watercourse found for the parent of parcel ref "R001"/
     )
+  })
+})
+
+describe('withEnhancedWatercourseShares (BMD-1212)', () => {
+  const RIVER_ID = '7e6a3d2f-9a54-4b9f-8c62-3b4d5e6f7081'
+  const lengths = buildBaselineLinearLengthByRef(
+    [],
+    [{ ref: 'R001', featureId: RIVER_ID, sizeMetres: 100 }]
+  )
+  const part = (retentionCategory, sizeMetres) => ({
+    ref: 'R001',
+    parentFeatureId: RIVER_ID,
+    retentionCategory,
+    sizeMetres
+  })
+  const priced = (feature, shares) =>
+    lookupBaselineLinearLength(feature, shares, 'watercourse')
+
+  it('keeps the whole parent for a single Enhanced part, however long', () => {
+    const remeandered = part('Enhanced', 130)
+    const shares = withEnhancedWatercourseShares(lengths, [remeandered])
+
+    expect(priced(remeandered, shares)).toBe(0.1)
+  })
+
+  it('gives an Enhanced part what its Retained siblings leave', () => {
+    const enhanced = part('Enhanced', 90)
+    const shares = withEnhancedWatercourseShares(lengths, [
+      part('Retained', 40),
+      enhanced
+    ])
+
+    expect(priced(enhanced, shares)).toBeCloseTo(0.06, 12)
+  })
+
+  it('shares the remainder between Enhanced parts in proportion to their lengths', () => {
+    const first = part('Enhanced', 50)
+    const second = part('Enhanced', 70)
+    const shares = withEnhancedWatercourseShares(lengths, [
+      part('Retained', 40),
+      first,
+      second
+    ])
+
+    expect(priced(first, shares)).toBeCloseTo(0.025, 12)
+    expect(priced(second, shares)).toBeCloseTo(0.035, 12)
+  })
+
+  it('takes nothing from the remainder for a Created part', () => {
+    const enhanced = part('Enhanced', 130)
+    const shares = withEnhancedWatercourseShares(lengths, [
+      enhanced,
+      part('Created', 20)
+    ])
+
+    expect(priced(enhanced, shares)).toBe(0.1)
+  })
+
+  it('refuses to price an Enhanced part its Retained siblings leave nothing for', () => {
+    const enhanced = part('Enhanced', 30)
+    const shares = withEnhancedWatercourseShares(lengths, [
+      part('Retained', 120),
+      enhanced
+    ])
+
+    expect(() => priced(enhanced, shares)).toThrow(/none is left to enhance/)
+  })
+
+  it('leaves a legacy watercourse, priced by its ref, as it was', () => {
+    const legacy = {
+      ref: 'R001',
+      retentionCategory: 'Enhanced',
+      sizeMetres: 130
+    }
+    const shares = withEnhancedWatercourseShares(lengths, [
+      { ref: 'R001', retentionCategory: 'Retained', sizeMetres: 40 },
+      legacy
+    ])
+
+    expect(priced(legacy, shares)).toBe(0.1)
+  })
+
+  it('does not change the lengths it was given', () => {
+    const enhanced = part('Enhanced', 90)
+    withEnhancedWatercourseShares(lengths, [part('Retained', 40), enhanced])
+
+    expect(priced(enhanced, lengths)).toBe(0.1)
+  })
+
+  it('passes through lengths with no feature ids, as a legacy caller builds', () => {
+    const plain = new Map([['R1', 1]])
+
+    expect(withEnhancedWatercourseShares(plain, [])).toBe(plain)
   })
 })

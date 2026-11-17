@@ -1158,7 +1158,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
             [PARCEL_REF]: 'W1',
             'Baseline Strategic Significance': 'High',
             'Retention Category': 'Retained',
-            'Enhancement Type': 'Re-meandering',
+            'Enhancement Type': 'Enhanced by Realignment',
             Comments: 'River note',
             ...METADATA_ROW
           },
@@ -1173,7 +1173,7 @@ describe('extractHabitatData — promoted survey/provenance metadata (BMD-498)',
         comment: 'River note',
         strategicSignificance: 'Low',
         retentionCategory: 'Retained',
-        enhancementType: 'Re-meandering'
+        enhancementType: 'Enhanced by Realignment'
       })
     )
   })
