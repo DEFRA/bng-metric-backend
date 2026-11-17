@@ -813,18 +813,20 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
 
   // The Metric's figures for T004, a Very large Rural tree in Fairly Poor
   // condition at baseline (User Guide, Table 15; the Metric's scores): a
-  // Medium habitat, score 4. Created again in Poor condition, its time to
-  // target is 10 years, which 30+ years in advance covers, so its time
-  // multiplier is 1; tree creation is Low difficulty, 1; Low significance, 1.
+  // Medium habitat, score 4. Recorded as lost, and as a Medium tree created
+  // in Poor condition: its time to target is 10 years, which 30+ years in
+  // advance covers, so its time multiplier is 1; tree creation is Low
+  // difficulty, 1; Low significance, 1.
   const VERY_LARGE_HECTARES = 0.0765
+  const MEDIUM_HECTARES = 0.0163
   const MEDIUM_DISTINCTIVENESS = 4
   const FAIRLY_POOR = 1.5
   const POOR = 1
   const BASELINE_UNITS =
     VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * FAIRLY_POOR
-  const CREATED_UNITS = VERY_LARGE_HECTARES * MEDIUM_DISTINCTIVENESS * POOR
+  const CREATED_UNITS = MEDIUM_HECTARES * MEDIUM_DISTINCTIVENESS * POOR
 
-  /** The default site with T004 recorded as lost and created again, worse. */
+  /** The default site with T004 recorded as lost and an Existing tree created. */
   function degradedSite(name, values) {
     const copy = path.join(scratch, `${name}.gpkg`)
     copyFileSync(SITE, copy)
@@ -843,6 +845,7 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
   const DEGRADED = {
     'Retention Category': 'Created',
     Category: 'Existing',
+    'Proposed Tree Size': 'Medium',
     'Proposed Condition': 'Poor',
     'Proposed Strategic Significance': 'Low',
     'Habitat Created/Enhanced in advance/years': '30+',
@@ -850,7 +853,7 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
   }
 
   it(
-    'records the baseline tree as lost and the same tree as created, worse, and prices both as the Metric does',
+    'records the baseline tree as lost and prices the Created tree as a creation of its own, as the Metric does',
     async () => {
       const result = await importUploadFile(
         degradedSite('degraded', DEGRADED),
@@ -867,9 +870,9 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
         retentionCategory: 'Created',
         parentFeatureId: parent.featureId,
         status: 'Complete',
-        sizeSquareMetres: 765,
+        sizeSquareMetres: 163,
         proposed: {
-          treeSize: 'Very large',
+          treeSize: 'Medium',
           type: 'Rural tree',
           condition: 'Poor',
           advanceYears: 30
@@ -883,76 +886,31 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
         featureId: parent.featureId,
         ref: 'T004',
         type: 'Rural tree',
-        outcome: 'lostAndRecreated',
+        outcome: 'lost',
         lostSizeSquareMetres: 765,
         lostTreeCount: 1,
-        recreatedAs: [created.featureId]
-      })
-    },
-    IMPORT_TIMEOUT_MS
-  )
-
-  it(
-    'reads a blank proposed setting as the baseline one, keeping the condition, timing and units',
-    async () => {
-      const result = await importUploadFile(
-        degradedSite('degraded-blank-setting', {
-          ...DEGRADED,
-          'Proposed Rural or Urban Tree': null
-        }),
-        {},
-        POST_INTERVENTION
-      )
-
-      expect(result.errors ?? []).toEqual([])
-      const { baseline, postIntervention } = result.project
-      const parent = baseline.trees.find((tree) => tree.ref === 'T004')
-      const created = postIntervention.trees.find((tree) => tree.ref === 'T004')
-      expect(created).toMatchObject({
-        status: 'Complete',
-        sizeSquareMetres: 765,
-        proposed: {
-          type: 'Rural tree',
-          condition: 'Poor',
-          strategicSignificance: 'Low',
-          advanceYears: 30,
-          delayYears: 0
-        }
-      })
-      expect(created.units).toBeCloseTo(CREATED_UNITS, 10)
-      expect(
-        postIntervention.lostHabitats.find((lost) => lost.ref === 'T004')
-      ).toMatchObject({
-        outcome: 'lostAndRecreated',
-        recreatedAs: [created.featureId],
-        featureId: parent.featureId
+        recreatedAs: []
       })
     },
     IMPORT_TIMEOUT_MS
   )
 
   it.each([
-    [
-      'in the same condition',
-      { 'Proposed Condition': 'Fairly Poor' },
-      ERROR_CODES.STAGED_DEGRADE_NOT_WORSE
-    ],
+    ['in the same condition', { 'Proposed Condition': 'Fairly Poor' }],
     [
       'not 30+ years in advance',
-      { 'Habitat Created/Enhanced in advance/years': '5' },
-      ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
+      { 'Habitat Created/Enhanced in advance/years': '5' }
     ]
   ])(
-    'refuses an Existing tree Created %s',
-    async (name, overrides, code) => {
+    'accepts an Existing tree Created %s: it is a creation like any other',
+    async (name, overrides) => {
       const result = await importUploadFile(
         degradedSite(name.replaceAll(' ', '-'), { ...DEGRADED, ...overrides }),
         {},
         POST_INTERVENTION
       )
 
-      expect(result.accepted).toBe(false)
-      expect(result.errors.map((e) => e.code)).toContain(code)
+      expect(result.errors ?? []).toEqual([])
     },
     IMPORT_TIMEOUT_MS
   )

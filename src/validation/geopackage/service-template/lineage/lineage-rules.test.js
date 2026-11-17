@@ -475,7 +475,7 @@ describe('checkLineageRules', () => {
         {
           code: ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
           message:
-            'One or more baseline trees have more than one kept tree linked to them. A post-intervention tree is kept if it is Retained or Enhanced, or Created with Category Existing in the same Urban or Rural setting. A baseline tree is one tree, so only one kept tree can be linked to it: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b',
+            'One or more baseline trees have more than one Retained or Enhanced tree linked to them. A baseline tree is one tree, so only one Retained or Enhanced tree can be linked to it: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b',
           details: {
             count: 1,
             sample: [
@@ -503,7 +503,6 @@ describe('checkLineageRules', () => {
             trees: [
               treeChild(parent, {
                 'Retention Category': 'Created',
-                Category: 'Newly Planted',
                 'Proposed Condition': 'Moderate'
               })
             ]
@@ -512,91 +511,40 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
-    /** The parent tree itself, Created in a worse condition: a degraded row. */
-    const degradedTree = (parent, overrides = {}) =>
+    /** The parent tree recorded as lost, and Created again as Existing. */
+    const existingCreated = (parent, overrides = {}) =>
       treeChild(parent, {
         'Retention Category': 'Created',
         Category: 'Existing',
-        'Proposed Condition': 'Poor',
-        'Habitat Created/Enhanced in advance/years': '30+',
         ...overrides
       })
 
-    it('passes an Existing tree Created in a worse condition, 30+ years in advance', () => {
-      const parent = tree(1)
+    it.each([
+      ['a worse condition, 30+ years in advance', 'Poor', '30+'],
+      ['the same condition, not in advance', 'Moderate', '0'],
+      ['a better condition, 5 years in advance', 'Good', '5']
+    ])(
+      'passes an Existing tree Created in its parent’s setting in %s: it is a creation like any other',
+      (_, condition, advance) => {
+        const parent = tree(1)
 
-      expect(
-        check({ trees: [parent] }, { trees: [degradedTree(parent)] })
-      ).toEqual([])
-    })
-
-    it('refuses an Existing tree Created in the same or a better condition, with no delay', () => {
-      const parent = tree(1)
-
-      for (const condition of ['Moderate', 'Good']) {
-        const errors = check(
-          { trees: [parent] },
-          {
-            trees: [
-              degradedTree(parent, {
-                'Tree Ref': 'T001a',
-                'Proposed Condition': condition
-              })
-            ]
-          }
-        )
-
-        expect(codes(errors), condition).toEqual([
-          ERROR_CODES.STAGED_DEGRADE_NOT_WORSE
-        ])
-        expect(errors[0].details.sample[0]).toMatchObject({
-          layer: 'trees',
-          table: 'Individual Trees Post-Intervention',
-          ref: 'T001a',
-          habitatType: 'Urban tree',
-          parentRef: 'T001'
-        })
+        expect(
+          check(
+            { trees: [parent] },
+            {
+              trees: [
+                existingCreated(parent, {
+                  'Proposed Condition': condition,
+                  'Habitat Created/Enhanced in advance/years': advance
+                })
+              ]
+            }
+          )
+        ).toEqual([])
       }
-    })
+    )
 
-    it('refuses a worse Existing tree that is not created 30+ years in advance', () => {
-      const parent = tree(1)
-
-      expect(
-        codes(
-          check(
-            { trees: [parent] },
-            {
-              trees: [
-                degradedTree(parent, {
-                  'Habitat Created/Enhanced in advance/years': '5'
-                })
-              ]
-            }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS])
-    })
-
-    it('counts a degraded tree as its parent: refuses the tree both kept and recorded as lost and created again', () => {
-      const parent = tree(1)
-
-      expect(
-        codes(
-          check(
-            { trees: [parent] },
-            {
-              trees: [
-                treeChild(parent, { 'Tree Ref': 'T001a' }),
-                degradedTree(parent, { 'Tree Ref': 'T001b' })
-              ]
-            }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY])
-    })
-
-    it('passes an Existing tree put back after a delay, in any condition', () => {
+    it('does not count an Existing tree Created against its parent’s one kept tree', () => {
       const parent = tree(1)
 
       expect(
@@ -604,52 +552,10 @@ describe('checkLineageRules', () => {
           { trees: [parent] },
           {
             trees: [
-              degradedTree(parent, {
-                'Proposed Condition': 'Moderate',
-                'Habitat Created/Enhanced in advance/years': '0',
-                'Delay in starting habitat creation/enhancement in years': '3'
-              })
-            ]
-          }
-        )
-      ).toEqual([])
-    })
-
-    it('reads a degraded tree with a blank proposed setting as in its baseline setting', () => {
-      const parent = tree(1)
-
-      expect(
-        codes(
-          check(
-            { trees: [parent] },
-            {
-              trees: [
-                degradedTree(parent, {
-                  // A copied row keeps its parent's Baseline columns.
-                  'Baseline Rural or Urban Tree':
-                    parent.properties['Baseline Rural or Urban Tree'],
-                  'Proposed Rural or Urban Tree': null,
-                  'Proposed Condition': 'Good'
-                })
-              ]
-            }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
-    })
-
-    it('does not count an Existing tree Created in the other setting as degraded', () => {
-      const parent = tree(1)
-
-      expect(
-        check(
-          { trees: [parent] },
-          {
-            trees: [
-              degradedTree(parent, {
-                'Proposed Rural or Urban Tree': 'Rural tree',
-                'Proposed Condition': 'Good',
-                'Habitat Created/Enhanced in advance/years': '0'
+              treeChild(parent, { 'Tree Ref': 'T001a' }),
+              existingCreated(parent, {
+                'Tree Ref': 'T001b',
+                'Proposed Condition': 'Poor'
               })
             ]
           }

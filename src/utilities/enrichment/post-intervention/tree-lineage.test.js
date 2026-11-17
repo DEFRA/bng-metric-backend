@@ -109,58 +109,20 @@ describe('alignTreesWithParents', () => {
     expect([linked, unlinked]).toEqual(before)
   })
 
-  it('keeps a degraded tree’s size, type and setting, but the condition and timing it proposes', () => {
+  it('leaves an Existing tree Created in its parent’s setting at its own size and condition: it is a creation', () => {
     const tree = piTree('Created', {
       properties: { Category: 'Existing' },
       proposed: {
         type: 'Rural tree',
         broadType: 'Individual trees',
-        treeSize: 'Very large',
-        treeSpecies: 'Non-native',
+        treeSize: 'Small',
+        treeSpecies: 'Native',
         ruralOrUrban: 'Rural tree',
         condition: 'Poor',
         strategicSignificance: 'Low',
         advanceYears: 30
       }
     })
-
-    expect(align(tree)).toEqual([tree])
-    expect(tree.proposed).toMatchObject({
-      type: 'Rural tree',
-      treeSize: 'Medium',
-      treeSpecies: 'Native',
-      ruralOrUrban: 'Rural tree',
-      condition: 'Poor',
-      advanceYears: 30,
-      sizeSquareMetres: 163
-    })
-    expect(tree.baseline.condition).toBe('Moderate')
-  })
-
-  it('reads a degraded tree with a blank proposed setting as in its baseline setting, as the file check does', () => {
-    const tree = piTree('Created', {
-      properties: { Category: 'Existing' },
-      baseline: { type: 'Rural tree', broadType: 'Individual trees' },
-      proposed: {
-        type: null,
-        broadType: 'Individual trees',
-        treeSize: null,
-        ruralOrUrban: null,
-        condition: 'Poor'
-      }
-    })
-
-    expect(align(tree)).toEqual([tree])
-    expect(tree.proposed).toMatchObject({
-      type: 'Rural tree',
-      treeSize: 'Medium',
-      condition: 'Poor',
-      sizeSquareMetres: 163
-    })
-  })
-
-  it('leaves an Existing tree Created in the other setting: it is a creation in that setting', () => {
-    const tree = piTree('Created', { properties: { Category: 'Existing' } })
     const before = structuredClone(tree)
 
     expect(align(tree)).toEqual([])

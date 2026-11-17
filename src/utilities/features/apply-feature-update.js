@@ -32,7 +32,7 @@ import {
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
 import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
 import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
-import { brokenEditRule, EDIT_RULE_KIND } from './edit-rules.js'
+import { brokenEnhancementRule } from './edit-enhancement-rule.js'
 import { normalizeEdits } from './normalize-edits.js'
 import {
   RETENTION_CREATED,
@@ -70,14 +70,7 @@ const APPLY_RESULT = Object.freeze({
   UNSUPPORTED_TYPE: 'unsupportedType',
   OUT_OF_SCOPE: 'outOfScope',
   INVALID_ENHANCEMENT: 'invalidEnhancement',
-  INVALID_DEGRADE: 'invalidDegrade',
   REF_IN_USE: 'refInUse'
-})
-
-/** The rejection for each kind of service rule an edit breaks. */
-const REJECTION_BY_EDIT_RULE = Object.freeze({
-  [EDIT_RULE_KIND.enhancement]: APPLY_RESULT.INVALID_ENHANCEMENT,
-  [EDIT_RULE_KIND.degrade]: APPLY_RESULT.INVALID_DEGRADE
 })
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
@@ -511,13 +504,13 @@ function resolveEditTarget(
       }
     }
   }
-  const broken = brokenEditRule(found, derived, { documentKey, baseline })
-  if (broken) {
+  const rule = brokenEnhancementRule(found, derived, documentKey)
+  if (rule) {
     return {
       rejection: {
-        status: REJECTION_BY_EDIT_RULE[broken.kind],
+        status: APPLY_RESULT.INVALID_ENHANCEMENT,
         type: found.type,
-        rule: broken.rule
+        rule
       }
     }
   }
@@ -590,7 +583,6 @@ function withUpdatedFeature(
  *   { status: 'ok', type: string, project: object, feature: object, habitatSizes?: object, postIntervention: object | null } |
  *   { status: 'outOfScope', type: string, distinctiveness: string } |
  *   { status: 'invalidEnhancement', type: string, rule: string } |
- *   { status: 'invalidDegrade', type: string, rule: string } |
  *   { status: 'refInUse', type: string, ref: string } |
  *   { status: 'featureNotFound' | 'featureWrongType' | 'unsupportedType', type?: string }
  * }
