@@ -56,12 +56,12 @@ describe('#buildSiteReportPdf', () => {
     // One H1, on the summary page: "Summary", with the project name as a
     // caption above it rather than as a second heading.
     expect(countOf(text, '/S /H1')).toBe(1)
-    // Six H2s under it — one per unit-type section on page 1 (area habitats,
-    // hedgerows, watercourses), then "Key figures", "Site maps" and the
-    // habitat parcels heading.
-    expect(countOf(text, '/S /H2')).toBe(6)
+    // Seven H2s under it — one per unit-type section on page 1 (area
+    // habitats, hedgerows, watercourses), then "Key figures", "Site maps", and
+    // the habitat parcels and individual trees headings.
+    expect(countOf(text, '/S /H2')).toBe(7)
     // Five H3s per unit-type section: its five tiles. The table layout gives
-    // parcels rows rather than headings, so these are all of them.
+    // parcels and trees rows rather than headings, so these are all of them.
     expect(countOf(text, '/S /H3')).toBe(15)
     expect(countOf(text, '/Lang')).toBeGreaterThan(0)
     expect(text).toContain('pdfuaid')
@@ -76,7 +76,8 @@ describe('#buildSiteReportPdf', () => {
     // The trap: wrapping doc.table() in doc.struct('Table', …) renders
     // identically and emits a Table element containing zero rows. Counting
     // cells is what catches it; looking at the page is not.
-    expect(countOf(text, '/S /Table')).toBe(2)
+    // Key figures, habitat parcels and individual trees.
+    expect(countOf(text, '/S /Table')).toBe(3)
     expect(countOf(text, '/S /TH')).toBeGreaterThan(0)
     expect(countOf(text, '/S /TD')).toBeGreaterThan(0)
   })
@@ -87,9 +88,9 @@ describe('#buildSiteReportPdf', () => {
       postIntervention: postInterventionSite()
     })
 
-    // Two site maps and one thumbnail per parcel.
+    // Two site maps and one thumbnail per parcel and per tree.
     const figures = countOf(text, '/S /Figure')
-    expect(figures).toBe(4)
+    expect(figures).toBe(5)
     expect(countOf(text, '/Alt')).toBe(figures)
   })
 
@@ -173,6 +174,36 @@ describe('#buildSiteReportPdf', () => {
     // the work; the parcel row describes the site as it will be.
     expect(text).toContain('Outline of parcel A2, Other neutral grassland')
     expect(text).not.toContain('Outline of parcel A2, Cereal crops')
+  })
+
+  test('lists each individual tree after the habitat parcels, in its own table', async () => {
+    const { stats, text } = await render({
+      baseline: baselineSite(),
+      postIntervention: postInterventionSite()
+    })
+
+    expect(stats.habitats).toBe(2)
+    expect(stats.trees).toBe(1)
+    expect(text).toContain('/T (Individual trees)')
+    expect(text.indexOf('/T (Individual trees)')).toBeGreaterThan(
+      text.indexOf('/T (Habitat parcels)')
+    )
+    // A tree's size to four places: a Small tree is 0.0041 ha, which a
+    // parcel's three would give as 0.004.
+    expect(text).toContain(
+      'Position of tree T1, Urban tree, 0.0041 hectares, shown in place among the habitat parcels.'
+    )
+    expect(countOf(text, '/T (Tree size)')).toBe(1)
+  })
+
+  test('lists no trees on a site that has none', async () => {
+    const site = baselineSite()
+    site.layers.trees = []
+
+    const { stats, text } = await render({ baseline: site })
+
+    expect(stats.trees).toBe(0)
+    expect(text).not.toContain('/T (Individual trees)')
   })
 
   test('survives a site with no habitat parcels at all', async () => {
@@ -282,7 +313,8 @@ describe('#buildSiteReportPdf habitat layout', () => {
   test('draws cards when asked for them', async () => {
     const { text } = await render({ baseline: baselineSite(), layout: 'cards' })
 
-    expect(countOf(text, '/S /H3')).toBe(SUMMARY_TILE_HEADINGS + 2)
+    // One card heading per parcel and per tree.
+    expect(countOf(text, '/S /H3')).toBe(SUMMARY_TILE_HEADINGS + 3)
   })
 
   test('falls back to the table for a layout it does not have', async () => {

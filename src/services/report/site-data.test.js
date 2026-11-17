@@ -60,6 +60,7 @@ describe('#attributesOf', () => {
       type: 'Modified grassland',
       broadType: null,
       condition: 'Poor',
+      treeSize: null,
       distinctiveness: null,
       strategicSignificance: 'Low',
       strategicSignificanceScore: 1,
@@ -103,6 +104,7 @@ describe('#attributesOf', () => {
       type: null,
       broadType: null,
       condition: null,
+      treeSize: null,
       distinctiveness: null,
       strategicSignificance: null,
       strategicSignificanceScore: null,
@@ -123,6 +125,24 @@ describe('#attributesOf', () => {
       surveyDetails: null,
       comment: null
     })
+  })
+
+  test("reads an individual tree's size class, proposed or baseline", () => {
+    // A post-intervention tree nests its size class under `proposed`, as it
+    // does every other value; a baseline tree carries it at the top level.
+    expect(
+      attributesOf(
+        {
+          ref: 'T1',
+          sizeSquareMetres: 41,
+          proposed: { type: 'Rural tree', treeSize: 'Small' }
+        },
+        SIDE.POST_INTERVENTION
+      )
+    ).toMatchObject({ type: 'Rural tree', treeSize: 'Small' })
+    expect(
+      attributesOf({ ref: 'T1', type: 'Urban tree', treeSize: 'Very large' })
+    ).toMatchObject({ treeSize: 'Very large' })
   })
 
   test('carries the enriched values the card layout shows', () => {

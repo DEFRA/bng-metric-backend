@@ -57,12 +57,14 @@ const RED_LINE = parcel(SITE_WEST, SITE_SOUTH, SITE_EAST, SITE_NORTH)
 const SITE_AREA_SQ_M = (SITE_EAST - SITE_WEST) * (SITE_NORTH - SITE_SOUTH)
 const PARCEL_AREA_SQ_M = SITE_AREA_SQ_M / 2
 const LINEAR_LENGTH_M = SITE_EAST - SITE_WEST
+const SMALL_TREE_AREA_SQ_M = 41
 
 function properties({
   ref,
   type,
   condition,
   broadType = null,
+  treeSize = null,
   distinctiveness = null,
   strategicSignificance = null,
   strategicSignificanceScore = null,
@@ -88,6 +90,7 @@ function properties({
     type,
     condition,
     broadType,
+    treeSize,
     distinctiveness,
     strategicSignificance,
     strategicSignificanceScore,
@@ -203,7 +206,11 @@ function trees() {
       properties: properties({
         ref: 'T1',
         type: 'Urban tree',
-        condition: 'Good'
+        broadType: 'Individual trees',
+        treeSize: 'Small',
+        condition: 'Good',
+        // The tree helper's area for a Small tree, 0.0041 ha.
+        sizeSquareMetres: SMALL_TREE_AREA_SQ_M
       }),
       geometry: {
         type: 'MultiPoint',

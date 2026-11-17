@@ -1,5 +1,6 @@
 /**
- * Page 2 onwards, card layout: one card per habitat parcel.
+ * Page 2 onwards, card layout: one card per habitat parcel, then one per
+ * individual tree, each layer under its own heading (see listed-layers.js).
  *
  * The alternative to `habitat-pages.js`, selected with `?layout=cards`. Same
  * data, same mini-map, different shape — and the difference is not cosmetic.
@@ -33,7 +34,6 @@
 
 import { MAX_YEARS_PLUS, OVER_MAX_YEARS } from 'bng-library/metric'
 
-import { HABITAT_STYLES } from './map.js'
 import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
 import {
   BODY,
@@ -64,6 +64,7 @@ import {
   SQ_M_PER_HECTARE
 } from './layout.js'
 import { BASELINE, POST_INTERVENTION } from './labels.js'
+import { LISTED_LAYERS } from './listed-layers.js'
 
 const UNIT_DECIMALS = 2
 
@@ -82,6 +83,8 @@ const LABEL_WIDTHS = new WeakMap()
  */
 const CARD_FIELDS = Object.freeze([
   { key: 'broadType', label: 'Broad habitat' },
+  // Individual trees only, so absent, and omitted, on a parcel's card.
+  { key: 'treeSize', label: 'Tree size' },
   { key: 'condition', label: 'Condition' },
   { key: 'distinctiveness', label: 'Distinctiveness' },
   { key: 'strategicSignificance', label: 'Strategic significance' },
@@ -104,33 +107,40 @@ const CARD_FIELDS = Object.freeze([
   { key: 'comment', label: 'Comment', wraps: true }
 ])
 
-async function addHabitatCards({
-  doc,
-  root,
-  baseline,
-  postIntervention,
-  grid,
-  tileSource,
-  withBasemap,
-  attribution,
-  attributionShort,
-  stats
-}) {
+async function addHabitatCards(context) {
+  for (const layer of LISTED_LAYERS) {
+    await addLayerCards(context, layer)
+  }
+}
+
+async function addLayerCards(
+  {
+    doc,
+    root,
+    baseline,
+    postIntervention,
+    grid,
+    tileSource,
+    withBasemap,
+    attribution,
+    attributionShort,
+    stats
+  },
+  layer
+) {
   const site = postIntervention ?? baseline
   const label = postIntervention ? POST_INTERVENTION : BASELINE
-  const style = postIntervention
-    ? HABITAT_STYLES.postIntervention
-    : HABITAT_STYLES.baseline
-  const features = site.layers.habitats ?? []
+  const style = layer.style(Boolean(postIntervention))
+  const features = site.layers[layer.key] ?? []
   if (features.length === 0) {
     return
   }
 
-  const section = doc.struct('Sect', { title: 'Habitat parcels' })
+  const section = doc.struct('Sect', { title: layer.title })
   root.add(section)
 
   doc.addPage()
-  addIntroduction(doc, section, label)
+  addIntroduction(doc, section, label, layer)
 
   // Every card's map is the same square, so one measurement settles the credit
   // for all of them — and, because no OS mapping is drawn into a frame that
@@ -156,16 +166,17 @@ async function addHabitatCards({
     style,
     grid,
     credit,
-    stats
+    stats,
+    layer
   })
   section.end()
 }
 
-function addIntroduction(doc, section, label) {
+function addIntroduction(doc, section, label, layer) {
   section.add(
     doc.struct('H2', () => {
       doc.font(BOLD).fontSize(FONT_SIZE.sectionHeading).fillColor(INK)
-      doc.text(`${label} habitat parcels `, MARGIN, MARGIN, {
+      doc.text(`${label} ${layer.heading} `, MARGIN, MARGIN, {
         width: CONTENT_WIDTH
       })
     })
@@ -174,8 +185,8 @@ function addIntroduction(doc, section, label) {
     doc.struct('P', () => {
       doc.font(BODY).fontSize(FONT_SIZE.bodySmall).fillColor(MUTED)
       doc.text(
-        'Each parcel is shown as a card: its shape and position among the neighbouring ' +
-          'parcels, and its recorded attributes, each on its own line. Every value shown ' +
+        `Each ${layer.noun} is shown as a card: ${layer.shown}, ` +
+          'and its recorded attributes, each on its own line. Every value shown ' +
           'on a mini-map is also given as text on the same card, so no information depends ' +
           'on seeing the picture. ',
         { width: CONTENT_WIDTH }
@@ -193,12 +204,13 @@ function addCards({
   style,
   grid,
   credit,
-  stats
+  stats,
+  layer
 }) {
   let y = doc.y + CARD_TOP_GAP
 
   for (const feature of features) {
-    const values = cardValues(feature)
+    const values = cardValues(feature, layer.hectareDecimals)
     const height = cardHeight(doc, values)
 
     if (y + height > A4_PORTRAIT_HEIGHT - MARGIN) {
@@ -218,11 +230,12 @@ function addCards({
         grid,
         thumbnail: thumbnails.get(feature),
         credit,
-        stats
+        stats,
+        layer
       })
     )
     y += height + CARD_GAP
-    stats.habitats += 1
+    stats[layer.statsKey] += 1
   }
 }
 
@@ -330,7 +343,8 @@ function buildCard({
   grid,
   thumbnail,
   credit,
-  stats
+  stats,
+  layer
 }) {
   drawCardFrame(doc, y, height)
 
@@ -363,7 +377,7 @@ function buildCard({
 
   return doc.struct('Sect', [
     cardHeading(doc, values, textX, y + CARD_PADDING, textWidth()),
-    cardFigure(doc, frame, values, figureContent),
+    cardFigure(doc, frame, values, figureContent, layer),
     ...cardLines(doc, values, textX, y + CARD_PADDING + CARD_HEADING_HEIGHT)
   ])
 }
@@ -414,13 +428,11 @@ function cardLines(doc, values, x, top) {
  * The alt text repeats no data — the card's own lines carry it — so it
  * describes only what the picture adds: shape and position.
  */
-function cardFigure(doc, frame, values, figureContent) {
+function cardFigure(doc, frame, values, figureContent, layer) {
   return doc.struct(
     'Figure',
     {
-      alt:
-        `Outline of parcel ${values.ref}, shown in place among the ` +
-        'neighbouring parcels. ',
+      alt: `${layer.figure} ${values.ref}, shown in place among ${layer.surroundings}. `,
       bbox: [frame.x, frame.y, frame.x + frame.width, frame.y + frame.height]
     },
     [figureContent]
@@ -439,11 +451,14 @@ function drawCardFrame(doc, y, height) {
  * Everything a card can show, already formatted, with `null` for anything the
  * project does not hold. `ref` and `type` are exempt: they identify the parcel
  * and go in the heading, so they fall back to a dash rather than disappearing.
+ *
+ * `hectareDecimals` is the layer's: a tree's size needs more places than a
+ * parcel's (see listed-layers.js).
  */
-function cardValues({ properties }) {
+function cardValues({ properties }, hectareDecimals = PARCEL_HECTARE_DECIMALS) {
   return {
     ...cardIdentity(properties),
-    ...cardHabitat(properties),
+    ...cardHabitat(properties, hectareDecimals),
     ...cardIntervention(properties),
     ...cardSurvey(properties)
   }
@@ -460,10 +475,11 @@ function cardIdentity(properties) {
   }
 }
 
-function cardHabitat(properties) {
+function cardHabitat(properties, hectareDecimals) {
   const sqm = properties.sizeSquareMetres
   return {
     broadType: properties.broadType ?? null,
+    treeSize: properties.treeSize ?? null,
     // "Poor (1)" rather than two lines: the same shape the habitat detail
     // screens use, so a reader moving between the service and the report sees
     // the band and its score written the same way.
@@ -480,7 +496,7 @@ function cardHabitat(properties) {
     retentionCategory: normaliseRetentionCategory(properties.retentionCategory),
     spatialRiskCategory: properties.spatialRiskCategory ?? null,
     area: Number.isFinite(sqm)
-      ? `${(sqm / SQ_M_PER_HECTARE).toFixed(PARCEL_HECTARE_DECIMALS)} ha`
+      ? `${(sqm / SQ_M_PER_HECTARE).toFixed(hectareDecimals)} ha`
       : null,
     units: Number.isFinite(properties.units)
       ? properties.units.toFixed(UNIT_DECIMALS)

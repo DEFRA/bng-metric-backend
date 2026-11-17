@@ -95,6 +95,9 @@ function identity(feature, proposed) {
     type: value('type'),
     broadType: value('broadType'),
     condition: value('condition'),
+    // An individual tree's size class (Small, Medium, Large or Very large),
+    // which its size is the area of. Absent on every other habitat.
+    treeSize: value('treeSize'),
     // Set by the enrichment step from the metric engine, so absent on a project
     // that has not been calculated yet. The report shows what is there and says
     // nothing about what is not — see habitat-cards.js.

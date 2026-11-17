@@ -2,7 +2,8 @@
 
 `GET /projects/{projectId}/report.pdf` renders a printable, screen-reader-structured
 report for one project: the site drawn on a map with its habitat parcels over it, the
-key figures, and one row per parcel carrying a thumbnail and the recorded attributes.
+key figures, and one row per parcel, then one per individual tree, carrying a thumbnail
+and the recorded attributes.
 
 Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harness.
 
@@ -12,7 +13,7 @@ Delivered by BMD-984, from the spike on `spike/bmd-984-pdf-exports` in the harne
 | ---- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | 1    | The summary, shaped like the service's own project summary screen: the project name over a "Summary" heading, then a tile section per unit type — net percentage change with its Met / Not met tag, trading rules, and the baseline, post-intervention and net unit change figures |
 | 2    | Key figures as a tagged table, the baseline and post-intervention site maps side by side, the legend and the basemap credit                                                                                                                                                        |
-| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records                                                                                                                                                                        |
+| 3+   | One row — or one card, see below — per habitat parcel: a thumbnail, and every attribute the project records. Then the same per individual tree, in a table of its own                                                                                                              |
 
 Page 1 mirrors the screen deliberately. A user arrives at the download from the project
 summary page, and a report whose first page restated the same figures differently would
@@ -185,6 +186,16 @@ fonts are referenced by name and never embedded, which alone fails PDF/UA.
 Page 2 onwards presents the parcels one of two ways, chosen with
 `?layout=table|cards`. Same data, same mini-map, different shape.
 
+Individual trees follow the parcels, under their own heading, in the same layout. A tree
+is an area habitat in the metric, so its units are in the area habitat figures, and a
+report that listed the parcels alone would leave part of those figures with nothing on
+the page to account for them. Each layer is described once, in `pdf/listed-layers.js`,
+and both layouts draw from it, so they cannot drift apart on what they list. A tree's
+thumbnail is its point among the parcels; its row adds a **Tree size** column (Small,
+Medium, Large or Very large) and gives its size to four decimal places, as a Small tree is
+0.0041 ha. The side is the parcels' rule: the post-intervention trees where the project
+has them, otherwise the baseline ones.
+
 |                  | `table` (default)                  | `cards`                                     |
 | ---------------- | ---------------------------------- | ------------------------------------------- |
 | Shape            | One row per parcel, five columns   | One card per parcel, one line per attribute |
@@ -207,12 +218,12 @@ this is the answer that already exists.
 
 ### What a card shows
 
-Sixteen fields, in reading order: what the parcel **is**, then how it is **judged**, then
+Seventeen fields, in reading order: what the parcel **is**, then how it is **judged**, then
 how the number was **arrived at**, then what was **recorded** about it on the ground.
 
 | Group        | Fields                                                                                          |
 | ------------ | ----------------------------------------------------------------------------------------------- |
-| Identity     | Ref and habitat type (the card heading), broad habitat                                          |
+| Identity     | Ref and habitat type (the card heading), broad habitat, tree size (trees only)                  |
 | Judgement    | Condition, distinctiveness, strategic significance, retention, spatial risk, size               |
 | The workings | Creation difficulty, time to target, advance or delay, final time to target, biodiversity units |
 | Recorded     | Calculation status, survey date, survey details, comment                                        |
