@@ -1,6 +1,7 @@
 /**
- * Page 2 onwards: one row per habitat parcel — a thumbnail, then the recorded
- * attributes as real table cells.
+ * Page 2 onwards: one row per habitat parcel, then one row per individual tree
+ * — a thumbnail, then the recorded attributes as real table cells. Each layer
+ * is a table of its own, under its own heading; see listed-layers.js.
  *
  * The pairing is the point. A map conveys nothing to a screen reader, so every
  * value a thumbnail shows is also given as text in the same row, and the
@@ -8,13 +9,11 @@
  * position.
  */
 
-import { HABITAT_STYLES } from './map.js'
 import {
   BODY,
   BOLD,
   dataText,
   drawCredit,
-  fitCredit,
   labelAsArtifact
 } from './page-furniture.js'
 import {
@@ -23,7 +22,6 @@ import {
   CELL_PADDING,
   CONTENT_WIDTH,
   FONT_SIZE,
-  HABITAT_COLUMN_FRACTION,
   HABITAT_ROW_DIVIDER_OFFSET,
   HABITAT_ROW_HEIGHT,
   HABITAT_ROW_MAP_OFFSET,
@@ -35,101 +33,42 @@ import {
   MINI_MAP_COLUMN_PADDING,
   MINI_MAP_INSET,
   MINI_MAP_SIZE,
-  MUTED,
-  PARCEL_HECTARE_DECIMALS,
   RULE_WIDTH,
   SQ_M_PER_HECTARE
 } from './layout.js'
-import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
-import { BASELINE, POST_INTERVENTION } from './labels.js'
+import { drawMiniMap } from './thumbnail.js'
+import { addListedLayers, openLayerSection } from './layer-section.js'
 
 const TABLE_TOP_GAP = 10
 const NOT_RECORDED = '—'
 
-async function addHabitatPages({
-  doc,
-  root,
-  baseline,
-  postIntervention,
-  grid,
-  tileSource,
-  withBasemap,
-  attribution,
-  attributionShort,
-  stats
-}) {
-  const site = postIntervention ?? baseline
-  const label = postIntervention ? POST_INTERVENTION : BASELINE
-  const style = postIntervention
-    ? HABITAT_STYLES.postIntervention
-    : HABITAT_STYLES.baseline
-  const features = site.layers.habitats ?? []
-  if (features.length === 0) {
+async function addHabitatPages(context) {
+  await addListedLayers(context, addLayerTable)
+}
+
+async function addLayerTable(context, layer) {
+  const listing = await openLayerSection(context, layer, {
+    introduction: introduction(layer),
+    frame: thumbnailFrame(0)
+  })
+  if (!listing) {
     return
   }
 
-  const section = doc.struct('Sect', { title: 'Habitat parcels' })
-  root.add(section)
-
-  doc.addPage()
-  addIntroduction(doc, section, label)
-
+  const { doc, grid, stats } = context
   const table = doc.struct('Table')
-  section.add(table)
-
-  // Every thumbnail frame is the same square, so one measurement settles the
-  // credit for all of them — and, because no OS mapping is drawn into a frame
-  // that cannot carry its credit, settles whether they get a basemap at all.
-  const credit = withBasemap
-    ? fitCredit(doc, thumbnailFrame(0), [attribution, attributionShort])
-    : null
-
-  // Prefetch every thumbnail's tiles before drawing starts. A mini-map frame
-  // is always the same size, so its extent — and therefore its tile set — does
-  // not depend on where the row lands on the page.
-  const thumbnails = await prepareThumbnails({
-    features,
-    grid,
-    tileSource,
-    withBasemap: Boolean(credit),
-    size: MINI_MAP_SIZE
-  })
-
-  addRows({
-    doc,
-    table,
-    features,
-    thumbnails,
-    site,
-    style,
-    grid,
-    credit,
-    stats
-  })
+  listing.section.add(table)
+  addRows({ ...listing, doc, table, grid, stats, layer })
 
   table.end()
-  section.end()
+  listing.section.end()
 }
 
-function addIntroduction(doc, section, label) {
-  section.add(
-    doc.struct('H2', () => {
-      doc.font(BOLD).fontSize(FONT_SIZE.sectionHeading).fillColor(INK)
-      doc.text(`${label} habitat parcels `, MARGIN, MARGIN, {
-        width: CONTENT_WIDTH
-      })
-    })
-  )
-  section.add(
-    doc.struct('P', () => {
-      doc.font(BODY).fontSize(FONT_SIZE.bodySmall).fillColor(MUTED)
-      doc.text(
-        'Each row shows one parcel: its shape and position among the neighbouring parcels, ' +
-          'and its recorded attributes. Every value shown on a mini-map is also given as text ' +
-          'in the same row, so no information depends on seeing the picture. ',
-        { width: CONTENT_WIDTH }
-      )
-    })
+function introduction(layer) {
+  return (
+    `Each row shows one ${layer.noun}: ${layer.shown}, ` +
+    'and its recorded attributes. Every value shown on a mini-map is also given as text ' +
+    'in the same row, so no information depends on seeing the picture. '
   )
 }
 
@@ -142,9 +81,10 @@ function addRows({
   style,
   grid,
   credit,
-  stats
+  stats,
+  layer
 }) {
-  const columns = habitatColumns()
+  const columns = layerColumns(layer)
   let y = doc.y + TABLE_TOP_GAP
   table.add(buildHeaderRow(doc, columns, y))
   y += HEADER_ROW_HEIGHT
@@ -158,7 +98,7 @@ function addRows({
     }
 
     table.add(
-      buildHabitatRow({
+      buildRow({
         doc,
         feature,
         columns,
@@ -168,39 +108,25 @@ function addRows({
         grid,
         thumbnail: thumbnails.get(feature),
         credit,
-        stats
+        stats,
+        layer
       })
     )
     y += HABITAT_ROW_HEIGHT
-    stats.habitats += 1
+    stats[layer.key] += 1
   }
 }
 
-function habitatColumns() {
+function layerColumns(layer) {
   const mapWidth = MINI_MAP_SIZE + MINI_MAP_COLUMN_PADDING
   const remaining = CONTENT_WIDTH - mapWidth
   return [
     { key: 'map', label: 'Location', width: mapWidth },
-    {
-      key: 'ref',
-      label: 'Ref',
-      width: remaining * HABITAT_COLUMN_FRACTION.ref
-    },
-    {
-      key: 'type',
-      label: 'Habitat type',
-      width: remaining * HABITAT_COLUMN_FRACTION.type
-    },
-    {
-      key: 'condition',
-      label: 'Condition',
-      width: remaining * HABITAT_COLUMN_FRACTION.condition
-    },
-    {
-      key: 'area',
-      label: 'Size (ha)',
-      width: remaining * HABITAT_COLUMN_FRACTION.area
-    }
+    ...layer.columns.map(({ key, label, fraction }) => ({
+      key,
+      label,
+      width: remaining * fraction
+    }))
   ]
 }
 
@@ -226,7 +152,7 @@ function buildHeaderRow(doc, columns, y) {
   return doc.struct('TR', cells)
 }
 
-function buildHabitatRow({
+function buildRow({
   doc,
   feature,
   columns,
@@ -236,9 +162,10 @@ function buildHabitatRow({
   grid,
   thumbnail,
   credit,
-  stats
+  stats,
+  layer
 }) {
-  const values = habitatRowValues(feature)
+  const values = rowValues(feature, layer)
   const frame = thumbnailFrame(y)
 
   // Order matters, and getting it wrong is silent: the marked-content sequence
@@ -268,7 +195,9 @@ function buildHabitatRow({
   }
 
   const cells = [
-    doc.struct('TD', [thumbnailFigure(doc, frame, values, figureContent)]),
+    doc.struct('TD', [
+      thumbnailFigure(doc, frame, values, figureContent, layer)
+    ]),
     ...textCells(doc, columns, values, y)
   ]
 
@@ -280,13 +209,13 @@ function buildHabitatRow({
  * The alt text repeats no data — the sibling cells carry it — so it describes
  * only what the picture adds: shape and position.
  */
-function thumbnailFigure(doc, frame, values, figureContent) {
+function thumbnailFigure(doc, frame, values, figureContent, layer) {
   return doc.struct(
     'Figure',
     {
       alt:
-        `Outline of parcel ${values.ref}, ${values.type}, ${values.area} hectares, ` +
-        'shown in place among the neighbouring parcels. ',
+        `${layer.figure} ${values.ref}, ${values.type}, ${values.area} hectares, ` +
+        `shown in place among ${layer.surroundings}. `,
       bbox: [frame.x, frame.y, frame.x + frame.width, frame.y + frame.height]
     },
     [figureContent]
@@ -303,15 +232,16 @@ function thumbnailFrame(y) {
   }
 }
 
+/** Every column after the thumbnail's. */
 function textCells(doc, columns, values, y) {
-  return ['ref', 'type', 'condition', 'area'].map((key, index) =>
+  return columns.slice(1).map((column, index) =>
     doc.struct('TD', () => {
       doc.font(BODY).fontSize(FONT_SIZE.tableCell).fillColor(INK)
       doc.text(
-        `${values[key]} `,
+        `${values[column.key]} `,
         columnX(columns, index + 1),
         y + HABITAT_ROW_TEXT_OFFSET,
-        { width: columns[index + 1].width - CELL_PADDING, ...dataText() }
+        { width: column.width - CELL_PADDING, ...dataText() }
       )
     })
   )
@@ -329,14 +259,16 @@ function drawRowDivider(doc, y) {
   })
 }
 
-function habitatRowValues({ properties }) {
+function rowValues({ properties }, layer) {
   const sqm = properties.sizeSquareMetres
   return {
     ref: properties.ref ?? NOT_RECORDED,
     type: properties.type ?? NOT_RECORDED,
+    treeSize: properties.treeSize ?? NOT_RECORDED,
+    treeCount: properties.treeCount ?? NOT_RECORDED,
     condition: properties.condition ?? NOT_RECORDED,
     area: Number.isFinite(sqm)
-      ? (sqm / SQ_M_PER_HECTARE).toFixed(PARCEL_HECTARE_DECIMALS)
+      ? (sqm / SQ_M_PER_HECTARE).toFixed(layer.hectareDecimals)
       : NOT_RECORDED
   }
 }
@@ -348,4 +280,4 @@ function columnX(columns, index) {
   )
 }
 
-export { addHabitatPages }
+export { addHabitatPages, rowValues }

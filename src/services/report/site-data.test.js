@@ -60,6 +60,7 @@ describe('#attributesOf', () => {
       type: 'Modified grassland',
       broadType: null,
       condition: 'Poor',
+      treeSize: null,
       distinctiveness: null,
       strategicSignificance: 'Low',
       strategicSignificanceScore: 1,
@@ -67,6 +68,7 @@ describe('#attributesOf', () => {
       units: null,
       sizeSquareMetres: 10_000,
       sizeMetres: null,
+      treeCount: null,
       distinctivenessScore: null,
       conditionScore: null,
       difficulty: null,
@@ -103,6 +105,7 @@ describe('#attributesOf', () => {
       type: null,
       broadType: null,
       condition: null,
+      treeSize: null,
       distinctiveness: null,
       strategicSignificance: null,
       strategicSignificanceScore: null,
@@ -110,6 +113,7 @@ describe('#attributesOf', () => {
       units: null,
       sizeSquareMetres: null,
       sizeMetres: null,
+      treeCount: null,
       distinctivenessScore: null,
       conditionScore: null,
       difficulty: null,
@@ -123,6 +127,40 @@ describe('#attributesOf', () => {
       surveyDetails: null,
       comment: null
     })
+  })
+
+  test("reads an individual tree's size class, proposed or baseline", () => {
+    // A post-intervention tree nests its size class under `proposed`, as it
+    // does every other value; a baseline tree carries it at the top level.
+    expect(
+      attributesOf(
+        {
+          ref: 'T1',
+          sizeSquareMetres: 41,
+          proposed: { type: 'Rural tree', treeSize: 'Small' }
+        },
+        SIDE.POST_INTERVENTION
+      )
+    ).toMatchObject({ type: 'Rural tree', treeSize: 'Small' })
+    expect(
+      attributesOf({ ref: 'T1', type: 'Urban tree', treeSize: 'Very large' })
+    ).toMatchObject({ treeSize: 'Very large' })
+  })
+
+  test('gives a tree point the number of trees it stands for, one when blank', () => {
+    // A legacy-template point can stand for several trees (its Count), and
+    // its size is then the size class's area times that count. A BNG Service
+    // template point has no Count, and is one tree.
+    expect(
+      attributesOf({ ref: 'T1', count: 3 }, SIDE.BASELINE, 'trees').treeCount
+    ).toBe(3)
+    expect(
+      attributesOf({ ref: 'T1', count: null }, SIDE.BASELINE, 'trees').treeCount
+    ).toBe(1)
+    // No other layer has a count, so a parcel's card leaves the line out.
+    expect(
+      attributesOf({ ref: 'A1', count: 3 }, SIDE.BASELINE, 'habitats').treeCount
+    ).toBeNull()
   })
 
   test('carries the enriched values the card layout shows', () => {
