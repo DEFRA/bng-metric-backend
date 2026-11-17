@@ -444,13 +444,9 @@ export function renamedParentFeatureId(existing, { layer, baseline }) {
   if (resolved.source) {
     return resolved.source.featureId
   }
-  if (
-    resolved.unresolvable === 'ambiguous' &&
-    isPricedByLength(existing, layer)
-  ) {
-    return lastMatch(candidates, existing, fields)
-  }
-  return null
+  return isPricedByLength(existing, layer)
+    ? fallbackParentId(candidates, existing, fields)
+    : null
 }
 
 // An Enhanced hedgerow or watercourse is priced against its baseline's length
@@ -464,15 +460,22 @@ function isPricedByLength(feature, layer) {
   )
 }
 
-// When several baseline features share the old ref and match the stored
-// snapshot alike, the last of them: the one a join by that ref priced the
-// feature against until the rename (buildBaselineLinearLengthByRef keeps a
-// ref's last length), so a rename keeps its price (BMD-1046).
-function lastMatch(candidates, existing, fields) {
-  const matches = candidates.filter((candidate) =>
+// When the old ref names no single baseline feature, the one an Enhanced
+// linear feature keeps its price against (BMD-1046). Only a feature with a
+// length can price it, as buildBaselineLinearLengthByRef indexes only those.
+// Of these, the last that matches the stored snapshot, when several do alike;
+// else the last of all, which a join by the old ref priced it against until
+// the rename (the index keeps a ref's last length).
+function fallbackParentId(candidates, existing, fields) {
+  const priceable = candidates.filter(hasLength)
+  const matches = priceable.filter((candidate) =>
     matchesSnapshot(candidate, existing, fields)
   )
-  return matches.at(-1)?.featureId ?? null
+  return (matches.at(-1) ?? priceable.at(-1))?.featureId ?? null
+}
+
+function hasLength(feature) {
+  return typeof feature.sizeMetres === 'number' && feature.sizeMetres > 0
 }
 
 /**

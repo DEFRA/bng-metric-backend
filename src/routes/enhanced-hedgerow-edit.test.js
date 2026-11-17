@@ -332,6 +332,73 @@ describe('BMD-1046 Enhanced hedgerow edits', () => {
     })
   })
 
+  test('a rename passes over a matching baseline hedgerow that has no length', () => {
+    // The last matching row has no length, so the length index skips it and
+    // the hedgerow was priced against the first; it keeps that price.
+    const lengthless = {
+      ...baselineHedgerow,
+      featureId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      sizeMetres: null
+    }
+    const hedgerows = [baselineHedgerow, lengthless]
+    expect(update({}, feature, hedgerows).feature.units).toBe(
+      unitsAt(LENGTH_KM)
+    )
+
+    const renamed = update({ ref: 'HG-1 renamed' }, feature, hedgerows)
+    expect(renamed.feature).toMatchObject({
+      status: 'Complete',
+      parentFeatureId: baselineHedgerow.featureId,
+      units: unitsAt(LENGTH_KM)
+    })
+  })
+
+  test('a rename picks the last baseline hedgerow that matches the stored snapshot, not the last of all', () => {
+    // Two rows match the snapshot (Moderate) alike; a third, last, does not
+    // (Poor) and is shorter still.
+    const secondMatch = {
+      ...baselineHedgerow,
+      featureId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      sizeMetres: SIZE_METRES / 2
+    }
+    const otherCondition = {
+      ...baselineHedgerow,
+      featureId: '99999999-9999-9999-9999-999999999999',
+      sizeMetres: 100,
+      condition: 'Poor'
+    }
+    const renamed = update({ ref: 'HG-1 renamed' }, feature, [
+      baselineHedgerow,
+      secondMatch,
+      otherCondition
+    ])
+    expect(renamed.feature).toMatchObject({
+      parentFeatureId: secondMatch.featureId,
+      units: unitsAt(LENGTH_KM / 2)
+    })
+  })
+
+  test('a rename whose old ref no baseline hedgerow matches by snapshot keeps the price the ref gave it', () => {
+    // Both baseline rows were edited up to Good after the import, so neither
+    // matches the stored Moderate snapshot. Priced by ref, against the last,
+    // it keeps that price when renamed.
+    const good = { ...baselineHedgerow, condition: 'Good' }
+    const lastGood = {
+      ...good,
+      featureId: 'ffffffff-ffff-ffff-ffff-ffffffffffff',
+      sizeMetres: SIZE_METRES / 2
+    }
+    const hedgerows = [good, lastGood]
+    const before = update({}, feature, hedgerows)
+
+    const renamed = update({ ref: 'HG-1 renamed' }, feature, hedgerows)
+    expect(renamed.feature).toMatchObject({
+      parentFeatureId: lastGood.featureId,
+      units: before.feature.units
+    })
+    expect(renamed.feature.units).toBe(unitsAt(LENGTH_KM / 2))
+  })
+
   test('a hedgerow renamed with no baseline parent is not priced against a baseline that shares its new ref', () => {
     // An earlier rename found no baseline hedgerow by its old ref, so it
     // recorded an explicit null parent. Its new ref matches an unrelated
