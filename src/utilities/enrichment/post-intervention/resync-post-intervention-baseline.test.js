@@ -1651,13 +1651,45 @@ describe('preserveCreatedParent', () => {
     })
   })
 
-  test('leaves an Enhanced hedgerow alone, as its own page does not rename it', () => {
+  test('finds a legacy Enhanced hedgerow’s parent by its old ref before the rename (BMD-1046)', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    // A baseline hedgerow has a length, which an Enhanced one is priced from.
+    preserveCreatedParent(existing, updated, {
+      ...context,
+      layer: 'hedgerows',
+      baseline: baseline.map((hedgerow) => ({ ...hedgerow, sizeMetres: 90 }))
+    })
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: 'baseline-a1'
+    })
+  })
+
+  test('records no parent for a renamed Enhanced hedgerow whose only baseline match has no length', () => {
     const existing = created({ retentionCategory: 'Enhanced' })
     const updated = renamed(existing)
 
     preserveCreatedParent(existing, updated, {
       ...context,
       layer: 'hedgerows'
+    })
+
+    expect(updated).toMatchObject({
+      referenceEdited: true,
+      parentFeatureId: null
+    })
+  })
+
+  test('leaves an Enhanced watercourse alone, as its own page does not rename it', () => {
+    const existing = created({ retentionCategory: 'Enhanced' })
+    const updated = renamed(existing)
+
+    preserveCreatedParent(existing, updated, {
+      ...context,
+      layer: 'watercourses'
     })
 
     expect(updated).not.toHaveProperty('referenceEdited')

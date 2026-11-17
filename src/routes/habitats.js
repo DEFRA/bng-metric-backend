@@ -431,7 +431,7 @@ async function runUpdate(
  * /projects/{projectId}/post-intervention/hedgerows/{featureId}:
  *   put:
  *     tags: [Habitats]
- *     summary: Save Created hedgerow reference, habitat type, target condition, strategic significance and timing
+ *     summary: Save a Created or Enhanced hedgerow's reference, habitat type, target condition, strategic significance and timing
  *     description: Omitted timing fields retain the stored values; explicit null clears them. An omitted condition retains the stored condition only when the habitat type is unchanged; null clears it. New timing selections must be integer years 0 to 30 or 30+.
  *     parameters:
  *       - $ref: '#/components/parameters/ProjectId'
@@ -450,12 +450,14 @@ async function runUpdate(
  *               strategicSignificance: { type: string, nullable: true }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
- *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
+ *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153), Created hedgerows only: an Enhanced hedgerow sent one is a 400 (code FEATURE_NOT_EDITABLE). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated hedgerow, with recalculated units, status and project totals
  *       400:
- *         description: Invalid reference, choices, timing, or non-Created hedgerow
+ *         description: Invalid reference, choices or timing, or a hedgerow that is neither Created nor Enhanced
+ *       422:
+ *         description: An Enhanced hedgerow's choice that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID; rule offered-enhancement for a choice /reference/hedgerow-enhancement does not list)
  *       401:
  *         description: Authentication required
  *       404:

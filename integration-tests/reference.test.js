@@ -282,6 +282,33 @@ describe('GET /reference/area-enhancement', () => {
   })
 })
 
+describe('GET /reference/hedgerow-enhancement', () => {
+  it('serves the valid enhancements of a baseline hedgerow without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-enhancement?type=Native%20hedgerow&condition=Moderate'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.featureType).toBe('hedgerow')
+    const native = res.result.habitatTypes.find(
+      (t) => t.name === 'Native hedgerow'
+    )
+    expect(native.conditions.map((c) => c.condition)).toEqual(['Good'])
+    expect(res.result.habitatTypes.map((t) => t.name)).not.toContain(
+      'Line of trees'
+    )
+  })
+
+  it('serves no habitat types for a baseline it does not know', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/hedgerow-enhancement'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.habitatTypes).toEqual([])
+  })
+})
+
 describe('GET /reference/hedgerow-creation', () => {
   it('returns hedgerow-only creation choices without authentication', async () => {
     const res = await server.inject({

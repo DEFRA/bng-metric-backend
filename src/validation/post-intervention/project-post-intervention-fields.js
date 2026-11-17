@@ -147,7 +147,7 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     ...(editableCreatedReference
       ? {
           referenceEdited: Joi.boolean().description(
-            'Whether a Created linear feature reference was edited; its stored parent remains independent of the editable reference.'
+            'Whether a Created linear feature or an Enhanced hedgerow reference was edited; its stored parent remains independent of the editable reference.'
           )
         }
       : {}),

@@ -353,13 +353,13 @@ function warnUnresolved(
   )
 }
 
-// The Enhanced features whose own page can rename them: a tree (BMD-1172) and
-// an area habitat (BMD-1045).
-const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats'])
+// The Enhanced features whose own page can rename them: a tree (BMD-1172), an
+// area habitat (BMD-1045) and a hedgerow (BMD-1046).
+const ENHANCED_OWN_PAGE_LAYERS = new Set(['trees', 'habitats', 'hedgerows'])
 
 /**
  * Whether a post-intervention row's own edit page renames it: a Created
- * feature's, and an Enhanced individual tree's or area habitat's. A Retained row is renamed
+ * feature's, and an Enhanced individual tree's, area habitat's or hedgerow's. A Retained row is renamed
  * through its baseline parcel instead (apply-retained-ref-edit.js).
  *
  * @param {object} feature
@@ -378,7 +378,7 @@ function isRenamedOnItsOwnPage(feature, layer) {
  * Whether a row renamed on its own page is joined to its baseline feature by
  * the parent recorded when it was renamed, rather than by its ref. Only such a
  * row is marked `referenceEdited` (preserveCreatedParent): a Created one, or
- * an Enhanced tree or area habitat.
+ * an Enhanced tree, area habitat or hedgerow.
  *
  * @param {object} feature
  * @returns {boolean}
@@ -393,7 +393,7 @@ function isJoinedByEditedRef(feature) {
 
 /**
  * Preserve lineage before an editable Created reference, or an Enhanced
- * tree's or area habitat's, changes its join key.
+ * tree's, area habitat's or hedgerow's, changes its join key.
  *
  * A BNG Service template row's parent is the one its file named, kept as
  * `parentFeatureId` whatever its ref (BMD-1083). One that names none has no
@@ -419,14 +419,64 @@ export function preserveCreatedParent(
   if (serviceTemplate || Object.hasOwn(existing, 'parentFeatureId')) {
     return
   }
+  updated.parentFeatureId = renamedParentFeatureId(existing, {
+    layer,
+    baseline
+  })
+}
+
+/**
+ * The baseline feature a legacy row is renamed away from: the one its old ref
+ * and stored baseline snapshot name, or null when none, or several alike, do.
+ * preserveCreatedParent records it, and an Enhanced hedgerow's rename is
+ * priced against it (BMD-1046), so both read the same baseline.
+ *
+ * @param {object} existing the row before the rename
+ * @param {{ layer: string, baseline: object[] | undefined }} options the
+ *   baseline features of the row's layer
+ * @returns {string | null}
+ */
+export function renamedParentFeatureId(existing, { layer, baseline }) {
   const candidates =
     buildBaselineCandidatesByRef(baseline).get(normaliseRef(existing.ref)) ?? []
-  const resolved = resolveBaselineFeature(
-    candidates,
-    existing,
-    IDENTITY_FIELDS_BY_LAYER[layer]
+  const fields = IDENTITY_FIELDS_BY_LAYER[layer]
+  const resolved = resolveBaselineFeature(candidates, existing, fields)
+  const pricedByLength = isPricedByLength(existing, layer)
+  // A parent with no length cannot price an Enhanced linear feature, so it
+  // keeps the price the length index gave it instead.
+  if (resolved.source && (!pricedByLength || hasLength(resolved.source))) {
+    return resolved.source.featureId
+  }
+  return pricedByLength ? fallbackParentId(candidates, existing, fields) : null
+}
+
+// An Enhanced hedgerow or watercourse is priced against its baseline's length
+// (lookupBaselineLinearLength), so a rename must not leave it without one.
+const LENGTH_PRICED_LAYERS = new Set(['hedgerows', 'watercourses'])
+
+function isPricedByLength(feature, layer) {
+  return (
+    LENGTH_PRICED_LAYERS.has(layer) &&
+    resolveRetentionCategory(feature) === RETENTION_ENHANCED
   )
-  updated.parentFeatureId = resolved.source?.featureId ?? null
+}
+
+// When the old ref names no single baseline feature, the one an Enhanced
+// linear feature keeps its price against (BMD-1046). Only a feature with a
+// length can price it, as buildBaselineLinearLengthByRef indexes only those.
+// Of these, the last that matches the stored snapshot, when several do alike;
+// else the last of all, which a join by the old ref priced it against until
+// the rename (the index keeps a ref's last length).
+function fallbackParentId(candidates, existing, fields) {
+  const priceable = candidates.filter(hasLength)
+  const matches = priceable.filter((candidate) =>
+    matchesSnapshot(candidate, existing, fields)
+  )
+  return (matches.at(-1) ?? priceable.at(-1))?.featureId ?? null
+}
+
+function hasLength(feature) {
+  return typeof feature.sizeMetres === 'number' && feature.sizeMetres > 0
 }
 
 /**

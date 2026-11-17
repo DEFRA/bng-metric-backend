@@ -197,12 +197,15 @@ function shareOfParent(feature, parentKm, baselineLengthByRef, layerLabel) {
 
 /**
  * The baseline length an Enhanced linear feature is priced against: its
- * parent's, when it is linked to one (a BNG Service template feature), else
- * the baseline feature's with its ref (a legacy feature). An Enhanced part of
- * a split BNG Service watercourse is priced against its share of what the
- * parent's Retained parts leave (withEnhancedWatercourseShares).
+ * parent's, when it is linked to one (a BNG Service template feature, or a
+ * renamed one), else the baseline feature's with its ref (a legacy feature).
+ * An explicit null parent, a renamed feature's whose old ref matched no
+ * baseline (BMD-1046), has no baseline length: it is never matched by ref,
+ * which no longer names its baseline. An Enhanced part of a split BNG Service
+ * watercourse is priced against its share of what the parent's Retained parts
+ * leave (withEnhancedWatercourseShares).
  *
- * @param {{ ref?: string | null, parentFeatureId?: string }} feature
+ * @param {{ ref?: string | null, parentFeatureId?: string | null }} feature
  * @param {Map<string, number> | undefined} baselineLengthByRef
  *   buildBaselineLinearLengthByRef's result
  * @param {string} layerLabel
@@ -220,8 +223,10 @@ export function lookupBaselineLinearLength(
       `Cannot calculate Enhanced ${layerLabel} units: no baseline data was provided (parcel ref "${shownValue(ref)}")`
     )
   }
-  if (parentFeatureId) {
-    const parentKm = baselineLengthByRef.byFeatureId?.get(parentFeatureId)
+  if (parentFeatureId !== undefined) {
+    const parentKm = parentFeatureId
+      ? baselineLengthByRef.byFeatureId?.get(parentFeatureId)
+      : undefined
     if (parentKm == null) {
       throw new BaselineLookupError(
         `Cannot calculate Enhanced ${layerLabel} units: no baseline ${layerLabel} found for the parent of parcel ref "${shownValue(ref)}"`

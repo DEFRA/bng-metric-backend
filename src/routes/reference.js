@@ -1,5 +1,6 @@
 import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
 import { getHedgerowCreationReference } from '../validation/reference/hedgerow-creation.js'
+import { getHedgerowEnhancementReference } from '../validation/reference/hedgerow-enhancement.js'
 import Joi from 'joi'
 import {
   getAreaCreationReference,
@@ -127,6 +128,43 @@ export const getAreaEnhancement = {
     }
   },
   handler: (request) => getAreaEnhancementReference(request.query)
+}
+
+/**
+ * @openapi
+ * /reference/hedgerow-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: The valid enhancements of a baseline hedgerow, with their enhancement difficulty, time to target and temporal multipliers
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema: { type: string }
+ *         description: The baseline hedgerow's habitat type
+ *       - in: query
+ *         name: condition
+ *         schema: { type: string }
+ *         description: The baseline hedgerow's condition
+ *     responses:
+ *       200:
+ *         description: |
+ *           Shaped as /reference/hedgerow-creation, listing only the habitat
+ *           types and target conditions that are valid enhancements of the
+ *           baseline (BMD-820's hedgerow rules and the metric's G-6 type
+ *           moves), each condition with its enhancement time to target from
+ *           the baseline. Empty habitatTypes for a baseline that cannot be
+ *           enhanced.
+ */
+export const getHedgerowEnhancement = {
+  method: 'GET',
+  path: '/reference/hedgerow-enhancement',
+  options: {
+    auth: false,
+    validate: {
+      query: Joi.object({ type: baselineField, condition: baselineField })
+    }
+  },
+  handler: (request) => getHedgerowEnhancementReference(request.query)
 }
 
 /**
