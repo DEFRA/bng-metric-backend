@@ -158,6 +158,31 @@ describe('a re-meandered watercourse (BMD-1212)', () => {
     expect(enhanced.units).toBeCloseTo(enhancedUnits(100, 130), 10)
   })
 
+  // Rule 4 (User Guide, section 3) allows habitat created in advance for
+  // river re-meandering. The service uses the years as entered and does not
+  // check rule 4's conditions (an open point on BMD-1212).
+  it('uses the years created in advance entered on a re-meander', () => {
+    const remeandered = part('Enhanced', 130, 'Enhanced by Realignment')
+    remeandered.proposed.advanceYears = 5
+
+    enrich([remeandered])
+
+    expect(remeandered.status).toBe('Complete')
+    expect(remeandered.units).toBeCloseTo(
+      calculateEnhancedWatercoursePostIntervention(
+        0.1,
+        0.13,
+        'Ditches',
+        'Ditches',
+        'Moderate',
+        'Good',
+        { ...NO_ENCROACHMENT, strategicSignificance: LOW, advanceYears: 5 }
+      ).units,
+      10
+    )
+    expect(remeandered.units).toBeGreaterThan(enhancedUnits(100, 130))
+  })
+
   it('leaves an Enhanced part Incomplete when its Retained siblings take the whole parent', () => {
     const retained = part('Retained', 100)
     const enhanced = part('Enhanced', 30)

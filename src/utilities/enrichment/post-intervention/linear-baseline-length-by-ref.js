@@ -91,6 +91,21 @@ function shareRemainder(parentKm, parts, shares) {
  * Enhanced part with no Retained sibling keeps the whole parent, as before.
  * A Created part takes nothing from it: it is a loss and a creation.
  *
+ * Several Enhanced parts share by drawn length because the upload does not
+ * record how much of the baseline each one replaces. The template copies the
+ * whole parent's Baseline Length onto every part (and the import drops it),
+ * and a re-meandered channel may leave the baseline line entirely, so its
+ * geometry need not overlap the stretch it replaces. With one Enhanced part
+ * the share is exact. With several, a straight part and a re-meandered one
+ * from the same parent are an approximation: 100 m kept 40 m, with a
+ * straight 20 m part from 20 m of baseline and a 100 m part re-meandered
+ * from 40 m, gives them 10 m and 50 m, where the Metric, told each part's
+ * baseline section, would record 20 m and 40 m. The straight part then gains
+ * a lengthening it did not make, and the re-meandered one too little. The
+ * plugin's export (bng-metric-template) and the harness's expected figures
+ * (bng-library) share the same way, so the comparison holds; a user wanting
+ * the exact figures splits the parent into one baseline row per section.
+ *
  * Only watercourses linked to a parent (the BNG Service template): a legacy
  * watercourse is priced by its own ref, unchanged. Hedgerows are unchanged.
  *
