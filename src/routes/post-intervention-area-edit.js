@@ -9,17 +9,18 @@ import {
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
+import { featureNotEditableError } from './feature-not-editable-error.js'
 import {
   resolveRetentionCategory,
   RETENTION_CREATED,
   RETENTION_ENHANCED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
-// A comment belongs to a baseline habitat (BMD-1112) and is editable only on
-// the baseline details page, so a post-intervention edit that sends one is
-// refused rather than silently answered 200 having saved nothing.
+// A Created habitat's comment is its supporting information (BMD-1153). It is
+// saved with the complete post-intervention edit only, so a comment without
+// `ref` is refused rather than answered 200 having saved nothing. An Enhanced
+// area's is not editable yet (BMD-1190).
 export const postInterventionAreaEditPayload = featureEditPayload
-  .fork(['comment'], (schema) => schema.forbidden())
   .keys({
     strategicSignificance: Joi.string()
       .valid(
@@ -33,6 +34,7 @@ export const postInterventionAreaEditPayload = featureEditPayload
   .with('strategicSignificance', 'ref')
   .with('advanceYears', 'ref')
   .with('delayYears', 'ref')
+  .with('comment', 'ref')
   .with('ref', ['broadType', 'habitatType', 'condition'])
 
 // A Created or an Enhanced area habitat's edit (BMD-1048, BMD-1045), named as
@@ -41,7 +43,13 @@ export function validatePostInterventionAreaEdit(feature, edits) {
   if (!Object.hasOwn(edits, 'ref')) {
     return edits
   }
-  const enhanced = resolveRetentionCategory(feature) === RETENTION_ENHANCED
+  const retention = resolveRetentionCategory(feature)
+  if (retention === RETENTION_ENHANCED && Object.hasOwn(edits, 'comment')) {
+    throw featureNotEditableError(
+      'Supporting information can be edited on a Created area only'
+    )
+  }
+  const enhanced = retention === RETENTION_ENHANCED
   const reference = editReference(feature, enhanced)
   if (!reference) {
     throw Boom.badRequest(

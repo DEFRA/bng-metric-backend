@@ -164,6 +164,16 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *                     maximum: 30
  *                   - type: string
  *                     enum: ['30+']
+ *               comment:
+ *                 type: string
+ *                 nullable: true
+ *                 description: >
+ *                   Supporting information (BMD-1153), Created areas only,
+ *                   sent with ref: an Enhanced area sent one is a 400 (code
+ *                   FEATURE_NOT_EDITABLE). Omit to keep the stored comment.
+ *                   Blank or whitespace-only is stored as null, and line
+ *                   breaks as LF. Invalid UTF-8, or more than 999 characters
+ *                   after trimming, is a 400.
  *               broadType:
  *                 type: string
  *                 nullable: true
@@ -177,7 +187,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       200:
  *         description: Returns the updated habitat document
  *       400:
- *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, or extended edits to an area that is neither Created nor Enhanced.
+ *         description: Invalid reference or reference-data choice, conflicting positive timing, a missing reference/significance pair, extended edits to an area that is neither Created nor Enhanced, or an Enhanced area sent a comment (code FEATURE_NOT_EDITABLE).
  *       404:
  *         description: Project or habitat not found
  *       422:
@@ -283,8 +293,9 @@ function createdFeatureEdits(payload) {
     strategicSignificance: payload.strategicSignificance,
     advanceYears: payload.advanceYears,
     delayYears: payload.delayYears,
+    // Left out when not sent, so the stored value is kept.
     ...Object.fromEntries(
-      ['watercourseEncroachment', 'riparianEncroachment']
+      ['watercourseEncroachment', 'riparianEncroachment', 'comment']
         .filter((field) => Object.hasOwn(payload, field))
         .map((field) => [field, payload[field]])
     )
@@ -439,6 +450,7 @@ async function runUpdate(
  *               strategicSignificance: { type: string, nullable: true }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated hedgerow, with recalculated units, status and project totals
@@ -493,6 +505,7 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *               strategicSignificance: { type: string, nullable: true, description: 'An option returned by /reference/tree-creation, or null for an incomplete edit.' }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153), Created trees only: an Enhanced tree sent one is a 400 (code FEATURE_NOT_EDITABLE). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated tree, with recalculated units, status and project totals
@@ -541,6 +554,7 @@ export { updateAreaHabitat, updatePostInterventionAreaHabitat }
  *               strategicSignificance: { type: string, nullable: true }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated watercourse, with recalculated units, status and project totals

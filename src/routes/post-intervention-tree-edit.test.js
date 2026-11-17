@@ -318,10 +318,10 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     )
   })
 
-  test('takes the Created payload, and refuses a comment', () => {
+  test('takes the Created payload, with or without a comment', () => {
     const schema = updatePostInterventionTree.options.validate.payload
     expect(schema.validate(edits).error).toBeUndefined()
-    expect(schema.validate({ ...edits, comment: 'x' }).error).toBeDefined()
+    expect(schema.validate({ ...edits, comment: 'x' }).error).toBeUndefined()
   })
 
   test('saves the tree re-priced as an Urban tree', async () => {
