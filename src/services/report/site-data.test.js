@@ -68,6 +68,7 @@ describe('#attributesOf', () => {
       units: null,
       sizeSquareMetres: 10_000,
       sizeMetres: null,
+      treeCount: null,
       distinctivenessScore: null,
       conditionScore: null,
       difficulty: null,
@@ -112,6 +113,7 @@ describe('#attributesOf', () => {
       units: null,
       sizeSquareMetres: null,
       sizeMetres: null,
+      treeCount: null,
       distinctivenessScore: null,
       conditionScore: null,
       difficulty: null,
@@ -143,6 +145,22 @@ describe('#attributesOf', () => {
     expect(
       attributesOf({ ref: 'T1', type: 'Urban tree', treeSize: 'Very large' })
     ).toMatchObject({ treeSize: 'Very large' })
+  })
+
+  test('gives a tree point the number of trees it stands for, one when blank', () => {
+    // A legacy-template point can stand for several trees (its Count), and
+    // its size is then the size class's area times that count. A BNG Service
+    // template point has no Count, and is one tree.
+    expect(
+      attributesOf({ ref: 'T1', count: 3 }, SIDE.BASELINE, 'trees').treeCount
+    ).toBe(3)
+    expect(
+      attributesOf({ ref: 'T1', count: null }, SIDE.BASELINE, 'trees').treeCount
+    ).toBe(1)
+    // No other layer has a count, so a parcel's card leaves the line out.
+    expect(
+      attributesOf({ ref: 'A1', count: 3 }, SIDE.BASELINE, 'habitats').treeCount
+    ).toBeNull()
   })
 
   test('carries the enriched values the card layout shows', () => {

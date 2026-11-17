@@ -11,6 +11,8 @@
 import { describe, expect, test } from 'vitest'
 
 import { buildSiteReportPdf, plural } from './document.js'
+import { rowValues } from './habitat-pages.js'
+import { TREES } from './listed-layers.js'
 import {
   TEST_GRID,
   syntheticTileSource
@@ -194,6 +196,21 @@ describe('#buildSiteReportPdf', () => {
       'Position of tree T1, Urban tree, 0.0041 hectares, shown in place among the habitat parcels.'
     )
     expect(countOf(text, '/T (Tree size)')).toBe(1)
+    expect(countOf(text, '/T (Number of trees)')).toBe(1)
+  })
+
+  test("gives a tree point's number of trees beside a size that is that many trees", () => {
+    // A legacy-template point with Count 3 stands for three Small trees, so
+    // its size is three times 0.0041 ha. Without the count beside it, the
+    // row would show a Small tree measuring 0.0123 ha.
+    const tree = baselineSite().layers.trees[0]
+    Object.assign(tree.properties, { treeCount: 3, sizeSquareMetres: 123 })
+
+    expect(rowValues(tree, TREES)).toMatchObject({
+      treeSize: 'Small',
+      treeCount: 3,
+      area: '0.0123'
+    })
   })
 
   test('lists no trees on a site that has none', async () => {

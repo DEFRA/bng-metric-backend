@@ -34,13 +34,12 @@
 
 import { MAX_YEARS_PLUS, OVER_MAX_YEARS } from 'bng-library/metric'
 
-import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
+import { drawMiniMap } from './thumbnail.js'
 import {
   BODY,
   BOLD,
   dataText,
   drawCredit,
-  fitCredit,
   labelAsArtifact
 } from './page-furniture.js'
 import {
@@ -63,8 +62,7 @@ import {
   RULE_WIDTH,
   SQ_M_PER_HECTARE
 } from './layout.js'
-import { BASELINE, POST_INTERVENTION } from './labels.js'
-import { LISTED_LAYERS } from './listed-layers.js'
+import { addListedLayers, openLayerSection } from './layer-section.js'
 
 const UNIT_DECIMALS = 2
 
@@ -85,6 +83,7 @@ const CARD_FIELDS = Object.freeze([
   { key: 'broadType', label: 'Broad habitat' },
   // Individual trees only, so absent, and omitted, on a parcel's card.
   { key: 'treeSize', label: 'Tree size' },
+  { key: 'treeCount', label: 'Number of trees' },
   { key: 'condition', label: 'Condition' },
   { key: 'distinctiveness', label: 'Distinctiveness' },
   { key: 'strategicSignificance', label: 'Strategic significance' },
@@ -108,90 +107,29 @@ const CARD_FIELDS = Object.freeze([
 ])
 
 async function addHabitatCards(context) {
-  for (const layer of LISTED_LAYERS) {
-    await addLayerCards(context, layer)
-  }
+  await addListedLayers(context, addLayerCards)
 }
 
-async function addLayerCards(
-  {
-    doc,
-    root,
-    baseline,
-    postIntervention,
-    grid,
-    tileSource,
-    withBasemap,
-    attribution,
-    attributionShort,
-    stats
-  },
-  layer
-) {
-  const site = postIntervention ?? baseline
-  const label = postIntervention ? POST_INTERVENTION : BASELINE
-  const style = layer.style(Boolean(postIntervention))
-  const features = site.layers[layer.key] ?? []
-  if (features.length === 0) {
+async function addLayerCards(context, layer) {
+  const listing = await openLayerSection(context, layer, {
+    introduction: introduction(layer),
+    frame: mapFrame(MARGIN)
+  })
+  if (!listing) {
     return
   }
 
-  const section = doc.struct('Sect', { title: layer.title })
-  root.add(section)
-
-  doc.addPage()
-  addIntroduction(doc, section, label, layer)
-
-  // Every card's map is the same square, so one measurement settles the credit
-  // for all of them — and, because no OS mapping is drawn into a frame that
-  // cannot carry its credit, settles whether they get a basemap at all.
-  const credit = withBasemap
-    ? fitCredit(doc, mapFrame(MARGIN), [attribution, attributionShort])
-    : null
-
-  const thumbnails = await prepareThumbnails({
-    features,
-    grid,
-    tileSource,
-    withBasemap: Boolean(credit),
-    size: CARD_MAP_SIZE
-  })
-
-  addCards({
-    doc,
-    section,
-    features,
-    thumbnails,
-    site,
-    style,
-    grid,
-    credit,
-    stats,
-    layer
-  })
-  section.end()
+  const { doc, grid, stats } = context
+  addCards({ ...listing, doc, grid, stats, layer })
+  listing.section.end()
 }
 
-function addIntroduction(doc, section, label, layer) {
-  section.add(
-    doc.struct('H2', () => {
-      doc.font(BOLD).fontSize(FONT_SIZE.sectionHeading).fillColor(INK)
-      doc.text(`${label} ${layer.heading} `, MARGIN, MARGIN, {
-        width: CONTENT_WIDTH
-      })
-    })
-  )
-  section.add(
-    doc.struct('P', () => {
-      doc.font(BODY).fontSize(FONT_SIZE.bodySmall).fillColor(MUTED)
-      doc.text(
-        `Each ${layer.noun} is shown as a card: ${layer.shown}, ` +
-          'and its recorded attributes, each on its own line. Every value shown ' +
-          'on a mini-map is also given as text on the same card, so no information depends ' +
-          'on seeing the picture. ',
-        { width: CONTENT_WIDTH }
-      )
-    })
+function introduction(layer) {
+  return (
+    `Each ${layer.noun} is shown as a card: ${layer.shown}, ` +
+    'and its recorded attributes, each on its own line. Every value shown ' +
+    'on a mini-map is also given as text on the same card, so no information depends ' +
+    'on seeing the picture. '
   )
 }
 
@@ -235,7 +173,7 @@ function addCards({
       })
     )
     y += height + CARD_GAP
-    stats[layer.statsKey] += 1
+    stats[layer.key] += 1
   }
 }
 
@@ -480,6 +418,9 @@ function cardHabitat(properties, hectareDecimals) {
   return {
     broadType: properties.broadType ?? null,
     treeSize: properties.treeSize ?? null,
+    treeCount: Number.isFinite(properties.treeCount)
+      ? String(properties.treeCount)
+      : null,
     // "Poor (1)" rather than two lines: the same shape the habitat detail
     // screens use, so a reader moving between the service and the report sees
     // the band and its score written the same way.

@@ -14,7 +14,6 @@ import {
   BOLD,
   dataText,
   drawCredit,
-  fitCredit,
   labelAsArtifact
 } from './page-furniture.js'
 import {
@@ -34,109 +33,42 @@ import {
   MINI_MAP_COLUMN_PADDING,
   MINI_MAP_INSET,
   MINI_MAP_SIZE,
-  MUTED,
   RULE_WIDTH,
   SQ_M_PER_HECTARE
 } from './layout.js'
-import { drawMiniMap, prepareThumbnails } from './thumbnail.js'
-import { BASELINE, POST_INTERVENTION } from './labels.js'
-import { LISTED_LAYERS } from './listed-layers.js'
+import { drawMiniMap } from './thumbnail.js'
+import { addListedLayers, openLayerSection } from './layer-section.js'
 
 const TABLE_TOP_GAP = 10
 const NOT_RECORDED = '—'
 
 async function addHabitatPages(context) {
-  for (const layer of LISTED_LAYERS) {
-    await addLayerTable(context, layer)
-  }
+  await addListedLayers(context, addLayerTable)
 }
 
-async function addLayerTable(
-  {
-    doc,
-    root,
-    baseline,
-    postIntervention,
-    grid,
-    tileSource,
-    withBasemap,
-    attribution,
-    attributionShort,
-    stats
-  },
-  layer
-) {
-  const site = postIntervention ?? baseline
-  const label = postIntervention ? POST_INTERVENTION : BASELINE
-  const style = layer.style(Boolean(postIntervention))
-  const features = site.layers[layer.key] ?? []
-  if (features.length === 0) {
+async function addLayerTable(context, layer) {
+  const listing = await openLayerSection(context, layer, {
+    introduction: introduction(layer),
+    frame: thumbnailFrame(0)
+  })
+  if (!listing) {
     return
   }
 
-  const section = doc.struct('Sect', { title: layer.title })
-  root.add(section)
-
-  doc.addPage()
-  addIntroduction(doc, section, label, layer)
-
+  const { doc, grid, stats } = context
   const table = doc.struct('Table')
-  section.add(table)
-
-  // Every thumbnail frame is the same square, so one measurement settles the
-  // credit for all of them — and, because no OS mapping is drawn into a frame
-  // that cannot carry its credit, settles whether they get a basemap at all.
-  const credit = withBasemap
-    ? fitCredit(doc, thumbnailFrame(0), [attribution, attributionShort])
-    : null
-
-  // Prefetch every thumbnail's tiles before drawing starts. A mini-map frame
-  // is always the same size, so its extent — and therefore its tile set — does
-  // not depend on where the row lands on the page.
-  const thumbnails = await prepareThumbnails({
-    features,
-    grid,
-    tileSource,
-    withBasemap: Boolean(credit),
-    size: MINI_MAP_SIZE
-  })
-
-  addRows({
-    doc,
-    table,
-    features,
-    thumbnails,
-    site,
-    style,
-    grid,
-    credit,
-    stats,
-    layer
-  })
+  listing.section.add(table)
+  addRows({ ...listing, doc, table, grid, stats, layer })
 
   table.end()
-  section.end()
+  listing.section.end()
 }
 
-function addIntroduction(doc, section, label, layer) {
-  section.add(
-    doc.struct('H2', () => {
-      doc.font(BOLD).fontSize(FONT_SIZE.sectionHeading).fillColor(INK)
-      doc.text(`${label} ${layer.heading} `, MARGIN, MARGIN, {
-        width: CONTENT_WIDTH
-      })
-    })
-  )
-  section.add(
-    doc.struct('P', () => {
-      doc.font(BODY).fontSize(FONT_SIZE.bodySmall).fillColor(MUTED)
-      doc.text(
-        `Each row shows one ${layer.noun}: ${layer.shown}, ` +
-          'and its recorded attributes. Every value shown on a mini-map is also given as text ' +
-          'in the same row, so no information depends on seeing the picture. ',
-        { width: CONTENT_WIDTH }
-      )
-    })
+function introduction(layer) {
+  return (
+    `Each row shows one ${layer.noun}: ${layer.shown}, ` +
+    'and its recorded attributes. Every value shown on a mini-map is also given as text ' +
+    'in the same row, so no information depends on seeing the picture. '
   )
 }
 
@@ -181,7 +113,7 @@ function addRows({
       })
     )
     y += HABITAT_ROW_HEIGHT
-    stats[layer.statsKey] += 1
+    stats[layer.key] += 1
   }
 }
 
@@ -333,6 +265,7 @@ function rowValues({ properties }, layer) {
     ref: properties.ref ?? NOT_RECORDED,
     type: properties.type ?? NOT_RECORDED,
     treeSize: properties.treeSize ?? NOT_RECORDED,
+    treeCount: properties.treeCount ?? NOT_RECORDED,
     condition: properties.condition ?? NOT_RECORDED,
     area: Number.isFinite(sqm)
       ? (sqm / SQ_M_PER_HECTARE).toFixed(layer.hectareDecimals)
@@ -347,4 +280,4 @@ function columnX(columns, index) {
   )
 }
 
-export { addHabitatPages }
+export { addHabitatPages, rowValues }

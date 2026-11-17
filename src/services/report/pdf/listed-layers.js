@@ -13,6 +13,7 @@
 
 import { HABITAT_STYLES } from './map.js'
 import { PARCEL_HECTARE_DECIMALS } from './layout.js'
+import { LAYER_LABELS, LAYER_NOUNS } from './labels.js'
 
 /**
  * A tree's size is its size class's area, and the smallest is 0.0041 ha
@@ -21,11 +22,28 @@ import { PARCEL_HECTARE_DECIMALS } from './layout.js'
  */
 const TREE_HECTARE_DECIMALS = 4
 
+/** The column headings, so a column two layers share is named the same in both. */
+const COLUMN_LABELS = Object.freeze({
+  ref: 'Ref',
+  type: 'Habitat type',
+  treeSize: 'Tree size',
+  treeCount: 'Number of trees',
+  condition: 'Condition',
+  area: 'Size (ha)'
+})
+
+/**
+ * A text column, its width a fraction of the space the thumbnail column
+ * leaves. Each layer's fractions sum to one.
+ */
+function column(key, fraction) {
+  return Object.freeze({ key, label: COLUMN_LABELS[key], fraction })
+}
+
 const HABITATS = Object.freeze({
   key: 'habitats',
-  statsKey: 'habitats',
   title: 'Habitat parcels',
-  heading: 'habitat parcels',
+  heading: LAYER_NOUNS.habitats,
   noun: 'parcel',
   shown: 'its shape and position among the neighbouring parcels',
   figure: 'Outline of parcel',
@@ -36,21 +54,25 @@ const HABITATS = Object.freeze({
     postIntervention
       ? HABITAT_STYLES.postIntervention
       : HABITAT_STYLES.baseline,
-  // Each text column's width, as a fraction of the space the thumbnail column
-  // leaves.
   columns: Object.freeze([
-    { key: 'ref', label: 'Ref', fraction: 0.12 },
-    { key: 'type', label: 'Habitat type', fraction: 0.4 },
-    { key: 'condition', label: 'Condition', fraction: 0.26 },
-    { key: 'area', label: 'Size (ha)', fraction: 0.22 }
+    column('ref', 0.12),
+    column('type', 0.4),
+    column('condition', 0.26),
+    column('area', 0.22)
   ])
 })
 
+/**
+ * A tree point is one tree in the BNG Service template, but in the legacy
+ * template its Count can make it several, and its size is then its size
+ * class's area times that count. So a tree's row gives the number of trees
+ * beside the size class, as the tree details screens do, or a reader could not
+ * tell why a Small tree measures 0.0123 ha.
+ */
 const TREES = Object.freeze({
   key: 'trees',
-  statsKey: 'trees',
-  title: 'Individual trees',
-  heading: 'individual trees',
+  title: LAYER_LABELS.trees,
+  heading: LAYER_NOUNS.trees,
   noun: 'tree',
   shown: 'its position among the habitat parcels',
   figure: 'Position of tree',
@@ -59,11 +81,14 @@ const TREES = Object.freeze({
   // A point, drawn as the site maps draw a tree, on either side.
   style: () => HABITAT_STYLES.tree,
   columns: Object.freeze([
-    { key: 'ref', label: 'Ref', fraction: 0.12 },
-    { key: 'type', label: 'Habitat type', fraction: 0.26 },
-    { key: 'treeSize', label: 'Tree size', fraction: 0.18 },
-    { key: 'condition', label: 'Condition', fraction: 0.22 },
-    { key: 'area', label: 'Size (ha)', fraction: 0.22 }
+    column('ref', 0.1),
+    column('type', 0.18),
+    column('treeSize', 0.15),
+    // Wide enough for its heading on one line: "Number of trees" wraps
+    // through the header rule at a narrower width.
+    column('treeCount', 0.2),
+    column('condition', 0.18),
+    column('area', 0.19)
   ])
 })
 

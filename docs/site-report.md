@@ -191,10 +191,13 @@ is an area habitat in the metric, so its units are in the area habitat figures, 
 report that listed the parcels alone would leave part of those figures with nothing on
 the page to account for them. Each layer is described once, in `pdf/listed-layers.js`,
 and both layouts draw from it, so they cannot drift apart on what they list. A tree's
-thumbnail is its point among the parcels; its row adds a **Tree size** column (Small,
-Medium, Large or Very large) and gives its size to four decimal places, as a Small tree is
-0.0041 ha. The side is the parcels' rule: the post-intervention trees where the project
-has them, otherwise the baseline ones.
+thumbnail is its point among the parcels; its row adds **Tree size** (Small, Medium,
+Large or Very large) and **Number of trees**, and gives its size to four decimal places,
+as a Small tree is 0.0041 ha. A row is one tree point. In the BNG Service template that
+is one tree; in the legacy template its Count can make it several, and its size is then
+the size class's area times the count, so the count is shown beside the size class, as the
+tree details screens show it (a blank Count is one tree). The side is the parcels' rule:
+the post-intervention trees where the project has them, otherwise the baseline ones.
 
 |                  | `table` (default)                  | `cards`                                     |
 | ---------------- | ---------------------------------- | ------------------------------------------- |
@@ -614,19 +617,33 @@ and an arbitrarily long synchronous render. Every layer read is therefore capped
 
 Measured at that ceiling, on parcels of ~900 vertices each — the density a real survey
 has, taking 225,748 vertices across one file from the GEOS slivers check as the
-reference point:
+reference point. `node scripts/bench-site-report.mjs [spaced|tiled] [ceiling]
+[both|baseline]` reproduces every figure below. The cap applies to each layer, and the
+report lists two of them, parcels and trees, so a capped project can list 250 of each:
 
-| At the cap    | Table layout   | Cards layout   |
-| ------------- | -------------- | -------------- |
-| 250 per layer | 2.9 MB / 1.5 s | 3.8 MB / 2.8 s |
-| 500 per layer | 5.8 MB / 2.8 s | 7.6 MB / 5.9 s |
+| At the cap, 250 per layer, no basemap       | Table layout    | Cards layout    |
+| ------------------------------------------- | --------------- | --------------- |
+| Spaced parcels, baseline only               | 2.9 MB / 1.2 s  | 3.6 MB / 2.4 s  |
+| Spaced parcels and 250 trees, baseline only | 4.3 MB / 1.7 s  | 5.1 MB / 3.6 s  |
+| Spaced parcels and 250 trees, both sides    | 5.8 MB / 2.4 s  | 6.9 MB / 3.7 s  |
+| Tiled parcels, both sides                   | 17.4 MB / 4.2 s | 18.5 MB / 6.6 s |
+| Tiled parcels and 250 trees, both sides     | 18.9 MB / 4.5 s | 20.1 MB / 6.5 s |
+
+"Spaced" parcels stand a parcel's width apart, so a thumbnail draws only its own parcel;
+the first row is how the ceiling was first measured. "Tiled" parcels share their edges, as
+a surveyed site's do, and then each thumbnail also draws the eight neighbours its frame
+overlaps, in full, as context. A tree's thumbnail is a 50 m square around its point and
+draws the parcels it overlaps in the same way, which is most of what a tree costs.
 
 500 was the first choice and is what the earlier revision of this document claimed held
 the worst case to "roughly 2 MB and a couple of seconds". That was an extrapolation from
 the 50-parcel figure and it was wrong in both directions — the growth is not linear, and
-the cards layout was not measured at all. 250 is the value the measurements support: it
-stays inside the few-megabytes mark this page names as the point to start streaming,
-while remaining five times the largest example site.
+the cards layout was not measured at all. 250 was chosen on the first row of the table,
+which stays inside the few-megabytes mark this page names as the point to start streaming,
+while remaining five times the largest example site. **The tiled rows do not**: a tiled
+site at the cap passes 17 MB before any tree is listed, because of the neighbours each
+thumbnail draws. Trees add about 1.5 MB to either. Thinning the context a thumbnail draws,
+or streaming, is the change to make before raising the cap.
 
 The cap is applied in SQL — `.limit(cap + 1)` in `db/project-geometry.js` — rather than
 after the rows arrive, because slicing in JavaScript would still have read and parsed

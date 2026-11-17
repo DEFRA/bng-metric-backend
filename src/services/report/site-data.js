@@ -31,6 +31,7 @@ import {
   RETENTION_RETAINED,
   normaliseRetentionCategory
 } from '../../utilities/enrichment/post-intervention/retention-category.js'
+import { treeCountOrDefault } from '../../validation/geopackage/tree-sizes.js'
 
 /** Which side of the project a feature belongs to, as `readProjectGeometry` spells it. */
 const SIDE = Object.freeze({
@@ -38,19 +39,22 @@ const SIDE = Object.freeze({
   POST_INTERVENTION: 'postIntervention'
 })
 
+/** The layer whose points are individual trees, as `GEOMETRY_LAYERS` names it. */
+const TREE_LAYER = 'trees'
+
 /**
  * The post-intervention document nests the values a parcel will have after the
  * work under `proposed`, keeping the baseline values alongside. The report
  * shows what the parcel is proposed to become, falling back to the top-level
  * spelling so a baseline feature reads through the same accessor.
  */
-function attributesOf(feature, side = SIDE.BASELINE) {
+function attributesOf(feature, side = SIDE.BASELINE, layer = null) {
   const proposed = feature.proposed ?? {}
   return {
     ...identity(feature, proposed),
     ...strategicSignificance(feature, proposed, side),
     ...scores(feature, proposed),
-    ...sizes(feature),
+    ...sizes(feature, layer),
     ...intervention(feature, proposed),
     ...recorded(feature)
   }
@@ -164,11 +168,18 @@ function scores(feature, proposed) {
 /**
  * Size is never taken from `proposed`: a parcel's area or length is a fact
  * about the ground, not something an intervention proposes.
+ *
+ * A tree point's size is its size class's area times the number of trees it
+ * stands for: its Count in the legacy template, one in the BNG Service
+ * template, which has no Count. A blank Count is one tree, as the import
+ * prices it (`treeCountOrDefault`) and the tree details screens show it.
+ * Every other layer has no count.
  */
-function sizes(feature) {
+function sizes(feature, layer) {
   return {
     sizeSquareMetres: numberOrNull(feature.sizeSquareMetres),
-    sizeMetres: numberOrNull(feature.sizeMetres)
+    sizeMetres: numberOrNull(feature.sizeMetres),
+    treeCount: layer === TREE_LAYER ? treeCountOrDefault(feature.count) : null
   }
 }
 
@@ -208,7 +219,12 @@ function numberOrNull(value) {
  * Document order is preserved: it is the order the habitat list screens use,
  * so the report's rows and the screen's rows read the same way down the page.
  */
-function joinLayer(documentFeatures, geometryFeatures, side = SIDE.BASELINE) {
+function joinLayer(
+  documentFeatures,
+  geometryFeatures,
+  side = SIDE.BASELINE,
+  layer = null
+) {
   const geometryById = new Map(
     geometryFeatures.map((feature) => [feature.featureId, feature.geometry])
   )
@@ -217,7 +233,7 @@ function joinLayer(documentFeatures, geometryFeatures, side = SIDE.BASELINE) {
   for (const feature of documentFeatures ?? []) {
     const geometry = geometryById.get(feature.featureId)
     if (geometry) {
-      joined.push({ properties: attributesOf(feature, side), geometry })
+      joined.push({ properties: attributesOf(feature, side, layer), geometry })
     }
   }
   return joined
@@ -241,7 +257,12 @@ function buildSite(document, geometry, siteName, side = SIDE.BASELINE) {
 
   const layers = {}
   for (const layer of GEOMETRY_LAYERS) {
-    layers[layer] = joinLayer(document[layer], geometry.layers[layer], side)
+    layers[layer] = joinLayer(
+      document[layer],
+      geometry.layers[layer],
+      side,
+      layer
+    )
   }
 
   return {

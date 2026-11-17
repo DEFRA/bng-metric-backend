@@ -65,6 +65,7 @@ function properties({
   condition,
   broadType = null,
   treeSize = null,
+  treeCount = null,
   distinctiveness = null,
   strategicSignificance = null,
   strategicSignificanceScore = null,
@@ -91,6 +92,7 @@ function properties({
     condition,
     broadType,
     treeSize,
+    treeCount,
     distinctiveness,
     strategicSignificance,
     strategicSignificanceScore,
@@ -208,6 +210,7 @@ function trees() {
         type: 'Urban tree',
         broadType: 'Individual trees',
         treeSize: 'Small',
+        treeCount: 1,
         condition: 'Good',
         // The tree helper's area for a Small tree, 0.0041 ha.
         sizeSquareMetres: SMALL_TREE_AREA_SQ_M

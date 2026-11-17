@@ -89,10 +89,14 @@ describe('#cardValues', () => {
 
     expect(cardValues(tree, TREE_HECTARE_DECIMALS)).toMatchObject({
       treeSize: 'Small',
+      treeCount: '1',
       area: '0.0041 ha'
     })
-    // A parcel has no size class, so its card leaves the line out.
-    expect(cardValues(baselineSite().layers.habitats[0]).treeSize).toBeNull()
+    // A parcel has no size class and no count, so its card leaves both out.
+    expect(cardValues(baselineSite().layers.habitats[0])).toMatchObject({
+      treeSize: null,
+      treeCount: null
+    })
   })
 
   test('falls back to a dash for the two fields that identify the parcel', () => {
