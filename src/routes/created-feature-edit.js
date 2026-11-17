@@ -7,6 +7,7 @@ import Boom from '@hapi/boom'
 import Joi from 'joi'
 import { MAX_YEARS, MAX_YEARS_PLUS } from 'bng-library/metric'
 import { featureEditPayload } from './shared-params.js'
+import { featureNotEditableError } from './feature-not-editable-error.js'
 import {
   invalidEnhancementError,
   OFFERED_ENHANCEMENT_RULE
@@ -110,6 +111,13 @@ export function validateCreatedLinearEdit(
   if (!enhanced && resolveRetentionCategory(feature) !== RETENTION_CREATED) {
     throw Boom.badRequest(
       `These attributes can only be edited on Created ${label}s`
+    )
+  }
+  // A Created feature's comment is its supporting information (BMD-1153); an
+  // Enhanced one's is not editable yet (BMD-1190), as for areas and trees.
+  if (enhanced && Object.hasOwn(edits, 'comment')) {
+    throw featureNotEditableError(
+      `Supporting information can be edited on a Created ${label} only`
     )
   }
   const withType = {

@@ -450,7 +450,7 @@ async function runUpdate(
  *               strategicSignificance: { type: string, nullable: true }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
- *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
+ *               comment: { type: string, nullable: true, description: 'Supporting information (BMD-1153), Created hedgerows only: an Enhanced hedgerow sent one is a 400 (code FEATURE_NOT_EDITABLE). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated hedgerow, with recalculated units, status and project totals
