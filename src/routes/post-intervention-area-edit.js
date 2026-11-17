@@ -44,10 +44,7 @@ export function validatePostInterventionAreaEdit(feature, edits) {
     return edits
   }
   const retention = resolveRetentionCategory(feature)
-  if (
-    retention === RETENTION_ENHANCED &&
-    Object.hasOwn(edits, 'comment')
-  ) {
+  if (retention === RETENTION_ENHANCED && Object.hasOwn(edits, 'comment')) {
     throw featureNotEditableError(
       'Supporting information can be edited on a Created area only'
     )
