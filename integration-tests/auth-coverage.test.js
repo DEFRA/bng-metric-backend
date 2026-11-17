@@ -49,6 +49,10 @@ const PUBLIC_ROUTES = new Map([
     'Static area enhancement reference data for a baseline; no per-user scope'
   ],
   [
+    'get /reference/hedgerow-enhancement',
+    'Static hedgerow enhancement reference data for a baseline; no per-user scope'
+  ],
+  [
     'get /reference/local-planning-authorities',
     'Static Planning Data lookup; no per-user scope'
   ],

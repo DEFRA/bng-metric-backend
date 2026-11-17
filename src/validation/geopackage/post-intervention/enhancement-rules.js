@@ -141,6 +141,18 @@ export function readAreaSide(side) {
 }
 
 /**
+ * A hedgerow side as the hedgerow rules read it: the metric's hedgerow type
+ * and the condition with its list prefix stripped. The habitat is null when
+ * the rules do not recognise it (BMD-1046).
+ *
+ * @param {object | undefined} side
+ * @returns {EnhancementSide}
+ */
+export function readHedgerowSide(side) {
+  return readSide(KIND_BY_LAYER.hedgerows, side)
+}
+
+/**
  * @typedef {object} EnhancementSide
  * @property {string | null} habitat the metric's label, null if unrecognised
  * @property {unknown} condition prefix stripped
