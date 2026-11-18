@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 472 schema fields.
+**25 tables**, mapping 482 schema fields.
 
 ## Diagram
 
@@ -532,12 +532,13 @@ Red Line Boundary defining the site extent (baseline). At most one per document.
 
 ### `baseline_habitats`
 
-habitats in the baseline document. 27 column(s) mapped from the JSON document.
+habitats in the baseline document. 28 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | JSON path                                                 | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                               | `uuid`    | PK  | —                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                           | `text`    | FK  | —                                                         | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | `baseline.habitats[].featureUuid`                         |                                                                                  |
 | `ref`                                      | `text`    |     | `baseline.habitats[].ref`                                 |                                                                                  |
 | `type`                                     | `text`    |     | `baseline.habitats[].type`                                |                                                                                  |
 | `broad_type`                               | `text`    |     | `baseline.habitats[].broadType`                           |                                                                                  |
@@ -568,12 +569,13 @@ habitats in the baseline document. 27 column(s) mapped from the JSON document.
 
 ### `baseline_trees`
 
-trees in the baseline document. 31 column(s) mapped from the JSON document.
+trees in the baseline document. 32 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | JSON path                                              | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
 | `feature_id`                               | `uuid`    | PK  | —                                                      | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                           | `text`    | FK  | —                                                      | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | `baseline.trees[].featureUuid`                         |                                                                                  |
 | `distinctiveness_score`                    | `numeric` |     | `baseline.trees[].distinctivenessScore`                |                                                                                  |
 | `condition`                                | `text`    |     | `baseline.trees[].condition`                           |                                                                                  |
 | `condition_score`                          | `numeric` |     | `baseline.trees[].conditionScore`                      |                                                                                  |
@@ -608,12 +610,13 @@ trees in the baseline document. 31 column(s) mapped from the JSON document.
 
 ### `baseline_vertical_habitats`
 
-verticalHabitats in the baseline document. 27 column(s) mapped from the JSON document.
+verticalHabitats in the baseline document. 28 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | JSON path                                                         | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                               | `uuid`    | PK  | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                           | `text`    | FK  | —                                                                 | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | `baseline.verticalHabitats[].featureUuid`                         |                                                                                  |
 | `distinctiveness`                          | `text`    |     | `baseline.verticalHabitats[].distinctiveness`                     |                                                                                  |
 | `distinctiveness_score`                    | `numeric` |     | `baseline.verticalHabitats[].distinctivenessScore`                |                                                                                  |
 | `condition`                                | `text`    |     | `baseline.verticalHabitats[].condition`                           |                                                                                  |
@@ -644,12 +647,13 @@ verticalHabitats in the baseline document. 27 column(s) mapped from the JSON doc
 
 ### `baseline_hedgerows`
 
-hedgerows in the baseline document. 25 column(s) mapped from the JSON document.
+hedgerows in the baseline document. 26 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | JSON path                                                  | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                               | `uuid`    | PK  | —                                                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                           | `text`    | FK  | —                                                          | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | `baseline.hedgerows[].featureUuid`                         |                                                                                  |
 | `ref`                                      | `text`    |     | `baseline.hedgerows[].ref`                                 |                                                                                  |
 | `type`                                     | `text`    |     | `baseline.hedgerows[].type`                                |                                                                                  |
 | `condition`                                | `text`    |     | `baseline.hedgerows[].condition`                           |                                                                                  |
@@ -678,12 +682,13 @@ hedgerows in the baseline document. 25 column(s) mapped from the JSON document.
 
 ### `baseline_watercourses`
 
-watercourses in the baseline document. 30 column(s) mapped from the JSON document.
+watercourses in the baseline document. 31 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | JSON path                                                     | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
 | `feature_id`                               | `uuid`    | PK  | —                                                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
 | `feature_set_id`                           | `text`    | FK  | —                                                             | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | `baseline.watercourses[].featureUuid`                         |                                                                                  |
 | `ref`                                      | `text`    |     | `baseline.watercourses[].ref`                                 |                                                                                  |
 | `type`                                     | `text`    |     | `baseline.watercourses[].type`                                |                                                                                  |
 | `condition`                                | `text`    |     | `baseline.watercourses[].condition`                           |                                                                                  |
@@ -729,7 +734,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 39 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 40 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -744,6 +749,7 @@ habitats in the postIntervention document. 39 column(s) mapped from the JSON doc
 | `comment`                                    | `text`    |     | `postIntervention.habitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | `postIntervention.habitats[].parentUuid`                             |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.habitats[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.habitats[].baseline.type`                          |                                                                                  |
@@ -777,7 +783,7 @@ habitats in the postIntervention document. 39 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 50 column(s) mapped from the JSON document.
+trees in the postIntervention document. 51 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -793,6 +799,7 @@ trees in the postIntervention document. 50 column(s) mapped from the JSON docume
 | `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | `postIntervention.trees[].parentUuid`                             |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.trees[].referenceEdited`                        |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
@@ -836,7 +843,7 @@ trees in the postIntervention document. 50 column(s) mapped from the JSON docume
 
 ### `post_intervention_vertical_habitats`
 
-verticalHabitats in the postIntervention document. 38 column(s) mapped from the JSON document.
+verticalHabitats in the postIntervention document. 39 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                    | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -851,6 +858,7 @@ verticalHabitats in the postIntervention document. 38 column(s) mapped from the 
 | `comment`                                    | `text`    |     | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | `postIntervention.verticalHabitats[].parentUuid`                             |                                                                                  |
 | `irreplaceable`                              | `boolean` |     | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
 | `baseline_type`                              | `text`    |     | `postIntervention.verticalHabitats[].baseline.type`                          |                                                                                  |
 | `baseline_broad_type`                        | `text`    |     | `postIntervention.verticalHabitats[].baseline.broadType`                     |                                                                                  |
@@ -883,7 +891,7 @@ verticalHabitats in the postIntervention document. 38 column(s) mapped from the 
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 36 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 37 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -892,6 +900,7 @@ hedgerows in the postIntervention document. 36 column(s) mapped from the JSON do
 | `retention_category`                         | `text`    |     | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | `postIntervention.hedgerows[].parentUuid`                             |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.hedgerows[].referenceEdited`                        |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.hedgerows[].length`                                 |                                                                                  |
@@ -928,7 +937,7 @@ hedgerows in the postIntervention document. 36 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 45 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 46 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -938,6 +947,7 @@ watercourses in the postIntervention document. 45 column(s) mapped from the JSON
 | `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
 | `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | `postIntervention.watercourses[].parentUuid`                              |                                                                                  |
 | `reference_edited`                           | `boolean` |     | `postIntervention.watercourses[].referenceEdited`                         |                                                                                  |
 | `ref`                                        | `text`    |     | `postIntervention.watercourses[].ref`                                     |                                                                                  |
 | `length`                                     | `numeric` |     | `postIntervention.watercourses[].length`                                  |                                                                                  |

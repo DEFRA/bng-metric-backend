@@ -2654,3 +2654,103 @@ describe('applyFeatureUpdate — vertical area habitats', () => {
     })
   })
 })
+
+describe('applyFeatureUpdate — a BNG Service template upload’s file ids', () => {
+  const PARENT_ID = 'dd0e8400-e29b-41d4-a716-446655440014'
+  const CHILD_ID = 'ee0e8400-e29b-41d4-a716-446655440015'
+  const FILE_PARENT_UUID = '5fdcf691-8d65-50aa-aa03-aac3f95a38a9'
+
+  /** A parcel and the creation that names it, each carrying the file's id. */
+  function templateProject() {
+    return {
+      name: 'Template ids fixture',
+      baseline: {
+        habitats: [
+          {
+            featureId: PARENT_ID,
+            featureUuid: FILE_PARENT_UUID,
+            ref: 'H1',
+            type: 'Modified grassland',
+            broadType: 'Grassland',
+            condition: 'Moderate',
+            sizeSquareMetres: 10_000,
+            units: 4,
+            properties: { feature_uuid: FILE_PARENT_UUID }
+          }
+        ],
+        units: {}
+      },
+      postIntervention: {
+        habitats: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            parentUuid: FILE_PARENT_UUID,
+            ref: 'H1',
+            retentionCategory: 'Created',
+            area: 10_000,
+            sizeSquareMetres: 10_000,
+            units: null,
+            status: 'Incomplete',
+            baseline: {
+              type: 'Modified grassland',
+              broadType: 'Grassland',
+              condition: 'Moderate'
+            },
+            proposed: {
+              type: 'Other neutral grassland',
+              broadType: 'Grassland',
+              condition: 'Moderate',
+              strategicSignificance: 'Low',
+              advanceYears: 0,
+              delayYears: 0
+            },
+            properties: { parent_uuid: FILE_PARENT_UUID }
+          }
+        ],
+        trees: [],
+        hedgerows: [],
+        watercourses: [],
+        units: {},
+        template: { name: 'bng-service', version: '1.0' }
+      }
+    }
+  }
+
+  test('keeps a post-intervention feature’s parentUuid through an edit', () => {
+    const result = applyFeatureUpdate(templateProject(), {
+      featureId: CHILD_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Poor'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      parentFeatureId: PARENT_ID,
+      parentUuid: FILE_PARENT_UUID
+    })
+  })
+
+  test('keeps a baseline feature’s featureUuid, and its children’s parentUuid, through a baseline edit', () => {
+    const result = applyFeatureUpdate(templateProject(), {
+      featureId: PARENT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Good'
+      },
+      documentKey: 'baseline'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.featureUuid).toBe(FILE_PARENT_UUID)
+    expect(result.project.postIntervention.habitats[0]).toMatchObject({
+      parentFeatureId: PARENT_ID,
+      parentUuid: FILE_PARENT_UUID
+    })
+  })
+})

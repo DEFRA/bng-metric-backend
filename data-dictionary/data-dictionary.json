@@ -1381,6 +1381,17 @@
       "description": "Stable UUID for the feature; join key to the bng.baseline_habitats geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
+      "path": "baseline.habitats[].featureUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "baseline.habitats[].ref",
       "type": "string",
       "required": false,
@@ -1853,6 +1864,17 @@
       "constraints": [],
       "openMap": false,
       "description": "An individual tree feature (point)."
+    },
+    {
+      "path": "baseline.trees[].featureUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "baseline.trees[].distinctivenessScore",
@@ -2400,6 +2422,17 @@
       "description": "A vertical area habitat (green wall or intertidal hard structure), drawn as a line along its base."
     },
     {
+      "path": "baseline.verticalHabitats[].featureUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "baseline.verticalHabitats[].distinctiveness",
       "type": "string",
       "required": false,
@@ -2896,6 +2929,17 @@
       "description": "Stable UUID for the feature; join key to the bng.baseline_hedgerows geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
     },
     {
+      "path": "baseline.hedgerows[].featureUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "baseline.hedgerows[].ref",
       "type": "string",
       "required": false,
@@ -3337,6 +3381,17 @@
       "constraints": ["uuid"],
       "openMap": false,
       "description": "Stable UUID for the feature; join key to the bng.baseline_watercourses geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature."
+    },
+    {
+      "path": "baseline.watercourses[].featureUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "baseline.watercourses[].ref",
@@ -4453,6 +4508,17 @@
       "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree, area habitat or hedgerow reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
     },
     {
+      "path": "postIntervention.habitats[].parentUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The parent_uuid a BNG Service template file gives this post-intervention feature: the feature_uuid of the baseline feature it was copied from, the file's own id for it, which parentFeatureId resolves to the service's featureId. It traces the feature back to the ecologist's QGIS file. Null when the row names no parent. Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "postIntervention.habitats[].referenceEdited",
       "type": "boolean",
       "required": false,
@@ -5036,6 +5102,17 @@
       "constraints": ["uuid"],
       "openMap": false,
       "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree, area habitat or hedgerow reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.trees[].parentUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The parent_uuid a BNG Service template file gives this post-intervention feature: the feature_uuid of the baseline feature it was copied from, the file's own id for it, which parentFeatureId resolves to the service's featureId. It traces the feature back to the ecologist's QGIS file. Null when the row names no parent. Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.trees[].referenceEdited",
@@ -5761,6 +5838,17 @@
       "description": "The featureId of the baseline feature this post-intervention feature is linked to by its parent_uuid in a BNG Service template file, whatever its Retention Category. Absent when it names no parent, and on every feature of a legacy upload."
     },
     {
+      "path": "postIntervention.verticalHabitats[].parentUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The parent_uuid a BNG Service template file gives this post-intervention feature: the feature_uuid of the baseline feature it was copied from, the file's own id for it, which parentFeatureId resolves to the service's featureId. It traces the feature back to the ecologist's QGIS file. Null when the row names no parent. Absent on a legacy upload, whose template has no such column."
+    },
+    {
       "path": "postIntervention.verticalHabitats[].irreplaceable",
       "type": "boolean",
       "required": false,
@@ -6245,6 +6333,17 @@
       "constraints": ["uuid"],
       "openMap": false,
       "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree, area habitat or hedgerow reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.hedgerows[].parentUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The parent_uuid a BNG Service template file gives this post-intervention feature: the feature_uuid of the baseline feature it was copied from, the file's own id for it, which parentFeatureId resolves to the service's featureId. It traces the feature back to the ecologist's QGIS file. Null when the row names no parent. Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.hedgerows[].referenceEdited",
@@ -6757,6 +6856,17 @@
       "constraints": ["uuid"],
       "openMap": false,
       "description": "The linked baseline featureId from a BNG Service template parent_uuid, or preserved when a Created area, tree, hedgerow or watercourse reference, or an Enhanced tree, area habitat or hedgerow reference, is edited. An explicit null records that an edited feature has no identifiable baseline parent. Absent on untouched legacy rows and when an untouched BNG Service template row names no parent."
+    },
+    {
+      "path": "postIntervention.watercourses[].parentUuid",
+      "type": "string",
+      "required": false,
+      "nullable": true,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["uuid"],
+      "openMap": false,
+      "description": "The parent_uuid a BNG Service template file gives this post-intervention feature: the feature_uuid of the baseline feature it was copied from, the file's own id for it, which parentFeatureId resolves to the service's featureId. It traces the feature back to the ecologist's QGIS file. Null when the row names no parent. Absent on a legacy upload, whose template has no such column."
     },
     {
       "path": "postIntervention.watercourses[].referenceEdited",

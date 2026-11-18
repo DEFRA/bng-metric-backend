@@ -40,6 +40,7 @@ import {
 } from './extract-post-intervention-sub-objects.js'
 import { buildPostInterventionTree } from './extract-post-intervention-trees.js'
 import { irreplaceableField } from '../irreplaceable.js'
+import { parentUuidField } from '../service-template/template-ids.js'
 
 /**
  * The ref is the Parcel Ref as stored: trimmed and truncated
@@ -105,6 +106,7 @@ function buildPostInterventionHabitat(feature, template) {
     (featureId, ref, props) => ({
       featureId,
       ref,
+      ...parentUuidField(props),
       retentionCategory: retentionCategoryFromProps(props),
       comment: commentForPostIntervention(props, { template }),
       ...irreplaceableField(props),
@@ -139,6 +141,7 @@ function buildPostInterventionHedgerow(feature, template) {
     (featureId, ref, props) => ({
       featureId,
       ref,
+      ...parentUuidField(props),
       retentionCategory: retentionCategoryFromProps(props),
       comment: commentForPostIntervention(props, { template }),
       length: null,
@@ -197,6 +200,7 @@ function buildPostInterventionWatercourse(feature, template) {
       return {
         featureId,
         ref,
+        ...parentUuidField(props),
         retentionCategory: retentionCategoryFromProps(props),
         comment: commentForPostIntervention(props, { template }),
         length: null,

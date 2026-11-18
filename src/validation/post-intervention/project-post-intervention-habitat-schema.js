@@ -5,7 +5,10 @@
  */
 import Joi from 'joi'
 import { createdTimingSelectionFields } from './project-timing-fields.js'
-import { parentFeatureIdField } from './project-lineage-fields.js'
+import {
+  parentFeatureIdField,
+  parentUuidField
+} from './project-lineage-fields.js'
 import {
   baselineCommonFields,
   invalidEnhancementField,
@@ -60,6 +63,7 @@ export const postInterventionHabitatSchema = Joi.object({
   }),
   ...invalidEnhancementField('habitats'),
   ...parentFeatureIdField({ editableCreated: true }),
+  ...parentUuidField(),
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created or Enhanced area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
   ),
@@ -91,6 +95,7 @@ export const postInterventionVerticalHabitatSchema = Joi.object({
   }),
   ...invalidEnhancementField('verticalHabitats'),
   ...parentFeatureIdField(),
+  ...parentUuidField(),
   irreplaceable: Joi.boolean().description(
     'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell.'
   ),
