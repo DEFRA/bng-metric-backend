@@ -27,12 +27,12 @@ const SHAPE_CHANGED = 'service-template/lineage-parent-geom-mismatch.gpkg'
 const SHAPE_MISSING = 'service-template/lineage-parent-geom-missing.gpkg'
 const EVERY_COLUMN = 'service-template/default-site.gpkg'
 // The harness's attribute-problems/ files: the default site, with one
-// habitat that gets worse recorded as the Metric guide does not allow.
+// habitat that gets worse recorded other than as the Metric guide describes,
+// which the service accepts, or a watercourse it refuses.
 const DEGRADE_ADVANCE_MISSING = 'service-template/degrade-advance-missing.gpkg'
 const DEGRADE_NOT_WORSE = 'service-template/degrade-not-worse.gpkg'
 const WATERCOURSE_RETAINED_AND_CREATED =
   'service-template/degrade-watercourse-retained-and-created.gpkg'
-const HEDGE_PI = 'Hedgerows Post-Intervention'
 const WATERCOURSE_BASELINE = 'Watercourses Baseline'
 const AREA_BASELINE = 'Area Habitats Baseline'
 const AREA_PI = 'Area Habitats Post-Intervention'
@@ -250,19 +250,29 @@ describeServiceTemplate(
       }
     )
 
+    // A habitat that gets worse is recorded as its parent lost and a creation,
+    // and the file is not refused for how the creation compares with its
+    // parent (guide, "Habitat retention").
     it.each([
       [
         'a hedgerow that gets worse with no 30+ years in advance',
-        DEGRADE_ADVANCE_MISSING,
-        ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS,
-        HEDGE_PI
+        DEGRADE_ADVANCE_MISSING
       ],
       [
         'a hedgerow Created in its own type that is not worse',
-        DEGRADE_NOT_WORSE,
-        ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-        HEDGE_PI
-      ],
+        DEGRADE_NOT_WORSE
+      ]
+    ])('accepts %s, and saves it', async (_, fixture) => {
+      const project = await createProject('Lineage creation')
+
+      const res = await uploadCombined(project.id, fixture)
+
+      expect(res.result).toEqual({ valid: true, errors: [] })
+      const stored = await fetchProject(project.id)
+      expect(stored.postIntervention.hedgerows.length).toBeGreaterThan(0)
+    })
+
+    it.each([
       [
         'a watercourse with both a Retained and a Created part',
         WATERCOURSE_RETAINED_AND_CREATED,

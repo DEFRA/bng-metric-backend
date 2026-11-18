@@ -1,24 +1,15 @@
 import { PARENT_UUID } from 'bng-library/bng-service'
 import { lengthMetres } from 'bng-library/measure'
-import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
-import { PROPOSED_PROP_KEYS, PROP_KEYS, pickProp } from '../../properties.js'
+import { PROP_KEYS, pickProp } from '../../properties.js'
 import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
-import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
-import {
-  LENGTH_TOLERANCE_METRES,
-  createdInOwnTypeMetres,
-  isLowerCondition,
-  isSameHabitatType,
-  watercourseChange
-} from './habitat-change.js'
+import { LENGTH_TOLERANCE_METRES } from './habitat-change.js'
 import {
   baselineHabitatTypeOf,
   collated,
   continues,
-  habitatTypeOf,
   isCreated,
   label,
   parentsByUuid,
@@ -28,7 +19,7 @@ import {
 
 /**
  * The Metric's rules on how a BNG Service template file's post-intervention
- * habitats continue, lose or degrade their baseline parents (BMD-1083). Run
+ * habitats continue or lose their baseline parents (BMD-1083). Run
  * once the parent links themselves can be trusted (parent-links.js), so each
  * row's `parent_uuid` names exactly one baseline feature of its layer. Each
  * rule the file breaks refuses it, as its units cannot be calculated as the
@@ -45,24 +36,13 @@ import {
  *   baseline watercourse as two features, one for each part;
  * - watercourses: only a canal or a ditch can be permanently lost, so any
  *   other baseline watercourse with no post-intervention child is refused;
- * - a degraded row, a Created row linked to a parent of its own habitat type,
- *   must be worse than its parent, or the habitat was kept and should be
- *   Retained or Enhanced. An area habitat, vertical area habitat or hedgerow
- *   gets worse by a lower
- *   condition, and is created 30+ years in advance (guide, "Habitat
- *   retention"). A watercourse gets worse by a lower condition, more
- *   encroachment or a shorter length (guide, watercourse interventions);
- *   its length is the parent's same-type Created rows together, so a
- *   watercourse drawn in pieces is not shorter for that alone.
- *   A Created row of its parent's type with a delay is not degraded: it is a
- *   habitat lost for a time and put back (guide, "Accounting for temporary
- *   losses"), which the delay already discounts, so it may be in any
- *   condition and needs no years in advance.
+ * - a Created row is a creation, linked to a parent or not, whatever its type
+ *   and condition: a habitat that gets worse is recorded as its parent lost
+ *   and a creation (guide, "Habitat retention"), and the file is not
+ *   refused for how that creation compares with its parent;
  * - individual trees: each point is one tree, so a parent is kept by one
  *   Retained or Enhanced tree at most, as a tree that is kept cannot
- *   multiply. Created trees are not counted against it. Trees are outside
- *   the degraded rows' rules: a Created tree is a creation, whether or not it
- *   names a parent, and its parent is lost.
+ *   multiply. Created trees are not counted against it.
  */
 
 /** The watercourse types the Metric lets be permanently lost. */
@@ -72,13 +52,6 @@ const LINEAR_LAYERS = new Set(['hedgerows', 'watercourses'])
 
 /** The layers checked, area habitats first, as the messages list them. */
 const CHECKED_LAYERS = ['areas', 'verticalHabitats', ...LINEAR_LAYERS, 'trees']
-
-/** The layers a degraded row can be on: every one but individual trees. */
-const DEGRADABLE_LAYERS = new Set([
-  'areas',
-  'verticalHabitats',
-  ...LINEAR_LAYERS
-])
 
 /**
  * The difference in area, in square metres, below which two typed areas are
@@ -105,53 +78,8 @@ const toHectares = (squareMetres) =>
     (squareMetres / SQ_METRES_PER_HECTARE).toPrecision(SIGNIFICANT_FIGURES)
   )
 
-/** A baseline row as the comparisons read it. */
-function baselineSide(layer, properties) {
-  return {
-    type: baselineHabitatTypeOf(layer, properties),
-    broadType: text(properties['Baseline Broad Habitat Type']),
-    condition: text(properties['Baseline Condition']),
-    watercourseEncroachment: text(
-      properties['Baseline Encroachment into Watercourse']
-    ),
-    riparianEncroachment: text(
-      properties['Baseline Encroachment into riparian zone']
-    )
-  }
-}
-
-/** A post-intervention row as the comparisons read it. */
-function proposedSide(layer, properties) {
-  return {
-    type: habitatTypeOf(layer, properties),
-    broadType:
-      text(properties['Proposed Broad Habitat Type']) ??
-      text(properties['Baseline Broad Habitat Type']),
-    condition: text(properties['Proposed Condition']),
-    watercourseEncroachment: text(
-      properties['Proposed Encroachment into Watercourse']
-    ),
-    riparianEncroachment: text(
-      properties['Proposed Encroachment into riparian zone']
-    )
-  }
-}
-
 const measured = (feature) =>
   feature.nativeGeometry ? lengthMetres(feature.nativeGeometry) : Number.NaN
-
-/** A post-intervention row a rule refuses. */
-function offendingRow(layer, table, feature, parent) {
-  const { properties } = feature
-  return {
-    layer,
-    table,
-    fid: properties.fid,
-    ref: refOf(properties),
-    habitatType: habitatTypeOf(layer, properties),
-    parentRef: refOf(parent.properties)
-  }
-}
 
 /** A baseline parent a rule refuses, with the refs of its children. */
 function offendingParent(layer, table, parent, children) {
@@ -268,83 +196,6 @@ function checkWatercourseFamily(parent, children, context) {
   }
 }
 
-/** Whether a row is put back after a temporary loss: it has a delay. */
-const isPutBack = (properties) =>
-  (parseProposedAdvanceDelayYears(
-    pickProp(properties, PROPOSED_PROP_KEYS.delayYears)
-  ) ?? 0) > 0
-
-/** Whether a row is Created in its parent's habitat type. */
-const isCreatedInOwnType = (layer, parent, child) =>
-  isCreated(child.properties) &&
-  isSameHabitatType(
-    baselineSide(layer, parent.properties),
-    proposedSide(layer, child.properties)
-  )
-
-/** A parent's Created children, as createdInOwnTypeMetres reads them. */
-const createdChildren = (layer, children) =>
-  children
-    .filter((child) => isCreated(child.properties))
-    .map((child) => ({
-      side: proposedSide(layer, child.properties),
-      lengthMetres: measured(child)
-    }))
-
-/**
- * A parent's same-type Created length, worked out the first time one of its
- * pieces asks and then shared: a parent may have thousands of children.
- */
-function createdMetresOnce(layer, parent, children) {
-  let metres
-  return () => {
-    metres ??= createdInOwnTypeMetres(
-      baselineSide(layer, parent.properties),
-      createdChildren(layer, children)
-    )
-    return metres
-  }
-}
-
-/** A degraded row that is not worse, or not created 30+ years in advance. */
-function checkDegradedRow(parent, child, createdMetres, context) {
-  const { layer, tables, found } = context
-  const parentSide = baselineSide(layer, parent.properties)
-  const childSide = proposedSide(layer, child.properties)
-  if (
-    !isCreatedInOwnType(layer, parent, child) ||
-    isPutBack(child.properties)
-  ) {
-    return
-  }
-  const row = () => offendingRow(layer, tables.postIntervention, child, parent)
-  if (layer === 'watercourses') {
-    const change = watercourseChange(
-      { side: parentSide, lengthMetres: measured(parent) },
-      {
-        side: childSide,
-        lengthMetres: createdMetres()
-      }
-    )
-    if (!change.worse) {
-      found.noIntervention.push(row())
-    }
-    return
-  }
-  if (!isLowerCondition(layer, parentSide, childSide)) {
-    // Not degraded at all, so the 30+ years a degraded row needs is beside
-    // the point: one error, saying what it should be instead.
-    found.notWorse.push(row())
-    return
-  }
-  if (
-    text(pickProp(child.properties, PROPOSED_PROP_KEYS.advanceYears)) !==
-    MAX_YEARS_PLUS
-  ) {
-    found.advanceNot30Plus.push(row())
-  }
-}
-
 function checkLayer(layer, baseline, postIntervention, found) {
   const context = {
     layer,
@@ -368,17 +219,9 @@ function checkLayer(layer, baseline, postIntervention, found) {
     if (layer === 'trees') {
       checkTreeKeptOnce(parent, children, context)
     }
-    if (!DEGRADABLE_LAYERS.has(layer)) {
-      continue
-    }
-    const createdMetres = createdMetresOnce(layer, parent, children)
-    for (const child of children) {
-      checkDegradedRow(parent, child, createdMetres, context)
-    }
   }
 }
 
-const describeRow = (row) => `${label(row)}, copied from ${row.parentRef}`
 const describeParent = (parent) =>
   parent.childRefs.length > 0
     ? `${label(parent)}, copied to ${parent.childRefs.join(', ')}`
@@ -426,27 +269,6 @@ const RULE_ERRORS = [
       'One or more baseline watercourses have no post-intervention habitat, but only a canal or a ditch can be permanently lost. Record each as Retained, Enhanced or Created',
     found: 'naturalLost',
     describe: describeParent
-  },
-  {
-    code: ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-    heading:
-      'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation',
-    found: 'notWorse',
-    describe: describeRow
-  },
-  {
-    code: ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS,
-    heading:
-      'One or more habitats recorded as lost and created again in a lower condition are not created 30+ years in advance, as the Metric guide asks',
-    found: 'advanceNot30Plus',
-    describe: describeRow
-  },
-  {
-    code: ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
-    heading:
-      'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation',
-    found: 'noIntervention',
-    describe: describeRow
   }
 ]
 
@@ -466,10 +288,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     tooLarge: [],
     tooManyTrees: [],
     partCreated: [],
-    naturalLost: [],
-    notWorse: [],
-    advanceNot30Plus: [],
-    noIntervention: []
+    naturalLost: []
   }
   for (const layer of CHECKED_LAYERS) {
     checkLayer(
