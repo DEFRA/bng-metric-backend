@@ -26,9 +26,10 @@ const UNKNOWN_PARENT = 'service-template/lineage-parent-unknown.gpkg'
 const SHAPE_CHANGED = 'service-template/lineage-parent-geom-mismatch.gpkg'
 const SHAPE_MISSING = 'service-template/lineage-parent-geom-missing.gpkg'
 const EVERY_COLUMN = 'service-template/default-site.gpkg'
-// The harness's attribute-problems/ files: the default site, with one
-// habitat that gets worse recorded other than as the Metric guide describes,
-// which the service accepts, or a watercourse it refuses.
+// The default site with HG017, a hedgerow that gets worse, recorded other
+// than as the Metric guide describes: kept here since the harness dropped
+// them, as the service accepts them. And the harness's attribute-problems/
+// file with a watercourse the service refuses.
 const DEGRADE_ADVANCE_MISSING = 'service-template/degrade-advance-missing.gpkg'
 const DEGRADE_NOT_WORSE = 'service-template/degrade-not-worse.gpkg'
 const WATERCOURSE_RETAINED_AND_CREATED =
@@ -269,7 +270,21 @@ describeServiceTemplate(
 
       expect(res.result).toEqual({ valid: true, errors: [] })
       const stored = await fetchProject(project.id)
-      expect(stored.postIntervention.hedgerows.length).toBeGreaterThan(0)
+      // HG017, Created in its baseline hedgerow's own type, is a creation of
+      // its own, and its baseline hedgerow is lost and re-created by it.
+      const created = stored.postIntervention.hedgerows.find(
+        (f) => f.ref === 'HG017'
+      )
+      expect(created).toMatchObject({ retentionCategory: 'Created' })
+      expect(
+        stored.postIntervention.lostHabitats.find(
+          (lost) => lost.layer === 'hedgerows' && lost.ref === 'HG017'
+        )
+      ).toMatchObject({
+        featureId: created.parentFeatureId,
+        outcome: 'lostAndRecreated',
+        recreatedAs: [created.featureId]
+      })
     })
 
     it.each([
