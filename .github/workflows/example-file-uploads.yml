@@ -38,6 +38,12 @@ jobs:
     # bng-metric-harness is public and exposes workflow_call, so this runs
     # on this repo's own GITHUB_TOKEN. A newer push to a pull request
     # cancels the run in flight.
+    #
+    # It tracks harness main on purpose, as metric-comparison.yml does. The
+    # example files and what each should do live in the harness, and a
+    # change there, such as a known gap removed once this repo closes it,
+    # should apply here at once rather than wait for a pin to be bumped. The
+    # job has only contents: read.
     uses: DEFRA/bng-metric-harness/.github/workflows/example-file-uploads.yml@main
     with:
       # Pin to the commit under test, not a branch name, so a push landing
