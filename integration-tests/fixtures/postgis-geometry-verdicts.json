@@ -158,6 +158,15 @@
         }
       ]
     },
+    "invalid-schema/Baseline - three rlb polygons.gpkg": {
+      "valid": false,
+      "errors": [
+        {
+          "code": "AREA_SUM_MISMATCH",
+          "message": "Sum of area habitat polygons (14850.15 sq m) does not equal redline boundary area (27086.29 sq m)"
+        }
+      ]
+    },
     "invalid-schema/Baseline - wrong column data types in Habitats.gpkg": {
       "valid": true,
       "errors": []
@@ -773,15 +782,6 @@
     "valid/Baseline - retained watercourse.gpkg": {
       "valid": true,
       "errors": []
-    },
-    "valid/Baseline - three rlb polygons.gpkg": {
-      "valid": false,
-      "errors": [
-        {
-          "code": "AREA_SUM_MISMATCH",
-          "message": "Sum of area habitat polygons (14850.15 sq m) does not equal redline boundary area (27086.29 sq m)"
-        }
-      ]
     },
     "valid/Baseline - tiny gap between parcels.gpkg": {
       "valid": true,
