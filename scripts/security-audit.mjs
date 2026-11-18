@@ -66,32 +66,55 @@ export function judge(report, allowlist) {
   }
 }
 
-function runAudit() {
-  const result = spawnSync(NPM, ['audit', '--json'], {
+/** The `npm audit --json` report format this reads (npm 7 and later). */
+const AUDIT_REPORT_VERSION = 2
+
+function spawnNpmAudit() {
+  return spawnSync(NPM, ['audit', '--json'], {
     cwd: REPO_ROOT,
     encoding: 'utf8',
     maxBuffer: MAX_REPORT_BYTES,
     // Node runs a .cmd only through a shell.
     shell: IS_WINDOWS
   })
-  try {
-    return JSON.parse(result.stdout)
-  } catch {
-    console.error(result.stderr || result.stdout)
-    console.error('[security-audit] npm audit did not return a report.')
-    process.exit(1)
-  }
 }
 
-function main() {
-  const allowlist = JSON.parse(readFileSync(ALLOWLIST, 'utf8'))
-  const report = runAudit()
-  if (report.error) {
-    console.error(`[security-audit] npm audit failed: ${report.error.summary}`)
-    process.exit(1)
+/**
+ * The report a `npm audit --json` run gave, or the problem that stops it
+ * being judged: npm not starting, output that is not JSON, npm's own error,
+ * or a report in a format this does not read. Each fails the audit, so a run
+ * that checked nothing never passes.
+ *
+ * @param {{ error?: Error, stdout?: string | null, stderr?: string | null }} result what spawnSync returned
+ * @returns {{ report: object } | { problem: string }}
+ */
+export function readReport(result) {
+  if (result.error) {
+    return { problem: `npm audit could not run: ${result.error.message}` }
   }
-  const { blocking, ignored, unused } = judge(report, allowlist)
+  let report
+  try {
+    report = JSON.parse(result.stdout ?? '')
+  } catch {
+    return {
+      problem: `npm audit did not return a report:\n${result.stderr || result.stdout}`
+    }
+  }
+  if (report?.error) {
+    return { problem: `npm audit failed: ${report.error.summary}` }
+  }
+  const readable =
+    report?.auditReportVersion === AUDIT_REPORT_VERSION &&
+    typeof report.vulnerabilities === 'object' &&
+    report.vulnerabilities !== null
+  return readable
+    ? { report }
+    : {
+        problem: `npm audit returned a report this does not read (auditReportVersion ${report?.auditReportVersion}); it reads version ${AUDIT_REPORT_VERSION}, from npm 7 or later`
+      }
+}
 
+function printOutcome({ blocking, ignored, unused }, console) {
   for (const entry of ignored) {
     console.log(
       `[security-audit] Ignoring ${entry.id} (${entry.package}): ${entry.reason}`
@@ -102,20 +125,46 @@ function main() {
       `[security-audit] npm audit no longer reports ${entry.id} (${entry.package}). Remove it from audit-allowlist.json.`
     )
   }
-  if (blocking.length > 0) {
-    console.error(
-      `[security-audit] High or critical advisories (${blocking.length}). Upgrade each package, or run npm audit to see its fix:`
-    )
-    for (const advisory of blocking) {
-      console.error(
-        `  ${advisory.severity} ${advisory.package}: ${advisory.title} ${advisory.url}`
-      )
-    }
-    process.exit(1)
+  if (blocking.length === 0) {
+    console.log('[security-audit] No high or critical advisories to act on.')
+    return
   }
-  console.log('[security-audit] No high or critical advisories to act on.')
+  console.error(
+    `[security-audit] High or critical advisories (${blocking.length}). Upgrade each package, or run npm audit to see its fix:`
+  )
+  for (const advisory of blocking) {
+    console.error(
+      `  ${advisory.severity} ${advisory.package}: ${advisory.title} ${advisory.url}`
+    )
+  }
+}
+
+/**
+ * Run the audit and say what it found. The exit status is the gate CI and the
+ * pre-commit hook rely on: 0 only when npm reported in full and nothing but
+ * allowlisted advisories is high or critical.
+ *
+ * @param {object} [options]
+ * @param {Array<{ id: string }>} [options.allowlist]
+ * @param {() => object} [options.runNpmAudit] returns what spawnSync does
+ * @param {Pick<Console, 'log' | 'warn' | 'error'>} [options.console]
+ * @returns {0 | 1} the exit status
+ */
+export function securityAudit({
+  allowlist = JSON.parse(readFileSync(ALLOWLIST, 'utf8')),
+  runNpmAudit = spawnNpmAudit,
+  console = globalThis.console
+} = {}) {
+  const read = readReport(runNpmAudit())
+  if (read.problem) {
+    console.error(`[security-audit] ${read.problem}`)
+    return 1
+  }
+  const outcome = judge(read.report, allowlist)
+  printOutcome(outcome, console)
+  return outcome.blocking.length === 0 ? 0 : 1
 }
 
 if (import.meta.url === pathToFileURL(process.argv[1] ?? '').href) {
-  main()
+  process.exitCode = securityAudit()
 }
