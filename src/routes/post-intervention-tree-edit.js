@@ -62,9 +62,10 @@ export function validatePostInterventionTreeEdit(feature, edits) {
 }
 
 // An Enhanced tree's setting: its proposed one, or, where its file left that
-// blank, its baseline one, as the upload reads it (tree-lineage.js,
-// proposedSetting). A legacy upload's trees, and a template tree that names no
-// parent, keep the setting their file gave.
+// blank, its baseline one. The upload gives a linked Enhanced tree its
+// parent's setting (tree-lineage.js, alignTreesWithParents). A legacy
+// upload's trees, and a template tree that names no parent, keep the setting
+// their file gave.
 function enhancedTreeSetting(feature) {
   return feature.proposed?.type ?? feature.baseline?.type ?? null
 }
