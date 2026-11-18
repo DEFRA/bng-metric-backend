@@ -2233,7 +2233,8 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
   // T001, a Medium rural tree in Moderate condition, recorded as lost and as
   // a tree Created in Poor condition, 30+ years in advance: Category
   // Existing, linked to its baseline tree. It is a creation like any other,
-  // so no edit to it is held to its baseline tree.
+  // so no edit to it is held to its baseline tree; while it keeps its
+  // parent's setting, its parent is lost and re-created by it.
   function projectWithExistingCreatedTree() {
     const project = projectFixture()
     const side = {
@@ -2290,34 +2291,25 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
       },
       units: { totalUnits: 0.0652 },
       template: { name: 'bng-service', version: '1.0' },
-      // As saved when the service read this tree as its parent degraded.
-      lostHabitats: [
-        {
-          layer: 'trees',
-          featureId: PARENT_ID,
-          ref: 'T001',
-          type: 'Rural tree',
-          outcome: 'lostAndRecreated',
-          lostSizeSquareMetres: 163,
-          lostTreeCount: 1,
-          recreatedAs: [TREE_ID]
-        }
-      ]
+      // None yet, so each edit's outcome is worked out afresh.
+      lostHabitats: []
     }
     return project
   }
 
-  /** The baseline tree as every edit leaves it: lost, and not re-created. */
-  const PARENT_LOST = {
+  /** The baseline tree, lost, and re-created by the tree in its setting. */
+  const PARENT_RECREATED = {
     layer: 'trees',
     featureId: PARENT_ID,
     ref: 'T001',
     type: 'Rural tree',
-    outcome: 'lost',
+    outcome: 'lostAndRecreated',
     lostSizeSquareMetres: 163,
     lostTreeCount: 1,
-    recreatedAs: []
+    recreatedAs: [TREE_ID]
   }
+  /** The baseline tree once the Created tree moves to the other setting. */
+  const PARENT_LOST = { ...PARENT_RECREATED, outcome: 'lost', recreatedAs: [] }
 
   const lostTrees = (result) =>
     result.lostHabitats.filter((lost) => lost.layer === 'trees')
@@ -2351,7 +2343,7 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
       const result = editExistingCreatedTree({ condition })
 
       expect(result.status).toBe(APPLY_RESULT.OK)
-      expect(lostTrees(result)).toEqual([PARENT_LOST])
+      expect(lostTrees(result)).toEqual([PARENT_RECREATED])
       expect(result.feature).toMatchObject({
         parentFeatureId: PARENT_ID,
         sizeSquareMetres: 163,
@@ -2379,7 +2371,7 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     const result = editExistingCreatedTree({ advanceYears: 5 })
 
     expect(result.status).toBe(APPLY_RESULT.OK)
-    expect(lostTrees(result)).toEqual([PARENT_LOST])
+    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
     expect(result.feature.proposed.advanceYears).toBe(5)
     // Poor is 10 years to target; 5 years in advance leaves 5, the Metric's
     // multiplier 0.8368.
@@ -2390,7 +2382,7 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     const result = editExistingCreatedTree({ condition: '' })
 
     expect(result.status).toBe(APPLY_RESULT.OK)
-    expect(lostTrees(result)).toEqual([PARENT_LOST])
+    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
     expect(result.feature.proposed.condition).toBeNull()
     expect(result.feature.status).toBe('Incomplete')
     expect(result.feature.units ?? 0).toBe(0)

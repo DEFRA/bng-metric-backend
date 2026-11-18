@@ -37,8 +37,10 @@ import {
  *   setting (tree-lineage.js), priced for its own Count, so a baseline tree
  *   is lost by its Count less theirs: one with no child at all is lost in
  *   full.
- * - A degraded row (a Created row of its parent's own habitat type) means its
- *   parent is lost and re-created, not removed (guide, "Habitat retention").
+ * - A Created row of its parent's own habitat type, a tree's in its Urban or
+ *   Rural setting, means its parent is lost and re-created, not removed: a
+ *   habitat that gets worse is recorded so (guide, "Habitat retention"), and
+ *   so is one replaced in kind, as a tree planted in a felled tree's place.
  * - A watercourse created 10 or more years in advance is what the guide
  *   allows only for an encroachment-only change. On any other Created
  *   watercourse linked to a parent the advance is set to null, so the row is
@@ -103,9 +105,12 @@ function childrenByParent(features) {
   return children
 }
 
-/** Trees are outside the degraded rows' rules: a Created tree is planting. */
-const isDegraded = (layer, parent, child) =>
-  layer !== 'trees' &&
+/**
+ * A Created child of its parent's own habitat type, which re-creates it: on
+ * every layer alike, a tree's type being its Urban or Rural setting. It
+ * records what the file does, not whether the habitat got worse.
+ */
+const isRecreation = (parent, child) =>
   resolveRetentionCategory(child) === RETENTION_CREATED &&
   isSameHabitatType(parent, child.proposed ?? {})
 
@@ -143,7 +148,7 @@ function lostParent(layer, parent, children, sizeField) {
     0
   )
   const lostSize = Math.max(0, sizeOf(parent, sizeField) - kept)
-  const recreated = children.filter((child) => isDegraded(layer, parent, child))
+  const recreated = children.filter((child) => isRecreation(parent, child))
   if (
     children.length > 0 &&
     keptWhole(layer, continuing, lostSize, sizeField)

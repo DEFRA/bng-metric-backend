@@ -853,7 +853,7 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
   }
 
   it(
-    'records the baseline tree as lost and prices the Created tree as a creation of its own, as the Metric does',
+    'records the baseline tree as lost and re-created, and prices the Created tree as a creation of its own, as the Metric does',
     async () => {
       const result = await importUploadFile(
         degradedSite('degraded', DEGRADED),
@@ -886,10 +886,10 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
         featureId: parent.featureId,
         ref: 'T004',
         type: 'Rural tree',
-        outcome: 'lost',
+        outcome: 'lostAndRecreated',
         lostSizeSquareMetres: 765,
         lostTreeCount: 1,
-        recreatedAs: []
+        recreatedAs: [created.featureId]
       })
     },
     IMPORT_TIMEOUT_MS
