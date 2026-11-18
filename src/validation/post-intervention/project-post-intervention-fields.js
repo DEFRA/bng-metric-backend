@@ -16,7 +16,7 @@ const DISTINCTIVENESS_SCORE_DESCRIPTION =
 const RETENTION_CATEGORY_DESCRIPTION =
   'Normalised retention category (Retained, Created, or Enhanced) assigned on import from the GeoPackage Retention Category column.'
 const POST_INTERVENTION_COMMENT_DESCRIPTION =
-  'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A blank comment is null.'
+  'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file stores it on an Enhanced or Created habitat only: a Retained habitat shares the comment saved on its baseline habitat, and a Lost row keeps its comment on the baseline habitat. A BNG Service template file stores the comment from its Post-Intervention table for every retention category. A Created area habitat, tree, hedgerow or watercourse, or an Enhanced area habitat, tree or hedgerow, has it edited as its supporting information on its post-intervention details page, which replaces the imported one. A blank comment is null.'
 const POST_INTERVENTION_STATUS_DESCRIPTION =
   "'Complete' when post-intervention units were successfully calculated; otherwise 'Incomplete'."
 const POST_INTERVENTION_STATUS_VALUES = Object.freeze([

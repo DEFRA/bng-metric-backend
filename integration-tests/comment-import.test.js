@@ -12,7 +12,7 @@ import {
   describeServiceTemplate
 } from '../test/helpers/template-mode.js'
 import { fixturePath } from './helpers/upload-fixtures.js'
-import { HTTP_OK } from './helpers/http-status.js'
+import { HTTP_BAD_REQUEST, HTTP_OK } from './helpers/http-status.js'
 import {
   FIXTURE,
   callPostInterventionValidate,
@@ -345,6 +345,174 @@ describe('Created habitat supporting information (BMD-1153)', () => {
         ).comment
       ).toBe(`${layer} note\nsecond line`)
     }
+  })
+})
+
+/**
+ * The complete Enhanced edit payload that keeps a feature's stored choices,
+ * which its baseline's valid enhancements need not list, with a comment.
+ *
+ * @param {'habitats' | 'trees' | 'hedgerows'} layer
+ * @param {object} feature
+ * @param {string} comment
+ * @returns {object}
+ */
+function enhancedEditPayload(layer, feature, comment) {
+  const payload = {
+    ref: feature.ref,
+    habitatType: feature.proposed.type,
+    condition: feature.proposed.condition,
+    comment
+  }
+  if (layer === 'hedgerows') {
+    return payload
+  }
+  if (layer === 'trees') {
+    // An Enhanced tree can be imported at its baseline condition, which is no
+    // enhancement, so the edit enhances it to Good (editableEnhanced).
+    return {
+      ...payload,
+      broadType: feature.proposed.broadType,
+      condition: 'Good'
+    }
+  }
+  return { ...payload, broadType: feature.proposed.broadType }
+}
+
+/**
+ * An Enhanced feature of `layer` whose edit is a valid enhancement: any
+ * Enhanced area or hedgerow, which keeps its stored choices, or an Enhanced
+ * tree whose baseline condition is below Good, which the edit enhances to.
+ *
+ * @param {'habitats' | 'trees' | 'hedgerows'} layer
+ * @param {object[]} features
+ * @returns {object}
+ */
+function editableEnhanced(layer, features) {
+  return features.find(
+    (feature) =>
+      feature.retentionCategory === 'Enhanced' &&
+      (layer !== 'trees' || feature.baseline?.condition !== 'Good')
+  )
+}
+
+/**
+ * A baseline edit that keeps a feature's stored choices and changes its
+ * comment.
+ *
+ * @param {object} feature a baseline feature
+ * @returns {object}
+ */
+function baselineCommentEdit(feature) {
+  return {
+    ...(feature.broadType === undefined
+      ? {}
+      : { broadType: feature.broadType }),
+    habitatType: feature.type,
+    condition: feature.condition,
+    comment: 'baseline note'
+  }
+}
+
+describe('Enhanced habitat supporting information (BMD-1190)', () => {
+  it('saves an Enhanced area, tree and hedgerow comment that an edit of its baseline parent keeps', async () => {
+    const project = await createProject('Enhanced comment')
+    const uploadId = await uploadFixture(COMBINED_FIXTURE)
+    expect(
+      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
+        .statusCode
+    ).toBe(HTTP_OK)
+
+    const imported = await fetchProject(project.id)
+    const { server, headers } = getPersistenceTestContext()
+    const edited = {}
+    for (const layer of ['habitats', 'trees', 'hedgerows']) {
+      const enhanced = editableEnhanced(layer, imported.postIntervention[layer])
+      const res = await server.inject({
+        method: 'PUT',
+        url: `/projects/${project.id}/post-intervention/${layer}/${enhanced.featureId}`,
+        headers,
+        payload: enhancedEditPayload(
+          layer,
+          enhanced,
+          `  ${layer} note\r\nsecond line  `
+        )
+      })
+      expect(res.statusCode).toBe(HTTP_OK)
+      expect(res.result.comment).toBe(`${layer} note\nsecond line`)
+      edited[layer] = enhanced
+
+      const fetched = await server.inject({
+        method: 'GET',
+        url: `/projects/${project.id}/post-intervention/features/${enhanced.featureId}`,
+        headers
+      })
+      expect(fetched.result.feature.comment).toBe(`${layer} note\nsecond line`)
+    }
+
+    // A baseline edit re-derives the post-intervention document from the
+    // baseline. An Enhanced row's comment is its own, not its parent's, so it
+    // must come through an edit of that parent's comment untouched. A legacy
+    // upload joins each row to its parent by ref.
+    for (const [layer, enhanced] of Object.entries(edited)) {
+      const parent = imported.baseline[layer].find(
+        (feature) => feature.ref === enhanced.ref
+      )
+      const baselineEdit = await server.inject({
+        method: 'PUT',
+        url: `/projects/${project.id}/features/${parent.featureId}`,
+        headers,
+        payload: baselineCommentEdit(parent)
+      })
+      expect(baselineEdit.statusCode).toBe(HTTP_OK)
+      expect(baselineEdit.result.feature.comment).toBe('baseline note')
+    }
+
+    const after = await fetchProject(project.id)
+    for (const [layer, enhanced] of Object.entries(edited)) {
+      expect(
+        after.postIntervention[layer].find(
+          (feature) => feature.featureId === enhanced.featureId
+        ).comment
+      ).toBe(`${layer} note\nsecond line`)
+    }
+  })
+
+  it('refuses an Enhanced area edit whose comment is too long, and saves none of it', async () => {
+    const project = await createProject('Enhanced comment too long')
+    const uploadId = await uploadFixture(COMBINED_FIXTURE)
+    expect(
+      (await callPostInterventionValidate(uploadId, { projectId: project.id }))
+        .statusCode
+    ).toBe(HTTP_OK)
+
+    const imported = await fetchProject(project.id)
+    const enhanced = imported.postIntervention.habitats.find(
+      (feature) => feature.retentionCategory === 'Enhanced'
+    )
+    const { server, headers } = getPersistenceTestContext()
+    const res = await server.inject({
+      method: 'PUT',
+      url: `/projects/${project.id}/post-intervention/habitats/${enhanced.featureId}`,
+      headers,
+      payload: {
+        ...enhancedEditPayload(
+          'habitats',
+          enhanced,
+          'a'.repeat(COMMENT_LIMIT + 1)
+        ),
+        ref: `${enhanced.ref} renamed`
+      }
+    })
+    expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(res.result.message).toMatch(/longer than 999 characters/)
+
+    const after = await fetchProject(project.id)
+    expect(
+      after.postIntervention.habitats.find(
+        (feature) => feature.featureId === enhanced.featureId
+      )
+    ).toEqual(enhanced)
   })
 })
 

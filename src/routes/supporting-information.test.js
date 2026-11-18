@@ -9,8 +9,9 @@ import {
 import { setProjectFeature } from '../db/persist-project.js'
 import { ERROR_CODES } from '../validation/geopackage/errors.js'
 
-// BMD-1153: a Created area habitat, tree, hedgerow or watercourse saves its
-// supporting information (its comment) with the rest of its edit page.
+// A Created area habitat, tree, hedgerow or watercourse (BMD-1153), or an
+// Enhanced area habitat, tree or hedgerow (BMD-1190), saves its supporting
+// information (its comment) with the rest of its edit page.
 
 vi.mock('../db/persist-project.js', () => ({
   setProjectFeature: vi.fn().mockResolvedValue(undefined)
@@ -31,8 +32,15 @@ const timing = {
   delayYears: 0
 }
 
-const CREATED = {
-  habitat: {
+const areaBaseline = {
+  broadType: 'Grassland',
+  type: 'Modified grassland',
+  condition: 'Poor'
+}
+const hedgerowBaseline = { type: 'Native hedgerow', condition: 'Moderate' }
+
+const CASES = {
+  'Created habitat': {
     route: updatePostInterventionAreaHabitat,
     layer: 'habitats',
     feature: {
@@ -58,7 +66,7 @@ const CREATED = {
       ...timing
     }
   },
-  tree: {
+  'Created tree': {
     route: updatePostInterventionTree,
     layer: 'trees',
     feature: {
@@ -89,7 +97,7 @@ const CREATED = {
       ...timing
     }
   },
-  hedgerow: {
+  'Created hedgerow': {
     route: updatePostInterventionHedgerow,
     layer: 'hedgerows',
     feature: {
@@ -110,7 +118,7 @@ const CREATED = {
       ...timing
     }
   },
-  watercourse: {
+  'Created watercourse': {
     route: updatePostInterventionWatercourse,
     layer: 'watercourses',
     feature: {
@@ -138,12 +146,119 @@ const CREATED = {
       riparianEncroachment: 'No Encroachment/No Encroachment',
       ...timing
     }
+  },
+  // BMD-1045: a Modified grassland at Poor, enhanced within its baseline's
+  // valid enhancements.
+  'Enhanced habitat': {
+    route: updatePostInterventionAreaHabitat,
+    layer: 'habitats',
+    feature: {
+      featureId,
+      ref: 'E-1',
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 25000,
+      units: 3,
+      status: 'Complete',
+      comment: STORED_COMMENT,
+      baseline: areaBaseline,
+      proposed: {
+        broadType: 'Grassland',
+        type: 'Modified grassland',
+        condition: 'Fairly Poor',
+        ...timing
+      }
+    },
+    edits: {
+      ref: 'E-1',
+      broadType: 'Grassland',
+      habitatType: 'Modified grassland',
+      condition: 'Moderate',
+      ...timing
+    }
+  },
+  // BMD-1172: an Urban tree at Poor, enhanced in its baseline tree's setting.
+  'Enhanced tree': {
+    route: updatePostInterventionTree,
+    layer: 'trees',
+    feature: {
+      featureId,
+      ref: 'T001',
+      retentionCategory: 'Enhanced',
+      count: null,
+      sizeSquareMetres: 41,
+      area: 41,
+      units: 0.01,
+      status: 'Complete',
+      comment: STORED_COMMENT,
+      baseline: {
+        broadType: 'Individual trees',
+        type: 'Urban tree',
+        treeSize: 'Small',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        sizeSquareMetres: 41
+      },
+      proposed: {
+        broadType: 'Individual trees',
+        type: 'Urban tree',
+        treeSize: 'Small',
+        condition: 'Good',
+        ...timing,
+        sizeSquareMetres: 41
+      },
+      properties: {}
+    },
+    edits: {
+      ref: 'T001',
+      broadType: 'Individual trees',
+      habitatType: 'Urban tree',
+      condition: 'Moderate',
+      ...timing
+    }
+  },
+  // BMD-1046: a Native hedgerow at Moderate, linked by ref to its baseline
+  // hedgerow, whose length prices the enhancement.
+  'Enhanced hedgerow': {
+    route: updatePostInterventionHedgerow,
+    layer: 'hedgerows',
+    baseline: {
+      hedgerows: [
+        {
+          featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+          ref: 'HG-1',
+          sizeMetres: 336,
+          ...hedgerowBaseline
+        }
+      ]
+    },
+    feature: {
+      featureId,
+      ref: 'HG-1',
+      retentionCategory: 'Enhanced',
+      sizeMetres: 200,
+      units: 1,
+      status: 'Complete',
+      comment: STORED_COMMENT,
+      baseline: hedgerowBaseline,
+      proposed: {
+        type: 'Native hedgerow',
+        condition: 'Good',
+        ...timing
+      }
+    },
+    edits: {
+      ref: 'HG-1',
+      habitatType: 'Species-rich native hedgerow',
+      condition: 'Moderate',
+      ...timing
+    }
   }
 }
 
-function request(payload, stored, layer, document = {}) {
+function request(payload, stored, { layer, baseline }, document = {}) {
   const row = {
     project: {
+      ...(baseline ? { baseline } : {}),
       postIntervention: {
         ...document,
         habitats: [],
@@ -170,19 +285,22 @@ function request(payload, stored, layer, document = {}) {
   }
 }
 
-function put(kind, overrides = {}, stored = CREATED[kind].feature) {
-  const { route, layer, edits } = CREATED[kind]
-  return route.handler(request({ ...edits, ...overrides }, stored, layer), {})
+function put(kind, overrides = {}, stored = CASES[kind].feature) {
+  const { route, edits } = CASES[kind]
+  return route.handler(
+    request({ ...edits, ...overrides }, stored, CASES[kind]),
+    {}
+  )
 }
 
 function validatePayload(kind, overrides) {
-  const { route, edits } = CREATED[kind]
+  const { route, edits } = CASES[kind]
   return route.options.validate.payload.validate({ ...edits, ...overrides })
 }
 
 beforeEach(() => vi.clearAllMocks())
 
-describe.each(Object.keys(CREATED))('a Created %s', (kind) => {
+describe.each(Object.keys(CASES))('supporting information: %s', (kind) => {
   test('saves the comment trimmed, with line breaks as LF', async () => {
     const saved = await put(kind, {
       comment: '  First line\r\nSecond line\rThird  \n'
@@ -213,9 +331,9 @@ describe.each(Object.keys(CREATED))('a Created %s', (kind) => {
   // A BNG Service template file imports each Post-Intervention row's own
   // Comment; an edit replaces it, as on any other upload.
   test('replaces a comment imported from a BNG Service template file', async () => {
-    const { route, layer, edits, feature } = CREATED[kind]
+    const { route, edits, feature } = CASES[kind]
     const saved = await route.handler(
-      request({ ...edits, comment: 'Edited note' }, feature, layer, {
+      request({ ...edits, comment: 'Edited note' }, feature, CASES[kind], {
         template: true
       }),
       {}
@@ -242,64 +360,32 @@ describe.each(Object.keys(CREATED))('a Created %s', (kind) => {
 })
 
 describe('a feature whose comment this page cannot edit', () => {
-  test.each(['habitat', 'hedgerow', 'watercourse'])(
-    'refuses an Enhanced %s sent a comment, and writes nothing',
-    async (kind) => {
-      const stored = {
-        ...CREATED[kind].feature,
-        retentionCategory: 'Enhanced'
+  // An Enhanced watercourse cannot be edited yet at all, comment or not.
+  test('refuses an Enhanced watercourse sent a comment, and writes nothing', async () => {
+    const stored = {
+      ...CASES['Created watercourse'].feature,
+      retentionCategory: 'Enhanced'
+    }
+    await expect(
+      put('Created watercourse', { comment: 'A note' }, stored)
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  // A Retained tree takes no complete edit, comment or not.
+  test('refuses a Retained tree sent a comment as FEATURE_NOT_EDITABLE, and writes nothing', async () => {
+    const stored = {
+      ...CASES['Enhanced tree'].feature,
+      retentionCategory: 'Retained'
+    }
+    await expect(
+      put('Enhanced tree', { comment: 'A note' }, stored)
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 400,
+        payload: { code: ERROR_CODES.FEATURE_NOT_EDITABLE }
       }
-      await expect(
-        put(kind, { comment: 'A note' }, stored)
-      ).rejects.toMatchObject({ output: { statusCode: 400 } })
-      expect(setProjectFeature).not.toHaveBeenCalled()
-    }
-  )
-
-  describe('an Enhanced tree (BMD-1190)', () => {
-    const enhancedTree = {
-      ...CREATED.tree.feature,
-      ref: 'T001',
-      retentionCategory: 'Enhanced',
-      count: null,
-      baseline: {
-        broadType: 'Individual trees',
-        type: 'Urban tree',
-        treeSize: 'Small',
-        condition: 'Poor',
-        strategicSignificance: 'Low',
-        sizeSquareMetres: 41
-      },
-      proposed: {
-        broadType: 'Individual trees',
-        type: 'Urban tree',
-        treeSize: 'Small',
-        condition: 'Good',
-        ...timing,
-        sizeSquareMetres: 41
-      }
-    }
-    const enhancedEdits = {
-      ref: 'T001',
-      habitatType: 'Urban tree',
-      condition: 'Moderate'
-    }
-
-    test('is refused as FEATURE_NOT_EDITABLE when sent a comment, and writes nothing', async () => {
-      await expect(
-        put('tree', { ...enhancedEdits, comment: 'A note' }, enhancedTree)
-      ).rejects.toMatchObject({
-        output: {
-          statusCode: 400,
-          payload: { code: ERROR_CODES.FEATURE_NOT_EDITABLE }
-        }
-      })
-      expect(setProjectFeature).not.toHaveBeenCalled()
     })
-
-    test('keeps its imported comment through an edit that sends none', async () => {
-      const saved = await put('tree', enhancedEdits, enhancedTree)
-      expect(saved.comment).toBe(STORED_COMMENT)
-    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
   })
 })
