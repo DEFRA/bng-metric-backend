@@ -361,45 +361,62 @@ describe('lostBaselineHabitats — individual trees', () => {
     ])
   })
 
-  it('records a tree replaced by Newly Planted trees as lost, not re-created', () => {
-    const parent = tree(1)
-    const planted = {
-      ...kept(1, parent, 'Created'),
-      properties: { Category: 'Newly Planted' }
+  // A Created tree in its parent's Urban or Rural setting re-creates it,
+  // whether it is the same tree in a worse condition or one planted in its
+  // place, as a Created habitat of its parent's type does on any layer.
+  it.each([
+    ['planted in its place', 'Newly Planted', 'Moderate'],
+    ['whose condition gets worse', 'Existing', 'Poor']
+  ])(
+    'records a tree replaced by a Created tree %s, in its setting, as lost and re-created',
+    (_, category, condition) => {
+      const parent = tree(1)
+      const created = {
+        ...kept(1, parent, 'Created'),
+        properties: { Category: category },
+        proposed: {
+          type: 'Urban tree',
+          broadType: 'Individual trees',
+          condition
+        }
+      }
+
+      expect(
+        lostBaselineHabitats({ trees: [created] }, { trees: [parent] })
+      ).toEqual([
+        {
+          layer: 'trees',
+          featureId: id(1),
+          ref: 'T001',
+          type: 'Urban tree',
+          outcome: LOST_OUTCOME.lostAndRecreated,
+          lostSizeSquareMetres: 163,
+          lostTreeCount: 1,
+          recreatedAs: [created.featureId]
+        }
+      ])
     }
+  )
 
-    const [lost] = lostBaselineHabitats(
-      { trees: [planted] },
-      { trees: [parent] }
-    )
-
-    expect(lost).toMatchObject({
-      outcome: LOST_OUTCOME.lost,
-      lostTreeCount: 1,
-      recreatedAs: []
-    })
-  })
-
-  it('records a tree whose condition gets worse as lost, and its Created tree as a creation of its own', () => {
+  it('records a tree replaced by a Created tree in the other setting as lost, not re-created', () => {
     const parent = tree(1)
-    const degraded = {
+    const created = {
       ...kept(1, parent, 'Created'),
       properties: { Category: 'Existing' },
       proposed: {
-        type: 'Urban tree',
+        type: 'Rural tree',
         broadType: 'Individual trees',
         condition: 'Poor'
       }
     }
 
     const [lost] = lostBaselineHabitats(
-      { trees: [degraded] },
+      { trees: [created] },
       { trees: [parent] }
     )
 
     expect(lost).toMatchObject({
       outcome: LOST_OUTCOME.lost,
-      lostSizeSquareMetres: 163,
       lostTreeCount: 1,
       recreatedAs: []
     })

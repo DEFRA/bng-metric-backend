@@ -984,14 +984,19 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.lostHabitats).toEqual([])
   })
 
-  // The parent edited in its own setting too, as the Created tree is: an
-  // earlier rule read that as the parent lost and re-created.
+  // Edited into the other setting, the parent is no longer re-created by the
+  // Urban tree; edited in its own setting, it still is.
   test.each([
-    ['to the other setting and a better condition', 'Rural tree'],
-    ['to a better condition in the same setting', 'Urban tree']
+    ['to the other setting and a better condition', 'Rural tree', 'lost', []],
+    [
+      'to a better condition in the same setting',
+      'Urban tree',
+      'lostAndRecreated',
+      ['pi-t1']
+    ]
   ])(
-    'leaves an Existing tree Created over its parent a creation of its own when the parent is edited %s, and the parent lost',
-    (_, parentSetting) => {
+    'leaves an Existing tree Created over its parent a creation of its own when the parent is edited %s',
+    (_, parentSetting, outcome, recreatedAs) => {
       const baselineTree = (type, condition) => ({
         featureId: 'baseline-t1',
         ref: 'T1',
@@ -1043,14 +1048,7 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
         {
           trees: [created],
           template: TEMPLATE,
-          lostHabitats: [
-            {
-              layer: 'trees',
-              featureId: 'baseline-t1',
-              outcome: 'lostAndRecreated',
-              recreatedAs: ['pi-t1']
-            }
-          ]
+          lostHabitats: []
         },
         {
           baseline: { trees: [baselineTree(parentSetting, 'Good')] },
@@ -1079,8 +1077,8 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
           layer: 'trees',
           featureId: 'baseline-t1',
           type: parentSetting,
-          outcome: 'lost',
-          recreatedAs: []
+          outcome,
+          recreatedAs
         })
       ])
     }
