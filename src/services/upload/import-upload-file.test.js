@@ -895,6 +895,36 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
     IMPORT_TIMEOUT_MS
   )
 
+  it(
+    'leaves an Existing tree Created with a blank setting Incomplete: it does not take its baseline tree’s',
+    async () => {
+      const result = await importUploadFile(
+        degradedSite('degraded-blank-setting', {
+          ...DEGRADED,
+          'Proposed Rural or Urban Tree': null
+        }),
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.errors ?? []).toEqual([])
+      const created = result.project.postIntervention.trees.find(
+        (tree) => tree.ref === 'T004'
+      )
+      expect(created.status).toBe('Incomplete')
+      expect(created.units ?? 0).toBe(0)
+      expect(created.proposed).toMatchObject({
+        type: null,
+        ruralOrUrban: null,
+        condition: null,
+        strategicSignificance: null,
+        advanceYears: null,
+        delayYears: null
+      })
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
   it.each([
     ['in the same condition', { 'Proposed Condition': 'Fairly Poor' }],
     [

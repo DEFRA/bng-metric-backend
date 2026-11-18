@@ -3,7 +3,7 @@ import { lengthMetres } from 'bng-library/measure'
 import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
-import { PROP_KEYS, pickProp } from '../../properties.js'
+import { PROPOSED_PROP_KEYS, PROP_KEYS, pickProp } from '../../properties.js'
 import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
@@ -64,9 +64,6 @@ import {
  *   the degraded rows' rules: a Created tree is a creation, whether or not it
  *   names a parent, and its parent is lost.
  */
-
-const ADVANCE = 'Habitat created in advance/years'
-const DELAY = 'Delay in starting habitat creation/years'
 
 /** The watercourse types the Metric lets be permanently lost. */
 const REMOVABLE_RIVER_TYPES = new Set(['canals', 'ditches'])
@@ -273,7 +270,9 @@ function checkWatercourseFamily(parent, children, context) {
 
 /** Whether a row is put back after a temporary loss: it has a delay. */
 const isPutBack = (properties) =>
-  (parseProposedAdvanceDelayYears(properties[DELAY]) ?? 0) > 0
+  (parseProposedAdvanceDelayYears(
+    pickProp(properties, PROPOSED_PROP_KEYS.delayYears)
+  ) ?? 0) > 0
 
 /** Whether a row is Created in its parent's habitat type. */
 const isCreatedInOwnType = (layer, parent, child) =>
@@ -338,7 +337,10 @@ function checkDegradedRow(parent, child, createdMetres, context) {
     found.notWorse.push(row())
     return
   }
-  if (text(child.properties[ADVANCE]) !== MAX_YEARS_PLUS) {
+  if (
+    text(pickProp(child.properties, PROPOSED_PROP_KEYS.advanceYears)) !==
+    MAX_YEARS_PLUS
+  ) {
     found.advanceNot30Plus.push(row())
   }
 }

@@ -2226,6 +2226,177 @@ describe('applyFeatureUpdate — Created post-intervention trees', () => {
   })
 })
 
+describe('applyFeatureUpdate — an Existing tree Created over its baseline tree', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440008'
+  const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440009'
+
+  // T001, a Medium rural tree in Moderate condition, recorded as lost and as
+  // a tree Created in Poor condition, 30+ years in advance: Category
+  // Existing, linked to its baseline tree. It is a creation like any other,
+  // so no edit to it is held to its baseline tree.
+  function projectWithExistingCreatedTree() {
+    const project = projectFixture()
+    const side = {
+      type: 'Rural tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163
+    }
+    project.baseline.trees = [
+      {
+        featureId: PARENT_ID,
+        ref: 'T001',
+        ...side,
+        condition: 'Moderate',
+        strategicSignificance: 'Low'
+      }
+    ]
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: TREE_ID,
+          ref: 'T001',
+          retentionCategory: 'Created',
+          parentFeatureId: PARENT_ID,
+          properties: { Category: 'Existing' },
+          sizeSquareMetres: 163,
+          area: 163,
+          units: 0.0652,
+          status: 'Complete',
+          baseline: { ...side, condition: 'Moderate' },
+          proposed: {
+            ...side,
+            condition: 'Poor',
+            strategicSignificance: 'Low',
+            advanceYears: 30,
+            delayYears: 0
+          }
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1163 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 163,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 163
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0.0652 },
+      template: { name: 'bng-service', version: '1.0' },
+      // As saved when the service read this tree as its parent degraded.
+      lostHabitats: [
+        {
+          layer: 'trees',
+          featureId: PARENT_ID,
+          ref: 'T001',
+          type: 'Rural tree',
+          outcome: 'lostAndRecreated',
+          lostSizeSquareMetres: 163,
+          lostTreeCount: 1,
+          recreatedAs: [TREE_ID]
+        }
+      ]
+    }
+    return project
+  }
+
+  /** The baseline tree as every edit leaves it: lost, and not re-created. */
+  const PARENT_LOST = {
+    layer: 'trees',
+    featureId: PARENT_ID,
+    ref: 'T001',
+    type: 'Rural tree',
+    outcome: 'lost',
+    lostSizeSquareMetres: 163,
+    lostTreeCount: 1,
+    recreatedAs: []
+  }
+
+  const lostTrees = (result) =>
+    result.lostHabitats.filter((lost) => lost.layer === 'trees')
+
+  function editExistingCreatedTree(edits) {
+    return applyFeatureUpdate(projectWithExistingCreatedTree(), {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...edits
+      }
+    })
+  }
+
+  // 0.0163 ha x Medium distinctiveness 4 x the condition score; 30+ years in
+  // advance covers the time to target, and tree creation is Low difficulty.
+  test.each([
+    ['its baseline condition', 'Moderate', 0.1304],
+    ['a better condition', 'Good', 0.1956]
+  ])(
+    'saves %s, priced as a creation at its own size',
+    (_, condition, units) => {
+      const result = editExistingCreatedTree({ condition })
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(lostTrees(result)).toEqual([PARENT_LOST])
+      expect(result.feature).toMatchObject({
+        parentFeatureId: PARENT_ID,
+        sizeSquareMetres: 163,
+        status: 'Complete',
+        proposed: { condition, type: 'Rural tree', treeSize: 'Medium' }
+      })
+      expect(result.feature.units).toBeCloseTo(units, 4)
+    }
+  )
+
+  test('saves a move to the other setting', () => {
+    const result = editExistingCreatedTree({ habitatType: 'Urban tree' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(lostTrees(result)).toEqual([PARENT_LOST])
+    expect(result.feature.proposed.type).toBe('Urban tree')
+    expect(result.habitatSizes.trees).toEqual({
+      totalSquareMetres: 163,
+      urbanSquareMetres: 163,
+      ruralSquareMetres: 0
+    })
+  })
+
+  test('saves fewer than 30+ years in advance, priced for the years still to target', () => {
+    const result = editExistingCreatedTree({ advanceYears: 5 })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(lostTrees(result)).toEqual([PARENT_LOST])
+    expect(result.feature.proposed.advanceYears).toBe(5)
+    // Poor is 10 years to target; 5 years in advance leaves 5, the Metric's
+    // multiplier 0.8368.
+    expect(result.feature.units).toBeCloseTo(0.0652 * 0.8368287006, 4)
+  })
+
+  test('saves a cleared condition, leaving the tree Incomplete with no units', () => {
+    const result = editExistingCreatedTree({ condition: '' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(lostTrees(result)).toEqual([PARENT_LOST])
+    expect(result.feature.proposed.condition).toBeNull()
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.units ?? 0).toBe(0)
+  })
+})
+
 describe('applyFeatureUpdate — Enhanced post-intervention trees', () => {
   const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440006'
   const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440007'
