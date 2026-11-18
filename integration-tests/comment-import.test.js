@@ -369,7 +369,7 @@ function enhancedEditPayload(layer, feature, comment) {
   }
   if (layer === 'trees') {
     // An Enhanced tree can be imported at its baseline condition, which is no
-    // enhancement, so the edit enhances it to Good (enhanceableTree).
+    // enhancement, so the edit enhances it to Good (editableEnhanced).
     return {
       ...payload,
       broadType: feature.proposed.broadType,
@@ -505,6 +505,7 @@ describe('Enhanced habitat supporting information (BMD-1190)', () => {
       }
     })
     expect(res.statusCode).toBe(HTTP_BAD_REQUEST)
+    expect(res.result.message).toMatch(/longer than 999 characters/)
 
     const after = await fetchProject(project.id)
     expect(
