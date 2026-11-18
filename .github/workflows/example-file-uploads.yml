@@ -1,0 +1,48 @@
+name: Example file uploads
+
+# Uploads every example GeoPackage in bng-metric-harness's example-files/
+# through the upload code at this commit, and fails if the service accepts a
+# file it should refuse, or refuses one it should accept. The example files,
+# what each should do and the test live in bng-metric-harness; this workflow
+# only calls it with the commit to test. A wrong result names the file, what
+# it should have done, what it did and its error codes, in the log and the
+# job summary.
+#
+# - Pull requests: the branch's head commit.
+# - Merge queue (merge_group): the queue's merge commit, as for a pull
+#   request. The trigger is what lets the uploads be a required check:
+#   without it the queue would wait for a status that never arrives. Whether
+#   it gates the merge is set by the ruleset on main, not here.
+# - Push to main: the pushed commit, beside Publish rather than after it, as
+#   the uploads run the commit in process and need nothing deployed.
+# - By hand (workflow_dispatch): as for a push to main.
+
+on:
+  pull_request:
+    branches:
+      - main
+  merge_group:
+  push:
+    branches:
+      - main
+  # Manual re-run. workflow_dispatch only fires for workflows on the default
+  # branch.
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  uploads:
+    name: Upload every example file
+    # bng-metric-harness is public and exposes workflow_call, so this runs
+    # on this repo's own GITHUB_TOKEN. A newer push to a pull request
+    # cancels the run in flight.
+    uses: DEFRA/bng-metric-harness/.github/workflows/example-file-uploads.yml@main
+    with:
+      # Pin to the commit under test, not a branch name, so a push landing
+      # while the job queues cannot swap the code under test. For a pull
+      # request that is the branch's head, not GitHub's merge commit; for a
+      # merge group, the queue's merge commit.
+      backend-sha: ${{ github.event.pull_request.head.sha || github.sha }}
+      backend-ref: ${{ github.head_ref || github.ref_name }}
