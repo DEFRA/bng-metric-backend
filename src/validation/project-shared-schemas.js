@@ -8,6 +8,7 @@ import Joi from 'joi'
 
 import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
 import { longFileText } from './text-joi.js'
+import { BNG_SERVICE_ONLY, LEGACY_ONLY } from './template-applicability.js'
 
 export const MAX_FILENAME_LENGTH = 255
 
@@ -82,9 +83,11 @@ export const habitatSizesSummarySchema = Joi.object({
       .description(
         'Total area of all vertical area habitats, in m², converted from the hectares the surveyor typed in.'
       )
-  }).description(
-    'Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read.'
-  ),
+  })
+    .description(
+      'Vertical area habitat areas (green walls and intertidal hard structures). The Metric leaves them out of the site area. Absent on a document saved before they were read.'
+    )
+    .meta(BNG_SERVICE_ONLY),
   site: Joi.object({
     totalSquareMetres: Joi.number()
       .required()
@@ -109,9 +112,11 @@ export const baselineUnitsTotalsSchema = Joi.object({
     .description(
       'Sum of baseline units across all area habitats, vertical area habitats included.'
     ),
-  verticalHabitatsTotal: Joi.number().description(
-    'Sum of baseline units across vertical area habitats: the part of habitatsTotal they make up. Absent on a document saved before they were read.'
-  ),
+  verticalHabitatsTotal: Joi.number()
+    .description(
+      'Sum of baseline units across vertical area habitats: the part of habitatsTotal they make up. Absent on a document saved before they were read.'
+    )
+    .meta(BNG_SERVICE_ONLY),
   hedgerowsTotal: Joi.number()
     .required()
     .description('Sum of baseline units across all hedgerows.'),
@@ -193,14 +198,15 @@ export const redLineSchema = Joi.object({
     .description(
       'Stable UUID for the Red Line Boundary; join key to the bng.baseline_red_line geometry row. There is at most one per document, so it is carried forward on re-upload without needing a ref.'
     ),
-  siteName: longFileText().description(
-    'Site name from the GeoPackage Red Line Boundary layer.'
-  ),
+  siteName: longFileText()
+    .description('Site name from the GeoPackage Red Line Boundary layer.')
+    .meta(LEGACY_ONLY),
   area: Joi.number()
     .allow(null)
     .description(
       'Site area as recorded in the GeoPackage Red Line Boundary layer (Area column).'
-    ),
+    )
+    .meta(LEGACY_ONLY),
   properties: Joi.object()
     .unknown(true)
     .description(
@@ -242,7 +248,9 @@ export const featureDataEnvelopeFields = {
     version: Joi.string()
       .required()
       .description('The template version, from its version record, e.g. `1.0`.')
-  }).description(
-    'The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file.'
-  )
+  })
+    .description(
+      'The template and version of the uploaded GeoPackage, from its version record. Absent for a legacy template file.'
+    )
+    .meta(BNG_SERVICE_ONLY)
 }

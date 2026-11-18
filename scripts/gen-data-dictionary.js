@@ -31,6 +31,10 @@ import { getTableConfig, PgDialect, PgTable } from 'drizzle-orm/pg-core'
 
 import * as dbSchema from '../src/db/schema/index.js'
 import { projectSchema } from '../src/validation/project.js'
+import {
+  TEMPLATE_LABELS,
+  templateOf
+} from '../src/validation/template-applicability.js'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
 const DATA_DICTIONARY_DIR = join(HERE, '..', 'data-dictionary')
@@ -225,7 +229,7 @@ function typeLabel(node) {
   return node.type
 }
 
-function nodeMeta(node) {
+function nodeMeta(node, template) {
   const allow = node.allow ?? []
   const isEnum = node.flags?.only === true
   return {
@@ -240,12 +244,14 @@ function nodeMeta(node) {
     constraints: (node.rules ?? []).map(formatRule),
     openMap:
       node.type === 'object' && node.flags?.unknown === true && !node.keys,
-    description: node.flags?.description ?? ''
+    description: node.flags?.description ?? '',
+    template
   }
 }
 
-function walkSchema(node, path, rows) {
-  const meta = nodeMeta(node)
+function walkSchema(node, path, rows, inherited) {
+  const template = templateOf(node, inherited)
+  const meta = nodeMeta(node, template)
   if (path) {
     rows.push({ path, ...meta })
   }
@@ -254,10 +260,10 @@ function walkSchema(node, path, rows) {
   }
   if (node.type === 'object' && node.keys) {
     for (const [key, child] of Object.entries(node.keys)) {
-      walkSchema(child, path ? `${path}.${key}` : key, rows)
+      walkSchema(child, path ? `${path}.${key}` : key, rows, template)
     }
   } else if (node.type === 'array' && node.items?.[0]) {
-    walkSchema(node.items[0], `${path}[]`, rows)
+    walkSchema(node.items[0], `${path}[]`, rows, template)
   } else {
     // leaf node — no children to walk
   }
@@ -356,14 +362,23 @@ function renderProjectJsonSection(fields) {
     '`bng.audit_log.project`. Fields below are derived from the Joi schema in',
     `${repoFileLink('src/validation/project.js')}.`,
     '',
-    '| Field | Type | Constraints | Description |',
-    '| --- | --- | --- | --- |'
+    'While the service-template flag lets either template be uploaded, **Template**',
+    'says which uploads fill each field: **BNG Service** (the new template),',
+    '**Legacy** (the Natural England template, whose fields go in BMD-1097), or',
+    '**Both**. A field the other template does not fill is absent or empty in its',
+    'documents. **Neither** marks a legacy field of a feature only the BNG Service',
+    `template has: it is always empty. Set in ${repoFileLink(
+      'src/validation/template-applicability.js'
+    )}.`,
+    '',
+    '| Field | Type | Template | Constraints | Description |',
+    '| --- | --- | --- | --- | --- |'
   ]
   for (const field of fields) {
     lines.push(
-      `| \`${field.path}\` | \`${field.type}\` | ${renderConstraints(
-        field
-      )} | ${escapeCell(field.description) || '—'} |`
+      `| \`${field.path}\` | \`${field.type}\` | ${
+        TEMPLATE_LABELS[field.template]
+      } | ${renderConstraints(field)} | ${escapeCell(field.description) || '—'} |`
     )
   }
   return lines.join('\n')
@@ -376,7 +391,10 @@ function renderNotesSection() {
     '- **`*.properties` open maps** hold the raw attribute columns copied',
     `  verbatim from the uploaded GeoPackage. Their column catalogue is defined`,
     `  separately in ${repoFileLink(TEMPLATE_REF)}; the case-insensitive`,
-    `  key resolution lives in ${repoFileLink(PROP_KEYS_REF)}.`,
+    `  key resolution lives in ${repoFileLink(PROP_KEYS_REF)}. A BNG Service`,
+    "  template document keys them by that template's column names (a",
+    "  reference is `Habitat Ref`); a legacy document by the legacy template's",
+    '  (`Parcel Ref`, `Tree Ref`).',
     '- **Derived unit fields** (`distinctiveness`, `distinctivenessScore`,',
     '  `conditionScore`, `units`) are set on habitats, hedgerows and watercourses',
     '  by bng-library/metric — during baseline import enrichment and again when a',

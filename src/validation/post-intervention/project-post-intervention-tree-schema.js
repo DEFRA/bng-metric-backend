@@ -18,6 +18,7 @@ import { createdTimingSelectionFields } from './project-timing-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
 import { listedFileText, shortFileText } from '../text-joi.js'
+import { BNG_SERVICE_ONLY, LEGACY_ONLY } from '../template-applicability.js'
 
 function treeSideCommonFields() {
   return {
@@ -90,7 +91,8 @@ export const postInterventionTreeSchema = Joi.object({
     .allow(null)
     .description(
       'Count column from the GeoPackage: the number of trees the point stands for. Both sides are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template file has no Count: each of its points is one tree, and has none.'
-    ),
+    )
+    .meta(LEGACY_ONLY),
   ...invalidEnhancementField(
     'trees',
     "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
@@ -100,9 +102,11 @@ export const postInterventionTreeSchema = Joi.object({
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created or Enhanced tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
   ),
-  irreplaceable: Joi.boolean().description(
-    "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
-  ),
+  irreplaceable: Joi.boolean()
+    .description(
+      "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
+    )
+    .meta(BNG_SERVICE_ONLY),
   baseline: postInterventionTreeBaselineSubSchema,
   proposed: postInterventionTreeProposedSubSchema,
   properties: Joi.object()

@@ -10,6 +10,10 @@ import {
 import { renderErdMarkdown } from './warehouse-erd-render.js'
 import { schemaPaths } from '../src/validation/data-dictionary-paths.js'
 import { projectSchema } from '../src/validation/project.js'
+import {
+  BNG_SERVICE_ONLY,
+  LEGACY_ONLY
+} from '../src/validation/template-applicability.js'
 
 const model = buildWarehouseModel(projectSchema.describe())
 const tableByName = new Map(model.tables.map((table) => [table.table, table]))
@@ -47,7 +51,7 @@ describe('#schemaLeaves', () => {
     })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'rows[].id', type: 'uuid', openMap: false }
+      { path: 'rows[].id', type: 'uuid', openMap: false, template: 'both' }
     ])
   })
 
@@ -59,7 +63,27 @@ describe('#schemaLeaves', () => {
     })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'rows[].ids[]', type: 'uuid[]', openMap: false }
+      { path: 'rows[].ids[]', type: 'uuid[]', openMap: false, template: 'both' }
+    ])
+  })
+
+  it('gives each leaf the template of the field it sits under', () => {
+    const schema = Joi.object({
+      rows: Joi.array()
+        .items(
+          Joi.object({ id: Joi.string(), note: Joi.string().meta(LEGACY_ONLY) })
+        )
+        .meta(BNG_SERVICE_ONLY)
+    })
+
+    expect(
+      schemaLeaves(schema.describe()).map(({ path, template }) => [
+        path,
+        template
+      ])
+    ).toEqual([
+      ['rows[].id', 'bng-service'],
+      ['rows[].note', 'neither']
     ])
   })
 
@@ -67,7 +91,7 @@ describe('#schemaLeaves', () => {
     const schema = Joi.object({ properties: Joi.object().unknown(true) })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'properties', type: 'jsonb', openMap: true }
+      { path: 'properties', type: 'jsonb', openMap: true, template: 'both' }
     ])
   })
 

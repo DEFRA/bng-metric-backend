@@ -20,6 +20,7 @@ import {
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 import { listedFileText, longFileText, shortFileText } from './text-joi.js'
+import { BNG_SERVICE_ONLY, LEGACY_ONLY } from './template-applicability.js'
 
 const BASELINE_STATUS_DESCRIPTION =
   "'Complete' when units were successfully calculated; otherwise 'Incomplete'."
@@ -32,48 +33,55 @@ const DISTINCTIVENESS_SCORE_DESCRIPTION =
 // a fresh object each call because Joi schema objects are stateful and must not
 // be shared between parent schemas.
 const metadataSchemaKeys = () => ({
-  siteName: longFileText().description(
-    'Site name from the GeoPackage (Site Name column).'
-  ),
+  siteName: longFileText()
+    .description('Site name from the GeoPackage (Site Name column).')
+    .meta(LEGACY_ONLY),
   surveyDate: Joi.string()
     .allow(null, '')
     .description(
       'Survey date from the GeoPackage (Survey Date column), as stored in the source file.'
-    ),
-  surveyDetails: longFileText().description(
-    'Free-text survey details from the GeoPackage.'
-  ),
+    )
+    .meta(LEGACY_ONLY),
+  surveyDetails: longFileText()
+    .description('Free-text survey details from the GeoPackage.')
+    .meta(LEGACY_ONLY),
   comment: longFileText().description(
     'Free-text comment from the GeoPackage (Comment column on area and tree habitats, Comments on hedgerows and watercourses), with leading and trailing whitespace removed. A legacy file uploaded as baseline and post-intervention together leaves this null on an Enhanced or Created row, because that comment is stored on the post-intervention habitat. A baseline-only upload keeps it. A BNG Service template file keeps the comment from its Baseline table. A blank comment is null.'
   ),
-  mappedBy: longFileText().description(
-    'Name of the surveyor who mapped the feature (Mapped by).'
-  ),
-  company: longFileText().description(
-    'Company responsible for the survey (Company column).'
-  ),
-  baseMap: longFileText().description(
-    'Base map used during mapping (Base Map column).'
-  ),
-  location: listedFileText('location').description(
-    "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
-  ),
-  spatialRiskCategory: listedFileText('spatialRiskCategory').description(
-    'Spatial risk category from the GeoPackage.'
-  ),
-  habitatCreatedInAdvanceYears: listedFileText(
-    'habitatCreatedInAdvanceYears'
-  ).description(
-    'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
-  ),
+  mappedBy: longFileText()
+    .description('Name of the surveyor who mapped the feature (Mapped by).')
+    .meta(LEGACY_ONLY),
+  company: longFileText()
+    .description('Company responsible for the survey (Company column).')
+    .meta(LEGACY_ONLY),
+  baseMap: longFileText()
+    .description('Base map used during mapping (Base Map column).')
+    .meta(LEGACY_ONLY),
+  location: listedFileText('location')
+    .description(
+      "Location from the GeoPackage (Location column). One of the values the template's Location list offers, as the upload checks it, or blank."
+    )
+    .meta(LEGACY_ONLY),
+  spatialRiskCategory: listedFileText('spatialRiskCategory')
+    .description('Spatial risk category from the GeoPackage.')
+    .meta(LEGACY_ONLY),
+  habitatCreatedInAdvanceYears: listedFileText('habitatCreatedInAdvanceYears')
+    .description(
+      'Years the habitat was created in advance, from the GeoPackage (Habitat created in advance/years).'
+    )
+    .meta(LEGACY_ONLY),
   delayInStartingHabitatCreationYears: listedFileText(
     'delayInStartingHabitatCreationYears'
-  ).description(
-    'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
-  ),
-  rawDistinctiveness: listedFileText('rawDistinctiveness').description(
-    'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
   )
+    .description(
+      'Years of delay before starting habitat creation, from the GeoPackage (Delay in starting habitat creation/years).'
+    )
+    .meta(LEGACY_ONLY),
+  rawDistinctiveness: listedFileText('rawDistinctiveness')
+    .description(
+      'Raw distinctiveness value as written in the GeoPackage — the Baseline Distinctiveness column for the baseline document, the Proposed Distinctiveness column for the post-intervention document. Informational only; the authoritative distinctiveness band is the `distinctiveness` field resolved by bng-library/metric.'
+    )
+    .meta(LEGACY_ONLY)
 })
 
 const RETENTION_CATEGORY_DESCRIPTION = 'Retention category from the GeoPackage.'
@@ -109,7 +117,8 @@ const habitatSchema = Joi.object({
   featureUuid: Joi.string()
     .uuid()
     .allow(null)
-    .description(FEATURE_UUID_DESCRIPTION),
+    .description(FEATURE_UUID_DESCRIPTION)
+    .meta(BNG_SERVICE_ONLY),
   ref: shortFileText().description(
     'Parcel reference from the GeoPackage (Parcel Ref column).'
   ),
@@ -138,12 +147,14 @@ const habitatSchema = Joi.object({
   strategicSignificance: listedFileText('strategicSignificance').description(
     BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
   ),
-  retentionCategory: listedFileText('retentionCategory').description(
-    RETENTION_CATEGORY_DESCRIPTION
-  ),
-  irreplaceable: Joi.boolean().description(
-    'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column.'
-  ),
+  retentionCategory: listedFileText('retentionCategory')
+    .description(RETENTION_CATEGORY_DESCRIPTION)
+    .meta(LEGACY_ONLY),
+  irreplaceable: Joi.boolean()
+    .description(
+      'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column.'
+    )
+    .meta(BNG_SERVICE_ONLY),
   area: Joi.number()
     .allow(null)
     .description(
@@ -206,9 +217,11 @@ const treeSchema = habitatSchema
       .description(
         'Notional tree area in square metres: the per-size reference area times the Count column.'
       ),
-    irreplaceable: Joi.boolean().description(
-      "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
-    ),
+    irreplaceable: Joi.boolean()
+      .description(
+        "Whether the tree is irreplaceable, from the BNG Service template's Irreplaceable Habitat column: always false, as a file with a tree whose Irreplaceable Habitat is not 'No' is refused (IRREPLACEABLE_TREE). Absent on a legacy upload, whose template has no such column."
+      )
+      .meta(BNG_SERVICE_ONLY),
     units: Joi.number()
       .allow(null)
       .description(
@@ -234,6 +247,7 @@ const treeSchema = habitatSchema
       .description(
         'Count column from the GeoPackage: the number of trees the point stands for. The area and units are priced for that many trees; a blank count is priced as one tree, and any other value that is not a whole number of trees is refused at upload (TREE_COUNT_NOT_WHOLE). A BNG Service template file has no Count: each of its points is one tree, and has none.'
       )
+      .meta(LEGACY_ONLY)
   })
   .description('An individual tree feature (point).')
 
@@ -307,7 +321,8 @@ function linearFeatureSchema({
     featureUuid: Joi.string()
       .uuid()
       .allow(null)
-      .description(FEATURE_UUID_DESCRIPTION),
+      .description(FEATURE_UUID_DESCRIPTION)
+      .meta(BNG_SERVICE_ONLY),
     ref: shortFileText().description(
       'Feature reference from the GeoPackage (Parcel Ref column).'
     ),
@@ -345,9 +360,9 @@ function linearFeatureSchema({
     strategicSignificance: listedFileText('strategicSignificance').description(
       BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
     ),
-    retentionCategory: listedFileText('retentionCategory').description(
-      RETENTION_CATEGORY_DESCRIPTION
-    ),
+    retentionCategory: listedFileText('retentionCategory')
+      .description(RETENTION_CATEGORY_DESCRIPTION)
+      .meta(LEGACY_ONLY),
     ...metadataSchemaKeys(),
     ...beforeProperties,
     properties: Joi.object().unknown(true).description(propertiesDescription)
@@ -472,7 +487,8 @@ const habitatDataSchema = Joi.object({
     .items(verticalHabitatSchema)
     .description(
       'Vertical area habitats (green walls and intertidal hard structures) in the baseline. Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
-    ),
+    )
+    .meta(BNG_SERVICE_ONLY),
   hedgerows: Joi.array()
     .items(linearHabitatSchema)
     .description('Hedgerow (linear) features in the baseline.'),

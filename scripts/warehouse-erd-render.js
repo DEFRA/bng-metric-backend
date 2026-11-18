@@ -8,6 +8,11 @@
 //
 // Pure: the driver (gen-warehouse-erd.js) writes the file.
 
+import {
+  TEMPLATES,
+  TEMPLATE_LABELS
+} from '../src/validation/template-applicability.js'
+
 const REPO_URL = 'https://github.com/DEFRA/bng-metric-backend'
 const REPO_BRANCH = 'main'
 
@@ -73,20 +78,48 @@ function columnRow(column) {
     ? column.jsonPaths.map((path) => `\`${path}\``).join('<br>')
     : '—'
   const note = column.note ?? ''
-  return `| \`${column.name}\` | \`${column.type}\` | ${key} | ${jsonPaths} | ${note} |`
+  const template = column.template ? TEMPLATE_LABELS[column.template] : '—'
+  return `| \`${column.name}\` | \`${column.type}\` | ${key} | ${template} | ${jsonPaths} | ${note} |`
+}
+
+const TABLE_TEMPLATE_NOTES = Object.freeze({
+  [TEMPLATES.BNG_SERVICE]: 'Only a BNG Service template upload fills it.',
+  [TEMPLATES.LEGACY]: 'Only a legacy template upload fills it.'
+})
+
+/**
+ * The one template a table's rows come from, or null when either template
+ * fills it.
+ *
+ * @param {object[]} jsonColumns
+ * @returns {string | null}
+ */
+function tableTemplate(jsonColumns) {
+  // A column no upload fills says nothing about which template the rows are.
+  const templates = new Set(
+    jsonColumns
+      .map((column) => column.template)
+      .filter((template) => template !== TEMPLATES.NEITHER)
+  )
+  const [only] = templates
+  return templates.size === 1 && Object.hasOwn(TABLE_TEMPLATE_NOTES, only)
+    ? only
+    : null
 }
 
 function renderTableSection(table) {
   const jsonColumns = table.columns.filter(
     (column) => column.jsonPaths.length > 0
-  ).length
+  )
+  const template = tableTemplate(jsonColumns)
+  const templateNote = template ? ` ${TABLE_TEMPLATE_NOTES[template]}` : ''
   return [
     `### \`${table.table}\``,
     '',
-    `${table.description} ${jsonColumns} column(s) mapped from the JSON document.`,
+    `${table.description} ${jsonColumns.length} column(s) mapped from the JSON document.${templateNote}`,
     '',
-    '| Column | Type | Key | JSON path | Notes |',
-    '| --- | --- | --- | --- | --- |',
+    '| Column | Type | Key | Template | JSON path | Notes |',
+    '| --- | --- | --- | --- | --- | --- |',
     ...table.columns.map(columnRow),
     ''
   ].join('\n')

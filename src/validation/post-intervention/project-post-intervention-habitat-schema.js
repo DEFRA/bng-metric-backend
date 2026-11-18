@@ -18,6 +18,7 @@ import {
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
 import { listedFileText, shortFileText } from '../text-joi.js'
+import { BNG_SERVICE_ONLY } from '../template-applicability.js'
 
 const postInterventionHabitatBaselineSubSchema = Joi.object({
   type: shortFileText().description(
@@ -67,9 +68,11 @@ export const postInterventionHabitatSchema = Joi.object({
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created or Enhanced area reference. Its explicit parentFeatureId is then independent of the editable ref; untouched imported rows retain the existing baseline-ref rename behaviour.'
   ),
-  irreplaceable: Joi.boolean().description(
-    'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column.'
-  ),
+  irreplaceable: Joi.boolean()
+    .description(
+      'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell (BMD-1083). Absent on a legacy upload, whose template has no such column.'
+    )
+    .meta(BNG_SERVICE_ONLY),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()
@@ -96,9 +99,11 @@ export const postInterventionVerticalHabitatSchema = Joi.object({
   ...invalidEnhancementField('verticalHabitats'),
   ...parentFeatureIdField(),
   ...parentUuidField(),
-  irreplaceable: Joi.boolean().description(
-    'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell.'
-  ),
+  irreplaceable: Joi.boolean()
+    .description(
+      'Whether the habitat is irreplaceable, from the BNG Service template\'s Irreplaceable Habitat column: true for "Yes", false for "No" or a blank cell.'
+    )
+    .meta(BNG_SERVICE_ONLY),
   baseline: postInterventionHabitatBaselineSubSchema,
   proposed: postInterventionHabitatProposedSubSchema,
   properties: Joi.object()

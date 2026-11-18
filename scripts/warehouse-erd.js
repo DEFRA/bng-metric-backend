@@ -12,6 +12,8 @@
 // up in the contract automatically — or fails the build if it lands somewhere
 // the layout does not account for (see assignPathToTable).
 
+import { templateOf } from '../src/validation/template-applicability.js'
+
 const DOCUMENT_KEYS = Object.freeze(['baseline', 'postIntervention'])
 
 /**
@@ -389,16 +391,18 @@ function childPath(basePath, key) {
  *
  * @param {object} node
  * @param {string} path
- * @param {Array<{path: string, type: string, openMap: boolean}>} out
+ * @param {Array<{path: string, type: string, openMap: boolean, template: string}>} out
+ * @param {string} [inherited] the enclosing field's template
  */
-export function schemaLeaves(node, path = '', out = []) {
+export function schemaLeaves(node, path = '', out = [], inherited) {
+  const template = templateOf(node, inherited)
   if (isOpenMap(node)) {
-    out.push({ path, type: 'jsonb', openMap: true })
+    out.push({ path, type: 'jsonb', openMap: true, template })
     return out
   }
   if (node.type === 'object' && node.keys) {
     for (const [key, child] of Object.entries(node.keys)) {
-      schemaLeaves(child, childPath(path, key), out)
+      schemaLeaves(child, childPath(path, key), out, template)
     }
     return out
   }
@@ -406,14 +410,19 @@ export function schemaLeaves(node, path = '', out = []) {
   if (item && isScalar(item)) {
     // A list of plain values (featureIds, say) is one column of an array
     // type, not a table: it has no fields for a child table's columns.
-    out.push({ path: `${path}[]`, type: `${sqlType(item)}[]`, openMap: false })
+    out.push({
+      path: `${path}[]`,
+      type: `${sqlType(item)}[]`,
+      openMap: false,
+      template: templateOf(item, template)
+    })
     return out
   }
   if (item) {
-    schemaLeaves(item, `${path}[]`, out)
+    schemaLeaves(item, `${path}[]`, out, template)
     return out
   }
-  out.push({ path, type: sqlType(node), openMap: false })
+  out.push({ path, type: sqlType(node), openMap: false, template })
   return out
 }
 
@@ -557,6 +566,7 @@ function addLeafColumn(target, name, leaf) {
     type: leaf.type,
     key: null,
     note: leaf.openMap ? 'verbatim GeoPackage attribute columns' : null,
+    template: leaf.template,
     jsonPaths: [leaf.path]
   })
 }
