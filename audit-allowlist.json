@@ -1,0 +1,10 @@
+[
+  {
+    "id": "GHSA-fc5q-39xc-vjpf",
+    "package": "picomatch",
+    "reason": "ReDoS from a crafted glob pattern (CVE-2026-112366). Every picomatch release is affected, none fixes it, and the advisory is disputed. Only dev tooling uses picomatch (vitest, vite and the eslint config), on glob patterns this repo writes; it never sees user input and is not deployed.",
+    "removeWhen": "picomatch publishes a fixed release, or the advisory is withdrawn",
+    "tracking": "https://github.com/micromatch/picomatch/issues/234",
+    "added": "2026-11-18"
+  }
+]
