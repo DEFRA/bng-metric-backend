@@ -12,7 +12,8 @@ import { schemaPaths } from '../src/validation/data-dictionary-paths.js'
 import { projectSchema } from '../src/validation/project.js'
 import {
   BNG_SERVICE_ONLY,
-  LEGACY_ONLY
+  LEGACY_ONLY,
+  TEMPLATES
 } from '../src/validation/template-applicability.js'
 
 const model = buildWarehouseModel(projectSchema.describe())
@@ -162,6 +163,26 @@ describe('#buildWarehouseModel — schema coverage', () => {
     expect(() => buildWarehouseModel(orphan.describe())).toThrow(
       /no table claims the schema path "mystery.field"/
     )
+  })
+
+  it('tags a column fed from both documents with every template that fills it', () => {
+    const mixed = Joi.object({
+      baseline: Joi.object({ uploadId: Joi.string().meta(LEGACY_ONLY) }),
+      postIntervention: Joi.object({
+        uploadId: Joi.string().meta(BNG_SERVICE_ONLY)
+      })
+    })
+
+    const built = buildWarehouseModel(mixed.describe())
+    const uploadId = built.tables
+      .find((table) => table.table === 'feature_set')
+      .columns.find((column) => column.name === 'upload_id')
+
+    expect(uploadId.jsonPaths).toEqual([
+      'baseline.uploadId',
+      'postIntervention.uploadId'
+    ])
+    expect(uploadId.template).toBe(TEMPLATES.BOTH)
   })
 
   it('lands a new top-level scalar on the project table', () => {

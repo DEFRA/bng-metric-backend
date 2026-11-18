@@ -14,6 +14,7 @@
 
 import {
   TEMPLATES,
+  eitherTemplate,
   templateOf
 } from '../src/validation/template-applicability.js'
 
@@ -553,7 +554,7 @@ function isPrimaryKeyPath(table, columnName) {
  *
  * @param {object} target the table the leaf belongs to
  * @param {string} name the derived column name
- * @param {{path: string, type: string, openMap: boolean}} leaf
+ * @param {{path: string, type: string, openMap: boolean, template: string}} leaf
  */
 function addLeafColumn(target, name, leaf) {
   // Feature tables key on the JSON featureId, so it is already the PK.
@@ -563,10 +564,12 @@ function addLeafColumn(target, name, leaf) {
   // feature_set and friends are shared between the two document subtrees, so
   // the same column arrives twice. Record both source paths against the one
   // column rather than dropping the second — the contract has to name every
-  // place a value can come from.
+  // place a value can come from — and say which templates fill it from
+  // either, rather than only the first path's.
   const existing = target.columns.find((column) => column.name === name)
   if (existing) {
     existing.jsonPaths.push(leaf.path)
+    existing.template = eitherTemplate(existing.template, leaf.template)
     return
   }
   target.columns.push({

@@ -49,3 +49,24 @@ export function templateOf(node, inherited = TEMPLATES.BOTH) {
   }
   return TEMPLATES.NEITHER
 }
+
+/**
+ * The template that fills a value with two sources, such as a warehouse column
+ * fed from both the baseline and the post-intervention document: it is filled
+ * whenever either source is. The template both name, or the one a source
+ * names when the other is filled by neither, and Both when they name
+ * different ones.
+ *
+ * @param {string} first one of TEMPLATES
+ * @param {string} second one of TEMPLATES
+ * @returns {string} one of TEMPLATES
+ */
+export function eitherTemplate(first, second) {
+  if (first === second || second === TEMPLATES.NEITHER) {
+    return first
+  }
+  if (first === TEMPLATES.NEITHER) {
+    return second
+  }
+  return TEMPLATES.BOTH
+}

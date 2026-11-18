@@ -17,6 +17,7 @@ import {
   BNG_SERVICE_ONLY,
   LEGACY_ONLY,
   TEMPLATES,
+  eitherTemplate,
   templateOf
 } from './template-applicability.js'
 
@@ -55,6 +56,24 @@ describe('templateOf', () => {
     expect(templateOf(describedWith(LEGACY_ONLY), TEMPLATES.BNG_SERVICE)).toBe(
       TEMPLATES.NEITHER
     )
+  })
+})
+
+describe('eitherTemplate', () => {
+  const { BOTH, BNG_SERVICE, LEGACY, NEITHER } = TEMPLATES
+
+  it.each([
+    [BNG_SERVICE, BNG_SERVICE, BNG_SERVICE],
+    [LEGACY, LEGACY, LEGACY],
+    [BOTH, LEGACY, BOTH],
+    [BNG_SERVICE, BOTH, BOTH],
+    [BNG_SERVICE, LEGACY, BOTH],
+    [LEGACY, BNG_SERVICE, BOTH],
+    [LEGACY, NEITHER, LEGACY],
+    [NEITHER, BNG_SERVICE, BNG_SERVICE],
+    [NEITHER, NEITHER, NEITHER]
+  ])('reads %s and %s as %s', (first, second, expected) => {
+    expect(eitherTemplate(first, second)).toBe(expected)
   })
 })
 
