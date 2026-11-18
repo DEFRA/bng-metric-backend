@@ -925,15 +925,27 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
     IMPORT_TIMEOUT_MS
   )
 
+  // Each priced as a Medium tree created in its own condition and timing:
+  // 0.0163 ha × Medium distinctiveness 4 × the condition score × the time
+  // multiplier. Fairly Poor scores 1.5, and 30+ years in advance covers its
+  // time to target; Poor scores 1, and 5 years in advance leaves 5 of its 10
+  // years, the Metric's 0.8368.
   it.each([
-    ['in the same condition', { 'Proposed Condition': 'Fairly Poor' }],
+    [
+      'in the same condition',
+      { 'Proposed Condition': 'Fairly Poor' },
+      { condition: 'Fairly Poor', advanceYears: 30 },
+      MEDIUM_HECTARES * MEDIUM_DISTINCTIVENESS * FAIRLY_POOR
+    ],
     [
       'not 30+ years in advance',
-      { 'Habitat Created/Enhanced in advance/years': '5' }
+      { 'Habitat Created/Enhanced in advance/years': '5' },
+      { condition: 'Poor', advanceYears: 5 },
+      MEDIUM_HECTARES * MEDIUM_DISTINCTIVENESS * POOR * 0.8368287006
     ]
   ])(
-    'accepts an Existing tree Created %s: it is a creation like any other',
-    async (name, overrides) => {
+    'accepts an Existing tree Created %s, priced as a creation like any other',
+    async (name, overrides, proposed, units) => {
       const result = await importUploadFile(
         degradedSite(name.replaceAll(' ', '-'), { ...DEGRADED, ...overrides }),
         {},
@@ -941,6 +953,22 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
       )
 
       expect(result.errors ?? []).toEqual([])
+      expect(result.accepted).toBe(true)
+      const created = result.project.postIntervention.trees.find(
+        (tree) => tree.ref === 'T004'
+      )
+      expect(created).toMatchObject({
+        status: 'Complete',
+        sizeSquareMetres: 163,
+        proposed: {
+          treeSize: 'Medium',
+          type: 'Rural tree',
+          strategicSignificance: 'Low',
+          delayYears: 0,
+          ...proposed
+        }
+      })
+      expect(created.units).toBeCloseTo(units, 10)
     },
     IMPORT_TIMEOUT_MS
   )

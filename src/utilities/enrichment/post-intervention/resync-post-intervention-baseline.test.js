@@ -984,6 +984,100 @@ describe('rederivePostInterventionFromBaseline — a BNG Service template upload
     expect(rederived.lostHabitats).toEqual([])
   })
 
+  test('leaves an Existing tree Created over its parent a creation of its own when the parent is edited, and the parent lost', () => {
+    const baselineTree = (type, condition) => ({
+      featureId: 'baseline-t1',
+      ref: 'T1',
+      type,
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      treeSpecies: 'Native',
+      ruralOrUrban: type,
+      condition,
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 163,
+      area: 163
+    })
+    // A Small Urban tree in Poor condition, 30+ years in advance, recorded
+    // over a Medium Urban tree in Moderate condition.
+    const created = {
+      featureId: 'pi-t1',
+      ref: 'T1',
+      parentFeatureId: 'baseline-t1',
+      retentionCategory: 'Created',
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      units: null,
+      baseline: {
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Medium',
+        condition: 'Moderate',
+        strategicSignificance: 'Low'
+      },
+      proposed: {
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Small',
+        treeSpecies: 'Native',
+        ruralOrUrban: 'Urban tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: 30,
+        delayYears: 0,
+        sizeSquareMetres: 41,
+        area: 41
+      },
+      properties: { Category: 'Existing' }
+    }
+
+    const rederived = rederivePostInterventionFromBaseline(
+      {
+        trees: [created],
+        template: TEMPLATE,
+        lostHabitats: [
+          {
+            layer: 'trees',
+            featureId: 'baseline-t1',
+            outcome: 'lostAndRecreated',
+            recreatedAs: ['pi-t1']
+          }
+        ]
+      },
+      {
+        baseline: { trees: [baselineTree('Rural tree', 'Good')] },
+        previousBaseline: { trees: [baselineTree('Urban tree', 'Moderate')] }
+      }
+    )
+
+    const [tree] = rederived.trees
+    expect(tree).toMatchObject({
+      sizeSquareMetres: 41,
+      status: 'Complete',
+      baseline: { type: 'Rural tree', condition: 'Good' },
+      proposed: {
+        type: 'Urban tree',
+        treeSize: 'Small',
+        condition: 'Poor',
+        advanceYears: 30,
+        sizeSquareMetres: 41
+      }
+    })
+    // One Small tree created in Poor condition, 30+ years in advance:
+    // 0.0041 ha × 4 × 1.
+    expect(tree.units).toBeCloseTo(0.0164, 10)
+    expect(rederived.lostHabitats).toEqual([
+      expect.objectContaining({
+        layer: 'trees',
+        featureId: 'baseline-t1',
+        type: 'Rural tree',
+        outcome: 'lost',
+        recreatedAs: []
+      })
+    ])
+  })
+
   test('moves a kept tree to the setting its parent is edited to, with its sizes (BMD-1172)', () => {
     const tree = (type, extra) => ({
       type,
