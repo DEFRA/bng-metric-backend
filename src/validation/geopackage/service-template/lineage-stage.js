@@ -9,7 +9,7 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * post-intervention endpoint (BMD-1083): every post-intervention row that
  * names a baseline parent must name one that is in the file, with the shape
  * the row recorded for it. Once every link can be trusted, the rows must
- * continue, lose and degrade their parents as the Metric guide asks
+ * continue or lose their parents as the Metric guide asks
  * (lineage-rules.js); while one cannot, those rules would be checked against
  * the wrong parent, so only the links are reported.
  *

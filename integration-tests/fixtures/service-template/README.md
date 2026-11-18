@@ -17,8 +17,8 @@ rather than editing these.
 | `degrade-watercourse-encroachment-no-advance.gpkg`  | `incomplete/`         |
 | `missing-habitat-ref.gpkg`                          | `attribute-problems/` |
 | `distinctiveness-out-of-scope.gpkg`                 | `attribute-problems/` |
-| `degrade-advance-missing.gpkg`                      | `attribute-problems/` |
-| `degrade-not-worse.gpkg`                            | `attribute-problems/` |
+| `degrade-advance-missing.gpkg`                      | kept here, see below  |
+| `degrade-not-worse.gpkg`                            | kept here, see below  |
 | `degrade-watercourse-retained-and-created.gpkg`     | `attribute-problems/` |
 | `no-habitats.gpkg`                                  | `empty-layer/`        |
 | `lineage-parent-missing.gpkg`                       | `lineage-problems/`   |
@@ -30,3 +30,10 @@ rather than editing these.
 | `version-unsupported.gpkg`                          | `version-problems/`   |
 | `no-area-habitats-baseline-table.gpkg`              | `invalid-schema/`     |
 | `wrong-geometry-type-in-area-habitats.gpkg`         | `invalid-schema/`     |
+
+`degrade-advance-missing.gpkg` and `degrade-not-worse.gpkg` were in the
+harness's `attribute-problems/` until the service stopped refusing a Created
+habitat for how it compares with its parent (BMD-1184), when the harness
+dropped them. They are kept here, unchanged, as the default site with HG017,
+a hedgerow that gets worse, recorded with no years in advance or in its
+baseline condition: files the service now accepts.

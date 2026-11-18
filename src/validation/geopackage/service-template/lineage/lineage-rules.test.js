@@ -380,38 +380,30 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
-    it('holds a degraded vertical area habitat to the area habitat rule', () => {
+    it('passes a vertical area habitat Created in its own type, whatever its condition or advance', () => {
       const parent = wall(1, 40)
 
-      const errors = check(
-        { verticalHabitats: [parent] },
+      for (const overrides of [
         {
-          verticalHabitats: [
-            degraded(parent, 'verticalHabitats', {
-              'Parcel Ref': 'V001a',
-              'Proposed Condition': 'Poor',
-              'Habitat created in advance/years': '0'
-            })
-          ]
-        }
-      )
-
-      expect(codes(errors)).toEqual([
-        ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
-      ])
-    })
-
-    it('refuses a degraded vertical area habitat that is not worse', () => {
-      const parent = wall(1, 40)
-
-      expect(
-        codes(
+          'Proposed Condition': 'Poor',
+          'Habitat created in advance/years': '0'
+        },
+        {}
+      ]) {
+        expect(
           check(
             { verticalHabitats: [parent] },
-            { verticalHabitats: [degraded(parent, 'verticalHabitats')] }
+            {
+              verticalHabitats: [
+                degraded(parent, 'verticalHabitats', {
+                  'Parcel Ref': 'V001a',
+                  ...overrides
+                })
+              ]
+            }
           )
-        )
-      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+        ).toEqual([])
+      }
     })
   })
 
@@ -671,148 +663,55 @@ describe('checkLineageRules', () => {
     })
   })
 
-  describe('degraded area habitats and hedgerows', () => {
+  // A habitat that gets worse is recorded as its parent lost and a creation
+  // (guide, "Habitat retention"). The file is not refused for how the creation
+  // compares with its parent: the same row may be a degrade or a habitat
+  // cleared and created again, which only the ecologist can tell apart.
+  describe('a Created row of its parent’s own type', () => {
     it.each([
-      ['an area habitat', 'areas', parcel(1)],
-      ['a hedgerow', 'hedgerows', hedge(1, 100)]
+      ['an area habitat', 'areas', () => parcel(1)],
+      ['a hedgerow', 'hedgerows', () => hedge(1, 100)],
+      ['a vertical area habitat', 'verticalHabitats', () => wall(1, 40)]
     ])(
-      'passes %s Created in its own type in a lower condition, 30+ years in advance',
-      (_, layer, parent) => {
-        expect(
-          check(
-            { [layer]: [parent] },
-            {
-              [layer]: [
-                degraded(parent, layer, { 'Proposed Condition': 'Poor' })
-              ]
-            }
-          )
-        ).toEqual([])
-      }
-    )
+      'passes %s however it compares with its parent',
+      (_, layer, parentOf) => {
+        const parent = parentOf()
 
-    it('refuses one in its parent’s condition or better, naming the row and its parent', () => {
-      const parent = hedge(1, 100, { 'Baseline Condition': 'Moderate' })
-
-      const errors = check(
-        { hedgerows: [parent] },
-        {
-          hedgerows: [
-            degraded(parent, 'hedgerows', { 'Parcel Ref': 'HG017' }),
-            degraded(parent, 'hedgerows', {
-              fid: 2,
-              'Parcel Ref': 'HG018',
-              'Proposed Condition': 'Good',
-              geometry: line(0.001)
-            })
-          ]
-        }
-      )
-
-      expect(errors).toEqual([
-        {
-          code: ERROR_CODES.STAGED_DEGRADE_NOT_WORSE,
-          message:
-            'One or more habitats are Created in their baseline habitat type without a lower condition. A habitat that is kept should be Retained or Enhanced; one lost for a time and put back should give its delay in starting habitat creation: Hedgerows Post-Intervention HG017 (Native hedgerow), copied from HG001; Hedgerows Post-Intervention HG018 (Native hedgerow), copied from HG001',
-          details: {
-            count: 2,
-            sample: [
-              {
-                layer: 'hedgerows',
-                table: 'Hedgerows Post-Intervention',
-                fid: 1,
-                ref: 'HG017',
-                habitatType: 'Native hedgerow',
-                parentRef: 'HG001'
-              },
-              expect.objectContaining({ ref: 'HG018' })
-            ]
-          }
-        }
-      ])
-    })
-
-    it.each([null, '', '30', '10', 'N/A'])(
-      'refuses one created %j years in advance, not 30+',
-      (advance) => {
-        const parent = parcel(1)
-
-        const errors = check(
-          { areas: [parent] },
+        for (const overrides of [
+          // Its parent's condition, with no delay or advance.
+          { 'Habitat created in advance/years': '0' },
+          // A better condition.
+          { 'Proposed Condition': 'Good' },
+          // A lower condition, not 30+ years in advance.
           {
-            areas: [
-              degraded(parent, 'areas', {
-                'Proposed Condition': 'Poor',
-                'Habitat created in advance/years': advance
-              })
-            ]
+            'Proposed Condition': 'Poor',
+            'Habitat created in advance/years': '5'
+          },
+          {
+            'Proposed Condition': 'Poor',
+            'Habitat created in advance/years': null
           }
-        )
-
-        expect(codes(errors)).toEqual([
-          ERROR_CODES.STAGED_DEGRADE_ADVANCE_NOT_30_PLUS
-        ])
-        expect(errors[0].details.sample).toEqual([
-          expect.objectContaining({
-            table: 'Area Habitats Post-Intervention',
-            ref: 'H001',
-            parentRef: 'H001'
-          })
-        ])
-      }
-    )
-
-    it('reports a row that is neither worse nor 30+ only as not worse: it is not degraded, so 30+ is beside the point', () => {
-      const parent = parcel(1)
-
-      expect(
-        codes(
-          check(
-            { areas: [parent] },
-            {
-              areas: [
-                degraded(parent, 'areas', {
-                  'Habitat created in advance/years': '0'
-                })
-              ]
-            }
-          )
-        )
-      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
-    })
-
-    it.each(['Lost', '3. Created'])(
-      'reads an area row of its parent’s type recorded as %s as Created, as the saved document does',
-      (category) => {
-        const parent = parcel(1)
-
-        expect(
-          codes(
+        ]) {
+          expect(
             check(
-              { areas: [parent] },
-              {
-                areas: [
-                  degraded(parent, 'areas', { 'Retention Category': category })
-                ]
-              }
-            )
-          )
-        ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
+              { [layer]: [parent] },
+              { [layer]: [degraded(parent, layer, overrides)] }
+            ),
+            JSON.stringify(overrides)
+          ).toEqual([])
+        }
       }
     )
 
-    it('does not treat built-over ground, Created in another type, as degraded', () => {
-      const parent = parcel(1)
+    it('passes a habitat the Metric gives no condition score, Created in its own type', () => {
+      const parent = parcel(1, { 'Baseline Condition': 'N/A - Other' })
 
       expect(
         check(
           { areas: [parent] },
           {
             areas: [
-              child(parent, 'areas', {
-                'Retention Category': 'Created',
-                'Proposed Broad Habitat Type': 'Urban',
-                'Proposed Habitat Type': 'Developed land; sealed surface',
+              degraded(parent, 'areas', {
                 'Proposed Condition': 'N/A - Other',
                 'Habitat created in advance/years': '0'
               })
@@ -822,268 +721,27 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
-    it.each([
-      ['an area habitat', 'areas', parcel(1), 'Moderate'],
-      ['an area habitat', 'areas', parcel(1), 'Poor'],
-      ['a hedgerow', 'hedgerows', hedge(1, 100), 'Good'],
-      ['a hedgerow', 'hedgerows', hedge(1, 100), 'Poor']
-    ])(
-      'passes %s put back after a temporary loss, in %s condition, with a delay and no years in advance',
-      (_, layer, parent, condition) => {
-        expect(
-          check(
-            { [layer]: [parent] },
-            {
-              [layer]: [
-                degraded(parent, layer, {
-                  'Proposed Condition': condition,
-                  'Habitat created in advance/years': '0',
-                  'Delay in starting habitat creation/years': '3'
-                })
-              ]
-            }
-          )
-        ).toEqual([])
-      }
-    )
-
-    it.each([null, '', '0'])(
-      'still refuses a row in its parent’s condition with a %j delay as not worse',
-      (delay) => {
-        const parent = parcel(1)
-
-        expect(
-          codes(
-            check(
-              { areas: [parent] },
-              {
-                areas: [
-                  degraded(parent, 'areas', {
-                    'Habitat created in advance/years': '0',
-                    'Delay in starting habitat creation/years': delay
-                  })
-                ]
-              }
-            )
-          )
-        ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
-      }
-    )
-
-    it('counts a habitat the Metric gives no condition score as never worse, unless it is put back', () => {
-      const parent = parcel(1, {
-        'Baseline Broad Habitat Type': 'Cropland',
-        'Baseline Habitat Type': 'Cereal crops',
-        'Baseline Condition': 'N/A - Agricultural'
-      })
-      const cropland = (delay) =>
-        degraded(parent, 'areas', {
-          'Proposed Broad Habitat Type': 'Cropland',
-          'Proposed Habitat Type': 'Cereal crops',
-          'Delay in starting habitat creation/years': delay
+    it('passes a watercourse Created in its own River Type with no change, whole or in pieces', () => {
+      const parent = river(1, 100)
+      const piece = (fid, ref, metres, from = 0) =>
+        degraded(parent, 'watercourses', {
+          fid,
+          'Parcel Ref': ref,
+          'Habitat created in advance/years': '0',
+          geometry: line(metres, from)
         })
 
       expect(
-        codes(check({ areas: [parent] }, { areas: [cropland('0')] }))
-      ).toEqual([ERROR_CODES.STAGED_DEGRADE_NOT_WORSE])
-      expect(check({ areas: [parent] }, { areas: [cropland('3')] })).toEqual([])
-    })
-
-    it('accepts 30+ years on a row that is not degraded', () => {
-      const parent = parcel(1)
-
-      expect(
         check(
-          { areas: [parent] },
-          {
-            areas: [
-              child(parent, 'areas', {
-                'Retention Category': 'Enhanced',
-                'Proposed Condition': 'Good',
-                'Habitat created in advance/years': '30+'
-              })
-            ]
-          }
+          { watercourses: [parent] },
+          { watercourses: [piece(1, 'R001', 100)] }
         )
       ).toEqual([])
-    })
-  })
-
-  describe('degraded watercourses', () => {
-    it.each([
-      ['a lower condition', { 'Proposed Condition': 'Poor' }, 100],
-      [
-        'more encroachment',
-        { 'Proposed Encroachment into Watercourse': 'Minor' },
-        100
-      ],
-      ['a shorter length alone', {}, 60]
-    ])('passes one with %s', (_, overrides, metres) => {
-      const parent = river(1, 100)
-
       expect(
         check(
           { watercourses: [parent] },
           {
-            watercourses: [
-              degraded(parent, 'watercourses', {
-                ...overrides,
-                'Habitat created in advance/years': '0',
-                geometry: line(metres)
-              })
-            ]
-          }
-        )
-      ).toEqual([])
-    })
-
-    it('refuses one with no intervention, naming the row and its parent', () => {
-      const parent = river(1, 100)
-
-      const errors = check(
-        { watercourses: [parent] },
-        { watercourses: [degraded(parent, 'watercourses')] }
-      )
-
-      expect(errors).toEqual([
-        {
-          code: ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION,
-          message:
-            'One or more watercourses are Created in their baseline River Type with no lower condition, more encroachment or shorter length. A watercourse with no intervention should be Retained; one lost for a time and put back should give its delay in starting habitat creation: Watercourses Post-Intervention R001 (Ditches), copied from R001',
-          details: {
-            count: 1,
-            sample: [
-              {
-                layer: 'watercourses',
-                table: 'Watercourses Post-Intervention',
-                fid: 1,
-                ref: 'R001',
-                habitatType: 'Ditches',
-                parentRef: 'R001'
-              }
-            ]
-          }
-        }
-      ])
-    })
-
-    /** Two Created pieces of `parent`, `metres` long each, end to end. */
-    const pieces = (parent, [first, second], overrides = [{}, {}]) => [
-      degraded(parent, 'watercourses', {
-        'Parcel Ref': 'R001a',
-        'Habitat created in advance/years': '0',
-        geometry: line(first),
-        ...overrides[0]
-      }),
-      degraded(parent, 'watercourses', {
-        fid: 2,
-        'Parcel Ref': 'R001b',
-        'Habitat created in advance/years': '0',
-        geometry: line(second, first),
-        ...overrides[1]
-      })
-    ]
-
-    it('refuses one drawn in pieces with no intervention: together they are its length, naming each piece', () => {
-      const parent = river(1, 100)
-
-      const errors = check(
-        { watercourses: [parent] },
-        { watercourses: pieces(parent, [50, 50]) }
-      )
-
-      expect(codes(errors)).toEqual([
-        ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION
-      ])
-      expect(errors[0].details.sample).toEqual([
-        expect.objectContaining({ ref: 'R001a', parentRef: 'R001' }),
-        expect.objectContaining({ ref: 'R001b', parentRef: 'R001' })
-      ])
-    })
-
-    it('passes pieces shorter than it together', () => {
-      const parent = river(1, 100)
-
-      expect(
-        check(
-          { watercourses: [parent] },
-          { watercourses: pieces(parent, [50, 40]) }
-        )
-      ).toEqual([])
-    })
-
-    it('judges the condition of each piece on its own', () => {
-      const parent = river(1, 100)
-
-      const errors = check(
-        { watercourses: [parent] },
-        {
-          watercourses: pieces(
-            parent,
-            [50, 50],
-            [{ 'Proposed Condition': 'Poor' }, {}]
-          )
-        }
-      )
-
-      expect(codes(errors)).toEqual([
-        ERROR_CODES.STAGED_WATERCOURSE_NO_INTERVENTION
-      ])
-      expect(errors[0].details.sample).toEqual([
-        expect.objectContaining({ ref: 'R001b' })
-      ])
-    })
-
-    it('counts a piece put back after a temporary loss in its length', () => {
-      const parent = river(1, 100)
-
-      const errors = check(
-        { watercourses: [parent] },
-        {
-          watercourses: pieces(
-            parent,
-            [50, 50],
-            [{}, { 'Delay in starting habitat creation/years': '3' }]
-          )
-        }
-      )
-
-      expect(errors[0].details.sample).toEqual([
-        expect.objectContaining({ ref: 'R001a' })
-      ])
-    })
-
-    it('passes one put back after a temporary loss, with a delay and no intervention', () => {
-      const parent = river(1, 100)
-
-      expect(
-        check(
-          { watercourses: [parent] },
-          {
-            watercourses: [
-              degraded(parent, 'watercourses', {
-                'Habitat created in advance/years': '0',
-                'Delay in starting habitat creation/years': '3'
-              })
-            ]
-          }
-        )
-      ).toEqual([])
-    })
-
-    it('does not ask a degraded watercourse for 30+ years', () => {
-      const parent = river(1, 100)
-
-      expect(
-        check(
-          { watercourses: [parent] },
-          {
-            watercourses: [
-              degraded(parent, 'watercourses', {
-                'Proposed Condition': 'Poor',
-                'Habitat created in advance/years': null
-              })
-            ]
+            watercourses: [piece(1, 'R001a', 50), piece(2, 'R001b', 50, 50)]
           }
         )
       ).toEqual([])

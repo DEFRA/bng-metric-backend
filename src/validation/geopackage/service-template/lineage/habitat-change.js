@@ -13,14 +13,13 @@ import { canonicalHabitatType } from '../../../reference/habitat-distinctiveness
 
 /**
  * How a post-intervention habitat linked to a baseline parent differs from it
- * (BMD-1083), for the Metric guide's habitats that get worse: a habitat whose
- * condition cannot be maintained is recorded as lost, and created again in its
- * own type in a lower condition; a watercourse that is harmed is recorded as a
- * loss and a creation with a lower condition, more encroachment or a shorter
- * length.
+ * (BMD-1083). A Created habitat of its parent's own type records its parent
+ * lost and re-created (lineage-outcomes.js, lostBaselineHabitats), and a
+ * Created watercourse may be 10 or more years in advance only for an
+ * encroachment-only change (nullDisallowedWatercourseAdvance). The upload
+ * refuses no creation for how it compares with its parent.
  *
- * Each side is a plain description of one habitat, so the checks of the file
- * (lineage-rules.js) and of the saved document compare them alike:
+ * Each side is a plain description of one habitat:
  * `{ type, broadType, condition, watercourseEncroachment, riparianEncroachment }`.
  */
 
