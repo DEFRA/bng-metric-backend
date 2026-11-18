@@ -823,7 +823,8 @@ template has: it is always empty. Set in [`src/validation/template-applicability
   key resolution lives in [`src/validation/geopackage/properties.js`](https://github.com/DEFRA/bng-metric-backend/blob/main/src/validation/geopackage/properties.js). A BNG Service
   template document keys them by that template's column names (a
   reference is `Habitat Ref`); a legacy document by the legacy template's
-  (`Parcel Ref`, `Tree Ref`).
+  (`Parcel Ref`, `Tree Ref`). A BNG Service template document saved before
+  BMD-1085 may still use the legacy names, until its file is uploaded again.
 - **Derived unit fields** (`distinctiveness`, `distinctivenessScore`,
   `conditionScore`, `units`) are set on habitats, hedgerows and watercourses
   by bng-library/metric — during baseline import enrichment and again when a

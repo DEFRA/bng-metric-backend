@@ -12,7 +12,10 @@
 // up in the contract automatically — or fails the build if it lands somewhere
 // the layout does not account for (see assignPathToTable).
 
-import { templateOf } from '../src/validation/template-applicability.js'
+import {
+  TEMPLATES,
+  templateOf
+} from '../src/validation/template-applicability.js'
 
 const DOCUMENT_KEYS = Object.freeze(['baseline', 'postIntervention'])
 
@@ -392,9 +395,14 @@ function childPath(basePath, key) {
  * @param {object} node
  * @param {string} path
  * @param {Array<{path: string, type: string, openMap: boolean, template: string}>} out
- * @param {string} [inherited] the enclosing field's template
+ * @param {string} [inherited] the enclosing field's template, Both at the root
  */
-export function schemaLeaves(node, path = '', out = [], inherited) {
+export function schemaLeaves(
+  node,
+  path = '',
+  out = [],
+  inherited = TEMPLATES.BOTH
+) {
   const template = templateOf(node, inherited)
   if (isOpenMap(node)) {
     out.push({ path, type: 'jsonb', openMap: true, template })

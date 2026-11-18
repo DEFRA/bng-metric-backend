@@ -106,6 +106,9 @@ function withServiceTemplate(enabled) {
 describe('importUploadFile, a legacy file', () => {
   withServiceTemplate(false)
 
+  const scratch = mkdtempSync(path.join(tmpdir(), 'import-upload-file-'))
+  afterAll(() => rmSync(scratch, { recursive: true, force: true }))
+
   it(
     'keeps its attributes under the legacy template’s names',
     async () => {
@@ -123,8 +126,6 @@ describe('importUploadFile, a legacy file', () => {
     },
     IMPORT_TIMEOUT_MS
   )
-  const scratch = mkdtempSync(path.join(tmpdir(), 'import-upload-file-'))
-  afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 
   /** A copy of the post-intervention fixture, with `sql` run on it. */
   function editedPostIntervention(name, sql) {

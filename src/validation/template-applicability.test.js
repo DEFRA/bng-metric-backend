@@ -2,8 +2,16 @@ import path from 'node:path'
 import Joi from 'joi'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
+import {
+  STAGE_BASELINE,
+  STAGE_POST_INTERVENTION,
+  TEMPLATE_SCHEMA
+} from 'bng-library/bng-service'
+
 import { config } from '../config.js'
 import { importUploadFile } from '../services/upload/import-upload-file.js'
+import { PROP_KEYS, TREE_ADVANCE_DELAY_KEYS } from './geopackage/properties.js'
+import { TEMPLATE_MAPPING_1_0 } from './geopackage/service-template/template-mapping.js'
 import { projectSchema } from './project.js'
 import {
   BNG_SERVICE_ONLY,
@@ -165,4 +173,73 @@ describe('the template each project document field is tagged with', () => {
       IMPORT_TIMEOUT_MS
     )
   })
+})
+
+// The upload test above shows only what its fixture fills. These say the
+// legacy-only tags hold for any BNG Service template file: the columns the
+// tagged fields are read from are not ones the template's tables have, or the
+// service does not read them. A template that gains one fails here, and the
+// tag must then be reconsidered.
+describe('the legacy-only fields a BNG Service template file has no column for', () => {
+  const STAGES = [STAGE_BASELINE, STAGE_POST_INTERVENTION]
+
+  /** The names the pipeline reads a template table's columns by. */
+  const readNames = (layer, stage) => {
+    const { table, columns } = TEMPLATE_MAPPING_1_0[layer]
+    const name = table(stage)
+    return TEMPLATE_SCHEMA.tables
+      .find((candidate) => candidate.name === name)
+      .columns.map((column) => columns.get(column.name))
+      .filter((readAs) => readAs !== null && readAs !== undefined)
+  }
+
+  const HABITAT_LAYERS = [
+    'areas',
+    'verticalHabitats',
+    'hedgerows',
+    'watercourses',
+    'trees'
+  ]
+
+  // Each Baseline table: the survey metadata, spatial risk, raw
+  // distinctiveness, retention category and advance and delay years tagged
+  // legacy on a baseline feature.
+  const BASELINE_LEGACY_COLUMNS = [
+    PROP_KEYS.siteName,
+    PROP_KEYS.surveyDate,
+    PROP_KEYS.surveyDetails,
+    PROP_KEYS.mappedBy,
+    PROP_KEYS.company,
+    PROP_KEYS.baseMap,
+    PROP_KEYS.location,
+    PROP_KEYS.spatialRiskCategory,
+    PROP_KEYS.baselineDistinctiveness,
+    PROP_KEYS.retentionCategory,
+    PROP_KEYS.habitatCreatedInAdvanceYears,
+    PROP_KEYS.delayInStartingHabitatCreationYears,
+    TREE_ADVANCE_DELAY_KEYS.advanceYears,
+    TREE_ADVANCE_DELAY_KEYS.delayYears
+  ].flat()
+
+  it.each(HABITAT_LAYERS)(
+    'reads none of them from the %s Baseline table',
+    (layer) => {
+      expect(
+        readNames(layer, STAGE_BASELINE).filter((name) =>
+          BASELINE_LEGACY_COLUMNS.includes(name)
+        )
+      ).toEqual([])
+    }
+  )
+
+  it.each(STAGES)('reads no tree Count at the %s stage', (stage) => {
+    expect(readNames('trees', stage)).not.toContain(PROP_KEYS.treeCount[0])
+  })
+
+  it.each(STAGES)(
+    'reads no Site Name or Area from the Red Line Boundary at the %s stage',
+    (stage) => {
+      expect(readNames('redline', stage)).toEqual([])
+    }
+  )
 })
