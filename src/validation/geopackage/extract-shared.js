@@ -9,6 +9,7 @@
 import { PROP_KEYS, pickProp } from './properties.js'
 import { summarizeTreeSizes } from './tree-sizes.js'
 import { verticalAreaSquareMetres } from './vertical-area-check.js'
+import { storeTemplateColumnNames } from './service-template/stored-properties.js'
 
 /**
  * Map parsed GeoPackage features into parallel document and geometry arrays.
@@ -233,23 +234,26 @@ export function buildExtractResult(meta, parts, habitatSizesSummary) {
     documents: [],
     geometries: []
   }
+  const document = {
+    uploadId: meta.uploadId ?? null,
+    filename: meta.filename ?? null,
+    fileSize: meta.fileSize ?? null,
+    importedAt: meta.importedAt ?? new Date().toISOString(),
+    // A BNG Service template file names its template and version; a
+    // legacy file has neither, so its documents carry no `template`.
+    ...(meta.template && { template: meta.template }),
+    redLine: redLine.document,
+    habitats: habitats.documents,
+    hedgerows: hedgerows.documents,
+    watercourses: watercourses.documents,
+    trees: trees.documents,
+    verticalHabitats: verticalHabitats.documents,
+    habitatSizes: habitatSizesSummary
+  }
   return {
-    document: {
-      uploadId: meta.uploadId ?? null,
-      filename: meta.filename ?? null,
-      fileSize: meta.fileSize ?? null,
-      importedAt: meta.importedAt ?? new Date().toISOString(),
-      // A BNG Service template file names its template and version; a
-      // legacy file has neither, so its documents carry no `template`.
-      ...(meta.template && { template: meta.template }),
-      redLine: redLine.document,
-      habitats: habitats.documents,
-      hedgerows: hedgerows.documents,
-      watercourses: watercourses.documents,
-      trees: trees.documents,
-      verticalHabitats: verticalHabitats.documents,
-      habitatSizes: habitatSizesSummary
-    },
+    // A template file's rows were read by the legacy names; the document
+    // stores them under the template's.
+    document: storeTemplateColumnNames(document),
     geometries: {
       redLine: redLine.geometryRow,
       habitats: habitats.geometries,

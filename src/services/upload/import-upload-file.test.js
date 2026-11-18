@@ -1,7 +1,8 @@
-import { copyFileSync, mkdtempSync, rmSync } from 'node:fs'
+import { copyFileSync, mkdtempSync, readFileSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import path from 'node:path'
 import Database from 'better-sqlite3'
+import { TEMPLATE_SCHEMA } from 'bng-library/bng-service'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
 
 import { config } from '../../config.js'
@@ -32,6 +33,38 @@ const IMPORT_TIMEOUT_MS = 30_000
 const TEMPLATE_FIXTURES = path.join(FIXTURES, 'service-template')
 
 const refsOf = (document) => document.habitats.map((h) => h.ref)
+
+const LEGACY_SCHEMA = JSON.parse(
+  readFileSync(
+    path.resolve(
+      import.meta.dirname,
+      '../../validation/reference/gpkg-template.schema.json'
+    ),
+    'utf8'
+  )
+)
+const columnsOf = (tables) =>
+  new Set(tables.flatMap(({ columns }) => columns.map(({ name }) => name)))
+const TEMPLATE_COLUMNS = columnsOf(TEMPLATE_SCHEMA.tables)
+// The geometry and row id columns are the GeoPackage's, not the template's.
+const GEOPACKAGE_COLUMNS = new Set(['fid', 'geom', 'geometry'])
+/** Columns of the legacy template that the BNG Service template does not have. */
+const LEGACY_ONLY_COLUMNS = [...columnsOf(LEGACY_SCHEMA.layers)].filter(
+  (column) => !TEMPLATE_COLUMNS.has(column) && !GEOPACKAGE_COLUMNS.has(column)
+)
+
+/** Every key in a document, at any depth. */
+function keysOf(value, keys = new Set()) {
+  if (Array.isArray(value)) {
+    value.forEach((item) => keysOf(item, keys))
+  } else if (value && typeof value === 'object') {
+    for (const [key, child] of Object.entries(value)) {
+      keys.add(key)
+      keysOf(child, keys)
+    }
+  }
+  return keys
+}
 
 const BASELINE_LAYERS = ['habitats', 'hedgerows', 'watercourses']
 
@@ -72,6 +105,24 @@ function withServiceTemplate(enabled) {
 
 describe('importUploadFile, a legacy file', () => {
   withServiceTemplate(false)
+
+  it(
+    'keeps its attributes under the legacy template’s names',
+    async () => {
+      const result = await importUploadFile(BASELINE_FILE, {}, BASELINE)
+
+      expect(result.accepted).toBe(true)
+      const { habitats, trees } = result.project.baseline
+      for (const habitat of habitats) {
+        expect(habitat.properties['Parcel Ref']).toBe(habitat.ref)
+        expect(habitat.properties).not.toHaveProperty('Habitat Ref')
+      }
+      for (const tree of trees) {
+        expect(tree.properties).toHaveProperty('Tree Ref')
+      }
+    },
+    IMPORT_TIMEOUT_MS
+  )
   const scratch = mkdtempSync(path.join(tmpdir(), 'import-upload-file-'))
   afterAll(() => rmSync(scratch, { recursive: true, force: true }))
 
@@ -365,6 +416,25 @@ describe('importUploadFile, a legacy file', () => {
 describe('importUploadFile, a BNG Service template file', () => {
   withServiceTemplate(true)
   const SITE = path.join(TEMPLATE_FIXTURES, 'default-site.gpkg')
+
+  it(
+    'keys both documents by the template’s names, with no legacy column name',
+    async () => {
+      const result = await importUploadFile(SITE, {}, POST_INTERVENTION)
+
+      expect(result.accepted).toBe(true)
+      expect(LEGACY_ONLY_COLUMNS).toContain('Parcel Ref')
+      const { baseline, postIntervention } = result.project
+      for (const document of [baseline, postIntervention]) {
+        const keys = keysOf(document)
+        expect(
+          LEGACY_ONLY_COLUMNS.filter((column) => keys.has(column))
+        ).toEqual([])
+        expect(keys.has('Habitat Ref')).toBe(true)
+      }
+    },
+    IMPORT_TIMEOUT_MS
+  )
 
   it(
     'replaces the stored baseline with its Baseline tables, with the post-intervention upload',
