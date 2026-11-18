@@ -75,15 +75,6 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
-   * An edit would leave a degraded tree, the baseline tree recorded as lost
-   * and created again (Category Existing, Created), no longer a degrade of
-   * it: moved out of its parent's setting, or, with no delay, not in a lower
-   * condition or not created 30+ years in advance. `rule` names which
-   * (edit-degrade-rule.js, DEGRADE_RULE).
-   */
-  DEGRADE_NOT_VALID: 'DEGRADE_NOT_VALID',
-
-  /**
    * An edit to a habitat saved before the service checked text limits and
    * lists (BMD-1175): the habitat, or its post-intervention document, holds a
    * value longer than its limit or outside its list. The edit is refused, not
@@ -316,13 +307,12 @@ export const ERROR_CODES = Object.freeze({
   STAGED_VERTICAL_CHILDREN_TOO_LARGE: 'STAGED_VERTICAL_CHILDREN_TOO_LARGE',
 
   /**
-   * BNG Service template baseline trees with fewer trees, by Count, than the
-   * post-intervention trees that are still them, linked to them together: the
-   * Retained and Enhanced trees, and an Existing tree Created in the parent's
-   * setting (the parent recorded as lost and created again). A tree cannot
-   * multiply. A blank Count is one tree. Newly Planted trees are not counted. `details.sample` lists each parent's
-   * table, Habitat Ref and setting, the Habitat Ref of each kept tree, and
-   * both counts. The frontend sends the user to the drop-out page.
+   * BNG Service template baseline trees with more than one Retained or
+   * Enhanced post-intervention tree linked to them: each point is one tree,
+   * and a tree that is kept cannot multiply. Created trees are not counted.
+   * `details.sample` lists each parent's table, Habitat Ref and setting, and
+   * the Habitat Ref of each kept tree. The frontend sends the user to the
+   * drop-out page.
    */
   STAGED_TREE_CHILDREN_TOO_MANY: 'STAGED_TREE_CHILDREN_TOO_MANY',
 
@@ -347,9 +337,8 @@ export const ERROR_CODES = Object.freeze({
   STAGED_NATURAL_WATERCOURSE_LOST: 'STAGED_NATURAL_WATERCOURSE_LOST',
 
   /**
-   * BNG Service template area habitats, hedgerows or Existing individual
-   * trees Created in their parent's habitat type (a tree's Urban or Rural
-   * setting), linked to it, but not in a lower condition and with no delay
+   * BNG Service template area habitats or hedgerows Created in their parent's
+   * habitat type, linked to it, but not in a lower condition and with no delay
    * (BMD-1083): the habitat was kept. A row with a delay is a habitat lost for
    * a time and put back, which no degrade rule refuses. `details.sample` lists
    * each row's table, Habitat Ref and habitat type, and its parent's Habitat
@@ -359,9 +348,9 @@ export const ERROR_CODES = Object.freeze({
   STAGED_DEGRADE_NOT_WORSE: 'STAGED_DEGRADE_NOT_WORSE',
 
   /**
-   * BNG Service template area habitats, hedgerows or Existing individual
-   * trees Created in their parent's habitat type, linked to it, with no
-   * delay, whose years created in advance are not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
+   * BNG Service template area habitats or hedgerows Created in their parent's
+   * habitat type, linked to it, with no delay, whose "Habitat created in
+   * advance/years" is not 30+ (BMD-1083). The Metric guide asks for 30+ years for a habitat recorded
    * as lost and created again in a lower condition. `details.sample` lists each
    * row as STAGED_DEGRADE_NOT_WORSE does.
    */
@@ -435,7 +424,6 @@ export const ERROR_SURFACES = Object.freeze({
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.HABITAT_REF_IN_USE,
   ERROR_CODES.ENHANCEMENT_NOT_VALID,
-  ERROR_CODES.DEGRADE_NOT_VALID,
   ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
   ERROR_CODES.FEATURE_NOT_EDITABLE
 ])

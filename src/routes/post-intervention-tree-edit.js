@@ -15,16 +15,13 @@ import { featureNotEditableError } from './feature-not-editable-error.js'
 // A Created or Enhanced individual tree is edited as a Created area habitat
 // is, with the same payload, but it stays a tree: its broad habitat is always
 // Individual trees, and its habitat type is Urban tree or Rural tree. Its size
-// is its size class's area, which the page shows and does not edit.
+// is its size class times its Count, which the page shows and does not edit.
 //
 // An Enhanced tree enhances its condition only: its size, type and setting
 // are its baseline tree's (tree-lineage.js), so its habitat type stays the one
 // stored. Whether its target condition is better than its baseline one is
 // checked where every edit is priced (apply-feature-update.js,
 // brokenEnhancementRule), which refuses a worse one as ENHANCEMENT_NOT_VALID.
-// A degraded tree, an Existing tree Created as its baseline tree lost and
-// created again, is held there to staying a degrade (brokenDegradeRule), and
-// refused as DEGRADE_NOT_VALID.
 export { postInterventionAreaEditPayload as postInterventionTreeEditPayload } from './post-intervention-area-edit.js'
 
 const EDITABLE_RETENTION = new Set([RETENTION_CREATED, RETENTION_ENHANCED])
@@ -65,9 +62,10 @@ export function validatePostInterventionTreeEdit(feature, edits) {
 }
 
 // An Enhanced tree's setting: its proposed one, or, where its file left that
-// blank, its baseline one, as the upload reads it (tree-lineage.js,
-// proposedSetting). A legacy upload's trees, and a template tree that names no
-// parent, keep the setting their file gave.
+// blank, its baseline one. The upload gives a linked Enhanced tree its
+// parent's setting (tree-lineage.js, alignTreesWithParents). A legacy
+// upload's trees, and a template tree that names no parent, keep the setting
+// their file gave.
 function enhancedTreeSetting(feature) {
   return feature.proposed?.type ?? feature.baseline?.type ?? null
 }

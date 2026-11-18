@@ -380,7 +380,7 @@ describe('lostBaselineHabitats — individual trees', () => {
     })
   })
 
-  it('records a tree whose condition gets worse as lost and re-created, in full', () => {
+  it('records a tree whose condition gets worse as lost, and its Created tree as a creation of its own', () => {
     const parent = tree(1)
     const degraded = {
       ...kept(1, parent, 'Created'),
@@ -392,20 +392,17 @@ describe('lostBaselineHabitats — individual trees', () => {
       }
     }
 
-    expect(
-      lostBaselineHabitats({ trees: [degraded] }, { trees: [parent] })
-    ).toEqual([
-      {
-        layer: 'trees',
-        featureId: id(1),
-        ref: 'T001',
-        type: 'Urban tree',
-        outcome: LOST_OUTCOME.lostAndRecreated,
-        lostSizeSquareMetres: 163,
-        lostTreeCount: 1,
-        recreatedAs: [degraded.featureId]
-      }
-    ])
+    const [lost] = lostBaselineHabitats(
+      { trees: [degraded] },
+      { trees: [parent] }
+    )
+
+    expect(lost).toMatchObject({
+      outcome: LOST_OUTCOME.lost,
+      lostSizeSquareMetres: 163,
+      lostTreeCount: 1,
+      recreatedAs: []
+    })
   })
 })
 
