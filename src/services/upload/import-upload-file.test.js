@@ -411,19 +411,24 @@ describe('importUploadFile, a BNG Service template file', () => {
           ['watercourses', 'Watercourses'],
           ['trees', 'Individual Trees']
         ]) {
-          const uuids = (stage, column) =>
-            db
-              .prepare(`SELECT "${column}" AS id FROM "${table} ${stage}"`)
-              .all()
-              .map((row) => row.id ?? null)
+          // Sorted, so the check holds whatever order the rows are read in.
+          const fileFeatureUuids = db
+            .prepare(`SELECT feature_uuid AS id FROM "${table} Baseline"`)
+            .all()
+            .map((row) => row.id)
+            .sort()
           expect(
-            baseline[layer].map((f) => f.featureUuid),
+            baseline[layer].map((f) => f.featureUuid).sort(),
             layer
-          ).toEqual(uuids('Baseline', 'feature_uuid'))
-          expect(
-            postIntervention[layer].map((f) => f.parentUuid),
-            layer
-          ).toEqual(uuids('Post-Intervention', 'parent_uuid'))
+          ).toEqual(fileFeatureUuids)
+          // A post-intervention layer can drop the file's Lost rows, so each
+          // feature is checked against its own row instead.
+          expect(postIntervention[layer].length, layer).toBeGreaterThan(0)
+          for (const feature of postIntervention[layer]) {
+            expect(feature.parentUuid, layer).toBe(
+              feature.properties.parent_uuid?.trim() || null
+            )
+          }
           const parents = new Map(baseline[layer].map((f) => [f.featureId, f]))
           const linked = postIntervention[layer].filter(
             (f) => f.parentFeatureId

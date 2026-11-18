@@ -1,20 +1,19 @@
 import { FEATURE_UUID, PARENT_UUID } from 'bng-library/bng-service'
 
+import { text } from './lineage/lineage-rows.js'
+
 // The ids a BNG Service template file gives its features, as named fields of
 // the project document, so a stored feature can be traced back to
 // the ecologist's QGIS file. They are not the service's own ids: a feature's
 // `featureId` is the service's, and a post-intervention feature's
 // `parentFeatureId` is its parent's `featureId` (link-parents.js). A legacy
-// file has no such columns, so its features gain neither field.
-
-const idText = (value) =>
-  value === null || value === undefined || String(value).trim() === ''
-    ? null
-    : String(value).trim()
+// file has no such columns, so its features gain neither field. Each id is
+// read as the lineage stage reads it (lineage-rows.js `text`), so a stored id
+// always matches the one the link was made by.
 
 /** A field from a column the file has, or nothing to spread when it has none. */
 const fieldFrom = (props, column, key) =>
-  Object.hasOwn(props ?? {}, column) ? { [key]: idText(props[column]) } : {}
+  Object.hasOwn(props ?? {}, column) ? { [key]: text(props[column]) } : {}
 
 /**
  * `{ featureUuid }`: a baseline feature's `feature_uuid`, the id the file's

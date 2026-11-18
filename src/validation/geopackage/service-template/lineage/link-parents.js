@@ -1,5 +1,7 @@
 import { FEATURE_UUID, PARENT_UUID } from 'bng-library/bng-service'
 
+import { text } from './lineage-rows.js'
+
 /**
  * Link each post-intervention feature of a BNG Service template upload to the
  * baseline feature its row names by `parent_uuid` (BMD-1083), by giving it
@@ -25,11 +27,6 @@ export const PARENT_LINKED_LAYERS = Object.freeze([
   'watercourses',
   'trees'
 ])
-
-const text = (value) =>
-  value === null || value === undefined || String(value).trim() === ''
-    ? null
-    : String(value).trim()
 
 /**
  * @param {object} postIntervention the post-intervention document, extracted
