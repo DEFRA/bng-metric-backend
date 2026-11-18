@@ -12,6 +12,12 @@
 // up in the contract automatically — or fails the build if it lands somewhere
 // the layout does not account for (see assignPathToTable).
 
+import {
+  TEMPLATES,
+  eitherTemplate,
+  templateOf
+} from '../src/validation/template-applicability.js'
+
 const DOCUMENT_KEYS = Object.freeze(['baseline', 'postIntervention'])
 
 /**
@@ -389,16 +395,23 @@ function childPath(basePath, key) {
  *
  * @param {object} node
  * @param {string} path
- * @param {Array<{path: string, type: string, openMap: boolean}>} out
+ * @param {Array<{path: string, type: string, openMap: boolean, template: string}>} out
+ * @param {string} [inherited] the enclosing field's template, Both at the root
  */
-export function schemaLeaves(node, path = '', out = []) {
+export function schemaLeaves(
+  node,
+  path = '',
+  out = [],
+  inherited = TEMPLATES.BOTH
+) {
+  const template = templateOf(node, inherited)
   if (isOpenMap(node)) {
-    out.push({ path, type: 'jsonb', openMap: true })
+    out.push({ path, type: 'jsonb', openMap: true, template })
     return out
   }
   if (node.type === 'object' && node.keys) {
     for (const [key, child] of Object.entries(node.keys)) {
-      schemaLeaves(child, childPath(path, key), out)
+      schemaLeaves(child, childPath(path, key), out, template)
     }
     return out
   }
@@ -406,14 +419,19 @@ export function schemaLeaves(node, path = '', out = []) {
   if (item && isScalar(item)) {
     // A list of plain values (featureIds, say) is one column of an array
     // type, not a table: it has no fields for a child table's columns.
-    out.push({ path: `${path}[]`, type: `${sqlType(item)}[]`, openMap: false })
+    out.push({
+      path: `${path}[]`,
+      type: `${sqlType(item)}[]`,
+      openMap: false,
+      template: templateOf(item, template)
+    })
     return out
   }
   if (item) {
-    schemaLeaves(item, `${path}[]`, out)
+    schemaLeaves(item, `${path}[]`, out, template)
     return out
   }
-  out.push({ path, type: sqlType(node), openMap: false })
+  out.push({ path, type: sqlType(node), openMap: false, template })
   return out
 }
 
@@ -536,7 +554,7 @@ function isPrimaryKeyPath(table, columnName) {
  *
  * @param {object} target the table the leaf belongs to
  * @param {string} name the derived column name
- * @param {{path: string, type: string, openMap: boolean}} leaf
+ * @param {{path: string, type: string, openMap: boolean, template: string}} leaf
  */
 function addLeafColumn(target, name, leaf) {
   // Feature tables key on the JSON featureId, so it is already the PK.
@@ -546,10 +564,12 @@ function addLeafColumn(target, name, leaf) {
   // feature_set and friends are shared between the two document subtrees, so
   // the same column arrives twice. Record both source paths against the one
   // column rather than dropping the second — the contract has to name every
-  // place a value can come from.
+  // place a value can come from — and say which templates fill it from
+  // either, rather than only the first path's.
   const existing = target.columns.find((column) => column.name === name)
   if (existing) {
     existing.jsonPaths.push(leaf.path)
+    existing.template = eitherTemplate(existing.template, leaf.template)
     return
   }
   target.columns.push({
@@ -557,6 +577,7 @@ function addLeafColumn(target, name, leaf) {
     type: leaf.type,
     key: null,
     note: leaf.openMap ? 'verbatim GeoPackage attribute columns' : null,
+    template: leaf.template,
     jsonPaths: [leaf.path]
   })
 }

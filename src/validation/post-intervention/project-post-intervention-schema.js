@@ -23,6 +23,7 @@ import {
   postInterventionLinearHabitatSchema,
   postInterventionWatercourseSchema
 } from './project-post-intervention-linear-schema.js'
+import { BNG_SERVICE_ONLY } from '../template-applicability.js'
 
 const postInterventionDataSchema = Joi.object({
   ...featureDataEnvelopeFields,
@@ -37,7 +38,8 @@ const postInterventionDataSchema = Joi.object({
     .items(postInterventionVerticalHabitatSchema)
     .description(
       'Post-intervention vertical area habitats (green walls and intertidal hard structures). Read from a BNG Service template file only: empty for a legacy upload, and absent on a document saved before vertical area habitats were read.'
-    ),
+    )
+    .meta(BNG_SERVICE_ONLY),
   hedgerows: Joi.array()
     .items(postInterventionLinearHabitatSchema)
     .description('Post-intervention hedgerow (linear) features.'),
@@ -47,7 +49,7 @@ const postInterventionDataSchema = Joi.object({
   habitatSizes: habitatSizesSummarySchema,
   units: baselineUnitsTotalsSchema,
   tradingRules: tradingRulesSchema,
-  lostHabitats: lostHabitatsSchema
+  lostHabitats: lostHabitatsSchema.meta(BNG_SERVICE_ONLY)
 }).description(
   'Imported post-intervention state: features with nested baseline/proposed sub-objects, sizes, unit totals and trading-rules unit figures.'
 )

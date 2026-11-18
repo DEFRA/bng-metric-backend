@@ -7,11 +7,11 @@ on `bng.projects.project` (and snapshotted into `bng.audit_log.project`).
 It is **generated**, never hand-written, from the two declarative sources of
 truth the backend already maintains:
 
-| Source of truth                       | Drives                                                                                                       | Lives in                         |
-| ------------------------------------- | ------------------------------------------------------------------------------------------------------------ | -------------------------------- |
-| Drizzle table definitions             | the Postgres column tables                                                                                   | `src/db/schema/*.js`             |
-| `TABLE_DESCRIPTIONS` in the generator | the plain-language sentence under each Postgres table                                                        | `scripts/gen-data-dictionary.js` |
-| The Joi schema for the `project` blob | the JSON field tables (path, type, constraints, **description** in Markdown; plus required/nullable in JSON) | `src/validation/project.js`      |
+| Source of truth                       | Drives                                                                                                                 | Lives in                         |
+| ------------------------------------- | ---------------------------------------------------------------------------------------------------------------------- | -------------------------------- |
+| Drizzle table definitions             | the Postgres column tables                                                                                             | `src/db/schema/*.js`             |
+| `TABLE_DESCRIPTIONS` in the generator | the plain-language sentence under each Postgres table                                                                  | `scripts/gen-data-dictionary.js` |
+| The Joi schema for the `project` blob | the JSON field tables (path, type, template, constraints, **description** in Markdown; plus required/nullable in JSON) | `src/validation/project.js`      |
 
 The Markdown is also tailored for non-technical readers: the `Req?`/`Null?`
 columns are dropped (they remain in the JSON), every type and foreign-key target
@@ -23,6 +23,14 @@ The output is committed to the repo so it is reviewable in PRs:
 
 - [`data-dictionary/data-dictionary.md`](../data-dictionary/data-dictionary.md) — human-readable
 - [`data-dictionary/data-dictionary.json`](../data-dictionary/data-dictionary.json) — machine-readable
+
+While the service-template flag lets either GeoPackage template be uploaded,
+each JSON field says which template's uploads fill it: tag the Joi field with
+`.meta(BNG_SERVICE_ONLY)` or `.meta(LEGACY_ONLY)` from
+`src/validation/template-applicability.js`, or leave it untagged when both do.
+A field under a tagged one takes its tag. The warehouse ERD shows the same
+column. `src/validation/template-applicability.test.js` uploads a file of each
+template and fails when one fills a field tagged for the other.
 
 > Related: [SCHEMA_REFLECTION.md](SCHEMA_REFLECTION.md) explains how the Drizzle
 > and Joi files themselves are kept in sync with the live `bng` schema. The data

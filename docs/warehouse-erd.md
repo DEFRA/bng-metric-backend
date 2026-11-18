@@ -322,670 +322,670 @@ what a surveyor recognises, and it is what the id follows.
 
 One row per BNG project. 1 column(s) mapped from the JSON document.
 
-| Column            | Type          | Key | JSON path | Notes                                                               |
-| ----------------- | ------------- | --- | --------- | ------------------------------------------------------------------- |
-| `project_id`      | `uuid`        | PK  | —         | bng.projects.id — the existing Postgres UUID, reused as-is          |
-| `user_id`         | `text`        |     | —         | bng.projects.user_id                                                |
-| `org_id`          | `text`        |     | —         | bng.projects.org_id                                                 |
-| `relationship_id` | `text`        |     | —         | bng.projects.relationship_id                                        |
-| `created_at`      | `timestamptz` |     | —         | bng.projects.created_at                                             |
-| `updated_at`      | `timestamptz` |     | —         | bng.projects.updated_at — the row watermark for ordering deliveries |
-| `name`            | `text`        |     | `name`    |                                                                     |
+| Column            | Type          | Key | Template | JSON path | Notes                                                               |
+| ----------------- | ------------- | --- | -------- | --------- | ------------------------------------------------------------------- |
+| `project_id`      | `uuid`        | PK  | —        | —         | bng.projects.id — the existing Postgres UUID, reused as-is          |
+| `user_id`         | `text`        |     | —        | —         | bng.projects.user_id                                                |
+| `org_id`          | `text`        |     | —        | —         | bng.projects.org_id                                                 |
+| `relationship_id` | `text`        |     | —        | —         | bng.projects.relationship_id                                        |
+| `created_at`      | `timestamptz` |     | —        | —         | bng.projects.created_at                                             |
+| `updated_at`      | `timestamptz` |     | —        | —         | bng.projects.updated_at — the row watermark for ordering deliveries |
+| `name`            | `text`        |     | Both     | `name`    |                                                                     |
 
 ### `project_site`
 
 Development site details. Exactly one per project. 2 column(s) mapped from the JSON document.
 
-| Column       | Type   | Key | JSON path       | Notes                |
-| ------------ | ------ | --- | --------------- | -------------------- |
-| `site_id`    | `text` | PK  | —               | `{projectId}:site`   |
-| `project_id` | `uuid` | FK  | —               | → project.project_id |
-| `name`       | `text` |     | `site.name`     |                      |
-| `grid_ref`   | `text` |     | `site.grid_ref` |                      |
+| Column       | Type   | Key | Template | JSON path       | Notes                |
+| ------------ | ------ | --- | -------- | --------------- | -------------------- |
+| `site_id`    | `text` | PK  | —        | —               | `{projectId}:site`   |
+| `project_id` | `uuid` | FK  | —        | —               | → project.project_id |
+| `name`       | `text` |     | Both     | `site.name`     |                      |
+| `grid_ref`   | `text` |     | Both     | `site.grid_ref` |                      |
 
 ### `project_units`
 
 Project-level biodiversity unit summary. Exactly one per project. 3 column(s) mapped from the JSON document.
 
-| Column        | Type      | Key | JSON path           | Notes                |
-| ------------- | --------- | --- | ------------------- | -------------------- |
-| `units_id`    | `text`    | PK  | —                   | `{projectId}:units`  |
-| `project_id`  | `uuid`    | FK  | —                   | → project.project_id |
-| `habitat`     | `numeric` |     | `units.habitat`     |                      |
-| `hedgerow`    | `numeric` |     | `units.hedgerow`    |                      |
-| `watercourse` | `numeric` |     | `units.watercourse` |                      |
+| Column        | Type      | Key | Template | JSON path           | Notes                |
+| ------------- | --------- | --- | -------- | ------------------- | -------------------- |
+| `units_id`    | `text`    | PK  | —        | —                   | `{projectId}:units`  |
+| `project_id`  | `uuid`    | FK  | —        | —                   | → project.project_id |
+| `habitat`     | `numeric` |     | Both     | `units.habitat`     |                      |
+| `hedgerow`    | `numeric` |     | Both     | `units.hedgerow`    |                      |
+| `watercourse` | `numeric` |     | Both     | `units.watercourse` |                      |
 
 ### `project_details`
 
 Project details entered by the user. Exactly one per project; null until the user fills them in. 9 column(s) mapped from the JSON document.
 
-| Column                               | Type   | Key | JSON path                                 | Notes                 |
-| ------------------------------------ | ------ | --- | ----------------------------------------- | --------------------- |
-| `details_id`                         | `text` | PK  | —                                         | `{projectId}:details` |
-| `project_id`                         | `uuid` | FK  | —                                         | → project.project_id  |
-| `local_planning_authority`           | `text` |     | `details.localPlanningAuthority`          |                       |
-| `local_planning_authority_reference` | `text` |     | `details.localPlanningAuthorityReference` |                       |
-| `survey_completers`                  | `text` |     | `details.surveyCompleters`                |                       |
-| `survey_completion_date`             | `text` |     | `details.surveyCompletionDate`            |                       |
-| `development_type`                   | `text` |     | `details.developmentType`                 |                       |
-| `nsips`                              | `text` |     | `details.nsips`                           |                       |
-| `applicant`                          | `text` |     | `details.applicant`                       |                       |
-| `planning_application_reference`     | `text` |     | `details.planningApplicationReference`    |                       |
-| `planning_application_type`          | `text` |     | `details.planningApplicationType`         |                       |
+| Column                               | Type   | Key | Template | JSON path                                 | Notes                 |
+| ------------------------------------ | ------ | --- | -------- | ----------------------------------------- | --------------------- |
+| `details_id`                         | `text` | PK  | —        | —                                         | `{projectId}:details` |
+| `project_id`                         | `uuid` | FK  | —        | —                                         | → project.project_id  |
+| `local_planning_authority`           | `text` |     | Both     | `details.localPlanningAuthority`          |                       |
+| `local_planning_authority_reference` | `text` |     | Both     | `details.localPlanningAuthorityReference` |                       |
+| `survey_completers`                  | `text` |     | Both     | `details.surveyCompleters`                |                       |
+| `survey_completion_date`             | `text` |     | Both     | `details.surveyCompletionDate`            |                       |
+| `development_type`                   | `text` |     | Both     | `details.developmentType`                 |                       |
+| `nsips`                              | `text` |     | Both     | `details.nsips`                           |                       |
+| `applicant`                          | `text` |     | Both     | `details.applicant`                       |                       |
+| `planning_application_reference`     | `text` |     | Both     | `details.planningApplicationReference`    |                       |
+| `planning_application_type`          | `text` |     | Both     | `details.planningApplicationType`         |                       |
 
 ### `feature_set`
 
 One row per imported document per project: the GeoPackage upload that produced it. 6 column(s) mapped from the JSON document.
 
-| Column             | Type          | Key | JSON path                                                          | Notes                                                              |
-| ------------------ | ------------- | --- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
-| `feature_set_id`   | `text`        | PK  | —                                                                  | `{projectId}:{documentKey}`                                        |
-| `project_id`       | `uuid`        | FK  | —                                                                  | → project.project_id                                               |
-| `document_key`     | `text`        |     | —                                                                  | 'baseline' or 'postIntervention' — which subtree the row came from |
-| `upload_id`        | `uuid`        |     | `baseline.uploadId`<br>`postIntervention.uploadId`                 |                                                                    |
-| `filename`         | `text`        |     | `baseline.filename`<br>`postIntervention.filename`                 |                                                                    |
-| `file_size`        | `integer`     |     | `baseline.fileSize`<br>`postIntervention.fileSize`                 |                                                                    |
-| `imported_at`      | `timestamptz` |     | `baseline.importedAt`<br>`postIntervention.importedAt`             |                                                                    |
-| `template_name`    | `text`        |     | `baseline.template.name`<br>`postIntervention.template.name`       |                                                                    |
-| `template_version` | `text`        |     | `baseline.template.version`<br>`postIntervention.template.version` |                                                                    |
+| Column             | Type          | Key | Template    | JSON path                                                          | Notes                                                              |
+| ------------------ | ------------- | --- | ----------- | ------------------------------------------------------------------ | ------------------------------------------------------------------ |
+| `feature_set_id`   | `text`        | PK  | —           | —                                                                  | `{projectId}:{documentKey}`                                        |
+| `project_id`       | `uuid`        | FK  | —           | —                                                                  | → project.project_id                                               |
+| `document_key`     | `text`        |     | —           | —                                                                  | 'baseline' or 'postIntervention' — which subtree the row came from |
+| `upload_id`        | `uuid`        |     | Both        | `baseline.uploadId`<br>`postIntervention.uploadId`                 |                                                                    |
+| `filename`         | `text`        |     | Both        | `baseline.filename`<br>`postIntervention.filename`                 |                                                                    |
+| `file_size`        | `integer`     |     | Both        | `baseline.fileSize`<br>`postIntervention.fileSize`                 |                                                                    |
+| `imported_at`      | `timestamptz` |     | Both        | `baseline.importedAt`<br>`postIntervention.importedAt`             |                                                                    |
+| `template_name`    | `text`        |     | BNG Service | `baseline.template.name`<br>`postIntervention.template.name`       |                                                                    |
+| `template_version` | `text`        |     | BNG Service | `baseline.template.version`<br>`postIntervention.template.version` |                                                                    |
 
 ### `feature_set_units`
 
 Biodiversity unit totals for one document, summed across its features. 14 column(s) mapped from the JSON document.
 
-| Column                                    | Type      | Key | JSON path                                                                                                            | Notes                             |
-| ----------------------------------------- | --------- | --- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
-| `feature_set_units_id`                    | `text`    | PK  | —                                                                                                                    | `{projectId}:{documentKey}:units` |
-| `feature_set_id`                          | `text`    | FK  | —                                                                                                                    | → feature_set.feature_set_id      |
-| `total_units`                             | `numeric` |     | `baseline.units.totalUnits`<br>`postIntervention.units.totalUnits`                                                   |                                   |
-| `habitats_total`                          | `numeric` |     | `baseline.units.habitatsTotal`<br>`postIntervention.units.habitatsTotal`                                             |                                   |
-| `vertical_habitats_total`                 | `numeric` |     | `baseline.units.verticalHabitatsTotal`<br>`postIntervention.units.verticalHabitatsTotal`                             |                                   |
-| `hedgerows_total`                         | `numeric` |     | `baseline.units.hedgerowsTotal`<br>`postIntervention.units.hedgerowsTotal`                                           |                                   |
-| `watercourses_total`                      | `numeric` |     | `baseline.units.watercoursesTotal`<br>`postIntervention.units.watercoursesTotal`                                     |                                   |
-| `trees_total`                             | `numeric` |     | `baseline.units.treesTotal`<br>`postIntervention.units.treesTotal`                                                   |                                   |
-| `trees_urban_total`                       | `numeric` |     | `baseline.units.treesUrbanTotal`<br>`postIntervention.units.treesUrbanTotal`                                         |                                   |
-| `trees_rural_total`                       | `numeric` |     | `baseline.units.treesRuralTotal`<br>`postIntervention.units.treesRuralTotal`                                         |                                   |
-| `habitats_net_unit_change`                | `numeric` |     | `baseline.units.habitatsNetUnitChange`<br>`postIntervention.units.habitatsNetUnitChange`                             |                                   |
-| `habitats_net_unit_change_percentage`     | `numeric` |     | `baseline.units.habitatsNetUnitChangePercentage`<br>`postIntervention.units.habitatsNetUnitChangePercentage`         |                                   |
-| `hedgerows_net_unit_change`               | `numeric` |     | `baseline.units.hedgerowsNetUnitChange`<br>`postIntervention.units.hedgerowsNetUnitChange`                           |                                   |
-| `hedgerows_net_unit_change_percentage`    | `numeric` |     | `baseline.units.hedgerowsNetUnitChangePercentage`<br>`postIntervention.units.hedgerowsNetUnitChangePercentage`       |                                   |
-| `watercourses_net_unit_change`            | `numeric` |     | `baseline.units.watercoursesNetUnitChange`<br>`postIntervention.units.watercoursesNetUnitChange`                     |                                   |
-| `watercourses_net_unit_change_percentage` | `numeric` |     | `baseline.units.watercoursesNetUnitChangePercentage`<br>`postIntervention.units.watercoursesNetUnitChangePercentage` |                                   |
+| Column                                    | Type      | Key | Template    | JSON path                                                                                                            | Notes                             |
+| ----------------------------------------- | --------- | --- | ----------- | -------------------------------------------------------------------------------------------------------------------- | --------------------------------- |
+| `feature_set_units_id`                    | `text`    | PK  | —           | —                                                                                                                    | `{projectId}:{documentKey}:units` |
+| `feature_set_id`                          | `text`    | FK  | —           | —                                                                                                                    | → feature_set.feature_set_id      |
+| `total_units`                             | `numeric` |     | Both        | `baseline.units.totalUnits`<br>`postIntervention.units.totalUnits`                                                   |                                   |
+| `habitats_total`                          | `numeric` |     | Both        | `baseline.units.habitatsTotal`<br>`postIntervention.units.habitatsTotal`                                             |                                   |
+| `vertical_habitats_total`                 | `numeric` |     | BNG Service | `baseline.units.verticalHabitatsTotal`<br>`postIntervention.units.verticalHabitatsTotal`                             |                                   |
+| `hedgerows_total`                         | `numeric` |     | Both        | `baseline.units.hedgerowsTotal`<br>`postIntervention.units.hedgerowsTotal`                                           |                                   |
+| `watercourses_total`                      | `numeric` |     | Both        | `baseline.units.watercoursesTotal`<br>`postIntervention.units.watercoursesTotal`                                     |                                   |
+| `trees_total`                             | `numeric` |     | Both        | `baseline.units.treesTotal`<br>`postIntervention.units.treesTotal`                                                   |                                   |
+| `trees_urban_total`                       | `numeric` |     | Both        | `baseline.units.treesUrbanTotal`<br>`postIntervention.units.treesUrbanTotal`                                         |                                   |
+| `trees_rural_total`                       | `numeric` |     | Both        | `baseline.units.treesRuralTotal`<br>`postIntervention.units.treesRuralTotal`                                         |                                   |
+| `habitats_net_unit_change`                | `numeric` |     | Both        | `baseline.units.habitatsNetUnitChange`<br>`postIntervention.units.habitatsNetUnitChange`                             |                                   |
+| `habitats_net_unit_change_percentage`     | `numeric` |     | Both        | `baseline.units.habitatsNetUnitChangePercentage`<br>`postIntervention.units.habitatsNetUnitChangePercentage`         |                                   |
+| `hedgerows_net_unit_change`               | `numeric` |     | Both        | `baseline.units.hedgerowsNetUnitChange`<br>`postIntervention.units.hedgerowsNetUnitChange`                           |                                   |
+| `hedgerows_net_unit_change_percentage`    | `numeric` |     | Both        | `baseline.units.hedgerowsNetUnitChangePercentage`<br>`postIntervention.units.hedgerowsNetUnitChangePercentage`       |                                   |
+| `watercourses_net_unit_change`            | `numeric` |     | Both        | `baseline.units.watercoursesNetUnitChange`<br>`postIntervention.units.watercoursesNetUnitChange`                     |                                   |
+| `watercourses_net_unit_change_percentage` | `numeric` |     | Both        | `baseline.units.watercoursesNetUnitChangePercentage`<br>`postIntervention.units.watercoursesNetUnitChangePercentage` |                                   |
 
 ### `feature_set_habitat_sizes`
 
 Total feature sizes by module, measured from geometry in PostGIS. The five sub-groups in the JSON are flattened into one row. 8 column(s) mapped from the JSON document.
 
-| Column                                  | Type      | Key | JSON path                                                                                                                        | Notes                                    |
-| --------------------------------------- | --------- | --- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
-| `habitat_sizes_id`                      | `text`    | PK  | —                                                                                                                                | `{projectId}:{documentKey}:habitatSizes` |
-| `feature_set_id`                        | `text`    | FK  | —                                                                                                                                | → feature_set.feature_set_id             |
-| `area_habitats_total_square_metres`     | `numeric` |     | `baseline.habitatSizes.areaHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.areaHabitats.totalSquareMetres`         |                                          |
-| `hedgerows_total_metres`                | `numeric` |     | `baseline.habitatSizes.hedgerows.totalMetres`<br>`postIntervention.habitatSizes.hedgerows.totalMetres`                           |                                          |
-| `watercourses_total_metres`             | `numeric` |     | `baseline.habitatSizes.watercourses.totalMetres`<br>`postIntervention.habitatSizes.watercourses.totalMetres`                     |                                          |
-| `trees_total_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.totalSquareMetres`<br>`postIntervention.habitatSizes.trees.totalSquareMetres`                       |                                          |
-| `trees_urban_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.urbanSquareMetres`<br>`postIntervention.habitatSizes.trees.urbanSquareMetres`                       |                                          |
-| `trees_rural_square_metres`             | `numeric` |     | `baseline.habitatSizes.trees.ruralSquareMetres`<br>`postIntervention.habitatSizes.trees.ruralSquareMetres`                       |                                          |
-| `vertical_habitats_total_square_metres` | `numeric` |     | `baseline.habitatSizes.verticalHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.verticalHabitats.totalSquareMetres` |                                          |
-| `site_total_square_metres`              | `numeric` |     | `baseline.habitatSizes.site.totalSquareMetres`<br>`postIntervention.habitatSizes.site.totalSquareMetres`                         |                                          |
+| Column                                  | Type      | Key | Template    | JSON path                                                                                                                        | Notes                                    |
+| --------------------------------------- | --------- | --- | ----------- | -------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------- |
+| `habitat_sizes_id`                      | `text`    | PK  | —           | —                                                                                                                                | `{projectId}:{documentKey}:habitatSizes` |
+| `feature_set_id`                        | `text`    | FK  | —           | —                                                                                                                                | → feature_set.feature_set_id             |
+| `area_habitats_total_square_metres`     | `numeric` |     | Both        | `baseline.habitatSizes.areaHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.areaHabitats.totalSquareMetres`         |                                          |
+| `hedgerows_total_metres`                | `numeric` |     | Both        | `baseline.habitatSizes.hedgerows.totalMetres`<br>`postIntervention.habitatSizes.hedgerows.totalMetres`                           |                                          |
+| `watercourses_total_metres`             | `numeric` |     | Both        | `baseline.habitatSizes.watercourses.totalMetres`<br>`postIntervention.habitatSizes.watercourses.totalMetres`                     |                                          |
+| `trees_total_square_metres`             | `numeric` |     | Both        | `baseline.habitatSizes.trees.totalSquareMetres`<br>`postIntervention.habitatSizes.trees.totalSquareMetres`                       |                                          |
+| `trees_urban_square_metres`             | `numeric` |     | Both        | `baseline.habitatSizes.trees.urbanSquareMetres`<br>`postIntervention.habitatSizes.trees.urbanSquareMetres`                       |                                          |
+| `trees_rural_square_metres`             | `numeric` |     | Both        | `baseline.habitatSizes.trees.ruralSquareMetres`<br>`postIntervention.habitatSizes.trees.ruralSquareMetres`                       |                                          |
+| `vertical_habitats_total_square_metres` | `numeric` |     | BNG Service | `baseline.habitatSizes.verticalHabitats.totalSquareMetres`<br>`postIntervention.habitatSizes.verticalHabitats.totalSquareMetres` |                                          |
+| `site_total_square_metres`              | `numeric` |     | Both        | `baseline.habitatSizes.site.totalSquareMetres`<br>`postIntervention.habitatSizes.site.totalSquareMetres`                         |                                          |
 
 ### `feature_set_trading_rules`
 
 Trading-rules unit figures for the post-intervention document: area habitats, watercourses and hedgerows. Absent on the baseline feature set. 13 column(s) mapped from the JSON document.
 
-| Column                                       | Type      | Key | JSON path                                                                | Notes                                       |
-| -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------ | ------------------------------------------- |
-| `trading_rules_id`                           | `text`    | PK  | —                                                                        | `{projectId}:postIntervention:tradingRules` |
-| `feature_set_id`                             | `text`    | FK  | —                                                                        | → feature_set.feature_set_id                |
-| `area_habitats_medium_surplus`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.surplus`              |                                             |
-| `area_habitats_medium_deficit`               | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.deficit`              |                                             |
-| `area_habitats_low_net_unit_change`          | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`           |                                             |
-| `area_habitats_low_cumulative_availability`  | `numeric` |     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability`  |                                             |
-| `watercourses_medium_surplus`                | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.surplus`              |                                             |
-| `watercourses_medium_deficit`                | `numeric` |     | `postIntervention.tradingRules.watercourses.medium.deficit`              |                                             |
-| `watercourses_low_net_unit_change`           | `numeric` |     | `postIntervention.tradingRules.watercourses.low.netUnitChange`           |                                             |
-| `watercourses_low_cumulative_availability`   | `numeric` |     | `postIntervention.tradingRules.watercourses.low.cumulativeAvailability`  |                                             |
-| `hedgerows_medium_net_unit_change`           | `numeric` |     | `postIntervention.tradingRules.hedgerows.medium.netUnitChange`           |                                             |
-| `hedgerows_low_net_unit_change`              | `numeric` |     | `postIntervention.tradingRules.hedgerows.low.netUnitChange`              |                                             |
-| `hedgerows_low_cumulative_availability`      | `numeric` |     | `postIntervention.tradingRules.hedgerows.low.cumulativeAvailability`     |                                             |
-| `hedgerows_very_low_net_unit_change`         | `numeric` |     | `postIntervention.tradingRules.hedgerows.veryLow.netUnitChange`          |                                             |
-| `hedgerows_very_low_cumulative_availability` | `numeric` |     | `postIntervention.tradingRules.hedgerows.veryLow.cumulativeAvailability` |                                             |
+| Column                                       | Type      | Key | Template | JSON path                                                                | Notes                                       |
+| -------------------------------------------- | --------- | --- | -------- | ------------------------------------------------------------------------ | ------------------------------------------- |
+| `trading_rules_id`                           | `text`    | PK  | —        | —                                                                        | `{projectId}:postIntervention:tradingRules` |
+| `feature_set_id`                             | `text`    | FK  | —        | —                                                                        | → feature_set.feature_set_id                |
+| `area_habitats_medium_surplus`               | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.medium.surplus`              |                                             |
+| `area_habitats_medium_deficit`               | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.medium.deficit`              |                                             |
+| `area_habitats_low_net_unit_change`          | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.low.netUnitChange`           |                                             |
+| `area_habitats_low_cumulative_availability`  | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.low.cumulativeAvailability`  |                                             |
+| `watercourses_medium_surplus`                | `numeric` |     | Both     | `postIntervention.tradingRules.watercourses.medium.surplus`              |                                             |
+| `watercourses_medium_deficit`                | `numeric` |     | Both     | `postIntervention.tradingRules.watercourses.medium.deficit`              |                                             |
+| `watercourses_low_net_unit_change`           | `numeric` |     | Both     | `postIntervention.tradingRules.watercourses.low.netUnitChange`           |                                             |
+| `watercourses_low_cumulative_availability`   | `numeric` |     | Both     | `postIntervention.tradingRules.watercourses.low.cumulativeAvailability`  |                                             |
+| `hedgerows_medium_net_unit_change`           | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.medium.netUnitChange`           |                                             |
+| `hedgerows_low_net_unit_change`              | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.low.netUnitChange`              |                                             |
+| `hedgerows_low_cumulative_availability`      | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.low.cumulativeAvailability`     |                                             |
+| `hedgerows_very_low_net_unit_change`         | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.veryLow.netUnitChange`          |                                             |
+| `hedgerows_very_low_cumulative_availability` | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.veryLow.cumulativeAvailability` |                                             |
 
 ### `feature_set_trading_rules_area_habitat_types`
 
 Area-habitat net unit change per habitat type. One row per unique Medium or Low habitat TYPE — not per feature: the units of every parcel and tree of a type are summed before this row is written. Individual trees are included. 5 column(s) mapped from the JSON document.
 
-| Column                               | Type      | Key | JSON path                                                                       | Notes                                                                  |
-| ------------------------------------ | --------- | --- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `trading_rules_area_habitat_type_id` | `text`    | PK  | —                                                                               | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
-| `trading_rules_id`                   | `text`    | FK  | —                                                                               | → feature_set_trading_rules.trading_rules_id                           |
-| `habitat_type`                       | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].habitatType`         |                                                                        |
-| `broad_habitat`                      | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].broadHabitat`        |                                                                        |
-| `trading_broad_habitat`              | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].tradingBroadHabitat` |                                                                        |
-| `distinctiveness`                    | `text`    |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].distinctiveness`     |                                                                        |
-| `net_unit_change`                    | `numeric` |     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].netUnitChange`       |                                                                        |
+| Column                               | Type      | Key | Template | JSON path                                                                       | Notes                                                                  |
+| ------------------------------------ | --------- | --- | -------- | ------------------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `trading_rules_area_habitat_type_id` | `text`    | PK  | —        | —                                                                               | `{projectId}:postIntervention:tradingRules:areaHabitats:{habitatType}` |
+| `trading_rules_id`                   | `text`    | FK  | —        | —                                                                               | → feature_set_trading_rules.trading_rules_id                           |
+| `habitat_type`                       | `text`    |     | Both     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].habitatType`         |                                                                        |
+| `broad_habitat`                      | `text`    |     | Both     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].broadHabitat`        |                                                                        |
+| `trading_broad_habitat`              | `text`    |     | Both     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].tradingBroadHabitat` |                                                                        |
+| `distinctiveness`                    | `text`    |     | Both     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].distinctiveness`     |                                                                        |
+| `net_unit_change`                    | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.habitatTypes[].netUnitChange`       |                                                                        |
 
 ### `feature_set_trading_rules_area_broad_habitats`
 
 Cumulative Medium-band net unit change per broad habitat, with intertidal sediment and intertidal hard structures merged into one row: the trading rules treat those two as one broad habitat. 2 column(s) mapped from the JSON document.
 
-| Column                                | Type      | Key | JSON path                                                                         | Notes                                                                          |
-| ------------------------------------- | --------- | --- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
-| `trading_rules_area_broad_habitat_id` | `text`    | PK  | —                                                                                 | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}` |
-| `trading_rules_id`                    | `text`    | FK  | —                                                                                 | → feature_set_trading_rules.trading_rules_id                                   |
-| `broad_habitat`                       | `text`    |     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].broadHabitat`  |                                                                                |
-| `net_unit_change`                     | `numeric` |     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].netUnitChange` |                                                                                |
+| Column                                | Type      | Key | Template | JSON path                                                                         | Notes                                                                          |
+| ------------------------------------- | --------- | --- | -------- | --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------ |
+| `trading_rules_area_broad_habitat_id` | `text`    | PK  | —        | —                                                                                 | `{projectId}:postIntervention:tradingRules:areaHabitats:medium:{broadHabitat}` |
+| `trading_rules_id`                    | `text`    | FK  | —        | —                                                                                 | → feature_set_trading_rules.trading_rules_id                                   |
+| `broad_habitat`                       | `text`    |     | Both     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].broadHabitat`  |                                                                                |
+| `net_unit_change`                     | `numeric` |     | Both     | `postIntervention.tradingRules.areaHabitats.medium.broadHabitats[].netUnitChange` |                                                                                |
 
 ### `feature_set_trading_rules_watercourse_habitats`
 
 Per-habitat-type watercourse net unit change (BMD-995 AC1). One row per unique watercourse type. 3 column(s) mapped from the JSON document.
 
-| Column                                 | Type      | Key | JSON path                                                               | Notes                                                                  |
-| -------------------------------------- | --------- | --- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
-| `trading_rules_watercourse_habitat_id` | `text`    | PK  | —                                                                       | `{projectId}:postIntervention:tradingRules:watercourses:{habitatType}` |
-| `trading_rules_id`                     | `text`    | FK  | —                                                                       | → feature_set_trading_rules.trading_rules_id                           |
-| `habitat_type`                         | `text`    |     | `postIntervention.tradingRules.watercourses.habitats[].habitatType`     |                                                                        |
-| `distinctiveness`                      | `text`    |     | `postIntervention.tradingRules.watercourses.habitats[].distinctiveness` |                                                                        |
-| `net_unit_change`                      | `numeric` |     | `postIntervention.tradingRules.watercourses.habitats[].netUnitChange`   |                                                                        |
+| Column                                 | Type      | Key | Template | JSON path                                                               | Notes                                                                  |
+| -------------------------------------- | --------- | --- | -------- | ----------------------------------------------------------------------- | ---------------------------------------------------------------------- |
+| `trading_rules_watercourse_habitat_id` | `text`    | PK  | —        | —                                                                       | `{projectId}:postIntervention:tradingRules:watercourses:{habitatType}` |
+| `trading_rules_id`                     | `text`    | FK  | —        | —                                                                       | → feature_set_trading_rules.trading_rules_id                           |
+| `habitat_type`                         | `text`    |     | Both     | `postIntervention.tradingRules.watercourses.habitats[].habitatType`     |                                                                        |
+| `distinctiveness`                      | `text`    |     | Both     | `postIntervention.tradingRules.watercourses.habitats[].distinctiveness` |                                                                        |
+| `net_unit_change`                      | `numeric` |     | Both     | `postIntervention.tradingRules.watercourses.habitats[].netUnitChange`   |                                                                        |
 
 ### `feature_set_trading_rules_hedgerow_habitat_types`
 
 Hedgerow net unit change per habitat type. One row per unique Medium, Low or Very Low hedgerow TYPE, not per feature. 3 column(s) mapped from the JSON document.
 
-| Column                                   | Type      | Key | JSON path                                                                | Notes                                                               |
-| ---------------------------------------- | --------- | --- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
-| `trading_rules_hedgerow_habitat_type_id` | `text`    | PK  | —                                                                        | `{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}` |
-| `trading_rules_id`                       | `text`    | FK  | —                                                                        | → feature_set_trading_rules.trading_rules_id                        |
-| `habitat_type`                           | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].habitatType`     |                                                                     |
-| `distinctiveness`                        | `text`    |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].distinctiveness` |                                                                     |
-| `net_unit_change`                        | `numeric` |     | `postIntervention.tradingRules.hedgerows.habitatTypes[].netUnitChange`   |                                                                     |
+| Column                                   | Type      | Key | Template | JSON path                                                                | Notes                                                               |
+| ---------------------------------------- | --------- | --- | -------- | ------------------------------------------------------------------------ | ------------------------------------------------------------------- |
+| `trading_rules_hedgerow_habitat_type_id` | `text`    | PK  | —        | —                                                                        | `{projectId}:postIntervention:tradingRules:hedgerows:{habitatType}` |
+| `trading_rules_id`                       | `text`    | FK  | —        | —                                                                        | → feature_set_trading_rules.trading_rules_id                        |
+| `habitat_type`                           | `text`    |     | Both     | `postIntervention.tradingRules.hedgerows.habitatTypes[].habitatType`     |                                                                     |
+| `distinctiveness`                        | `text`    |     | Both     | `postIntervention.tradingRules.hedgerows.habitatTypes[].distinctiveness` |                                                                     |
+| `net_unit_change`                        | `numeric` |     | Both     | `postIntervention.tradingRules.hedgerows.habitatTypes[].netUnitChange`   |                                                                     |
 
 ### `feature_set_lost_habitats`
 
-The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 9 column(s) mapped from the JSON document.
+The baseline habitats a BNG Service template upload loses, in full or in part (BMD-1083). One row per lost baseline feature; `feature_id` is that baseline feature, and `recreated_as` lists the post-intervention features that re-create it. None for a legacy upload. 9 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
 
-| Column                    | Type      | Key | JSON path                                              | Notes                                                   |
-| ------------------------- | --------- | --- | ------------------------------------------------------ | ------------------------------------------------------- |
-| `lost_habitat_id`         | `text`    | PK  | —                                                      | `{projectId}:postIntervention:lostHabitats:{featureId}` |
-| `feature_set_id`          | `text`    | FK  | —                                                      | → feature_set.feature_set_id                            |
-| `layer`                   | `text`    |     | `postIntervention.lostHabitats[].layer`                |                                                         |
-| `feature_id`              | `uuid`    |     | `postIntervention.lostHabitats[].featureId`            |                                                         |
-| `ref`                     | `text`    |     | `postIntervention.lostHabitats[].ref`                  |                                                         |
-| `type`                    | `text`    |     | `postIntervention.lostHabitats[].type`                 |                                                         |
-| `outcome`                 | `text`    |     | `postIntervention.lostHabitats[].outcome`              |                                                         |
-| `lost_size_square_metres` | `numeric` |     | `postIntervention.lostHabitats[].lostSizeSquareMetres` |                                                         |
-| `lost_tree_count`         | `integer` |     | `postIntervention.lostHabitats[].lostTreeCount`        |                                                         |
-| `lost_size_metres`        | `numeric` |     | `postIntervention.lostHabitats[].lostSizeMetres`       |                                                         |
-| `recreated_as`            | `uuid[]`  |     | `postIntervention.lostHabitats[].recreatedAs[]`        |                                                         |
+| Column                    | Type      | Key | Template    | JSON path                                              | Notes                                                   |
+| ------------------------- | --------- | --- | ----------- | ------------------------------------------------------ | ------------------------------------------------------- |
+| `lost_habitat_id`         | `text`    | PK  | —           | —                                                      | `{projectId}:postIntervention:lostHabitats:{featureId}` |
+| `feature_set_id`          | `text`    | FK  | —           | —                                                      | → feature_set.feature_set_id                            |
+| `layer`                   | `text`    |     | BNG Service | `postIntervention.lostHabitats[].layer`                |                                                         |
+| `feature_id`              | `uuid`    |     | BNG Service | `postIntervention.lostHabitats[].featureId`            |                                                         |
+| `ref`                     | `text`    |     | BNG Service | `postIntervention.lostHabitats[].ref`                  |                                                         |
+| `type`                    | `text`    |     | BNG Service | `postIntervention.lostHabitats[].type`                 |                                                         |
+| `outcome`                 | `text`    |     | BNG Service | `postIntervention.lostHabitats[].outcome`              |                                                         |
+| `lost_size_square_metres` | `numeric` |     | BNG Service | `postIntervention.lostHabitats[].lostSizeSquareMetres` |                                                         |
+| `lost_tree_count`         | `integer` |     | BNG Service | `postIntervention.lostHabitats[].lostTreeCount`        |                                                         |
+| `lost_size_metres`        | `numeric` |     | BNG Service | `postIntervention.lostHabitats[].lostSizeMetres`       |                                                         |
+| `recreated_as`            | `uuid[]`  |     | BNG Service | `postIntervention.lostHabitats[].recreatedAs[]`        |                                                         |
 
 ### `baseline_red_line`
 
 Red Line Boundary defining the site extent (baseline). At most one per document. 3 column(s) mapped from the JSON document.
 
-| Column           | Type      | Key | JSON path                     | Notes                                                                            |
-| ---------------- | --------- | --- | ----------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`     | `uuid`    | PK  | —                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id` | `text`    | FK  | —                             | → feature_set.feature_set_id                                                     |
-| `site_name`      | `text`    |     | `baseline.redLine.siteName`   |                                                                                  |
-| `area`           | `numeric` |     | `baseline.redLine.area`       |                                                                                  |
-| `properties`     | `jsonb`   |     | `baseline.redLine.properties` | verbatim GeoPackage attribute columns                                            |
+| Column           | Type      | Key | Template | JSON path                     | Notes                                                                            |
+| ---------------- | --------- | --- | -------- | ----------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`     | `uuid`    | PK  | —        | —                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id` | `text`    | FK  | —        | —                             | → feature_set.feature_set_id                                                     |
+| `site_name`      | `text`    |     | Legacy   | `baseline.redLine.siteName`   |                                                                                  |
+| `area`           | `numeric` |     | Legacy   | `baseline.redLine.area`       |                                                                                  |
+| `properties`     | `jsonb`   |     | Both     | `baseline.redLine.properties` | verbatim GeoPackage attribute columns                                            |
 
 ### `baseline_habitats`
 
 habitats in the baseline document. 28 column(s) mapped from the JSON document.
 
-| Column                                     | Type      | Key | JSON path                                                 | Notes                                                                            |
-| ------------------------------------------ | --------- | --- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                               | `uuid`    | PK  | —                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                           | `text`    | FK  | —                                                         | → feature_set.feature_set_id                                                     |
-| `feature_uuid`                             | `uuid`    |     | `baseline.habitats[].featureUuid`                         |                                                                                  |
-| `ref`                                      | `text`    |     | `baseline.habitats[].ref`                                 |                                                                                  |
-| `type`                                     | `text`    |     | `baseline.habitats[].type`                                |                                                                                  |
-| `broad_type`                               | `text`    |     | `baseline.habitats[].broadType`                           |                                                                                  |
-| `distinctiveness`                          | `text`    |     | `baseline.habitats[].distinctiveness`                     |                                                                                  |
-| `distinctiveness_score`                    | `numeric` |     | `baseline.habitats[].distinctivenessScore`                |                                                                                  |
-| `condition`                                | `text`    |     | `baseline.habitats[].condition`                           |                                                                                  |
-| `condition_score`                          | `numeric` |     | `baseline.habitats[].conditionScore`                      |                                                                                  |
-| `strategic_significance`                   | `text`    |     | `baseline.habitats[].strategicSignificance`               |                                                                                  |
-| `retention_category`                       | `text`    |     | `baseline.habitats[].retentionCategory`                   |                                                                                  |
-| `irreplaceable`                            | `boolean` |     | `baseline.habitats[].irreplaceable`                       |                                                                                  |
-| `area`                                     | `numeric` |     | `baseline.habitats[].area`                                |                                                                                  |
-| `size_square_metres`                       | `numeric` |     | `baseline.habitats[].sizeSquareMetres`                    |                                                                                  |
-| `status`                                   | `text`    |     | `baseline.habitats[].status`                              |                                                                                  |
-| `units`                                    | `numeric` |     | `baseline.habitats[].units`                               |                                                                                  |
-| `site_name`                                | `text`    |     | `baseline.habitats[].siteName`                            |                                                                                  |
-| `survey_date`                              | `text`    |     | `baseline.habitats[].surveyDate`                          |                                                                                  |
-| `survey_details`                           | `text`    |     | `baseline.habitats[].surveyDetails`                       |                                                                                  |
-| `comment`                                  | `text`    |     | `baseline.habitats[].comment`                             |                                                                                  |
-| `mapped_by`                                | `text`    |     | `baseline.habitats[].mappedBy`                            |                                                                                  |
-| `company`                                  | `text`    |     | `baseline.habitats[].company`                             |                                                                                  |
-| `base_map`                                 | `text`    |     | `baseline.habitats[].baseMap`                             |                                                                                  |
-| `location`                                 | `text`    |     | `baseline.habitats[].location`                            |                                                                                  |
-| `spatial_risk_category`                    | `text`    |     | `baseline.habitats[].spatialRiskCategory`                 |                                                                                  |
-| `habitat_created_in_advance_years`         | `text`    |     | `baseline.habitats[].habitatCreatedInAdvanceYears`        |                                                                                  |
-| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.habitats[].delayInStartingHabitatCreationYears` |                                                                                  |
-| `raw_distinctiveness`                      | `text`    |     | `baseline.habitats[].rawDistinctiveness`                  |                                                                                  |
-| `properties`                               | `jsonb`   |     | `baseline.habitats[].properties`                          | verbatim GeoPackage attribute columns                                            |
+| Column                                     | Type      | Key | Template    | JSON path                                                 | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ----------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —           | —                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —           | —                                                         | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | BNG Service | `baseline.habitats[].featureUuid`                         |                                                                                  |
+| `ref`                                      | `text`    |     | Both        | `baseline.habitats[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | Both        | `baseline.habitats[].type`                                |                                                                                  |
+| `broad_type`                               | `text`    |     | Both        | `baseline.habitats[].broadType`                           |                                                                                  |
+| `distinctiveness`                          | `text`    |     | Both        | `baseline.habitats[].distinctiveness`                     |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | Both        | `baseline.habitats[].distinctivenessScore`                |                                                                                  |
+| `condition`                                | `text`    |     | Both        | `baseline.habitats[].condition`                           |                                                                                  |
+| `condition_score`                          | `numeric` |     | Both        | `baseline.habitats[].conditionScore`                      |                                                                                  |
+| `strategic_significance`                   | `text`    |     | Both        | `baseline.habitats[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | Legacy      | `baseline.habitats[].retentionCategory`                   |                                                                                  |
+| `irreplaceable`                            | `boolean` |     | BNG Service | `baseline.habitats[].irreplaceable`                       |                                                                                  |
+| `area`                                     | `numeric` |     | Both        | `baseline.habitats[].area`                                |                                                                                  |
+| `size_square_metres`                       | `numeric` |     | Both        | `baseline.habitats[].sizeSquareMetres`                    |                                                                                  |
+| `status`                                   | `text`    |     | Both        | `baseline.habitats[].status`                              |                                                                                  |
+| `units`                                    | `numeric` |     | Both        | `baseline.habitats[].units`                               |                                                                                  |
+| `site_name`                                | `text`    |     | Legacy      | `baseline.habitats[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | Legacy      | `baseline.habitats[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | Legacy      | `baseline.habitats[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | Both        | `baseline.habitats[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | Legacy      | `baseline.habitats[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | Legacy      | `baseline.habitats[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | Legacy      | `baseline.habitats[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | Legacy      | `baseline.habitats[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | Legacy      | `baseline.habitats[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | Legacy      | `baseline.habitats[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | Legacy      | `baseline.habitats[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | Legacy      | `baseline.habitats[].rawDistinctiveness`                  |                                                                                  |
+| `properties`                               | `jsonb`   |     | Both        | `baseline.habitats[].properties`                          | verbatim GeoPackage attribute columns                                            |
 
 ### `baseline_trees`
 
 trees in the baseline document. 32 column(s) mapped from the JSON document.
 
-| Column                                     | Type      | Key | JSON path                                              | Notes                                                                            |
-| ------------------------------------------ | --------- | --- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
-| `feature_id`                               | `uuid`    | PK  | —                                                      | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                           | `text`    | FK  | —                                                      | → feature_set.feature_set_id                                                     |
-| `feature_uuid`                             | `uuid`    |     | `baseline.trees[].featureUuid`                         |                                                                                  |
-| `distinctiveness_score`                    | `numeric` |     | `baseline.trees[].distinctivenessScore`                |                                                                                  |
-| `condition`                                | `text`    |     | `baseline.trees[].condition`                           |                                                                                  |
-| `condition_score`                          | `numeric` |     | `baseline.trees[].conditionScore`                      |                                                                                  |
-| `strategic_significance`                   | `text`    |     | `baseline.trees[].strategicSignificance`               |                                                                                  |
-| `retention_category`                       | `text`    |     | `baseline.trees[].retentionCategory`                   |                                                                                  |
-| `status`                                   | `text`    |     | `baseline.trees[].status`                              |                                                                                  |
-| `site_name`                                | `text`    |     | `baseline.trees[].siteName`                            |                                                                                  |
-| `survey_date`                              | `text`    |     | `baseline.trees[].surveyDate`                          |                                                                                  |
-| `survey_details`                           | `text`    |     | `baseline.trees[].surveyDetails`                       |                                                                                  |
-| `comment`                                  | `text`    |     | `baseline.trees[].comment`                             |                                                                                  |
-| `mapped_by`                                | `text`    |     | `baseline.trees[].mappedBy`                            |                                                                                  |
-| `company`                                  | `text`    |     | `baseline.trees[].company`                             |                                                                                  |
-| `base_map`                                 | `text`    |     | `baseline.trees[].baseMap`                             |                                                                                  |
-| `location`                                 | `text`    |     | `baseline.trees[].location`                            |                                                                                  |
-| `spatial_risk_category`                    | `text`    |     | `baseline.trees[].spatialRiskCategory`                 |                                                                                  |
-| `habitat_created_in_advance_years`         | `text`    |     | `baseline.trees[].habitatCreatedInAdvanceYears`        |                                                                                  |
-| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.trees[].delayInStartingHabitatCreationYears` |                                                                                  |
-| `raw_distinctiveness`                      | `text`    |     | `baseline.trees[].rawDistinctiveness`                  |                                                                                  |
-| `ref`                                      | `text`    |     | `baseline.trees[].ref`                                 |                                                                                  |
-| `type`                                     | `text`    |     | `baseline.trees[].type`                                |                                                                                  |
-| `broad_type`                               | `text`    |     | `baseline.trees[].broadType`                           |                                                                                  |
-| `distinctiveness`                          | `text`    |     | `baseline.trees[].distinctiveness`                     |                                                                                  |
-| `area`                                     | `numeric` |     | `baseline.trees[].area`                                |                                                                                  |
-| `size_square_metres`                       | `numeric` |     | `baseline.trees[].sizeSquareMetres`                    |                                                                                  |
-| `irreplaceable`                            | `boolean` |     | `baseline.trees[].irreplaceable`                       |                                                                                  |
-| `units`                                    | `numeric` |     | `baseline.trees[].units`                               |                                                                                  |
-| `properties`                               | `jsonb`   |     | `baseline.trees[].properties`                          | verbatim GeoPackage attribute columns                                            |
-| `tree_size`                                | `text`    |     | `baseline.trees[].treeSize`                            |                                                                                  |
-| `tree_species`                             | `text`    |     | `baseline.trees[].treeSpecies`                         |                                                                                  |
-| `rural_or_urban`                           | `text`    |     | `baseline.trees[].ruralOrUrban`                        |                                                                                  |
-| `count`                                    | `numeric` |     | `baseline.trees[].count`                               |                                                                                  |
+| Column                                     | Type      | Key | Template    | JSON path                                              | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ----------- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —           | —                                                      | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —           | —                                                      | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | BNG Service | `baseline.trees[].featureUuid`                         |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | Both        | `baseline.trees[].distinctivenessScore`                |                                                                                  |
+| `condition`                                | `text`    |     | Both        | `baseline.trees[].condition`                           |                                                                                  |
+| `condition_score`                          | `numeric` |     | Both        | `baseline.trees[].conditionScore`                      |                                                                                  |
+| `strategic_significance`                   | `text`    |     | Both        | `baseline.trees[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | Legacy      | `baseline.trees[].retentionCategory`                   |                                                                                  |
+| `status`                                   | `text`    |     | Both        | `baseline.trees[].status`                              |                                                                                  |
+| `site_name`                                | `text`    |     | Legacy      | `baseline.trees[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | Legacy      | `baseline.trees[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | Legacy      | `baseline.trees[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | Both        | `baseline.trees[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | Legacy      | `baseline.trees[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | Legacy      | `baseline.trees[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | Legacy      | `baseline.trees[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | Legacy      | `baseline.trees[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | Legacy      | `baseline.trees[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | Legacy      | `baseline.trees[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | Legacy      | `baseline.trees[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | Legacy      | `baseline.trees[].rawDistinctiveness`                  |                                                                                  |
+| `ref`                                      | `text`    |     | Both        | `baseline.trees[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | Both        | `baseline.trees[].type`                                |                                                                                  |
+| `broad_type`                               | `text`    |     | Both        | `baseline.trees[].broadType`                           |                                                                                  |
+| `distinctiveness`                          | `text`    |     | Both        | `baseline.trees[].distinctiveness`                     |                                                                                  |
+| `area`                                     | `numeric` |     | Both        | `baseline.trees[].area`                                |                                                                                  |
+| `size_square_metres`                       | `numeric` |     | Both        | `baseline.trees[].sizeSquareMetres`                    |                                                                                  |
+| `irreplaceable`                            | `boolean` |     | BNG Service | `baseline.trees[].irreplaceable`                       |                                                                                  |
+| `units`                                    | `numeric` |     | Both        | `baseline.trees[].units`                               |                                                                                  |
+| `properties`                               | `jsonb`   |     | Both        | `baseline.trees[].properties`                          | verbatim GeoPackage attribute columns                                            |
+| `tree_size`                                | `text`    |     | Both        | `baseline.trees[].treeSize`                            |                                                                                  |
+| `tree_species`                             | `text`    |     | Both        | `baseline.trees[].treeSpecies`                         |                                                                                  |
+| `rural_or_urban`                           | `text`    |     | Both        | `baseline.trees[].ruralOrUrban`                        |                                                                                  |
+| `count`                                    | `numeric` |     | Legacy      | `baseline.trees[].count`                               |                                                                                  |
 
 ### `baseline_vertical_habitats`
 
-verticalHabitats in the baseline document. 28 column(s) mapped from the JSON document.
+verticalHabitats in the baseline document. 28 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
 
-| Column                                     | Type      | Key | JSON path                                                         | Notes                                                                            |
-| ------------------------------------------ | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                               | `uuid`    | PK  | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                           | `text`    | FK  | —                                                                 | → feature_set.feature_set_id                                                     |
-| `feature_uuid`                             | `uuid`    |     | `baseline.verticalHabitats[].featureUuid`                         |                                                                                  |
-| `distinctiveness`                          | `text`    |     | `baseline.verticalHabitats[].distinctiveness`                     |                                                                                  |
-| `distinctiveness_score`                    | `numeric` |     | `baseline.verticalHabitats[].distinctivenessScore`                |                                                                                  |
-| `condition`                                | `text`    |     | `baseline.verticalHabitats[].condition`                           |                                                                                  |
-| `condition_score`                          | `numeric` |     | `baseline.verticalHabitats[].conditionScore`                      |                                                                                  |
-| `strategic_significance`                   | `text`    |     | `baseline.verticalHabitats[].strategicSignificance`               |                                                                                  |
-| `retention_category`                       | `text`    |     | `baseline.verticalHabitats[].retentionCategory`                   |                                                                                  |
-| `irreplaceable`                            | `boolean` |     | `baseline.verticalHabitats[].irreplaceable`                       |                                                                                  |
-| `status`                                   | `text`    |     | `baseline.verticalHabitats[].status`                              |                                                                                  |
-| `site_name`                                | `text`    |     | `baseline.verticalHabitats[].siteName`                            |                                                                                  |
-| `survey_date`                              | `text`    |     | `baseline.verticalHabitats[].surveyDate`                          |                                                                                  |
-| `survey_details`                           | `text`    |     | `baseline.verticalHabitats[].surveyDetails`                       |                                                                                  |
-| `comment`                                  | `text`    |     | `baseline.verticalHabitats[].comment`                             |                                                                                  |
-| `mapped_by`                                | `text`    |     | `baseline.verticalHabitats[].mappedBy`                            |                                                                                  |
-| `company`                                  | `text`    |     | `baseline.verticalHabitats[].company`                             |                                                                                  |
-| `base_map`                                 | `text`    |     | `baseline.verticalHabitats[].baseMap`                             |                                                                                  |
-| `location`                                 | `text`    |     | `baseline.verticalHabitats[].location`                            |                                                                                  |
-| `spatial_risk_category`                    | `text`    |     | `baseline.verticalHabitats[].spatialRiskCategory`                 |                                                                                  |
-| `habitat_created_in_advance_years`         | `text`    |     | `baseline.verticalHabitats[].habitatCreatedInAdvanceYears`        |                                                                                  |
-| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.verticalHabitats[].delayInStartingHabitatCreationYears` |                                                                                  |
-| `raw_distinctiveness`                      | `text`    |     | `baseline.verticalHabitats[].rawDistinctiveness`                  |                                                                                  |
-| `ref`                                      | `text`    |     | `baseline.verticalHabitats[].ref`                                 |                                                                                  |
-| `type`                                     | `text`    |     | `baseline.verticalHabitats[].type`                                |                                                                                  |
-| `broad_type`                               | `text`    |     | `baseline.verticalHabitats[].broadType`                           |                                                                                  |
-| `area`                                     | `numeric` |     | `baseline.verticalHabitats[].area`                                |                                                                                  |
-| `size_square_metres`                       | `numeric` |     | `baseline.verticalHabitats[].sizeSquareMetres`                    |                                                                                  |
-| `units`                                    | `numeric` |     | `baseline.verticalHabitats[].units`                               |                                                                                  |
-| `properties`                               | `jsonb`   |     | `baseline.verticalHabitats[].properties`                          | verbatim GeoPackage attribute columns                                            |
+| Column                                     | Type      | Key | Template               | JSON path                                                         | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ---------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —                      | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —                      | —                                                                 | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | BNG Service            | `baseline.verticalHabitats[].featureUuid`                         |                                                                                  |
+| `distinctiveness`                          | `text`    |     | BNG Service            | `baseline.verticalHabitats[].distinctiveness`                     |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | BNG Service            | `baseline.verticalHabitats[].distinctivenessScore`                |                                                                                  |
+| `condition`                                | `text`    |     | BNG Service            | `baseline.verticalHabitats[].condition`                           |                                                                                  |
+| `condition_score`                          | `numeric` |     | BNG Service            | `baseline.verticalHabitats[].conditionScore`                      |                                                                                  |
+| `strategic_significance`                   | `text`    |     | BNG Service            | `baseline.verticalHabitats[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].retentionCategory`                   |                                                                                  |
+| `irreplaceable`                            | `boolean` |     | BNG Service            | `baseline.verticalHabitats[].irreplaceable`                       |                                                                                  |
+| `status`                                   | `text`    |     | BNG Service            | `baseline.verticalHabitats[].status`                              |                                                                                  |
+| `site_name`                                | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | BNG Service            | `baseline.verticalHabitats[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].rawDistinctiveness`                  |                                                                                  |
+| `ref`                                      | `text`    |     | BNG Service            | `baseline.verticalHabitats[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | BNG Service            | `baseline.verticalHabitats[].type`                                |                                                                                  |
+| `broad_type`                               | `text`    |     | BNG Service            | `baseline.verticalHabitats[].broadType`                           |                                                                                  |
+| `area`                                     | `numeric` |     | BNG Service            | `baseline.verticalHabitats[].area`                                |                                                                                  |
+| `size_square_metres`                       | `numeric` |     | BNG Service            | `baseline.verticalHabitats[].sizeSquareMetres`                    |                                                                                  |
+| `units`                                    | `numeric` |     | BNG Service            | `baseline.verticalHabitats[].units`                               |                                                                                  |
+| `properties`                               | `jsonb`   |     | BNG Service            | `baseline.verticalHabitats[].properties`                          | verbatim GeoPackage attribute columns                                            |
 
 ### `baseline_hedgerows`
 
 hedgerows in the baseline document. 26 column(s) mapped from the JSON document.
 
-| Column                                     | Type      | Key | JSON path                                                  | Notes                                                                            |
-| ------------------------------------------ | --------- | --- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                               | `uuid`    | PK  | —                                                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                           | `text`    | FK  | —                                                          | → feature_set.feature_set_id                                                     |
-| `feature_uuid`                             | `uuid`    |     | `baseline.hedgerows[].featureUuid`                         |                                                                                  |
-| `ref`                                      | `text`    |     | `baseline.hedgerows[].ref`                                 |                                                                                  |
-| `type`                                     | `text`    |     | `baseline.hedgerows[].type`                                |                                                                                  |
-| `condition`                                | `text`    |     | `baseline.hedgerows[].condition`                           |                                                                                  |
-| `distinctiveness`                          | `text`    |     | `baseline.hedgerows[].distinctiveness`                     |                                                                                  |
-| `distinctiveness_score`                    | `numeric` |     | `baseline.hedgerows[].distinctivenessScore`                |                                                                                  |
-| `condition_score`                          | `numeric` |     | `baseline.hedgerows[].conditionScore`                      |                                                                                  |
-| `length`                                   | `numeric` |     | `baseline.hedgerows[].length`                              |                                                                                  |
-| `size_metres`                              | `numeric` |     | `baseline.hedgerows[].sizeMetres`                          |                                                                                  |
-| `status`                                   | `text`    |     | `baseline.hedgerows[].status`                              |                                                                                  |
-| `units`                                    | `numeric` |     | `baseline.hedgerows[].units`                               |                                                                                  |
-| `strategic_significance`                   | `text`    |     | `baseline.hedgerows[].strategicSignificance`               |                                                                                  |
-| `retention_category`                       | `text`    |     | `baseline.hedgerows[].retentionCategory`                   |                                                                                  |
-| `site_name`                                | `text`    |     | `baseline.hedgerows[].siteName`                            |                                                                                  |
-| `survey_date`                              | `text`    |     | `baseline.hedgerows[].surveyDate`                          |                                                                                  |
-| `survey_details`                           | `text`    |     | `baseline.hedgerows[].surveyDetails`                       |                                                                                  |
-| `comment`                                  | `text`    |     | `baseline.hedgerows[].comment`                             |                                                                                  |
-| `mapped_by`                                | `text`    |     | `baseline.hedgerows[].mappedBy`                            |                                                                                  |
-| `company`                                  | `text`    |     | `baseline.hedgerows[].company`                             |                                                                                  |
-| `base_map`                                 | `text`    |     | `baseline.hedgerows[].baseMap`                             |                                                                                  |
-| `location`                                 | `text`    |     | `baseline.hedgerows[].location`                            |                                                                                  |
-| `spatial_risk_category`                    | `text`    |     | `baseline.hedgerows[].spatialRiskCategory`                 |                                                                                  |
-| `habitat_created_in_advance_years`         | `text`    |     | `baseline.hedgerows[].habitatCreatedInAdvanceYears`        |                                                                                  |
-| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.hedgerows[].delayInStartingHabitatCreationYears` |                                                                                  |
-| `raw_distinctiveness`                      | `text`    |     | `baseline.hedgerows[].rawDistinctiveness`                  |                                                                                  |
-| `properties`                               | `jsonb`   |     | `baseline.hedgerows[].properties`                          | verbatim GeoPackage attribute columns                                            |
+| Column                                     | Type      | Key | Template    | JSON path                                                  | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ----------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —           | —                                                          | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —           | —                                                          | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | BNG Service | `baseline.hedgerows[].featureUuid`                         |                                                                                  |
+| `ref`                                      | `text`    |     | Both        | `baseline.hedgerows[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | Both        | `baseline.hedgerows[].type`                                |                                                                                  |
+| `condition`                                | `text`    |     | Both        | `baseline.hedgerows[].condition`                           |                                                                                  |
+| `distinctiveness`                          | `text`    |     | Both        | `baseline.hedgerows[].distinctiveness`                     |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | Both        | `baseline.hedgerows[].distinctivenessScore`                |                                                                                  |
+| `condition_score`                          | `numeric` |     | Both        | `baseline.hedgerows[].conditionScore`                      |                                                                                  |
+| `length`                                   | `numeric` |     | Both        | `baseline.hedgerows[].length`                              |                                                                                  |
+| `size_metres`                              | `numeric` |     | Both        | `baseline.hedgerows[].sizeMetres`                          |                                                                                  |
+| `status`                                   | `text`    |     | Both        | `baseline.hedgerows[].status`                              |                                                                                  |
+| `units`                                    | `numeric` |     | Both        | `baseline.hedgerows[].units`                               |                                                                                  |
+| `strategic_significance`                   | `text`    |     | Both        | `baseline.hedgerows[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | Legacy      | `baseline.hedgerows[].retentionCategory`                   |                                                                                  |
+| `site_name`                                | `text`    |     | Legacy      | `baseline.hedgerows[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | Legacy      | `baseline.hedgerows[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | Legacy      | `baseline.hedgerows[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | Both        | `baseline.hedgerows[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | Legacy      | `baseline.hedgerows[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | Legacy      | `baseline.hedgerows[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | Legacy      | `baseline.hedgerows[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | Legacy      | `baseline.hedgerows[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | Legacy      | `baseline.hedgerows[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | Legacy      | `baseline.hedgerows[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | Legacy      | `baseline.hedgerows[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | Legacy      | `baseline.hedgerows[].rawDistinctiveness`                  |                                                                                  |
+| `properties`                               | `jsonb`   |     | Both        | `baseline.hedgerows[].properties`                          | verbatim GeoPackage attribute columns                                            |
 
 ### `baseline_watercourses`
 
 watercourses in the baseline document. 31 column(s) mapped from the JSON document.
 
-| Column                                     | Type      | Key | JSON path                                                     | Notes                                                                            |
-| ------------------------------------------ | --------- | --- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                               | `uuid`    | PK  | —                                                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                           | `text`    | FK  | —                                                             | → feature_set.feature_set_id                                                     |
-| `feature_uuid`                             | `uuid`    |     | `baseline.watercourses[].featureUuid`                         |                                                                                  |
-| `ref`                                      | `text`    |     | `baseline.watercourses[].ref`                                 |                                                                                  |
-| `type`                                     | `text`    |     | `baseline.watercourses[].type`                                |                                                                                  |
-| `condition`                                | `text`    |     | `baseline.watercourses[].condition`                           |                                                                                  |
-| `riparian_encroachment`                    | `text`    |     | `baseline.watercourses[].riparianEncroachment`                |                                                                                  |
-| `watercourse_encroachment`                 | `text`    |     | `baseline.watercourses[].watercourseEncroachment`             |                                                                                  |
-| `distinctiveness`                          | `text`    |     | `baseline.watercourses[].distinctiveness`                     |                                                                                  |
-| `distinctiveness_score`                    | `numeric` |     | `baseline.watercourses[].distinctivenessScore`                |                                                                                  |
-| `condition_score`                          | `numeric` |     | `baseline.watercourses[].conditionScore`                      |                                                                                  |
-| `length`                                   | `numeric` |     | `baseline.watercourses[].length`                              |                                                                                  |
-| `size_metres`                              | `numeric` |     | `baseline.watercourses[].sizeMetres`                          |                                                                                  |
-| `status`                                   | `text`    |     | `baseline.watercourses[].status`                              |                                                                                  |
-| `units`                                    | `numeric` |     | `baseline.watercourses[].units`                               |                                                                                  |
-| `strategic_significance`                   | `text`    |     | `baseline.watercourses[].strategicSignificance`               |                                                                                  |
-| `retention_category`                       | `text`    |     | `baseline.watercourses[].retentionCategory`                   |                                                                                  |
-| `site_name`                                | `text`    |     | `baseline.watercourses[].siteName`                            |                                                                                  |
-| `survey_date`                              | `text`    |     | `baseline.watercourses[].surveyDate`                          |                                                                                  |
-| `survey_details`                           | `text`    |     | `baseline.watercourses[].surveyDetails`                       |                                                                                  |
-| `comment`                                  | `text`    |     | `baseline.watercourses[].comment`                             |                                                                                  |
-| `mapped_by`                                | `text`    |     | `baseline.watercourses[].mappedBy`                            |                                                                                  |
-| `company`                                  | `text`    |     | `baseline.watercourses[].company`                             |                                                                                  |
-| `base_map`                                 | `text`    |     | `baseline.watercourses[].baseMap`                             |                                                                                  |
-| `location`                                 | `text`    |     | `baseline.watercourses[].location`                            |                                                                                  |
-| `spatial_risk_category`                    | `text`    |     | `baseline.watercourses[].spatialRiskCategory`                 |                                                                                  |
-| `habitat_created_in_advance_years`         | `text`    |     | `baseline.watercourses[].habitatCreatedInAdvanceYears`        |                                                                                  |
-| `delay_in_starting_habitat_creation_years` | `text`    |     | `baseline.watercourses[].delayInStartingHabitatCreationYears` |                                                                                  |
-| `raw_distinctiveness`                      | `text`    |     | `baseline.watercourses[].rawDistinctiveness`                  |                                                                                  |
-| `enhancement_type`                         | `text`    |     | `baseline.watercourses[].enhancementType`                     |                                                                                  |
-| `water_encroachment_multiplier`            | `numeric` |     | `baseline.watercourses[].waterEncroachmentMultiplier`         |                                                                                  |
-| `riparian_encroachment_multiplier`         | `numeric` |     | `baseline.watercourses[].riparianEncroachmentMultiplier`      |                                                                                  |
-| `properties`                               | `jsonb`   |     | `baseline.watercourses[].properties`                          | verbatim GeoPackage attribute columns                                            |
+| Column                                     | Type      | Key | Template    | JSON path                                                     | Notes                                                                            |
+| ------------------------------------------ | --------- | --- | ----------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                               | `uuid`    | PK  | —           | —                                                             | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                           | `text`    | FK  | —           | —                                                             | → feature_set.feature_set_id                                                     |
+| `feature_uuid`                             | `uuid`    |     | BNG Service | `baseline.watercourses[].featureUuid`                         |                                                                                  |
+| `ref`                                      | `text`    |     | Both        | `baseline.watercourses[].ref`                                 |                                                                                  |
+| `type`                                     | `text`    |     | Both        | `baseline.watercourses[].type`                                |                                                                                  |
+| `condition`                                | `text`    |     | Both        | `baseline.watercourses[].condition`                           |                                                                                  |
+| `riparian_encroachment`                    | `text`    |     | Both        | `baseline.watercourses[].riparianEncroachment`                |                                                                                  |
+| `watercourse_encroachment`                 | `text`    |     | Both        | `baseline.watercourses[].watercourseEncroachment`             |                                                                                  |
+| `distinctiveness`                          | `text`    |     | Both        | `baseline.watercourses[].distinctiveness`                     |                                                                                  |
+| `distinctiveness_score`                    | `numeric` |     | Both        | `baseline.watercourses[].distinctivenessScore`                |                                                                                  |
+| `condition_score`                          | `numeric` |     | Both        | `baseline.watercourses[].conditionScore`                      |                                                                                  |
+| `length`                                   | `numeric` |     | Both        | `baseline.watercourses[].length`                              |                                                                                  |
+| `size_metres`                              | `numeric` |     | Both        | `baseline.watercourses[].sizeMetres`                          |                                                                                  |
+| `status`                                   | `text`    |     | Both        | `baseline.watercourses[].status`                              |                                                                                  |
+| `units`                                    | `numeric` |     | Both        | `baseline.watercourses[].units`                               |                                                                                  |
+| `strategic_significance`                   | `text`    |     | Both        | `baseline.watercourses[].strategicSignificance`               |                                                                                  |
+| `retention_category`                       | `text`    |     | Legacy      | `baseline.watercourses[].retentionCategory`                   |                                                                                  |
+| `site_name`                                | `text`    |     | Legacy      | `baseline.watercourses[].siteName`                            |                                                                                  |
+| `survey_date`                              | `text`    |     | Legacy      | `baseline.watercourses[].surveyDate`                          |                                                                                  |
+| `survey_details`                           | `text`    |     | Legacy      | `baseline.watercourses[].surveyDetails`                       |                                                                                  |
+| `comment`                                  | `text`    |     | Both        | `baseline.watercourses[].comment`                             |                                                                                  |
+| `mapped_by`                                | `text`    |     | Legacy      | `baseline.watercourses[].mappedBy`                            |                                                                                  |
+| `company`                                  | `text`    |     | Legacy      | `baseline.watercourses[].company`                             |                                                                                  |
+| `base_map`                                 | `text`    |     | Legacy      | `baseline.watercourses[].baseMap`                             |                                                                                  |
+| `location`                                 | `text`    |     | Legacy      | `baseline.watercourses[].location`                            |                                                                                  |
+| `spatial_risk_category`                    | `text`    |     | Legacy      | `baseline.watercourses[].spatialRiskCategory`                 |                                                                                  |
+| `habitat_created_in_advance_years`         | `text`    |     | Legacy      | `baseline.watercourses[].habitatCreatedInAdvanceYears`        |                                                                                  |
+| `delay_in_starting_habitat_creation_years` | `text`    |     | Legacy      | `baseline.watercourses[].delayInStartingHabitatCreationYears` |                                                                                  |
+| `raw_distinctiveness`                      | `text`    |     | Legacy      | `baseline.watercourses[].rawDistinctiveness`                  |                                                                                  |
+| `enhancement_type`                         | `text`    |     | Both        | `baseline.watercourses[].enhancementType`                     |                                                                                  |
+| `water_encroachment_multiplier`            | `numeric` |     | Both        | `baseline.watercourses[].waterEncroachmentMultiplier`         |                                                                                  |
+| `riparian_encroachment_multiplier`         | `numeric` |     | Both        | `baseline.watercourses[].riparianEncroachmentMultiplier`      |                                                                                  |
+| `properties`                               | `jsonb`   |     | Both        | `baseline.watercourses[].properties`                          | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_red_line`
 
 Red Line Boundary defining the site extent (postIntervention). At most one per document. 3 column(s) mapped from the JSON document.
 
-| Column           | Type      | Key | JSON path                             | Notes                                                                            |
-| ---------------- | --------- | --- | ------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`     | `uuid`    | PK  | —                                     | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id` | `text`    | FK  | —                                     | → feature_set.feature_set_id                                                     |
-| `site_name`      | `text`    |     | `postIntervention.redLine.siteName`   |                                                                                  |
-| `area`           | `numeric` |     | `postIntervention.redLine.area`       |                                                                                  |
-| `properties`     | `jsonb`   |     | `postIntervention.redLine.properties` | verbatim GeoPackage attribute columns                                            |
+| Column           | Type      | Key | Template | JSON path                             | Notes                                                                            |
+| ---------------- | --------- | --- | -------- | ------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`     | `uuid`    | PK  | —        | —                                     | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id` | `text`    | FK  | —        | —                                     | → feature_set.feature_set_id                                                     |
+| `site_name`      | `text`    |     | Legacy   | `postIntervention.redLine.siteName`   |                                                                                  |
+| `area`           | `numeric` |     | Legacy   | `postIntervention.redLine.area`       |                                                                                  |
+| `properties`     | `jsonb`   |     | Both     | `postIntervention.redLine.properties` | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_habitats`
 
 habitats in the postIntervention document. 40 column(s) mapped from the JSON document.
 
-| Column                                       | Type      | Key | JSON path                                                            | Notes                                                                            |
-| -------------------------------------------- | --------- | --- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                                 | `uuid`    | PK  | —                                                                    | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                             | `text`    | FK  | —                                                                    | → feature_set.feature_set_id                                                     |
-| `retention_category`                         | `text`    |     | `postIntervention.habitats[].retentionCategory`                      |                                                                                  |
-| `ref`                                        | `text`    |     | `postIntervention.habitats[].ref`                                    |                                                                                  |
-| `area`                                       | `numeric` |     | `postIntervention.habitats[].area`                                   |                                                                                  |
-| `size_square_metres`                         | `numeric` |     | `postIntervention.habitats[].sizeSquareMetres`                       |                                                                                  |
-| `units`                                      | `numeric` |     | `postIntervention.habitats[].units`                                  |                                                                                  |
-| `status`                                     | `text`    |     | `postIntervention.habitats[].status`                                 |                                                                                  |
-| `comment`                                    | `text`    |     | `postIntervention.habitats[].comment`                                |                                                                                  |
-| `invalid_enhancement`                        | `text`    |     | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
-| `parent_feature_id`                          | `uuid`    |     | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
-| `parent_uuid`                                | `uuid`    |     | `postIntervention.habitats[].parentUuid`                             |                                                                                  |
-| `reference_edited`                           | `boolean` |     | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
-| `irreplaceable`                              | `boolean` |     | `postIntervention.habitats[].irreplaceable`                          |                                                                                  |
-| `baseline_type`                              | `text`    |     | `postIntervention.habitats[].baseline.type`                          |                                                                                  |
-| `baseline_broad_type`                        | `text`    |     | `postIntervention.habitats[].baseline.broadType`                     |                                                                                  |
-| `baseline_condition`                         | `text`    |     | `postIntervention.habitats[].baseline.condition`                     |                                                                                  |
-| `baseline_condition_score`                   | `numeric` |     | `postIntervention.habitats[].baseline.conditionScore`                |                                                                                  |
-| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.habitats[].baseline.distinctiveness`               |                                                                                  |
-| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.habitats[].baseline.distinctivenessScore`          |                                                                                  |
-| `baseline_strategic_significance`            | `text`    |     | `postIntervention.habitats[].baseline.strategicSignificance`         |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.habitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.habitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
-| `proposed_type`                              | `text`    |     | `postIntervention.habitats[].proposed.type`                          |                                                                                  |
-| `proposed_broad_type`                        | `text`    |     | `postIntervention.habitats[].proposed.broadType`                     |                                                                                  |
-| `proposed_condition`                         | `text`    |     | `postIntervention.habitats[].proposed.condition`                     |                                                                                  |
-| `proposed_condition_score`                   | `numeric` |     | `postIntervention.habitats[].proposed.conditionScore`                |                                                                                  |
-| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.habitats[].proposed.distinctiveness`               |                                                                                  |
-| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.habitats[].proposed.distinctivenessScore`          |                                                                                  |
-| `proposed_advance_years`                     | `numeric` |     | `postIntervention.habitats[].proposed.advanceYears`                  |                                                                                  |
-| `proposed_delay_years`                       | `numeric` |     | `postIntervention.habitats[].proposed.delayYears`                    |                                                                                  |
-| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.habitats[].proposed.timeMultiplier`                |                                                                                  |
-| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.habitats[].proposed.difficultyMultiplier`          |                                                                                  |
-| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.habitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
-| `proposed_difficulty`                        | `text`    |     | `postIntervention.habitats[].proposed.difficulty`                    |                                                                                  |
-| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.habitats[].proposed.strategicSignificanceCategory` |                                                                                  |
-| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.habitats[].proposed.rejectedStrategicSignificance` |                                                                                  |
-| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.habitats[].proposed.strategicSignificanceScore`    |                                                                                  |
-| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.habitats[].proposed.advanceOrDelay`                |                                                                                  |
-| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.habitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
-| `proposed_strategic_significance`            | `text`    |     | `postIntervention.habitats[].proposed.strategicSignificance`         |                                                                                  |
-| `properties`                                 | `jsonb`   |     | `postIntervention.habitats[].properties`                             | verbatim GeoPackage attribute columns                                            |
+| Column                                       | Type      | Key | Template    | JSON path                                                            | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ----------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —           | —                                                                    | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —           | —                                                                    | → feature_set.feature_set_id                                                     |
+| `retention_category`                         | `text`    |     | Both        | `postIntervention.habitats[].retentionCategory`                      |                                                                                  |
+| `ref`                                        | `text`    |     | Both        | `postIntervention.habitats[].ref`                                    |                                                                                  |
+| `area`                                       | `numeric` |     | Both        | `postIntervention.habitats[].area`                                   |                                                                                  |
+| `size_square_metres`                         | `numeric` |     | Both        | `postIntervention.habitats[].sizeSquareMetres`                       |                                                                                  |
+| `units`                                      | `numeric` |     | Both        | `postIntervention.habitats[].units`                                  |                                                                                  |
+| `status`                                     | `text`    |     | Both        | `postIntervention.habitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | Both        | `postIntervention.habitats[].comment`                                |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | Both        | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | Both        | `postIntervention.habitats[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | BNG Service | `postIntervention.habitats[].parentUuid`                             |                                                                                  |
+| `reference_edited`                           | `boolean` |     | Both        | `postIntervention.habitats[].referenceEdited`                        |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | BNG Service | `postIntervention.habitats[].irreplaceable`                          |                                                                                  |
+| `baseline_type`                              | `text`    |     | Both        | `postIntervention.habitats[].baseline.type`                          |                                                                                  |
+| `baseline_broad_type`                        | `text`    |     | Both        | `postIntervention.habitats[].baseline.broadType`                     |                                                                                  |
+| `baseline_condition`                         | `text`    |     | Both        | `postIntervention.habitats[].baseline.condition`                     |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | Both        | `postIntervention.habitats[].baseline.conditionScore`                |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | Both        | `postIntervention.habitats[].baseline.distinctiveness`               |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.habitats[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | Both        | `postIntervention.habitats[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | Both        | `postIntervention.habitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | Both        | `postIntervention.habitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
+| `proposed_type`                              | `text`    |     | Both        | `postIntervention.habitats[].proposed.type`                          |                                                                                  |
+| `proposed_broad_type`                        | `text`    |     | Both        | `postIntervention.habitats[].proposed.broadType`                     |                                                                                  |
+| `proposed_condition`                         | `text`    |     | Both        | `postIntervention.habitats[].proposed.condition`                     |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | Both        | `postIntervention.habitats[].proposed.conditionScore`                |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | Both        | `postIntervention.habitats[].proposed.distinctiveness`               |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.habitats[].proposed.distinctivenessScore`          |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | Both        | `postIntervention.habitats[].proposed.advanceYears`                  |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | Both        | `postIntervention.habitats[].proposed.delayYears`                    |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | Both        | `postIntervention.habitats[].proposed.timeMultiplier`                |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | Both        | `postIntervention.habitats[].proposed.difficultyMultiplier`          |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | Both        | `postIntervention.habitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | Both        | `postIntervention.habitats[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | Both        | `postIntervention.habitats[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | Both        | `postIntervention.habitats[].proposed.rejectedStrategicSignificance` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | Both        | `postIntervention.habitats[].proposed.strategicSignificanceScore`    |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | Both        | `postIntervention.habitats[].proposed.advanceOrDelay`                |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | Both        | `postIntervention.habitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | Both        | `postIntervention.habitats[].proposed.strategicSignificance`         |                                                                                  |
+| `properties`                                 | `jsonb`   |     | Both        | `postIntervention.habitats[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_trees`
 
 trees in the postIntervention document. 51 column(s) mapped from the JSON document.
 
-| Column                                       | Type      | Key | JSON path                                                         | Notes                                                                            |
-| -------------------------------------------- | --------- | --- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                                 | `uuid`    | PK  | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                             | `text`    | FK  | —                                                                 | → feature_set.feature_set_id                                                     |
-| `retention_category`                         | `text`    |     | `postIntervention.trees[].retentionCategory`                      |                                                                                  |
-| `ref`                                        | `text`    |     | `postIntervention.trees[].ref`                                    |                                                                                  |
-| `area`                                       | `numeric` |     | `postIntervention.trees[].area`                                   |                                                                                  |
-| `size_square_metres`                         | `numeric` |     | `postIntervention.trees[].sizeSquareMetres`                       |                                                                                  |
-| `units`                                      | `numeric` |     | `postIntervention.trees[].units`                                  |                                                                                  |
-| `status`                                     | `text`    |     | `postIntervention.trees[].status`                                 |                                                                                  |
-| `comment`                                    | `text`    |     | `postIntervention.trees[].comment`                                |                                                                                  |
-| `count`                                      | `numeric` |     | `postIntervention.trees[].count`                                  |                                                                                  |
-| `invalid_enhancement`                        | `text`    |     | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
-| `parent_feature_id`                          | `uuid`    |     | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
-| `parent_uuid`                                | `uuid`    |     | `postIntervention.trees[].parentUuid`                             |                                                                                  |
-| `reference_edited`                           | `boolean` |     | `postIntervention.trees[].referenceEdited`                        |                                                                                  |
-| `irreplaceable`                              | `boolean` |     | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
-| `baseline_type`                              | `text`    |     | `postIntervention.trees[].baseline.type`                          |                                                                                  |
-| `baseline_broad_type`                        | `text`    |     | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
-| `baseline_condition`                         | `text`    |     | `postIntervention.trees[].baseline.condition`                     |                                                                                  |
-| `baseline_condition_score`                   | `numeric` |     | `postIntervention.trees[].baseline.conditionScore`                |                                                                                  |
-| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.trees[].baseline.distinctiveness`               |                                                                                  |
-| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.trees[].baseline.distinctivenessScore`          |                                                                                  |
-| `baseline_strategic_significance`            | `text`    |     | `postIntervention.trees[].baseline.strategicSignificance`         |                                                                                  |
-| `baseline_tree_size`                         | `text`    |     | `postIntervention.trees[].baseline.treeSize`                      |                                                                                  |
-| `baseline_tree_species`                      | `text`    |     | `postIntervention.trees[].baseline.treeSpecies`                   |                                                                                  |
-| `baseline_rural_or_urban`                    | `text`    |     | `postIntervention.trees[].baseline.ruralOrUrban`                  |                                                                                  |
-| `baseline_size_square_metres`                | `numeric` |     | `postIntervention.trees[].baseline.sizeSquareMetres`              |                                                                                  |
-| `baseline_area`                              | `numeric` |     | `postIntervention.trees[].baseline.area`                          |                                                                                  |
-| `proposed_type`                              | `text`    |     | `postIntervention.trees[].proposed.type`                          |                                                                                  |
-| `proposed_broad_type`                        | `text`    |     | `postIntervention.trees[].proposed.broadType`                     |                                                                                  |
-| `proposed_condition`                         | `text`    |     | `postIntervention.trees[].proposed.condition`                     |                                                                                  |
-| `proposed_condition_score`                   | `numeric` |     | `postIntervention.trees[].proposed.conditionScore`                |                                                                                  |
-| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.trees[].proposed.distinctiveness`               |                                                                                  |
-| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.trees[].proposed.distinctivenessScore`          |                                                                                  |
-| `proposed_strategic_significance`            | `text`    |     | `postIntervention.trees[].proposed.strategicSignificance`         |                                                                                  |
-| `proposed_tree_size`                         | `text`    |     | `postIntervention.trees[].proposed.treeSize`                      |                                                                                  |
-| `proposed_tree_species`                      | `text`    |     | `postIntervention.trees[].proposed.treeSpecies`                   |                                                                                  |
-| `proposed_rural_or_urban`                    | `text`    |     | `postIntervention.trees[].proposed.ruralOrUrban`                  |                                                                                  |
-| `proposed_size_square_metres`                | `numeric` |     | `postIntervention.trees[].proposed.sizeSquareMetres`              |                                                                                  |
-| `proposed_area`                              | `numeric` |     | `postIntervention.trees[].proposed.area`                          |                                                                                  |
-| `proposed_advance_years`                     | `numeric` |     | `postIntervention.trees[].proposed.advanceYears`                  |                                                                                  |
-| `proposed_delay_years`                       | `numeric` |     | `postIntervention.trees[].proposed.delayYears`                    |                                                                                  |
-| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.trees[].proposed.timeMultiplier`                |                                                                                  |
-| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.trees[].proposed.difficultyMultiplier`          |                                                                                  |
-| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.trees[].proposed.standardTimeToTargetCondition` |                                                                                  |
-| `proposed_difficulty`                        | `text`    |     | `postIntervention.trees[].proposed.difficulty`                    |                                                                                  |
-| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.trees[].proposed.strategicSignificanceCategory` |                                                                                  |
-| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.trees[].proposed.rejectedStrategicSignificance` |                                                                                  |
-| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.trees[].proposed.strategicSignificanceScore`    |                                                                                  |
-| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.trees[].proposed.advanceOrDelay`                |                                                                                  |
-| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.trees[].proposed.finalTimeToTargetCondition`    |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.trees[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.trees[].proposed.delayYearsIs30Plus`            |                                                                                  |
-| `properties`                                 | `jsonb`   |     | `postIntervention.trees[].properties`                             | verbatim GeoPackage attribute columns                                            |
+| Column                                       | Type      | Key | Template    | JSON path                                                         | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ----------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —           | —                                                                 | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —           | —                                                                 | → feature_set.feature_set_id                                                     |
+| `retention_category`                         | `text`    |     | Both        | `postIntervention.trees[].retentionCategory`                      |                                                                                  |
+| `ref`                                        | `text`    |     | Both        | `postIntervention.trees[].ref`                                    |                                                                                  |
+| `area`                                       | `numeric` |     | Both        | `postIntervention.trees[].area`                                   |                                                                                  |
+| `size_square_metres`                         | `numeric` |     | Both        | `postIntervention.trees[].sizeSquareMetres`                       |                                                                                  |
+| `units`                                      | `numeric` |     | Both        | `postIntervention.trees[].units`                                  |                                                                                  |
+| `status`                                     | `text`    |     | Both        | `postIntervention.trees[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | Both        | `postIntervention.trees[].comment`                                |                                                                                  |
+| `count`                                      | `numeric` |     | Legacy      | `postIntervention.trees[].count`                                  |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | Both        | `postIntervention.trees[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | Both        | `postIntervention.trees[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | BNG Service | `postIntervention.trees[].parentUuid`                             |                                                                                  |
+| `reference_edited`                           | `boolean` |     | Both        | `postIntervention.trees[].referenceEdited`                        |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | BNG Service | `postIntervention.trees[].irreplaceable`                          |                                                                                  |
+| `baseline_type`                              | `text`    |     | Both        | `postIntervention.trees[].baseline.type`                          |                                                                                  |
+| `baseline_broad_type`                        | `text`    |     | Both        | `postIntervention.trees[].baseline.broadType`                     |                                                                                  |
+| `baseline_condition`                         | `text`    |     | Both        | `postIntervention.trees[].baseline.condition`                     |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | Both        | `postIntervention.trees[].baseline.conditionScore`                |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | Both        | `postIntervention.trees[].baseline.distinctiveness`               |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.trees[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | Both        | `postIntervention.trees[].baseline.strategicSignificance`         |                                                                                  |
+| `baseline_tree_size`                         | `text`    |     | Both        | `postIntervention.trees[].baseline.treeSize`                      |                                                                                  |
+| `baseline_tree_species`                      | `text`    |     | Both        | `postIntervention.trees[].baseline.treeSpecies`                   |                                                                                  |
+| `baseline_rural_or_urban`                    | `text`    |     | Both        | `postIntervention.trees[].baseline.ruralOrUrban`                  |                                                                                  |
+| `baseline_size_square_metres`                | `numeric` |     | Both        | `postIntervention.trees[].baseline.sizeSquareMetres`              |                                                                                  |
+| `baseline_area`                              | `numeric` |     | Both        | `postIntervention.trees[].baseline.area`                          |                                                                                  |
+| `proposed_type`                              | `text`    |     | Both        | `postIntervention.trees[].proposed.type`                          |                                                                                  |
+| `proposed_broad_type`                        | `text`    |     | Both        | `postIntervention.trees[].proposed.broadType`                     |                                                                                  |
+| `proposed_condition`                         | `text`    |     | Both        | `postIntervention.trees[].proposed.condition`                     |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | Both        | `postIntervention.trees[].proposed.conditionScore`                |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | Both        | `postIntervention.trees[].proposed.distinctiveness`               |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.trees[].proposed.distinctivenessScore`          |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | Both        | `postIntervention.trees[].proposed.strategicSignificance`         |                                                                                  |
+| `proposed_tree_size`                         | `text`    |     | Both        | `postIntervention.trees[].proposed.treeSize`                      |                                                                                  |
+| `proposed_tree_species`                      | `text`    |     | Both        | `postIntervention.trees[].proposed.treeSpecies`                   |                                                                                  |
+| `proposed_rural_or_urban`                    | `text`    |     | Both        | `postIntervention.trees[].proposed.ruralOrUrban`                  |                                                                                  |
+| `proposed_size_square_metres`                | `numeric` |     | Both        | `postIntervention.trees[].proposed.sizeSquareMetres`              |                                                                                  |
+| `proposed_area`                              | `numeric` |     | Both        | `postIntervention.trees[].proposed.area`                          |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | Both        | `postIntervention.trees[].proposed.advanceYears`                  |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | Both        | `postIntervention.trees[].proposed.delayYears`                    |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | Both        | `postIntervention.trees[].proposed.timeMultiplier`                |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | Both        | `postIntervention.trees[].proposed.difficultyMultiplier`          |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | Both        | `postIntervention.trees[].proposed.standardTimeToTargetCondition` |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | Both        | `postIntervention.trees[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | Both        | `postIntervention.trees[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | Both        | `postIntervention.trees[].proposed.rejectedStrategicSignificance` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | Both        | `postIntervention.trees[].proposed.strategicSignificanceScore`    |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | Both        | `postIntervention.trees[].proposed.advanceOrDelay`                |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | Both        | `postIntervention.trees[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | Both        | `postIntervention.trees[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | Both        | `postIntervention.trees[].proposed.delayYearsIs30Plus`            |                                                                                  |
+| `properties`                                 | `jsonb`   |     | Both        | `postIntervention.trees[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_vertical_habitats`
 
-verticalHabitats in the postIntervention document. 39 column(s) mapped from the JSON document.
+verticalHabitats in the postIntervention document. 39 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
 
-| Column                                       | Type      | Key | JSON path                                                                    | Notes                                                                            |
-| -------------------------------------------- | --------- | --- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                                 | `uuid`    | PK  | —                                                                            | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                             | `text`    | FK  | —                                                                            | → feature_set.feature_set_id                                                     |
-| `retention_category`                         | `text`    |     | `postIntervention.verticalHabitats[].retentionCategory`                      |                                                                                  |
-| `ref`                                        | `text`    |     | `postIntervention.verticalHabitats[].ref`                                    |                                                                                  |
-| `area`                                       | `numeric` |     | `postIntervention.verticalHabitats[].area`                                   |                                                                                  |
-| `size_square_metres`                         | `numeric` |     | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
-| `units`                                      | `numeric` |     | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
-| `status`                                     | `text`    |     | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
-| `comment`                                    | `text`    |     | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
-| `invalid_enhancement`                        | `text`    |     | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
-| `parent_feature_id`                          | `uuid`    |     | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
-| `parent_uuid`                                | `uuid`    |     | `postIntervention.verticalHabitats[].parentUuid`                             |                                                                                  |
-| `irreplaceable`                              | `boolean` |     | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
-| `baseline_type`                              | `text`    |     | `postIntervention.verticalHabitats[].baseline.type`                          |                                                                                  |
-| `baseline_broad_type`                        | `text`    |     | `postIntervention.verticalHabitats[].baseline.broadType`                     |                                                                                  |
-| `baseline_condition`                         | `text`    |     | `postIntervention.verticalHabitats[].baseline.condition`                     |                                                                                  |
-| `baseline_condition_score`                   | `numeric` |     | `postIntervention.verticalHabitats[].baseline.conditionScore`                |                                                                                  |
-| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.verticalHabitats[].baseline.distinctiveness`               |                                                                                  |
-| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.verticalHabitats[].baseline.distinctivenessScore`          |                                                                                  |
-| `baseline_strategic_significance`            | `text`    |     | `postIntervention.verticalHabitats[].baseline.strategicSignificance`         |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.verticalHabitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
-| `proposed_type`                              | `text`    |     | `postIntervention.verticalHabitats[].proposed.type`                          |                                                                                  |
-| `proposed_broad_type`                        | `text`    |     | `postIntervention.verticalHabitats[].proposed.broadType`                     |                                                                                  |
-| `proposed_condition`                         | `text`    |     | `postIntervention.verticalHabitats[].proposed.condition`                     |                                                                                  |
-| `proposed_condition_score`                   | `numeric` |     | `postIntervention.verticalHabitats[].proposed.conditionScore`                |                                                                                  |
-| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.verticalHabitats[].proposed.distinctiveness`               |                                                                                  |
-| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.verticalHabitats[].proposed.distinctivenessScore`          |                                                                                  |
-| `proposed_advance_years`                     | `numeric` |     | `postIntervention.verticalHabitats[].proposed.advanceYears`                  |                                                                                  |
-| `proposed_delay_years`                       | `numeric` |     | `postIntervention.verticalHabitats[].proposed.delayYears`                    |                                                                                  |
-| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.verticalHabitats[].proposed.timeMultiplier`                |                                                                                  |
-| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.verticalHabitats[].proposed.difficultyMultiplier`          |                                                                                  |
-| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.verticalHabitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
-| `proposed_difficulty`                        | `text`    |     | `postIntervention.verticalHabitats[].proposed.difficulty`                    |                                                                                  |
-| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.verticalHabitats[].proposed.strategicSignificanceCategory` |                                                                                  |
-| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.verticalHabitats[].proposed.rejectedStrategicSignificance` |                                                                                  |
-| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.verticalHabitats[].proposed.strategicSignificanceScore`    |                                                                                  |
-| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.verticalHabitats[].proposed.advanceOrDelay`                |                                                                                  |
-| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.verticalHabitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
-| `proposed_strategic_significance`            | `text`    |     | `postIntervention.verticalHabitats[].proposed.strategicSignificance`         |                                                                                  |
-| `properties`                                 | `jsonb`   |     | `postIntervention.verticalHabitats[].properties`                             | verbatim GeoPackage attribute columns                                            |
+| Column                                       | Type      | Key | Template    | JSON path                                                                    | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —           | —                                                                            | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —           | —                                                                            | → feature_set.feature_set_id                                                     |
+| `retention_category`                         | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].retentionCategory`                      |                                                                                  |
+| `ref`                                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].ref`                                    |                                                                                  |
+| `area`                                       | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].area`                                   |                                                                                  |
+| `size_square_metres`                         | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
+| `units`                                      | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
+| `status`                                     | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | BNG Service | `postIntervention.verticalHabitats[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | BNG Service | `postIntervention.verticalHabitats[].parentUuid`                             |                                                                                  |
+| `irreplaceable`                              | `boolean` |     | BNG Service | `postIntervention.verticalHabitats[].irreplaceable`                          |                                                                                  |
+| `baseline_type`                              | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].baseline.type`                          |                                                                                  |
+| `baseline_broad_type`                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].baseline.broadType`                     |                                                                                  |
+| `baseline_condition`                         | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].baseline.condition`                     |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].baseline.conditionScore`                |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].baseline.distinctiveness`               |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.delayYearsIs30Plus`            |                                                                                  |
+| `proposed_type`                              | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.type`                          |                                                                                  |
+| `proposed_broad_type`                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.broadType`                     |                                                                                  |
+| `proposed_condition`                         | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.condition`                     |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.conditionScore`                |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.distinctiveness`               |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.distinctivenessScore`          |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.advanceYears`                  |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.delayYears`                    |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.timeMultiplier`                |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.difficultyMultiplier`          |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.standardTimeToTargetCondition` |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.rejectedStrategicSignificance` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].proposed.strategicSignificanceScore`    |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.advanceOrDelay`                |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].proposed.strategicSignificance`         |                                                                                  |
+| `properties`                                 | `jsonb`   |     | BNG Service | `postIntervention.verticalHabitats[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_hedgerows`
 
 hedgerows in the postIntervention document. 37 column(s) mapped from the JSON document.
 
-| Column                                       | Type      | Key | JSON path                                                             | Notes                                                                            |
-| -------------------------------------------- | --------- | --- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                                 | `uuid`    | PK  | —                                                                     | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                             | `text`    | FK  | —                                                                     | → feature_set.feature_set_id                                                     |
-| `retention_category`                         | `text`    |     | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
-| `invalid_enhancement`                        | `text`    |     | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
-| `parent_feature_id`                          | `uuid`    |     | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
-| `parent_uuid`                                | `uuid`    |     | `postIntervention.hedgerows[].parentUuid`                             |                                                                                  |
-| `reference_edited`                           | `boolean` |     | `postIntervention.hedgerows[].referenceEdited`                        |                                                                                  |
-| `ref`                                        | `text`    |     | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
-| `length`                                     | `numeric` |     | `postIntervention.hedgerows[].length`                                 |                                                                                  |
-| `size_metres`                                | `numeric` |     | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
-| `units`                                      | `numeric` |     | `postIntervention.hedgerows[].units`                                  |                                                                                  |
-| `status`                                     | `text`    |     | `postIntervention.hedgerows[].status`                                 |                                                                                  |
-| `comment`                                    | `text`    |     | `postIntervention.hedgerows[].comment`                                |                                                                                  |
-| `baseline_type`                              | `text`    |     | `postIntervention.hedgerows[].baseline.type`                          |                                                                                  |
-| `baseline_condition`                         | `text`    |     | `postIntervention.hedgerows[].baseline.condition`                     |                                                                                  |
-| `baseline_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].baseline.conditionScore`                |                                                                                  |
-| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.hedgerows[].baseline.distinctiveness`               |                                                                                  |
-| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].baseline.distinctivenessScore`          |                                                                                  |
-| `baseline_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].baseline.strategicSignificance`         |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.hedgerows[].proposed.advanceYearsIs30Plus`          |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.hedgerows[].proposed.delayYearsIs30Plus`            |                                                                                  |
-| `proposed_type`                              | `text`    |     | `postIntervention.hedgerows[].proposed.type`                          |                                                                                  |
-| `proposed_condition`                         | `text`    |     | `postIntervention.hedgerows[].proposed.condition`                     |                                                                                  |
-| `proposed_condition_score`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.conditionScore`                |                                                                                  |
-| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.hedgerows[].proposed.distinctiveness`               |                                                                                  |
-| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.hedgerows[].proposed.distinctivenessScore`          |                                                                                  |
-| `proposed_advance_years`                     | `numeric` |     | `postIntervention.hedgerows[].proposed.advanceYears`                  |                                                                                  |
-| `proposed_delay_years`                       | `numeric` |     | `postIntervention.hedgerows[].proposed.delayYears`                    |                                                                                  |
-| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.hedgerows[].proposed.timeMultiplier`                |                                                                                  |
-| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.hedgerows[].proposed.difficultyMultiplier`          |                                                                                  |
-| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.hedgerows[].proposed.standardTimeToTargetCondition` |                                                                                  |
-| `proposed_difficulty`                        | `text`    |     | `postIntervention.hedgerows[].proposed.difficulty`                    |                                                                                  |
-| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.hedgerows[].proposed.strategicSignificanceCategory` |                                                                                  |
-| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.hedgerows[].proposed.rejectedStrategicSignificance` |                                                                                  |
-| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.hedgerows[].proposed.strategicSignificanceScore`    |                                                                                  |
-| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.hedgerows[].proposed.advanceOrDelay`                |                                                                                  |
-| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.hedgerows[].proposed.finalTimeToTargetCondition`    |                                                                                  |
-| `proposed_strategic_significance`            | `text`    |     | `postIntervention.hedgerows[].proposed.strategicSignificance`         |                                                                                  |
-| `properties`                                 | `jsonb`   |     | `postIntervention.hedgerows[].properties`                             | verbatim GeoPackage attribute columns                                            |
+| Column                                       | Type      | Key | Template    | JSON path                                                             | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —           | —                                                                     | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —           | —                                                                     | → feature_set.feature_set_id                                                     |
+| `retention_category`                         | `text`    |     | Both        | `postIntervention.hedgerows[].retentionCategory`                      |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | Both        | `postIntervention.hedgerows[].invalidEnhancement`                     |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | Both        | `postIntervention.hedgerows[].parentFeatureId`                        |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | BNG Service | `postIntervention.hedgerows[].parentUuid`                             |                                                                                  |
+| `reference_edited`                           | `boolean` |     | Both        | `postIntervention.hedgerows[].referenceEdited`                        |                                                                                  |
+| `ref`                                        | `text`    |     | Both        | `postIntervention.hedgerows[].ref`                                    |                                                                                  |
+| `length`                                     | `numeric` |     | Both        | `postIntervention.hedgerows[].length`                                 |                                                                                  |
+| `size_metres`                                | `numeric` |     | Both        | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
+| `units`                                      | `numeric` |     | Both        | `postIntervention.hedgerows[].units`                                  |                                                                                  |
+| `status`                                     | `text`    |     | Both        | `postIntervention.hedgerows[].status`                                 |                                                                                  |
+| `comment`                                    | `text`    |     | Both        | `postIntervention.hedgerows[].comment`                                |                                                                                  |
+| `baseline_type`                              | `text`    |     | Both        | `postIntervention.hedgerows[].baseline.type`                          |                                                                                  |
+| `baseline_condition`                         | `text`    |     | Both        | `postIntervention.hedgerows[].baseline.condition`                     |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | Both        | `postIntervention.hedgerows[].baseline.conditionScore`                |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | Both        | `postIntervention.hedgerows[].baseline.distinctiveness`               |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.hedgerows[].baseline.distinctivenessScore`          |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | Both        | `postIntervention.hedgerows[].baseline.strategicSignificance`         |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | Both        | `postIntervention.hedgerows[].proposed.advanceYearsIs30Plus`          |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | Both        | `postIntervention.hedgerows[].proposed.delayYearsIs30Plus`            |                                                                                  |
+| `proposed_type`                              | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.type`                          |                                                                                  |
+| `proposed_condition`                         | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.condition`                     |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.conditionScore`                |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.distinctiveness`               |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.distinctivenessScore`          |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.advanceYears`                  |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.delayYears`                    |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.timeMultiplier`                |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.difficultyMultiplier`          |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.standardTimeToTargetCondition` |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.difficulty`                    |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.strategicSignificanceCategory` |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.rejectedStrategicSignificance` |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | Both        | `postIntervention.hedgerows[].proposed.strategicSignificanceScore`    |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.advanceOrDelay`                |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.finalTimeToTargetCondition`    |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | Both        | `postIntervention.hedgerows[].proposed.strategicSignificance`         |                                                                                  |
+| `properties`                                 | `jsonb`   |     | Both        | `postIntervention.hedgerows[].properties`                             | verbatim GeoPackage attribute columns                                            |
 
 ### `post_intervention_watercourses`
 
 watercourses in the postIntervention document. 46 column(s) mapped from the JSON document.
 
-| Column                                       | Type      | Key | JSON path                                                                 | Notes                                                                            |
-| -------------------------------------------- | --------- | --- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
-| `feature_id`                                 | `uuid`    | PK  | —                                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
-| `feature_set_id`                             | `text`    | FK  | —                                                                         | → feature_set.feature_set_id                                                     |
-| `edited_advance_years`                       | `numeric` |     | `postIntervention.watercourses[].editedAdvanceYears`                      |                                                                                  |
-| `retention_category`                         | `text`    |     | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
-| `invalid_enhancement`                        | `text`    |     | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
-| `parent_feature_id`                          | `uuid`    |     | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
-| `parent_uuid`                                | `uuid`    |     | `postIntervention.watercourses[].parentUuid`                              |                                                                                  |
-| `reference_edited`                           | `boolean` |     | `postIntervention.watercourses[].referenceEdited`                         |                                                                                  |
-| `ref`                                        | `text`    |     | `postIntervention.watercourses[].ref`                                     |                                                                                  |
-| `length`                                     | `numeric` |     | `postIntervention.watercourses[].length`                                  |                                                                                  |
-| `size_metres`                                | `numeric` |     | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
-| `units`                                      | `numeric` |     | `postIntervention.watercourses[].units`                                   |                                                                                  |
-| `status`                                     | `text`    |     | `postIntervention.watercourses[].status`                                  |                                                                                  |
-| `comment`                                    | `text`    |     | `postIntervention.watercourses[].comment`                                 |                                                                                  |
-| `baseline_type`                              | `text`    |     | `postIntervention.watercourses[].baseline.type`                           |                                                                                  |
-| `baseline_condition`                         | `text`    |     | `postIntervention.watercourses[].baseline.condition`                      |                                                                                  |
-| `baseline_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].baseline.conditionScore`                 |                                                                                  |
-| `baseline_distinctiveness`                   | `text`    |     | `postIntervention.watercourses[].baseline.distinctiveness`                |                                                                                  |
-| `baseline_distinctiveness_score`             | `numeric` |     | `postIntervention.watercourses[].baseline.distinctivenessScore`           |                                                                                  |
-| `baseline_riparian_encroachment`             | `text`    |     | `postIntervention.watercourses[].baseline.riparianEncroachment`           |                                                                                  |
-| `baseline_watercourse_encroachment`          | `text`    |     | `postIntervention.watercourses[].baseline.watercourseEncroachment`        |                                                                                  |
-| `baseline_strategic_significance`            | `text`    |     | `postIntervention.watercourses[].baseline.strategicSignificance`          |                                                                                  |
-| `baseline_water_encroachment_multiplier`     | `numeric` |     | `postIntervention.watercourses[].baseline.waterEncroachmentMultiplier`    |                                                                                  |
-| `baseline_riparian_encroachment_multiplier`  | `numeric` |     | `postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier` |                                                                                  |
-| `proposed_advance_years_is30_plus`           | `boolean` |     | `postIntervention.watercourses[].proposed.advanceYearsIs30Plus`           |                                                                                  |
-| `proposed_delay_years_is30_plus`             | `boolean` |     | `postIntervention.watercourses[].proposed.delayYearsIs30Plus`             |                                                                                  |
-| `proposed_type`                              | `text`    |     | `postIntervention.watercourses[].proposed.type`                           |                                                                                  |
-| `proposed_condition`                         | `text`    |     | `postIntervention.watercourses[].proposed.condition`                      |                                                                                  |
-| `proposed_condition_score`                   | `numeric` |     | `postIntervention.watercourses[].proposed.conditionScore`                 |                                                                                  |
-| `proposed_distinctiveness`                   | `text`    |     | `postIntervention.watercourses[].proposed.distinctiveness`                |                                                                                  |
-| `proposed_distinctiveness_score`             | `numeric` |     | `postIntervention.watercourses[].proposed.distinctivenessScore`           |                                                                                  |
-| `proposed_advance_years`                     | `numeric` |     | `postIntervention.watercourses[].proposed.advanceYears`                   |                                                                                  |
-| `proposed_delay_years`                       | `numeric` |     | `postIntervention.watercourses[].proposed.delayYears`                     |                                                                                  |
-| `proposed_time_multiplier`                   | `numeric` |     | `postIntervention.watercourses[].proposed.timeMultiplier`                 |                                                                                  |
-| `proposed_difficulty_multiplier`             | `numeric` |     | `postIntervention.watercourses[].proposed.difficultyMultiplier`           |                                                                                  |
-| `proposed_standard_time_to_target_condition` | `text`    |     | `postIntervention.watercourses[].proposed.standardTimeToTargetCondition`  |                                                                                  |
-| `proposed_difficulty`                        | `text`    |     | `postIntervention.watercourses[].proposed.difficulty`                     |                                                                                  |
-| `proposed_strategic_significance_category`   | `text`    |     | `postIntervention.watercourses[].proposed.strategicSignificanceCategory`  |                                                                                  |
-| `proposed_rejected_strategic_significance`   | `text`    |     | `postIntervention.watercourses[].proposed.rejectedStrategicSignificance`  |                                                                                  |
-| `proposed_strategic_significance_score`      | `numeric` |     | `postIntervention.watercourses[].proposed.strategicSignificanceScore`     |                                                                                  |
-| `proposed_advance_or_delay`                  | `text`    |     | `postIntervention.watercourses[].proposed.advanceOrDelay`                 |                                                                                  |
-| `proposed_final_time_to_target_condition`    | `text`    |     | `postIntervention.watercourses[].proposed.finalTimeToTargetCondition`     |                                                                                  |
-| `proposed_riparian_encroachment`             | `text`    |     | `postIntervention.watercourses[].proposed.riparianEncroachment`           |                                                                                  |
-| `proposed_watercourse_encroachment`          | `text`    |     | `postIntervention.watercourses[].proposed.watercourseEncroachment`        |                                                                                  |
-| `proposed_strategic_significance`            | `text`    |     | `postIntervention.watercourses[].proposed.strategicSignificance`          |                                                                                  |
-| `proposed_water_encroachment_multiplier`     | `numeric` |     | `postIntervention.watercourses[].proposed.waterEncroachmentMultiplier`    |                                                                                  |
-| `proposed_riparian_encroachment_multiplier`  | `numeric` |     | `postIntervention.watercourses[].proposed.riparianEncroachmentMultiplier` |                                                                                  |
-| `properties`                                 | `jsonb`   |     | `postIntervention.watercourses[].properties`                              | verbatim GeoPackage attribute columns                                            |
+| Column                                       | Type      | Key | Template    | JSON path                                                                 | Notes                                                                            |
+| -------------------------------------------- | --------- | --- | ----------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
+| `feature_id`                                 | `uuid`    | PK  | —           | —                                                                         | the feature's own `featureId` — also the PK of the matching PostGIS geometry row |
+| `feature_set_id`                             | `text`    | FK  | —           | —                                                                         | → feature_set.feature_set_id                                                     |
+| `edited_advance_years`                       | `numeric` |     | Both        | `postIntervention.watercourses[].editedAdvanceYears`                      |                                                                                  |
+| `retention_category`                         | `text`    |     | Both        | `postIntervention.watercourses[].retentionCategory`                       |                                                                                  |
+| `invalid_enhancement`                        | `text`    |     | Both        | `postIntervention.watercourses[].invalidEnhancement`                      |                                                                                  |
+| `parent_feature_id`                          | `uuid`    |     | Both        | `postIntervention.watercourses[].parentFeatureId`                         |                                                                                  |
+| `parent_uuid`                                | `uuid`    |     | BNG Service | `postIntervention.watercourses[].parentUuid`                              |                                                                                  |
+| `reference_edited`                           | `boolean` |     | Both        | `postIntervention.watercourses[].referenceEdited`                         |                                                                                  |
+| `ref`                                        | `text`    |     | Both        | `postIntervention.watercourses[].ref`                                     |                                                                                  |
+| `length`                                     | `numeric` |     | Both        | `postIntervention.watercourses[].length`                                  |                                                                                  |
+| `size_metres`                                | `numeric` |     | Both        | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
+| `units`                                      | `numeric` |     | Both        | `postIntervention.watercourses[].units`                                   |                                                                                  |
+| `status`                                     | `text`    |     | Both        | `postIntervention.watercourses[].status`                                  |                                                                                  |
+| `comment`                                    | `text`    |     | Both        | `postIntervention.watercourses[].comment`                                 |                                                                                  |
+| `baseline_type`                              | `text`    |     | Both        | `postIntervention.watercourses[].baseline.type`                           |                                                                                  |
+| `baseline_condition`                         | `text`    |     | Both        | `postIntervention.watercourses[].baseline.condition`                      |                                                                                  |
+| `baseline_condition_score`                   | `numeric` |     | Both        | `postIntervention.watercourses[].baseline.conditionScore`                 |                                                                                  |
+| `baseline_distinctiveness`                   | `text`    |     | Both        | `postIntervention.watercourses[].baseline.distinctiveness`                |                                                                                  |
+| `baseline_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.watercourses[].baseline.distinctivenessScore`           |                                                                                  |
+| `baseline_riparian_encroachment`             | `text`    |     | Both        | `postIntervention.watercourses[].baseline.riparianEncroachment`           |                                                                                  |
+| `baseline_watercourse_encroachment`          | `text`    |     | Both        | `postIntervention.watercourses[].baseline.watercourseEncroachment`        |                                                                                  |
+| `baseline_strategic_significance`            | `text`    |     | Both        | `postIntervention.watercourses[].baseline.strategicSignificance`          |                                                                                  |
+| `baseline_water_encroachment_multiplier`     | `numeric` |     | Both        | `postIntervention.watercourses[].baseline.waterEncroachmentMultiplier`    |                                                                                  |
+| `baseline_riparian_encroachment_multiplier`  | `numeric` |     | Both        | `postIntervention.watercourses[].baseline.riparianEncroachmentMultiplier` |                                                                                  |
+| `proposed_advance_years_is30_plus`           | `boolean` |     | Both        | `postIntervention.watercourses[].proposed.advanceYearsIs30Plus`           |                                                                                  |
+| `proposed_delay_years_is30_plus`             | `boolean` |     | Both        | `postIntervention.watercourses[].proposed.delayYearsIs30Plus`             |                                                                                  |
+| `proposed_type`                              | `text`    |     | Both        | `postIntervention.watercourses[].proposed.type`                           |                                                                                  |
+| `proposed_condition`                         | `text`    |     | Both        | `postIntervention.watercourses[].proposed.condition`                      |                                                                                  |
+| `proposed_condition_score`                   | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.conditionScore`                 |                                                                                  |
+| `proposed_distinctiveness`                   | `text`    |     | Both        | `postIntervention.watercourses[].proposed.distinctiveness`                |                                                                                  |
+| `proposed_distinctiveness_score`             | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.distinctivenessScore`           |                                                                                  |
+| `proposed_advance_years`                     | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.advanceYears`                   |                                                                                  |
+| `proposed_delay_years`                       | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.delayYears`                     |                                                                                  |
+| `proposed_time_multiplier`                   | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.timeMultiplier`                 |                                                                                  |
+| `proposed_difficulty_multiplier`             | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.difficultyMultiplier`           |                                                                                  |
+| `proposed_standard_time_to_target_condition` | `text`    |     | Both        | `postIntervention.watercourses[].proposed.standardTimeToTargetCondition`  |                                                                                  |
+| `proposed_difficulty`                        | `text`    |     | Both        | `postIntervention.watercourses[].proposed.difficulty`                     |                                                                                  |
+| `proposed_strategic_significance_category`   | `text`    |     | Both        | `postIntervention.watercourses[].proposed.strategicSignificanceCategory`  |                                                                                  |
+| `proposed_rejected_strategic_significance`   | `text`    |     | Both        | `postIntervention.watercourses[].proposed.rejectedStrategicSignificance`  |                                                                                  |
+| `proposed_strategic_significance_score`      | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.strategicSignificanceScore`     |                                                                                  |
+| `proposed_advance_or_delay`                  | `text`    |     | Both        | `postIntervention.watercourses[].proposed.advanceOrDelay`                 |                                                                                  |
+| `proposed_final_time_to_target_condition`    | `text`    |     | Both        | `postIntervention.watercourses[].proposed.finalTimeToTargetCondition`     |                                                                                  |
+| `proposed_riparian_encroachment`             | `text`    |     | Both        | `postIntervention.watercourses[].proposed.riparianEncroachment`           |                                                                                  |
+| `proposed_watercourse_encroachment`          | `text`    |     | Both        | `postIntervention.watercourses[].proposed.watercourseEncroachment`        |                                                                                  |
+| `proposed_strategic_significance`            | `text`    |     | Both        | `postIntervention.watercourses[].proposed.strategicSignificance`          |                                                                                  |
+| `proposed_water_encroachment_multiplier`     | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.waterEncroachmentMultiplier`    |                                                                                  |
+| `proposed_riparian_encroachment_multiplier`  | `numeric` |     | Both        | `postIntervention.watercourses[].proposed.riparianEncroachmentMultiplier` |                                                                                  |
+| `properties`                                 | `jsonb`   |     | Both        | `postIntervention.watercourses[].properties`                              | verbatim GeoPackage attribute columns                                            |

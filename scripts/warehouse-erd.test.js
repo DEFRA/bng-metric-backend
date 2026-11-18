@@ -10,6 +10,11 @@ import {
 import { renderErdMarkdown } from './warehouse-erd-render.js'
 import { schemaPaths } from '../src/validation/data-dictionary-paths.js'
 import { projectSchema } from '../src/validation/project.js'
+import {
+  BNG_SERVICE_ONLY,
+  LEGACY_ONLY,
+  TEMPLATES
+} from '../src/validation/template-applicability.js'
 
 const model = buildWarehouseModel(projectSchema.describe())
 const tableByName = new Map(model.tables.map((table) => [table.table, table]))
@@ -47,7 +52,7 @@ describe('#schemaLeaves', () => {
     })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'rows[].id', type: 'uuid', openMap: false }
+      { path: 'rows[].id', type: 'uuid', openMap: false, template: 'both' }
     ])
   })
 
@@ -59,7 +64,27 @@ describe('#schemaLeaves', () => {
     })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'rows[].ids[]', type: 'uuid[]', openMap: false }
+      { path: 'rows[].ids[]', type: 'uuid[]', openMap: false, template: 'both' }
+    ])
+  })
+
+  it('gives each leaf the template of the field it sits under', () => {
+    const schema = Joi.object({
+      rows: Joi.array()
+        .items(
+          Joi.object({ id: Joi.string(), note: Joi.string().meta(LEGACY_ONLY) })
+        )
+        .meta(BNG_SERVICE_ONLY)
+    })
+
+    expect(
+      schemaLeaves(schema.describe()).map(({ path, template }) => [
+        path,
+        template
+      ])
+    ).toEqual([
+      ['rows[].id', 'bng-service'],
+      ['rows[].note', 'neither']
     ])
   })
 
@@ -67,7 +92,7 @@ describe('#schemaLeaves', () => {
     const schema = Joi.object({ properties: Joi.object().unknown(true) })
 
     expect(schemaLeaves(schema.describe())).toEqual([
-      { path: 'properties', type: 'jsonb', openMap: true }
+      { path: 'properties', type: 'jsonb', openMap: true, template: 'both' }
     ])
   })
 
@@ -138,6 +163,26 @@ describe('#buildWarehouseModel — schema coverage', () => {
     expect(() => buildWarehouseModel(orphan.describe())).toThrow(
       /no table claims the schema path "mystery.field"/
     )
+  })
+
+  it('tags a column fed from both documents with every template that fills it', () => {
+    const mixed = Joi.object({
+      baseline: Joi.object({ uploadId: Joi.string().meta(LEGACY_ONLY) }),
+      postIntervention: Joi.object({
+        uploadId: Joi.string().meta(BNG_SERVICE_ONLY)
+      })
+    })
+
+    const built = buildWarehouseModel(mixed.describe())
+    const uploadId = built.tables
+      .find((table) => table.table === 'feature_set')
+      .columns.find((column) => column.name === 'upload_id')
+
+    expect(uploadId.jsonPaths).toEqual([
+      'baseline.uploadId',
+      'postIntervention.uploadId'
+    ])
+    expect(uploadId.template).toBe(TEMPLATES.BOTH)
   })
 
   it('lands a new top-level scalar on the project table', () => {
