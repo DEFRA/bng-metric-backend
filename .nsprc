@@ -1,0 +1,7 @@
+{
+  "GHSA-fc5q-39xc-vjpf": {
+    "active": true,
+    "notes": "picomatch ReDoS (CVE-2026-112366). Every picomatch release is affected, none fixes it, and the advisory is disputed. Only dev and build tooling uses picomatch (vitest, vite and the eslint config), on glob patterns this repo writes; it never sees user input and is not deployed. Remove when picomatch publishes a fix or the advisory is withdrawn: https://github.com/micromatch/picomatch/issues/234",
+    "expiry": "2027-02-18"
+  }
+}
