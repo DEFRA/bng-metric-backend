@@ -28,7 +28,7 @@ const lostHabitatSchema = Joi.object({
     .valid('removed', 'lostAndRecreated', 'lost')
     .required()
     .description(
-      'How it is lost: `removed` when no post-intervention habitat names it; `lostAndRecreated` when a Created habitat of its own type names it (a habitat that gets worse, recorded as lost and created again); `lost` when it is lost, in full or in part, to creations of another type or to nothing.'
+      'How it is lost: `removed` when no post-intervention habitat names it; `lostAndRecreated` when a Created habitat of its own type names it (a habitat that gets worse, or one replaced in kind such as a tree planted where a felled tree stood, recorded as lost and created again); `lost` when it is lost, in full or in part, to creations of another type or to nothing.'
     ),
   lostSizeSquareMetres: Joi.number()
     .min(0)
