@@ -193,7 +193,7 @@ describeServiceTemplate(
     it.each(
       LAYERS.flatMap((layer) => STAGES.map((stage) => [...layer, ...stage]))
     )(
-      'keeps each %s column the mapping reads, with the file’s value, and drops the rest (%s, %s)',
+      'keeps each %s column the mapping reads, under its own name with the file’s value, and drops the rest (%s, %s)',
       (logical, documentKey, stage, documentName) => {
         const { table, columns } = TEMPLATE_MAPPING_1_0[logical]
         const rows = rowsOf(fixturePath(EVERY_COLUMN), table(stage))
@@ -214,10 +214,18 @@ describeServiceTemplate(
                 `${table(stage)}: ${column}`
               ).not.toHaveProperty([column])
             } else {
+              // Kept under the template's own name, even when the pipeline
+              // reads it under another, as Habitat Ref is read as Parcel Ref.
               expect(
-                properties[target],
+                properties[column],
                 `${table(stage)} fid ${row.fid}: ${column}`
               ).toEqual(asKept(column, row))
+              if (target !== column) {
+                expect(
+                  properties,
+                  `${table(stage)}: ${column} read as ${target}`
+                ).not.toHaveProperty([target])
+              }
             }
           }
         }
