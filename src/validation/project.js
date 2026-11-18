@@ -97,11 +97,19 @@ const unitsSchema = Joi.object({
   )
 }).description('Project-level biodiversity unit summary.')
 
+/** A baseline feature's id in a BNG Service template file (template-ids.js). */
+const FEATURE_UUID_DESCRIPTION =
+  "The feature_uuid a BNG Service template file gives this baseline feature: the file's own id for it, which its post-intervention features name as their parent_uuid. It is not the service's featureId; it traces the feature back to the ecologist's QGIS file. Null when the file leaves it blank. Absent on a legacy upload, whose template has no such column."
+
 const habitatSchema = Joi.object({
   featureId: Joi.string()
     .uuid()
     .required()
     .description(featureIdDescription('bng.baseline_habitats')),
+  featureUuid: Joi.string()
+    .uuid()
+    .allow(null)
+    .description(FEATURE_UUID_DESCRIPTION),
   ref: shortFileText().description(
     'Parcel reference from the GeoPackage (Parcel Ref column).'
   ),
@@ -296,6 +304,10 @@ function linearFeatureSchema({
       .uuid()
       .required()
       .description(featureIdDescription(geometryRow)),
+    featureUuid: Joi.string()
+      .uuid()
+      .allow(null)
+      .description(FEATURE_UUID_DESCRIPTION),
     ref: shortFileText().description(
       'Feature reference from the GeoPackage (Parcel Ref column).'
     ),

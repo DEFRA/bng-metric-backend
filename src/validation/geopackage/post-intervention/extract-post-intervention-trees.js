@@ -8,6 +8,7 @@ import {
 import { postInterventionAreaStatus } from '../../../services/post-intervention/calculate-post-intervention-statuses.js'
 import { commentForPostIntervention } from '../comment-check.js'
 import { irreplaceableField } from '../irreplaceable.js'
+import { parentUuidField } from '../service-template/template-ids.js'
 import {
   INDIVIDUAL_TREES_BROAD_HABITAT,
   treeHabitatTypeFromRuralUrban
@@ -100,6 +101,7 @@ export function buildPostInterventionTree(
   const document = {
     featureId,
     ref,
+    ...parentUuidField(props),
     retentionCategory: retentionCategoryFromProps(props),
     comment: commentForPostIntervention(props, { template }),
     area: proposed.area,

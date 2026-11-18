@@ -29,6 +29,7 @@ import {
 } from '../extract-shared.js'
 import { stripConditionPrefix } from '../../../utilities/enrichment/shared/condition.js'
 import { irreplaceableField } from '../irreplaceable.js'
+import { featureUuidField } from '../service-template/template-ids.js'
 
 // Survey / provenance / planning metadata columns common to the Habitats,
 // Hedgerows and Rivers layers. These are single shared columns (no
@@ -84,6 +85,7 @@ function buildHabitat(
 
   const document = {
     featureId,
+    ...featureUuidField(props),
     ref,
     type: habitatType,
     broadType: pickProp(props, keys.broadHabitat),
@@ -138,6 +140,7 @@ function buildTree(feature, keys, readStrategicSignificance, commentOptions) {
 
   const document = {
     featureId,
+    ...featureUuidField(props),
     ref,
     // Trees are treated as an area habitat: broad "Individual trees" with an
     // urban/rural habitat type that the engine reference data is keyed on.
@@ -186,6 +189,7 @@ function buildLinearFeature(
 
   const document = {
     featureId,
+    ...featureUuidField(props),
     ref,
     type: pickProp(props, typeKey),
     condition: stripConditionPrefix(pickProp(props, keys.condition)),

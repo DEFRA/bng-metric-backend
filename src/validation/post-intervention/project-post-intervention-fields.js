@@ -4,7 +4,10 @@
  * repeat (retention, comment, size, units, and the baseline/proposed sides).
  */
 import Joi from 'joi'
-import { parentFeatureIdField } from './project-lineage-fields.js'
+import {
+  parentFeatureIdField,
+  parentUuidField
+} from './project-lineage-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import { featureIdDescription } from '../project-shared-schemas.js'
@@ -144,6 +147,7 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
     ...parentFeatureIdField({
       editableCreated: editableCreatedReference
     }),
+    ...parentUuidField(),
     ...(editableCreatedReference
       ? {
           referenceEdited: Joi.boolean().description(

@@ -107,6 +107,33 @@ describe('importUploadFile, a legacy file', () => {
   )
 
   it(
+    'gives no feature the BNG Service template’s ids, as a legacy file has none',
+    async () => {
+      const result = await importUploadFile(
+        POST_INTERVENTION_FILE,
+        {},
+        POST_INTERVENTION
+      )
+
+      expect(result.accepted).toBe(true)
+      for (const document of ['baseline', 'postIntervention']) {
+        for (const layer of [
+          'habitats',
+          'hedgerows',
+          'watercourses',
+          'trees'
+        ]) {
+          for (const feature of result.project[document][layer]) {
+            expect(feature).not.toHaveProperty('featureUuid')
+            expect(feature).not.toHaveProperty('parentUuid')
+          }
+        }
+      }
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
     'replaces the baseline with the one a post-intervention file describes',
     async () => {
       const stored = await importBaseline()
@@ -364,6 +391,60 @@ describe('importUploadFile, a BNG Service template file', () => {
         10
       )
       expect(result.project.postIntervention.habitats.length).toBeGreaterThan(0)
+    },
+    IMPORT_TIMEOUT_MS
+  )
+
+  it(
+    'names each feature’s ids from the file: a baseline feature’s feature_uuid, and the parent_uuid of each post-intervention feature, which is its parent’s',
+    async () => {
+      const result = await importUploadFile(SITE, {}, POST_INTERVENTION)
+
+      expect(result.accepted).toBe(true)
+      const { baseline, postIntervention } = result.project
+      const db = new Database(SITE, { readonly: true })
+      try {
+        for (const [layer, table] of [
+          ['habitats', 'Area Habitats'],
+          ['verticalHabitats', 'Vertical Area Habitats'],
+          ['hedgerows', 'Hedgerows'],
+          ['watercourses', 'Watercourses'],
+          ['trees', 'Individual Trees']
+        ]) {
+          // Sorted, so the check holds whatever order the rows are read in.
+          const fileFeatureUuids = db
+            .prepare(`SELECT feature_uuid AS id FROM "${table} Baseline"`)
+            .all()
+            .map((row) => row.id)
+            .sort()
+          expect(
+            baseline[layer].map((f) => f.featureUuid).sort(),
+            layer
+          ).toEqual(fileFeatureUuids)
+          // A post-intervention layer can drop the file's Lost rows, so each
+          // feature is checked against its own row instead.
+          expect(postIntervention[layer].length, layer).toBeGreaterThan(0)
+          for (const feature of postIntervention[layer]) {
+            expect(feature.parentUuid, layer).toBe(
+              feature.properties.parent_uuid?.trim() || null
+            )
+          }
+          const parents = new Map(baseline[layer].map((f) => [f.featureId, f]))
+          const linked = postIntervention[layer].filter(
+            (f) => f.parentFeatureId
+          )
+          expect(linked.length, layer).toBeGreaterThan(0)
+          for (const feature of linked) {
+            // The file's id and the service's name the same parent.
+            expect(feature.parentUuid).toBe(
+              parents.get(feature.parentFeatureId).featureUuid
+            )
+            expect(feature.parentUuid).not.toBe(feature.parentFeatureId)
+          }
+        }
+      } finally {
+        db.close()
+      }
     },
     IMPORT_TIMEOUT_MS
   )

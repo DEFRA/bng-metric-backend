@@ -10,7 +10,10 @@ import {
   postInterventionAreaFeatureFields,
   proposedCommonFields
 } from './project-post-intervention-fields.js'
-import { parentFeatureIdField } from './project-lineage-fields.js'
+import {
+  parentFeatureIdField,
+  parentUuidField
+} from './project-lineage-fields.js'
 import { createdTimingSelectionFields } from './project-timing-fields.js'
 
 import { BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION } from '../project-shared-schemas.js'
@@ -93,6 +96,7 @@ export const postInterventionTreeSchema = Joi.object({
     "The enhancement rule an Enhanced tree from a BNG Service template upload broke on import, when its proposed condition was not better than its baseline one: a record of why its proposed condition was nulled and the tree saved Incomplete. Its size, type and setting are its baseline tree's, so they are kept. Absent when the imported enhancement was valid or could not be checked, and on a legacy upload's trees."
   ),
   ...parentFeatureIdField({ editableCreated: true }),
+  ...parentUuidField(),
   referenceEdited: Joi.boolean().description(
     'Whether the user changed a Created or Enhanced tree reference. Its explicit parentFeatureId is then independent of the editable ref, as a Created area habitat is.'
   ),
