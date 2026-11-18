@@ -40,13 +40,8 @@ export function validatePostInterventionTreeEdit(feature, edits) {
       'A tree edit sends its reference, habitat, condition and timing together'
     )
   }
-  // A Created tree's comment is its supporting information (BMD-1153); an
-  // Enhanced tree's is not editable yet (BMD-1190).
-  if (retention === RETENTION_ENHANCED && Object.hasOwn(edits, 'comment')) {
-    throw featureNotEditableError(
-      'Supporting information can be edited on a Created tree only'
-    )
-  }
+  // A Created or Enhanced tree's comment is its supporting information
+  // (BMD-1153, BMD-1190), saved with this edit.
   const resolved = resolveStoredTiming(feature, edits)
   validateReferenceAndTiming(resolved)
   validateTreeChoices(resolved)

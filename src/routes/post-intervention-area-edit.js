@@ -9,17 +9,16 @@ import {
 import { getAreaCreationReference } from '../validation/reference/area-creation.js'
 import { getAreaEnhancementReference } from '../validation/reference/area-enhancement.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
-import { featureNotEditableError } from './feature-not-editable-error.js'
 import {
   resolveRetentionCategory,
   RETENTION_CREATED,
   RETENTION_ENHANCED
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 
-// A Created habitat's comment is its supporting information (BMD-1153). It is
-// saved with the complete post-intervention edit only, so a comment without
-// `ref` is refused rather than answered 200 having saved nothing. An Enhanced
-// area's is not editable yet (BMD-1190).
+// A Created or Enhanced habitat's comment is its supporting information
+// (BMD-1153, BMD-1190). It is saved with the complete post-intervention edit
+// only, so a comment without `ref` is refused rather than answered 200 having
+// saved nothing.
 export const postInterventionAreaEditPayload = featureEditPayload
   .keys({
     strategicSignificance: Joi.string()
@@ -43,13 +42,7 @@ export function validatePostInterventionAreaEdit(feature, edits) {
   if (!Object.hasOwn(edits, 'ref')) {
     return edits
   }
-  const retention = resolveRetentionCategory(feature)
-  if (retention === RETENTION_ENHANCED && Object.hasOwn(edits, 'comment')) {
-    throw featureNotEditableError(
-      'Supporting information can be edited on a Created area only'
-    )
-  }
-  const enhanced = retention === RETENTION_ENHANCED
+  const enhanced = resolveRetentionCategory(feature) === RETENTION_ENHANCED
   const reference = editReference(feature, enhanced)
   if (!reference) {
     throw Boom.badRequest(

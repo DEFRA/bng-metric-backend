@@ -306,21 +306,19 @@ function withoutImportedRejection(feature, documentKey) {
 }
 
 /**
- * A Created habitat's supporting information (BMD-1153), saved on the
- * post-intervention row itself. An edit that leaves the comment out keeps the
- * stored one. An Enhanced tree, which takes the same complete edit, keeps its
- * comment as imported (BMD-1190).
+ * A Created or Enhanced habitat's supporting information (BMD-1153,
+ * BMD-1190), saved on the post-intervention row itself, not on its baseline
+ * parcel. Every feature that takes the complete edit saves its comment with
+ * it, so an Enhanced kind made editable later saves its comment too. An edit
+ * that leaves the comment out keeps the stored one.
  *
- * @param {object} existing the feature before the edit
+ * @param {{ type: string, feature: object }} found the feature before the edit
  * @param {object} updated the recomputed feature
  * @param {{ comment?: string | null }} edits normalised edits
  * @returns {object}
  */
-function withCreatedComment(existing, updated, edits) {
-  if (
-    edits.comment === undefined ||
-    resolveRetentionCategory(existing) !== RETENTION_CREATED
-  ) {
+function withOwnComment(found, updated, edits) {
+  if (edits.comment === undefined || !takesCompleteEdit(found)) {
     return updated
   }
   return { ...updated, comment: edits.comment }
@@ -337,7 +335,7 @@ function resolveUpdatedFeature(
     CREATED_EDIT_TYPES.has(found.type) &&
     derived.updatedFeature
   const updated = recomputedWholeFeature
-    ? withCreatedComment(found.feature, derived.updatedFeature, edits)
+    ? withOwnComment(found, derived.updatedFeature, edits)
     : mergeFeature(found.type, found.feature, edits, derived, documentKey)
   preserveCreatedParent(found.feature, updated, {
     documentKey,
