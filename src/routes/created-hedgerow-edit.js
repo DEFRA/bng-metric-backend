@@ -19,7 +19,8 @@ export function validateCreatedHedgerowEdit(feature, edits) {
     'hedgerow',
     {
       enhancedReference: (enhanced) =>
-        getHedgerowEnhancementReference(enhanced.baseline ?? {})
+        getHedgerowEnhancementReference(enhanced.baseline ?? {}),
+      keepsStoredChoices: true
     }
   )
 }

@@ -525,7 +525,9 @@ describe('BMD-1050 Created watercourse editing', () => {
     }
   )
 
-  test.each(['Retained', 'Enhanced', null])(
+  // An Enhanced watercourse is edited within its baseline's valid enhancements
+  // (BMD-1047, enhanced-watercourse-edit.test.js).
+  test.each(['Retained', null])(
     'rejects editing %s watercourses',
     (retentionCategory) => {
       expect(() =>
