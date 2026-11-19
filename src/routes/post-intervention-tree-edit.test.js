@@ -95,9 +95,10 @@ const edits = {
   delayYears: 0
 }
 
-function routeRequest(payload, stored = tree, layer = 'trees') {
+function routeRequest(payload, stored = tree, layer = 'trees', baseline) {
   const row = {
     project: {
+      ...(baseline && { baseline }),
       postIntervention: {
         habitats: [],
         trees: [],
@@ -123,8 +124,11 @@ function routeRequest(payload, stored = tree, layer = 'trees') {
   }
 }
 
-function put(payload, stored) {
-  return updatePostInterventionTree.handler(routeRequest(payload, stored), {})
+function put(payload, stored, baseline) {
+  return updatePostInterventionTree.handler(
+    routeRequest(payload, stored, 'trees', baseline),
+    {}
+  )
 }
 
 describe('Created tree reference', () => {
@@ -379,6 +383,51 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
         payload: {
           code: ERROR_CODES.ENHANCEMENT_NOT_VALID,
           rule: 'tree-better-condition'
+        }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('refuses an edit that puts an Existing tree Created over its baseline tree back in its baseline condition as TREE_DEGRADE_NOT_VALID, and writes nothing', async () => {
+    const parentId = 'cccccccc-cccc-cccc-cccc-cccccccccccc'
+    const side = {
+      broadType: 'Individual trees',
+      type: 'Rural tree',
+      treeSize: 'Small'
+    }
+    const createdOverParent = {
+      ...tree,
+      ref: 'T001',
+      parentFeatureId: parentId,
+      properties: { Category: 'Existing' },
+      baseline: { ...side, condition: 'Moderate' },
+      proposed: { ...tree.proposed, advanceYears: 30 }
+    }
+    const baseline = {
+      trees: [
+        { featureId: parentId, ref: 'T001', ...side, condition: 'Moderate' }
+      ]
+    }
+
+    await expect(
+      put(
+        {
+          ...edits,
+          ref: 'T001',
+          habitatType: 'Rural tree',
+          condition: 'Moderate',
+          advanceYears: '30+'
+        },
+        createdOverParent,
+        baseline
+      )
+    ).rejects.toMatchObject({
+      output: {
+        statusCode: 422,
+        payload: {
+          code: ERROR_CODES.TREE_DEGRADE_NOT_VALID,
+          rule: 'degrade-worse-condition'
         }
       }
     })

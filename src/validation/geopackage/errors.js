@@ -75,6 +75,14 @@ export const ERROR_CODES = Object.freeze({
   ENHANCEMENT_NOT_VALID: 'ENHANCEMENT_NOT_VALID',
 
   /**
+   * An edit would leave an Existing tree Created over its baseline tree, with
+   * no delay, not in a lower condition or not created 30+ years in advance,
+   * as the upload refuses one (STAGED_TREE_DEGRADE_NOT_VALID). `rule` names
+   * which (edit-degrade-rule.js, DEGRADE_RULE).
+   */
+  TREE_DEGRADE_NOT_VALID: 'TREE_DEGRADE_NOT_VALID',
+
+  /**
    * An edit to a habitat saved before the service checked text limits and
    * lists (BMD-1175): the habitat, or its post-intervention document, holds a
    * value longer than its limit or outside its list. The edit is refused, not
@@ -336,6 +344,18 @@ export const ERROR_CODES = Object.freeze({
    */
   STAGED_NATURAL_WATERCOURSE_LOST: 'STAGED_NATURAL_WATERCOURSE_LOST',
 
+  /**
+   * BNG Service template Existing individual trees Created and linked to their
+   * baseline tree, with no delay, that are not in a lower condition than it or
+   * not created 30+ years in advance: the Metric guide's steps for a tree
+   * whose condition gets worse ("Habitat retention"). `details.sample` lists
+   * each tree's table, Habitat Ref and setting, and its baseline tree's
+   * Habitat Ref as `parentRef`. The drop-out page tells the user to lower its
+   * condition and set 30+ years in advance, or, if it is a new tree planted
+   * in its place, to set its Category to Newly Planted.
+   */
+  STAGED_TREE_DEGRADE_NOT_VALID: 'STAGED_TREE_DEGRADE_NOT_VALID',
+
   /** Extracted document fails habitatDataSchema — e.g. a feature is missing its featureId or status. */
   INVALID_FILE_METADATA: 'INVALID_FILE_METADATA',
 
@@ -394,6 +414,7 @@ export const ERROR_SURFACES = Object.freeze({
 const EDIT_ONLY_CODES = new Set([
   ERROR_CODES.HABITAT_REF_IN_USE,
   ERROR_CODES.ENHANCEMENT_NOT_VALID,
+  ERROR_CODES.TREE_DEGRADE_NOT_VALID,
   ERROR_CODES.STORED_VALUE_NOT_ALLOWED,
   ERROR_CODES.FEATURE_NOT_EDITABLE
 ])

@@ -2332,27 +2332,63 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     })
   }
 
-  // 0.0163 ha x Medium distinctiveness 4 x the condition score; 30+ years in
-  // advance covers the time to target, and tree creation is Low difficulty.
   test.each([
-    ['its baseline condition', 'Moderate', 0.1304],
-    ['a better condition', 'Good', 0.1956]
-  ])(
-    'saves %s, priced as a creation at its own size',
-    (_, condition, units) => {
-      const result = editExistingCreatedTree({ condition })
+    [
+      'its baseline condition',
+      { condition: 'Moderate' },
+      'degrade-worse-condition'
+    ],
+    ['a better condition', { condition: 'Good' }, 'degrade-worse-condition'],
+    [
+      'fewer than 30+ years in advance',
+      { advanceYears: 5 },
+      'degrade-advance-30-plus'
+    ]
+  ])('refuses %s, with no delay, and saves nothing', (_, edits, rule) => {
+    const project = projectWithExistingCreatedTree()
+    const before = structuredClone(project)
 
-      expect(result.status).toBe(APPLY_RESULT.OK)
-      expect(lostTrees(result)).toEqual([PARENT_RECREATED])
-      expect(result.feature).toMatchObject({
-        parentFeatureId: PARENT_ID,
-        sizeSquareMetres: 163,
-        status: 'Complete',
-        proposed: { condition, type: 'Rural tree', treeSize: 'Medium' }
-      })
-      expect(result.feature.units).toBeCloseTo(units, 4)
-    }
-  )
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...edits
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      type: 'tree',
+      rule
+    })
+    expect(project).toEqual(before)
+  })
+
+  // 0.0163 ha x Medium distinctiveness 4 x Moderate's 2; Moderate is 27 years
+  // to target, which a 5-year delay makes 32, at 0.965 a year.
+  test('saves its baseline condition when it is put back after a delay, priced for the delay', () => {
+    const result = editExistingCreatedTree({
+      condition: 'Moderate',
+      advanceYears: 0,
+      delayYears: 5
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
+    expect(result.feature.proposed).toMatchObject({
+      condition: 'Moderate',
+      delayYears: 5
+    })
+    expect(result.feature.units).toBeCloseTo(0.1304 * 0.965 ** 32, 4)
+  })
 
   test('saves a move to the other setting', () => {
     const result = editExistingCreatedTree({ habitatType: 'Urban tree' })
@@ -2367,15 +2403,60 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     })
   })
 
-  test('saves fewer than 30+ years in advance, priced for the years still to target', () => {
-    const result = editExistingCreatedTree({ advanceYears: 5 })
+  test('refuses a move to the other setting in its baseline condition: it is still its baseline tree', () => {
+    const result = editExistingCreatedTree({
+      habitatType: 'Urban tree',
+      condition: 'Moderate'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.INVALID_DEGRADE)
+    expect(result.rule).toBe('degrade-worse-condition')
+  })
+
+  test('saves a new name for a tree its baseline tree’s edit has left in the same condition', () => {
+    const project = projectWithExistingCreatedTree()
+    project.postIntervention.trees[0].proposed.condition = 'Moderate'
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001-renamed',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0
+      }
+    })
 
     expect(result.status).toBe(APPLY_RESULT.OK)
-    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
-    expect(result.feature.proposed.advanceYears).toBe(5)
-    // Poor is 10 years to target; 5 years in advance leaves 5, the Metric's
-    // multiplier 0.8368.
-    expect(result.feature.units).toBeCloseTo(0.0652 * 0.8368287006, 4)
+    expect(result.feature.ref).toBe('T001-renamed')
+  })
+
+  test('does not hold a Newly Planted tree linked to its baseline tree to the steps: it is planting', () => {
+    const project = projectWithExistingCreatedTree()
+    project.postIntervention.trees[0].properties = { Category: 'Newly Planted' }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Good',
+        strategicSignificance: 'Low',
+        advanceYears: 5,
+        delayYears: 0
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.condition).toBe('Good')
   })
 
   test('saves a cleared condition, leaving the tree Incomplete with no units', () => {
