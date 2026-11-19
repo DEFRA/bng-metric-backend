@@ -3,6 +3,7 @@ import { lengthMetres } from 'bng-library/measure'
 
 import { ERROR_CODES } from '../../errors.js'
 import {
+  PROPOSED_PROP_KEYS,
   PROP_KEYS,
   TREE_ADVANCE_DELAY_KEYS,
   pickProp
@@ -11,7 +12,7 @@ import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
 import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
-import { LENGTH_TOLERANCE_METRES } from './habitat-change.js'
+import { LENGTH_TOLERANCE_METRES, isSameHabitatType } from './habitat-change.js'
 import {
   baselineHabitatTypeOf,
   collated,
@@ -24,7 +25,7 @@ import {
   refOf,
   text
 } from './lineage-rows.js'
-import { followsGuide } from './worsened-tree-steps.js'
+import { followsGuide } from './worsened-habitat-steps.js'
 
 /**
  * The Metric's rules on how a BNG Service template file's post-intervention
@@ -204,7 +205,7 @@ function offendingRow(layer, table, feature, parent) {
   }
 }
 
-/** A tree as the guide's steps read it (worsened-tree-steps.js), at either stage. */
+/** A tree as the guide's steps read it (worsened-habitat-steps.js), at either stage. */
 const treeSide = (type, condition, timing = {}) => ({
   type,
   broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
@@ -238,7 +239,7 @@ function checkWorsenedTrees(parent, children, context) {
     if (
       isCreated(child.properties) &&
       isExistingTree(child.properties) &&
-      !followsGuide(parentTree(parent), proposedTree(child))
+      !followsGuide('trees', parentTree(parent), proposedTree(child))
     ) {
       context.found.treeNotDegraded.push(
         offendingRow(
@@ -251,6 +252,62 @@ function checkWorsenedTrees(parent, children, context) {
     }
   }
 }
+
+/** A baseline area habitat, vertical area habitat or hedgerow as the steps read it. */
+const parentHabitat = (layer, { properties }) => ({
+  type: baselineHabitatTypeOf(layer, properties),
+  broadType: text(properties['Baseline Broad Habitat Type']),
+  condition: text(properties['Baseline Condition'])
+})
+
+/** A post-intervention one, with its timing. */
+const proposedHabitat = (layer, { properties }) => ({
+  type: habitatTypeOf(layer, properties),
+  broadType:
+    text(properties['Proposed Broad Habitat Type']) ??
+    text(properties['Baseline Broad Habitat Type']),
+  condition: text(properties['Proposed Condition']),
+  advanceYears: parseProposedAdvanceDelayYears(
+    pickProp(properties, PROPOSED_PROP_KEYS.advanceYears)
+  ),
+  delayYears: parseProposedAdvanceDelayYears(
+    pickProp(properties, PROPOSED_PROP_KEYS.delayYears)
+  )
+})
+
+/**
+ * Each area habitat, vertical area habitat or hedgerow Created in its
+ * parent's own type, with no delay, that is not in a lower condition or not
+ * created 30+ years in advance. Linked to its parent, it is on the parent's
+ * land, so it is the parent whose condition gets worse: a habitat cleared and
+ * put back gives a delay (guide, "Advance and delay"), and one kept as it was
+ * is Retained or Enhanced.
+ */
+function checkWorsenedHabitats(parent, children, context) {
+  const { layer } = context
+  const parentSide = parentHabitat(layer, parent)
+  for (const child of children) {
+    if (!isCreated(child.properties)) {
+      continue
+    }
+    const childSide = proposedHabitat(layer, child)
+    if (
+      isSameHabitatType(parentSide, childSide) &&
+      !followsGuide(layer, parentSide, childSide)
+    ) {
+      context.found.habitatNotDegraded.push(
+        offendingRow(layer, context.tables.postIntervention, child, parent)
+      )
+    }
+  }
+}
+
+/** The layers whose same-type Created rows are held to the guide's steps. */
+const WORSENED_HABITAT_LAYERS = new Set([
+  'areas',
+  'verticalHabitats',
+  'hedgerows'
+])
 
 /** A watercourse parent split between continuation and creation, or lost. */
 function checkWatercourseFamily(parent, children, context) {
@@ -296,6 +353,9 @@ function checkLayer(layer, baseline, postIntervention, found) {
     if (layer === 'trees') {
       checkTreeKeptOnce(parent, children, context)
       checkWorsenedTrees(parent, children, context)
+    }
+    if (WORSENED_HABITAT_LAYERS.has(layer)) {
+      checkWorsenedHabitats(parent, children, context)
     }
   }
 }
@@ -355,6 +415,13 @@ const RULE_ERRORS = [
       'One or more Existing trees are Created over their baseline tree, but not in a lower condition or not created 30+ years in advance, as the Metric guide asks for a tree whose condition gets worse. Lower its condition and set its years created in advance to 30+, or, if it is a new tree planted in its place, set its Category to Newly Planted',
     found: 'treeNotDegraded',
     describe: describeRow
+  },
+  {
+    code: ERROR_CODES.STAGED_HABITAT_DEGRADE_NOT_VALID,
+    heading:
+      'One or more habitats are Created in the habitat type of the baseline habitat they are linked to, but not in a lower condition or not created 30+ years in advance, as the Metric guide asks for a habitat whose condition gets worse. Lower its condition and set its years created in advance to 30+, or, if it is cleared and put back, enter its delay in starting habitat creation',
+    found: 'habitatNotDegraded',
+    describe: describeRow
   }
 ]
 
@@ -375,7 +442,8 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     tooManyTrees: [],
     partCreated: [],
     naturalLost: [],
-    treeNotDegraded: []
+    treeNotDegraded: [],
+    habitatNotDegraded: []
   }
   for (const layer of CHECKED_LAYERS) {
     checkLayer(

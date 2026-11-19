@@ -114,6 +114,63 @@ test.each([{}, { type: null }])(
     )
   }
 )
+test('the route answers a hedgerow Created in its parent’s own type, left in its parent’s condition with no delay, as 422 HABITAT_DEGRADE_NOT_VALID, and writes nothing', async () => {
+  const parentId = 'dddddddd-dddd-4ddd-8ddd-dddddddddddd'
+  const side = { type: 'Native hedgerow' }
+  const stored = {
+    ...feature,
+    parentFeatureId: parentId,
+    baseline: { ...side, condition: 'Good' },
+    proposed: { ...side, condition: 'Poor', advanceYears: 30, delayYears: 0 }
+  }
+  const project = {
+    baseline: {
+      hedgerows: [
+        {
+          featureId: parentId,
+          ref: 'HG1',
+          ...side,
+          condition: 'Good',
+          sizeMetres: 336
+        }
+      ]
+    },
+    postIntervention: {
+      hedgerows: [stored],
+      template: { name: 'bng-service', version: '1.0' }
+    }
+  }
+  const req = request(
+    { ...edits, condition: 'Good', advanceYears: '30+' },
+    stored
+  )
+  req.drizzle = {
+    transaction: (fn) =>
+      fn({
+        execute: vi.fn(),
+        select: () => ({
+          from: () => ({
+            where: () => ({ for: () => ({ limit: async () => [{ project }] }) })
+          })
+        })
+      })
+  }
+
+  await expect(
+    updatePostInterventionHedgerow.handler(req)
+  ).rejects.toMatchObject({
+    output: {
+      statusCode: 422,
+      payload: {
+        code: 'HABITAT_DEGRADE_NOT_VALID',
+        rule: 'degrade-worse-condition'
+      }
+    }
+  })
+  expect(setProjectFeature).not.toHaveBeenCalled()
+  expect(setGeometryRefs).not.toHaveBeenCalled()
+})
+
 describe('BMD-1049 Created hedgerow edits', () => {
   test('reference has only hedgerows and conditions supported by the public engine', () => {
     const reference = getHedgerowCreationReference()

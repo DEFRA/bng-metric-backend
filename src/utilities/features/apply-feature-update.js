@@ -509,7 +509,11 @@ function resolveEditTarget(
       }
     }
   }
-  const broken = brokenEditRule(found, derived, { documentKey, baseline })
+  const broken = brokenEditRule(found, derived, {
+    documentKey,
+    baseline,
+    serviceTemplate: isTemplateUpload(featureSet)
+  })
   if (broken) {
     return {
       rejection: {

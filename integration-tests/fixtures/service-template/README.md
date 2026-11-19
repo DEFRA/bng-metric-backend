@@ -36,4 +36,7 @@ harness's `attribute-problems/` until the service stopped refusing a Created
 habitat for how it compares with its parent (BMD-1184), when the harness
 dropped them. They are kept here, unchanged, as the default site with HG017,
 a hedgerow that gets worse, recorded with no years in advance or in its
-baseline condition: files the service now accepts.
+baseline condition. The service refuses both again, as
+`STAGED_HABITAT_DEGRADE_NOT_VALID`: a hedgerow Created in its own type,
+linked to it, with no delay, follows the guide's steps for a habitat that
+gets worse.

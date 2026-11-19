@@ -95,6 +95,8 @@ const edits = {
   delayYears: 0
 }
 
+// With a baseline, the project is a BNG Service template upload's: only its
+// features link to a parent, and only its are held to the guide's steps.
 function routeRequest(payload, stored = tree, layer = 'trees', baseline) {
   const row = {
     project: {
@@ -104,7 +106,10 @@ function routeRequest(payload, stored = tree, layer = 'trees', baseline) {
         trees: [],
         hedgerows: [],
         watercourses: [],
-        [layer]: [stored]
+        [layer]: [stored],
+        ...(baseline && {
+          template: { name: 'bng-service', version: '1.0' }
+        })
       }
     }
   }

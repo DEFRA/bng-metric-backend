@@ -380,30 +380,22 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
-    it('passes a vertical area habitat Created in its own type, whatever its condition or advance', () => {
+    it('passes a vertical area habitat Created in its own type in a lower condition, 30+ years in advance', () => {
       const parent = wall(1, 40)
 
-      for (const overrides of [
-        {
-          'Proposed Condition': 'Poor',
-          'Habitat created in advance/years': '0'
-        },
-        {}
-      ]) {
-        expect(
-          check(
-            { verticalHabitats: [parent] },
-            {
-              verticalHabitats: [
-                degraded(parent, 'verticalHabitats', {
-                  'Parcel Ref': 'V001a',
-                  ...overrides
-                })
-              ]
-            }
-          )
-        ).toEqual([])
-      }
+      expect(
+        check(
+          { verticalHabitats: [parent] },
+          {
+            verticalHabitats: [
+              degraded(parent, 'verticalHabitats', {
+                'Parcel Ref': 'V001a',
+                'Proposed Condition': 'Poor'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
     })
   })
 
@@ -752,45 +744,116 @@ describe('checkLineageRules', () => {
     })
   })
 
-  // A habitat that gets worse is recorded as its parent lost and a creation
-  // (guide, "Habitat retention"). The file is not refused for how the creation
-  // compares with its parent: the same row may be a degrade or a habitat
-  // cleared and created again, which only the ecologist can tell apart.
+  // A habitat that gets worse is recorded as its parent lost and created again
+  // in its own type, in a lower condition, 30+ years in advance (guide,
+  // "Habitat retention"). Linked to its parent, the row is on the parent's
+  // land, where a habitat cleared and put back gives a delay ("Advance and
+  // delay"), so a same-type row with no delay is held to those steps.
   describe('a Created row of its parent’s own type', () => {
-    it.each([
-      ['an area habitat', 'areas', () => parcel(1)],
-      ['a hedgerow', 'hedgerows', () => hedge(1, 100)],
-      ['a vertical area habitat', 'verticalHabitats', () => wall(1, 40)]
-    ])(
-      'passes %s however it compares with its parent',
-      (_, layer, parentOf) => {
-        const parent = parentOf()
+    const LAYERS = [
+      ['an area habitat', 'areas', () => parcel(1), 'Area Habitats'],
+      ['a hedgerow', 'hedgerows', () => hedge(1, 100), 'Hedgerows'],
+      [
+        'a vertical area habitat',
+        'verticalHabitats',
+        () => wall(1, 40),
+        'Vertical Area Habitats'
+      ]
+    ]
 
-        for (const overrides of [
-          // Its parent's condition, with no delay or advance.
-          { 'Habitat created in advance/years': '0' },
-          // A better condition.
-          { 'Proposed Condition': 'Good' },
-          // A lower condition, not 30+ years in advance.
+    describe.each(LAYERS)('%s', (_, layer, parentOf, tableStem) => {
+      it.each([
+        ['in its parent’s condition', {}],
+        ['in a better condition', { 'Proposed Condition': 'Good' }],
+        [
+          'in a lower condition, 5 years in advance',
           {
             'Proposed Condition': 'Poor',
             'Habitat created in advance/years': '5'
-          },
+          }
+        ],
+        [
+          'in a lower condition, with no years in advance',
           {
             'Proposed Condition': 'Poor',
             'Habitat created in advance/years': null
           }
-        ]) {
-          expect(
-            check(
-              { [layer]: [parent] },
-              { [layer]: [degraded(parent, layer, overrides)] }
-            ),
-            JSON.stringify(overrides)
-          ).toEqual([])
+        ]
+      ])(
+        'refuses one %s, with no delay, naming it and its parent',
+        (__, overrides) => {
+          const parent = parentOf()
+
+          const errors = check(
+            { [layer]: [parent] },
+            { [layer]: [degraded(parent, layer, overrides)] }
+          )
+
+          expect(codes(errors)).toEqual([
+            ERROR_CODES.STAGED_HABITAT_DEGRADE_NOT_VALID
+          ])
+          expect(errors[0].details.sample).toEqual([
+            expect.objectContaining({
+              layer,
+              table: `${tableStem} Post-Intervention`,
+              parentRef: parent.properties['Parcel Ref']
+            })
+          ])
         }
-      }
-    )
+      )
+
+      it.each([
+        [
+          'in a lower condition, 30+ years in advance',
+          { 'Proposed Condition': 'Poor' }
+        ],
+        [
+          'in a lower condition, 30 years in advance',
+          {
+            'Proposed Condition': 'Poor',
+            'Habitat created in advance/years': '30'
+          }
+        ],
+        [
+          'put back after a delay, in its parent’s condition',
+          {
+            'Habitat created in advance/years': '0',
+            'Delay in starting habitat creation/years': '2'
+          }
+        ],
+        [
+          'with no Proposed Condition, left Incomplete',
+          { 'Proposed Condition': null }
+        ]
+      ])('passes one %s', (__, overrides) => {
+        const parent = parentOf()
+
+        expect(
+          check(
+            { [layer]: [parent] },
+            { [layer]: [degraded(parent, layer, overrides)] }
+          )
+        ).toEqual([])
+      })
+    })
+
+    it('passes an area habitat Created in another habitat type: it is a creation, not the parent getting worse', () => {
+      const parent = parcel(1)
+
+      expect(
+        check(
+          { areas: [parent] },
+          {
+            areas: [
+              degraded(parent, 'areas', {
+                'Proposed Habitat Type': 'Modified grassland',
+                'Habitat created in advance/years': '0'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
 
     it('passes a habitat the Metric gives no condition score, Created in its own type', () => {
       const parent = parcel(1, { 'Baseline Condition': 'N/A - Other' })
