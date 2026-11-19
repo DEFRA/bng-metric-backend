@@ -516,6 +516,16 @@ describe('checkLineageRules', () => {
 
     it.each([
       ['in a lower condition, 30+ years in advance', {}],
+      // "30+" is 30 years, as the import parses it and the edit rule reads
+      // it (apply-feature-update.test.js).
+      [
+        'in a lower condition, 30 years in advance as text',
+        { 'Habitat Created/Enhanced in advance/years': '30' }
+      ],
+      [
+        'in a lower condition, 30 years in advance as a number',
+        { 'Habitat Created/Enhanced in advance/years': 30 }
+      ],
       [
         'in the other setting, in a lower condition, 30+ years in advance',
         { 'Proposed Rural or Urban Tree': 'Rural tree' }
@@ -549,6 +559,10 @@ describe('checkLineageRules', () => {
       [
         'in a lower condition, 5 years in advance',
         { 'Habitat Created/Enhanced in advance/years': '5' }
+      ],
+      [
+        'in a lower condition, 29 years in advance',
+        { 'Habitat Created/Enhanced in advance/years': 29 }
       ],
       [
         'in a lower condition, with no years in advance',

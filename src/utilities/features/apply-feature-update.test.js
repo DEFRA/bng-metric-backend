@@ -2232,9 +2232,10 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
 
   // T001, a Medium rural tree in Moderate condition, recorded as lost and as
   // a tree Created in Poor condition, 30+ years in advance: Category
-  // Existing, linked to its baseline tree. It is a creation like any other,
-  // so no edit to it is held to its baseline tree; while it keeps its
-  // parent's setting, its parent is lost and re-created by it.
+  // Existing, linked to its baseline tree. An edit must leave it in a lower
+  // condition and 30+ years in advance, or put back after a delay, as the
+  // guide's steps for a tree whose condition gets worse ask; while it keeps
+  // its parent's setting, its parent is lost and re-created by it.
   function projectWithExistingCreatedTree() {
     const project = projectFixture()
     const side = {
@@ -2388,6 +2389,18 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
       delayYears: 5
     })
     expect(result.feature.units).toBeCloseTo(0.1304 * 0.965 ** 32, 4)
+  })
+
+  // "30+" is 30 years, as the import parses it, so 30 meets the step as the
+  // upload reads it too (lineage-rules.test.js).
+  test.each([
+    ['30', 30],
+    ['"30+"', '30+']
+  ])('saves %s years in advance in a lower condition', (_, advanceYears) => {
+    const result = editExistingCreatedTree({ advanceYears })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.advanceYears).toBe(30)
   })
 
   test('saves a move to the other setting', () => {

@@ -1,6 +1,5 @@
 import { PARENT_UUID } from 'bng-library/bng-service'
 import { lengthMetres } from 'bng-library/measure'
-import { MAX_YEARS_PLUS } from 'bng-library/metric'
 
 import { ERROR_CODES } from '../../errors.js'
 import {
@@ -12,7 +11,7 @@ import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
 import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
 import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
-import { LENGTH_TOLERANCE_METRES, isLowerCondition } from './habitat-change.js'
+import { LENGTH_TOLERANCE_METRES } from './habitat-change.js'
 import {
   baselineHabitatTypeOf,
   collated,
@@ -25,6 +24,7 @@ import {
   refOf,
   text
 } from './lineage-rows.js'
+import { followsGuide } from './worsened-tree-steps.js'
 
 /**
  * The Metric's rules on how a BNG Service template file's post-intervention
@@ -204,44 +204,30 @@ function offendingRow(layer, table, feature, parent) {
   }
 }
 
-/** A tree's condition as the Metric's scores read it, at either stage. */
-const treeSide = (type, condition) => ({
+/** A tree as the guide's steps read it (worsened-tree-steps.js), at either stage. */
+const treeSide = (type, condition, timing = {}) => ({
   type,
   broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
-  condition: text(condition)
+  condition: text(condition),
+  advanceYears: parseProposedAdvanceDelayYears(timing.advanceYears),
+  delayYears: parseProposedAdvanceDelayYears(timing.delayYears)
 })
 
-/** Whether a tree is put back after a temporary loss: it has a delay. */
-const isPutBack = (properties) =>
-  (parseProposedAdvanceDelayYears(
-    pickProp(properties, TREE_ADVANCE_DELAY_KEYS.delayYears)
-  ) ?? 0) > 0
+const parentTree = (parent) =>
+  treeSide(
+    baselineHabitatTypeOf('trees', parent.properties),
+    parent.properties['Baseline Condition']
+  )
 
-/**
- * Whether an Existing tree Created over its baseline tree follows the guide:
- * in a lower condition, and created 30+ years in advance. A tree with no
- * Proposed Condition is left Incomplete, as any Created tree is, and not
- * refused for it.
- */
-function followsGuide(parent, child) {
-  const { properties } = child
-  const condition = text(properties['Proposed Condition'])
-  if (condition === null) {
-    return true
-  }
-  const lower = isLowerCondition(
-    'trees',
-    treeSide(
-      baselineHabitatTypeOf('trees', parent.properties),
-      parent.properties['Baseline Condition']
-    ),
-    treeSide(habitatTypeOf('trees', properties), condition)
+const proposedTree = ({ properties }) =>
+  treeSide(
+    habitatTypeOf('trees', properties),
+    properties['Proposed Condition'],
+    {
+      advanceYears: pickProp(properties, TREE_ADVANCE_DELAY_KEYS.advanceYears),
+      delayYears: pickProp(properties, TREE_ADVANCE_DELAY_KEYS.delayYears)
+    }
   )
-  const advance = text(
-    pickProp(properties, TREE_ADVANCE_DELAY_KEYS.advanceYears)
-  )
-  return lower && advance === MAX_YEARS_PLUS
-}
 
 /**
  * Each Existing tree Created over its baseline tree, with no delay, that is
@@ -252,8 +238,7 @@ function checkWorsenedTrees(parent, children, context) {
     if (
       isCreated(child.properties) &&
       isExistingTree(child.properties) &&
-      !isPutBack(child.properties) &&
-      !followsGuide(parent, child)
+      !followsGuide(parentTree(parent), proposedTree(child))
     ) {
       context.found.treeNotDegraded.push(
         offendingRow(

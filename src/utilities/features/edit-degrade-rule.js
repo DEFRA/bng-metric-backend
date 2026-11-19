@@ -2,60 +2,21 @@
 // breaks. Split out of apply-feature-update.js, which refuses the edit for it,
 // as edit-enhancement-rule.js is.
 
-import { MAX_YEARS } from 'bng-library/metric'
-
 import {
   RETENTION_CREATED,
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
-import { isLowerCondition } from '../../validation/geopackage/service-template/lineage/habitat-change.js'
 import { isExistingTree } from '../../validation/geopackage/service-template/lineage/lineage-rows.js'
+import {
+  DEGRADE_CHECKS,
+  breaksCheck
+} from '../../validation/geopackage/service-template/lineage/worsened-tree-steps.js'
 
-const TREES = 'trees'
-
-/**
- * The guide's steps for a tree whose condition gets worse ("Habitat
- * retention"), as the upload holds an Existing tree Created over its baseline
- * tree to them (service-template/lineage/lineage-rules.js,
- * checkWorsenedTrees): unless it is put back after a delay, it is in a lower
- * condition and created 30+ years in advance.
- */
-export const DEGRADE_RULE = Object.freeze({
-  worseCondition: 'degrade-worse-condition',
-  advance30Plus: 'degrade-advance-30-plus'
-})
-
-/** Put back after a delay: a temporary loss the delay already discounts. */
-const isPutBack = (proposed) => (proposed.delayYears ?? 0) > 0
-
-/** "30+", which an import stores as 30 and an edit can send as either. */
-const is30PlusYearsInAdvance = (proposed) =>
-  (proposed.advanceYears ?? 0) >= MAX_YEARS
+export { DEGRADE_RULE } from '../../validation/geopackage/service-template/lineage/worsened-tree-steps.js'
 
 /**
- * Each rule, in the order the upload's message gives them: whether a proposed
- * side breaks it, and the fields an edit changes it by. A tree put back after
- * a delay breaks neither.
- */
-const DEGRADE_CHECKS = Object.freeze([
-  {
-    rule: DEGRADE_RULE.worseCondition,
-    fields: ['condition', 'delayYears'],
-    breaks: (parent, proposed) => !isLowerCondition(TREES, parent, proposed)
-  },
-  {
-    rule: DEGRADE_RULE.advance30Plus,
-    fields: ['advanceYears', 'delayYears'],
-    breaks: (_parent, proposed) => !is30PlusYearsInAdvance(proposed)
-  }
-])
-
-const breaksCheck = (check, parent, proposed) =>
-  !isPutBack(proposed) && check.breaks(parent, proposed)
-
-/**
- * A field as the rules read it: a blank timing is 0 years, as isPutBack and
- * is30PlusYearsInAdvance read it, and any other blank is null, so a stored
+ * A field as the rules read it: a blank timing is 0 years, as
+ * worsened-tree-steps.js reads it, and any other blank is null, so a stored
  * null and an edit's 0 or undefined are the same value.
  */
 const BLANK_AS = Object.freeze({ advanceYears: 0, delayYears: 0 })
