@@ -2,20 +2,29 @@ import { PARENT_UUID } from 'bng-library/bng-service'
 import { lengthMetres } from 'bng-library/measure'
 
 import { ERROR_CODES } from '../../errors.js'
-import { PROP_KEYS, pickProp } from '../../properties.js'
+import {
+  PROP_KEYS,
+  TREE_ADVANCE_DELAY_KEYS,
+  pickProp
+} from '../../properties.js'
+import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../../tree-constants.js'
 import { SQ_METRES_PER_HECTARE } from '../../tree-sizes.js'
 import { verticalAreaSquareMetres } from '../../vertical-area-check.js'
+import { parseProposedAdvanceDelayYears } from '../../post-intervention/extract-post-intervention-sub-objects.js'
 import { LENGTH_TOLERANCE_METRES } from './habitat-change.js'
 import {
   baselineHabitatTypeOf,
   collated,
   continues,
+  habitatTypeOf,
   isCreated,
+  isExistingTree,
   label,
   parentsByUuid,
   refOf,
   text
 } from './lineage-rows.js'
+import { followsGuide } from './worsened-tree-steps.js'
 
 /**
  * The Metric's rules on how a BNG Service template file's post-intervention
@@ -42,7 +51,14 @@ import {
  *   refused for how that creation compares with its parent;
  * - individual trees: each point is one tree, so a parent is kept by one
  *   Retained or Enhanced tree at most, as a tree that is kept cannot
- *   multiply. Created trees are not counted against it.
+ *   multiply. Created trees are not counted against it;
+ * - individual trees: an Existing tree Created and linked to its baseline
+ *   tree is that tree, lost and created again because its condition gets
+ *   worse. Unless it is put back after a delay, it follows the guide's steps
+ *   ("Habitat retention"): a lower condition than its baseline tree's, and
+ *   created 30+ years in advance. A tree planted in its place is Newly
+ *   Planted, and held to neither. Trees alone are checked, as only a tree's
+ *   Category says whether a Created row is the habitat itself.
  */
 
 /** The watercourse types the Metric lets be permanently lost. */
@@ -175,6 +191,67 @@ function checkTreeKeptOnce(parent, children, context) {
   }
 }
 
+/** A post-intervention row a rule refuses, with its parent's ref. */
+function offendingRow(layer, table, feature, parent) {
+  const { properties } = feature
+  return {
+    layer,
+    table,
+    fid: properties.fid,
+    ref: refOf(properties),
+    habitatType: habitatTypeOf(layer, properties),
+    parentRef: refOf(parent.properties)
+  }
+}
+
+/** A tree as the guide's steps read it (worsened-tree-steps.js), at either stage. */
+const treeSide = (type, condition, timing = {}) => ({
+  type,
+  broadType: INDIVIDUAL_TREES_BROAD_HABITAT,
+  condition: text(condition),
+  advanceYears: parseProposedAdvanceDelayYears(timing.advanceYears),
+  delayYears: parseProposedAdvanceDelayYears(timing.delayYears)
+})
+
+const parentTree = (parent) =>
+  treeSide(
+    baselineHabitatTypeOf('trees', parent.properties),
+    parent.properties['Baseline Condition']
+  )
+
+const proposedTree = ({ properties }) =>
+  treeSide(
+    habitatTypeOf('trees', properties),
+    properties['Proposed Condition'],
+    {
+      advanceYears: pickProp(properties, TREE_ADVANCE_DELAY_KEYS.advanceYears),
+      delayYears: pickProp(properties, TREE_ADVANCE_DELAY_KEYS.delayYears)
+    }
+  )
+
+/**
+ * Each Existing tree Created over its baseline tree, with no delay, that is
+ * not in a lower condition or not created 30+ years in advance.
+ */
+function checkWorsenedTrees(parent, children, context) {
+  for (const child of children) {
+    if (
+      isCreated(child.properties) &&
+      isExistingTree(child.properties) &&
+      !followsGuide(parentTree(parent), proposedTree(child))
+    ) {
+      context.found.treeNotDegraded.push(
+        offendingRow(
+          context.layer,
+          context.tables.postIntervention,
+          child,
+          parent
+        )
+      )
+    }
+  }
+}
+
 /** A watercourse parent split between continuation and creation, or lost. */
 function checkWatercourseFamily(parent, children, context) {
   const { layer, tables, found } = context
@@ -218,10 +295,12 @@ function checkLayer(layer, baseline, postIntervention, found) {
     }
     if (layer === 'trees') {
       checkTreeKeptOnce(parent, children, context)
+      checkWorsenedTrees(parent, children, context)
     }
   }
 }
 
+const describeRow = (row) => `${label(row)}, copied from ${row.parentRef}`
 const describeParent = (parent) =>
   parent.childRefs.length > 0
     ? `${label(parent)}, copied to ${parent.childRefs.join(', ')}`
@@ -269,6 +348,13 @@ const RULE_ERRORS = [
       'One or more baseline watercourses have no post-intervention habitat, but only a canal or a ditch can be permanently lost. Record each as Retained, Enhanced or Created',
     found: 'naturalLost',
     describe: describeParent
+  },
+  {
+    code: ERROR_CODES.STAGED_TREE_DEGRADE_NOT_VALID,
+    heading:
+      'One or more Existing trees are Created over their baseline tree, but not in a lower condition or not created 30+ years in advance, as the Metric guide asks for a tree whose condition gets worse. Lower its condition and set its years created in advance to 30+, or, if it is a new tree planted in its place, set its Category to Newly Planted',
+    found: 'treeNotDegraded',
+    describe: describeRow
   }
 ]
 
@@ -288,7 +374,8 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     tooLarge: [],
     tooManyTrees: [],
     partCreated: [],
-    naturalLost: []
+    naturalLost: [],
+    treeNotDegraded: []
   }
   for (const layer of CHECKED_LAYERS) {
     checkLayer(
