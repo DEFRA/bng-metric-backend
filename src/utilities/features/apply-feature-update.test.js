@@ -1824,6 +1824,178 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
   })
 })
 
+describe('applyFeatureUpdate — a hedgerow or vertical area habitat Created in its parent’s own type', () => {
+  const PARENT_ID = 'aa0e8400-e29b-41d4-a716-446655440010'
+  const CHILD_ID = 'cc0e8400-e29b-41d4-a716-446655440011'
+  const TEMPLATE = { template: { name: 'bng-service', version: '1.0' } }
+  const EMPTY_LAYERS = {
+    habitats: [],
+    trees: [],
+    hedgerows: [],
+    watercourses: [],
+    verticalHabitats: []
+  }
+
+  /** HG1, a Native hedgerow in Good condition, recorded as lost and Created again in Poor, 30+ years in advance. */
+  function hedgerowProject() {
+    const side = { type: 'Native hedgerow' }
+    return {
+      baseline: {
+        ...EMPTY_LAYERS,
+        hedgerows: [
+          {
+            featureId: PARENT_ID,
+            ref: 'HG1',
+            ...side,
+            condition: 'Good',
+            sizeMetres: 100
+          }
+        ]
+      },
+      postIntervention: {
+        ...EMPTY_LAYERS,
+        hedgerows: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            ref: 'HG1',
+            retentionCategory: 'Created',
+            sizeMetres: 100,
+            baseline: { ...side, condition: 'Good' },
+            proposed: {
+              ...side,
+              condition: 'Poor',
+              advanceYears: 30,
+              delayYears: 0
+            }
+          }
+        ],
+        ...TEMPLATE
+      }
+    }
+  }
+
+  const editHedgerow = (project, overrides) =>
+    applyFeatureUpdate(project, {
+      featureId: CHILD_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'hedgerow',
+      edits: {
+        ref: 'HG1',
+        habitatType: 'Native hedgerow',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...overrides
+      }
+    })
+
+  test.each([
+    [
+      'in its parent’s condition',
+      { condition: 'Good' },
+      'degrade-worse-condition'
+    ],
+    [
+      'fewer than 30+ years in advance',
+      { advanceYears: 5 },
+      'degrade-advance-30-plus'
+    ]
+  ])(
+    'refuses a hedgerow edit leaving it %s, with no delay, and saves nothing',
+    (_, overrides, rule) => {
+      const project = hedgerowProject()
+      const before = structuredClone(project)
+
+      const result = editHedgerow(project, overrides)
+
+      expect(result).toEqual({
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: 'hedgerow',
+        rule
+      })
+      expect(project).toEqual(before)
+    }
+  )
+
+  test.each([
+    ['in a lower condition, 30+ years in advance', {}],
+    [
+      'in its parent’s condition, put back after a delay',
+      { condition: 'Good', advanceYears: 0, delayYears: 2 }
+    ]
+  ])('saves a hedgerow edit leaving it %s', (_, overrides) => {
+    const result = editHedgerow(hedgerowProject(), overrides)
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.type).toBe('Native hedgerow')
+  })
+
+  // A post-intervention vertical area habitat has no edit page or route: it
+  // is refused before any rule, so the steps hold it on upload alone
+  // (lineage-rules.js).
+  test('does not edit a Created post-intervention vertical area habitat, so only its upload is held to the steps', () => {
+    const wall = {
+      broadType: 'Urban',
+      type: 'Facade-bound green wall'
+    }
+    const project = {
+      baseline: {
+        ...EMPTY_LAYERS,
+        verticalHabitats: [
+          {
+            featureId: PARENT_ID,
+            ref: 'V1',
+            ...wall,
+            condition: 'Moderate',
+            sizeSquareMetres: 400
+          }
+        ]
+      },
+      postIntervention: {
+        ...EMPTY_LAYERS,
+        verticalHabitats: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            ref: 'V1',
+            retentionCategory: 'Created',
+            sizeSquareMetres: 400,
+            baseline: { ...wall, condition: 'Moderate' },
+            proposed: {
+              ...wall,
+              condition: 'Poor',
+              advanceYears: 30,
+              delayYears: 0
+            }
+          }
+        ],
+        ...TEMPLATE
+      }
+    }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: CHILD_ID,
+      documentKey: 'postIntervention',
+      edits: {
+        ref: 'V1',
+        broadType: 'Urban',
+        habitatType: 'Facade-bound green wall',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'verticalHabitat'
+    })
+  })
+})
+
 describe('applyFeatureUpdate — individual trees (BMD-1112)', () => {
   const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440005'
 
