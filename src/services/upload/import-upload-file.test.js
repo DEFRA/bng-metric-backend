@@ -1081,7 +1081,8 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
   // 0.0163 ha × Medium distinctiveness 4 × the condition score × the time
   // multiplier. Fairly Poor scores 1.5, and 30+ years in advance covers its
   // time to target; Poor scores 1, and 5 years in advance leaves 5 of its 10
-  // years, the Metric's 0.8368.
+  // years, the Metric's 0.8368. Put back after a 5-year delay, Fairly Poor's
+  // 19 years become 24, the Metric's 0.4253.
   it.each([
     [
       'in the same condition',
@@ -1094,6 +1095,16 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
       { 'Habitat Created/Enhanced in advance/years': '5' },
       { condition: 'Poor', advanceYears: 5 },
       MEDIUM_HECTARES * MEDIUM_DISTINCTIVENESS * POOR * 0.8368287006
+    ],
+    [
+      'put back after a delay, in its baseline condition',
+      {
+        'Proposed Condition': 'Fairly Poor',
+        'Habitat Created/Enhanced in advance/years': '0',
+        'Delay in starting habitat creation/enhancement in years': '5'
+      },
+      { condition: 'Fairly Poor', advanceYears: 0, delayYears: 5 },
+      MEDIUM_HECTARES * MEDIUM_DISTINCTIVENESS * FAIRLY_POOR * 0.4252609649
     ]
   ])(
     'accepts an Existing tree Created %s, priced as a creation like any other',
@@ -1121,6 +1132,15 @@ describe('importUploadFile, a BNG Service template file’s tree whose condition
         }
       })
       expect(created.units).toBeCloseTo(units, 10)
+      expect(
+        result.project.postIntervention.lostHabitats.find(
+          (lost) => lost.ref === 'T004'
+        )
+      ).toMatchObject({
+        outcome: 'lostAndRecreated',
+        lostTreeCount: 1,
+        recreatedAs: [created.featureId]
+      })
     },
     IMPORT_TIMEOUT_MS
   )
