@@ -169,10 +169,17 @@ describeServiceTemplate(
         method: 'PUT',
         url: `/projects/${project.id}/post-intervention/habitats/${creation.featureId}`,
         headers,
+        // Its parent's own type, in a lower condition, 30+ years in advance:
+        // the parent recorded as getting worse, as the guide's steps ask. The
+        // Created area edit page's whole form (BMD-1048).
         payload: {
+          ref: creation.ref,
           broadType: 'Sparsely vegetated land',
           habitatType: 'Tall forbs',
-          condition: 'Poor'
+          condition: 'Poor',
+          strategicSignificance: creation.proposed.strategicSignificance,
+          advanceYears: '30+',
+          delayYears: 0
         }
       })
 

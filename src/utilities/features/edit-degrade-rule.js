@@ -88,6 +88,10 @@ function createdOverParent(found, baseline, proposed) {
  * its parent's, has no score, such as "N/A - Other", has no lower or higher:
  * neither is refused, as an upload of one is not.
  *
+ * Only a BNG Service template upload's features are held, as only its upload
+ * is (lineage-rules.js): a legacy file links no row to its parent, and a
+ * legacy edit that finds one by its ref is not a degrade the file recorded.
+ *
  * A rule the feature already broke before the edit, while held to the steps,
  * such as after its parent was edited to the same condition, refuses only an
  * edit that changes the fields it is about: renaming it, or changing its
@@ -96,12 +100,18 @@ function createdOverParent(found, baseline, proposed) {
  *
  * @param {{ type: string, key: string, feature: object }} found the stored feature
  * @param {{ updatedFeature?: object }} derived
- * @param {{ documentKey: string, baseline?: object }} context
+ * @param {{ documentKey: string, baseline?: object, serviceTemplate?: boolean }} context
+ *   `serviceTemplate`, whether the post-intervention document is a BNG Service
+ *   template upload's
  * @returns {string | null} one of DEGRADE_RULE
  */
-export function brokenDegradeRule(found, derived, { documentKey, baseline }) {
+export function brokenDegradeRule(
+  found,
+  derived,
+  { documentKey, baseline, serviceTemplate }
+) {
   const edited = derived.updatedFeature
-  if (documentKey !== 'postIntervention' || !edited) {
+  if (documentKey !== 'postIntervention' || !serviceTemplate || !edited) {
     return null
   }
   const before = found.feature.proposed ?? {}

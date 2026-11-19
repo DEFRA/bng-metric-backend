@@ -16,7 +16,7 @@ export const EDIT_RULE_KIND = Object.freeze({
 /**
  * @param {{ type: string, key: string, feature: object }} found the stored feature
  * @param {{ updatedFeature?: object }} derived
- * @param {{ documentKey: string, baseline?: object }} context
+ * @param {{ documentKey: string, baseline?: object, serviceTemplate?: boolean }} context
  * @returns {{ kind: string, rule: string } | null} `kind` one of EDIT_RULE_KIND
  */
 export function brokenEditRule(found, derived, context) {

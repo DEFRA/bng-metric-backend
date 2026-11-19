@@ -1797,6 +1797,19 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
       expect(result.status).toBe(APPLY_RESULT.OK)
     })
 
+    // A legacy file links no row to its parent; a legacy edit that finds one
+    // by its ref is not a degrade the file recorded, so it is not held.
+    test('holds a template upload’s area to the steps, but not a legacy upload’s', () => {
+      const parentsCondition = { condition: 'Moderate' }
+
+      expect(edit(templateProject(), parentsCondition).status).toBe(
+        APPLY_RESULT.INVALID_DEGRADE
+      )
+      expect(
+        edit(templateProject({ template: false }), parentsCondition).status
+      ).toBe(APPLY_RESULT.OK)
+    })
+
     test('saves a new name for one already in its parent’s condition, as a baseline edit can leave it', () => {
       const project = templateProject()
       Object.assign(project.postIntervention.habitats[0].proposed, {
