@@ -1617,13 +1617,20 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     }
   }
 
+  // Its parent's own type, in a lower condition, 30+ years in advance: the
+  // parent recorded as getting worse, as the guide's steps ask.
   const retype = (project) =>
     applyFeatureUpdate(project, {
       featureId: CHILD_ID,
+      // The Created area edit page's whole form (BMD-1048).
       edits: {
+        ref: 'H1',
         broadType: 'Grassland',
         habitatType: 'Modified grassland',
-        condition: 'Poor'
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0
       },
       documentKey: 'postIntervention'
     })
@@ -1715,6 +1722,98 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
         recreatedAs: [CHILD_ID]
       })
     ])
+  })
+
+  // An edit giving a Created area its parent's own type makes it the parent
+  // getting worse, held to the guide's steps: a lower condition and 30+ years
+  // in advance, unless it is put back after a delay.
+  describe('an edit to its parent’s own type', () => {
+    const edit = (project, overrides) =>
+      applyFeatureUpdate(project, {
+        featureId: CHILD_ID,
+        edits: {
+          ref: 'H1',
+          broadType: 'Grassland',
+          habitatType: 'Modified grassland',
+          condition: 'Poor',
+          strategicSignificance: 'Low',
+          advanceYears: '30+',
+          delayYears: 0,
+          ...overrides
+        },
+        documentKey: 'postIntervention'
+      })
+
+    test.each([
+      [
+        'in its parent’s condition',
+        { condition: 'Moderate' },
+        'degrade-worse-condition'
+      ],
+      [
+        'in a better condition',
+        { condition: 'Good' },
+        'degrade-worse-condition'
+      ],
+      [
+        'fewer than 30+ years in advance',
+        { advanceYears: 5 },
+        'degrade-advance-30-plus'
+      ]
+    ])(
+      'refuses one %s, with no delay, and saves nothing',
+      (_, overrides, rule) => {
+        const project = templateProject()
+        const before = structuredClone(project)
+
+        const result = edit(project, overrides)
+
+        expect(result).toEqual({
+          status: APPLY_RESULT.INVALID_DEGRADE,
+          type: 'habitat',
+          rule
+        })
+        expect(project).toEqual(before)
+      }
+    )
+
+    test.each([
+      ['30 years in advance', { advanceYears: 30 }],
+      [
+        'its parent’s condition, put back after a delay',
+        { condition: 'Moderate', advanceYears: 0, delayYears: 2 }
+      ],
+      [
+        'another habitat type, in its parent’s condition',
+        {
+          habitatType: 'Other neutral grassland',
+          condition: 'Moderate',
+          advanceYears: 0
+        }
+      ]
+    ])('saves %s', (_, overrides) => {
+      const result = edit(templateProject(), overrides)
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+    })
+
+    test('saves a new name for one already in its parent’s condition, as a baseline edit can leave it', () => {
+      const project = templateProject()
+      Object.assign(project.postIntervention.habitats[0].proposed, {
+        type: 'Modified grassland',
+        condition: 'Moderate',
+        advanceYears: 0
+      })
+
+      const result = edit(project, {
+        ref: 'H1 renamed',
+        condition: 'Moderate',
+        advanceYears: 0
+      })
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature.ref).toBe('H1 renamed')
+    })
   })
 
   test('gives a legacy upload, which has none, none', () => {
