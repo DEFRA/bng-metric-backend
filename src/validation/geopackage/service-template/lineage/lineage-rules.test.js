@@ -380,30 +380,22 @@ describe('checkLineageRules', () => {
       ).toEqual([])
     })
 
-    it('passes a vertical area habitat Created in its own type, whatever its condition or advance', () => {
+    it('passes a vertical area habitat Created in its own type in a lower condition, 30+ years in advance', () => {
       const parent = wall(1, 40)
 
-      for (const overrides of [
-        {
-          'Proposed Condition': 'Poor',
-          'Habitat created in advance/years': '0'
-        },
-        {}
-      ]) {
-        expect(
-          check(
-            { verticalHabitats: [parent] },
-            {
-              verticalHabitats: [
-                degraded(parent, 'verticalHabitats', {
-                  'Parcel Ref': 'V001a',
-                  ...overrides
-                })
-              ]
-            }
-          )
-        ).toEqual([])
-      }
+      expect(
+        check(
+          { verticalHabitats: [parent] },
+          {
+            verticalHabitats: [
+              degraded(parent, 'verticalHabitats', {
+                'Parcel Ref': 'V001a',
+                'Proposed Condition': 'Poor'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
     })
   })
 
@@ -485,7 +477,7 @@ describe('checkLineageRules', () => {
       ])
     })
 
-    it('does not hold a Newly Planted tree linked to a parent to the degraded rows’ rules: it is planting', () => {
+    it('does not hold a Newly Planted tree linked to a parent to the guide’s steps for a tree that gets worse: it is planting', () => {
       const parent = tree(1)
 
       expect(
@@ -495,6 +487,7 @@ describe('checkLineageRules', () => {
             trees: [
               treeChild(parent, {
                 'Retention Category': 'Created',
+                Category: 'Newly Planted',
                 'Proposed Condition': 'Moderate'
               })
             ]
@@ -508,33 +501,124 @@ describe('checkLineageRules', () => {
       treeChild(parent, {
         'Retention Category': 'Created',
         Category: 'Existing',
+        'Proposed Condition': 'Poor',
+        'Habitat Created/Enhanced in advance/years': '30+',
         ...overrides
       })
 
     it.each([
-      ['a worse condition, 30+ years in advance', 'Poor', '30+'],
-      ['the same condition, not in advance', 'Moderate', '0'],
-      ['a better condition, 5 years in advance', 'Good', '5']
+      ['in a lower condition, 30+ years in advance', {}],
+      // "30+" is 30 years, as the import parses it and the edit rule reads
+      // it (apply-feature-update.test.js).
+      [
+        'in a lower condition, 30 years in advance as text',
+        { 'Habitat Created/Enhanced in advance/years': '30' }
+      ],
+      [
+        'in a lower condition, 30 years in advance as a number',
+        { 'Habitat Created/Enhanced in advance/years': 30 }
+      ],
+      [
+        'in the other setting, in a lower condition, 30+ years in advance',
+        { 'Proposed Rural or Urban Tree': 'Rural tree' }
+      ],
+      [
+        'put back after a delay, in the same condition, not in advance',
+        {
+          'Proposed Condition': 'Moderate',
+          'Habitat Created/Enhanced in advance/years': '0',
+          'Delay in starting habitat creation/enhancement in years': '5'
+        }
+      ],
+      [
+        'with no Proposed Condition, left Incomplete',
+        { 'Proposed Condition': null }
+      ]
+    ])('passes an Existing tree Created over its parent %s', (_, overrides) => {
+      const parent = tree(1)
+
+      expect(
+        check(
+          { trees: [parent] },
+          { trees: [existingCreated(parent, overrides)] }
+        )
+      ).toEqual([])
+    })
+
+    it.each([
+      ['in the same condition', { 'Proposed Condition': 'Moderate' }],
+      ['in a better condition', { 'Proposed Condition': 'Good' }],
+      [
+        'in a lower condition, 5 years in advance',
+        { 'Habitat Created/Enhanced in advance/years': '5' }
+      ],
+      [
+        'in a lower condition, 29 years in advance',
+        { 'Habitat Created/Enhanced in advance/years': 29 }
+      ],
+      [
+        'in a lower condition, with no years in advance',
+        { 'Habitat Created/Enhanced in advance/years': null }
+      ]
     ])(
-      'passes an Existing tree Created in its parent’s setting in %s: it is a creation like any other',
-      (_, condition, advance) => {
+      'refuses an Existing tree Created over its parent %s, with no delay, naming it and its parent',
+      (_, overrides) => {
         const parent = tree(1)
 
-        expect(
-          check(
-            { trees: [parent] },
-            {
-              trees: [
-                existingCreated(parent, {
-                  'Proposed Condition': condition,
-                  'Habitat Created/Enhanced in advance/years': advance
-                })
+        const errors = check(
+          { trees: [parent] },
+          {
+            trees: [
+              existingCreated(parent, { 'Tree Ref': 'T001a', ...overrides })
+            ]
+          }
+        )
+
+        expect(errors).toEqual([
+          {
+            code: ERROR_CODES.STAGED_TREE_DEGRADE_NOT_VALID,
+            message:
+              'One or more Existing trees are Created over their baseline tree, but not in a lower condition or not created 30+ years in advance, as the Metric guide asks for a tree whose condition gets worse. Lower its condition and set its years created in advance to 30+, or, if it is a new tree planted in its place, set its Category to Newly Planted: Individual Trees Post-Intervention T001a (Urban tree), copied from T001',
+            details: {
+              count: 1,
+              sample: [
+                {
+                  layer: 'trees',
+                  table: 'Individual Trees Post-Intervention',
+                  fid: 1,
+                  ref: 'T001a',
+                  habitatType: 'Urban tree',
+                  parentRef: 'T001'
+                }
               ]
             }
-          )
-        ).toEqual([])
+          }
+        ])
       }
     )
+
+    it('holds an Existing tree Created in the other setting to the same steps: it is still its baseline tree', () => {
+      const parent = tree(1)
+
+      const errors = check(
+        { trees: [parent] },
+        {
+          trees: [
+            existingCreated(parent, {
+              'Proposed Rural or Urban Tree': 'Rural tree',
+              'Proposed Condition': 'Moderate'
+            })
+          ]
+        }
+      )
+
+      expect(codes(errors)).toEqual([ERROR_CODES.STAGED_TREE_DEGRADE_NOT_VALID])
+      expect(errors[0].details.sample[0]).toMatchObject({
+        ref: 'T001',
+        habitatType: 'Rural tree',
+        parentRef: 'T001'
+      })
+    })
 
     it('does not count an Existing tree Created against its parent’s one kept tree', () => {
       const parent = tree(1)
@@ -545,10 +629,7 @@ describe('checkLineageRules', () => {
           {
             trees: [
               treeChild(parent, { 'Tree Ref': 'T001a' }),
-              existingCreated(parent, {
-                'Tree Ref': 'T001b',
-                'Proposed Condition': 'Poor'
-              })
+              existingCreated(parent, { 'Tree Ref': 'T001b' })
             ]
           }
         )
@@ -663,45 +744,116 @@ describe('checkLineageRules', () => {
     })
   })
 
-  // A habitat that gets worse is recorded as its parent lost and a creation
-  // (guide, "Habitat retention"). The file is not refused for how the creation
-  // compares with its parent: the same row may be a degrade or a habitat
-  // cleared and created again, which only the ecologist can tell apart.
+  // A habitat that gets worse is recorded as its parent lost and created again
+  // in its own type, in a lower condition, 30+ years in advance (guide,
+  // "Habitat retention"). Linked to its parent, the row is on the parent's
+  // land, where a habitat cleared and put back gives a delay ("Advance and
+  // delay"), so a same-type row with no delay is held to those steps.
   describe('a Created row of its parent’s own type', () => {
-    it.each([
-      ['an area habitat', 'areas', () => parcel(1)],
-      ['a hedgerow', 'hedgerows', () => hedge(1, 100)],
-      ['a vertical area habitat', 'verticalHabitats', () => wall(1, 40)]
-    ])(
-      'passes %s however it compares with its parent',
-      (_, layer, parentOf) => {
-        const parent = parentOf()
+    const LAYERS = [
+      ['an area habitat', 'areas', () => parcel(1), 'Area Habitats'],
+      ['a hedgerow', 'hedgerows', () => hedge(1, 100), 'Hedgerows'],
+      [
+        'a vertical area habitat',
+        'verticalHabitats',
+        () => wall(1, 40),
+        'Vertical Area Habitats'
+      ]
+    ]
 
-        for (const overrides of [
-          // Its parent's condition, with no delay or advance.
-          { 'Habitat created in advance/years': '0' },
-          // A better condition.
-          { 'Proposed Condition': 'Good' },
-          // A lower condition, not 30+ years in advance.
+    describe.each(LAYERS)('%s', (_, layer, parentOf, tableStem) => {
+      it.each([
+        ['in its parent’s condition', {}],
+        ['in a better condition', { 'Proposed Condition': 'Good' }],
+        [
+          'in a lower condition, 5 years in advance',
           {
             'Proposed Condition': 'Poor',
             'Habitat created in advance/years': '5'
-          },
+          }
+        ],
+        [
+          'in a lower condition, with no years in advance',
           {
             'Proposed Condition': 'Poor',
             'Habitat created in advance/years': null
           }
-        ]) {
-          expect(
-            check(
-              { [layer]: [parent] },
-              { [layer]: [degraded(parent, layer, overrides)] }
-            ),
-            JSON.stringify(overrides)
-          ).toEqual([])
+        ]
+      ])(
+        'refuses one %s, with no delay, naming it and its parent',
+        (__, overrides) => {
+          const parent = parentOf()
+
+          const errors = check(
+            { [layer]: [parent] },
+            { [layer]: [degraded(parent, layer, overrides)] }
+          )
+
+          expect(codes(errors)).toEqual([
+            ERROR_CODES.STAGED_HABITAT_DEGRADE_NOT_VALID
+          ])
+          expect(errors[0].details.sample).toEqual([
+            expect.objectContaining({
+              layer,
+              table: `${tableStem} Post-Intervention`,
+              parentRef: parent.properties['Parcel Ref']
+            })
+          ])
         }
-      }
-    )
+      )
+
+      it.each([
+        [
+          'in a lower condition, 30+ years in advance',
+          { 'Proposed Condition': 'Poor' }
+        ],
+        [
+          'in a lower condition, 30 years in advance',
+          {
+            'Proposed Condition': 'Poor',
+            'Habitat created in advance/years': '30'
+          }
+        ],
+        [
+          'put back after a delay, in its parent’s condition',
+          {
+            'Habitat created in advance/years': '0',
+            'Delay in starting habitat creation/years': '2'
+          }
+        ],
+        [
+          'with no Proposed Condition, left Incomplete',
+          { 'Proposed Condition': null }
+        ]
+      ])('passes one %s', (__, overrides) => {
+        const parent = parentOf()
+
+        expect(
+          check(
+            { [layer]: [parent] },
+            { [layer]: [degraded(parent, layer, overrides)] }
+          )
+        ).toEqual([])
+      })
+    })
+
+    it('passes an area habitat Created in another habitat type: it is a creation, not the parent getting worse', () => {
+      const parent = parcel(1)
+
+      expect(
+        check(
+          { areas: [parent] },
+          {
+            areas: [
+              degraded(parent, 'areas', {
+                'Proposed Habitat Type': 'Modified grassland',
+                'Habitat created in advance/years': '0'
+              })
+            ]
+          }
+        )
+      ).toEqual([])
+    })
 
     it('passes a habitat the Metric gives no condition score, Created in its own type', () => {
       const parent = parcel(1, { 'Baseline Condition': 'N/A - Other' })

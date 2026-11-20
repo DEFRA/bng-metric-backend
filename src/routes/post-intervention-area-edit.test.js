@@ -485,6 +485,34 @@ describe('BMD-1048 Created area edits', () => {
     }
   })
 
+  test('the route answers a habitat whose condition gets worse, refused by the guide’s steps, as 422 HABITAT_DEGRADE_NOT_VALID, and writes nothing', async () => {
+    const spy = vi
+      .spyOn(featureUpdates, 'applyFeatureUpdate')
+      .mockReturnValueOnce({
+        status: featureUpdates.APPLY_RESULT.INVALID_DEGRADE,
+        type: 'habitat',
+        rule: 'degrade-advance-30-plus'
+      })
+    try {
+      const { request } = routeRequest(edits)
+      await expect(
+        updatePostInterventionAreaHabitat.handler(request, {})
+      ).rejects.toMatchObject({
+        output: {
+          statusCode: 422,
+          payload: {
+            code: 'HABITAT_DEGRADE_NOT_VALID',
+            rule: 'degrade-advance-30-plus'
+          }
+        }
+      })
+      expect(setProjectFeature).not.toHaveBeenCalled()
+      expect(setGeometryRefs).not.toHaveBeenCalled()
+    } finally {
+      spy.mockRestore()
+    }
+  })
+
   test.each([null, ''])(
     'an unrelated area save keeps omitted rejected significance when stored blank is %j, until corrected',
     async (strategicSignificance) => {
@@ -665,7 +693,14 @@ test.each([true, false, 'template', 'legacy empty', 'legacy placeholder'])(
       { baseline, postIntervention: { habitats: [original] } },
       {
         featureId,
-        edits: { ...edits, ref: 'Other parcel' },
+        // A template row linked to a parent of its own type, with no delay,
+        // is held to the steps for a habitat that gets worse; a delay makes
+        // it a habitat put back, so the rename is what is tested here.
+        edits: {
+          ...edits,
+          ref: 'Other parcel',
+          ...(hasParent === 'template' ? { delayYears: 1 } : {})
+        },
         documentKey: 'postIntervention',
         expectedType: 'habitat'
       }

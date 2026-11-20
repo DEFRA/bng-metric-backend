@@ -31,6 +31,7 @@ import {
 import { featureNotEditableError } from './feature-not-editable-error.js'
 import { outOfScopeDistinctivenessError } from './out-of-scope-error.js'
 import { invalidEnhancementError } from './invalid-enhancement-error.js'
+import { invalidDegradeError } from './invalid-degrade-error.js'
 import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 // The baseline typed route saves dropdowns only; reference renaming and the
@@ -189,7 +190,7 @@ const areaHabitatEditPayload = featureEditPayload.fork(
  *       404:
  *         description: Project or habitat not found
  *       422:
- *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`; `offered-enhancement` when an Enhanced area sends a choice its baseline's valid enhancements do not list, unless it keeps the stored value)
+ *         description: Habitat distinctiveness is out of scope for the BNG Beta service (High / V.High) (code HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE), or the edit leaves an enhanced habitat that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID, with the broken `rule`; `offered-enhancement` when an Enhanced area sends a choice its baseline's valid enhancements do not list, unless it keeps the stored value), or the edit leaves a habitat Created in its baseline parent's own type, with no delay, not in a lower condition or not created 30+ years in advance (code HABITAT_DEGRADE_NOT_VALID, rule degrade-worse-condition or degrade-advance-30-plus)
  *       409:
  *         description: Another edit for this project is in progress
  */
@@ -343,6 +344,9 @@ function assertSuccessfulFeatureEdit(result, projectId, featureId, label) {
   if (result.status === APPLY_RESULT.INVALID_ENHANCEMENT) {
     throw invalidEnhancementError(result.rule)
   }
+  if (result.status === APPLY_RESULT.INVALID_DEGRADE) {
+    throw invalidDegradeError(result.rule, result.type)
+  }
 
   if (result.status !== APPLY_RESULT.OK) {
     throw featureNotEditableError(
@@ -452,7 +456,7 @@ async function runUpdate(
  *       400:
  *         description: Invalid reference, choices or timing, or a hedgerow that is neither Created nor Enhanced
  *       422:
- *         description: An Enhanced hedgerow's choice that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID; rule offered-enhancement for a choice /reference/hedgerow-enhancement does not list)
+ *         description: An Enhanced hedgerow's choice that is not a valid enhancement of its baseline (code ENHANCEMENT_NOT_VALID; rule offered-enhancement for a choice /reference/hedgerow-enhancement does not list), or the edit leaves a hedgerow Created in its baseline parent's own type, with no delay, not in a lower condition or not created 30+ years in advance (code HABITAT_DEGRADE_NOT_VALID, rule degrade-worse-condition or degrade-advance-30-plus)
  *       401:
  *         description: Authentication required
  *       404:
@@ -513,7 +517,7 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *       404:
  *         description: Project or tree not found
  *       422:
- *         description: An Enhanced tree's target condition is not better than its baseline condition (code ENHANCEMENT_NOT_VALID, rule tree-better-condition)
+ *         description: An Enhanced tree's target condition is not better than its baseline condition (code ENHANCEMENT_NOT_VALID, rule tree-better-condition), or the edit leaves an Existing tree Created over its baseline tree, with no delay, not in a lower condition or not created 30+ years in advance (code TREE_DEGRADE_NOT_VALID, rule degrade-worse-condition or degrade-advance-30-plus)
  *       409:
  *         description: Another edit for this project is in progress
  */

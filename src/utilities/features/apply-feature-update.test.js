@@ -1617,13 +1617,20 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     }
   }
 
+  // Its parent's own type, in a lower condition, 30+ years in advance: the
+  // parent recorded as getting worse, as the guide's steps ask.
   const retype = (project) =>
     applyFeatureUpdate(project, {
       featureId: CHILD_ID,
+      // The Created area edit page's whole form (BMD-1048).
       edits: {
+        ref: 'H1',
         broadType: 'Grassland',
         habitatType: 'Modified grassland',
-        condition: 'Poor'
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0
       },
       documentKey: 'postIntervention'
     })
@@ -1717,11 +1724,288 @@ describe('applyFeatureUpdate — a BNG Service template upload’s lost habitats
     ])
   })
 
+  // An edit giving a Created area its parent's own type makes it the parent
+  // getting worse, held to the guide's steps: a lower condition and 30+ years
+  // in advance, unless it is put back after a delay.
+  describe('an edit to its parent’s own type', () => {
+    const edit = (project, overrides) =>
+      applyFeatureUpdate(project, {
+        featureId: CHILD_ID,
+        edits: {
+          ref: 'H1',
+          broadType: 'Grassland',
+          habitatType: 'Modified grassland',
+          condition: 'Poor',
+          strategicSignificance: 'Low',
+          advanceYears: '30+',
+          delayYears: 0,
+          ...overrides
+        },
+        documentKey: 'postIntervention'
+      })
+
+    test.each([
+      [
+        'in its parent’s condition',
+        { condition: 'Moderate' },
+        'degrade-worse-condition'
+      ],
+      [
+        'in a better condition',
+        { condition: 'Good' },
+        'degrade-worse-condition'
+      ],
+      [
+        'fewer than 30+ years in advance',
+        { advanceYears: 5 },
+        'degrade-advance-30-plus'
+      ]
+    ])(
+      'refuses one %s, with no delay, and saves nothing',
+      (_, overrides, rule) => {
+        const project = templateProject()
+        const before = structuredClone(project)
+
+        const result = edit(project, overrides)
+
+        expect(result).toEqual({
+          status: APPLY_RESULT.INVALID_DEGRADE,
+          type: 'habitat',
+          rule
+        })
+        expect(project).toEqual(before)
+      }
+    )
+
+    test.each([
+      ['30 years in advance', { advanceYears: 30 }],
+      [
+        'its parent’s condition, put back after a delay',
+        { condition: 'Moderate', advanceYears: 0, delayYears: 2 }
+      ],
+      [
+        'another habitat type, in its parent’s condition',
+        {
+          habitatType: 'Other neutral grassland',
+          condition: 'Moderate',
+          advanceYears: 0
+        }
+      ]
+    ])('saves %s', (_, overrides) => {
+      const result = edit(templateProject(), overrides)
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+    })
+
+    // A legacy file links no row to its parent; a legacy edit that finds one
+    // by its ref is not a degrade the file recorded, so it is not held.
+    test('holds a template upload’s area to the steps, but not a legacy upload’s', () => {
+      const parentsCondition = { condition: 'Moderate' }
+
+      expect(edit(templateProject(), parentsCondition).status).toBe(
+        APPLY_RESULT.INVALID_DEGRADE
+      )
+      expect(
+        edit(templateProject({ template: false }), parentsCondition).status
+      ).toBe(APPLY_RESULT.OK)
+    })
+
+    test('saves a new name for one already in its parent’s condition, as a baseline edit can leave it', () => {
+      const project = templateProject()
+      Object.assign(project.postIntervention.habitats[0].proposed, {
+        type: 'Modified grassland',
+        condition: 'Moderate',
+        advanceYears: 0
+      })
+
+      const result = edit(project, {
+        ref: 'H1 renamed',
+        condition: 'Moderate',
+        advanceYears: 0
+      })
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature.ref).toBe('H1 renamed')
+    })
+  })
+
   test('gives a legacy upload, which has none, none', () => {
     const result = retype(templateProject({ template: false }))
 
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.project.postIntervention).not.toHaveProperty('lostHabitats')
+  })
+})
+
+describe('applyFeatureUpdate — a hedgerow or vertical area habitat Created in its parent’s own type', () => {
+  const PARENT_ID = 'aa0e8400-e29b-41d4-a716-446655440010'
+  const CHILD_ID = 'cc0e8400-e29b-41d4-a716-446655440011'
+  const TEMPLATE = { template: { name: 'bng-service', version: '1.0' } }
+  const EMPTY_LAYERS = {
+    habitats: [],
+    trees: [],
+    hedgerows: [],
+    watercourses: [],
+    verticalHabitats: []
+  }
+
+  /** HG1, a Native hedgerow in Good condition, recorded as lost and Created again in Poor, 30+ years in advance. */
+  function hedgerowProject() {
+    const side = { type: 'Native hedgerow' }
+    return {
+      baseline: {
+        ...EMPTY_LAYERS,
+        hedgerows: [
+          {
+            featureId: PARENT_ID,
+            ref: 'HG1',
+            ...side,
+            condition: 'Good',
+            sizeMetres: 100
+          }
+        ]
+      },
+      postIntervention: {
+        ...EMPTY_LAYERS,
+        hedgerows: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            ref: 'HG1',
+            retentionCategory: 'Created',
+            sizeMetres: 100,
+            baseline: { ...side, condition: 'Good' },
+            proposed: {
+              ...side,
+              condition: 'Poor',
+              advanceYears: 30,
+              delayYears: 0
+            }
+          }
+        ],
+        ...TEMPLATE
+      }
+    }
+  }
+
+  const editHedgerow = (project, overrides) =>
+    applyFeatureUpdate(project, {
+      featureId: CHILD_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'hedgerow',
+      edits: {
+        ref: 'HG1',
+        habitatType: 'Native hedgerow',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...overrides
+      }
+    })
+
+  test.each([
+    [
+      'in its parent’s condition',
+      { condition: 'Good' },
+      'degrade-worse-condition'
+    ],
+    [
+      'fewer than 30+ years in advance',
+      { advanceYears: 5 },
+      'degrade-advance-30-plus'
+    ]
+  ])(
+    'refuses a hedgerow edit leaving it %s, with no delay, and saves nothing',
+    (_, overrides, rule) => {
+      const project = hedgerowProject()
+      const before = structuredClone(project)
+
+      const result = editHedgerow(project, overrides)
+
+      expect(result).toEqual({
+        status: APPLY_RESULT.INVALID_DEGRADE,
+        type: 'hedgerow',
+        rule
+      })
+      expect(project).toEqual(before)
+    }
+  )
+
+  test.each([
+    ['in a lower condition, 30+ years in advance', {}],
+    [
+      'in its parent’s condition, put back after a delay',
+      { condition: 'Good', advanceYears: 0, delayYears: 2 }
+    ]
+  ])('saves a hedgerow edit leaving it %s', (_, overrides) => {
+    const result = editHedgerow(hedgerowProject(), overrides)
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.type).toBe('Native hedgerow')
+  })
+
+  // A post-intervention vertical area habitat has no edit page or route: it
+  // is refused before any rule, so the steps hold it on upload alone
+  // (lineage-rules.js).
+  test('does not edit a Created post-intervention vertical area habitat, so only its upload is held to the steps', () => {
+    const wall = {
+      broadType: 'Urban',
+      type: 'Facade-bound green wall'
+    }
+    const project = {
+      baseline: {
+        ...EMPTY_LAYERS,
+        verticalHabitats: [
+          {
+            featureId: PARENT_ID,
+            ref: 'V1',
+            ...wall,
+            condition: 'Moderate',
+            sizeSquareMetres: 400
+          }
+        ]
+      },
+      postIntervention: {
+        ...EMPTY_LAYERS,
+        verticalHabitats: [
+          {
+            featureId: CHILD_ID,
+            parentFeatureId: PARENT_ID,
+            ref: 'V1',
+            retentionCategory: 'Created',
+            sizeSquareMetres: 400,
+            baseline: { ...wall, condition: 'Moderate' },
+            proposed: {
+              ...wall,
+              condition: 'Poor',
+              advanceYears: 30,
+              delayYears: 0
+            }
+          }
+        ],
+        ...TEMPLATE
+      }
+    }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: CHILD_ID,
+      documentKey: 'postIntervention',
+      edits: {
+        ref: 'V1',
+        broadType: 'Urban',
+        habitatType: 'Facade-bound green wall',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'verticalHabitat'
+    })
   })
 })
 
@@ -2232,9 +2516,10 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
 
   // T001, a Medium rural tree in Moderate condition, recorded as lost and as
   // a tree Created in Poor condition, 30+ years in advance: Category
-  // Existing, linked to its baseline tree. It is a creation like any other,
-  // so no edit to it is held to its baseline tree; while it keeps its
-  // parent's setting, its parent is lost and re-created by it.
+  // Existing, linked to its baseline tree. An edit must leave it in a lower
+  // condition and 30+ years in advance, or put back after a delay, as the
+  // guide's steps for a tree whose condition gets worse ask; while it keeps
+  // its parent's setting, its parent is lost and re-created by it.
   function projectWithExistingCreatedTree() {
     const project = projectFixture()
     const side = {
@@ -2332,27 +2617,75 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     })
   }
 
-  // 0.0163 ha x Medium distinctiveness 4 x the condition score; 30+ years in
-  // advance covers the time to target, and tree creation is Low difficulty.
   test.each([
-    ['its baseline condition', 'Moderate', 0.1304],
-    ['a better condition', 'Good', 0.1956]
-  ])(
-    'saves %s, priced as a creation at its own size',
-    (_, condition, units) => {
-      const result = editExistingCreatedTree({ condition })
+    [
+      'its baseline condition',
+      { condition: 'Moderate' },
+      'degrade-worse-condition'
+    ],
+    ['a better condition', { condition: 'Good' }, 'degrade-worse-condition'],
+    [
+      'fewer than 30+ years in advance',
+      { advanceYears: 5 },
+      'degrade-advance-30-plus'
+    ]
+  ])('refuses %s, with no delay, and saves nothing', (_, edits, rule) => {
+    const project = projectWithExistingCreatedTree()
+    const before = structuredClone(project)
 
-      expect(result.status).toBe(APPLY_RESULT.OK)
-      expect(lostTrees(result)).toEqual([PARENT_RECREATED])
-      expect(result.feature).toMatchObject({
-        parentFeatureId: PARENT_ID,
-        sizeSquareMetres: 163,
-        status: 'Complete',
-        proposed: { condition, type: 'Rural tree', treeSize: 'Medium' }
-      })
-      expect(result.feature.units).toBeCloseTo(units, 4)
-    }
-  )
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0,
+        ...edits
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.INVALID_DEGRADE,
+      type: 'tree',
+      rule
+    })
+    expect(project).toEqual(before)
+  })
+
+  // 0.0163 ha x Medium distinctiveness 4 x Moderate's 2; Moderate is 27 years
+  // to target, which a 5-year delay makes 32, at 0.965 a year.
+  test('saves its baseline condition when it is put back after a delay, priced for the delay', () => {
+    const result = editExistingCreatedTree({
+      condition: 'Moderate',
+      advanceYears: 0,
+      delayYears: 5
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
+    expect(result.feature.proposed).toMatchObject({
+      condition: 'Moderate',
+      delayYears: 5
+    })
+    expect(result.feature.units).toBeCloseTo(0.1304 * 0.965 ** 32, 4)
+  })
+
+  // "30+" is 30 years, as the import parses it, so 30 meets the step as the
+  // upload reads it too (lineage-rules.test.js).
+  test.each([
+    ['30', 30],
+    ['"30+"', '30+']
+  ])('saves %s years in advance in a lower condition', (_, advanceYears) => {
+    const result = editExistingCreatedTree({ advanceYears })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.advanceYears).toBe(30)
+  })
 
   test('saves a move to the other setting', () => {
     const result = editExistingCreatedTree({ habitatType: 'Urban tree' })
@@ -2367,15 +2700,60 @@ describe('applyFeatureUpdate — an Existing tree Created over its baseline tree
     })
   })
 
-  test('saves fewer than 30+ years in advance, priced for the years still to target', () => {
-    const result = editExistingCreatedTree({ advanceYears: 5 })
+  test('refuses a move to the other setting in its baseline condition: it is still its baseline tree', () => {
+    const result = editExistingCreatedTree({
+      habitatType: 'Urban tree',
+      condition: 'Moderate'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.INVALID_DEGRADE)
+    expect(result.rule).toBe('degrade-worse-condition')
+  })
+
+  test('saves a new name for a tree its baseline tree’s edit has left in the same condition', () => {
+    const project = projectWithExistingCreatedTree()
+    project.postIntervention.trees[0].proposed.condition = 'Moderate'
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001-renamed',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        advanceYears: '30+',
+        delayYears: 0
+      }
+    })
 
     expect(result.status).toBe(APPLY_RESULT.OK)
-    expect(lostTrees(result)).toEqual([PARENT_RECREATED])
-    expect(result.feature.proposed.advanceYears).toBe(5)
-    // Poor is 10 years to target; 5 years in advance leaves 5, the Metric's
-    // multiplier 0.8368.
-    expect(result.feature.units).toBeCloseTo(0.0652 * 0.8368287006, 4)
+    expect(result.feature.ref).toBe('T001-renamed')
+  })
+
+  test('does not hold a Newly Planted tree linked to its baseline tree to the steps: it is planting', () => {
+    const project = projectWithExistingCreatedTree()
+    project.postIntervention.trees[0].properties = { Category: 'Newly Planted' }
+
+    const result = applyFeatureUpdate(project, {
+      featureId: TREE_ID,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T001',
+        broadType: 'Individual trees',
+        habitatType: 'Rural tree',
+        condition: 'Good',
+        strategicSignificance: 'Low',
+        advanceYears: 5,
+        delayYears: 0
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.proposed.condition).toBe('Good')
   })
 
   test('saves a cleared condition, leaving the tree Incomplete with no units', () => {

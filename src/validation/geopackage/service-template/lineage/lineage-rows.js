@@ -68,6 +68,17 @@ export const continues = (properties) => CONTINUING.has(retentionOf(properties))
 /** Whether a row is a creation, linked to a parent or not. */
 export const isCreated = (properties) => retentionOf(properties) === CREATED
 
+/** A tree's Category for a tree that was there at baseline. */
+const EXISTING = 'Existing'
+
+/**
+ * Whether a tree row is a tree that was there at baseline, Category Existing,
+ * as against one Newly Planted. Created and linked to its baseline tree, it is
+ * that tree recorded as lost and created again (guide, "Habitat retention").
+ */
+export const isExistingTree = (properties) =>
+  text(properties?.Category) === EXISTING
+
 /** A post-intervention row's habitat type, or its baseline one if it has none. */
 export function habitatTypeOf(layer, properties) {
   const [baselineType, proposedType] = HABITAT_TYPE[layer]
