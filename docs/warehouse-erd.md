@@ -12,7 +12,7 @@ and what those keys guarantee.
 
 Column-level detail — descriptions, constraints, nullability — lives in the [`data dictionary`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/data-dictionary.md). This page covers structure and identity.
 
-**25 tables**, mapping 482 schema fields.
+**25 tables**, mapping 492 schema fields.
 
 ## Diagram
 
@@ -532,7 +532,7 @@ Red Line Boundary defining the site extent (baseline). At most one per document.
 
 ### `baseline_habitats`
 
-habitats in the baseline document. 28 column(s) mapped from the JSON document.
+habitats in the baseline document. 29 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | Template    | JSON path                                                 | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ----------- | --------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -553,6 +553,7 @@ habitats in the baseline document. 28 column(s) mapped from the JSON document.
 | `size_square_metres`                       | `numeric` |     | Both        | `baseline.habitats[].sizeSquareMetres`                    |                                                                                  |
 | `status`                                   | `text`    |     | Both        | `baseline.habitats[].status`                              |                                                                                  |
 | `units`                                    | `numeric` |     | Both        | `baseline.habitats[].units`                               |                                                                                  |
+| `orange_flags`                             | `text[]`  |     | Both        | `baseline.habitats[].orangeFlags[]`                       |                                                                                  |
 | `site_name`                                | `text`    |     | Legacy      | `baseline.habitats[].siteName`                            |                                                                                  |
 | `survey_date`                              | `text`    |     | Legacy      | `baseline.habitats[].surveyDate`                          |                                                                                  |
 | `survey_details`                           | `text`    |     | Legacy      | `baseline.habitats[].surveyDetails`                       |                                                                                  |
@@ -569,7 +570,7 @@ habitats in the baseline document. 28 column(s) mapped from the JSON document.
 
 ### `baseline_trees`
 
-trees in the baseline document. 32 column(s) mapped from the JSON document.
+trees in the baseline document. 33 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | Template    | JSON path                                              | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ----------- | ------------------------------------------------------ | -------------------------------------------------------------------------------- |
@@ -582,6 +583,7 @@ trees in the baseline document. 32 column(s) mapped from the JSON document.
 | `strategic_significance`                   | `text`    |     | Both        | `baseline.trees[].strategicSignificance`               |                                                                                  |
 | `retention_category`                       | `text`    |     | Legacy      | `baseline.trees[].retentionCategory`                   |                                                                                  |
 | `status`                                   | `text`    |     | Both        | `baseline.trees[].status`                              |                                                                                  |
+| `orange_flags`                             | `text[]`  |     | Both        | `baseline.trees[].orangeFlags[]`                       |                                                                                  |
 | `site_name`                                | `text`    |     | Legacy      | `baseline.trees[].siteName`                            |                                                                                  |
 | `survey_date`                              | `text`    |     | Legacy      | `baseline.trees[].surveyDate`                          |                                                                                  |
 | `survey_details`                           | `text`    |     | Legacy      | `baseline.trees[].surveyDetails`                       |                                                                                  |
@@ -610,7 +612,7 @@ trees in the baseline document. 32 column(s) mapped from the JSON document.
 
 ### `baseline_vertical_habitats`
 
-verticalHabitats in the baseline document. 28 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
+verticalHabitats in the baseline document. 29 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
 
 | Column                                     | Type      | Key | Template               | JSON path                                                         | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ---------------------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -625,6 +627,7 @@ verticalHabitats in the baseline document. 28 column(s) mapped from the JSON doc
 | `retention_category`                       | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].retentionCategory`                   |                                                                                  |
 | `irreplaceable`                            | `boolean` |     | BNG Service            | `baseline.verticalHabitats[].irreplaceable`                       |                                                                                  |
 | `status`                                   | `text`    |     | BNG Service            | `baseline.verticalHabitats[].status`                              |                                                                                  |
+| `orange_flags`                             | `text[]`  |     | BNG Service            | `baseline.verticalHabitats[].orangeFlags[]`                       |                                                                                  |
 | `site_name`                                | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].siteName`                            |                                                                                  |
 | `survey_date`                              | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].surveyDate`                          |                                                                                  |
 | `survey_details`                           | `text`    |     | Neither (always empty) | `baseline.verticalHabitats[].surveyDetails`                       |                                                                                  |
@@ -647,7 +650,7 @@ verticalHabitats in the baseline document. 28 column(s) mapped from the JSON doc
 
 ### `baseline_hedgerows`
 
-hedgerows in the baseline document. 26 column(s) mapped from the JSON document.
+hedgerows in the baseline document. 27 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | Template    | JSON path                                                  | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ----------- | ---------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -664,6 +667,7 @@ hedgerows in the baseline document. 26 column(s) mapped from the JSON document.
 | `size_metres`                              | `numeric` |     | Both        | `baseline.hedgerows[].sizeMetres`                          |                                                                                  |
 | `status`                                   | `text`    |     | Both        | `baseline.hedgerows[].status`                              |                                                                                  |
 | `units`                                    | `numeric` |     | Both        | `baseline.hedgerows[].units`                               |                                                                                  |
+| `orange_flags`                             | `text[]`  |     | Both        | `baseline.hedgerows[].orangeFlags[]`                       |                                                                                  |
 | `strategic_significance`                   | `text`    |     | Both        | `baseline.hedgerows[].strategicSignificance`               |                                                                                  |
 | `retention_category`                       | `text`    |     | Legacy      | `baseline.hedgerows[].retentionCategory`                   |                                                                                  |
 | `site_name`                                | `text`    |     | Legacy      | `baseline.hedgerows[].siteName`                            |                                                                                  |
@@ -682,7 +686,7 @@ hedgerows in the baseline document. 26 column(s) mapped from the JSON document.
 
 ### `baseline_watercourses`
 
-watercourses in the baseline document. 31 column(s) mapped from the JSON document.
+watercourses in the baseline document. 32 column(s) mapped from the JSON document.
 
 | Column                                     | Type      | Key | Template    | JSON path                                                     | Notes                                                                            |
 | ------------------------------------------ | --------- | --- | ----------- | ------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -701,6 +705,7 @@ watercourses in the baseline document. 31 column(s) mapped from the JSON documen
 | `size_metres`                              | `numeric` |     | Both        | `baseline.watercourses[].sizeMetres`                          |                                                                                  |
 | `status`                                   | `text`    |     | Both        | `baseline.watercourses[].status`                              |                                                                                  |
 | `units`                                    | `numeric` |     | Both        | `baseline.watercourses[].units`                               |                                                                                  |
+| `orange_flags`                             | `text[]`  |     | Both        | `baseline.watercourses[].orangeFlags[]`                       |                                                                                  |
 | `strategic_significance`                   | `text`    |     | Both        | `baseline.watercourses[].strategicSignificance`               |                                                                                  |
 | `retention_category`                       | `text`    |     | Legacy      | `baseline.watercourses[].retentionCategory`                   |                                                                                  |
 | `site_name`                                | `text`    |     | Legacy      | `baseline.watercourses[].siteName`                            |                                                                                  |
@@ -734,7 +739,7 @@ Red Line Boundary defining the site extent (postIntervention). At most one per d
 
 ### `post_intervention_habitats`
 
-habitats in the postIntervention document. 40 column(s) mapped from the JSON document.
+habitats in the postIntervention document. 41 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | Template    | JSON path                                                            | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------- | -------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -745,6 +750,7 @@ habitats in the postIntervention document. 40 column(s) mapped from the JSON doc
 | `area`                                       | `numeric` |     | Both        | `postIntervention.habitats[].area`                                   |                                                                                  |
 | `size_square_metres`                         | `numeric` |     | Both        | `postIntervention.habitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | Both        | `postIntervention.habitats[].units`                                  |                                                                                  |
+| `orange_flags`                               | `text[]`  |     | Both        | `postIntervention.habitats[].orangeFlags[]`                          |                                                                                  |
 | `status`                                     | `text`    |     | Both        | `postIntervention.habitats[].status`                                 |                                                                                  |
 | `comment`                                    | `text`    |     | Both        | `postIntervention.habitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | Both        | `postIntervention.habitats[].invalidEnhancement`                     |                                                                                  |
@@ -783,7 +789,7 @@ habitats in the postIntervention document. 40 column(s) mapped from the JSON doc
 
 ### `post_intervention_trees`
 
-trees in the postIntervention document. 51 column(s) mapped from the JSON document.
+trees in the postIntervention document. 52 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | Template    | JSON path                                                         | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------- | ----------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -794,6 +800,7 @@ trees in the postIntervention document. 51 column(s) mapped from the JSON docume
 | `area`                                       | `numeric` |     | Both        | `postIntervention.trees[].area`                                   |                                                                                  |
 | `size_square_metres`                         | `numeric` |     | Both        | `postIntervention.trees[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | Both        | `postIntervention.trees[].units`                                  |                                                                                  |
+| `orange_flags`                               | `text[]`  |     | Both        | `postIntervention.trees[].orangeFlags[]`                          |                                                                                  |
 | `status`                                     | `text`    |     | Both        | `postIntervention.trees[].status`                                 |                                                                                  |
 | `comment`                                    | `text`    |     | Both        | `postIntervention.trees[].comment`                                |                                                                                  |
 | `count`                                      | `numeric` |     | Legacy      | `postIntervention.trees[].count`                                  |                                                                                  |
@@ -843,7 +850,7 @@ trees in the postIntervention document. 51 column(s) mapped from the JSON docume
 
 ### `post_intervention_vertical_habitats`
 
-verticalHabitats in the postIntervention document. 39 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
+verticalHabitats in the postIntervention document. 40 column(s) mapped from the JSON document. Only a BNG Service template upload fills it.
 
 | Column                                       | Type      | Key | Template    | JSON path                                                                    | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------- | ---------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -854,6 +861,7 @@ verticalHabitats in the postIntervention document. 39 column(s) mapped from the 
 | `area`                                       | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].area`                                   |                                                                                  |
 | `size_square_metres`                         | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].sizeSquareMetres`                       |                                                                                  |
 | `units`                                      | `numeric` |     | BNG Service | `postIntervention.verticalHabitats[].units`                                  |                                                                                  |
+| `orange_flags`                               | `text[]`  |     | BNG Service | `postIntervention.verticalHabitats[].orangeFlags[]`                          |                                                                                  |
 | `status`                                     | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].status`                                 |                                                                                  |
 | `comment`                                    | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].comment`                                |                                                                                  |
 | `invalid_enhancement`                        | `text`    |     | BNG Service | `postIntervention.verticalHabitats[].invalidEnhancement`                     |                                                                                  |
@@ -891,7 +899,7 @@ verticalHabitats in the postIntervention document. 39 column(s) mapped from the 
 
 ### `post_intervention_hedgerows`
 
-hedgerows in the postIntervention document. 37 column(s) mapped from the JSON document.
+hedgerows in the postIntervention document. 38 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | Template    | JSON path                                                             | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------- | --------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -906,6 +914,7 @@ hedgerows in the postIntervention document. 37 column(s) mapped from the JSON do
 | `length`                                     | `numeric` |     | Both        | `postIntervention.hedgerows[].length`                                 |                                                                                  |
 | `size_metres`                                | `numeric` |     | Both        | `postIntervention.hedgerows[].sizeMetres`                             |                                                                                  |
 | `units`                                      | `numeric` |     | Both        | `postIntervention.hedgerows[].units`                                  |                                                                                  |
+| `orange_flags`                               | `text[]`  |     | Both        | `postIntervention.hedgerows[].orangeFlags[]`                          |                                                                                  |
 | `status`                                     | `text`    |     | Both        | `postIntervention.hedgerows[].status`                                 |                                                                                  |
 | `comment`                                    | `text`    |     | Both        | `postIntervention.hedgerows[].comment`                                |                                                                                  |
 | `baseline_type`                              | `text`    |     | Both        | `postIntervention.hedgerows[].baseline.type`                          |                                                                                  |
@@ -937,7 +946,7 @@ hedgerows in the postIntervention document. 37 column(s) mapped from the JSON do
 
 ### `post_intervention_watercourses`
 
-watercourses in the postIntervention document. 46 column(s) mapped from the JSON document.
+watercourses in the postIntervention document. 47 column(s) mapped from the JSON document.
 
 | Column                                       | Type      | Key | Template    | JSON path                                                                 | Notes                                                                            |
 | -------------------------------------------- | --------- | --- | ----------- | ------------------------------------------------------------------------- | -------------------------------------------------------------------------------- |
@@ -953,6 +962,7 @@ watercourses in the postIntervention document. 46 column(s) mapped from the JSON
 | `length`                                     | `numeric` |     | Both        | `postIntervention.watercourses[].length`                                  |                                                                                  |
 | `size_metres`                                | `numeric` |     | Both        | `postIntervention.watercourses[].sizeMetres`                              |                                                                                  |
 | `units`                                      | `numeric` |     | Both        | `postIntervention.watercourses[].units`                                   |                                                                                  |
+| `orange_flags`                               | `text[]`  |     | Both        | `postIntervention.watercourses[].orangeFlags[]`                           |                                                                                  |
 | `status`                                     | `text`    |     | Both        | `postIntervention.watercourses[].status`                                  |                                                                                  |
 | `comment`                                    | `text`    |     | Both        | `postIntervention.watercourses[].comment`                                 |                                                                                  |
 | `baseline_type`                              | `text`    |     | Both        | `postIntervention.watercourses[].baseline.type`                           |                                                                                  |

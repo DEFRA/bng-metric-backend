@@ -21,6 +21,7 @@ import { withEnhancedWatercourseShares } from './linear-baseline-length-by-ref.j
 import { enrichPostInterventionAreaTradingRules } from './enrich-post-intervention-area-trading-rules.js'
 import { enrichPostInterventionWatercourseTradingRules } from './enrich-post-intervention-watercourse-trading-rules.js'
 import { enrichPostInterventionHedgerowTradingRules } from './enrich-post-intervention-hedgerow-trading-rules.js'
+import { applyPostInterventionOrangeFlags } from './post-intervention-orange-flags.js'
 
 /**
  * Mutates `postInterventionDocument`: for each feature, enriches the `proposed`
@@ -97,6 +98,7 @@ export function enrichPostInterventionDocumentWithUnits(
   }
 
   summarizeFeatureSetUnitsTotals(postInterventionDocument)
+  applyPostInterventionOrangeFlags(postInterventionDocument)
   addPostInterventionNetUnitChanges(postInterventionDocument, baselineUnits)
   enrichPostInterventionAreaTradingRules(
     postInterventionDocument,

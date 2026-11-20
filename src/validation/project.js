@@ -16,7 +16,8 @@ import {
   featureIdDescription,
   BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION,
   redLineSchema,
-  featureDataEnvelopeFields
+  featureDataEnvelopeFields,
+  orangeFlagsField
 } from './project-shared-schemas.js'
 import { postInterventionDataSchema } from './post-intervention/project-post-intervention-schema.js'
 import { listedFileText, longFileText, shortFileText } from './text-joi.js'
@@ -174,6 +175,9 @@ const habitatSchema = Joi.object({
     .description(
       'Baseline biodiversity units for the parcel, or null when required calculation inputs are missing. Written by both the import/enrichment path and the habitat-edit endpoint; read by the frontend display and the baseline unit totals.'
     ),
+  ...orangeFlagsField(
+    'A baseline area habitat can raise FLAG7 (a "Fairly Good" or "Fairly Poor" condition) and FLAG10 (a watercourse footprint).'
+  ),
   ...metadataSchemaKeys(),
   properties: Joi.object()
     .unknown(true)
@@ -310,6 +314,7 @@ function linearFeatureSchema({
   statusDescription,
   unitsDescription,
   beforeProperties = {},
+  orangeFlagsApplies,
   propertiesDescription,
   rootDescription
 }) {
@@ -357,6 +362,7 @@ function linearFeatureSchema({
       .description(
         `${unitsDescription} Null when required calculation inputs are missing.`
       ),
+    ...orangeFlagsField(orangeFlagsApplies),
     strategicSignificance: listedFileText('strategicSignificance').description(
       BASELINE_STRATEGIC_SIGNIFICANCE_DESCRIPTION
     ),
@@ -380,6 +386,7 @@ const linearHabitatSchema = linearFeatureSchema({
     'Baseline biodiversity units for the hedgerow, from bng-library/metric (BMD-427/428).',
   propertiesDescription:
     'Raw attribute columns copied verbatim from the GeoPackage Hedgerows layer.',
+  orangeFlagsApplies: 'A baseline hedgerow raises none.',
   rootDescription: 'A hedgerow (linear) feature.'
 })
 
@@ -417,6 +424,8 @@ const watercourseHabitatSchema = linearFeatureSchema({
   },
   propertiesDescription:
     'Raw attribute columns copied verbatim from the GeoPackage Watercourses layer.',
+  orangeFlagsApplies:
+    'A baseline watercourse can raise FLAG7 when it is a ditch in a "Fairly Good" or "Fairly Poor" condition.',
   rootDescription: 'A watercourse (linear) feature.'
 })
 

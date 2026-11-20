@@ -1649,6 +1649,41 @@
       "template": "both"
     },
     {
+      "path": "baseline.habitats[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.habitats[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
+      "template": "both"
+    },
+    {
       "path": "baseline.habitats[].siteName",
       "type": "string",
       "required": false,
@@ -2045,6 +2080,41 @@
       "constraints": [],
       "openMap": false,
       "description": "'Complete' when units were successfully calculated; otherwise 'Incomplete'.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.trees[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.trees[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "both"
     },
     {
@@ -2663,6 +2733,41 @@
       "template": "bng-service"
     },
     {
+      "path": "baseline.verticalHabitats[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "bng-service"
+    },
+    {
+      "path": "baseline.verticalHabitats[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
+      "template": "bng-service"
+    },
+    {
       "path": "baseline.verticalHabitats[].siteName",
       "type": "string",
       "required": false,
@@ -3205,6 +3310,41 @@
       "template": "both"
     },
     {
+      "path": "baseline.hedgerows[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline hedgerow raises none. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.hedgerows[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
+      "template": "both"
+    },
+    {
       "path": "baseline.hedgerows[].strategicSignificance",
       "type": "string",
       "required": false,
@@ -3740,6 +3880,41 @@
       "constraints": [],
       "openMap": false,
       "description": "Baseline biodiversity units for the watercourse, from bng-library/metric (BMD-427/428). Null when required calculation inputs are missing.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.watercourses[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline watercourse can raise FLAG7 when it is a ditch in a \"Fairly Good\" or \"Fairly Poor\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "baseline.watercourses[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "both"
     },
     {
@@ -4699,6 +4874,41 @@
       "template": "both"
     },
     {
+      "path": "postIntervention.habitats[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.habitats[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
+      "template": "both"
+    },
+    {
       "path": "postIntervention.habitats[].status",
       "type": "string",
       "required": true,
@@ -5128,7 +5338,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.",
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.",
       "template": "both"
     },
     {
@@ -5333,6 +5543,41 @@
       "constraints": [],
       "openMap": false,
       "description": "Post-intervention biodiversity units for the tree, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.trees[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.trees[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "both"
     },
     {
@@ -5922,7 +6167,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.",
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.",
       "template": "both"
     },
     {
@@ -6127,6 +6372,41 @@
       "constraints": [],
       "openMap": false,
       "description": "Post-intervention biodiversity units for the vertical area habitat, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.",
+      "template": "bng-service"
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "bng-service"
+    },
+    {
+      "path": "postIntervention.verticalHabitats[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "bng-service"
     },
     {
@@ -6547,7 +6827,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.",
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.",
       "template": "bng-service"
     },
     {
@@ -6800,6 +7080,41 @@
       "constraints": [],
       "openMap": false,
       "description": "Post-intervention biodiversity units, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created watercourse is saved from its edit form with such an input blank (BMD-1050 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.hedgerows[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.hedgerows[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "both"
     },
     {
@@ -7101,7 +7416,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.",
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.",
       "template": "both"
     },
     {
@@ -7366,6 +7681,41 @@
       "constraints": [],
       "openMap": false,
       "description": "Post-intervention biodiversity units, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created watercourse is saved from its edit form with such an input blank (BMD-1050 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.watercourses[].orangeFlags",
+      "type": "array<string>",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [],
+      "constraints": ["unique"],
+      "openMap": false,
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "template": "both"
+    },
+    {
+      "path": "postIntervention.watercourses[].orangeFlags[]",
+      "type": "string",
+      "required": false,
+      "nullable": false,
+      "emptyStringAllowed": false,
+      "enumValues": [
+        "FLAG1",
+        "FLAG2",
+        "FLAG3",
+        "FLAG4",
+        "FLAG5",
+        "FLAG6",
+        "FLAG7",
+        "FLAG8",
+        "FLAG9",
+        "FLAG10"
+      ],
+      "constraints": [],
+      "openMap": false,
+      "description": "",
       "template": "both"
     },
     {
@@ -7746,7 +8096,7 @@
       "enumValues": [],
       "constraints": [],
       "openMap": false,
-      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.",
+      "description": "Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.",
       "template": "both"
     },
     {

@@ -54,6 +54,36 @@ export const UNIT_KIND = Object.freeze({
   WATERCOURSE: 'watercourse'
 })
 
+/**
+ * The unit kind of each feature layer, keyed as both documents key them.
+ * Trees and vertical habitats are area habitats: the metric lists them on its
+ * area tabs and they are priced on the area path.
+ */
+export const ORANGE_FLAG_UNIT_KIND_BY_LAYER = Object.freeze({
+  habitats: UNIT_KIND.AREA,
+  trees: UNIT_KIND.AREA,
+  verticalHabitats: UNIT_KIND.AREA,
+  hedgerows: UNIT_KIND.HEDGEROW,
+  watercourses: UNIT_KIND.WATERCOURSE
+})
+
+/**
+ * Sets `orangeFlags` on every feature of a document's layers.
+ *
+ * @param {object | undefined} document
+ * @param {(feature: object, layerKey: string) => string[]} deriveFlags
+ */
+export function applyOrangeFlagsToDocument(document, deriveFlags) {
+  for (const layerKey of Object.keys(ORANGE_FLAG_UNIT_KIND_BY_LAYER)) {
+    const features = document?.[layerKey]
+    if (Array.isArray(features)) {
+      for (const feature of features) {
+        feature.orangeFlags = deriveFlags(feature, layerKey)
+      }
+    }
+  }
+}
+
 const CREATED = 'Created'
 const ENHANCED = 'Enhanced'
 
