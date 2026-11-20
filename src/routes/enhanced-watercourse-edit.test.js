@@ -294,4 +294,49 @@ describe('BMD-1047 Enhanced watercourse edits', () => {
       )
     ).toMatchObject({ habitatType: 'Culvert' })
   })
+
+  test('a rename is priced against the baseline it was renamed from, and records that parent', () => {
+    const { units } = update().feature
+    const result = update({ ref: 'WC-1 renamed' })
+    expect(result.status).toBe('ok')
+    expect(result.feature).toMatchObject({
+      ref: 'WC-1 renamed',
+      status: 'Complete',
+      parentFeatureId: baselineWatercourse.featureId,
+      units
+    })
+    // Saving it again, now by its parent, keeps the units.
+    const again = update({ ref: 'WC-1 renamed' }, result.feature)
+    expect(again.feature.units).toBe(units)
+  })
+
+  test('a BNG Service template watercourse that names no parent is priced by its new ref when renamed', () => {
+    // A template row that names no parent finds none by its old ref, so the
+    // baseline watercourse carrying its old ref must not price the rename.
+    const template = { ...feature, templateTable: 'Watercourses' }
+    const watercourses = [baselineWatercourse]
+    const result = applyFeatureUpdate(
+      {
+        baseline: { watercourses },
+        postIntervention: { template: 'bng-service', watercourses: [template] }
+      },
+      {
+        featureId,
+        edits: { ...edits, ref: 'WC-1 renamed' },
+        documentKey: 'postIntervention',
+        expectedType: 'watercourse',
+        baseline: { watercourses }
+      }
+    )
+    expect(result.status).toBe('ok')
+    // A template watercourse edit re-derives the post-intervention document,
+    // which prices the renamed row as an upload would: matched to no baseline,
+    // it is Incomplete with no units.
+    expect(result.feature).toMatchObject({
+      ref: 'WC-1 renamed',
+      units: null,
+      status: 'Incomplete'
+    })
+    expect(result.feature).not.toHaveProperty('parentFeatureId')
+  })
 })
