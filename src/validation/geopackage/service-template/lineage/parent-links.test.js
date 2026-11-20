@@ -1,7 +1,11 @@
 import { describe, expect, it } from 'vitest'
 
 import { ERROR_CODES } from '../../errors.js'
-import { MAX_PARENT_GEOM_CHARS, checkParentLinks } from './parent-links.js'
+import { loadGeosRuntime } from '../../geos/geos-runtime.js'
+import {
+  MAX_PARENT_GEOM_CHARS,
+  checkParentLinks as checkParentLinksWith
+} from './parent-links.js'
 
 const AREA_BASELINE = 'Area Habitats Baseline'
 const AREA_PI = 'Area Habitats Post-Intervention'
@@ -10,6 +14,10 @@ const HEDGE_PI = 'Hedgerows Post-Intervention'
 const PARENT_UUID = 'de9d1450-90f7-584a-9710-edf7ec189de4'
 const HEDGE_UUID = '058245bc-2cce-58fa-9b8f-de304545f380'
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000'
+
+const runtime = await loadGeosRuntime()
+const checkParentLinks = (baseline, postIntervention) =>
+  checkParentLinksWith(baseline, postIntervention, runtime)
 
 // A parcel at full precision, as the baseline is decoded from WKB.
 const PARCEL = [
@@ -546,6 +554,38 @@ describe('checkParentLinks', () => {
       expect(errors.map((e) => e.code)).toEqual([
         ERROR_CODES.STAGED_OUTSIDE_PARENT
       ])
+    })
+
+    it('refuses a single row that covers its parent and part of the parcel beside it', () => {
+      const errors = check({
+        baseline,
+        pi: [
+          row([
+            [X, Y],
+            [X + SIDE + 40, Y],
+            [X + SIDE + 40, Y + SIDE],
+            [X, Y + SIDE],
+            [X, Y]
+          ])
+        ]
+      })
+
+      expect(errors.map((e) => e.code)).toEqual([
+        ERROR_CODES.STAGED_OUTSIDE_PARENT
+      ])
+    })
+
+    it('passes a row whose edge strays outside its parent by no more than the red line allows', () => {
+      // 0.004 m by 100 m: 0.4 m² outside, within the 0.5 m² tolerance.
+      const stray = [
+        [X, Y],
+        [X + SIDE + 0.004, Y],
+        [X + SIDE + 0.004, Y + SIDE],
+        [X, Y + SIDE],
+        [X, Y]
+      ]
+
+      expect(check({ baseline, pi: [row(stray)] })).toEqual([])
     })
 
     it('reports a parent whose shape changed as changed, not also as outside', () => {

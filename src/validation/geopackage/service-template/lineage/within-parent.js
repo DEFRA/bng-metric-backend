@@ -1,126 +1,115 @@
+import {
+  OVERLAY_GRID_SIZE_M,
+  PARCEL_OUTSIDE_TOLERANCE_SQ_M
+} from '../../geometry-constants.js'
 import { toBritishNationalGrid } from '../../geos/reproject.js'
 
 /**
  * Whether a post-intervention area habitat lies within the baseline parent it
  * names (BMD-1083). A row copied, pasted or split from its parent lies inside
- * it, so a row that does not names the wrong parent: the parcel it stands on
- * would be counted lost, and the one it names kept at a size it does not
- * have.
+ * it, so a row that does not names the wrong parent: the land it stands on
+ * outside that parent would be counted lost from the parcel it belongs to,
+ * and kept, or created, against the one it names.
  *
- * One point inside each part of the row is tested, not every edge: a split
- * part's edges lie on its parent's boundary, where rounding would decide. The
- * point is the middle of the widest stretch of the part that a horizontal line
- * through its outer ring's centroid crosses, so it lies inside the part, clear
- * of its holes, even where the part is concave.
+ * Measured as the red line's check of an area habitat outside it is
+ * (geos/checks.js): the area of the row less its parent, on the fixed
+ * overlay grid, must be no more than PARCEL_OUTSIDE_TOLERANCE_SQ_M. A split
+ * part's edges lie on its parent's boundary, so an area, not a Boolean
+ * predicate, keeps GEOS's wobble on shared vertices from refusing it. A
+ * parent that covers the row outright is passed without the overlay.
  *
- * A shape that cannot be read is taken to lie within: the geometry checks
- * refuse a broken shape, and this one only asks where a sound one lies.
+ * Only a Polygon or MultiPolygon is measured. A row or parent with no such
+ * shape is taken to lie within: the geometry checks refuse a broken shape,
+ * and this one only asks where a sound one lies.
  */
 
-const CENTROID_DIVISOR = 3
+const POLYGONAL = new Set(['Polygon', 'MultiPolygon'])
 
-/** A geometry's polygons, each a list of rings, in British National Grid. */
-function polygonsOf(feature) {
+/** A feature's polygonal shape in British National Grid, or null. */
+function polygonalGeometry(feature) {
   const geometry = feature?.nativeGeometry
-  if (!geometry?.coordinates) {
-    return []
+  if (!POLYGONAL.has(geometry?.type) || !Array.isArray(geometry.coordinates)) {
+    return null
   }
   // Both stages come from one file, so a shape with no SRID is in the
   // other's: the template's layers are all in British National Grid.
-  const { type, coordinates } =
-    feature.nativeSrid == null
-      ? geometry
-      : toBritishNationalGrid(geometry, feature.nativeSrid)
-  if (type === 'Polygon') {
-    return [coordinates]
-  }
-  return type === 'MultiPolygon' ? coordinates : []
+  return feature.nativeSrid == null
+    ? geometry
+    : toBritishNationalGrid(geometry, feature.nativeSrid)
 }
 
-/** The y of a closed ring's area-weighted centroid, or null when it has none. */
-function centroidY(ring) {
-  let cy = 0
-  let twiceArea = 0
-  for (let i = 1; i < ring.length; i += 1) {
-    const [x1, y1] = ring[i - 1]
-    const [x2, y2] = ring[i]
-    const cross = x1 * y2 - x2 * y1
-    twiceArea += cross
-    cy += (y1 + y2) * cross
-  }
-  return twiceArea === 0 ? null : cy / (CENTROID_DIVISOR * twiceArea)
-}
-
-/** Where each ring's edges cross the horizontal line at `y`, in order. */
-function crossingsAt(polygon, y) {
-  const crossings = []
-  for (const ring of polygon) {
-    for (let i = 1; i < ring.length; i += 1) {
-      const [ax, ay] = ring[i - 1]
-      const [bx, by] = ring[i]
-      if (ay > y !== by > y) {
-        crossings.push(ax + ((y - ay) / (by - ay)) * (bx - ax))
-      }
-    }
-  }
-  return crossings.sort((a, b) => a - b)
-}
-
-/** A point inside a polygon and clear of its holes, or null for a flat one. */
-export function interiorPoint(polygon) {
-  const y = centroidY(polygon[0] ?? [])
-  if (y === null) {
+/** A shape as GEOS holds it, made valid, or null when there is none. */
+function loadShape(runtime, geometry) {
+  if (geometry === null) {
     return null
   }
-  const crossings = crossingsAt(polygon, y)
-  let best = null
-  for (let i = 1; i < crossings.length; i += 2) {
-    const width = crossings[i] - crossings[i - 1]
-    if (width > 0 && (best === null || width > best.width)) {
-      best = { width, x: (crossings[i] + crossings[i - 1]) / 2 }
-    }
-  }
-  return best === null ? null : [best.x, y]
-}
-
-/** Ray-casting point-in-ring test: true when the point is inside the ring. */
-function inRing([x, y], ring) {
-  let inside = false
-  for (let i = 0, j = ring.length - 1; i < ring.length; j = i, i += 1) {
-    const [xi, yi] = ring[i]
-    const [xj, yj] = ring[j]
-    if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) {
-      inside = !inside
-    }
-  }
-  return inside
-}
-
-/** Whether a point is inside a polygon's outer ring and none of its holes. */
-function inPolygon(point, [outer, ...holes]) {
-  return (
-    inRing(point, outer ?? []) && !holes.some((hole) => inRing(point, hole))
-  )
+  const raw = runtime.fromGeoJson(geometry)
+  const valid = runtime.makeValid(raw)
+  runtime.free(raw)
+  return valid
 }
 
 /**
- * Whether every part of a post-intervention area habitat lies within the
- * baseline parent it names.
+ * A check of rows against their parents for one file. Each parent's shape is
+ * loaded and prepared once, however many rows name it; `free` releases them.
  *
- * @param {object} row a post-intervention feature, read with its geometry
- * @param {object} parent the baseline feature it names, read with its geometry
- * @returns {boolean}
+ * @param {import('../../geos/geos-runtime.js').GeosRuntime} runtime
+ * @returns {{
+ *   liesWithinParent: (row: object, parent: object) => boolean,
+ *   free: () => void
+ * }}
  */
-export function liesWithinParent(row, parent) {
-  const parentPolygons = polygonsOf(parent)
-  if (parentPolygons.length === 0) {
-    return true
+export function createWithinParentCheck(runtime) {
+  const { geos } = runtime
+  const parents = new Map()
+
+  const parentShape = (parent) => {
+    if (!parents.has(parent)) {
+      const valid = loadShape(runtime, polygonalGeometry(parent))
+      parents.set(
+        parent,
+        valid === null ? null : { valid, prepared: geos.GEOSPrepare(valid) }
+      )
+    }
+    return parents.get(parent)
   }
-  return polygonsOf(row).every((part) => {
-    const point = interiorPoint(part)
-    return (
-      point === null ||
-      parentPolygons.some((polygon) => inPolygon(point, polygon))
+
+  const outsideArea = (row, shape) => {
+    if (geos.GEOSPreparedCovers(shape.prepared, row) === 1) {
+      return 0
+    }
+    const outside = geos.GEOSDifferencePrec(
+      row,
+      shape.valid,
+      OVERLAY_GRID_SIZE_M
     )
-  })
+    const area = runtime.area(outside)
+    runtime.free(outside)
+    return area
+  }
+
+  return {
+    liesWithinParent(row, parent) {
+      const shape = parentShape(parent)
+      const rowShape =
+        shape === null ? null : loadShape(runtime, polygonalGeometry(row))
+      if (rowShape === null) {
+        return true
+      }
+      try {
+        return outsideArea(rowShape, shape) <= PARCEL_OUTSIDE_TOLERANCE_SQ_M
+      } finally {
+        runtime.free(rowShape)
+      }
+    },
+    free() {
+      for (const shape of parents.values()) {
+        if (shape !== null) {
+          geos.GEOSPreparedGeom_destroy(shape.prepared)
+          runtime.free(shape.valid)
+        }
+      }
+      parents.clear()
+    }
+  }
 }

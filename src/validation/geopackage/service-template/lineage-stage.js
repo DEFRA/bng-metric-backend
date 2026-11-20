@@ -23,12 +23,15 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * @param {import('./template-tables.js').TemplateReadSource} [lineageSource]
  *   how to read the Baseline tables; absent when there is no baseline stage
  *   to link to (a legacy file, or the baseline endpoint)
+ * @param {import('../geos/geos-runtime.js').GeosRuntime} [runtime] GEOS, which
+ *   the worker has loaded; needed with a lineageSource
  * @returns {Array<object>} the lineage errors; none without a lineageSource
  */
 export function lineageErrorsFor(
   filePath,
   postInterventionLayers,
-  lineageSource
+  lineageSource,
+  runtime
 ) {
   if (!lineageSource) {
     return []
@@ -41,7 +44,7 @@ export function lineageErrorsFor(
   // The rows the saved document keeps: a Lost hedgerow or watercourse is
   // dropped from it, so it neither continues nor stands for its parent here.
   const kept = filterLostPostInterventionLayers(postInterventionLayers)
-  const linkErrors = checkParentLinks(baselineLayers, kept)
+  const linkErrors = checkParentLinks(baselineLayers, kept, runtime)
   if (linkErrors.length > 0) {
     return linkErrors
   }

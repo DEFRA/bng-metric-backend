@@ -18,7 +18,7 @@ import {
   refOf,
   text
 } from './lineage-rows.js'
-import { liesWithinParent } from './within-parent.js'
+import { createWithinParentCheck } from './within-parent.js'
 
 /**
  * The parent links of a BNG Service template file (BMD-1083): whether each
@@ -38,8 +38,8 @@ import { liesWithinParent } from './within-parent.js'
  *   linked row whose `parent_geom` is missing, empty, not valid WKT or over
  *   MAX_PARENT_GEOM_CHARS cannot be checked, and is refused the same way;
  * - an area habitat outside its parent: a row whose parent's shape is the one
- *   it recorded, but which does not lie within that parent
- *   (within-parent.js), so it names the wrong one. Its recorded shape cannot
+ *   it recorded, but more of which than the red line's tolerance lies
+ *   outside that parent (within-parent.js), so it names the wrong one. Its recorded shape cannot
  *   show this, as a row that names another parcel can record that parcel's
  *   shape.
  *
@@ -151,7 +151,7 @@ function addChild(entries, key, make, feature) {
  * `found`. A row that names no parent is checked only if it carries one
  * forward; a row that names one is checked whatever its Retention Category.
  */
-function checkRow(feature, { layer, tables, parents, matches, found }) {
+function checkRow(feature, { layer, tables, parents, matches, within, found }) {
   const properties = feature.properties ?? {}
   const uuid = text(properties[PARENT_UUID])
   if (uuid === null) {
@@ -182,7 +182,9 @@ function checkRow(feature, { layer, tables, parents, matches, found }) {
       () => namedParent(layer, tables.baseline, parent),
       feature
     )
-  } else if (layer === CONTAINED_LAYER && !liesWithinParent(feature, parent)) {
+    return
+  }
+  if (layer === CONTAINED_LAYER && !within.liesWithinParent(feature, parent)) {
     addChild(
       found.outside,
       parent,
@@ -193,7 +195,7 @@ function checkRow(feature, { layer, tables, parents, matches, found }) {
 }
 
 /** One layer's unlinked rows and missing, ambiguous and changed parents. */
-function checkLayer(layer, baseline, postIntervention) {
+function checkLayer(layer, baseline, postIntervention, within) {
   const context = {
     layer,
     tables: {
@@ -202,6 +204,7 @@ function checkLayer(layer, baseline, postIntervention) {
     },
     parents: parentsByUuid(baseline.features),
     matches: createShapeCache(),
+    within,
     found: {
       unlinked: [],
       missing: [],
@@ -231,32 +234,44 @@ function checkLayer(layer, baseline, postIntervention) {
  * @param {object} postInterventionLayers readGeoPackage's Post-Intervention
  *   tables, read with their geometry, which the area habitats are checked to
  *   lie within their parents by
+ * @param {import('../../geos/geos-runtime.js').GeosRuntime} runtime GEOS, to
+ *   measure how much of an area habitat lies outside its parent
  * @returns {Array<{ code: string, message: string, details: object }>} one
  *   error per kind of problem, listing every row or parent it applies to
  */
-export function checkParentLinks(baselineLayers, postInterventionLayers) {
+export function checkParentLinks(
+  baselineLayers,
+  postInterventionLayers,
+  runtime
+) {
   const unlinked = []
   const missing = []
   const ambiguous = []
   const changed = []
   const outside = []
-  for (const layer of LINKED_LAYERS) {
-    const found = checkLayer(
-      layer,
-      {
-        table: baselineLayers.layerTables?.[layer],
-        features: baselineLayers[layer] ?? []
-      },
-      {
-        table: postInterventionLayers.layerTables?.[layer],
-        features: postInterventionLayers[layer] ?? []
-      }
-    )
-    unlinked.push(...found.unlinked)
-    missing.push(...found.missing)
-    ambiguous.push(...found.ambiguous)
-    changed.push(...found.changed)
-    outside.push(...found.outside)
+  const within = createWithinParentCheck(runtime)
+  try {
+    for (const layer of LINKED_LAYERS) {
+      const found = checkLayer(
+        layer,
+        {
+          table: baselineLayers.layerTables?.[layer],
+          features: baselineLayers[layer] ?? []
+        },
+        {
+          table: postInterventionLayers.layerTables?.[layer],
+          features: postInterventionLayers[layer] ?? []
+        },
+        within
+      )
+      unlinked.push(...found.unlinked)
+      missing.push(...found.missing)
+      ambiguous.push(...found.ambiguous)
+      changed.push(...found.changed)
+      outside.push(...found.outside)
+    }
+  } finally {
+    within.free()
   }
   return [
     collated(
