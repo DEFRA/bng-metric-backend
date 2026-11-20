@@ -48,6 +48,8 @@ import {
 
 import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
+import { baselineFeatureOrangeFlags } from '../enrichment/baseline/baseline-orange-flags.js'
+import { postInterventionFeatureOrangeFlags } from '../enrichment/post-intervention/post-intervention-orange-flags.js'
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import { renameClashes } from './ref-in-use.js'
@@ -331,6 +333,23 @@ function withOwnComment(found, updated, edits) {
   return { ...updated, comment: edits.comment }
 }
 
+/**
+ * An edited feature's orange flags (BMD-822), derived again from the fields
+ * the edit saved so they never describe the values it replaced.
+ *
+ * @param {object} feature the recomputed feature
+ * @param {string} layerKey
+ * @param {string} documentKey
+ * @returns {object}
+ */
+function withOrangeFlags(feature, layerKey, documentKey) {
+  const deriveFlags =
+    documentKey === 'postIntervention'
+      ? postInterventionFeatureOrangeFlags
+      : baselineFeatureOrangeFlags
+  return { ...feature, orangeFlags: deriveFlags(feature, layerKey) }
+}
+
 function resolveUpdatedFeature(
   found,
   edits,
@@ -350,7 +369,11 @@ function resolveUpdatedFeature(
     baseline,
     serviceTemplate
   })
-  return withoutImportedRejection(updated, documentKey)
+  return withOrangeFlags(
+    withoutImportedRejection(updated, documentKey),
+    found.key,
+    documentKey
+  )
 }
 
 /**
