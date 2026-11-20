@@ -417,6 +417,189 @@ describe('checkParentLinks', () => {
     ).toEqual([ERROR_CODES.STAGED_BASELINE_DRIFTED])
   })
 
+  describe('an area habitat outside the parent it names', () => {
+    const WEST_UUID = '1b4e28ba-2fa1-4d3b-a3f5-ef19b5a7633b'
+    const EAST_UUID = '6fa459ea-ee8a-4ca4-894e-db77e160355e'
+    const X = 530_000
+    const Y = 180_000
+    const SIDE = 100
+    const square = (x0, y0 = Y, side = SIDE) => [
+      [x0, y0],
+      [x0 + side, y0],
+      [x0 + side, y0 + side],
+      [x0, y0 + side],
+      [x0, y0]
+    ]
+    const wkt = (ring) =>
+      `Polygon ((${ring.map(([x, y]) => `${x} ${y}`).join(', ')}))`
+    const WEST = square(X)
+    const EAST = square(X + SIDE)
+    const polygon = (ring) => ({ type: 'Polygon', coordinates: [ring] })
+    const baseline = [
+      baselineParcel({
+        'Parcel Ref': 'H001',
+        feature_uuid: WEST_UUID
+      }),
+      baselineParcel({
+        fid: 2,
+        'Parcel Ref': 'H002',
+        'Baseline Habitat Type': 'Modified grassland',
+        feature_uuid: EAST_UUID
+      })
+    ].map((parcel, i) => ({
+      ...parcel,
+      nativeGeometry: polygon([WEST, EAST][i])
+    }))
+    const row = (ring, overrides = {}) => ({
+      ...linkedRow({
+        'Parcel Ref': 'H003',
+        parent_uuid: WEST_UUID,
+        parent_geom: wkt(WEST),
+        ...overrides
+      }),
+      nativeGeometry: polygon(ring)
+    })
+
+    it('passes a row that is its parent, and the parts of a parent split in two', () => {
+      const half = SIDE / 2
+      expect(
+        check({
+          baseline,
+          pi: [
+            row(WEST),
+            row(square(X, Y, half)),
+            row([
+              [X + half, Y],
+              [X + SIDE, Y],
+              [X + SIDE, Y + SIDE],
+              [X, Y + SIDE],
+              [X, Y + half],
+              [X + half, Y + half],
+              [X + half, Y]
+            ])
+          ]
+        })
+      ).toEqual([])
+    })
+
+    it('refuses a row that names the parcel beside the one it lies on, listing the parent it names', () => {
+      const errors = check({
+        baseline,
+        pi: [
+          row(WEST, {
+            parent_uuid: EAST_UUID,
+            parent_geom: wkt(EAST)
+          })
+        ]
+      })
+
+      expect(errors).toEqual([
+        {
+          code: ERROR_CODES.STAGED_OUTSIDE_PARENT,
+          message:
+            'One or more post-intervention area habitats do not lie within the baseline habitat they name: Area Habitats Baseline H002 (Modified grassland), named by H003',
+          details: {
+            count: 1,
+            sample: [
+              {
+                layer: 'areas',
+                table: AREA_BASELINE,
+                fid: 2,
+                ref: 'H002',
+                habitatType: 'Modified grassland',
+                childRefs: ['H003']
+              }
+            ]
+          }
+        }
+      ])
+    })
+
+    it.each(['Enhanced', 'Created', 'Lost'])(
+      'checks a linked %s row as well as a Retained one',
+      (retention) => {
+        const errors = check({
+          baseline,
+          pi: [row(EAST, { 'Retention Category': retention })]
+        })
+
+        expect(errors.map((e) => e.code)).toEqual([
+          ERROR_CODES.STAGED_OUTSIDE_PARENT
+        ])
+      }
+    )
+
+    it('refuses a row with one part outside its parent', () => {
+      const errors = check({
+        baseline,
+        pi: [
+          {
+            ...row(WEST),
+            nativeGeometry: {
+              type: 'MultiPolygon',
+              coordinates: [[square(X, Y, 10)], [square(X + SIDE + 10, Y, 10)]]
+            }
+          }
+        ]
+      })
+
+      expect(errors.map((e) => e.code)).toEqual([
+        ERROR_CODES.STAGED_OUTSIDE_PARENT
+      ])
+    })
+
+    it('reports a parent whose shape changed as changed, not also as outside', () => {
+      const errors = check({
+        baseline,
+        pi: [row(EAST, { parent_geom: wkt(square(X + 5)) })]
+      })
+
+      expect(errors.map((e) => e.code)).toEqual([
+        ERROR_CODES.STAGED_BASELINE_DRIFTED
+      ])
+    })
+
+    it('does not check where a hedgerow lies, as a hedgerow can move off its baseline line', () => {
+      const moved = HEDGE.map(([x, y]) => [x + 500, y])
+      const errors = checkParentLinks(
+        layers(
+          {
+            hedgerows: [
+              {
+                properties: {
+                  fid: 1,
+                  'Parcel Ref': 'HG001',
+                  feature_uuid: HEDGE_UUID
+                },
+                nativeGeometry: { type: 'LineString', coordinates: HEDGE }
+              }
+            ]
+          },
+          { hedgerows: HEDGE_BASELINE }
+        ),
+        layers(
+          {
+            hedgerows: [
+              {
+                properties: {
+                  fid: 1,
+                  'Parcel Ref': 'HG001',
+                  'Retention Category': 'Retained',
+                  parent_uuid: HEDGE_UUID,
+                  parent_geom: HEDGE_WKT
+                },
+                nativeGeometry: { type: 'LineString', coordinates: moved }
+              }
+            ]
+          },
+          { hedgerows: HEDGE_PI }
+        )
+      )
+
+      expect(errors).toEqual([])
+    })
+  })
+
   it('reports every problem in one file, one error each', () => {
     const errors = check({
       pi: [

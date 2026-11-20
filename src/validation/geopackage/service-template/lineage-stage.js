@@ -8,7 +8,7 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * The lineage check of a BNG Service template file uploaded at the baseline +
  * post-intervention endpoint (BMD-1083): every post-intervention row that
  * names a baseline parent must name one that is in the file, with the shape
- * the row recorded for it. Once every link can be trusted, the rows must
+ * the row recorded for it, and an area habitat must lie within it. Once every link can be trusted, the rows must
  * continue or lose their parents as the Metric guide asks
  * (lineage-rules.js); while one cannot, those rules would be checked against
  * the wrong parent, so only the links are reported.
