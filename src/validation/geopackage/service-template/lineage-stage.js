@@ -8,7 +8,7 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * The lineage check of a BNG Service template file uploaded at the baseline +
  * post-intervention endpoint (BMD-1083): every post-intervention row that
  * names a baseline parent must name one that is in the file, with the shape
- * the row recorded for it. Once every link can be trusted, the rows must
+ * the row recorded for it, and an area habitat must lie within it. Once every link can be trusted, the rows must
  * continue or lose their parents as the Metric guide asks
  * (lineage-rules.js); while one cannot, those rules would be checked against
  * the wrong parent, so only the links are reported.
@@ -23,12 +23,15 @@ import { checkParentLinks } from './lineage/parent-links.js'
  * @param {import('./template-tables.js').TemplateReadSource} [lineageSource]
  *   how to read the Baseline tables; absent when there is no baseline stage
  *   to link to (a legacy file, or the baseline endpoint)
+ * @param {import('../geos/geos-runtime.js').GeosRuntime} [runtime] GEOS, which
+ *   the worker has loaded; needed with a lineageSource
  * @returns {Array<object>} the lineage errors; none without a lineageSource
  */
 export function lineageErrorsFor(
   filePath,
   postInterventionLayers,
-  lineageSource
+  lineageSource,
+  runtime
 ) {
   if (!lineageSource) {
     return []
@@ -41,7 +44,7 @@ export function lineageErrorsFor(
   // The rows the saved document keeps: a Lost hedgerow or watercourse is
   // dropped from it, so it neither continues nor stands for its parent here.
   const kept = filterLostPostInterventionLayers(postInterventionLayers)
-  const linkErrors = checkParentLinks(baselineLayers, kept)
+  const linkErrors = checkParentLinks(baselineLayers, kept, runtime)
   if (linkErrors.length > 0) {
     return linkErrors
   }

@@ -2,6 +2,7 @@ import { STAGE_BASELINE } from 'bng-library/bng-service'
 import { describe, expect, it } from 'vitest'
 
 import { ERROR_CODES } from '../errors.js'
+import { loadGeosRuntime } from '../geos/geos-runtime.js'
 import { lineageErrorsFor, withLineageErrors } from './lineage-stage.js'
 import { templateReadSource } from './template-tables.js'
 import {
@@ -12,6 +13,8 @@ import { withTempGpkgFile } from '../../../../test/helpers/gpkg.js'
 
 const ERROR = { code: 'STAGED_UNKNOWN_PARENT_REF', message: 'missing parent' }
 const UNKNOWN_UUID = '00000000-0000-4000-8000-000000000000'
+
+const runtime = await loadGeosRuntime()
 
 /** Post-intervention rows as the worker holds them, one naming no real parent. */
 const postInterventionLayers = {
@@ -40,7 +43,8 @@ describe('lineageErrorsFor', () => {
         lineageErrorsFor(
           filePath,
           postInterventionLayers,
-          templateReadSource('1.0', STAGE_BASELINE)
+          templateReadSource('1.0', STAGE_BASELINE),
+          runtime
         )
     )
 
@@ -58,7 +62,8 @@ describe('lineageErrorsFor', () => {
         lineageErrorsFor(
           filePath,
           { areas: [], layerTables: postInterventionLayers.layerTables },
-          templateReadSource('1.0', STAGE_BASELINE)
+          templateReadSource('1.0', STAGE_BASELINE),
+          runtime
         )
     )
 
@@ -82,7 +87,8 @@ describe('lineageErrorsFor, reading rows as the saved document does', () => {
         lineageErrorsFor(
           filePath,
           { areas: [], watercourses, layerTables },
-          templateReadSource('1.0', STAGE_BASELINE)
+          templateReadSource('1.0', STAGE_BASELINE),
+          runtime
         )
     )
 

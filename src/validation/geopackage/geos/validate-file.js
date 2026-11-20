@@ -8,6 +8,7 @@
  */
 import { readGeoPackage } from '../geopackage.js'
 import { FEATURE_READ_MODE } from '../read-feature-tables.js'
+import { loadGeosRuntime } from './geos-runtime.js'
 import { validateGeoPackageLayersGeos } from './index.js'
 import {
   lineageErrorsFor,
@@ -33,6 +34,11 @@ export async function validateGeoPackageFileGeos(
   const result = await validateGeoPackageLayersGeos(layers, { includeSizes })
   // A BNG Service template file's parent links, checked against these
   // Post-Intervention rows (BMD-1083); none for any other upload.
-  const lineageErrors = lineageErrorsFor(filePath, layers, lineageSource)
+  const lineageErrors = lineageErrorsFor(
+    filePath,
+    layers,
+    lineageSource,
+    await loadGeosRuntime()
+  )
   return withLineageErrors(result, lineageErrors)
 }

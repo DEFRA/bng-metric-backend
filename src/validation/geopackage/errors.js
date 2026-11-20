@@ -306,6 +306,15 @@ export const ERROR_CODES = Object.freeze({
   STAGED_BASELINE_DRIFTED: 'STAGED_BASELINE_DRIFTED',
 
   /**
+   * BNG Service template post-intervention area habitats that do not lie
+   * within the baseline parent they name, though its shape is the one they
+   * recorded: each names the wrong parent (BMD-1083). `details.sample` lists
+   * each parent's table, Habitat Ref and habitat type, and the Habitat Ref of
+   * each row that names it. The frontend sends the user to the drop-out page.
+   */
+  STAGED_OUTSIDE_PARENT: 'STAGED_OUTSIDE_PARENT',
+
+  /**
    * BNG Service template baseline hedgerows shorter than the post-intervention
    * hedgerows linked to them together, Created ones included (BMD-1083).
    * `details.sample` lists each parent's table, Habitat Ref and hedge type, the
