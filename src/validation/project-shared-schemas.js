@@ -51,7 +51,7 @@ export const orangeFlagsField = (applies) => ({
     .items(Joi.string().valid(...ORANGE_FLAG_CODES))
     .unique()
     .description(
-      `Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. ${applies} Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.`
+      `Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. ${applies} Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.`
     )
 })
 
