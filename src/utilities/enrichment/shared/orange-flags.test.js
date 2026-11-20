@@ -154,6 +154,45 @@ describe('derivePostInterventionOrangeFlags', () => {
         )
       ).toEqual([FLAG1, FLAG6])
     })
+
+    // Checked against the statutory metric's A-2 sheet: a created Poor open
+    // mosaic habitat (standard time 0) raises both warnings with the head start
+    // and delay left blank, typed as 0, or a head start of 1; at Moderate
+    // (standard time 4) with both blank it raises neither.
+    it.each([
+      ['left blank', null, null],
+      ['typed as 0', 0, 0],
+      ['a head start of 1', 1, 0]
+    ])(
+      'raises FLAG1 and FLAG6 when the standard time is 0, head start %s',
+      (_label, advanceYears, delayYears) => {
+        expect(
+          derivePostInterventionOrangeFlags(
+            createdArea({
+              ...OPEN_MOSAIC,
+              condition: 'Poor',
+              distinctivenessScore: 6,
+              standardTimeToTargetCondition: '0',
+              advanceYears,
+              delayYears
+            })
+          )
+        ).toEqual([FLAG1, FLAG6])
+      }
+    )
+
+    it('raises nothing for a blank head start when the standard time is above 0', () => {
+      expect(
+        derivePostInterventionOrangeFlags(
+          createdArea({
+            ...OPEN_MOSAIC,
+            condition: 'Moderate',
+            distinctivenessScore: 6,
+            standardTimeToTargetCondition: '4'
+          })
+        )
+      ).toEqual([])
+    })
   })
 
   describe('AC2 head start, Poor condition threshold already passed', () => {
