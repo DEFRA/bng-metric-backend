@@ -1657,7 +1657,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -2091,7 +2091,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -2741,7 +2741,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline area habitat can raise FLAG7 (a \"Fairly Good\" or \"Fairly Poor\" condition) and FLAG10 (a watercourse footprint). Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "bng-service"
     },
     {
@@ -3318,7 +3318,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline hedgerow raises none. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline hedgerow raises none. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -3891,7 +3891,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline watercourse can raise FLAG7 when it is a ditch in a \"Fairly Good\" or \"Fairly Poor\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. A baseline watercourse can raise FLAG7 when it is a ditch in a \"Fairly Good\" or \"Fairly Poor\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -4882,7 +4882,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -5554,7 +5554,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -6383,7 +6383,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a \"Fairly\" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline's, and FLAG10 on a Created watercourse footprint. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "bng-service"
     },
     {
@@ -7091,7 +7091,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
@@ -7692,7 +7692,7 @@
       "enumValues": [],
       "constraints": ["unique"],
       "openMap": false,
-      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.",
+      "description": "Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a \"Fairly\" condition. Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. On a project saved before BMD-822 the field is absent until it is next written: re-uploading a file writes it on every habitat of that document, editing a habitat writes it on that habitat, and editing a baseline habitat writes it on every post-intervention habitat. Such a project can therefore hold the field on some habitats and not others. Absent means the flags have not been worked out yet, not that none apply.",
       "template": "both"
     },
     {
