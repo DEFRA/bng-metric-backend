@@ -1,6 +1,7 @@
 import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
 import { getHedgerowCreationReference } from '../validation/reference/hedgerow-creation.js'
 import { getHedgerowEnhancementReference } from '../validation/reference/hedgerow-enhancement.js'
+import { getWatercourseEnhancementReference } from '../validation/reference/watercourse-enhancement.js'
 import Joi from 'joi'
 import {
   getAreaCreationReference,
@@ -165,6 +166,43 @@ export const getHedgerowEnhancement = {
     }
   },
   handler: (request) => getHedgerowEnhancementReference(request.query)
+}
+
+/**
+ * @openapi
+ * /reference/watercourse-enhancement:
+ *   get:
+ *     tags: [Reference]
+ *     summary: The valid enhancements of a baseline watercourse, with their enhancement difficulty, time to target, temporal multipliers and encroachment options
+ *     parameters:
+ *       - in: query
+ *         name: type
+ *         schema: { type: string }
+ *         description: The baseline watercourse's habitat type
+ *       - in: query
+ *         name: condition
+ *         schema: { type: string }
+ *         description: The baseline watercourse's condition
+ *     responses:
+ *       200:
+ *         description: |
+ *           Shaped as /reference/watercourse-creation, listing only the
+ *           habitat types and target conditions that are valid enhancements
+ *           of the baseline (BMD-820's watercourse rules, AC9 and AC10), each
+ *           condition with its enhancement time to target from the baseline.
+ *           The encroachment lists are not restricted. Empty habitatTypes for
+ *           a baseline that cannot be enhanced.
+ */
+export const getWatercourseEnhancement = {
+  method: 'GET',
+  path: '/reference/watercourse-enhancement',
+  options: {
+    auth: false,
+    validate: {
+      query: Joi.object({ type: baselineField, condition: baselineField })
+    }
+  },
+  handler: (request) => getWatercourseEnhancementReference(request.query)
 }
 
 /**

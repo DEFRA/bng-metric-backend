@@ -252,6 +252,48 @@ const CASES = {
       condition: 'Moderate',
       ...timing
     }
+  },
+  // BMD-1047: a Ditches at Poor, linked by ref to its baseline watercourse,
+  // whose length prices the enhancement.
+  'Enhanced watercourse': {
+    route: updatePostInterventionWatercourse,
+    layer: 'watercourses',
+    baseline: {
+      watercourses: [
+        {
+          featureId: 'dddddddd-dddd-dddd-dddd-dddddddddddd',
+          ref: 'W-1',
+          sizeMetres: 1250,
+          type: 'Ditches',
+          condition: 'Poor'
+        }
+      ]
+    },
+    feature: {
+      featureId,
+      ref: 'W-1',
+      retentionCategory: 'Enhanced',
+      sizeMetres: 1000,
+      units: 1,
+      status: 'Complete',
+      comment: STORED_COMMENT,
+      baseline: { type: 'Ditches', condition: 'Poor' },
+      proposed: {
+        type: 'Ditches',
+        condition: 'Moderate',
+        watercourseEncroachment: 'No Encroachment',
+        riparianEncroachment: 'No Encroachment/No Encroachment',
+        ...timing
+      }
+    },
+    edits: {
+      ref: 'W-1',
+      habitatType: 'Ditches',
+      condition: 'Good',
+      watercourseEncroachment: 'No Encroachment',
+      riparianEncroachment: 'No Encroachment/No Encroachment',
+      ...timing
+    }
   }
 }
 
@@ -360,18 +402,6 @@ describe.each(Object.keys(CASES))('supporting information: %s', (kind) => {
 })
 
 describe('a feature whose comment this page cannot edit', () => {
-  // An Enhanced watercourse cannot be edited yet at all, comment or not.
-  test('refuses an Enhanced watercourse sent a comment, and writes nothing', async () => {
-    const stored = {
-      ...CASES['Created watercourse'].feature,
-      retentionCategory: 'Enhanced'
-    }
-    await expect(
-      put('Created watercourse', { comment: 'A note' }, stored)
-    ).rejects.toMatchObject({ output: { statusCode: 400 } })
-    expect(setProjectFeature).not.toHaveBeenCalled()
-  })
-
   // A Retained tree takes no complete edit, comment or not.
   test('refuses a Retained tree sent a comment as FEATURE_NOT_EDITABLE, and writes nothing', async () => {
     const stored = {

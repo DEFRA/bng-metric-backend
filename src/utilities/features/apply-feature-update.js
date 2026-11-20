@@ -1,4 +1,7 @@
-import { recomputeCreatedWatercourseEdit } from '../../validation/geopackage/post-intervention/recompute-created-watercourse-edit.js'
+import {
+  recomputeCreatedWatercourseEdit,
+  recomputeEnhancedWatercourseEdit
+} from '../../validation/geopackage/post-intervention/recompute-created-watercourse-edit.js'
 // Single entry point for "user edited a project feature, persist the new
 // derived shape." Used by baseline and post-intervention PUT routes. Pure —
 // does no I/O. Callers wrap the result in their own transaction and write the
@@ -136,11 +139,24 @@ function recomputeHedgerowEdit(
   })
 }
 
-function recomputeWatercourseEdit(existing, edits, { documentKey }) {
+function recomputeWatercourseEdit(
+  existing,
+  edits,
+  { documentKey, baseline, serviceTemplate }
+) {
   if (documentKey === 'postIntervention') {
-    return Object.hasOwn(edits, 'advanceYears')
-      ? recomputeCreatedWatercourseEdit(existing, edits)
-      : null
+    if (!Object.hasOwn(edits, 'advanceYears')) {
+      return null
+    }
+    // An Enhanced watercourse is priced against its baseline (BMD-1047).
+    return resolveRetentionCategory(existing) === RETENTION_ENHANCED
+      ? recomputeEnhancedWatercourseEdit(existing, edits, {
+          baselineLengthByRef:
+            postInterventionEnrichOptions(baseline).baselineLengthByRef,
+          baselineWatercourses: baseline?.watercourses,
+          serviceTemplate
+        })
+      : recomputeCreatedWatercourseEdit(existing, edits)
   }
   return recomputeWatercourse({
     habitatType: edits.habitatType,
@@ -386,14 +402,19 @@ const CREATED_EDIT_TYPES = new Set([
   'watercourse'
 ])
 const BROAD_HABITAT_TYPES = new Set(['habitat', 'tree'])
-const ENHANCED_EDIT_TYPES = new Set(['habitat', 'tree', 'hedgerow'])
+const ENHANCED_EDIT_TYPES = new Set([
+  'habitat',
+  'tree',
+  'hedgerow',
+  'watercourse'
+])
 
 /**
  * Whether the complete edit payload may be applied to a feature of this
  * retention: a Created one of any type that takes it, an Enhanced tree,
- * whose condition is all it enhances, and an Enhanced area habitat or
- * hedgerow, edited within its baseline's valid enhancements (BMD-1045,
- * BMD-1046).
+ * whose condition is all it enhances, and an Enhanced area habitat,
+ * hedgerow or watercourse, edited within its baseline's valid enhancements
+ * (BMD-1045, BMD-1046, BMD-1047).
  *
  * @param {{ type: string, feature: object }} found
  * @returns {boolean}

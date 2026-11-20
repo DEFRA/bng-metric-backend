@@ -153,6 +153,18 @@ export function readHedgerowSide(side) {
 }
 
 /**
+ * A watercourse side as the watercourse rules read it: the metric's
+ * watercourse type and the condition with its list prefix stripped. The
+ * habitat is null when the rules do not recognise it (BMD-1047).
+ *
+ * @param {object | undefined} side
+ * @returns {EnhancementSide}
+ */
+export function readWatercourseSide(side) {
+  return readSide(KIND_BY_LAYER.watercourses, side)
+}
+
+/**
  * @typedef {object} EnhancementSide
  * @property {string | null} habitat the metric's label, null if unrecognised
  * @property {unknown} condition prefix stripped

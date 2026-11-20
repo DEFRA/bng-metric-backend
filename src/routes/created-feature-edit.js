@@ -83,11 +83,13 @@ function resolveCreatedLinearCondition(feature, edits) {
 /**
  * Check a Created linear feature's edit against `reference`, or, with
  * `enhancedReference`, an Enhanced one's against the valid enhancements of its
- * baseline (BMD-1046). An omitted habitat type or condition keeps the stored
- * one, unchecked; a sent one must be offered, except that an Enhanced
- * feature may send back its stored habitat type, and its stored condition
- * under that type, unlisted, as an Enhanced area may (BMD-1045). The
- * recomputed feature is still checked as an enhancement
+ * baseline (BMD-1046, BMD-1047). An omitted habitat type or condition keeps
+ * the stored one, unchecked; a sent one must be offered, except that, with
+ * `keepsStoredChoices`, an Enhanced feature may send back its stored habitat
+ * type, and its stored condition under that type, unlisted, as an Enhanced
+ * area may (BMD-1045). An Enhanced watercourse does not: under the PO's
+ * ruling (BMD-1046 testing) a stored choice its list does not offer is
+ * cleared, not kept, so it is never sent back. The recomputed feature is still checked as an enhancement
  * (brokenEnhancementRule). An Enhanced feature's refused choice is an
  * invalid enhancement (422), so its edit form can show it against the target
  * condition; a Created one's is a bad request.
@@ -96,7 +98,7 @@ function resolveCreatedLinearCondition(feature, edits) {
  * @param {object} edits
  * @param {object} reference the creation reference
  * @param {string} label
- * @param {{ enhancedReference?: (feature: object) => object }} [options]
+ * @param {{ enhancedReference?: (feature: object) => object, keepsStoredChoices?: boolean }} [options]
  * @returns {object} the edits, with omitted values resolved
  */
 export function validateCreatedLinearEdit(
@@ -104,7 +106,7 @@ export function validateCreatedLinearEdit(
   edits,
   reference,
   label,
-  { enhancedReference } = {}
+  { enhancedReference, keepsStoredChoices = false } = {}
 ) {
   const enhanced = isEditableEnhanced(feature, enhancedReference)
   assertLinearEditable(feature, { enhanced, label })
@@ -123,7 +125,7 @@ export function validateCreatedLinearEdit(
   const choices = enhanced ? enhancedReference(feature) : reference
   const kept = keptLinearChoices(
     edits,
-    enhanced ? (feature.proposed ?? {}) : {}
+    enhanced && keepsStoredChoices ? (feature.proposed ?? {}) : {}
   )
   if (!linearChoicesOffered(choices, resolved, edits, kept)) {
     throw refusedLinearChoices(enhanced, label)
