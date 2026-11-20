@@ -7,6 +7,7 @@
 import Joi from 'joi'
 
 import { MAX_FILE_SIZE_BYTES } from '../services/s3/download-file.js'
+import { ORANGE_FLAG_CODES } from '../utilities/enrichment/shared/orange-flags.js'
 import { longFileText } from './text-joi.js'
 import { BNG_SERVICE_ONLY, LEGACY_ONLY } from './template-applicability.js'
 
@@ -36,6 +37,23 @@ export const SAFE_FILENAME_RE = /^[ ._()-]*[a-z0-9][a-z0-9 ._()-]*\.gpkg$/i
  */
 export const featureIdDescription = (geometryRow) =>
   `Stable UUID for the feature; join key to the ${geometryRow} geometry row and the primary key used by downstream relational consumers. Assigned on first import, preserved when the feature is edited, and carried forward on re-upload whenever the feature's ref is unchanged. Regenerated only when the feature is new, or when its ref is blank or shared with another feature.`
+
+/**
+ * A habitat's orange flags (BMD-822): every feature in both documents carries
+ * them, so the field and its prose are shared. The wording is the frontend's,
+ * so only the codes are stored.
+ *
+ * @param {string} applies which flags the feature can raise
+ * @returns {{ orangeFlags: import('joi').ArraySchema }}
+ */
+export const orangeFlagsField = (applies) => ({
+  orangeFlags: Joi.array()
+    .items(Joi.string().valid(...ORANGE_FLAG_CODES))
+    .unique()
+    .description(
+      `Advisory orange flags the statutory metric would show against this habitat, as codes in order (FLAG1-FLAG10, defined in BMD-822); empty when none apply. ${applies} Derived from the stored fields whenever the habitat is priced, at import and on edit; they never change units or refuse a file. Absent on a project saved before BMD-822 until its file is uploaded again.`
+    )
+})
 
 /**
  * The baseline strategic significance field is published in the data

@@ -3132,3 +3132,50 @@ describe('applyFeatureUpdate — a BNG Service template upload’s file ids', ()
     })
   })
 })
+
+describe('applyFeatureUpdate — orange flags (BMD-822)', () => {
+  test('derives a baseline habitat flag from the edited condition', () => {
+    const result = applyFeatureUpdate(projectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Fairly Good'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.orangeFlags).toEqual(['FLAG7'])
+  })
+
+  test('drops a flag the edited values no longer raise', () => {
+    const project = projectFixture()
+    project.baseline.habitats[0].orangeFlags = ['FLAG7']
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Good'
+      }
+    })
+
+    expect(result.feature.orangeFlags).toEqual([])
+  })
+
+  test('derives a post-intervention flag from the edited proposed side', () => {
+    const result = applyFeatureUpdate(enhancedProjectFixture(), {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Other neutral grassland',
+        condition: 'Fairly Good'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.orangeFlags).toEqual(['FLAG7'])
+  })
+})
