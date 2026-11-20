@@ -309,6 +309,32 @@ describe('GET /reference/hedgerow-enhancement', () => {
   })
 })
 
+describe('GET /reference/watercourse-enhancement', () => {
+  it('serves the valid enhancements of a baseline watercourse without authentication', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-enhancement?type=Culvert&condition=Poor'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.featureType).toBe('watercourse')
+    expect(res.result.habitatTypes.map((t) => t.name).sort()).toEqual([
+      'Canals',
+      'Ditches'
+    ])
+    expect(res.result.watercourseEncroachment).toContain('No Encroachment')
+    expect(res.result.riparianEncroachment.length).toBeGreaterThan(0)
+  })
+
+  it('serves no habitat types for a baseline it does not know', async () => {
+    const res = await server.inject({
+      method: 'GET',
+      url: '/reference/watercourse-enhancement'
+    })
+    expect(res.statusCode).toBe(HTTP_OK)
+    expect(res.result.habitatTypes).toEqual([])
+  })
+})
+
 describe('GET /reference/hedgerow-creation', () => {
   it('returns hedgerow-only creation choices without authentication', async () => {
     const res = await server.inject({
