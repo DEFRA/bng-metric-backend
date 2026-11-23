@@ -817,6 +817,9 @@ template has: it is always empty. Set in [`src/validation/template-applicability
 
 ## Notes
 
+- **BNG Service template columns**: which template column fills each field
+  here, and which the service ignores or refuses a file on, is in the
+  [`template field mapping`](https://github.com/DEFRA/bng-metric-backend/blob/main/data-dictionary/template-mapping.md).
 - **`*.properties` open maps** hold the raw attribute columns copied
   verbatim from the uploaded GeoPackage. Their column catalogue is defined
   separately in [`src/validation/reference/gpkg-template.schema.json`](https://github.com/DEFRA/bng-metric-backend/blob/main/src/validation/reference/gpkg-template.schema.json); the case-insensitive
