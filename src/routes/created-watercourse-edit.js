@@ -5,6 +5,7 @@ import {
   validateCreatedLinearEdit
 } from './created-feature-edit.js'
 import { getWatercourseCreationReference } from '../validation/reference/watercourse-creation.js'
+import { getWatercourseEnhancementReference } from '../validation/reference/watercourse-enhancement.js'
 import { restoreUploadedWatercourseAdvance } from '../utilities/enrichment/post-intervention/lineage-outcomes.js'
 
 const reference = getWatercourseCreationReference()
@@ -62,12 +63,19 @@ function withSavedAdvance(feature, edits) {
   }
 }
 
+// A Created watercourse's edit (BMD-1050), or an Enhanced one's, within the
+// valid enhancements of its baseline (BMD-1047). Its encroachments are not
+// restricted by the enhancement rules, so both offer the same lists.
 export function validateCreatedWatercourseEdit(feature, edits) {
   const resolved = validateCreatedLinearEdit(
     feature,
     withSavedAdvance(feature, edits),
     reference,
-    'watercourse'
+    'watercourse',
+    {
+      enhancedReference: (enhanced) =>
+        getWatercourseEnhancementReference(enhanced.baseline ?? {})
+    }
   )
   // As with timing and condition, omission preserves an imported value under
   // the row lock, while explicit null clears it. New values are schema-checked.
