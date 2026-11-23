@@ -73,9 +73,8 @@ export function generateTemplateMapping() {
     dictionaryPaths: new Set(collectProjectFields().map(({ path }) => path))
   })
   if (problems.length > 0) {
-    throw new Error(
-      `The template mapping is incomplete:\n${problems.map((problem) => `  - ${problem}`).join('\n')}`
-    )
+    const listed = problems.map((problem) => `  - ${problem}`).join('\n')
+    throw new Error(`The template mapping is incomplete:\n${listed}`)
   }
   return rows
 }

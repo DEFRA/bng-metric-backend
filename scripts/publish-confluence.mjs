@@ -4,8 +4,10 @@
  * `--source template-mapping` the BNG Service template field mapping
  * (data-dictionary/template-mapping.md).
  *
- * Invoked from .github/workflows/publish-data-dictionary.yml on merge to main
- * (the workflow's `paths` filter means it only runs when a Markdown changed).
+ * Invoked on merge to main from .github/workflows/publish-data-dictionary.yml,
+ * and from .github/workflows/publish-template-mapping.yml with
+ * `--source template-mapping` (each workflow's `paths` filter means it only
+ * runs when its Markdown changed).
  * The page is updated *by ID*: GET the current version, then PUT the converted
  * storage-format body with the version number incremented.
  *

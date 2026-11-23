@@ -98,6 +98,97 @@ export function dictionaryPathOf(field) {
  */
 
 /**
+ * Why a column cannot be mapped, or null when it can.
+ *
+ * @param {string | null | undefined} readAs
+ * @param {object | undefined} columnUse
+ * @returns {string | null}
+ */
+function unmappable(readAs, columnUse) {
+  if (readAs === undefined) {
+    return 'no mapping in the reader'
+  }
+  if (!columnUse) {
+    return 'no use in template-column-uses.js'
+  }
+  return null
+}
+
+/**
+ * One column's row, and the problems with it.
+ *
+ * @returns {{ row: MappingRow | null, problems: string[] }}
+ */
+function columnRow({ table, layer, stage, column, sources }) {
+  const label = `${table} / ${column}`
+  const readAs = sources.mapping[layer].columns.get(column)
+  const columnUse = sources.uses[layer]?.[column]
+  const reason = unmappable(readAs, columnUse)
+  if (reason) {
+    return { row: null, problems: [`${label}: ${reason}`] }
+  }
+  const problems = []
+  if (readAs === null && columnUse.use !== USE.IGNORED) {
+    problems.push(
+      `${label}: the reader drops it, so it must be ignored, not ${columnUse.use}`
+    )
+  }
+  const fields = storedFields({ layer, stage, column, readAs, columnUse })
+  const undeclared = fields.filter(
+    (field) => !sources.dictionaryPaths.has(dictionaryPathOf(field))
+  )
+  problems.push(
+    ...undeclared.map(
+      (field) => `${label}: ${field} is not in the data dictionary`
+    )
+  )
+  const row = {
+    table,
+    stage,
+    column,
+    readAs,
+    use: columnUse.use,
+    usedBy: [...columnUse.usedBy],
+    storedFields: fields,
+    note: columnUse.note
+  }
+  return { row, problems }
+}
+
+/**
+ * One table's rows, and the problems with its columns.
+ *
+ * @returns {{ rows: MappingRow[], problems: string[] }}
+ */
+function tableRows({ table, columns, layer, stage, sources }) {
+  const found = columns.map(({ name: column }) =>
+    columnRow({ table, layer, stage, column, sources })
+  )
+  return {
+    rows: found.map(({ row }) => row).filter(Boolean),
+    problems: found.flatMap(({ problems }) => problems)
+  }
+}
+
+/**
+ * The uses that name a column none of their layer's tables has.
+ *
+ * @param {object} uses
+ * @param {Map<string, Set<string>>} covered each layer → its tables' columns
+ * @returns {string[]}
+ */
+function strayUses(uses, covered) {
+  return Object.entries(uses).flatMap(([layer, columns]) =>
+    Object.keys(columns)
+      .filter((column) => !covered.get(layer)?.has(column))
+      .map(
+        (column) =>
+          `${layer} / ${column}: a use for a column no ${layer} table has`
+      )
+  )
+}
+
+/**
  * The problems that stop the mapping being built: a table or column the
  * reader does not map, a column with no use, a use for a column the template
  * lacks, a dropped column not ignored, or a stored field the data dictionary
@@ -106,73 +197,26 @@ export function dictionaryPathOf(field) {
  * @param {{ schema: { tables: Array<{ name: string, columns: Array<{ name: string }> }> }, mapping: object, uses: object, dictionaryPaths: Set<string> }} sources
  * @returns {{ rows: MappingRow[], problems: string[] }}
  */
-export function buildTemplateFieldMapping({
-  schema,
-  mapping,
-  uses,
-  dictionaryPaths
-}) {
-  const tables = tablesRead(mapping)
+export function buildTemplateFieldMapping(sources) {
+  const tables = tablesRead(sources.mapping)
   const rows = []
   const problems = []
   const covered = new Map()
 
-  for (const { name: table, columns } of schema.tables) {
+  for (const { name: table, columns } of sources.schema.tables) {
     const read = tables.get(table)
-    if (!read) {
+    if (read) {
+      const found = tableRows({ table, columns, ...read, sources })
+      rows.push(...found.rows)
+      problems.push(...found.problems)
+      const layerColumns = covered.get(read.layer) ?? new Set()
+      columns.forEach(({ name }) => layerColumns.add(name))
+      covered.set(read.layer, layerColumns)
+    } else {
       problems.push(`${table}: the reader maps no layer to this table`)
-      continue
-    }
-    const { layer, stage } = read
-    const layerColumns = new Set(covered.get(layer))
-    for (const { name: column } of columns) {
-      layerColumns.add(column)
-      const readAs = mapping[layer].columns.get(column)
-      const columnUse = uses[layer]?.[column]
-      if (readAs === undefined) {
-        problems.push(`${table} / ${column}: no mapping in the reader`)
-        continue
-      }
-      if (!columnUse) {
-        problems.push(`${table} / ${column}: no use in template-column-uses.js`)
-        continue
-      }
-      if (readAs === null && columnUse.use !== USE.IGNORED) {
-        problems.push(
-          `${table} / ${column}: the reader drops it, so it must be ignored, not ${columnUse.use}`
-        )
-      }
-      const fields = storedFields({ layer, stage, column, readAs, columnUse })
-      for (const field of fields) {
-        if (!dictionaryPaths.has(dictionaryPathOf(field))) {
-          problems.push(
-            `${table} / ${column}: ${field} is not in the data dictionary`
-          )
-        }
-      }
-      rows.push({
-        table,
-        stage,
-        column,
-        readAs,
-        use: columnUse.use,
-        usedBy: [...columnUse.usedBy],
-        storedFields: fields,
-        note: columnUse.note
-      })
-    }
-    covered.set(layer, layerColumns)
-  }
-
-  for (const [layer, columns] of Object.entries(uses)) {
-    for (const column of Object.keys(columns)) {
-      if (!covered.get(layer)?.has(column)) {
-        problems.push(
-          `${layer} / ${column}: a use for a column no ${layer} table has`
-        )
-      }
     }
   }
 
+  problems.push(...strayUses(sources.uses, covered))
   return { rows, problems }
 }
