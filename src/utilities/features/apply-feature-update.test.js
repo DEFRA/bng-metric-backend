@@ -3178,4 +3178,34 @@ describe('applyFeatureUpdate — orange flags (BMD-822)', () => {
     expect(result.status).toBe(APPLY_RESULT.OK)
     expect(result.feature.orangeFlags).toEqual(['FLAG7'])
   })
+
+  test('raises no timing flag from a standard time an unpriced edit replaced', () => {
+    // Priced before the edit with a ">30" standard time and a delay, so a
+    // standard time left over from that pricing would raise FLAG9.
+    const project = enhancedProjectFixture()
+    const habitat = project.postIntervention.habitats[0]
+    habitat.units = 5
+    habitat.status = 'Complete'
+    Object.assign(habitat.proposed, {
+      delayYears: 5,
+      standardTimeToTargetCondition: '>30'
+    })
+
+    // The engine cannot price this enhancement, so the edit saves it
+    // Incomplete.
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Urban',
+        habitatType: 'Vegetated garden',
+        condition: 'Moderate'
+      },
+      documentKey: 'postIntervention'
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature.status).toBe('Incomplete')
+    expect(result.feature.proposed.standardTimeToTargetCondition).toBeNull()
+    expect(result.feature.orangeFlags).toEqual(['FLAG8'])
+  })
 })
