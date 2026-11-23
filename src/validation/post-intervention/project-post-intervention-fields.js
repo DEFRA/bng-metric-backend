@@ -10,7 +10,10 @@ import {
 } from './project-lineage-fields.js'
 
 import { RETENTION_CATEGORY_VALUES } from '../../utilities/enrichment/post-intervention/retention-category.js'
-import { featureIdDescription } from '../project-shared-schemas.js'
+import {
+  featureIdDescription,
+  orangeFlagsField
+} from '../project-shared-schemas.js'
 import { enhancementRulesForLayer } from '../geopackage/post-intervention/enhancement-rules.js'
 import { listedFileText, longFileText, shortFileText } from '../text-joi.js'
 
@@ -102,7 +105,7 @@ export function proposedCommonFields() {
     standardTimeToTargetCondition: Joi.string()
       .allow(null, '')
       .description(
-        'Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area features, Created and Enhanced watercourse features, and Enhanced hedgerow features.'
+        'Statutory time-to-target years (text) from bng-library/metric before advance/delay; set for Created and Enhanced area, hedgerow and watercourse features. The orange flags (orangeFlags) compare advance and delay years with it.'
       ),
     difficulty: Joi.string()
       .allow(null, '')
@@ -173,6 +176,9 @@ export function postInterventionLinearFeatureFields({ geometryRow, layer }) {
       .description(
         `Post-intervention biodiversity units, calculated from proposed values. Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created watercourse is saved from its edit form with such an input blank (BMD-1050 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.`
       ),
+    ...orangeFlagsField(
+      'Only a Created or Enhanced feature raises any: FLAG1, FLAG4, FLAG5, FLAG6 and FLAG9 from its timing against the standard time to target, and, on a ditch, FLAG7 for a "Fairly" condition.'
+    ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()
@@ -206,6 +212,9 @@ export function postInterventionAreaFeatureFields({
       .description(
         `${unitsDescription} Null when required calculation inputs are missing at import or recalculation (BMD-1070). Zero, with status Incomplete, when a Created area habitat is saved from its edit form with such an input blank (BMD-1048 AC11). An Incomplete row's zero and null mean the same: it delivers no units and is left out of trading-rule totals.`
       ),
+    ...orangeFlagsField(
+      'Only a Created or Enhanced habitat raises any: FLAG1-FLAG6 and FLAG9 from its timing against the standard time to target and time to Poor condition, FLAG7 for a "Fairly" condition, FLAG8 on an Enhanced habitat whose broad habitat differs from its baseline\'s, and FLAG10 on a Created watercourse footprint.'
+    ),
     status: Joi.string()
       .valid(...POST_INTERVENTION_STATUS_VALUES)
       .required()

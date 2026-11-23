@@ -1,7 +1,3 @@
-import {
-  recomputeCreatedWatercourseEdit,
-  recomputeEnhancedWatercourseEdit
-} from '../../validation/geopackage/post-intervention/recompute-created-watercourse-edit.js'
 // Single entry point for "user edited a project feature, persist the new
 // derived shape." Used by baseline and post-intervention PUT routes. Pure —
 // does no I/O. Callers wrap the result in their own transaction and write the
@@ -19,22 +15,10 @@ import {
 //   - an edit to one document refreshes whatever the other derived from it —
 //     the post-intervention document keeps its own copy of the baseline, so a
 //     baseline edit re-derives it (resync-post-intervention-baseline.js), and
-//   - adding a new feature type later means adding one recompute function,
-//     not a new persistence path.
+//   - adding a new feature type later means adding one recompute function
+//     (recompute-feature-edit.js), not a new persistence path.
 
-import {
-  recomputeCreatedHedgerowEdit,
-  recomputeEnhancedHedgerowEdit
-} from '../../validation/geopackage/post-intervention/recompute-created-hedgerow-edit.js'
-import { recomputeCreatedAreaEdit } from '../../validation/geopackage/post-intervention/recompute-created-area-edit.js'
-import {
-  recomputeAreaHabitat,
-  recomputeHedgerow,
-  recomputeWatercourse
-} from '../../validation/geopackage/unit-calculation.js'
 import { OUT_OF_SCOPE_BANDS } from '../../validation/geopackage/distinctiveness-check.js'
-import { recomputePostInterventionAreaHabitat } from '../../validation/geopackage/post-intervention/recompute-post-intervention-area-habitat.js'
-import { recomputePostInterventionHedgerow } from '../../validation/geopackage/post-intervention/recompute-post-intervention-hedgerow.js'
 import { brokenEditRule, EDIT_RULE_KIND } from './edit-rules.js'
 import { normalizeEdits } from './normalize-edits.js'
 import {
@@ -42,7 +26,6 @@ import {
   RETENTION_ENHANCED,
   resolveRetentionCategory
 } from '../enrichment/post-intervention/retention-category.js'
-import { postInterventionEnrichOptions } from '../enrichment/post-intervention/post-intervention-enrich-options.js'
 import { isTemplateUpload } from '../enrichment/post-intervention/lineage-outcomes.js'
 import {
   copyProposedDisplayFields,
@@ -51,14 +34,13 @@ import {
 
 import { preserveCreatedParent } from '../enrichment/post-intervention/resync-post-intervention-baseline.js'
 import { NO_OP_LOGGER } from '../enrichment/shared/enrich-units-shared.js'
+import { baselineFeatureOrangeFlags } from '../enrichment/baseline/baseline-orange-flags.js'
+import { postInterventionFeatureOrangeFlags } from '../enrichment/post-intervention/post-intervention-orange-flags.js'
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import { renameClashes } from './ref-in-use.js'
-import {
-  VERTICAL_BROAD_HABITATS,
-  isVerticalHabitat
-} from '../../validation/reference/vertical-habitats.js'
-import { keepsTreeATree, withEditedTreeSizes } from './tree-edit.js'
+import { withEditedTreeSizes } from './tree-edit.js'
+import { recomputeForType } from './recompute-feature-edit.js'
 
 /**
  * Outcome codes for callers. `featureWrongType` distinguishes "the URL
@@ -82,153 +64,6 @@ const REJECTION_BY_EDIT_RULE = Object.freeze({
   [EDIT_RULE_KIND.enhancement]: APPLY_RESULT.INVALID_ENHANCEMENT,
   [EDIT_RULE_KIND.degrade]: APPLY_RESULT.INVALID_DEGRADE
 })
-
-function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
-  if (documentKey === 'postIntervention') {
-    if (Object.hasOwn(edits, 'advanceYears')) {
-      return recomputeCreatedAreaEdit(existing, edits)
-    }
-    return recomputePostInterventionAreaHabitat(
-      existing,
-      {
-        broadType: edits.broadType,
-        habitatType: edits.habitatType,
-        condition: edits.condition
-      },
-      logger
-    )
-  }
-  return recomputeAreaHabitat({
-    broadType: edits.broadType,
-    habitatType: edits.habitatType,
-    condition: edits.condition,
-    sizeSquareMetres: existing.sizeSquareMetres ?? existing.area ?? null
-  })
-}
-
-function recomputeHedgerowEdit(
-  existing,
-  edits,
-  { documentKey, logger, baseline, serviceTemplate }
-) {
-  if (documentKey === 'postIntervention') {
-    if (Object.hasOwn(edits, 'advanceYears')) {
-      return resolveRetentionCategory(existing) === RETENTION_ENHANCED
-        ? recomputeEnhancedHedgerowEdit(existing, edits, {
-            baselineLengthByRef:
-              postInterventionEnrichOptions(baseline).baselineLengthByRef,
-            baselineHedgerows: baseline?.hedgerows,
-            serviceTemplate
-          })
-        : recomputeCreatedHedgerowEdit(existing, edits)
-    }
-    return recomputePostInterventionHedgerow(
-      existing,
-      { habitatType: edits.habitatType, condition: edits.condition },
-      {
-        baselineLengthByRef:
-          postInterventionEnrichOptions(baseline).baselineLengthByRef,
-        logger
-      }
-    )
-  }
-  return recomputeHedgerow({
-    habitatType: edits.habitatType,
-    condition: edits.condition,
-    sizeMetres: existing.sizeMetres ?? null
-  })
-}
-
-function recomputeWatercourseEdit(
-  existing,
-  edits,
-  { documentKey, baseline, serviceTemplate }
-) {
-  if (documentKey === 'postIntervention') {
-    if (!Object.hasOwn(edits, 'advanceYears')) {
-      return null
-    }
-    // An Enhanced watercourse is priced against its baseline (BMD-1047).
-    return resolveRetentionCategory(existing) === RETENTION_ENHANCED
-      ? recomputeEnhancedWatercourseEdit(existing, edits, {
-          baselineLengthByRef:
-            postInterventionEnrichOptions(baseline).baselineLengthByRef,
-          baselineWatercourses: baseline?.watercourses,
-          serviceTemplate
-        })
-      : recomputeCreatedWatercourseEdit(existing, edits)
-  }
-  return recomputeWatercourse({
-    habitatType: edits.habitatType,
-    condition: edits.condition,
-    watercourseEncroachment: edits.watercourseEncroachment,
-    riparianEncroachment: edits.riparianEncroachment,
-    sizeMetres: existing.sizeMetres ?? null
-  })
-}
-
-/**
- * A baseline vertical area habitat is edited as an area habitat, sized by its
- * typed area, but stays one of the habitats the Metric counts by vertical
- * area: an edit to any other, or to another broad habitat with the habitat
- * type left blank, is turned away. A post-intervention one is not
- * editable yet.
- */
-function recomputeVerticalHabitatEdit(existing, edits, context) {
-  if (context.documentKey === 'postIntervention') {
-    return null
-  }
-  const leavesVertical =
-    edits.habitatType === null
-      ? edits.broadType !== null &&
-        !VERTICAL_BROAD_HABITATS.includes(edits.broadType)
-      : !isVerticalHabitat(edits.broadType, edits.habitatType)
-  if (leavesVertical) {
-    return null
-  }
-  return recomputeHabitatEdit(existing, edits, context)
-}
-
-/**
- * An individual tree is edited as an area habitat (BMD-1112). Its size is
- * notional — the per-size reference area times the number of trees the point
- * stands for (tree-sizes.js) — and the details page shows the size class and
- * count read-only, so an edit moves its condition, setting, reference or
- * comment and never its area. It stays a tree (tree-edit.js), and a change of
- * setting moves it between the urban and rural sizes (withEditedTreeSizes).
- *
- * After intervention a Created or an Enhanced tree is edited this way, with
- * the Created area habitat edit's complete payload, and priced by its
- * retention category as the upload prices it: a Created tree as a creation,
- * and an Enhanced one as an enhancement of its baseline tree's condition, in
- * its baseline tree's setting (post-intervention-tree-edit.js). A Retained
- * tree's reference is renamed through apply-retained-ref-edit.js.
- */
-function recomputeTreeEdit(existing, edits, context) {
-  if (!keepsTreeATree(existing, edits, context.documentKey)) {
-    return null
-  }
-  if (context.documentKey === 'postIntervention') {
-    return Object.hasOwn(edits, 'advanceYears')
-      ? recomputeCreatedAreaEdit(existing, edits)
-      : null
-  }
-  return recomputeHabitatEdit(existing, edits, context)
-}
-
-const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
-  habitat: recomputeHabitatEdit,
-  verticalHabitat: recomputeVerticalHabitatEdit,
-  tree: recomputeTreeEdit,
-  hedgerow: recomputeHedgerowEdit,
-  watercourse: recomputeWatercourseEdit
-})
-
-function recomputeForType(type, existing, edits, context) {
-  return Object.hasOwn(RECOMPUTE_EDIT_BY_TYPE, type)
-    ? RECOMPUTE_EDIT_BY_TYPE[type](existing, edits, context)
-    : null
-}
 
 function mergeBaselineFeature(type, existing, edits, derived) {
   const base = {
@@ -347,6 +182,23 @@ function withOwnComment(found, updated, edits) {
   return { ...updated, comment: edits.comment }
 }
 
+/**
+ * An edited feature's orange flags (BMD-822), derived again from the fields
+ * the edit saved so they never describe the values it replaced.
+ *
+ * @param {object} feature the recomputed feature
+ * @param {string} layerKey
+ * @param {string} documentKey
+ * @returns {object}
+ */
+function withOrangeFlags(feature, layerKey, documentKey) {
+  const deriveFlags =
+    documentKey === 'postIntervention'
+      ? postInterventionFeatureOrangeFlags
+      : baselineFeatureOrangeFlags
+  return { ...feature, orangeFlags: deriveFlags(feature, layerKey) }
+}
+
 function resolveUpdatedFeature(
   found,
   edits,
@@ -366,7 +218,11 @@ function resolveUpdatedFeature(
     baseline,
     serviceTemplate
   })
-  return withoutImportedRejection(updated, documentKey)
+  return withOrangeFlags(
+    withoutImportedRejection(updated, documentKey),
+    found.key,
+    documentKey
+  )
 }
 
 /**
