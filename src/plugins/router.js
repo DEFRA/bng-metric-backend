@@ -28,6 +28,7 @@ import { validateBaseline } from '../routes/baseline.js'
 import { validatePostIntervention } from '../routes/post-intervention.js'
 import { getUserProjects } from '../routes/users.js'
 import { getProjectReport } from '../routes/report.js'
+import { getProjectMetricWorkbook } from '../routes/metric-workbook.js'
 import {
   getProjectDetails,
   updateProjectDetails
@@ -84,6 +85,7 @@ const router = {
         withRateLimit(validatePostIntervention, RATE_LIMITED.validate),
         getUserProjects,
         withRateLimit(getProjectReport, RATE_LIMITED.report),
+        withRateLimit(getProjectMetricWorkbook, RATE_LIMITED.metricWorkbook),
         getProjectDetails,
         updateProjectDetails,
         getWatercourseCreation,

@@ -7,6 +7,7 @@
   "GET /projects/{projectId}/habitats/{featureId}",
   "GET /projects/{projectId}/post-intervention/features/{featureId}",
   "GET /projects/{projectId}/report.pdf",
+  "GET /projects/{projectId}/metric.{format}",
   "GET /reference/area-creation",
   "GET /reference/tree-creation",
   "GET /reference/tree-enhancement",

@@ -279,6 +279,7 @@ of its own; the CDP limit protects them.
 | `POST /upload/initiate`                                                                    | `rateLimit.uploadInitiate` |        10 |        60 |  1 min |
 | `POST /baseline/validate/{uploadId}`, `POST /post-intervention/validate/{uploadId}` (each) | `rateLimit.validate`       |        40 |       120 |  1 min |
 | `GET /projects/{projectId}/report.pdf`                                                     | `rateLimit.report`         |         5 |        20 |  1 min |
+| `GET /projects/{projectId}/metric.{format}`                                                | `rateLimit.metricWorkbook` |        10 |        40 |  1 min |
 | `GET /os-tiles/*` (each of the 4 routes; they spend the OS API quota)                      | `rateLimit.osTiles`        |       600 |      3000 |  1 min |
 
 The values are estimates. The rate-limit profile of the performance tests
@@ -286,7 +287,8 @@ The values are estimates. The rate-limit profile of the performance tests
 
 Each value has its own environment variable, `RATE_LIMIT_<FAMILY>_USER_LIMIT`,
 `RATE_LIMIT_<FAMILY>_ALL_USERS_LIMIT` and `RATE_LIMIT_<FAMILY>_WINDOW_MS`, where
-`<FAMILY>` is `UPLOAD_INITIATE`, `VALIDATE`, `REPORT` or `OS_TILES`.
+`<FAMILY>` is `UPLOAD_INITIATE`, `VALIDATE`, `REPORT`, `METRIC_WORKBOOK` or
+`OS_TILES`.
 
 | Setting                         | Default | Notes                                                                 |
 | :------------------------------ | ------: | :-------------------------------------------------------------------- |

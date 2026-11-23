@@ -90,6 +90,15 @@ const LIMITED_ROUTES = [
     allUsersLimit: 20
   },
   {
+    name: 'the metric workbook download',
+    method: 'GET',
+    path: '/projects/{projectId}/metric.{format}',
+    url: (n) => `/projects/project-${n}/metric.xlsx`,
+    family: RATE_LIMITED.metricWorkbook,
+    userLimit: 10,
+    allUsersLimit: 40
+  },
+  {
     name: 'an OS map tile',
     method: 'GET',
     path: '/os-tiles/{z}/{col}/{row}.png',
@@ -548,6 +557,7 @@ describe('the router', () => {
       .sort((a, b) => a.localeCompare(b))
 
     expect(limited).toEqual([
+      'GET /projects/{projectId}/metric.{format}',
       'GET /projects/{projectId}/report.pdf',
       'POST /baseline/validate/{uploadId}',
       'POST /post-intervention/validate/{uploadId}',
