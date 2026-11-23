@@ -1,8 +1,11 @@
 /**
- * Publish data-dictionary/data-dictionary.md to a Confluence Cloud page.
+ * Publish a generated Markdown page to a Confluence Cloud page: the data
+ * dictionary (data-dictionary/data-dictionary.md), or with
+ * `--source template-mapping` the BNG Service template field mapping
+ * (data-dictionary/template-mapping.md).
  *
  * Invoked from .github/workflows/publish-data-dictionary.yml on merge to main
- * (the workflow's `paths` filter means it only runs when the Markdown changed).
+ * (the workflow's `paths` filter means it only runs when a Markdown changed).
  * The page is updated *by ID*: GET the current version, then PUT the converted
  * storage-format body with the version number incremented.
  *
@@ -15,6 +18,7 @@
  * Dry run — print the converted storage XHTML without contacting Confluence
  * (no credentials required):
  *   node scripts/publish-confluence.mjs --dry-run
+ *   node scripts/publish-confluence.mjs --source template-mapping --dry-run
  */
 import { readFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
@@ -23,7 +27,7 @@ import { fileURLToPath } from 'node:url'
 import { markdownToStorage } from './markdown-to-confluence.mjs'
 
 const HERE = dirname(fileURLToPath(import.meta.url))
-const MARKDOWN_PATH = join(HERE, '..', 'data-dictionary', 'data-dictionary.md')
+const DATA_DICTIONARY_DIR = join(HERE, '..', 'data-dictionary')
 const REPO_URL = 'https://github.com/DEFRA/bng-metric-backend'
 const REQUIRED_ENV = [
   'CONFLUENCE_BASE_URL',
@@ -32,17 +36,49 @@ const REQUIRED_ENV = [
   'CONFLUENCE_API_TOKEN'
 ]
 
+// What each page is published from, and what to change instead of editing it.
+const SOURCES = {
+  'data-dictionary': {
+    file: 'data-dictionary.md',
+    name: 'the data dictionary',
+    changeInstead:
+      'Update the Drizzle schema or the Joi <code>.description()</code> annotations instead.'
+  },
+  'template-mapping': {
+    file: 'template-mapping.md',
+    name: 'the template field mapping',
+    changeInstead:
+      "Update the reader's column mapping or the column uses beside it instead."
+  }
+}
+const DEFAULT_SOURCE = 'data-dictionary'
+
+/** The source the command line names with `--source`, or the data dictionary. */
+function sourceOf(argv) {
+  const at = argv.indexOf('--source')
+  const key = at === -1 ? DEFAULT_SOURCE : argv[at + 1]
+  const source = SOURCES[key]
+  if (!source) {
+    console.error(
+      `Unknown --source; expected one of: ${Object.keys(SOURCES).join(', ')}`
+    )
+    process.exit(1)
+  }
+  return source
+}
+
 // Confluence info panel making clear the page is machine-published and that
 // manual edits will be overwritten on the next merge to main. The trailing `\`
 // on each line strips the newline so the macro stays a single line.
-const GENERATED_BANNER = `<ac:structured-macro ac:name="info"><ac:rich-text-body><p>\
+function generatedBanner(source) {
+  return `<ac:structured-macro ac:name="info"><ac:rich-text-body><p>\
 Auto-generated from <a href="${REPO_URL}">bng-metric-backend</a> and republished \
 on every merge to <code>main</code>. Do not edit here — changes will be \
-overwritten. Update the Drizzle schema or the Joi <code>.description()</code> \
-annotations instead.</p></ac:rich-text-body></ac:structured-macro>`
+overwritten. ${source.changeInstead}</p></ac:rich-text-body></ac:structured-macro>`
+}
 
-function buildStorageBody(markdown) {
-  return `${GENERATED_BANNER}\n${markdownToStorage(markdown)}`
+function buildStorageBody(markdown, source) {
+  return `${generatedBanner(source)}\n${markdownToStorage(markdown)}`
 }
 
 function requireEnv() {
@@ -69,7 +105,7 @@ async function fetchPage(baseUrl, pageId, headers) {
   return response.json()
 }
 
-async function updatePage(baseUrl, pageId, headers, page, body) {
+async function updatePage(baseUrl, pageId, headers, page, body, source) {
   const nextVersion = page.version.number + 1
   const response = await fetch(`${baseUrl}/rest/api/content/${pageId}`, {
     method: 'PUT',
@@ -80,7 +116,7 @@ async function updatePage(baseUrl, pageId, headers, page, body) {
       title: page.title,
       version: {
         number: nextVersion,
-        message: 'Updated from bng-metric-backend data dictionary'
+        message: `Updated from bng-metric-backend ${source.name}`
       },
       body: { storage: { value: body, representation: 'storage' } }
     })
@@ -105,8 +141,9 @@ function stripTrailingSlashes(value) {
 }
 
 async function main() {
-  const markdown = readFileSync(MARKDOWN_PATH, 'utf8')
-  const body = buildStorageBody(markdown)
+  const source = sourceOf(process.argv)
+  const markdown = readFileSync(join(DATA_DICTIONARY_DIR, source.file), 'utf8')
+  const body = buildStorageBody(markdown, source)
 
   if (process.argv.includes('--dry-run')) {
     process.stdout.write(`${body}\n`)
@@ -126,12 +163,12 @@ async function main() {
   }
 
   const page = await fetchPage(baseUrl, pageId, headers)
-  await updatePage(baseUrl, pageId, headers, page, body)
+  await updatePage(baseUrl, pageId, headers, page, body, source)
   // No page ID / title / version in the log: page ID comes from env and the
   // title/version from the HTTP response, all of which SonarCloud treats as
   // untrusted (S5145). On failure, main() rejects and Node prints the error to
   // stderr and exits non-zero on its own.
-  console.log('Published the data dictionary to Confluence.')
+  console.log(`Published ${source.name} to Confluence.`)
 }
 
 await main()

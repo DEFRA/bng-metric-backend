@@ -257,7 +257,7 @@ jobs:
       - name: Data dictionary is up to date
         run: |
           npm run data-dictionary
-          git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md
+          git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json data-dictionary/template-mapping.md data-dictionary/template-mapping.json docs/warehouse-erd.md
 
       - name: Security audit
         run: npm run security-audit

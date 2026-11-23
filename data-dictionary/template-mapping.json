@@ -1,0 +1,1989 @@
+{
+  "template": {
+    "name": "bng-service",
+    "version": "1.0"
+  },
+  "columns": [
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Site Name",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Location",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Survey Date",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Survey Details",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Mapped by",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Company",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Red Line Boundary",
+      "stage": "both",
+      "column": "Base Map",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "The Red Line Boundary is read for its geometry alone."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.habitats[].ref",
+        "baseline.habitats[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Broad Habitat Type",
+      "readAs": "Baseline Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.habitats[].broadType",
+        "baseline.habitats[].properties[\"Baseline Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Habitat Type",
+      "readAs": "Baseline Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "baseline.habitats[].type",
+        "baseline.habitats[].properties[\"Baseline Habitat Type\"]"
+      ],
+      "note": "Gives the habitat’s distinctiveness. Refused when out of the service’s scope (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.habitats[].condition",
+        "baseline.habitats[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.habitats[].strategicSignificance",
+        "baseline.habitats[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "used",
+      "usedBy": [],
+      "storedFields": [
+        "baseline.habitats[].irreplaceable",
+        "baseline.habitats[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "Stored as `irreplaceable` (Yes is true). Nothing else reads it yet: refusing an irreplaceable area habitat waits for BMD-1176."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Area",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.habitats[].comment",
+        "baseline.habitats[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "feature_uuid",
+      "readAs": "feature_uuid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.habitats[].featureUuid",
+        "baseline.habitats[].properties[\"feature_uuid\"]"
+      ],
+      "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].ref",
+        "postIntervention.habitats[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Parent Ref",
+      "readAs": "Parent Ref",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.habitats[].properties[\"Parent Ref\"]"
+      ],
+      "note": "Kept in `properties`; the lineage follows parent_uuid, not the reference."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Broad Habitat Type",
+      "readAs": "Baseline Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].baseline.broadType",
+        "postIntervention.habitats[].properties[\"Baseline Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Habitat Type",
+      "readAs": "Baseline Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].baseline.type",
+        "postIntervention.habitats[].properties[\"Baseline Habitat Type\"]"
+      ],
+      "note": "Gives the habitat’s distinctiveness. Refused when out of the service’s scope (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].baseline.condition",
+        "postIntervention.habitats[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].baseline.strategicSignificance",
+        "postIntervention.habitats[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "used",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.habitats[].irreplaceable",
+        "postIntervention.habitats[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "Stored as `irreplaceable` (Yes is true). Nothing else reads it yet: refusing an irreplaceable area habitat waits for BMD-1176."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Retention Category",
+      "readAs": "Retention Category",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].retentionCategory",
+        "postIntervention.habitats[].properties[\"Retention Category\"]"
+      ],
+      "note": "Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Broad Habitat Type",
+      "readAs": "Proposed Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.broadType",
+        "postIntervention.habitats[].properties[\"Proposed Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Habitat Type",
+      "readAs": "Proposed Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.type",
+        "postIntervention.habitats[].properties[\"Proposed Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Condition",
+      "readAs": "Proposed Condition",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.condition",
+        "postIntervention.habitats[].properties[\"Proposed Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Strategic Significance",
+      "readAs": "Proposed Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.strategicSignificance",
+        "postIntervention.habitats[].proposed.strategicSignificanceCategory",
+        "postIntervention.habitats[].properties[\"Proposed Strategic Significance\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat created in advance/years",
+      "readAs": "Habitat created in advance/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.advanceYears",
+        "postIntervention.habitats[].properties[\"Habitat created in advance/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the delay is above 0. With both set, the habitat is saved Incomplete."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Delay in starting habitat creation/years",
+      "readAs": "Delay in starting habitat creation/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].proposed.delayYears",
+        "postIntervention.habitats[].properties[\"Delay in starting habitat creation/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the advance is above 0."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Spatial risk category",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Dropped: the service does not price spatial risk from the file."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Area",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.habitats[].comment",
+        "postIntervention.habitats[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_uuid",
+      "readAs": "parent_uuid",
+      "use": "used",
+      "usedBy": ["calculation", "validation"],
+      "storedFields": [
+        "postIntervention.habitats[].parentUuid",
+        "postIntervention.habitats[].parentFeatureId",
+        "postIntervention.habitats[].properties[\"parent_uuid\"]"
+      ],
+      "note": "Links the feature to its baseline parent, whose featureId is stored as parentFeatureId. The lineage checks (STAGED_PARENT_LINK_MISSING, STAGED_UNKNOWN_PARENT_REF, STAGED_AMBIGUOUS_PARENT) and what counts as retained, enhanced or lost follow it."
+    },
+    {
+      "table": "Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_geom",
+      "readAs": "parent_geom",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.habitats[].properties[\"parent_geom\"]"
+      ],
+      "note": "Kept in `properties`. The parent’s shape when the row was copied: refused when it no longer matches the parent’s baseline shape, or is missing or not valid WKT (STAGED_BASELINE_DRIFTED)."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].ref",
+        "baseline.verticalHabitats[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Broad Habitat Type",
+      "readAs": "Baseline Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].broadType",
+        "baseline.verticalHabitats[].properties[\"Baseline Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Habitat Type",
+      "readAs": "Baseline Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].type",
+        "baseline.verticalHabitats[].properties[\"Baseline Habitat Type\"]"
+      ],
+      "note": "Gives the habitat’s distinctiveness. Refused when out of the service’s scope (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].condition",
+        "baseline.verticalHabitats[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].strategicSignificance",
+        "baseline.verticalHabitats[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "used",
+      "usedBy": [],
+      "storedFields": [
+        "baseline.verticalHabitats[].irreplaceable",
+        "baseline.verticalHabitats[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "Stored as `irreplaceable` (Yes is true). Nothing else reads it yet: refusing an irreplaceable area habitat waits for BMD-1176."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Area",
+      "readAs": "Area",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].sizeSquareMetres",
+        "baseline.verticalHabitats[].area",
+        "baseline.verticalHabitats[].properties[\"Area\"]"
+      ],
+      "note": "The area the surveyor estimated on site, in hectares, which a line cannot give; stored in square metres. Refused when not above 0 (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.verticalHabitats[].comment",
+        "baseline.verticalHabitats[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Vertical Area Habitats Baseline",
+      "stage": "baseline",
+      "column": "feature_uuid",
+      "readAs": "feature_uuid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.verticalHabitats[].featureUuid",
+        "baseline.verticalHabitats[].properties[\"feature_uuid\"]"
+      ],
+      "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].ref",
+        "postIntervention.verticalHabitats[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Parent Ref",
+      "readAs": "Parent Ref",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].properties[\"Parent Ref\"]"
+      ],
+      "note": "Kept in `properties`; the lineage follows parent_uuid, not the reference."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Broad Habitat Type",
+      "readAs": "Baseline Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].baseline.broadType",
+        "postIntervention.verticalHabitats[].properties[\"Baseline Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Habitat Type",
+      "readAs": "Baseline Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].baseline.type",
+        "postIntervention.verticalHabitats[].properties[\"Baseline Habitat Type\"]"
+      ],
+      "note": "Gives the habitat’s distinctiveness. Refused when out of the service’s scope (HABITAT_DISTINCTIVENESS_NOT_IN_SCOPE)."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].baseline.condition",
+        "postIntervention.verticalHabitats[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].baseline.strategicSignificance",
+        "postIntervention.verticalHabitats[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "used",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].irreplaceable",
+        "postIntervention.verticalHabitats[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "Stored as `irreplaceable` (Yes is true). Nothing else reads it yet: refusing an irreplaceable area habitat waits for BMD-1176."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Retention Category",
+      "readAs": "Retention Category",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].retentionCategory",
+        "postIntervention.verticalHabitats[].properties[\"Retention Category\"]"
+      ],
+      "note": "Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Broad Habitat Type",
+      "readAs": "Proposed Broad Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.broadType",
+        "postIntervention.verticalHabitats[].properties[\"Proposed Broad Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Habitat Type",
+      "readAs": "Proposed Habitat Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.type",
+        "postIntervention.verticalHabitats[].properties[\"Proposed Habitat Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Condition",
+      "readAs": "Proposed Condition",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.condition",
+        "postIntervention.verticalHabitats[].properties[\"Proposed Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Strategic Significance",
+      "readAs": "Proposed Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.strategicSignificance",
+        "postIntervention.verticalHabitats[].proposed.strategicSignificanceCategory",
+        "postIntervention.verticalHabitats[].properties[\"Proposed Strategic Significance\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat created in advance/years",
+      "readAs": "Habitat created in advance/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.advanceYears",
+        "postIntervention.verticalHabitats[].properties[\"Habitat created in advance/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the delay is above 0. With both set, the habitat is saved Incomplete."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Delay in starting habitat creation/years",
+      "readAs": "Delay in starting habitat creation/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].proposed.delayYears",
+        "postIntervention.verticalHabitats[].properties[\"Delay in starting habitat creation/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the advance is above 0."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Spatial risk category",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Dropped: the service does not price spatial risk from the file."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Area",
+      "readAs": "Area",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].sizeSquareMetres",
+        "postIntervention.verticalHabitats[].area",
+        "postIntervention.verticalHabitats[].properties[\"Area\"]"
+      ],
+      "note": "The area the surveyor estimated on site, in hectares, which a line cannot give; stored in square metres. Refused when not above 0 (VERTICAL_HABITAT_AREA_NOT_POSITIVE)."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].comment",
+        "postIntervention.verticalHabitats[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_uuid",
+      "readAs": "parent_uuid",
+      "use": "used",
+      "usedBy": ["calculation", "validation"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].parentUuid",
+        "postIntervention.verticalHabitats[].parentFeatureId",
+        "postIntervention.verticalHabitats[].properties[\"parent_uuid\"]"
+      ],
+      "note": "Links the feature to its baseline parent, whose featureId is stored as parentFeatureId. The lineage checks (STAGED_PARENT_LINK_MISSING, STAGED_UNKNOWN_PARENT_REF, STAGED_AMBIGUOUS_PARENT) and what counts as retained, enhanced or lost follow it."
+    },
+    {
+      "table": "Vertical Area Habitats Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_geom",
+      "readAs": "parent_geom",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.verticalHabitats[].properties[\"parent_geom\"]"
+      ],
+      "note": "Kept in `properties`. The parent’s shape when the row was copied: refused when it no longer matches the parent’s baseline shape, or is missing or not valid WKT (STAGED_BASELINE_DRIFTED)."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.hedgerows[].ref",
+        "baseline.hedgerows[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Baseline Hedge Type",
+      "readAs": "Baseline Hedge Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "baseline.hedgerows[].type",
+        "baseline.hedgerows[].properties[\"Baseline Hedge Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.hedgerows[].condition",
+        "baseline.hedgerows[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.hedgerows[].strategicSignificance",
+        "baseline.hedgerows[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.hedgerows[].comment",
+        "baseline.hedgerows[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Hedgerows Baseline",
+      "stage": "baseline",
+      "column": "feature_uuid",
+      "readAs": "feature_uuid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.hedgerows[].featureUuid",
+        "baseline.hedgerows[].properties[\"feature_uuid\"]"
+      ],
+      "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].ref",
+        "postIntervention.hedgerows[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Parent Ref",
+      "readAs": "Parent Ref",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.hedgerows[].properties[\"Parent Ref\"]"
+      ],
+      "note": "Kept in `properties`; the lineage follows parent_uuid, not the reference."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Hedge Type",
+      "readAs": "Baseline Hedge Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].baseline.type",
+        "postIntervention.hedgerows[].properties[\"Baseline Hedge Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].baseline.condition",
+        "postIntervention.hedgerows[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].baseline.strategicSignificance",
+        "postIntervention.hedgerows[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Retention Category",
+      "readAs": "Retention Category",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].retentionCategory",
+        "postIntervention.hedgerows[].properties[\"Retention Category\"]"
+      ],
+      "note": "Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Hedge Type",
+      "readAs": "Proposed Hedge Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].proposed.type",
+        "postIntervention.hedgerows[].properties[\"Proposed Hedge Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Condition",
+      "readAs": "Proposed Condition",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].proposed.condition",
+        "postIntervention.hedgerows[].properties[\"Proposed Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Strategic Significance",
+      "readAs": "Proposed Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].proposed.strategicSignificance",
+        "postIntervention.hedgerows[].proposed.strategicSignificanceCategory",
+        "postIntervention.hedgerows[].properties[\"Proposed Strategic Significance\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat created in advance/years",
+      "readAs": "Habitat created in advance/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].proposed.advanceYears",
+        "postIntervention.hedgerows[].properties[\"Habitat created in advance/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the delay is above 0. With both set, the habitat is saved Incomplete."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Delay in starting habitat creation/years",
+      "readAs": "Delay in starting habitat creation/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].proposed.delayYears",
+        "postIntervention.hedgerows[].properties[\"Delay in starting habitat creation/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the advance is above 0."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Spatial risk category",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Dropped: the service does not price spatial risk from the file."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.hedgerows[].comment",
+        "postIntervention.hedgerows[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_uuid",
+      "readAs": "parent_uuid",
+      "use": "used",
+      "usedBy": ["calculation", "validation"],
+      "storedFields": [
+        "postIntervention.hedgerows[].parentUuid",
+        "postIntervention.hedgerows[].parentFeatureId",
+        "postIntervention.hedgerows[].properties[\"parent_uuid\"]"
+      ],
+      "note": "Links the feature to its baseline parent, whose featureId is stored as parentFeatureId. The lineage checks (STAGED_PARENT_LINK_MISSING, STAGED_UNKNOWN_PARENT_REF, STAGED_AMBIGUOUS_PARENT) and what counts as retained, enhanced or lost follow it."
+    },
+    {
+      "table": "Hedgerows Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_geom",
+      "readAs": "parent_geom",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.hedgerows[].properties[\"parent_geom\"]"
+      ],
+      "note": "Kept in `properties`. The parent’s shape when the row was copied: refused when it no longer matches the parent’s baseline shape, or is missing or not valid WKT (STAGED_BASELINE_DRIFTED)."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].ref",
+        "baseline.watercourses[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline River Type",
+      "readAs": "Baseline River Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].type",
+        "baseline.watercourses[].properties[\"Baseline River Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].condition",
+        "baseline.watercourses[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].strategicSignificance",
+        "baseline.watercourses[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline Encroachment into Watercourse",
+      "readAs": "Baseline Encroachment into Watercourse",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].watercourseEncroachment",
+        "baseline.watercourses[].properties[\"Baseline Encroachment into Watercourse\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Baseline Encroachment into riparian zone",
+      "readAs": "Baseline Encroachment into riparian zone",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].riparianEncroachment",
+        "baseline.watercourses[].properties[\"Baseline Encroachment into riparian zone\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.watercourses[].comment",
+        "baseline.watercourses[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Watercourses Baseline",
+      "stage": "baseline",
+      "column": "feature_uuid",
+      "readAs": "feature_uuid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.watercourses[].featureUuid",
+        "baseline.watercourses[].properties[\"feature_uuid\"]"
+      ],
+      "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Ref",
+      "readAs": "Parcel Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].ref",
+        "postIntervention.watercourses[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Parcel Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Parent Ref",
+      "readAs": "Parent Ref",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.watercourses[].properties[\"Parent Ref\"]"
+      ],
+      "note": "Kept in `properties`; the lineage follows parent_uuid, not the reference."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline River Type",
+      "readAs": "Baseline River Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].baseline.type",
+        "postIntervention.watercourses[].properties[\"Baseline River Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].baseline.condition",
+        "postIntervention.watercourses[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].baseline.strategicSignificance",
+        "postIntervention.watercourses[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Encroachment into Watercourse",
+      "readAs": "Baseline Encroachment into Watercourse",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].baseline.watercourseEncroachment",
+        "postIntervention.watercourses[].properties[\"Baseline Encroachment into Watercourse\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Encroachment into riparian zone",
+      "readAs": "Baseline Encroachment into riparian zone",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].baseline.riparianEncroachment",
+        "postIntervention.watercourses[].properties[\"Baseline Encroachment into riparian zone\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Retention Category",
+      "readAs": "Retention Category",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].retentionCategory",
+        "postIntervention.watercourses[].properties[\"Retention Category\"]"
+      ],
+      "note": "Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed River Type",
+      "readAs": "Proposed River Type",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.type",
+        "postIntervention.watercourses[].properties[\"Proposed River Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Distinctiveness",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Derived from the habitat type instead, from the metric’s reference data."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Condition",
+      "readAs": "Proposed Condition",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.condition",
+        "postIntervention.watercourses[].properties[\"Proposed Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Strategic Significance",
+      "readAs": "Proposed Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.strategicSignificance",
+        "postIntervention.watercourses[].proposed.strategicSignificanceCategory",
+        "postIntervention.watercourses[].properties[\"Proposed Strategic Significance\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Encroachment into Watercourse",
+      "readAs": "Proposed Encroachment into Watercourse",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.watercourseEncroachment",
+        "postIntervention.watercourses[].properties[\"Proposed Encroachment into Watercourse\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Encroachment into riparian zone",
+      "readAs": "Proposed Encroachment into riparian zone",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.riparianEncroachment",
+        "postIntervention.watercourses[].properties[\"Proposed Encroachment into riparian zone\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Enhancement Type",
+      "readAs": "Enhancement Type",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [
+        "postIntervention.watercourses[].properties[\"Enhancement Type\"]"
+      ],
+      "note": "Kept in `properties`; nothing reads it from a BNG Service template file yet."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat created in advance/years",
+      "readAs": "Habitat created in advance/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.advanceYears",
+        "postIntervention.watercourses[].properties[\"Habitat created in advance/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the delay is above 0. With both set, the habitat is saved Incomplete."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Delay in starting habitat creation/years",
+      "readAs": "Delay in starting habitat creation/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].proposed.delayYears",
+        "postIntervention.watercourses[].properties[\"Delay in starting habitat creation/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the advance is above 0."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Spatial risk category",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Dropped: the service does not price spatial risk from the file."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Length",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Measured from the geometry instead."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.watercourses[].comment",
+        "postIntervention.watercourses[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_uuid",
+      "readAs": "parent_uuid",
+      "use": "used",
+      "usedBy": ["calculation", "validation"],
+      "storedFields": [
+        "postIntervention.watercourses[].parentUuid",
+        "postIntervention.watercourses[].parentFeatureId",
+        "postIntervention.watercourses[].properties[\"parent_uuid\"]"
+      ],
+      "note": "Links the feature to its baseline parent, whose featureId is stored as parentFeatureId. The lineage checks (STAGED_PARENT_LINK_MISSING, STAGED_UNKNOWN_PARENT_REF, STAGED_AMBIGUOUS_PARENT) and what counts as retained, enhanced or lost follow it."
+    },
+    {
+      "table": "Watercourses Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_geom",
+      "readAs": "parent_geom",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.watercourses[].properties[\"parent_geom\"]"
+      ],
+      "note": "Kept in `properties`. The parent’s shape when the row was copied: refused when it no longer matches the parent’s baseline shape, or is missing or not valid WKT (STAGED_BASELINE_DRIFTED)."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Habitat Ref",
+      "readAs": "Tree Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.trees[].ref",
+        "baseline.trees[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Tree Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Baseline Tree Size",
+      "readAs": "Baseline Tree Size",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.trees[].treeSize",
+        "baseline.trees[].properties[\"Baseline Tree Size\"]"
+      ],
+      "note": "Gives the tree’s area: each point is one tree."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Baseline Tree Type",
+      "readAs": "Baseline Tree Type",
+      "use": "used",
+      "usedBy": ["calculation"],
+      "storedFields": [
+        "baseline.trees[].treeSpecies",
+        "baseline.trees[].properties[\"Baseline Tree Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Baseline Rural or Urban Tree",
+      "readAs": "Baseline Rural or Urban Tree",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.trees[].type",
+        "baseline.trees[].ruralOrUrban",
+        "baseline.trees[].properties[\"Baseline Rural or Urban Tree\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.trees[].condition",
+        "baseline.trees[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "baseline.trees[].strategicSignificance",
+        "baseline.trees[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "refused",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.trees[].irreplaceable",
+        "baseline.trees[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "A tree marked Yes, or left blank, is refused (IRREPLACEABLE_TREE), so a stored tree’s `irreplaceable` is always false."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "baseline.trees[].comment",
+        "baseline.trees[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Individual Trees Baseline",
+      "stage": "baseline",
+      "column": "feature_uuid",
+      "readAs": "feature_uuid",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "baseline.trees[].featureUuid",
+        "baseline.trees[].properties[\"feature_uuid\"]"
+      ],
+      "note": "Named by a post-intervention feature’s parent_uuid: the lineage checks match on it."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Ref",
+      "readAs": "Tree Ref",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].ref",
+        "postIntervention.trees[].properties[\"Habitat Ref\"]"
+      ],
+      "note": "Read as the pipeline’s Tree Ref. Refused when blank (HABITAT_REF_MISSING) or holding invalid characters (HABITAT_REF_INVALID_CHARACTERS)."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Parent Ref",
+      "readAs": "Parent Ref",
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": ["postIntervention.trees[].properties[\"Parent Ref\"]"],
+      "note": "Kept in `properties`; the lineage follows parent_uuid, not the reference."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Tree Size",
+      "readAs": "Baseline Tree Size",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].baseline.treeSize",
+        "postIntervention.trees[].properties[\"Baseline Tree Size\"]"
+      ],
+      "note": "Gives the tree’s area: each point is one tree."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Tree Type",
+      "readAs": "Baseline Tree Type",
+      "use": "used",
+      "usedBy": ["calculation"],
+      "storedFields": [
+        "postIntervention.trees[].baseline.treeSpecies",
+        "postIntervention.trees[].properties[\"Baseline Tree Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Rural or Urban Tree",
+      "readAs": "Baseline Rural or Urban Tree",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].baseline.type",
+        "postIntervention.trees[].baseline.ruralOrUrban",
+        "postIntervention.trees[].properties[\"Baseline Rural or Urban Tree\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Condition",
+      "readAs": "Baseline Condition",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].baseline.condition",
+        "postIntervention.trees[].properties[\"Baseline Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Baseline Strategic Significance",
+      "readAs": "Baseline Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].baseline.strategicSignificance",
+        "postIntervention.trees[].properties[\"Baseline Strategic Significance\"]"
+      ],
+      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Irreplaceable Habitat",
+      "readAs": "Irreplaceable Habitat",
+      "use": "refused",
+      "usedBy": ["validation"],
+      "storedFields": [
+        "postIntervention.trees[].irreplaceable",
+        "postIntervention.trees[].properties[\"Irreplaceable Habitat\"]"
+      ],
+      "note": "A tree marked Yes, or left blank, is refused (IRREPLACEABLE_TREE), so a stored tree’s `irreplaceable` is always false."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Retention Category",
+      "readAs": "Retention Category",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].retentionCategory",
+        "postIntervention.trees[].properties[\"Retention Category\"]"
+      ],
+      "note": "Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Tree Size",
+      "readAs": "Proposed Tree Size",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.treeSize",
+        "postIntervention.trees[].properties[\"Proposed Tree Size\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Tree Type",
+      "readAs": "Proposed Tree Type",
+      "use": "used",
+      "usedBy": ["calculation"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.treeSpecies",
+        "postIntervention.trees[].properties[\"Proposed Tree Type\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Rural or Urban Tree",
+      "readAs": "Proposed Rural or Urban Tree",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.type",
+        "postIntervention.trees[].proposed.ruralOrUrban",
+        "postIntervention.trees[].properties[\"Proposed Rural or Urban Tree\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Condition",
+      "readAs": "Proposed Condition",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.condition",
+        "postIntervention.trees[].properties[\"Proposed Condition\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Proposed Strategic Significance",
+      "readAs": "Proposed Strategic Significance",
+      "use": "used",
+      "usedBy": ["calculation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.strategicSignificance",
+        "postIntervention.trees[].proposed.strategicSignificanceCategory",
+        "postIntervention.trees[].properties[\"Proposed Strategic Significance\"]"
+      ],
+      "note": ""
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Category",
+      "readAs": "Category",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.trees[].properties[\"Category\"]"],
+      "note": "Kept in `properties`. Existing or New: an Existing tree Created over its parent is that tree in a lower condition, which the lineage and degrade rules check."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Habitat Created/Enhanced in advance/years",
+      "readAs": "Habitat Created/Enhanced in advance/years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.advanceYears",
+        "postIntervention.trees[].properties[\"Habitat Created/Enhanced in advance/years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the delay is above 0. With both set, the habitat is saved Incomplete."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Delay in starting habitat creation/enhancement in years",
+      "readAs": "Delay in starting habitat creation/enhancement in years",
+      "use": "used",
+      "usedBy": ["calculation", "validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].proposed.delayYears",
+        "postIntervention.trees[].properties[\"Delay in starting habitat creation/enhancement in years\"]"
+      ],
+      "note": "Years, with 30+ read as 30; read as 0 when blank while the advance is above 0."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Spatial risk category",
+      "readAs": null,
+      "use": "ignored",
+      "usedBy": [],
+      "storedFields": [],
+      "note": "Dropped: the service does not price spatial risk from the file."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "Comment",
+      "readAs": "Comment",
+      "use": "used",
+      "usedBy": ["validation", "display"],
+      "storedFields": [
+        "postIntervention.trees[].comment",
+        "postIntervention.trees[].properties[\"Comment\"]"
+      ],
+      "note": "Saved trimmed. Refused when not UTF-8 or over its length limit."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_uuid",
+      "readAs": "parent_uuid",
+      "use": "used",
+      "usedBy": ["calculation", "validation"],
+      "storedFields": [
+        "postIntervention.trees[].parentUuid",
+        "postIntervention.trees[].parentFeatureId",
+        "postIntervention.trees[].properties[\"parent_uuid\"]"
+      ],
+      "note": "Links the feature to its baseline parent, whose featureId is stored as parentFeatureId. The lineage checks (STAGED_PARENT_LINK_MISSING, STAGED_UNKNOWN_PARENT_REF, STAGED_AMBIGUOUS_PARENT) and what counts as retained, enhanced or lost follow it."
+    },
+    {
+      "table": "Individual Trees Post-Intervention",
+      "stage": "post-intervention",
+      "column": "parent_geom",
+      "readAs": "parent_geom",
+      "use": "used",
+      "usedBy": ["validation"],
+      "storedFields": ["postIntervention.trees[].properties[\"parent_geom\"]"],
+      "note": "Kept in `properties`. The parent’s shape when the row was copied: refused when it no longer matches the parent’s baseline shape, or is missing or not valid WKT (STAGED_BASELINE_DRIFTED)."
+    }
+  ]
+}
