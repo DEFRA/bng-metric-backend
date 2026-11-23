@@ -27,6 +27,7 @@ import {
   NO_OP_LOGGER,
   enrichCollectionIfNonEmpty
 } from '../shared/enrich-units-shared.js'
+import { applyBaselineOrangeFlags } from './baseline-orange-flags.js'
 
 /**
  * @param {object} feature
@@ -243,6 +244,7 @@ export function enrichBaselineDocumentWithUnits(
   )
 
   summarizeFeatureSetUnitsTotals(baselineDocument)
+  applyBaselineOrangeFlags(baselineDocument)
   // Evidence (Item 8 — engine enrichment loops every feature inline): linear in
   // the feature count, but fully synchronous and on the same request handler,
   // stacking on top of the parse and validate work that preceded it.
