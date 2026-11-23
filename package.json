@@ -85,7 +85,7 @@
     "pino-pretty": "13.2.0",
     "proj4": "2.23.0",
     "swagger-jsdoc": "6.3.0",
-    "swagger-ui-dist": "5.34.1",
+    "swagger-ui-dist": "5.35.0",
     "undici": "8.12.4"
   },
   "devDependencies": {
