@@ -141,13 +141,12 @@
       "stage": "baseline",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "baseline.habitats[].strategicSignificance",
         "baseline.habitats[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Area Habitats Baseline",
@@ -277,13 +276,12 @@
       "stage": "post-intervention",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "postIntervention.habitats[].baseline.strategicSignificance",
         "postIntervention.habitats[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Area Habitats Post-Intervention",
@@ -526,13 +524,12 @@
       "stage": "baseline",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "baseline.verticalHabitats[].strategicSignificance",
         "baseline.verticalHabitats[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Vertical Area Habitats Baseline",
@@ -666,13 +663,12 @@
       "stage": "post-intervention",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "postIntervention.verticalHabitats[].baseline.strategicSignificance",
         "postIntervention.verticalHabitats[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Vertical Area Habitats Post-Intervention",
@@ -906,13 +902,12 @@
       "stage": "baseline",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "baseline.hedgerows[].strategicSignificance",
         "baseline.hedgerows[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Hedgerows Baseline",
@@ -1016,13 +1011,12 @@
       "stage": "post-intervention",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "postIntervention.hedgerows[].baseline.strategicSignificance",
         "postIntervention.hedgerows[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Hedgerows Post-Intervention",
@@ -1236,13 +1230,12 @@
       "stage": "baseline",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "baseline.watercourses[].strategicSignificance",
         "baseline.watercourses[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Watercourses Baseline",
@@ -1372,13 +1365,12 @@
       "stage": "post-intervention",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "postIntervention.watercourses[].baseline.strategicSignificance",
         "postIntervention.watercourses[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Watercourses Post-Intervention",
@@ -1673,13 +1665,12 @@
       "stage": "baseline",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "baseline.trees[].strategicSignificance",
         "baseline.trees[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Individual Trees Baseline",
@@ -1801,13 +1792,12 @@
       "stage": "post-intervention",
       "column": "Baseline Strategic Significance",
       "readAs": "Baseline Strategic Significance",
-      "use": "used",
-      "usedBy": ["calculation", "display"],
+      "use": "ignored",
+      "usedBy": [],
       "storedFields": [
-        "postIntervention.trees[].baseline.strategicSignificance",
         "postIntervention.trees[].properties[\"Baseline Strategic Significance\"]"
       ],
-      "note": "The Metric puts every baseline habitat at Low; a High is stored and priced as Low."
+      "note": "Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says."
     },
     {
       "table": "Individual Trees Post-Intervention",

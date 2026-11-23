@@ -228,12 +228,12 @@ an API token at <https://id.atlassian.com/manage-profile/security/api-tokens>.
 
 ## Quick reference
 
-| Command                                                                                           | Purpose                                                                                 |
-| ------------------------------------------------------------------------------------------------- | --------------------------------------------------------------------------------------- |
-| `npm run data-dictionary`                                                                         | Regenerate `data-dictionary/data-dictionary.{md,json}` and `template-mapping.{md,json}` |
-| `npm test`                                                                                        | Run the in-process coverage guard (among all unit tests)                                |
-| `npm run test:integration`                                                                        | Run the read-back guard against a real Postgres                                         |
-| `git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json` | Reproduce the CI freshness check locally                                                |
+| Command                         | Purpose                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `npm run data-dictionary`       | Regenerate `data-dictionary/data-dictionary.{md,json}` and `template-mapping.{md,json}` |
+| `npm test`                      | Run the in-process coverage guard (among all unit tests)                                |
+| `npm run test:integration`      | Run the read-back guard against a real Postgres                                         |
+| `npm run data-dictionary:check` | Reproduce the CI freshness check locally                                                |
 
 ## Files
 

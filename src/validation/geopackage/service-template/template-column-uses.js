@@ -30,7 +30,7 @@ import {
  * and, for a drop-down, that its list offers the value (text-values-gate.js).
  * That check is not repeated here as a use.
  *
- * A test (template-column-uses.test.js) fails if a template column has no
+ * A test (template-field-mapping.test.js) fails if a template column has no
  * entry, an entry names a column the template does not have, a dropped column
  * is not ignored, or a stored field is not in the data dictionary.
  */
@@ -127,10 +127,9 @@ const CONDITION_AND_SIGNIFICANCE = {
     [CALCULATION, DISPLAY],
     baselineValue('condition')
   ),
-  'Baseline Strategic Significance': used([CALCULATION, DISPLAY], {
-    ...baselineValue('strategicSignificance'),
-    note: 'The Metric puts every baseline habitat at Low; a High is stored and priced as Low.'
-  }),
+  'Baseline Strategic Significance': ignored(
+    'Kept in `properties`; every baseline feature is stored, priced and shown at Low (BMD-1086), whatever the file says.'
+  ),
   'Retention Category': used([CALCULATION, VALIDATION, DISPLAY], {
     postIntervention: ['retentionCategory'],
     note: 'Retained, Enhanced or Created: decides how the feature is priced and which lineage and degrade rules apply.'
