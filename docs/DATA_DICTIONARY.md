@@ -32,6 +32,34 @@ A field under a tagged one takes its tag. The warehouse ERD shows the same
 column. `src/validation/template-applicability.test.js` uploads a file of each
 template and fails when one fills a field tagged for the other.
 
+## The BNG Service template field mapping
+
+Beside the dictionary, `npm run data-dictionary` writes the **template field
+mapping** (BMD-1178): for every column of every table of the BNG Service
+template, at each stage, the stored field it fills (as its path in this
+dictionary), whether the service uses it, ignores it or refuses the file on it,
+and what uses it (the calculation, a validation or the display).
+
+- [`data-dictionary/template-mapping.md`](../data-dictionary/template-mapping.md) — human-readable
+- [`data-dictionary/template-mapping.json`](../data-dictionary/template-mapping.json) — machine-readable
+
+`scripts/gen-template-mapping.js` builds it from:
+
+| Source                                    | Gives                                             | Lives in                                                             |
+| ----------------------------------------- | ------------------------------------------------- | -------------------------------------------------------------------- |
+| The template's schema                     | every table and column                            | bng-library's `TEMPLATE_SCHEMA`                                      |
+| The reader's column mapping               | whether each column is read, and under which name | `src/validation/geopackage/service-template/template-mapping.js`     |
+| The column uses                           | use, what uses it, the stored fields, a note      | `src/validation/geopackage/service-template/template-column-uses.js` |
+| This dictionary's fields (the Joi schema) | that every stored field it names exists           | `src/validation/project.js`                                          |
+
+The generator refuses to write, and
+`src/validation/geopackage/service-template/template-field-mapping.test.js`
+fails, naming the table and column, when a template column has no mapping in
+the reader or no use, a use names a column the template lacks, a column the
+reader drops is not `ignored`, or a stored field is not in this dictionary. So
+a column the template gains must be decided in both files. The freshness check
+below covers the mapping's two files too.
+
 > Related: [SCHEMA_REFLECTION.md](SCHEMA_REFLECTION.md) explains how the Drizzle
 > and Joi files themselves are kept in sync with the live `bng` schema. The data
 > dictionary is the documentation generated _from_ those files.
@@ -80,7 +108,7 @@ In `.github/workflows/check-pull-request.yml`, the `pr-validator` job runs:
 - name: Data dictionary is up to date
   run: |
     npm run data-dictionary
-    git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json
+    git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json data-dictionary/template-mapping.md data-dictionary/template-mapping.json docs/warehouse-erd.md
 ```
 
 The mechanism is easy to misread, so to be explicit: **`git diff` is not comparing
@@ -169,34 +197,43 @@ the target page **by ID**: it GETs the current version then PUTs the new body
 with the version incremented. The conversion is dependency-free (Node built-ins
 only) and covered by `scripts/markdown-to-confluence.test.js`.
 
+The **Publish Template Mapping** workflow
+(`.github/workflows/publish-template-mapping.yml`) mirrors
+`data-dictionary/template-mapping.md` to its own page in the same way, when it
+changes, with `scripts/publish-confluence.mjs --source template-mapping`. It
+is skipped until `CONFLUENCE_TEMPLATE_MAPPING_PAGE_ID` is set. Each page links
+to the other.
+
 To preview the exact storage XHTML that would be pushed, without contacting
 Confluence:
 
 ```sh
 node scripts/publish-confluence.mjs --dry-run
+node scripts/publish-confluence.mjs --source template-mapping --dry-run
 ```
 
 The workflow reads its target and credentials from repository settings — set
 these once under **Settings → Secrets and variables → Actions**:
 
-| Setting                              | Kind     | Example / meaning                             |
-| ------------------------------------ | -------- | --------------------------------------------- |
-| `CONFLUENCE_BASE_URL`                | Variable | `https://defra.atlassian.net/wiki`            |
-| `CONFLUENCE_DATA_DICTIONARY_PAGE_ID` | Variable | Numeric ID of the existing page to update     |
-| `CONFLUENCE_USER_EMAIL`              | Secret   | Atlassian account email (Basic-auth username) |
-| `CONFLUENCE_API_TOKEN`               | Secret   | Atlassian API token (Basic-auth password)     |
+| Setting                               | Kind     | Example / meaning                             |
+| ------------------------------------- | -------- | --------------------------------------------- |
+| `CONFLUENCE_BASE_URL`                 | Variable | `https://defra.atlassian.net/wiki`            |
+| `CONFLUENCE_DATA_DICTIONARY_PAGE_ID`  | Variable | Numeric ID of the existing page to update     |
+| `CONFLUENCE_TEMPLATE_MAPPING_PAGE_ID` | Variable | Numeric ID of the template mapping's page     |
+| `CONFLUENCE_USER_EMAIL`               | Secret   | Atlassian account email (Basic-auth username) |
+| `CONFLUENCE_API_TOKEN`                | Secret   | Atlassian API token (Basic-auth password)     |
 
 Create the page in Confluence once, take its page ID from the URL, and generate
 an API token at <https://id.atlassian.com/manage-profile/security/api-tokens>.
 
 ## Quick reference
 
-| Command                                                                                           | Purpose                                                  |
-| ------------------------------------------------------------------------------------------------- | -------------------------------------------------------- |
-| `npm run data-dictionary`                                                                         | Regenerate `data-dictionary/data-dictionary.{md,json}`   |
-| `npm test`                                                                                        | Run the in-process coverage guard (among all unit tests) |
-| `npm run test:integration`                                                                        | Run the read-back guard against a real Postgres          |
-| `git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json` | Reproduce the CI freshness check locally                 |
+| Command                         | Purpose                                                                                 |
+| ------------------------------- | --------------------------------------------------------------------------------------- |
+| `npm run data-dictionary`       | Regenerate `data-dictionary/data-dictionary.{md,json}` and `template-mapping.{md,json}` |
+| `npm test`                      | Run the in-process coverage guard (among all unit tests)                                |
+| `npm run test:integration`      | Run the read-back guard against a real Postgres                                         |
+| `npm run data-dictionary:check` | Reproduce the CI freshness check locally                                                |
 
 ## Files
 

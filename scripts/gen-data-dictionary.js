@@ -269,7 +269,7 @@ function walkSchema(node, path, rows, inherited) {
   }
 }
 
-function collectProjectFields() {
+export function collectProjectFields() {
   const rows = []
   walkSchema(projectSchema.describe(), '', rows)
   return rows
@@ -388,6 +388,9 @@ function renderNotesSection() {
   return [
     '## Notes',
     '',
+    `- **BNG Service template columns**: which template column fills each field`,
+    `  here, and which the service ignores or refuses a file on, is in the`,
+    `  ${repoFileLink('data-dictionary/template-mapping.md', 'template field mapping')}.`,
     '- **`*.properties` open maps** hold the raw attribute columns copied',
     `  verbatim from the uploaded GeoPackage. Their column catalogue is defined`,
     `  separately in ${repoFileLink(TEMPLATE_REF)}; the case-insensitive`,
