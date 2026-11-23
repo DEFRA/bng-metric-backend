@@ -8,8 +8,8 @@
     "node": ">=24.22.1"
   },
   "scripts": {
-    "data-dictionary": "node scripts/gen-data-dictionary.js && node scripts/gen-warehouse-erd.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
-    "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json docs/warehouse-erd.md",
+    "data-dictionary": "node scripts/gen-data-dictionary.js && node scripts/gen-template-mapping.js && node scripts/gen-warehouse-erd.js && prettier --write --log-level warn data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json data-dictionary/template-mapping.md data-dictionary/template-mapping.json docs/warehouse-erd.md",
+    "data-dictionary:check": "npm run data-dictionary && git diff --exit-code -- data-dictionary/data-dictionary.md data-dictionary/data-dictionary.json data-dictionary/template-mapping.md data-dictionary/template-mapping.json docs/warehouse-erd.md",
     "db:update": "scripts/liquibase.sh update",
     "db:validate": "scripts/liquibase.sh validate",
     "db:clear-checksums": "scripts/liquibase.sh clearChecksums",
@@ -62,7 +62,7 @@
     "@turf/bbox": "7.4.0",
     "aws-embedded-metrics": "4.2.1",
     "aws4": "1.13.2",
-    "better-sqlite3": "13.1.1",
+    "better-sqlite3": "13.2.0",
     "bng-library": "github:DEFRA/bng-library#017ff9106f72d7930686d674cb869b028f8b3ab8",
     "convict": "6.2.5",
     "convict-format-with-validator": "6.2.0",
