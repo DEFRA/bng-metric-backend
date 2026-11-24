@@ -171,8 +171,11 @@ function checkGeometryColumnNames(db, schema, tables, errors) {
  * legacy gate's feature checks refuse more than one under this code, and this
  * gate runs none of them, so it counts the rows that have a shape itself.
  * What is counted is rows, not pieces of land, so a site of several separate
- * areas drawn as one multi-part boundary passes. None is left to the geometry
- * checks, which report it as NO_REDLINE.
+ * areas drawn as one multi-part boundary passes, and so does a row with no
+ * shape. None is left to the geometry checks, which report it as NO_REDLINE.
+ *
+ * Run only once the structure passes, so the table is there and its geometry
+ * column registered (checkRedLineBoundaryGeometry refuses it otherwise).
  */
 function redLineBoundaryCountErrors(db) {
   const registered = db
@@ -180,9 +183,6 @@ function redLineBoundaryCountErrors(db) {
       'SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = ?'
     )
     .get(RED_LINE_BOUNDARY.toLowerCase())
-  if (!registered) {
-    return []
-  }
   const { boundaries } = db
     .prepare(
       `SELECT COUNT(*) AS boundaries FROM "${RED_LINE_BOUNDARY}" WHERE "${registered.column_name.replaceAll('"', '""')}" IS NOT NULL`

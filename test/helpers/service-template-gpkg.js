@@ -251,12 +251,16 @@ export function populatedPostInterventionRows() {
 
 /**
  * Insert rows into a built table. A row's geometry is a test shape of the
- * table's geometry type unless the row gives its own `geom` blob.
+ * table's geometry type unless the row gives its own `geom` blob, or a `geom`
+ * of null for a row with no shape.
  */
 function insertRows(db, table, rows) {
-  for (const { geom, ...values } of rows) {
+  for (const row of rows) {
+    const { geom, ...values } = row
     const columns = [table.geometryColumn, ...Object.keys(values)]
-    const blob = geom ?? wrapGpkgWkb(TEST_GEOMETRY_WKB[table.geometryType]())
+    const blob = Object.hasOwn(row, 'geom')
+      ? geom
+      : wrapGpkgWkb(TEST_GEOMETRY_WKB[table.geometryType]())
     db.prepare(
       `INSERT INTO ${quoteIdent(table.name)} (${columns.map(quoteIdent).join(', ')}) VALUES (${columns.map(() => '?').join(', ')})`
     ).run(blob, ...Object.values(values))
@@ -360,7 +364,7 @@ function createTemplateTable(db, table) {
  * @param {string[]} [options.unregisteredGeometry] tables with no gpkg_geometry_columns row
  * @param {string[]} [options.extraFeatureTables] feature tables the template does not have
  * @param {Record<string, object[]>} [options.rows] rows by table, each an
- *   object of column values, with an optional `geom` blob
+ *   object of column values, with an optional `geom` blob (null for none)
  * @returns {Buffer}
  */
 export function buildServiceTemplateBuffer(options = {}) {

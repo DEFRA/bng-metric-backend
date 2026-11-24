@@ -455,6 +455,20 @@ describe('validateServiceTemplateGpkgFile', () => {
       expect(result.template).toEqual({ name: 'bng-service', version: '1.0' })
     })
 
+    test('passes one boundary beside rows with no shape, which it does not count', async () => {
+      const result = await gate({
+        rows: {
+          [RED_LINE_BOUNDARY]: [
+            { 'Site Name': 'Drawn' },
+            { 'Site Name': 'Not drawn', geom: null },
+            { 'Site Name': 'Not drawn either', geom: null }
+          ]
+        }
+      })
+
+      expect(result.valid).toBe(true)
+    })
+
     test('counts them only once the structure passes', async () => {
       const result = await gate({
         ...boundaries(3),
