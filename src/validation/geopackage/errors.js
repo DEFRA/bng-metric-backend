@@ -343,6 +343,17 @@ export const ERROR_CODES = Object.freeze({
   STAGED_TREE_CHILDREN_TOO_MANY: 'STAGED_TREE_CHILDREN_TOO_MANY',
 
   /**
+   * BNG Service template baseline trees with an Existing tree Created linked
+   * to them and another Retained, Enhanced or Existing Created tree linked to
+   * them too: an Existing tree Created is its baseline tree, lost and created
+   * again, so the tree would be scored twice, kept and created or created
+   * twice. Newly Planted trees are not counted. `details.sample` lists each
+   * parent's table, Habitat Ref and setting, and the Habitat Ref of each tree
+   * that records it. The frontend sends the user to the drop-out page.
+   */
+  STAGED_TREE_RECORDED_TWICE: 'STAGED_TREE_RECORDED_TWICE',
+
+  /**
    * BNG Service template baseline watercourses with both a Retained or Enhanced
    * post-intervention part and a Created part (BMD-1083): the service cannot
    * split a watercourse's length between continuation and loss.
