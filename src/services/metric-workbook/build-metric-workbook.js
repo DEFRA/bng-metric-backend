@@ -60,6 +60,15 @@ export function metricTemplate(format) {
   return templateReads.get(format)
 }
 
+// en-CA formats a date as YYYY-MM-DD. The day is the user's, so it is
+// London's: a download at 23:30 UTC in British Summer Time is the next day.
+const LONDON_DAY = new Intl.DateTimeFormat('en-CA', {
+  timeZone: 'Europe/London',
+  year: 'numeric',
+  month: '2-digit',
+  day: '2-digit'
+})
+
 /**
  * The Start sheet's project details. "Completed by" is left for the user:
  * the service does not know who completed the metric.
@@ -75,7 +84,7 @@ function projectDetails(project, now) {
     applicant: details.applicant ?? null,
     applicationType: details.planningApplicationType ?? null,
     planningApplicationReference: details.planningApplicationReference ?? null,
-    completionDate: now
+    completionDate: LONDON_DAY.format(now)
   }
 }
 
