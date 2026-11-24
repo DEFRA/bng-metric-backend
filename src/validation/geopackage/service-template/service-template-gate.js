@@ -166,6 +166,39 @@ function checkGeometryColumnNames(db, schema, tables, errors) {
   }
 }
 
+/**
+ * A Red Line Boundary holds one boundary, as the legacy template's does: the
+ * legacy gate's feature checks refuse more than one under this code, and this
+ * gate runs none of them, so it counts the rows that have a shape itself.
+ * What is counted is rows, not pieces of land, so a site of several separate
+ * areas drawn as one multi-part boundary passes. None is left to the geometry
+ * checks, which report it as NO_REDLINE.
+ */
+function redLineBoundaryCountErrors(db) {
+  const registered = db
+    .prepare(
+      'SELECT column_name FROM gpkg_geometry_columns WHERE lower(table_name) = ?'
+    )
+    .get(RED_LINE_BOUNDARY.toLowerCase())
+  if (!registered) {
+    return []
+  }
+  const { boundaries } = db
+    .prepare(
+      `SELECT COUNT(*) AS boundaries FROM "${RED_LINE_BOUNDARY}" WHERE "${registered.column_name.replaceAll('"', '""')}" IS NOT NULL`
+    )
+    .get()
+  if (boundaries <= 1) {
+    return []
+  }
+  return [
+    makeError(
+      ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS,
+      `The ${RED_LINE_BOUNDARY} table holds ${boundaries} boundaries (expecting one)`
+    )
+  ]
+}
+
 function checkStructure(db, schema) {
   const errors = []
   const tables = getFeatureLayerNames(db)
@@ -204,12 +237,15 @@ function runServiceTemplateGate(db, includeTable) {
   }
 
   const structureErrors = checkStructure(db, template.schema)
-  // Only a file whose structure passes has its text values checked, before
-  // anything else reads one (BMD-1175).
+  // Only a file whose structure passes has its boundaries counted and its text
+  // values checked, before anything else reads one (BMD-1175).
   const gateErrors =
     structureErrors.length > 0
       ? structureErrors
-      : checkTextValues(db, includeTable)
+      : [
+          ...redLineBoundaryCountErrors(db),
+          ...checkTextValues(db, includeTable)
+        ]
   return {
     valid: gateErrors.length === 0,
     errors: gateErrors,

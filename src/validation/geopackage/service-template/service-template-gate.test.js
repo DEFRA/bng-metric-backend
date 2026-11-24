@@ -428,6 +428,45 @@ describe('validateServiceTemplateGpkgFile', () => {
     })
   })
 
+  // The legacy gate refuses more than one boundary (BMD-1172); this gate
+  // counts them itself, as it runs none of the legacy feature checks.
+  describe('the red line boundary', () => {
+    const boundaries = (count) => ({
+      rows: {
+        [RED_LINE_BOUNDARY]: Array.from({ length: count }, (_, i) => ({
+          'Site Name': `Site ${i + 1}`
+        }))
+      }
+    })
+
+    test('passes one boundary', async () => {
+      const result = await gate(boundaries(1))
+
+      expect(result.valid).toBe(true)
+    })
+
+    test('refuses two, under the code the legacy gate gives them', async () => {
+      const result = await gate(boundaries(2))
+
+      expect(result.valid).toBe(false)
+      expect(codes(result)).toEqual([ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS])
+      expect(result.errors[0].message).toContain('2 boundaries')
+      expectDeclaredDetails(result.errors[0])
+      expect(result.template).toEqual({ name: 'bng-service', version: '1.0' })
+    })
+
+    test('counts them only once the structure passes', async () => {
+      const result = await gate({
+        ...boundaries(3),
+        omitTables: [AREA_BASELINE]
+      })
+
+      expect(codes(result)).not.toContain(
+        ERROR_CODES.GPKG_RLB_TOO_MANY_POLYGONS
+      )
+    })
+  })
+
   describe('a file that is not a GeoPackage', () => {
     test('refuses one that is not SQLite', async () => {
       const result = await withTempGpkgFile(
