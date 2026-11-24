@@ -54,6 +54,12 @@ import { followsGuide } from './worsened-habitat-steps.js'
  *   Retained or Enhanced tree at most, as a tree that is kept cannot
  *   multiply. Created trees are not counted against it;
  * - individual trees: an Existing tree Created and linked to its baseline
+ *   tree is that tree, lost and created again, so it is the parent's only
+ *   Existing tree Created and the parent has no Retained or Enhanced tree
+ *   beside it. Otherwise one tree is scored twice: kept and created, or
+ *   created twice. Newly Planted trees linked to it are new trees, and any
+ *   number may be;
+ * - individual trees: an Existing tree Created and linked to its baseline
  *   tree is that tree, lost and created again because its condition gets
  *   worse. Unless it is put back after a delay, it follows the guide's steps
  *   ("Habitat retention"): a lower condition than its baseline tree's, and
@@ -188,6 +194,24 @@ function checkTreeKeptOnce(parent, children, context) {
   if (kept.length > 1) {
     context.found.tooManyTrees.push(
       offendingParent(context.layer, context.tables.baseline, parent, kept)
+    )
+  }
+}
+
+/**
+ * A tree parent recorded both as an Existing tree Created and as another
+ * point that is that tree: a Retained or Enhanced tree, or another Existing
+ * tree Created. A Newly Planted tree is a new tree, and not counted.
+ */
+function checkTreeRecordedOnce(parent, children, context) {
+  const recreated = ({ properties }) =>
+    isCreated(properties) && isExistingTree(properties)
+  const recording = children.filter(
+    (child) => continues(child.properties) || recreated(child)
+  )
+  if (children.some(recreated) && recording.length > 1) {
+    context.found.treeRecordedTwice.push(
+      offendingParent(context.layer, context.tables.baseline, parent, recording)
     )
   }
 }
@@ -352,6 +376,7 @@ function checkLayer(layer, baseline, postIntervention, found) {
     }
     if (layer === 'trees') {
       checkTreeKeptOnce(parent, children, context)
+      checkTreeRecordedOnce(parent, children, context)
       checkWorsenedTrees(parent, children, context)
     }
     if (WORSENED_HABITAT_LAYERS.has(layer)) {
@@ -393,6 +418,13 @@ const RULE_ERRORS = [
     heading:
       'One or more baseline trees have more than one Retained or Enhanced tree linked to them. A baseline tree is one tree, so only one Retained or Enhanced tree can be linked to it',
     found: 'tooManyTrees',
+    describe: describeParent
+  },
+  {
+    code: ERROR_CODES.STAGED_TREE_RECORDED_TWICE,
+    heading:
+      'One or more baseline trees have an Existing tree Created over them and another Retained, Enhanced or Existing tree linked to them, so the same tree is scored twice. A baseline tree is one tree: either kept, as one Retained or Enhanced tree, or lost and created again, as one Existing tree Created. Record a new tree planted beside it as Newly Planted',
+    found: 'treeRecordedTwice',
     describe: describeParent
   },
   {
@@ -440,6 +472,7 @@ export function checkLineageRules(baselineLayers, postInterventionLayers) {
     tooLong: [],
     tooLarge: [],
     tooManyTrees: [],
+    treeRecordedTwice: [],
     partCreated: [],
     naturalLost: [],
     treeNotDegraded: [],
