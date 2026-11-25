@@ -4,7 +4,10 @@ import {
   getTreeCreationReference,
   getTreeEnhancementReference
 } from '../validation/reference/area-creation.js'
-import { validatePostInterventionTreeEdit } from './post-intervention-tree-edit.js'
+import {
+  postInterventionTreeEditPayload,
+  validatePostInterventionTreeEdit
+} from './post-intervention-tree-edit.js'
 import { updatePostInterventionTree } from './habitats.js'
 import { getTreeCreation, getTreeEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
@@ -253,6 +256,72 @@ describe('validatePostInterventionTreeEdit', () => {
     expect(thrown?.output.payload.code).toBe(ERROR_CODES.FEATURE_NOT_EDITABLE)
   })
 
+  test('passes a Created tree edit that changes its planted size class', () => {
+    expect(
+      validatePostInterventionTreeEdit(tree, { ...edits, treeSize: 'Large' })
+    ).toMatchObject({ treeSize: 'Large' })
+  })
+
+  test('passes an Enhanced tree edit that sends back its size class', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(enhancedTree, {
+        ...enhancedEdits,
+        treeSize: 'small'
+      })
+    ).not.toThrow()
+  })
+
+  test('passes an Enhanced tree sent back a size class stored with spaces around it', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(
+        {
+          ...enhancedTree,
+          proposed: { ...enhancedTree.proposed, treeSize: ' Small ' }
+        },
+        { ...enhancedEdits, treeSize: 'Small' }
+      )
+    ).not.toThrow()
+  })
+
+  test('refuses an Enhanced tree moved to another size class as FEATURE_NOT_EDITABLE', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(enhancedTree, {
+        ...enhancedEdits,
+        treeSize: 'Large'
+      })
+    ).toThrow(
+      expect.objectContaining({
+        message: 'An Enhanced tree keeps its baseline tree’s size',
+        output: expect.objectContaining({
+          payload: expect.objectContaining({
+            code: ERROR_CODES.FEATURE_NOT_EDITABLE
+          })
+        })
+      })
+    )
+  })
+
+  test.each([
+    ['a size class the Metric does not have', { ...edits, treeSize: 'Huge' }],
+    ['a blank size class', { ...edits, treeSize: '' }],
+    [
+      'a size class without the complete payload',
+      { treeSize: 'Large', habitatType: 'Urban tree' }
+    ]
+  ])('refuses %s in the payload', (_label, payload) => {
+    expect(
+      postInterventionTreeEditPayload.validate(payload).error
+    ).toBeDefined()
+  })
+
+  test('takes each of the Metric’s size classes in the payload', () => {
+    for (const treeSize of ['Small', 'Medium', 'Large', 'Very large']) {
+      expect(
+        postInterventionTreeEditPayload.validate({ ...edits, treeSize }).error
+      ).toBeUndefined()
+    }
+  })
+
   test('refuses a Retained tree as FEATURE_NOT_EDITABLE', () => {
     expect(() =>
       validatePostInterventionTreeEdit(
@@ -327,6 +396,74 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     const schema = updatePostInterventionTree.options.validate.payload
     expect(schema.validate(edits).error).toBeUndefined()
     expect(schema.validate({ ...edits, comment: 'x' }).error).toBeUndefined()
+  })
+
+  // A BNG Service template upload's Created tree, beside 1000 m² of parcels,
+  // with the habitat sizes its upload saved.
+  function putTemplateTree(payload, stored = tree) {
+    const request = routeRequest(payload, stored, 'trees', { trees: [] })
+    return request.drizzle.transaction(async (tx) => {
+      const [row] = await tx.select().from().where().for().limit()
+      row.project.postIntervention.habitatSizes = {
+        areaHabitats: { totalSquareMetres: 1041 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 41
+        },
+        site: { totalSquareMetres: 1000 }
+      }
+      return updatePostInterventionTree.handler(
+        { ...request, drizzle: { transaction: (fn) => fn(tx) } },
+        {}
+      )
+    })
+  }
+
+  test('saves a Created tree’s new size class, priced at its area, with the habitat sizes moved', async () => {
+    const saved = await putTemplateTree({
+      ...edits,
+      habitatType: 'Rural tree',
+      treeSize: 'Large'
+    })
+
+    expect(saved).toMatchObject({
+      sizeSquareMetres: 366,
+      area: 366,
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366, area: 366 }
+    })
+    const [, , written] = setProjectFeature.mock.calls[0]
+    expect(written.feature.proposed.treeSize).toBe('Large')
+    expect(written.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1366 },
+      trees: {
+        totalSquareMetres: 366,
+        urbanSquareMetres: 0,
+        ruralSquareMetres: 366
+      }
+    })
+  })
+
+  test('refuses an Enhanced tree’s new size class, and writes nothing', async () => {
+    await expect(
+      putTemplateTree({ ...enhancedEdits, treeSize: 'Large' }, enhancedTree)
+    ).rejects.toMatchObject({
+      message: 'An Enhanced tree keeps its baseline tree’s size',
+      output: {
+        statusCode: 400,
+        payload: { code: ERROR_CODES.FEATURE_NOT_EDITABLE }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('refuses a legacy upload’s Created tree a new size class, and writes nothing', async () => {
+    await expect(put({ ...edits, treeSize: 'Large' })).rejects.toMatchObject({
+      output: { statusCode: 400 }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
   })
 
   test('saves the tree re-priced as an Urban tree', async () => {

@@ -39,7 +39,11 @@ import { postInterventionFeatureOrangeFlags } from '../enrichment/post-intervent
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import { renameClashes } from './ref-in-use.js'
-import { withEditedTreeSizes } from './tree-edit.js'
+import {
+  allowsTreeSizeEdit,
+  withEditedTreeSize,
+  withEditedTreeSizes
+} from './tree-edit.js'
 import { recomputeForType } from './recompute-feature-edit.js'
 
 /**
@@ -211,7 +215,13 @@ function resolveUpdatedFeature(
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? withOwnComment(found, derived.updatedFeature, edits)
-    : mergeFeature(found.type, found.feature, edits, derived, documentKey)
+    : mergeFeature(
+        found.type,
+        withEditedTreeSize(found.feature, edits, documentKey),
+        edits,
+        derived,
+        documentKey
+      )
   preserveCreatedParent(found.feature, updated, {
     documentKey,
     layer: found.key,
@@ -321,6 +331,36 @@ function renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey) {
 }
 
 /**
+ * Why an edit to a feature that was found is turned away before it is
+ * priced, or null when it can be priced: a timing edit its feature does not
+ * take, a size class its feature cannot change to, or, on a legacy upload, a
+ * rename onto a reference in use.
+ *
+ * @param {object} featureSet the document being edited
+ * @param {{ type: string, key: string, feature: object }} found
+ * @param {object} normalizedEdits
+ * @param {{ documentKey: string, serviceTemplate: boolean }} context
+ * @returns {object | null} the rejection
+ */
+function refusedBeforePricing(featureSet, found, normalizedEdits, context) {
+  const { documentKey } = context
+  if (
+    hasUnsupportedTimingEdit(found, normalizedEdits, documentKey) ||
+    !allowsTreeSizeEdit(found, normalizedEdits, context)
+  ) {
+    return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+  }
+  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
+    return {
+      status: APPLY_RESULT.REF_IN_USE,
+      type: found.type,
+      ref: normalizedEdits.ref
+    }
+  }
+  return null
+}
+
+/**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
  * apply path below deals only with edits that are going ahead.
@@ -344,25 +384,19 @@ function resolveEditTarget(
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
     }
   }
-  if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
-    return {
-      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
-    }
-  }
-  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
-    return {
-      rejection: {
-        status: APPLY_RESULT.REF_IN_USE,
-        type: found.type,
-        ref: normalizedEdits.ref
-      }
-    }
+  const serviceTemplate = isTemplateUpload(featureSet)
+  const refused = refusedBeforePricing(featureSet, found, normalizedEdits, {
+    documentKey,
+    serviceTemplate
+  })
+  if (refused) {
+    return { rejection: refused }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
     documentKey,
     logger,
     baseline,
-    serviceTemplate: isTemplateUpload(featureSet)
+    serviceTemplate
   })
   if (!derived) {
     return {
@@ -455,7 +489,10 @@ function withUpdatedFeature(
  * @param {object} project — full row.project JSONB
  * @param {object} params
  * @param {string} params.featureId
- * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment? }
+ * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment?, treeSize? }
+ *   `treeSize` moves a BNG Service template tree to another size class: a
+ *   baseline tree, whose Retained or Enhanced tree takes it on the re-derive,
+ *   or a Created tree. Any other feature asking for one is unsupportedType.
  *   `ref` renames a baseline feature (BMD-1061), or a Created area when
  *   the complete timing/strategic edit payload is supplied (BMD-1048). The re-derive then carries the new ref onto the
  *   post-intervention rows measured against the feature, so the two documents

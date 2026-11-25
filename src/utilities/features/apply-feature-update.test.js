@@ -3209,3 +3209,642 @@ describe('applyFeatureUpdate — orange flags (BMD-822)', () => {
     expect(result.feature.orangeFlags).toEqual(['FLAG8'])
   })
 })
+
+describe('applyFeatureUpdate — a tree’s size class (BMD-1172)', () => {
+  const PARENT_ID = 'ee0e8400-e29b-41d4-a716-446655440010'
+  const KEPT_ID = 'ee0e8400-e29b-41d4-a716-446655440011'
+  const PLANTED_ID = 'ee0e8400-e29b-41d4-a716-446655440012'
+  const FELLED_ID = 'ee0e8400-e29b-41d4-a716-446655440013'
+  const TEMPLATE = { name: 'bng-service', version: '1.0' }
+
+  // T001, a Medium urban tree in Moderate condition (163 m²), Retained, and
+  // T026, a Small urban tree newly planted (41 m²), in a BNG Service template
+  // upload, beside 1000 m² of parcels.
+  function templateProject({ template = TEMPLATE } = {}) {
+    const project = projectFixture()
+    const side = {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163
+    }
+    project.baseline.trees = [
+      {
+        featureId: PARENT_ID,
+        ref: 'T001',
+        ...side,
+        condition: 'Moderate',
+        strategicSignificance: 'Low',
+        units: 0.1304,
+        status: 'Complete'
+      }
+    ]
+    project.baseline.habitatSizes = {
+      areaHabitats: { totalSquareMetres: 1163 },
+      hedgerows: { totalMetres: 0 },
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 163,
+        urbanSquareMetres: 163,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: 1000 }
+    }
+    project.postIntervention = {
+      habitats: [],
+      trees: [
+        {
+          featureId: KEPT_ID,
+          ref: 'T001',
+          retentionCategory: 'Retained',
+          parentFeatureId: PARENT_ID,
+          sizeSquareMetres: 163,
+          area: 163,
+          status: 'Complete',
+          baseline: { ...side, condition: 'Moderate' },
+          proposed: {
+            ...side,
+            condition: 'Moderate',
+            strategicSignificance: 'Low'
+          }
+        },
+        {
+          featureId: PLANTED_ID,
+          ref: 'T026',
+          retentionCategory: 'Created',
+          sizeSquareMetres: 41,
+          area: 41,
+          status: 'Complete',
+          baseline: {},
+          proposed: {
+            type: 'Urban tree',
+            broadType: 'Individual trees',
+            treeSize: 'Small',
+            condition: 'Poor',
+            strategicSignificance: 'Low',
+            advanceYears: 0,
+            delayYears: 0,
+            sizeSquareMetres: 41,
+            area: 41
+          }
+        }
+      ],
+      hedgerows: [],
+      watercourses: [],
+      habitatSizes: {
+        areaHabitats: { totalSquareMetres: 1204 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 204,
+          urbanSquareMetres: 204,
+          ruralSquareMetres: 0
+        },
+        site: { totalSquareMetres: 1000 }
+      },
+      units: { totalUnits: 0 },
+      lostHabitats: []
+    }
+    if (template) {
+      project.baseline.template = template
+      project.postIntervention.template = template
+    }
+    return project
+  }
+
+  function editBaselineTree(edits, project = templateProject()) {
+    return applyFeatureUpdate(project, {
+      featureId: PARENT_ID,
+      edits: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Moderate',
+        ...edits
+      }
+    })
+  }
+
+  function editPostInterventionTree(featureId, edits, project) {
+    return applyFeatureUpdate(project ?? templateProject(), {
+      featureId,
+      documentKey: 'postIntervention',
+      expectedType: 'tree',
+      edits: {
+        ref: 'T026',
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Poor',
+        strategicSignificance: 'Low',
+        advanceYears: 0,
+        delayYears: 0,
+        ...edits
+      }
+    })
+  }
+
+  test('prices a baseline tree at its new size class’s area', () => {
+    const result = editBaselineTree({ treeSize: 'Large' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      treeSize: 'Large',
+      sizeSquareMetres: 366,
+      area: 366,
+      status: 'Complete'
+    })
+    // 0.0366 ha x Medium distinctiveness 4 x Moderate condition 2.
+    expect(result.feature.units).toBeCloseTo(0.2928, 10)
+    expect(result.unitsTotals.treesTotal).toBeCloseTo(0.2928, 10)
+  })
+
+  test('moves the baseline tree sizes and the area habitats total by the tree’s new area', () => {
+    const project = templateProject()
+    const stored = structuredClone(project.baseline.habitatSizes)
+
+    const result = editBaselineTree({ treeSize: 'Large' }, project)
+
+    const refreshed = {
+      ...stored,
+      areaHabitats: { totalSquareMetres: 1366 },
+      trees: {
+        totalSquareMetres: 366,
+        urbanSquareMetres: 366,
+        ruralSquareMetres: 0
+      }
+    }
+    expect(result.habitatSizes).toEqual(refreshed)
+    expect(result.project.baseline.habitatSizes).toEqual(refreshed)
+    expect(project.baseline.habitatSizes).toEqual(stored)
+  })
+
+  test('gives the baseline tree’s Retained tree its new size class, and re-prices it', () => {
+    const result = editBaselineTree({ treeSize: 'Large' })
+
+    const kept = result.postIntervention.trees.find(
+      (tree) => tree.featureId === KEPT_ID
+    )
+    expect(kept).toMatchObject({
+      sizeSquareMetres: 366,
+      baseline: { treeSize: 'Large', sizeSquareMetres: 366 },
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366 }
+    })
+    expect(kept.units).toBeCloseTo(0.2928, 10)
+    expect(result.postIntervention.habitatSizes.trees).toEqual({
+      totalSquareMetres: 407,
+      urbanSquareMetres: 407,
+      ruralSquareMetres: 0
+    })
+    expect(
+      result.postIntervention.habitatSizes.areaHabitats.totalSquareMetres
+    ).toBe(1407)
+  })
+
+  test('gives the baseline tree’s Enhanced tree its new size class, priced as the same enhancement at that area', () => {
+    const project = templateProject()
+    const kept = project.postIntervention.trees[0]
+    kept.retentionCategory = 'Enhanced'
+    Object.assign(kept.proposed, {
+      condition: 'Good',
+      advanceYears: 0,
+      delayYears: 0
+    })
+    // Re-derived from its baseline tree before the edit, so its units are the
+    // enhancement's at 163 m².
+    const before = applyFeatureUpdate(project, {
+      featureId: PARENT_ID,
+      edits: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Moderate'
+      }
+    }).postIntervention.trees.find((tree) => tree.featureId === KEPT_ID)
+
+    const result = editBaselineTree({ treeSize: 'Large' }, project)
+
+    const enhanced = result.postIntervention.trees.find(
+      (tree) => tree.featureId === KEPT_ID
+    )
+    expect(enhanced).toMatchObject({
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 366,
+      status: 'Complete',
+      baseline: {
+        treeSize: 'Large',
+        sizeSquareMetres: 366,
+        condition: 'Moderate'
+      },
+      proposed: {
+        treeSize: 'Large',
+        sizeSquareMetres: 366,
+        condition: 'Good'
+      }
+    })
+    expect(before.units).toBeGreaterThan(0)
+    expect(enhanced.units).toBeCloseTo((before.units * 366) / 163, 10)
+    expect(result.postIntervention.habitatSizes.trees).toEqual({
+      totalSquareMetres: 407,
+      urbanSquareMetres: 407,
+      ruralSquareMetres: 0
+    })
+    expect(
+      result.postIntervention.habitatSizes.areaHabitats.totalSquareMetres
+    ).toBe(1407)
+  })
+
+  // A size decrease and a change of setting in one save: the area, the units,
+  // the area habitats total and both the urban and rural sizes move at once.
+  test.each(['Retained', 'Enhanced'])(
+    'moves a baseline tree from Medium Urban to Small Rural, and its %s tree with it',
+    (retentionCategory) => {
+      const project = templateProject()
+      const kept = project.postIntervention.trees[0]
+      kept.retentionCategory = retentionCategory
+      if (retentionCategory === 'Enhanced') {
+        Object.assign(kept.proposed, {
+          condition: 'Good',
+          advanceYears: 0,
+          delayYears: 0
+        })
+      }
+
+      const result = editBaselineTree(
+        { habitatType: 'Rural tree', treeSize: 'Small' },
+        project
+      )
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature).toMatchObject({
+        type: 'Rural tree',
+        treeSize: 'Small',
+        sizeSquareMetres: 41,
+        status: 'Complete'
+      })
+      // 0.0041 ha x Medium distinctiveness 4 x Moderate condition 2.
+      expect(result.feature.units).toBeCloseTo(0.0328, 10)
+      expect(result.habitatSizes).toMatchObject({
+        areaHabitats: { totalSquareMetres: 1041 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 41
+        }
+      })
+      const child = result.postIntervention.trees.find(
+        (tree) => tree.featureId === KEPT_ID
+      )
+      expect(child).toMatchObject({
+        retentionCategory,
+        sizeSquareMetres: 41,
+        status: 'Complete',
+        baseline: {
+          type: 'Rural tree',
+          treeSize: 'Small',
+          sizeSquareMetres: 41
+        },
+        proposed: {
+          type: 'Rural tree',
+          treeSize: 'Small',
+          sizeSquareMetres: 41
+        }
+      })
+      expect(child.units).toBeGreaterThan(0)
+      // The kept tree (41 m², now rural) beside T026 (41 m², urban).
+      expect(result.postIntervention.habitatSizes).toMatchObject({
+        areaHabitats: { totalSquareMetres: 1082 },
+        trees: {
+          totalSquareMetres: 82,
+          urbanSquareMetres: 41,
+          ruralSquareMetres: 41
+        }
+      })
+    }
+  )
+
+  test('moves a Created tree from Medium Urban to Small Rural', () => {
+    const project = templateProject()
+    const planted = project.postIntervention.trees[1]
+    Object.assign(planted, { sizeSquareMetres: 163, area: 163 })
+    Object.assign(planted.proposed, {
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163
+    })
+    project.postIntervention.habitatSizes.areaHabitats.totalSquareMetres = 1326
+    project.postIntervention.habitatSizes.trees = {
+      totalSquareMetres: 326,
+      urbanSquareMetres: 326,
+      ruralSquareMetres: 0
+    }
+    const mediumRural = editPostInterventionTree(
+      PLANTED_ID,
+      { habitatType: 'Rural tree' },
+      structuredClone(project)
+    )
+
+    const result = editPostInterventionTree(
+      PLANTED_ID,
+      { habitatType: 'Rural tree', treeSize: 'Small' },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      proposed: { type: 'Rural tree', treeSize: 'Small', sizeSquareMetres: 41 }
+    })
+    expect(mediumRural.feature.units).toBeGreaterThan(0)
+    expect(result.feature.units).toBeCloseTo(
+      (mediumRural.feature.units * 41) / 163,
+      10
+    )
+    // T001 kept (163 m², urban) beside the planted tree (41 m², now rural).
+    expect(result.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1204 },
+      trees: {
+        totalSquareMetres: 204,
+        urbanSquareMetres: 163,
+        ruralSquareMetres: 41
+      }
+    })
+  })
+
+  test.each([
+    ['its own size class', 'Medium'],
+    ['its own size class in another case', 'medium']
+  ])(
+    'leaves the sizes alone for a baseline tree sent %s',
+    (_label, treeSize) => {
+      const result = editBaselineTree({ treeSize })
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature).toMatchObject({
+        treeSize: 'Medium',
+        sizeSquareMetres: 163
+      })
+      expect(result.habitatSizes).toBeUndefined()
+    }
+  )
+
+  // A legacy tree point can stand for several trees, and its kept trees do
+  // not take their baseline tree's size again.
+  test('turns away a size change to a legacy upload’s tree', () => {
+    const result = editBaselineTree(
+      { treeSize: 'Large' },
+      templateProject({ template: null })
+    )
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+
+  // The Metric reads a stored " Medium " as Medium (bng-library trims it),
+  // so sending back "Medium" is no change, and a legacy tree, which cannot
+  // change size, still takes the edit.
+  test('takes a legacy tree sent back its own size class, stored with spaces around it', () => {
+    const project = templateProject({ template: null })
+    project.baseline.trees[0].treeSize = ' Medium '
+
+    const result = editBaselineTree(
+      { treeSize: 'Medium', condition: 'Good' },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      treeSize: ' Medium ',
+      sizeSquareMetres: 163,
+      condition: 'Good'
+    })
+  })
+
+  test('turns away a size class sent with an area habitat edit', () => {
+    const project = templateProject()
+
+    const result = applyFeatureUpdate(project, {
+      featureId: HABITAT_ID,
+      edits: {
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        condition: 'Poor',
+        treeSize: 'Large'
+      }
+    })
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'habitat'
+    })
+  })
+
+  test('prices a Created tree at its new planted size class’s area', () => {
+    const result = editPostInterventionTree(PLANTED_ID, { treeSize: 'Large' })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      sizeSquareMetres: 366,
+      area: 366,
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366, area: 366 }
+    })
+    const smaller = editPostInterventionTree(PLANTED_ID, {})
+    expect(result.feature.units).toBeCloseTo(
+      (smaller.feature.units * 366) / 41,
+      10
+    )
+    expect(result.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1529 },
+      trees: {
+        totalSquareMetres: 529,
+        urbanSquareMetres: 529,
+        ruralSquareMetres: 0
+      }
+    })
+  })
+
+  // A tree imported with no size class the Metric reads has no area, so it
+  // is Incomplete and left out of the tree sizes. Choosing one prices it.
+  test('prices a baseline tree imported with no size class, adding it to the habitat sizes', () => {
+    const project = templateProject()
+    Object.assign(project.baseline.trees[0], {
+      treeSize: null,
+      sizeSquareMetres: null,
+      area: null,
+      units: null,
+      status: 'Incomplete'
+    })
+    project.baseline.habitatSizes.areaHabitats.totalSquareMetres = 1000
+    project.baseline.habitatSizes.trees = {
+      totalSquareMetres: 0,
+      urbanSquareMetres: 0,
+      ruralSquareMetres: 0
+    }
+
+    const result = editBaselineTree({ treeSize: 'Medium' }, project)
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163,
+      status: 'Complete'
+    })
+    // 0.0163 ha x Medium distinctiveness 4 x Moderate condition 2.
+    expect(result.feature.units).toBeCloseTo(0.1304, 10)
+    expect(result.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1163 },
+      trees: {
+        totalSquareMetres: 163,
+        urbanSquareMetres: 163,
+        ruralSquareMetres: 0
+      }
+    })
+  })
+
+  test('prices a Created tree imported with no size class, adding it to the habitat sizes', () => {
+    const project = templateProject()
+    const planted = project.postIntervention.trees[1]
+    Object.assign(planted, {
+      sizeSquareMetres: null,
+      area: null,
+      units: null,
+      status: 'Incomplete'
+    })
+    Object.assign(planted.proposed, {
+      treeSize: null,
+      sizeSquareMetres: null,
+      area: null
+    })
+    project.postIntervention.habitatSizes.areaHabitats.totalSquareMetres = 1163
+    project.postIntervention.habitatSizes.trees = {
+      totalSquareMetres: 163,
+      urbanSquareMetres: 163,
+      ruralSquareMetres: 0
+    }
+
+    const result = editPostInterventionTree(
+      PLANTED_ID,
+      { treeSize: 'Small' },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      proposed: { treeSize: 'Small', sizeSquareMetres: 41 }
+    })
+    expect(result.feature.units).toBeGreaterThan(0)
+    expect(result.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1204 },
+      trees: { totalSquareMetres: 204, urbanSquareMetres: 204 }
+    })
+  })
+
+  // T026 planted where the felled tree T002 (Medium, Moderate) stood, linked
+  // to it: a creation at its own size, beside its parent's baseline snapshot.
+  function projectWithPlantedInPlaceOfFelled() {
+    const project = templateProject()
+    const felled = {
+      featureId: FELLED_ID,
+      ref: 'T002',
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      condition: 'Moderate',
+      strategicSignificance: 'Low',
+      sizeSquareMetres: 163,
+      area: 163,
+      status: 'Complete'
+    }
+    project.baseline.trees.push(felled)
+    const planted = project.postIntervention.trees[1]
+    planted.parentFeatureId = FELLED_ID
+    planted.properties = { Category: 'Newly Planted' }
+    planted.baseline = {
+      type: 'Urban tree',
+      broadType: 'Individual trees',
+      treeSize: 'Medium',
+      condition: 'Moderate',
+      sizeSquareMetres: 163,
+      area: 163
+    }
+    return project
+  }
+
+  const lossOf = (lostHabitats, featureId) =>
+    lostHabitats.find((lost) => lost.featureId === featureId)
+
+  test('prices a Created tree linked to a felled tree at its new size, keeping its parent’s snapshot', () => {
+    const result = editPostInterventionTree(
+      PLANTED_ID,
+      { treeSize: 'Large' },
+      projectWithPlantedInPlaceOfFelled()
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      sizeSquareMetres: 366,
+      baseline: { treeSize: 'Medium', sizeSquareMetres: 163 },
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366 }
+    })
+    expect(result.habitatSizes.trees.totalSquareMetres).toBe(529)
+    // The felled tree is lost in full, whatever size is planted in its place.
+    expect(lossOf(result.lostHabitats, FELLED_ID)).toMatchObject({
+      lostSizeSquareMetres: 163,
+      lostTreeCount: 1
+    })
+  })
+
+  test('keeps the planted size when its felled parent’s size class is edited, moving the parent’s snapshot and loss', () => {
+    const planted = editPostInterventionTree(
+      PLANTED_ID,
+      { treeSize: 'Large' },
+      projectWithPlantedInPlaceOfFelled()
+    )
+
+    const result = applyFeatureUpdate(planted.project, {
+      featureId: FELLED_ID,
+      edits: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Moderate',
+        treeSize: 'Very large'
+      }
+    })
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    const rederived = result.postIntervention.trees.find(
+      (tree) => tree.featureId === PLANTED_ID
+    )
+    expect(rederived).toMatchObject({
+      sizeSquareMetres: 366,
+      baseline: { treeSize: 'Very large', sizeSquareMetres: 765 },
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366 }
+    })
+    expect(rederived.units).toBeCloseTo(planted.feature.units, 10)
+    expect(
+      lossOf(result.postIntervention.lostHabitats, FELLED_ID)
+    ).toMatchObject({ lostSizeSquareMetres: 765, lostTreeCount: 1 })
+  })
+
+  test('turns away a size change to a Retained or Enhanced tree, which keeps its baseline tree’s', () => {
+    const project = templateProject()
+    project.postIntervention.trees[0].retentionCategory = 'Enhanced'
+
+    const result = editPostInterventionTree(
+      KEPT_ID,
+      { ref: 'T001', condition: 'Good', treeSize: 'Large' },
+      project
+    )
+
+    expect(result).toEqual({
+      status: APPLY_RESULT.UNSUPPORTED_TYPE,
+      type: 'tree'
+    })
+  })
+})

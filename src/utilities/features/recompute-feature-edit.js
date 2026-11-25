@@ -28,7 +28,7 @@ import {
   VERTICAL_BROAD_HABITATS,
   isVerticalHabitat
 } from '../../validation/reference/vertical-habitats.js'
-import { keepsTreeATree } from './tree-edit.js'
+import { keepsTreeATree, withEditedTreeSize } from './tree-edit.js'
 
 function recomputeHabitatEdit(existing, edits, { documentKey, logger }) {
   if (documentKey === 'postIntervention') {
@@ -139,10 +139,11 @@ function recomputeVerticalHabitatEdit(existing, edits, context) {
 /**
  * An individual tree is edited as an area habitat (BMD-1112). Its size is
  * notional — the per-size reference area times the number of trees the point
- * stands for (tree-sizes.js) — and the details page shows the size class and
- * count read-only, so an edit moves its condition, setting, reference or
- * comment and never its area. It stays a tree (tree-edit.js), and a change of
- * setting moves it between the urban and rural sizes (withEditedTreeSizes).
+ * stands for (tree-sizes.js) — so an edit moves its condition, setting,
+ * reference or comment, and, for a BNG Service template tree, its size class,
+ * which prices it at that size class's area (withEditedTreeSize). It stays a
+ * tree (tree-edit.js), and a change of setting or size moves the urban and
+ * rural sizes (withEditedTreeSizes).
  *
  * After intervention a Created or an Enhanced tree is edited this way, with
  * the Created area habitat edit's complete payload, and priced by its
@@ -155,12 +156,13 @@ function recomputeTreeEdit(existing, edits, context) {
   if (!keepsTreeATree(existing, edits, context.documentKey)) {
     return null
   }
+  const sized = withEditedTreeSize(existing, edits, context.documentKey)
   if (context.documentKey === 'postIntervention') {
     return Object.hasOwn(edits, 'advanceYears')
-      ? recomputeCreatedAreaEdit(existing, edits)
+      ? recomputeCreatedAreaEdit(sized, edits)
       : null
   }
-  return recomputeHabitatEdit(existing, edits, context)
+  return recomputeHabitatEdit(sized, edits, context)
 }
 
 const RECOMPUTE_EDIT_BY_TYPE = Object.freeze({
