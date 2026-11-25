@@ -620,7 +620,71 @@ describe('checkLineageRules', () => {
       })
     })
 
-    it('does not count an Existing tree Created against its parent’s one kept tree', () => {
+    it.each(['Retained', 'Enhanced'])(
+      'refuses a tree both kept by a %s point and Created again as Existing, as it would be scored twice',
+      (retentionCategory) => {
+        const parent = tree(1)
+
+        const errors = check(
+          { trees: [parent] },
+          {
+            trees: [
+              treeChild(parent, {
+                'Tree Ref': 'T001a',
+                'Retention Category': retentionCategory,
+                'Proposed Condition':
+                  retentionCategory === 'Enhanced' ? 'Good' : 'Moderate'
+              }),
+              existingCreated(parent, { 'Tree Ref': 'T001b' }),
+              plantedTree(parent, 'T001c')
+            ]
+          }
+        )
+
+        expect(errors).toEqual([
+          {
+            code: ERROR_CODES.STAGED_TREE_RECORDED_TWICE,
+            message:
+              'One or more baseline trees have an Existing tree Created over them and another Retained, Enhanced or Existing tree linked to them, so the same tree is scored twice. A baseline tree is one tree: either kept, as one Retained or Enhanced tree, or lost and created again, as one Existing tree Created. Record a new tree planted beside it as Newly Planted: Individual Trees Baseline T001 (Urban tree), copied to T001a, T001b',
+            details: {
+              count: 1,
+              sample: [
+                {
+                  layer: 'trees',
+                  table: 'Individual Trees Baseline',
+                  fid: 1,
+                  ref: 'T001',
+                  habitatType: 'Urban tree',
+                  childRefs: ['T001a', 'T001b']
+                }
+              ]
+            }
+          }
+        ])
+      }
+    )
+
+    it('refuses a tree Created again as Existing twice, as it would be scored twice', () => {
+      const parent = tree(1)
+
+      const errors = check(
+        { trees: [parent] },
+        {
+          trees: [
+            existingCreated(parent, { 'Tree Ref': 'T001a' }),
+            existingCreated(parent, {
+              'Tree Ref': 'T001b',
+              'Proposed Rural or Urban Tree': 'Rural tree'
+            })
+          ]
+        }
+      )
+
+      expect(codes(errors)).toEqual([ERROR_CODES.STAGED_TREE_RECORDED_TWICE])
+      expect(errors[0].details.sample[0].childRefs).toEqual(['T001a', 'T001b'])
+    })
+
+    it('passes a tree Created again as Existing once, whatever is planted in its place', () => {
       const parent = tree(1)
 
       expect(
@@ -628,12 +692,38 @@ describe('checkLineageRules', () => {
           { trees: [parent] },
           {
             trees: [
-              treeChild(parent, { 'Tree Ref': 'T001a' }),
-              existingCreated(parent, { 'Tree Ref': 'T001b' })
+              existingCreated(parent, { 'Tree Ref': 'T001a' }),
+              plantedTree(parent, 'T001b'),
+              plantedTree(parent, 'T001c')
             ]
           }
         )
       ).toEqual([])
+    })
+
+    it('reports a tree kept twice and Created again as Existing under both rules', () => {
+      const parent = tree(1)
+
+      const errors = check(
+        { trees: [parent] },
+        {
+          trees: [
+            treeChild(parent, { 'Tree Ref': 'T001a' }),
+            treeChild(parent, { 'Tree Ref': 'T001b' }),
+            existingCreated(parent, { 'Tree Ref': 'T001c' })
+          ]
+        }
+      )
+
+      expect(codes(errors)).toEqual([
+        ERROR_CODES.STAGED_TREE_CHILDREN_TOO_MANY,
+        ERROR_CODES.STAGED_TREE_RECORDED_TWICE
+      ])
+      expect(errors[1].details.sample[0].childRefs).toEqual([
+        'T001a',
+        'T001b',
+        'T001c'
+      ])
     })
   })
 

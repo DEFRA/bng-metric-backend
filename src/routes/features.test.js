@@ -598,6 +598,95 @@ describe('updateFeature handler - area habitat dispatch', () => {
   })
 })
 
+describe('updateFeature handler - a tree’s size class (BMD-1172)', () => {
+  const TREE_ID = 'ee0e8400-e29b-41d4-a716-446655440020'
+
+  // A Medium urban tree in Moderate condition, 163 m², in a BNG Service
+  // template upload (or, with `template: false`, a legacy one).
+  function projectWithTree({ template = true } = {}) {
+    const projectRow = makeProject()
+    projectRow.project.baseline.trees = [
+      {
+        featureId: TREE_ID,
+        ref: 'T001',
+        type: 'Urban tree',
+        broadType: 'Individual trees',
+        treeSize: 'Medium',
+        condition: 'Moderate',
+        sizeSquareMetres: 163,
+        area: 163,
+        status: 'Complete'
+      }
+    ]
+    projectRow.project.baseline.habitatSizes = {
+      areaHabitats: { totalSquareMetres: 1163 },
+      hedgerows: { totalMetres: 0 },
+      watercourses: { totalMetres: 0 },
+      trees: {
+        totalSquareMetres: 163,
+        urbanSquareMetres: 163,
+        ruralSquareMetres: 0
+      },
+      site: { totalSquareMetres: 1000 }
+    }
+    if (template) {
+      projectRow.project.baseline.template = {
+        name: 'bng-service',
+        version: '1.0'
+      }
+    }
+    return projectRow
+  }
+
+  const putTreeSize = (projectRow, treeSize) =>
+    updateFeature.handler(
+      {
+        drizzle: makeTxDrizzle(projectRow),
+        auth: AUTH,
+        params: { projectId: PROJECT_ID, featureId: TREE_ID },
+        payload: {
+          broadType: 'Individual trees',
+          habitatType: 'Urban tree',
+          condition: 'Moderate',
+          treeSize
+        }
+      },
+      {}
+    )
+
+  beforeEach(() => vi.mocked(setProjectFeature).mockClear())
+
+  test('saves a baseline tree’s new size class, priced at its area, with the habitat sizes moved', async () => {
+    const result = await putTreeSize(projectWithTree(), 'Large')
+
+    expect(result.feature).toMatchObject({
+      treeSize: 'Large',
+      sizeSquareMetres: 366,
+      area: 366
+    })
+    const [, , written] = vi.mocked(setProjectFeature).mock.calls[0]
+    expect(written.feature.treeSize).toBe('Large')
+    expect(written.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1366 },
+      trees: { totalSquareMetres: 366, urbanSquareMetres: 366 }
+    })
+  })
+
+  test('refuses a legacy upload’s tree a new size class, and writes nothing', async () => {
+    await expect(
+      putTreeSize(projectWithTree({ template: false }), 'Large')
+    ).rejects.toMatchObject({ output: { statusCode: 400 } })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('takes a size class the Metric has, and refuses one it does not', () => {
+    const schema = updateFeature.options.validate.payload
+    expect(schema.validate({ treeSize: 'Very large' }).error).toBeUndefined()
+    expect(schema.validate({ treeSize: 'Huge' }).error).toBeDefined()
+    expect(schema.validate({ treeSize: '' }).error).toBeDefined()
+  })
+})
+
 describe('updateFeature handler - hedgerow dispatch', () => {
   test('returns { type: "hedgerow", feature } and persists hedgerow shape', async () => {
     const projectRow = makeProject()

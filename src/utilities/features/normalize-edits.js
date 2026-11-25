@@ -72,6 +72,8 @@ export function normalizeEdits(edits = {}) {
     condition: blankToNull(edits.condition),
     watercourseEncroachment: blankToNull(edits.watercourseEncroachment),
     riparianEncroachment: blankToNull(edits.riparianEncroachment),
+    // A tree's size class; undefined leaves it alone, as it cannot be cleared.
+    treeSize: blankToNull(edits.treeSize) ?? undefined,
     comment: normalizeComment(edits)
   }
 }

@@ -677,6 +677,26 @@ describe('updateAreaHabitat validation', () => {
     expect(error?.message).toBe('"comment" is not allowed')
   })
 
+  test('legacy baseline area route refuses a size class it would not save', () => {
+    const { error } = updateAreaHabitat.options.validate.payload.validate({
+      condition: 'Good',
+      treeSize: 'Large'
+    })
+    expect(error?.message).toBe('"treeSize" is not allowed')
+  })
+
+  test('PI area route refuses a size class, which is a tree’s alone', () => {
+    const { error } =
+      updatePostInterventionAreaHabitat.options.validate.payload.validate({
+        ref: 'B-A1',
+        condition: 'Good',
+        broadType: 'Grassland',
+        habitatType: 'Modified grassland',
+        treeSize: 'Large'
+      })
+    expect(error?.message).toBe('"treeSize" is not allowed')
+  })
+
   test('PI reference edits allow omitted significance with the other required area fields', () => {
     const { error } =
       updatePostInterventionAreaHabitat.options.validate.payload.validate({

@@ -19,7 +19,10 @@ import {
 // (BMD-1153, BMD-1190). It is saved with the complete post-intervention edit
 // only, so a comment without `ref` is refused rather than answered 200 having
 // saved nothing.
+// A size class is a tree's alone: the tree payload takes it again
+// (post-intervention-tree-edit.js).
 export const postInterventionAreaEditPayload = featureEditPayload
+  .fork(['treeSize'], (schema) => schema.forbidden())
   .keys({
     strategicSignificance: Joi.string()
       .valid(

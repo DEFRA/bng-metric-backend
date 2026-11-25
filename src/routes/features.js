@@ -280,11 +280,21 @@ const getPostInterventionFeature = createGetFeatureRoute({
  *                   is stored as null, and line breaks as LF. Invalid UTF-8,
  *                   or more than 999 characters after trimming, is a 400.
  *                   Baseline features only.
+ *               treeSize:
+ *                 type: string
+ *                 enum: [Small, Medium, Large, Very large]
+ *                 description: >
+ *                   An individual tree's size class. Optional; leaving it
+ *                   out keeps the stored one. Only a BNG Service template
+ *                   upload's tree takes one: the tree is priced at the size
+ *                   class's area, its Retained or Enhanced tree takes it too,
+ *                   and the habitat sizes move with it. Sent for any other
+ *                   feature, a change is a 400.
  *     responses:
  *       200:
  *         description: Returns the updated feature with its type
  *       400:
- *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a change that would make a baseline tree a habitat other than an Urban tree or a Rural tree)
+ *         description: Invalid payload (e.g. a blank habitat reference), or the edit is not supported for that feature type (e.g. a change that would make a baseline tree a habitat other than an Urban tree or a Rural tree, or a new size class for a legacy upload's tree)
  *       404:
  *         description: Project or feature not found
  *       422:

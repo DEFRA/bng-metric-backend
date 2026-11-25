@@ -7,7 +7,8 @@
  */
 import {
   getIndividualTreeAreaHectares,
-  BaselineLookupError
+  BaselineLookupError,
+  INDIVIDUAL_TREE_AREA_HECTARES
 } from 'bng-library/metric'
 
 import { URBAN_TREE_TYPE, RURAL_TREE_TYPE } from './tree-constants.js'
@@ -15,6 +16,11 @@ import { isWholeTreeCount } from './tree-count-check.js'
 
 /** Individual trees store area in hectares; persisted sizes are in m². */
 export const SQ_METRES_PER_HECTARE = 10_000
+
+/** The size classes a tree can be: Small, Medium, Large and Very large. */
+export const TREE_SIZES = Object.freeze(
+  Object.keys(INDIVIDUAL_TREE_AREA_HECTARES)
+)
 
 /** A tree point with a blank "Count" stands for one tree, as the metric reads it. */
 const DEFAULT_TREE_COUNT = 1
