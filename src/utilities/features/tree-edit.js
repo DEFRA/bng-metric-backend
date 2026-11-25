@@ -59,13 +59,13 @@ function storedTreeSize(tree, documentKey) {
  * "Very large" is no change.
  *
  * @param {object} tree the tree as stored
- * @param {{ treeSize?: string }} edits normalised
+ * @param {{ treeSize?: string }} edits
  * @param {string} documentKey
  * @returns {boolean}
  */
-function changesTreeSize(tree, edits, documentKey) {
+export function changesTreeSize(tree, edits, documentKey) {
   return (
-    edits.treeSize !== undefined &&
+    typeof edits.treeSize === 'string' &&
     edits.treeSize.toLowerCase() !==
       String(storedTreeSize(tree, documentKey) ?? '').toLowerCase()
   )

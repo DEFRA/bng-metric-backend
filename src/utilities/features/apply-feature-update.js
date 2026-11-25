@@ -331,6 +331,36 @@ function renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey) {
 }
 
 /**
+ * Why an edit to a feature that was found is turned away before it is
+ * priced, or null when it can be priced: a timing edit its feature does not
+ * take, a size class its feature cannot change to, or, on a legacy upload, a
+ * rename onto a reference in use.
+ *
+ * @param {object} featureSet the document being edited
+ * @param {{ type: string, key: string, feature: object }} found
+ * @param {object} normalizedEdits
+ * @param {{ documentKey: string, serviceTemplate: boolean }} context
+ * @returns {object | null} the rejection
+ */
+function refusedBeforePricing(featureSet, found, normalizedEdits, context) {
+  const { documentKey } = context
+  if (
+    hasUnsupportedTimingEdit(found, normalizedEdits, documentKey) ||
+    !allowsTreeSizeEdit(found, normalizedEdits, context)
+  ) {
+    return { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+  }
+  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
+    return {
+      status: APPLY_RESULT.REF_IN_USE,
+      type: found.type,
+      ref: normalizedEdits.ref
+    }
+  }
+  return null
+}
+
+/**
  * Locate the feature an edit names and recompute its derived block, or say why
  * the edit cannot proceed. Every way an edit is turned away lives here, so the
  * apply path below deals only with edits that are going ahead.
@@ -354,30 +384,13 @@ function resolveEditTarget(
       rejection: { status: APPLY_RESULT.FEATURE_WRONG_TYPE, type: found.type }
     }
   }
-  if (hasUnsupportedTimingEdit(found, normalizedEdits, documentKey)) {
-    return {
-      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
-    }
-  }
   const serviceTemplate = isTemplateUpload(featureSet)
-  if (
-    !allowsTreeSizeEdit(found, normalizedEdits, {
-      documentKey,
-      serviceTemplate
-    })
-  ) {
-    return {
-      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
-    }
-  }
-  if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
-    return {
-      rejection: {
-        status: APPLY_RESULT.REF_IN_USE,
-        type: found.type,
-        ref: normalizedEdits.ref
-      }
-    }
+  const refused = refusedBeforePricing(featureSet, found, normalizedEdits, {
+    documentKey,
+    serviceTemplate
+  })
+  if (refused) {
+    return { rejection: refused }
   }
   const derived = recomputeForType(found.type, found.feature, normalizedEdits, {
     documentKey,

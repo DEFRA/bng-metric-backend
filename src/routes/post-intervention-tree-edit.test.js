@@ -386,6 +386,74 @@ describe('PUT /projects/{projectId}/post-intervention/trees/{featureId}', () => 
     expect(schema.validate({ ...edits, comment: 'x' }).error).toBeUndefined()
   })
 
+  // A BNG Service template upload's Created tree, beside 1000 m² of parcels,
+  // with the habitat sizes its upload saved.
+  function putTemplateTree(payload, stored = tree) {
+    const request = routeRequest(payload, stored, 'trees', { trees: [] })
+    return request.drizzle.transaction(async (tx) => {
+      const [row] = await tx.select().from().where().for().limit()
+      row.project.postIntervention.habitatSizes = {
+        areaHabitats: { totalSquareMetres: 1041 },
+        hedgerows: { totalMetres: 0 },
+        watercourses: { totalMetres: 0 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 41
+        },
+        site: { totalSquareMetres: 1000 }
+      }
+      return updatePostInterventionTree.handler(
+        { ...request, drizzle: { transaction: (fn) => fn(tx) } },
+        {}
+      )
+    })
+  }
+
+  test('saves a Created tree’s new size class, priced at its area, with the habitat sizes moved', async () => {
+    const saved = await putTemplateTree({
+      ...edits,
+      habitatType: 'Rural tree',
+      treeSize: 'Large'
+    })
+
+    expect(saved).toMatchObject({
+      sizeSquareMetres: 366,
+      area: 366,
+      proposed: { treeSize: 'Large', sizeSquareMetres: 366, area: 366 }
+    })
+    const [, , written] = setProjectFeature.mock.calls[0]
+    expect(written.feature.proposed.treeSize).toBe('Large')
+    expect(written.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1366 },
+      trees: {
+        totalSquareMetres: 366,
+        urbanSquareMetres: 0,
+        ruralSquareMetres: 366
+      }
+    })
+  })
+
+  test('refuses an Enhanced tree’s new size class, and writes nothing', async () => {
+    await expect(
+      putTemplateTree({ ...enhancedEdits, treeSize: 'Large' }, enhancedTree)
+    ).rejects.toMatchObject({
+      message: 'An Enhanced tree keeps its baseline tree’s size',
+      output: {
+        statusCode: 400,
+        payload: { code: ERROR_CODES.FEATURE_NOT_EDITABLE }
+      }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
+  test('refuses a legacy upload’s Created tree a new size class, and writes nothing', async () => {
+    await expect(put({ ...edits, treeSize: 'Large' })).rejects.toMatchObject({
+      output: { statusCode: 400 }
+    })
+    expect(setProjectFeature).not.toHaveBeenCalled()
+  })
+
   test('saves the tree re-priced as an Urban tree', async () => {
     const saved = await put(edits)
 

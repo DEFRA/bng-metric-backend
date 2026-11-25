@@ -36,11 +36,11 @@ import { featureEditPayload, projectFeatureIdParams } from './shared-params.js'
 
 // The baseline typed route saves dropdowns only; reference renaming and the
 // habitat comment (BMD-1112) belong to its unified feature route, which is
-// what the details page calls. Neither reaches `createdFeatureEdits`, so
-// accepting one here would answer 200 having saved nothing. Created PI edits
-// use their own complete payload.
+// what the details page calls, and so does a tree's size class (BMD-1172).
+// None reaches `createdFeatureEdits`, so accepting one here would answer 200
+// having saved nothing. Created PI edits use their own complete payload.
 const areaHabitatEditPayload = featureEditPayload.fork(
-  ['ref', 'comment'],
+  ['ref', 'comment', 'treeSize'],
   (schema) => schema.forbidden()
 )
 
@@ -294,7 +294,7 @@ function createdFeatureEdits(payload) {
     delayYears: payload.delayYears,
     // Left out when not sent, so the stored value is kept.
     ...Object.fromEntries(
-      ['watercourseEncroachment', 'riparianEncroachment', 'comment']
+      ['watercourseEncroachment', 'riparianEncroachment', 'comment', 'treeSize']
         .filter((field) => Object.hasOwn(payload, field))
         .map((field) => [field, payload[field]])
     )

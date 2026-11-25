@@ -12,6 +12,8 @@ import {
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../validation/geopackage/tree-constants.js'
 import { featureNotEditableError } from './feature-not-editable-error.js'
 import { postInterventionAreaEditPayload } from './post-intervention-area-edit.js'
+import { featureEditPayload } from './shared-params.js'
+import { changesTreeSize } from '../utilities/features/tree-edit.js'
 
 // A Created or Enhanced individual tree is edited as a Created area habitat
 // is, with the same payload, but it stays a tree: its broad habitat is always
@@ -27,8 +29,9 @@ import { postInterventionAreaEditPayload } from './post-intervention-area-edit.j
 // An Existing tree Created over its baseline tree is held there to the guide's
 // steps for a tree whose condition gets worse (brokenDegradeRule), and
 // refused as TREE_DEGRADE_NOT_VALID.
-export const postInterventionTreeEditPayload =
-  postInterventionAreaEditPayload.with('treeSize', 'ref')
+export const postInterventionTreeEditPayload = postInterventionAreaEditPayload
+  .keys({ treeSize: featureEditPayload.extract('treeSize') })
+  .with('treeSize', 'ref')
 
 const EDITABLE_RETENTION = new Set([RETENTION_CREATED, RETENTION_ENHANCED])
 
@@ -59,7 +62,10 @@ export function validatePostInterventionTreeEdit(feature, edits) {
       'An Enhanced tree keeps its baseline tree’s Urban or Rural setting'
     )
   }
-  if (retention === RETENTION_ENHANCED && changesSize(feature, resolved)) {
+  if (
+    retention === RETENTION_ENHANCED &&
+    changesTreeSize(feature, resolved, 'postIntervention')
+  ) {
     throw featureNotEditableError(
       'An Enhanced tree keeps its baseline tree’s size'
     )
@@ -74,16 +80,6 @@ export function validatePostInterventionTreeEdit(feature, edits) {
 // their file gave.
 function enhancedTreeSetting(feature) {
   return feature.proposed?.type ?? feature.baseline?.type ?? null
-}
-
-// Whether an edit sends a size class other than the tree's stored one,
-// whatever its case.
-function changesSize(feature, edits) {
-  return (
-    edits.treeSize !== undefined &&
-    edits.treeSize.toLowerCase() !==
-      String(feature.proposed?.treeSize ?? '').toLowerCase()
-  )
 }
 
 // A change to a non-tree habitat, or a blank habitat type, is refused with
