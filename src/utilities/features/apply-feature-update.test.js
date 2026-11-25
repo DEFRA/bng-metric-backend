@@ -3452,6 +3452,125 @@ describe('applyFeatureUpdate — a tree’s size class (BMD-1172)', () => {
     ).toBe(1407)
   })
 
+  // A size decrease and a change of setting in one save: the area, the units,
+  // the area habitats total and both the urban and rural sizes move at once.
+  test.each(['Retained', 'Enhanced'])(
+    'moves a baseline tree from Medium Urban to Small Rural, and its %s tree with it',
+    (retentionCategory) => {
+      const project = templateProject()
+      const kept = project.postIntervention.trees[0]
+      kept.retentionCategory = retentionCategory
+      if (retentionCategory === 'Enhanced') {
+        Object.assign(kept.proposed, {
+          condition: 'Good',
+          advanceYears: 0,
+          delayYears: 0
+        })
+      }
+
+      const result = editBaselineTree(
+        { habitatType: 'Rural tree', treeSize: 'Small' },
+        project
+      )
+
+      expect(result.status).toBe(APPLY_RESULT.OK)
+      expect(result.feature).toMatchObject({
+        type: 'Rural tree',
+        treeSize: 'Small',
+        sizeSquareMetres: 41,
+        status: 'Complete'
+      })
+      // 0.0041 ha x Medium distinctiveness 4 x Moderate condition 2.
+      expect(result.feature.units).toBeCloseTo(0.0328, 10)
+      expect(result.habitatSizes).toMatchObject({
+        areaHabitats: { totalSquareMetres: 1041 },
+        trees: {
+          totalSquareMetres: 41,
+          urbanSquareMetres: 0,
+          ruralSquareMetres: 41
+        }
+      })
+      const child = result.postIntervention.trees.find(
+        (tree) => tree.featureId === KEPT_ID
+      )
+      expect(child).toMatchObject({
+        retentionCategory,
+        sizeSquareMetres: 41,
+        status: 'Complete',
+        baseline: {
+          type: 'Rural tree',
+          treeSize: 'Small',
+          sizeSquareMetres: 41
+        },
+        proposed: {
+          type: 'Rural tree',
+          treeSize: 'Small',
+          sizeSquareMetres: 41
+        }
+      })
+      expect(child.units).toBeGreaterThan(0)
+      // The kept tree (41 m², now rural) beside T026 (41 m², urban).
+      expect(result.postIntervention.habitatSizes).toMatchObject({
+        areaHabitats: { totalSquareMetres: 1082 },
+        trees: {
+          totalSquareMetres: 82,
+          urbanSquareMetres: 41,
+          ruralSquareMetres: 41
+        }
+      })
+    }
+  )
+
+  test('moves a Created tree from Medium Urban to Small Rural', () => {
+    const project = templateProject()
+    const planted = project.postIntervention.trees[1]
+    Object.assign(planted, { sizeSquareMetres: 163, area: 163 })
+    Object.assign(planted.proposed, {
+      treeSize: 'Medium',
+      sizeSquareMetres: 163,
+      area: 163
+    })
+    project.postIntervention.habitatSizes.areaHabitats.totalSquareMetres = 1326
+    project.postIntervention.habitatSizes.trees = {
+      totalSquareMetres: 326,
+      urbanSquareMetres: 326,
+      ruralSquareMetres: 0
+    }
+    const mediumRural = editPostInterventionTree(
+      PLANTED_ID,
+      { habitatType: 'Rural tree' },
+      structuredClone(project)
+    )
+
+    const result = editPostInterventionTree(
+      PLANTED_ID,
+      { habitatType: 'Rural tree', treeSize: 'Small' },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      sizeSquareMetres: 41,
+      area: 41,
+      status: 'Complete',
+      proposed: { type: 'Rural tree', treeSize: 'Small', sizeSquareMetres: 41 }
+    })
+    expect(mediumRural.feature.units).toBeGreaterThan(0)
+    expect(result.feature.units).toBeCloseTo(
+      (mediumRural.feature.units * 41) / 163,
+      10
+    )
+    // T001 kept (163 m², urban) beside the planted tree (41 m², now rural).
+    expect(result.habitatSizes).toMatchObject({
+      areaHabitats: { totalSquareMetres: 1204 },
+      trees: {
+        totalSquareMetres: 204,
+        urbanSquareMetres: 163,
+        ruralSquareMetres: 41
+      }
+    })
+  })
+
   test.each([
     ['its own size class', 'Medium'],
     ['its own size class in another case', 'medium']
