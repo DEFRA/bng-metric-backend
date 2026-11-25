@@ -3483,6 +3483,26 @@ describe('applyFeatureUpdate — a tree’s size class (BMD-1172)', () => {
     })
   })
 
+  // The Metric reads a stored " Medium " as Medium (bng-library trims it),
+  // so sending back "Medium" is no change, and a legacy tree, which cannot
+  // change size, still takes the edit.
+  test('takes a legacy tree sent back its own size class, stored with spaces around it', () => {
+    const project = templateProject({ template: null })
+    project.baseline.trees[0].treeSize = ' Medium '
+
+    const result = editBaselineTree(
+      { treeSize: 'Medium', condition: 'Good' },
+      project
+    )
+
+    expect(result.status).toBe(APPLY_RESULT.OK)
+    expect(result.feature).toMatchObject({
+      treeSize: ' Medium ',
+      sizeSquareMetres: 163,
+      condition: 'Good'
+    })
+  })
+
   test('turns away a size class sent with an area habitat edit', () => {
     const project = templateProject()
 

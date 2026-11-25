@@ -55,8 +55,8 @@ function storedTreeSize(tree, documentKey) {
 
 /**
  * Whether an edit changes a tree's size class. Sizes are read as the Metric
- * reads them, whatever their case, so a stored "Very Large" sent back as
- * "Very large" is no change.
+ * reads them (getIndividualTreeAreaHectares), trimmed and whatever their
+ * case, so a stored " Very Large" sent back as "Very large" is no change.
  *
  * @param {object} tree the tree as stored
  * @param {{ treeSize?: string }} edits
@@ -66,10 +66,15 @@ function storedTreeSize(tree, documentKey) {
 export function changesTreeSize(tree, edits, documentKey) {
   return (
     typeof edits.treeSize === 'string' &&
-    edits.treeSize.toLowerCase() !==
-      String(storedTreeSize(tree, documentKey) ?? '').toLowerCase()
+    sizeAsRead(edits.treeSize) !== sizeAsRead(storedTreeSize(tree, documentKey))
   )
 }
+
+/** A size class as the Metric reads it: trimmed, whatever its case. */
+const sizeAsRead = (size) =>
+  String(size ?? '')
+    .trim()
+    .toLowerCase()
 
 /**
  * Whether an edit may make the size change it asks for: none asked, or one to

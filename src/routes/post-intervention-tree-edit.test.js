@@ -271,6 +271,18 @@ describe('validatePostInterventionTreeEdit', () => {
     ).not.toThrow()
   })
 
+  test('passes an Enhanced tree sent back a size class stored with spaces around it', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(
+        {
+          ...enhancedTree,
+          proposed: { ...enhancedTree.proposed, treeSize: ' Small ' }
+        },
+        { ...enhancedEdits, treeSize: 'Small' }
+      )
+    ).not.toThrow()
+  })
+
   test('refuses an Enhanced tree moved to another size class as FEATURE_NOT_EDITABLE', () => {
     expect(() =>
       validatePostInterventionTreeEdit(enhancedTree, {
