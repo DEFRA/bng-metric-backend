@@ -39,7 +39,11 @@ import { postInterventionFeatureOrangeFlags } from '../enrichment/post-intervent
 import { refreshFiguresDownstreamOfEdit } from './refresh-edit-figures.js'
 import { findFeature } from './find-feature.js'
 import { renameClashes } from './ref-in-use.js'
-import { withEditedTreeSizes } from './tree-edit.js'
+import {
+  allowsTreeSizeEdit,
+  withEditedTreeSize,
+  withEditedTreeSizes
+} from './tree-edit.js'
 import { recomputeForType } from './recompute-feature-edit.js'
 
 /**
@@ -211,7 +215,13 @@ function resolveUpdatedFeature(
     derived.updatedFeature
   const updated = recomputedWholeFeature
     ? withOwnComment(found, derived.updatedFeature, edits)
-    : mergeFeature(found.type, found.feature, edits, derived, documentKey)
+    : mergeFeature(
+        found.type,
+        withEditedTreeSize(found.feature, edits, documentKey),
+        edits,
+        derived,
+        documentKey
+      )
   preserveCreatedParent(found.feature, updated, {
     documentKey,
     layer: found.key,
@@ -349,6 +359,17 @@ function resolveEditTarget(
       rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
     }
   }
+  const serviceTemplate = isTemplateUpload(featureSet)
+  if (
+    !allowsTreeSizeEdit(found, normalizedEdits, {
+      documentKey,
+      serviceTemplate
+    })
+  ) {
+    return {
+      rejection: { status: APPLY_RESULT.UNSUPPORTED_TYPE, type: found.type }
+    }
+  }
   if (renamesOntoRefInUse(featureSet, found, normalizedEdits, documentKey)) {
     return {
       rejection: {
@@ -362,7 +383,7 @@ function resolveEditTarget(
     documentKey,
     logger,
     baseline,
-    serviceTemplate: isTemplateUpload(featureSet)
+    serviceTemplate
   })
   if (!derived) {
     return {
@@ -455,7 +476,10 @@ function withUpdatedFeature(
  * @param {object} project — full row.project JSONB
  * @param {object} params
  * @param {string} params.featureId
- * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment? }
+ * @param {object} params.edits  { ref?, broadType?, habitatType?, condition?, comment?, treeSize? }
+ *   `treeSize` moves a BNG Service template tree to another size class: a
+ *   baseline tree, whose Retained or Enhanced tree takes it on the re-derive,
+ *   or a Created tree. Any other feature asking for one is unsupportedType.
  *   `ref` renames a baseline feature (BMD-1061), or a Created area when
  *   the complete timing/strategic edit payload is supplied (BMD-1048). The re-derive then carries the new ref onto the
  *   post-intervention rows measured against the feature, so the two documents

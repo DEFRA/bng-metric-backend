@@ -484,8 +484,10 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *       stored, and its target condition must be better than its baseline
  *       condition (the options /reference/tree-enhancement gives). A blank condition
  *       saves the tree Incomplete with zero units. The tree's size is its size
- *       class times its Count and is not edited; a change between Urban tree and Rural tree moves it
- *       between the urban and rural tree sizes. Omitted timing fields retain
+ *       class times its Count. A BNG Service template upload's Created tree
+ *       can be given another size class (`treeSize`), and is priced at its
+ *       area; an Enhanced tree keeps its baseline tree's. A change of size
+ *       class, or between Urban tree and Rural tree, moves the tree sizes. Omitted timing fields retain
  *       the stored values; explicit null clears them. New timing selections
  *       must be integer years 0 to 30 or 30+.
  *     parameters:
@@ -506,12 +508,13 @@ export const updatePostInterventionHedgerow = createUpdateFeatureRoute({
  *               strategicSignificance: { type: string, nullable: true, description: 'An option returned by /reference/tree-creation, or null for an incomplete edit.' }
  *               advanceYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
  *               delayYears: { nullable: true, oneOf: [{ type: integer, minimum: 0, maximum: 30 }, { type: string, enum: ['30+'] }] }
+ *               treeSize: { type: string, enum: [Small, Medium, Large, Very large], description: 'A Created tree''s planted size class. Omit to keep the stored one.' }
  *               comment: { type: string, nullable: true, description: 'Supporting information of a Created or Enhanced tree (BMD-1153, BMD-1190). Omit to keep the stored comment. Blank or whitespace-only is stored as null, and line breaks as LF. Invalid UTF-8, or more than 999 characters after trimming, is a 400.' }
  *     responses:
  *       200:
  *         description: Updated tree, with recalculated units, status and project totals
  *       400:
- *         description: Invalid reference, choices or timing (code FEATURE_NOT_EDITABLE for a non-tree habitat, a Retained tree, or an Enhanced tree given another setting)
+ *         description: Invalid reference, choices or timing (code FEATURE_NOT_EDITABLE for a non-tree habitat, a Retained tree, an Enhanced tree given another setting or size class, or a legacy upload's tree given another size class)
  *       401:
  *         description: Authentication required
  *       404:

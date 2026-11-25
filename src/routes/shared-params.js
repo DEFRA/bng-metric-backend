@@ -14,6 +14,7 @@ import {
   commentLength
 } from '../validation/geopackage/comment-check.js'
 import { hasInvalidUtf8Text } from '../validation/geopackage/offenders.js'
+import { TREE_SIZES } from '../validation/geopackage/tree-sizes.js'
 
 /**
  * A comment typed into the baseline habitat details page (BMD-1112). Blank
@@ -106,6 +107,12 @@ export const featureEditPayload = Joi.object({
   condition: dropDownChoice(),
   watercourseEncroachment: dropDownChoice(),
   riparianEncroachment: dropDownChoice(),
+  // An individual tree's size class. Optional: a save that leaves it out keeps
+  // the stored size. It cannot be cleared, as a tree's area comes from it.
+  treeSize: Joi.string()
+    .trim()
+    .valid(...TREE_SIZES)
+    .optional(),
   // Free-text supporting information (BMD-1112). Optional: a save that leaves
   // it out keeps the stored comment. The page validates first; this only
   // catches a direct API call.

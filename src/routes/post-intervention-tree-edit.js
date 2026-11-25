@@ -11,21 +11,24 @@ import {
 } from '../utilities/enrichment/post-intervention/retention-category.js'
 import { INDIVIDUAL_TREES_BROAD_HABITAT } from '../validation/geopackage/tree-constants.js'
 import { featureNotEditableError } from './feature-not-editable-error.js'
+import { postInterventionAreaEditPayload } from './post-intervention-area-edit.js'
 
 // A Created or Enhanced individual tree is edited as a Created area habitat
 // is, with the same payload, but it stays a tree: its broad habitat is always
 // Individual trees, and its habitat type is Urban tree or Rural tree. Its size
-// is its size class's area, which the page shows and does not edit.
+// is its size class's area: a Created tree's planted size class can be
+// edited (`treeSize`), and the tree is priced at that size class's area.
 //
 // An Enhanced tree enhances its condition only: its size, type and setting
-// are its baseline tree's (tree-lineage.js), so its habitat type stays the one
-// stored. Whether its target condition is better than its baseline one is
+// are its baseline tree's (tree-lineage.js), so its habitat type and size
+// class stay the ones stored. Whether its target condition is better than its baseline one is
 // checked where every edit is priced (apply-feature-update.js,
 // brokenEnhancementRule), which refuses a worse one as ENHANCEMENT_NOT_VALID.
 // An Existing tree Created over its baseline tree is held there to the guide's
 // steps for a tree whose condition gets worse (brokenDegradeRule), and
 // refused as TREE_DEGRADE_NOT_VALID.
-export { postInterventionAreaEditPayload as postInterventionTreeEditPayload } from './post-intervention-area-edit.js'
+export const postInterventionTreeEditPayload =
+  postInterventionAreaEditPayload.with('treeSize', 'ref')
 
 const EDITABLE_RETENTION = new Set([RETENTION_CREATED, RETENTION_ENHANCED])
 
@@ -56,6 +59,11 @@ export function validatePostInterventionTreeEdit(feature, edits) {
       'An Enhanced tree keeps its baseline tree’s Urban or Rural setting'
     )
   }
+  if (retention === RETENTION_ENHANCED && changesSize(feature, resolved)) {
+    throw featureNotEditableError(
+      'An Enhanced tree keeps its baseline tree’s size'
+    )
+  }
   return resolved
 }
 
@@ -66,6 +74,16 @@ export function validatePostInterventionTreeEdit(feature, edits) {
 // their file gave.
 function enhancedTreeSetting(feature) {
   return feature.proposed?.type ?? feature.baseline?.type ?? null
+}
+
+// Whether an edit sends a size class other than the tree's stored one,
+// whatever its case.
+function changesSize(feature, edits) {
+  return (
+    edits.treeSize !== undefined &&
+    edits.treeSize.toLowerCase() !==
+      String(feature.proposed?.treeSize ?? '').toLowerCase()
+  )
 }
 
 // A change to a non-tree habitat, or a blank habitat type, is refused with

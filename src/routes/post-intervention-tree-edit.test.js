@@ -4,7 +4,10 @@ import {
   getTreeCreationReference,
   getTreeEnhancementReference
 } from '../validation/reference/area-creation.js'
-import { validatePostInterventionTreeEdit } from './post-intervention-tree-edit.js'
+import {
+  postInterventionTreeEditPayload,
+  validatePostInterventionTreeEdit
+} from './post-intervention-tree-edit.js'
 import { updatePostInterventionTree } from './habitats.js'
 import { getTreeCreation, getTreeEnhancement } from './reference.js'
 import { setProjectFeature } from '../db/persist-project.js'
@@ -251,6 +254,60 @@ describe('validatePostInterventionTreeEdit', () => {
     }
     expect(thrown?.message).toMatch(/keeps its baseline tree/)
     expect(thrown?.output.payload.code).toBe(ERROR_CODES.FEATURE_NOT_EDITABLE)
+  })
+
+  test('passes a Created tree edit that changes its planted size class', () => {
+    expect(
+      validatePostInterventionTreeEdit(tree, { ...edits, treeSize: 'Large' })
+    ).toMatchObject({ treeSize: 'Large' })
+  })
+
+  test('passes an Enhanced tree edit that sends back its size class', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(enhancedTree, {
+        ...enhancedEdits,
+        treeSize: 'small'
+      })
+    ).not.toThrow()
+  })
+
+  test('refuses an Enhanced tree moved to another size class as FEATURE_NOT_EDITABLE', () => {
+    expect(() =>
+      validatePostInterventionTreeEdit(enhancedTree, {
+        ...enhancedEdits,
+        treeSize: 'Large'
+      })
+    ).toThrow(
+      expect.objectContaining({
+        message: 'An Enhanced tree keeps its baseline tree’s size',
+        output: expect.objectContaining({
+          payload: expect.objectContaining({
+            code: ERROR_CODES.FEATURE_NOT_EDITABLE
+          })
+        })
+      })
+    )
+  })
+
+  test.each([
+    ['a size class the Metric does not have', { ...edits, treeSize: 'Huge' }],
+    ['a blank size class', { ...edits, treeSize: '' }],
+    [
+      'a size class without the complete payload',
+      { treeSize: 'Large', habitatType: 'Urban tree' }
+    ]
+  ])('refuses %s in the payload', (_label, payload) => {
+    expect(
+      postInterventionTreeEditPayload.validate(payload).error
+    ).toBeDefined()
+  })
+
+  test('takes each of the Metric’s size classes in the payload', () => {
+    for (const treeSize of ['Small', 'Medium', 'Large', 'Very large']) {
+      expect(
+        postInterventionTreeEditPayload.validate({ ...edits, treeSize }).error
+      ).toBeUndefined()
+    }
   })
 
   test('refuses a Retained tree as FEATURE_NOT_EDITABLE', () => {
