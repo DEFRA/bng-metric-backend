@@ -3400,6 +3400,58 @@ describe('applyFeatureUpdate — a tree’s size class (BMD-1172)', () => {
     ).toBe(1407)
   })
 
+  test('gives the baseline tree’s Enhanced tree its new size class, priced as the same enhancement at that area', () => {
+    const project = templateProject()
+    const kept = project.postIntervention.trees[0]
+    kept.retentionCategory = 'Enhanced'
+    Object.assign(kept.proposed, {
+      condition: 'Good',
+      advanceYears: 0,
+      delayYears: 0
+    })
+    // Re-derived from its baseline tree before the edit, so its units are the
+    // enhancement's at 163 m².
+    const before = applyFeatureUpdate(project, {
+      featureId: PARENT_ID,
+      edits: {
+        broadType: 'Individual trees',
+        habitatType: 'Urban tree',
+        condition: 'Moderate'
+      }
+    }).postIntervention.trees.find((tree) => tree.featureId === KEPT_ID)
+
+    const result = editBaselineTree({ treeSize: 'Large' }, project)
+
+    const enhanced = result.postIntervention.trees.find(
+      (tree) => tree.featureId === KEPT_ID
+    )
+    expect(enhanced).toMatchObject({
+      retentionCategory: 'Enhanced',
+      sizeSquareMetres: 366,
+      status: 'Complete',
+      baseline: {
+        treeSize: 'Large',
+        sizeSquareMetres: 366,
+        condition: 'Moderate'
+      },
+      proposed: {
+        treeSize: 'Large',
+        sizeSquareMetres: 366,
+        condition: 'Good'
+      }
+    })
+    expect(before.units).toBeGreaterThan(0)
+    expect(enhanced.units).toBeCloseTo((before.units * 366) / 163, 10)
+    expect(result.postIntervention.habitatSizes.trees).toEqual({
+      totalSquareMetres: 407,
+      urbanSquareMetres: 407,
+      ruralSquareMetres: 0
+    })
+    expect(
+      result.postIntervention.habitatSizes.areaHabitats.totalSquareMetres
+    ).toBe(1407)
+  })
+
   test.each([
     ['its own size class', 'Medium'],
     ['its own size class in another case', 'medium']
