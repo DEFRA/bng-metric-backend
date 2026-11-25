@@ -146,6 +146,37 @@ describe('buildMetricWorkbook', () => {
     WRITE_TIMEOUT_MS
   )
 
+  test(
+    'still downloads a project with an Enhanced feature that has no size yet',
+    async () => {
+      // A legacy feature is enhanced by its baseline size, so it is that
+      // which is missing.
+      const incomplete = {
+        ...project,
+        baseline: {
+          habitats: [
+            { ...project.baseline.habitats[0], sizeSquareMetres: null }
+          ]
+        },
+        postIntervention: {
+          habitats: [
+            {
+              ref: 'H-TEST-1',
+              retentionCategory: 'Enhanced',
+              sizeSquareMetres: null,
+              proposed: { condition: 'Good' }
+            }
+          ]
+        }
+      }
+
+      await expect(
+        buildMetricWorkbook(incomplete, { format: 'xlsx' })
+      ).resolves.toBeInstanceOf(Buffer)
+    },
+    WRITE_TIMEOUT_MS
+  )
+
   test('refuses a format it has no template for', async () => {
     await expect(
       buildMetricWorkbook(project, { format: 'xls' })

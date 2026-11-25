@@ -391,4 +391,58 @@ describe('metricRowsFromProject — an incomplete feature', () => {
       }
     ])
   })
+
+  // bng-library's writer pairs enhancement rows with the baseline rows whose
+  // `enhanced` is above 0, and refuses a workbook whose counts differ.
+  const enhancedCount = (baselineRows) =>
+    baselineRows.filter((row) => row.enhanced > 0).length
+
+  test.each([
+    ['with no size', null],
+    ['of no size', 0]
+  ])(
+    'gives a legacy Enhanced habitat %s no enhancement row, so the rows still pair',
+    (_label, sizeSquareMetres) => {
+      const rows = metricRowsFromProject({
+        baseline: { habitats: [area({ ref: 'H1', sizeSquareMetres })] },
+        postIntervention: {
+          habitats: [post('Enhanced', { ref: 'H1', sizeSquareMetres })]
+        }
+      })
+
+      expect(rows.habitatEnhancement).toEqual([])
+      expect(enhancedCount(rows.habitatBaseline)).toBe(0)
+    }
+  )
+
+  test('gives a template Enhanced hedgerow with no length no enhancement row, so the rows still pair', () => {
+    const rows = metricRowsFromProject({
+      baseline: {
+        hedgerows: [
+          hedgerow({ featureId: 'g1', ref: 'HG1' }),
+          hedgerow({ featureId: 'g2', ref: 'HG2' })
+        ]
+      },
+      postIntervention: {
+        template: TEMPLATE,
+        hedgerows: [
+          post('Enhanced', {
+            ref: 'HG1',
+            parentFeatureId: 'g1',
+            sizeMetres: null
+          }),
+          post('Enhanced', {
+            ref: 'HG2',
+            parentFeatureId: 'g2',
+            sizeMetres: 400
+          })
+        ]
+      }
+    })
+
+    expect(rows.hedgerowEnhancement).toHaveLength(1)
+    expect(rows.hedgerowEnhancement).toHaveLength(
+      enhancedCount(rows.hedgerowBaseline)
+    )
+  })
 })

@@ -236,6 +236,15 @@ function childrenByBaseline(postFeatures, template) {
   return (feature) => byKey.get(baselineKeyOf(feature)) ?? []
 }
 
+/**
+ * Whether a baseline row's enhancement goes on the sheet. The metric pairs
+ * its enhancement rows by position with the baseline rows enhanced by more
+ * than nothing, and bng-library's writer refuses a workbook whose counts
+ * differ, so an Enhanced feature with no size yet (an incomplete one) has no
+ * enhancement row until it has one.
+ */
+const pairedEnhancement = (row) => row.enhancement && row.enhanced > 0
+
 /** One habitat kind's baseline, creation and enhancement rows. */
 function layerRows(layers, project, template) {
   const baselineRows = []
@@ -259,7 +268,7 @@ function layerRows(layers, project, template) {
     baseline: baselineRows.map(({ enhancement: _enhancement, ...row }) => row),
     creation: creationRows,
     enhancement: baselineRows
-      .filter((row) => row.enhancement)
+      .filter(pairedEnhancement)
       .map((row) => row.enhancement)
   }
 }
