@@ -6,9 +6,27 @@ import { projects } from '../db/schema/index.js'
 import { visibleToUser } from '../db/project-visibility.js'
 import {
   METRIC_FORMATS,
-  METRIC_RELEASE,
-  buildMetricWorkbook
+  METRIC_RELEASE
 } from '../services/metric-workbook/build-metric-workbook.js'
+import {
+  MetricWorkbookBusyError,
+  buildMetricWorkbookInWorker
+} from '../services/metric-workbook/build-in-worker.js'
+
+/**
+ * Seconds a refused download is asked to wait. A build takes about a second
+ * and a half, so the builds ahead of it are done by then.
+ */
+const BUSY_RETRY_AFTER_SECONDS = 5
+
+/** Every build slot was taken: a 503 that says when to come back. */
+function busy() {
+  const error = Boom.serverUnavailable(
+    'The metric workbook service is busy. Try again in a few seconds.'
+  )
+  error.output.headers['Retry-After'] = String(BUSY_RETRY_AFTER_SECONDS)
+  return error
+}
 
 /**
  * @openapi
@@ -65,6 +83,14 @@ import {
  *         description: No such project for this user, or it has no baseline
  *       429:
  *         description: Too many downloads in the window
+ *       503:
+ *         description: |
+ *           Every workbook build slot stayed busy for too long. Nothing was
+ *           built; `Retry-After` says when to try again.
+ *         headers:
+ *           Retry-After:
+ *             schema:
+ *               type: integer
  */
 const getProjectMetricWorkbook = {
   method: 'GET',
@@ -102,7 +128,19 @@ const getProjectMetricWorkbook = {
       throw Boom.notFound(`Project ${projectId} has no baseline`)
     }
 
-    const workbook = await buildMetricWorkbook(project, { format })
+    let workbook
+    try {
+      workbook = await buildMetricWorkbookInWorker(project, { format })
+    } catch (error) {
+      if (error instanceof MetricWorkbookBusyError) {
+        request.logger.warn(
+          { projectId, format },
+          'metric workbook refused: every build slot was busy'
+        )
+        throw busy()
+      }
+      throw error
+    }
 
     // The project ID, the format, the time and the size: nothing that
     // identifies the user (BMD-1141).

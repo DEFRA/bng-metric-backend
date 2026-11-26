@@ -263,6 +263,27 @@ See [`docs/geometry-validation.md`](docs/geometry-validation.md).
 For how the service behaves when Postgres, S3 or CDP Uploader fails, and the
 tests that show it, see [`docs/downstream-failures.md`](docs/downstream-failures.md).
 
+## Metric workbook builds
+
+`GET /projects/{projectId}/metric.{format}` fills a copy of the Statutory
+Biodiversity Metric (BMD-1141). Writing one takes about a second of synchronous
+work, so each build runs on a worker thread of its own
+(`src/services/metric-workbook/build-in-worker.js`) and the server keeps
+answering other requests meanwhile. A build takes about 480 MB, whatever the
+project, because the cost is unpacking the template. That is why builds are
+limited by count and run one at a time by default.
+
+| Variable                              | Default | Meaning                                                              |
+| ------------------------------------- | ------: | -------------------------------------------------------------------- |
+| `METRIC_WORKBOOK_CONCURRENCY`         |       1 | Builds at once. Raise it only with the task memory to carry it.      |
+| `METRIC_WORKBOOK_QUEUE_WAIT_LIMIT_MS` |    4000 | Longest wait for a build slot before a 503 with `Retry-After`.       |
+| `METRIC_WORKBOOK_TIMEOUT_MS`          |    5000 | Per-build budget, start-up included; the worker is terminated after. |
+| `METRIC_WORKBOOK_MAX_HEAP_MB`         |    1024 | Heap cap for one build's worker; over it, that download fails.       |
+
+The wait limit and the timeout together stay below the frontend's
+`BACKEND_TIMEOUT_MS` (10 s), so a busy backend answers before the frontend gives
+up.
+
 ## Rate limits
 
 CDP's Nginx allows 1000 requests a second. The routes that cost the most to
