@@ -337,6 +337,32 @@ const config = convict({
       env: 'UPLOAD_MAX_FILE_SIZE_BYTES'
     }
   },
+  metricWorkbook: {
+    concurrency: {
+      doc: 'Metric workbooks (BMD-1141) built at once, each on its own worker thread. Memory, not CPU, is the limit: one build takes about 480 MB whatever the project, because the cost is unpacking the metric template, not writing its rows. Defaults to 1, which is what the service did when builds ran on the main thread. Raise it only with the task memory to carry it.',
+      format: 'nat',
+      default: 1,
+      env: 'METRIC_WORKBOOK_CONCURRENCY'
+    },
+    queueWaitLimitMs: {
+      doc: "Longest a download may wait for a build to finish before it is refused with a 503 and a Retry-After. A build takes about a second and a half, so this lets a short burst queue. With METRIC_WORKBOOK_TIMEOUT_MS it must stay below the frontend's BACKEND_TIMEOUT_MS (10s), so a busy backend answers before the frontend stops waiting.",
+      format: 'nat',
+      default: 4000,
+      env: 'METRIC_WORKBOOK_QUEUE_WAIT_LIMIT_MS'
+    },
+    timeoutMs: {
+      doc: 'Budget for one build, from starting its worker to the bytes coming back. On overrun the worker is terminated and the download fails. Generous: a build takes about 1.3 s, start-up included.',
+      format: 'nat',
+      default: 5000,
+      env: 'METRIC_WORKBOOK_TIMEOUT_MS'
+    },
+    maxHeapMb: {
+      doc: "Old-generation heap a build's worker may use before it is stopped. A build measured about 390 MB of heap. Exceeding this ends that worker and fails that one download, rather than the whole process running out of memory.",
+      format: 'nat',
+      default: 1024,
+      env: 'METRIC_WORKBOOK_MAX_HEAP_MB'
+    }
+  },
   rateLimit: {
     enabled: {
       doc: 'Turns the rate limits on the costly routes on or off (plugins/rate-limit.js). On by default. Turned off where one user sends more than the limits on purpose: the capacity profiles of the performance tests and the journey test stack. Set per environment in cdp-app-config.',

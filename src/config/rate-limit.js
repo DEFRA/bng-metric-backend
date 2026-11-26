@@ -88,6 +88,12 @@ const rateLimitSettings = {
     userLimit: 5,
     allUsersLimit: 20
   }),
+  metricWorkbook: rateLimitFamily({
+    what: 'the metric workbook download route',
+    envPrefix: 'RATE_LIMIT_METRIC_WORKBOOK',
+    userLimit: 10,
+    allUsersLimit: 40
+  }),
   osTiles: rateLimitFamily({
     what: 'each /os-tiles route',
     envPrefix: 'RATE_LIMIT_OS_TILES',

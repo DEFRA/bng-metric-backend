@@ -36,7 +36,12 @@ export default defineConfig({
         'src/validation/geopackage/geos/worker.js',
         // Test-only worker entry point. Like the production worker above, it
         // runs outside the process collecting V8 coverage.
-        'src/validation/geopackage/geos/worker-pool.timeout-test-worker.js'
+        'src/validation/geopackage/geos/worker-pool.timeout-test-worker.js',
+        // The metric workbook's worker entry point and its test stand-in, for
+        // the same reason. Covered by metric-workbook/build-in-worker.test.js,
+        // which drives both through real workers.
+        'src/services/metric-workbook/workbook-worker.js',
+        'src/services/metric-workbook/build-in-worker.test-worker.js'
       ]
     },
     setupFiles: ['.vite/setup-files.js']

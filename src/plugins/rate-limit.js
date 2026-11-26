@@ -64,6 +64,7 @@ export const RATE_LIMITED = Object.freeze({
   uploadInitiate: 'uploadInitiate',
   validate: 'validate',
   report: 'report',
+  metricWorkbook: 'metricWorkbook',
   osTiles: 'osTiles'
 })
 
