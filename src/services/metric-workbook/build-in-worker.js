@@ -61,6 +61,105 @@ function workerError({ message, stack }) {
 }
 
 /**
+ * Build slots: at most `concurrency` held at once, and a wait for one that
+ * gives up after `queueWaitLimitMs`.
+ */
+function createSlots(concurrency, queueWaitLimitMs) {
+  let running = 0
+  /** Builds waiting for a slot, oldest first. */
+  const waiting = []
+
+  return {
+    /** Take a slot, waiting for one if all are taken. */
+    acquire() {
+      if (running < concurrency) {
+        running += 1
+        return Promise.resolve()
+      }
+      return new Promise((resolve, reject) => {
+        const entry = { resolve }
+        // Refused when the limit passes, not when a slot comes free, so a
+        // refused download is answered at once rather than after the builds
+        // ahead of it.
+        entry.timer = setTimeout(() => {
+          waiting.splice(waiting.indexOf(entry), 1)
+          reject(new MetricWorkbookBusyError(queueWaitLimitMs))
+        }, queueWaitLimitMs)
+        waiting.push(entry)
+      })
+    },
+
+    /** Hand the slot to the oldest waiting build, or give it back. */
+    release() {
+      const next = waiting.shift()
+      if (next) {
+        clearTimeout(next.timer)
+        next.resolve()
+        return
+      }
+      running -= 1
+    },
+
+    stats() {
+      return { running, waiting: waiting.length }
+    }
+  }
+}
+
+/**
+ * Run one build on a worker of its own, and end the worker whatever happens.
+ *
+ * @param {object} message what the worker builds from
+ * @param {{ workerPath: string|URL, timeoutMs: number, maxHeapMb: number }} limits
+ * @returns {Promise<Buffer>}
+ */
+function runInWorker(message, { workerPath, timeoutMs, maxHeapMb }) {
+  return new Promise((resolve, reject) => {
+    const worker = new Worker(workerPath, {
+      resourceLimits: { maxOldGenerationSizeMb: maxHeapMb }
+    })
+    let settled = false
+    // The first outcome wins. Terminating the worker raises its `exit`,
+    // which then finds the build already settled.
+    const settle = (outcome, value) => {
+      if (settled) {
+        return
+      }
+      settled = true
+      clearTimeout(timer)
+      worker.terminate().catch(() => {
+        // A worker that cannot be terminated has already exited.
+      })
+      outcome(value)
+    }
+    const timer = setTimeout(
+      () => settle(reject, new MetricWorkbookTimeoutError(timeoutMs)),
+      timeoutMs
+    )
+
+    worker.once('message', (reply) => {
+      if (reply.error) {
+        settle(reject, workerError(reply.error))
+        return
+      }
+      const { bytes } = reply
+      settle(
+        resolve,
+        Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
+      )
+    })
+    worker.once('error', (error) => settle(reject, error))
+    worker.once('exit', (code) =>
+      settle(
+        reject,
+        new Error(`Metric workbook worker exited with code ${code}`)
+      )
+    )
+    worker.postMessage(message)
+  })
+}
+
+/**
  * @typedef {object} BuilderOptions
  * @property {number} concurrency builds at once
  * @property {number} queueWaitLimitMs longest a build may wait for a slot
@@ -80,85 +179,8 @@ export function createWorkbookBuilder({
   maxHeapMb,
   workerPath = WORKER_PATH
 }) {
-  let running = 0
-  /** Builds waiting for a slot, oldest first. */
-  const waiting = []
-
-  /** Take a build slot, waiting for one if all are taken. */
-  function acquire() {
-    if (running < concurrency) {
-      running += 1
-      return Promise.resolve()
-    }
-    return new Promise((resolve, reject) => {
-      const entry = { resolve }
-      // Refused when the limit passes, not when a slot comes free, so a
-      // refused download is answered at once rather than after the builds
-      // ahead of it.
-      entry.timer = setTimeout(() => {
-        waiting.splice(waiting.indexOf(entry), 1)
-        reject(new MetricWorkbookBusyError(queueWaitLimitMs))
-      }, queueWaitLimitMs)
-      waiting.push(entry)
-    })
-  }
-
-  /** Hand the slot to the oldest waiting build, or give it back. */
-  function release() {
-    const next = waiting.shift()
-    if (next) {
-      clearTimeout(next.timer)
-      next.resolve()
-      return
-    }
-    running -= 1
-  }
-
-  function runInWorker(message) {
-    return new Promise((resolve, reject) => {
-      const worker = new Worker(workerPath, {
-        resourceLimits: { maxOldGenerationSizeMb: maxHeapMb }
-      })
-      let settled = false
-      // The first outcome wins. Terminating the worker raises its `exit`,
-      // which then finds the build already settled.
-      const settle = (outcome, value) => {
-        if (settled) {
-          return
-        }
-        settled = true
-        clearTimeout(timer)
-        worker.terminate().catch(() => {
-          // A worker that cannot be terminated has already exited.
-        })
-        outcome(value)
-      }
-      const timer = setTimeout(
-        () => settle(reject, new MetricWorkbookTimeoutError(timeoutMs)),
-        timeoutMs
-      )
-
-      worker.once('message', (reply) => {
-        if (reply.error) {
-          settle(reject, workerError(reply.error))
-          return
-        }
-        const { bytes } = reply
-        settle(
-          resolve,
-          Buffer.from(bytes.buffer, bytes.byteOffset, bytes.byteLength)
-        )
-      })
-      worker.once('error', (error) => settle(reject, error))
-      worker.once('exit', (code) =>
-        settle(
-          reject,
-          new Error(`Metric workbook worker exited with code ${code}`)
-        )
-      )
-      worker.postMessage(message)
-    })
-  }
+  const slots = createSlots(concurrency, queueWaitLimitMs)
+  const limits = { workerPath, timeoutMs, maxHeapMb }
 
   return {
     /**
@@ -171,18 +193,16 @@ export function createWorkbookBuilder({
      * @returns {Promise<Buffer>} the workbook's bytes
      */
     async build(project, { format, now = new Date() }) {
-      await acquire()
+      await slots.acquire()
       try {
-        return await runInWorker({ project, format, now })
+        return await runInWorker({ project, format, now }, limits)
       } finally {
-        release()
+        slots.release()
       }
     },
 
     /** Builds running and waiting, for tests and logs. */
-    stats() {
-      return { running, waiting: waiting.length }
-    }
+    stats: slots.stats
   }
 }
 

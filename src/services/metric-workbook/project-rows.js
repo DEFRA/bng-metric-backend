@@ -5,6 +5,7 @@ import {
   RETENTION_CREATED,
   RETENTION_ENHANCED,
   RETENTION_RETAINED,
+  isLegacyLostLinear,
   resolveRetentionCategory
 } from '../../utilities/enrichment/post-intervention/retention-category.js'
 import { isTemplateUpload } from '../../utilities/enrichment/post-intervention/lineage-outcomes.js'
@@ -25,7 +26,9 @@ import { isTemplateUpload } from '../../utilities/enrichment/post-intervention/l
  *   parts' sizes, as bng-library's own BNG Service reader places them.
  * - What nothing carries forward is lost.
  * - Every Created feature is a creation row, a legacy area habitat's Lost
- *   included, as the service stores it Created.
+ *   included, as the service stores it Created. A legacy hedgerow or
+ *   watercourse marked Lost is not: it reads as Created, but the service
+ *   counts it as lost, with no units, and so does the workbook.
  *
  * The service prices every baseline habitat, and every retained one, at Low
  * strategic significance (Defra's guidance, BMD-315), so baseline rows carry
@@ -122,10 +125,15 @@ const AREA_LAYERS = Object.freeze({
   verticalHabitats: areaColumns(),
   trees: areaColumns({ tree: true })
 })
-const HEDGEROWS = { ...linearColumns(), templateByParts: true }
+const HEDGEROWS = {
+  ...linearColumns(),
+  templateByParts: true,
+  legacyLostIsLost: true
+}
 const WATERCOURSES = {
   ...linearColumns({ encroachment: true }),
-  templateEnhancedAsDrawn: true
+  templateEnhancedAsDrawn: true,
+  legacyLostIsLost: true
 }
 
 function baselineRow(layer, feature) {
@@ -245,6 +253,19 @@ function childrenByBaseline(postFeatures, template) {
  */
 const pairedEnhancement = (row) => row.enhancement && row.enhanced > 0
 
+/**
+ * Whether a post-intervention feature is a creation row. A legacy linear
+ * feature marked Lost has no category of its own and reads as Created from
+ * its baseline's, but the service's enrichment and trading rules treat it as
+ * lost (`isLegacyLostLinear`), so it is not one.
+ */
+function isCreation(layer, feature) {
+  if (layer.legacyLostIsLost && isLegacyLostLinear(feature)) {
+    return false
+  }
+  return resolveRetentionCategory(feature) === RETENTION_CREATED
+}
+
 /** One habitat kind's baseline, creation and enhancement rows. */
 function layerRows(layers, project, template) {
   const baselineRows = []
@@ -258,11 +279,11 @@ function layerRows(layers, project, template) {
         placeBaseline(layer, feature, childrenOf(feature), template)
       )
     }
-    for (const feature of postFeatures) {
-      if (resolveRetentionCategory(feature) === RETENTION_CREATED) {
-        creationRows.push(proposedRow(layer, feature))
-      }
-    }
+    creationRows.push(
+      ...postFeatures
+        .filter((feature) => isCreation(layer, feature))
+        .map((feature) => proposedRow(layer, feature))
+    )
   }
   return {
     baseline: baselineRows.map(({ enhancement: _enhancement, ...row }) => row),

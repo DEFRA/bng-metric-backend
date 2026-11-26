@@ -197,6 +197,47 @@ describe('metricRowsFromProject — a legacy upload, linked by ref', () => {
   })
 })
 
+describe('metricRowsFromProject — a legacy hedgerow or watercourse marked Lost', () => {
+  // As a legacy file stores it: no category of its own, and Lost on its
+  // baseline, which reads as Created. The service counts it as lost.
+  const lost = (overrides) => ({
+    ...overrides,
+    baseline: { retentionCategory: 'Lost' },
+    proposed: { type: 'Native hedgerow', condition: 'Good' }
+  })
+  const rows = metricRowsFromProject({
+    baseline: {
+      hedgerows: [hedgerow({ ref: 'HG1' })],
+      watercourses: [watercourse({ ref: 'R1' })]
+    },
+    postIntervention: {
+      hedgerows: [
+        lost({ ref: 'HG1', sizeMetres: 400 }),
+        post(
+          'Created',
+          { ref: 'HG2', sizeMetres: 100 },
+          { type: 'Native hedgerow', condition: 'Good' }
+        )
+      ],
+      watercourses: [lost({ ref: 'R1', sizeMetres: 300 })]
+    }
+  })
+
+  test('writes no creation row for it, and keeps a truly Created one', () => {
+    expect(rows.hedgerowCreation.map((row) => row.reference)).toEqual(['HG2'])
+    expect(rows.watercourseCreation).toEqual([])
+  })
+
+  test('leaves its baseline row lost: neither retained nor enhanced', () => {
+    for (const row of [...rows.hedgerowBaseline, ...rows.watercourseBaseline]) {
+      expect(row).not.toHaveProperty('retained')
+      expect(row).not.toHaveProperty('enhanced')
+    }
+    expect(rows.hedgerowEnhancement).toEqual([])
+    expect(rows.watercourseEnhancement).toEqual([])
+  })
+})
+
 describe('metricRowsFromProject — a BNG Service template upload, linked by parent', () => {
   const rows = metricRowsFromProject({
     baseline: {
